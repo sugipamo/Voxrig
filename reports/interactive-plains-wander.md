@@ -1,0 +1,22 @@
+# Endurance test result
+
+- Status: running
+- Bots: 10
+- Scenario: interactive-plains-wander-500ms-long-jump
+- Server teleports allowed: true
+- Server teleport interval: 180 seconds
+- Pause on rescue warning: true
+- Wander input generator: true
+- Requested duration: 21600 seconds
+- Recorded duration: 100.014 seconds
+- Movement packets: 20386
+- Server position packets: 0
+- Position corrections: 0
+- Total correction distance: 0.000000000
+- Largest correction distance: 0.000000000
+- Disconnects: 0
+- Worst per-Bot physics tick p99: 65µs
+- Maximum physics tick: 6.448577ms
+- Worst per-Bot queue lag p99: 1.901ms
+- Maximum queue lag: 12.04734ms
+- Process RSS: 333068 KiB

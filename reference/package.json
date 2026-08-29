@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "dependencies": {
+    "minecraft-data": "^3.100.0",
+    "mineflayer": "^2.40.1",
+    "prismarine-block": "^1.20.0",
+    "prismarine-physics": "1.11.1",
+    "vec3": "^0.2.0"
+  }
+}

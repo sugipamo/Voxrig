@@ -1,0 +1,21 @@
+# Endurance test result
+
+- Status: running
+- Bots: 10
+- Scenario: diagnostic-server-log-no-rescue
+- Server teleports allowed: true
+- Pause on rescue warning: false
+- Wander input generator: true
+- Requested duration: 21600 seconds
+- Recorded duration: 4152.468 seconds
+- Movement packets: 835612
+- Server position packets: 106
+- Position corrections: 106
+- Total correction distance: 10.348550797
+- Largest correction distance: 0.704112172
+- Disconnects: 0
+- Worst per-Bot physics tick p99: 114µs
+- Maximum physics tick: 28.037685ms
+- Worst per-Bot queue lag p99: 2.11ms
+- Maximum queue lag: 24.944861ms
+- Process RSS: 352256 KiB

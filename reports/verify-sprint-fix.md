@@ -1,0 +1,21 @@
+# Endurance test result
+
+- Status: running
+- Bots: 10
+- Scenario: verify-sprint-fix
+- Server teleports allowed: true
+- Pause on rescue warning: false
+- Wander input generator: true
+- Requested duration: 21600 seconds
+- Recorded duration: 5794.177 seconds
+- Movement packets: 1168592
+- Server position packets: 5
+- Position corrections: 5
+- Total correction distance: 2.438575247
+- Largest correction distance: 0.665816033
+- Disconnects: 0
+- Worst per-Bot physics tick p99: 112µs
+- Maximum physics tick: 6.653947ms
+- Worst per-Bot queue lag p99: 3.922ms
+- Maximum queue lag: 13.782714ms
+- Process RSS: 342572 KiB
