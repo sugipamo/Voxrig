@@ -13,6 +13,8 @@ Minecraft Java 1.21.11 server. The accompanying manifest identifies originals,
 transformations, checksums and failed trials. Native state names/properties use
 the pinned minecraft-data registry described below. These are local diagnostic
 observations and original test tooling, not imported DustRoute source or fixtures.
+The `client-players-*` records likewise come from two local clients on that
+isolated server and include the failed/corrected native attribute-ID trial.
 No Minecraft JAR or decompiled source is redistributed in this repository.
 The inspected version and mapping identification are recorded in
 `docs/client-piston-reconstruction.md`.
@@ -37,7 +39,7 @@ Upstream: <https://github.com/PrismarineJS/minecraft-data>
 
 The Java 1.21.11 version adapter additionally uses `data/java_1_21_11/blocks.json`
 (name, state ranges and complete property definitions), generated packet-ID
-constants in `src/versions/java_1_21_11/ids.rs`, and
+constants (including player registry IDs) in `src/versions/java_1_21_11/ids.rs`, and
 `data/java_1_21_11/items.json` (native item ID, name and default stack size)
 from the same exact package.
 `data/java_1_21_11/source.json` records the release, protocol, transformation and

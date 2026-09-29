@@ -184,6 +184,23 @@ pub struct Operations {
     pub(super) bot: Bot,
 }
 impl Operations {
+    /// Observe other spawned players, without entity physics or render interpolation.
+    pub async fn visible_players(&self) -> Result<super::players::PlayerObservations> {
+        let state = self.bot.session.state.lock().await;
+        self.ready(&state)?;
+        Ok(super::players::PlayerObservations {
+            connection_id: self.bot.session.id,
+            receive_sequence: state.sequence,
+            dimension: state
+                .world
+                .dimension
+                .as_ref()
+                .expect("ready dimension")
+                .0
+                .clone(),
+            players: state.players.observations(),
+        })
+    }
     /// Observe player state and native inventory under the same session lock.
     pub async fn player_state(&self) -> Result<PlayerState> {
         let state = self.bot.session.state.lock().await;

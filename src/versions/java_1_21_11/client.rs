@@ -1,6 +1,7 @@
 //! Ordered 1.21.11 receive loop. Local state is committed under one session lock.
 /// Explicit Java 1.21.11 operation API and received player state.
 pub mod operations;
+pub mod players;
 use super::{
     ids,
     reconstruction::{Action, ClientObservation, Direction, Reconstruction},
@@ -101,6 +102,7 @@ impl TraceCapture {
 
 struct State {
     operations: operations::OperationState,
+    players: players::PlayerTracker,
     phase: Phase,
     world: World,
     reconstruction: Reconstruction,
@@ -116,6 +118,7 @@ impl Default for State {
     fn default() -> Self {
         Self {
             operations: operations::OperationState::default(),
+            players: players::PlayerTracker::default(),
             phase: Phase::Configuration,
             world: World::default(),
             reconstruction: Reconstruction::default(),
@@ -698,6 +701,7 @@ fn spawn_info(state: &mut State, r: &mut Reader<'_>) -> anyhow::Result<()> {
     state.world.select_dimension(name, dimension);
     state.reconstruction = Reconstruction::default();
     state.operations.reset_world(game_mode)?;
+    state.players.reset_world();
     state.ready = false;
     state.position = None;
     Ok(())
@@ -713,6 +717,9 @@ fn apply_play(
     let mut r = Reader::new(payload);
     let mut responses = Vec::new();
     if operations::receive(state, id, payload)? {
+        return Ok(responses);
+    }
+    if state.players.receive(id, payload, state.sequence)? {
         return Ok(responses);
     }
     match id {
@@ -866,6 +873,7 @@ fn apply_play(
             state.world.reset();
             state.reconstruction = Reconstruction::default();
             state.operations.reset_configuration(state.sequence);
+            state.players = players::PlayerTracker::default();
             responses.push((output::CONFIGURATION_ACKNOWLEDGED, vec![]));
             responses.push((ids::configuration_serverbound::SETTINGS, settings()));
         }

@@ -37,6 +37,19 @@ for (const phase of ['login', 'configuration', 'play']) {
 ids += '\npub(crate) const KNOWN_PLAY_CLIENTBOUND: &[i32] = &[\n';
 for (let i = 0; i < known.length; i += 16) ids += '    ' + known.slice(i, i + 16).join(', ') + ',\n';
 ids += '];\n';
+const player = data.entitiesByName.player;
+// The protocol JSON's attribute mapper omits newer entries. The registry array
+// matches EntityAttributes registration order and the retained native trial.
+const scale = data.attributesArray.findIndex(attribute => attribute.resource === 'minecraft:scale');
+assert.equal(scale, 25);
+ids += `\n// Native tracked-player registry fields.\n`;
+ids += `pub(crate) const PLAYER_ENTITY_TYPE: i32 = ${player.id};\n`;
+ids += `pub(crate) const PLAYER_POSE_METADATA: u8 = ${player.metadataKeys.indexOf('pose')};\n`;
+ids += `pub(crate) const SCALE_ATTRIBUTE: i32 = ${scale};\n`;
+const particles = data.protocol.types.Particle[1][0].type[1].mappings;
+const effectParticle = Object.entries(particles).find(([, name]) => name === 'entity_effect');
+assert(effectParticle);
+ids += `pub(crate) const ENTITY_EFFECT_PARTICLE: i32 = ${effectParticle[0]};\n`;
 output('data/java_1_21_11/blocks.json', blocks);
 output('data/java_1_21_11/items.json', items);
 output('src/versions/java_1_21_11/ids.rs', ids);
@@ -47,7 +60,7 @@ output('data/java_1_21_11/source.json', JSON.stringify({
   block_data_sha256: digest(blocks),
   item_data_sha256: digest(items),
   packet_ids_sha256: digest(ids),
-  transformation: 'blocksArray projected to name, minStateId, maxStateId, states; itemsArray to id, name, stackSize; packet ID constants generated from login/configuration/play mappings',
+  transformation: 'blocksArray projected to name, minStateId, maxStateId, states; itemsArray to id, name, stackSize; packet ID constants generated from login/configuration/play mappings; player entity, pose index, scale attribute and effect particle IDs projected from registries',
   generator: '../../scripts/generate_java_1_21_11.cjs',
   license_notice: '../../THIRD_PARTY_NOTICES.md',
 }, null, 2) + '\n');

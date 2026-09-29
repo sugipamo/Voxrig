@@ -45,9 +45,40 @@ retained. Native message decoding did not require an optimistic response.
 
 The owned fixture and force-load were removed, the temporary OP grant revoked,
 and the server saved all dimensions and stopped normally. These controls are
-the core operation increment; remote-player observation, DustRoute operation
-dispatch, complete live workflows and the final default-path migration remain.
+the core operation increment; DustRoute operation dispatch, complete live
+workflows and the final default-path migration remain.
 
 104 unit tests, all examples, 1 doctest, all-target Clippy with warnings denied,
 format, package list and pinned generator checks pass. Logs:
 `.local/voxrig-operations-{all-targets,doc,clippy-final,package}.log`.
+
+## Remote players
+
+`Operations::visible_players` joins received profiles to spawned player entities
+and returns connection/dimension/sequence-bound positions and head rotations.
+Relative movement uses the native `TrackedPosition` rounding, including negative
+half ties and unchanged coordinates. This is packet state, without render
+interpolation, collision or entity physics. Destroy/remove packets and dimension
+changes invalidate world entities; a rejoining UUID gets a new entity identity.
+
+Standing, crouching, swimming, fall-flying and spin-attack eye heights include the
+received scale attribute. Sleeping/other unsupported poses and unknown metadata
+produce no eye position. An ordinary health update cannot silently recover an
+unknown pose. Packet counts, stored profiles/entities and modifiers are bounded;
+malformed supported packets do not partially commit changes.
+
+The pinned protocol JSON's attribute mapper is stale: it calls ID 22 scale, while
+native 1.21.11 uses 22 for movement speed and 25 for scale. The separate attributes
+registry matches native `EntityAttributes` registration and the recorded packets,
+and now supplies the generated constant. Both the failed and corrected two-client
+trials are retained in `evidence/client-players-20260929.manifest.json`. The second
+trial covers movement/rotation, scale, removal and reconnect; final server console
+position, rotation and scale match. Deterministic packet replay checks all five
+reported observation boundaries. These observations do not promise that a
+rendered crosshair or a later server tick will have the same target.
+
+Player increment validation: the 109-test full suite/all examples passed before
+the retained replay was added; all six player tests (including that replay) then
+passed, along with all-target Clippy with warnings denied and generator/format
+checks. Logs are `.local/voxrig-players-all-targets.log`,
+`.local/voxrig-player-replay-tests.log` and `.local/voxrig-players-clippy.log`.

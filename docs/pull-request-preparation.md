@@ -19,8 +19,10 @@ Suggested description:
 > pulling and short-pulse drop retraction. Final 770-cell regions were independently
 > checked against the server; packet/frame replay covers intermediate client
 > states. Existing unit tests, examples, doctest, formatting and Clippy checks are
-> retained. This does not claim general slime/honey, player movement, inventory,
-> online authentication or command-free server confirmation for 1.21.11.
+> retained. Follow-up commits add ordered slime/honey branches, reference-door
+> callbacks/reload, bounded creative construction controls, inventory knowledge
+> and remote-player packet observation. This does not claim entity physics,
+> survival pathfinding, online authentication or command-free server confirmation.
 
 Review order:
 
