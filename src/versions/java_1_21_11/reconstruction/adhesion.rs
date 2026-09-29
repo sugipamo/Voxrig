@@ -80,7 +80,7 @@ impl MovementPlan {
             return Ok(Some(planner.plan));
         }
         if !Reconstruction::movable(&s, k) {
-            if k == Kind::Lever && extending {
+            if rules::destroyed_by_piston(k) && extending {
                 planner.plan.destroyed.push(start);
                 return Ok(Some(planner.plan));
             }
@@ -158,7 +158,7 @@ impl Planner<'_> {
             if p == self.piston {
                 return Ok(false);
             }
-            if k == Kind::Lever {
+            if rules::destroyed_by_piston(k) {
                 if !self.plan.destroyed.contains(&p) {
                     self.plan.destroyed.push(p);
                 }

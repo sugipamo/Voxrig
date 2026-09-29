@@ -2,7 +2,7 @@
 
 The Java 1.21.11 adapter can now apply ordinary and sticky piston block actions,
 retain independent moving body/head/payload state, and update dry stairs and
-supported lever attachments. This is a bounded client implementation. It is not
+supported mounted attachments and redstone wire geometry. This is a bounded client implementation. It is not
 a server simulator or a server-confirmed observation API.
 
 ## API and ownership
@@ -71,11 +71,19 @@ no partial result is published as usable. The received cache remains readable.
 
 Supported movement materials include slime/honey groups, stone, cobblestone, quartz block, smooth quartz,
 glass, redstone block, observer, redstone lamp, dry stone/cobblestone/quartz/smooth
-quartz stairs, and unextended pistons. Air variants, bedrock, obsidian, piston
+quartz stairs, all sixteen wool colors, and unextended pistons. Air variants, bedrock, obsidian, piston
 heads, moving pistons and levers have explicit roles. A lever in a pushed line
 can be destroyed; dry stair shape changes and supported lever attachments have
 client shape rules. Piston-head attachment checks are included. Lever support on
 a piston head is not claimed and returns an unsupported-state issue.
+
+Wire, repeater, comparator and listed button states have explicit destruction
+and support callbacks. Wire geometry distinguishes full supporting faces from
+solid-block conduction, preserves dot/cross behavior, and propagates diagonal
+changes through the old/new wire prepare callbacks. Power, gate delay/locking,
+observer pulses and scheduled redstone remain owned by received server updates.
+Torch center support, trapdoor wire climbing and other unlisted shapes remain
+unsupported; no general shape coverage is implied by the material table.
 
 Not yet implemented: other block callbacks,
 waterlogged movement, fluid/entity effects, non-default client ticking, and full player movement

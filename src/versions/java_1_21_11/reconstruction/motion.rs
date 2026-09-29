@@ -118,7 +118,13 @@ impl Reconstruction {
     }
     pub(super) fn movable(s: &NativeBlockState, kind: Kind) -> bool {
         match kind {
-            Kind::Solid | Kind::Stairs | Kind::Slime | Kind::Honey => true,
+            Kind::Solid
+            | Kind::Stairs
+            | Kind::Slime
+            | Kind::Honey
+            | Kind::Glass
+            | Kind::Observer
+            | Kind::PowerBlock => true,
             Kind::Piston { .. } => s.properties.get("extended").is_some_and(|s| s == "false"),
             _ => false,
         }
@@ -150,7 +156,12 @@ impl Reconstruction {
             .iter()
             .map(|p| Ok((*p, self.read(world, *p)?)))
             .collect::<ApplyResult<Vec<_>>>()?;
-        for p in plan.destroyed.iter().rev() {
+        let destroyed = plan
+            .destroyed
+            .iter()
+            .map(|p| Ok((*p, self.read(world, *p)?)))
+            .collect::<ApplyResult<Vec<_>>>()?;
+        for (p, _) in destroyed.iter().rev() {
             self.put(world, *p, state("air", &[]), seq, false, 0)?;
         }
         let destinations: Vec<_> = moved.iter().map(|(p, _)| movement.offset(*p, 1)).collect();
@@ -209,10 +220,17 @@ impl Reconstruction {
             self.put(world, *p, state("air", &[]), seq, false, 0)?;
         }
         for p in vacated {
+            let before = &moved
+                .iter()
+                .find(|(q, _)| *q == p)
+                .expect("vacated source")
+                .1;
+            self.prepare(world, p, before, seq.into(), 0)?;
             self.neighbors(world, p, seq, 0)?;
         }
-        for p in plan.destroyed.iter().rev() {
-            self.neighbors(world, *p, seq, 0)?;
+        for (p, before) in destroyed.iter().rev() {
+            // World.updateNeighborsAlways is server-only; clients run the old state's prepare.
+            self.prepare(world, *p, before, seq.into(), 0)?;
         }
         Ok(())
     }

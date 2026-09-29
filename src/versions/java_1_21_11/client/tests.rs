@@ -277,6 +277,7 @@ fn retained_client_frames_replay_motion_roles_and_final_region() {
         &include_bytes!("../../../../docs/evidence/client-motion-d-replay-20260929.json.gz")[..],
         &include_bytes!("../../../../docs/evidence/client-slime-branch-replay-20260929.json.gz")[..],
         &include_bytes!("../../../../docs/evidence/client-honey-branch-replay-20260929.json.gz")[..],
+        &include_bytes!("../../../../docs/evidence/client-callback-replay-20260929.json.gz")[..],
     ] {
         let capture: serde_json::Value =
             serde_json::from_reader(flate2::read::GzDecoder::new(bytes)).unwrap();

@@ -26,6 +26,171 @@ fn name(r: &Reconstruction, w: &World, p: Pos) -> String {
     r.cell(w, p).state.unwrap().name
 }
 
+fn wire(power: &str, sides: [&str; 4]) -> NativeBlockState {
+    state(
+        "redstone_wire",
+        &[
+            ("power", power),
+            ("north", sides[0]),
+            ("east", sides[1]),
+            ("south", sides[2]),
+            ("west", sides[3]),
+        ],
+    )
+}
+
+#[test]
+fn moving_support_removes_wire_gates_and_buttons_without_running_server_timers() {
+    let devices = [
+        wire("13", ["side"; 4]),
+        state(
+            "repeater",
+            &[
+                ("facing", "north"),
+                ("delay", "4"),
+                ("locked", "true"),
+                ("powered", "true"),
+            ],
+        ),
+        state(
+            "comparator",
+            &[
+                ("facing", "north"),
+                ("mode", "subtract"),
+                ("powered", "true"),
+            ],
+        ),
+        state(
+            "oak_button",
+            &[("face", "floor"), ("facing", "north"), ("powered", "true")],
+        ),
+    ];
+    for device in devices {
+        let mut w = world();
+        put(&mut w, [0, 80, 0], body(false, Direction::East));
+        put(&mut w, [1, 80, 0], state("cyan_wool", &[]));
+        put(&mut w, [1, 81, 0], device.clone());
+        let mut r = Reconstruction::default();
+        // A supported component keeps every server-owned property.
+        r.update_neighbor(&w, [1, 81, 0], Direction::Down, 1.into(), 0)
+            .unwrap();
+        assert_eq!(r.cell(&w, [1, 81, 0]).state, Some(device));
+        r.action(
+            &w,
+            [0, 80, 0],
+            Action::Extend,
+            Direction::East,
+            "minecraft:piston",
+            2,
+        );
+        assert!(r.issue.is_none(), "{:?}", r.issue);
+        assert_eq!(name(&r, &w, [1, 81, 0]), "minecraft:air");
+        r.advance(&w, 8);
+        assert_eq!(name(&r, &w, [2, 80, 0]), "minecraft:cyan_wool");
+        assert_eq!(name(&r, &w, [1, 81, 0]), "minecraft:air");
+    }
+}
+
+#[test]
+fn wire_layout_preserves_power_and_dot_but_rebuilds_horizontal_connections() {
+    let p = [0, 80, 0];
+    let mut w = world();
+    put(&mut w, [0, 79, 0], state("stone", &[]));
+    let dot = wire("9", ["none"; 4]);
+    put(&mut w, p, dot.clone());
+    let mut r = Reconstruction::default();
+    r.update_neighbor(&w, p, Direction::Up, 1.into(), 0)
+        .unwrap();
+    assert_eq!(r.cell(&w, p).state, Some(dot));
+    put(
+        &mut w,
+        [1, 80, 0],
+        state("observer", &[("facing", "east"), ("powered", "false")]),
+    );
+    r.update_neighbor(&w, p, Direction::East, 2.into(), 0)
+        .unwrap();
+    assert_eq!(
+        r.cell(&w, p).state,
+        Some(wire("9", ["none", "side", "none", "side"]))
+    );
+    // An observer's detecting face and the side of a repeater do not connect.
+    for block in [
+        state("observer", &[("facing", "west"), ("powered", "false")]),
+        state(
+            "repeater",
+            &[
+                ("facing", "north"),
+                ("delay", "4"),
+                ("locked", "false"),
+                ("powered", "false"),
+            ],
+        ),
+    ] {
+        put(&mut w, [1, 80, 0], block);
+        let after = r
+            .wire_update(&w, p, wire("9", ["side"; 4]), Direction::East)
+            .unwrap();
+        assert_eq!(after, wire("9", ["side"; 4]));
+    }
+    put(
+        &mut w,
+        [1, 80, 0],
+        state(
+            "repeater",
+            &[
+                ("facing", "west"),
+                ("delay", "4"),
+                ("locked", "false"),
+                ("powered", "true"),
+            ],
+        ),
+    );
+    assert_eq!(
+        r.wire_update(&w, p, wire("9", ["side"; 4]), Direction::East)
+            .unwrap(),
+        wire("9", ["none", "side", "none", "side"])
+    );
+}
+
+#[test]
+fn wire_slopes_distinguish_support_from_conduction_and_prepare_diagonal_neighbors() {
+    let p = [0, 80, 0];
+    let mut w = world();
+    put(&mut w, [0, 79, 0], state("stone", &[]));
+    put(&mut w, [1, 80, 0], state("glass", &[]));
+    put(
+        &mut w,
+        [1, 81, 0],
+        wire("7", ["none", "side", "none", "side"]),
+    );
+    put(&mut w, p, wire("7", ["none", "up", "none", "side"]));
+    let mut r = Reconstruction::default();
+    assert_eq!(
+        r.wire_update(&w, p, wire("7", ["side"; 4]), Direction::Up)
+            .unwrap(),
+        wire("7", ["none", "up", "none", "side"])
+    );
+    // Glass has a full supporting face, but permits a downward connection.
+    let upper = [1, 81, 0];
+    put(&mut w, [0, 81, 0], state("glass", &[]));
+    assert_eq!(
+        r.wire_update(&w, upper, wire("7", ["side"; 4]), Direction::West)
+            .unwrap(),
+        wire("7", ["none", "side", "none", "side"])
+    );
+    put(&mut w, [0, 81, 0], state("stone", &[]));
+    assert_eq!(
+        r.wire_update(&w, upper, wire("7", ["side"; 4]), Direction::West)
+            .unwrap(),
+        wire("7", ["side"; 4])
+    );
+    put(&mut w, [0, 81, 0], state("air", &[]));
+    // Removing the lower wire runs its old prepare callback even though the
+    // upper wire is diagonal and ordinary six-neighbor updates cannot reach it.
+    r.put(&w, p, state("air", &[]), 3, true, 0).unwrap();
+    assert_eq!(r.cell(&w, upper).state, Some(wire("7", ["side"; 4])));
+}
+
 #[test]
 fn normal_and_sticky_carriers_complete_in_all_six_directions() {
     let p = [0, 80, 0];

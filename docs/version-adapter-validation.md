@@ -167,3 +167,17 @@ unitと静的検査の成功は、上記の階段同期や未確認のライブ�
 移動中にjoinした場合のcarrier復元、標準以外のtick制御は未対応。
 縦を含む6方向はunitで確認し、今回の実機3ケースは水平のみ。
 DustRouteの接続先と確認契約は従来のまま。1.16.1の2 Bot移動試行の不合格も未解決。
+
+## Rollout increments 1–3 (2026-09-29)
+
+Moving-piston chunk restoration/recovery, ordered slime/honey groups, and
+wire/gate/button client callbacks are implemented. Their source audits and
+limits are recorded in `client-piston-reconstruction.md`; the recovery, adhesion
+and callback manifests retain captures and failures. The two adhesive cases and
+one support/wire case each passed independent native checks of 770 final cells.
+The earlier moving-state join capture restored native chunk carriers.
+
+After increment 3: 98 unit tests, all examples, 1 doctest, Clippy with warnings
+denied, format and package-list checks passed, sequentially with `-j1` and one
+test thread. Logs are `.local/voxrig-callback-{all-targets,doc,clippy,package}.log`.
+Broader circuits and DustRoute integration remain subsequent work.

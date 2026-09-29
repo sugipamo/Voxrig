@@ -3,6 +3,7 @@
 mod adhesion;
 mod motion;
 mod rules;
+mod wire_updates;
 pub(crate) use motion::Action;
 #[cfg(test)]
 mod tests;
@@ -41,6 +42,7 @@ impl Direction {
         Self::West,
         Self::East,
     ];
+    const HORIZONTAL: [Self; 4] = [Self::North, Self::East, Self::South, Self::West];
     // AbstractBlock's shape update order, not Direction.values().
     const SHAPE_ORDER: [Self; 6] = [
         Self::West,
@@ -315,10 +317,12 @@ impl Reconstruction {
             return Ok(());
         }
         let origin = origin.into();
-        self.overlay.insert(p, (s, origin));
+        self.overlay.insert(p, (s.clone(), origin));
         self.revision += 1;
         if shape {
+            self.prepare(world, p, &before, origin, depth + 1)?;
             self.neighbors(world, p, origin, depth + 1)?;
+            self.prepare(world, p, &s, origin, depth + 1)?;
         }
         Ok(())
     }
@@ -332,30 +336,50 @@ impl Reconstruction {
         let origin = origin.into();
         for direction in Direction::SHAPE_ORDER {
             let target = direction.offset(p, 1);
-            let (before, kind) = self.kind(world, target)?;
-            let after = match kind {
-                Kind::Stairs if direction.horizontal() => {
-                    self.stair_shape(world, target, before.clone())?
+            self.update_neighbor(world, target, direction.opposite(), origin, depth)?;
+        }
+        Ok(())
+    }
+    fn update_neighbor(
+        &mut self,
+        world: &World,
+        target: Pos,
+        from: Direction,
+        origin: StateOrigin,
+        depth: usize,
+    ) -> ApplyResult<()> {
+        if depth > 128 {
+            return Err(ReconstructionIssue::Limit);
+        }
+        let (before, kind) = self.kind(world, target)?;
+        let after = match kind {
+            Kind::Stairs if from.horizontal() => self.stair_shape(world, target, before.clone())?,
+            Kind::Lever if Self::lever_support(target, &before)?.0 == from.offset(target, 1) => {
+                if self.lever_supported(world, target, &before)? {
+                    before.clone()
+                } else {
+                    state("air", &[])
                 }
-                Kind::Lever if Self::lever_support(target, &before)?.0 == p => {
-                    if self.lever_supported(world, target, &before)? {
-                        before.clone()
-                    } else {
-                        state("air", &[])
-                    }
-                }
-                Kind::Head if rules::facing(&before)?.opposite().offset(target, 1) == p => {
-                    if self.head_supported(world, target, &before)? {
-                        before.clone()
-                    } else {
-                        state("air", &[])
-                    }
-                }
-                _ => before.clone(),
-            };
-            if before != after {
-                self.put(world, target, after, origin, true, depth)?;
             }
+            Kind::Head if rules::facing(&before)?.opposite() == from => {
+                if self.head_supported(world, target, &before)? {
+                    before.clone()
+                } else {
+                    state("air", &[])
+                }
+            }
+            Kind::Gate { .. } if from == Direction::Down => {
+                if self.full_face(world, from.offset(target, 1), Direction::Up)? {
+                    before.clone()
+                } else {
+                    state("air", &[])
+                }
+            }
+            Kind::Wire => self.wire_update(world, target, before.clone(), from)?,
+            _ => before.clone(),
+        };
+        if before != after {
+            self.put(world, target, after, origin, true, depth)?;
         }
         Ok(())
     }

@@ -5,6 +5,11 @@ use super::*;
 pub(super) enum Kind {
     Air,
     Solid,
+    Glass,
+    Observer,
+    PowerBlock,
+    Wire,
+    Gate { repeater: bool },
     Slime,
     Honey,
     Stairs,
@@ -22,17 +27,50 @@ const RULES: &[(&str, Kind)] = &[
     ("cobblestone", Kind::Solid),
     ("quartz_block", Kind::Solid),
     ("smooth_quartz", Kind::Solid),
-    ("glass", Kind::Solid),
+    ("glass", Kind::Glass),
     ("slime_block", Kind::Slime),
     ("honey_block", Kind::Honey),
-    ("redstone_block", Kind::Solid),
-    ("observer", Kind::Solid),
+    ("redstone_block", Kind::PowerBlock),
+    ("observer", Kind::Observer),
+    ("redstone_wire", Kind::Wire),
+    ("repeater", Kind::Gate { repeater: true }),
+    ("comparator", Kind::Gate { repeater: false }),
     ("redstone_lamp", Kind::Solid),
     ("stone_stairs", Kind::Stairs),
     ("cobblestone_stairs", Kind::Stairs),
     ("quartz_stairs", Kind::Stairs),
     ("smooth_quartz_stairs", Kind::Stairs),
     ("lever", Kind::Lever),
+    ("stone_button", Kind::Lever),
+    ("polished_blackstone_button", Kind::Lever),
+    ("oak_button", Kind::Lever),
+    ("spruce_button", Kind::Lever),
+    ("birch_button", Kind::Lever),
+    ("jungle_button", Kind::Lever),
+    ("acacia_button", Kind::Lever),
+    ("dark_oak_button", Kind::Lever),
+    ("mangrove_button", Kind::Lever),
+    ("cherry_button", Kind::Lever),
+    ("pale_oak_button", Kind::Lever),
+    ("bamboo_button", Kind::Lever),
+    ("crimson_button", Kind::Lever),
+    ("warped_button", Kind::Lever),
+    ("white_wool", Kind::Solid),
+    ("orange_wool", Kind::Solid),
+    ("magenta_wool", Kind::Solid),
+    ("light_blue_wool", Kind::Solid),
+    ("yellow_wool", Kind::Solid),
+    ("lime_wool", Kind::Solid),
+    ("pink_wool", Kind::Solid),
+    ("gray_wool", Kind::Solid),
+    ("light_gray_wool", Kind::Solid),
+    ("cyan_wool", Kind::Solid),
+    ("purple_wool", Kind::Solid),
+    ("blue_wool", Kind::Solid),
+    ("brown_wool", Kind::Solid),
+    ("green_wool", Kind::Solid),
+    ("red_wool", Kind::Solid),
+    ("black_wool", Kind::Solid),
     ("piston", Kind::Piston { sticky: false }),
     ("sticky_piston", Kind::Piston { sticky: true }),
     ("piston_head", Kind::Head),
@@ -40,6 +78,12 @@ const RULES: &[(&str, Kind)] = &[
     ("obsidian", Kind::Blocked),
     ("bedrock", Kind::Blocked),
 ];
+pub(super) fn destroyed_by_piston(kind: Kind) -> bool {
+    matches!(kind, Kind::Lever | Kind::Wire | Kind::Gate { .. })
+}
+pub(super) fn solid_block(kind: Kind) -> bool {
+    matches!(kind, Kind::Solid | Kind::Slime | Kind::Blocked)
+}
 pub(super) fn classify(s: &NativeBlockState) -> Option<Kind> {
     if s.properties
         .get("waterlogged")
@@ -149,9 +193,22 @@ impl Reconstruction {
         lever: &NativeBlockState,
     ) -> ApplyResult<bool> {
         let (support, face) = Self::lever_support(p, lever)?;
+        self.full_face(world, support, face)
+    }
+    pub(super) fn full_face(
+        &mut self,
+        world: &World,
+        support: Pos,
+        face: Direction,
+    ) -> ApplyResult<bool> {
         let (s, kind) = self.kind(world, support)?;
         Ok(match kind {
-            Kind::Solid | Kind::Blocked | Kind::Slime => true,
+            Kind::Solid
+            | Kind::Blocked
+            | Kind::Slime
+            | Kind::Glass
+            | Kind::Observer
+            | Kind::PowerBlock => true,
             Kind::Piston { .. } => {
                 s.properties.get("extended").is_some_and(|v| v == "false")
                     || face == facing(&s)?.opposite()
