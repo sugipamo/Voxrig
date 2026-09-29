@@ -2,6 +2,10 @@
 
 `Voxrig`は、外部の頭脳から直接操作するMinecraft Java Edition 1.16.1向けheadless clientクレートです。
 
+`Bot` の既存説明は1.16.1専用です。共存する1.21.11観測アダプタは
+[移行計画](dustroute-integration.md)、[対応範囲と検証](version-adapter-validation.md)、
+[ピストン通知と階段の未同期](piston-client-update-prerequisite.md)を参照してください。
+
 ## 利用者向け
 
 - [導入と最初の接続](getting-started.md)

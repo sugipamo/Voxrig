@@ -36,6 +36,15 @@ pub(crate) struct StateRegistry {
 }
 
 impl StateRegistry {
+    pub(crate) fn validate_id(&self, id: i32) -> Result<()> {
+        if id < 0 || self.definitions.last().is_none_or(|b| id > b.max_state_id) {
+            return Err(Error::new(
+                ErrorKind::Protocol,
+                anyhow::anyhow!("unknown block state ID {id}"),
+            ));
+        }
+        Ok(())
+    }
     pub(crate) fn parse(json: &str) -> Result<Self> {
         let definitions: Vec<BlockDefinition> =
             serde_json::from_str(json).map_err(|error| Error::new(ErrorKind::Protocol, error))?;

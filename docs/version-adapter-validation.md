@@ -55,7 +55,71 @@ loopback の port 25576、offline-mode、creative、Java 21 で実行した。
 試験ワールドとサーバーログは `.local/java-1.16.1` に保持する。
 これは1.16.1の範囲の確認であり、1.21.11や階段のピストン移動時の観測一致は未検証。
 
-## 続く作業
+## 第2段階: 1.21.11の受信観測
 
-1.21.11 の接続・configuration・registry・chunk/block更新を独立したアダプタへ追加する。
-VoxrigとDustRouteの接続、コマンド確認の除去はまだ行っていない。
+`versions::java_1_21_11` を追加し、1.16.1と同じ `Client` APIから版を明示して接続する。
+接続はoffline login、compression、configuration、dimension registry、playへの遷移と
+keepalive・teleport・chunk batchの必須応答を持つ。1.21.11のfull chunk、section update、
+単一block update、unload、負のYを扱う。dimension変更と再configurationはcacheを破棄する。
+
+IDとstate propertiesはminecraft-data **3.114.0**のJava **1.21.11 / protocol 774**に固定。
+1166 blockの定義とpacket-ID定数の出典・SHA-256は `data/java_1_21_11/source.json`。
+`scripts/generate_java_1_21_11.cjs <minecraft-dataのパス> --check` で生成結果を照合する。
+Nodeは生成時だけの道具であり、新クライアントの実行時には使わない。
+
+観測には接続ID、world revision、適用済みの受信sequence、ローカル経過時間を付ける。
+1.16.1の受信sequenceは未提供なので `None`。接続IDはプロセス内で一意であり、
+別プロセスの記録をその整数だけで照合しない。
+一つのstate lock内の領域snapshotで、未ロードを空気へ変換しない。
+不正なstate packetを処理した後や切断後は、新しいsnapshotの取得を拒否する。
+
+診断用のraw packet記録はpayload合計で最大16MiB / 65536件。
+上限超過は `complete=false` とし、それ以後の一部だけを完全な連続記録として残さない。
+通常のuse-on-block packetも追加し、読み込み済み・到達距離の確認後に送信する。
+送信成功は操作のサーバー受理を意味しない。
+
+**実装していないもの:** 1.21.11の移動物理、inventory、汎用の配置・撤去、
+ピストンのBlock Actionから起こすローカル移動・隣接更新、完全なblock entity観測。
+online-mode、resource pack要求、experimental feature set等は未対応として拒否する。
+既存の1.16.1 `Bot` の機能が全て新版でも使えるという意味ではない。
+
+## 隔離したJava 1.21.11サーバーと階段の診断
+
+公式サーバー、MOD無し、loopback:25577、offline-mode、新規world `isolated`。
+9セルの初期観測で石・空気・階段を取得し、`north,bottom,inner_left,false` の全propertiesを確認。
+通常のレバー使用でON/OFF、本体の伸長/収縮、移動先の石と丸石階段を観測できた。
+
+一方、隣接するクォーツ階段は `inner_left` のまま、サーバーでは `straight` になった。
+全42 packetにそのセルへのstate updateは無く、ピストンのBlock Actionが2件ある。
+再接続でfull chunkを取得すると `straight` だった。
+[保存証拠・切り分け・次の前提](piston-client-update-prerequisite.md)を参照。
+この不一致を、実機一致の成功例に分類しない。
+
+両版のサーバーは正常終了済み。所有するforce-loadは全て解除した。
+ライブ試験の再configuration・dimension遷移・長時間稼働・描画クライアントとの比較は未実施。
+通常の再接続を、任意の回路の一貫した観測やサーバー確認の代替にはしていない。
+
+## 第2段階のコード検証
+
+新しい検査には、palette形式、負のY、unload、dimension reset、configuration registry、
+不正packet後の拒否、bounded captureの欠測、TCP mockでの切断・再接続を含む。
+保存した実packet列からON/OFF全770セル・revisionを再現する検査は、
+同期の不一致を固定した診断であり、ピストン対応完了の意味ではない。
+
+VoxrigとDustRouteの接続、コマンド確認の除去は未着手。
+
+最終確認は以下の通り。Cargoは逐次実行、`-j1`、テストは1 thread。
+
+| 確認 | 結果 |
+| --- | --- |
+| `cargo test --offline --locked -j1 --all-targets -- --test-threads=1` | unit 74件成功、全exampleをcompile |
+| `cargo test --offline --locked -j1 --doc` | 1件成功 |
+| `cargo clippy --offline --locked -j1 --all-targets -- -D warnings` | 成功 |
+| `cargo fmt --all -- --check` | 成功 |
+| `cargo package --offline --locked --list --allow-dirty` | 成功、版別データと再生fixtureを収録。package buildではない |
+| 生成スクリプトの `--check` | 固定したデータ・packet IDと一致 |
+| `git diff --check` | 成功 |
+
+初回Clippyのenumサイズ・配列走査・test用Arc共有の指摘は修正して再確認した。
+ログは `/tmp/voxrig-stage2-{tests-final,doc-final,clippy-final2,fmt-final,package-final,generation-final}.log`。
+unitと静的検査の成功は、上記の階段同期や未確認のライブ試験の合格を意味しない。

@@ -4,10 +4,15 @@ use voxrig::{Client, ConnectionConfig, MinecraftVersion, Region, Server};
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let port = std::env::var("MC_PORT")?.parse()?;
+    let version = match std::env::var("MC_VERSION").as_deref().unwrap_or("1.16.1") {
+        "1.16.1" => MinecraftVersion::Java1_16_1,
+        "1.21.11" => MinecraftVersion::Java1_21_11,
+        value => anyhow::bail!("unsupported probe version {value}"),
+    };
     let client = Client::connect(ConnectionConfig::offline(
         Server::new("127.0.0.1", port),
         "VersionProbe",
-        MinecraftVersion::Java1_16_1,
+        version,
     ))
     .await?;
     client.wait_until_ready().await?;

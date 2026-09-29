@@ -9,6 +9,12 @@ notices. Exact npm versions and registry integrity digests are recorded in
 
 Upstream: <https://github.com/PrismarineJS/minecraft-data>
 
+The Java 1.21.11 version adapter additionally uses `data/java_1_21_11/blocks.json`
+(name, state ranges and complete property definitions) and generated packet-ID
+constants in `src/versions/java_1_21_11/ids.rs` from the same exact package.
+`data/java_1_21_11/source.json` records the release, protocol, transformation and
+generated block-data digest. These data do not depend on a running JavaScript client.
+
 The files `data/blocks.json`, `data/items.json`, `data/materials.json`,
 `data/entities.json`, `data/recipes.json`, `data/sounds.json`,
 `data/block_state_ranges.json`, and `data/block_collision_shapes.json` contain

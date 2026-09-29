@@ -1,6 +1,8 @@
 # Voxrig
 
-Minecraft Java Edition 1.16.1（protocol 736、offline-mode）向けのRust製headless clientライブラリです。
+Minecraft Java Edition 向けのRust製headless clientライブラリです。
+既存の1.16.1（protocol 736）実装を維持し、版を選ぶ `Client` API に
+1.21.11（protocol 774）の観測用アダプタを追加しています。どちらもoffline-modeです。
 
 外部のAI、planner、behavior treeなどに対する「身体」として、Minecraft protocol、状態同期、クライアント物理、構造化された観測、低レベル操作を提供します。経路探索、意味認識、行動計画、長期記憶といった頭脳は利用側へ委譲します。
 
@@ -44,7 +46,11 @@ async fn main() -> Result<()> {
 対応機能、API、設計上の責任境界、実サーバーでの検証結果は[ドキュメント一覧](docs/index.md)を参照してください。
 
 > [!IMPORTANT]
-> 対象はJava Edition 1.16.1のoffline-modeサーバーです。Microsoft認証、online-mode暗号化、他のprotocol versionには対応していません。
+> 従来の `Bot` / `BotManager` とcrate rootの操作型は1.16.1専用です。
+> 1.21.11は `Client` の領域観測・受信記録・通常のブロック使用に対応します。
+> 移動・inventory・ピストンに伴うクライアント更新は未実装で、階段形状が古く残る
+> 実例があります。Microsoft認証・online-mode暗号化は両版とも未対応です。
+> 対応範囲と失敗した試行は[バージョン別の検証記録](docs/version-adapter-validation.md)を参照してください。
 
 ## 開発時の確認
 

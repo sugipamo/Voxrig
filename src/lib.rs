@@ -1,4 +1,4 @@
-//! A headless Minecraft Java 1.16.1 client for externally controlled agents.
+//! A headless Minecraft client with explicitly selected Java version adapters.
 //!
 //! `Voxrig` implements the protocol-facing body of an agent: connection
 //! management, world and entity observation, player state, physics, inventory,
@@ -6,7 +6,11 @@
 //! It deliberately does not provide pathfinding, semantic perception, planning,
 //! memory, or an AI runtime. Those belong in a consumer crate.
 //!
-//! The crate targets Java Edition 1.16.1, protocol 736, on offline-mode servers.
+//! The established `Bot` API targets Java 1.16.1 (736). [`Client`] also offers a
+//! limited Java 1.21.11 (774) adapter for native block observations, packet traces
+//! and use-on-block interactions. It does not yet reproduce client-side piston
+//! or neighbor updates: received block states can remain stale after a piston event.
+//! Neither adapter's local cache is independent confirmation of server state.
 //! It does not implement Microsoft authentication or online-mode encryption.
 //!
 //! # Quick start

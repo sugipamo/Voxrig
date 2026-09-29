@@ -3,7 +3,7 @@ name = "voxrig"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
-description = "A headless Minecraft Java 1.16.1 client library for externally controlled agents"
+description = "A headless Minecraft client with explicit Java version adapters for externally controlled agents"
 license = "MIT"
 readme = "README.md"
 documentation = "https://docs.rs/voxrig"
@@ -14,6 +14,7 @@ include = [
     "/data/**",
     "/examples/**",
     "/docs/**",
+    "/scripts/generate_java_1_21_11.cjs",
     "/README.md",
     "/LICENSE",
     "/THIRD_PARTY_NOTICES.md",

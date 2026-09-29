@@ -42,7 +42,7 @@ impl ConnectionConfig {
 }
 
 /// Inclusive region, independent of a protocol's chunk representation.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct Region {
     /// Minimum x, y and z coordinates.
     pub min: [i32; 3],
@@ -83,7 +83,7 @@ impl Region {
 }
 
 /// One cell in a complete local region observation.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct ObservedBlock {
     /// Absolute x, y and z coordinates.
     pub position: [i32; 3],
@@ -92,7 +92,7 @@ pub struct ObservedBlock {
 }
 
 /// Local state at one cache revision, bound to its version and connection.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct Observation {
     /// Exact version used to interpret registry IDs.
     pub version: MinecraftVersion,
@@ -100,6 +100,8 @@ pub struct Observation {
     pub connection_id: u64,
     /// World-domain revision, not a server game tick.
     pub revision: u64,
+    /// Last applied receive sequence when supported by the adapter; never a server tick.
+    pub receive_sequence: Option<u64>,
     /// Local elapsed time of the snapshot.
     pub captured_at: Duration,
     /// Requested inclusive bounds.
@@ -110,7 +112,8 @@ pub struct Observation {
 
 #[derive(Clone)]
 enum Adapter {
-    Java1_16_1(legacy::Bot),
+    Java1_16_1(Box<legacy::Bot>),
+    Java1_21_11(crate::versions::java_1_21_11::Bot),
 }
 
 /// A client whose protocol, registry and behavior belong to one version adapter.
@@ -120,6 +123,53 @@ pub struct Client {
 }
 
 impl Client {
+    /// Captures exact incoming packets for a bounded diagnostic interval.
+    pub async fn start_packet_trace(&self, maximum_bytes: usize) -> Result<()> {
+        match &self.adapter {
+            Adapter::Java1_21_11(bot) => bot.start_packet_trace(maximum_bytes).await,
+            Adapter::Java1_16_1(_) => Err(Error::new(
+                ErrorKind::Unsupported,
+                anyhow::anyhow!(
+                    "packet capture is not implemented for the 1.16.1 compatibility adapter"
+                ),
+            )),
+        }
+    }
+
+    /// Finishes a diagnostic capture; incomplete captures are explicitly marked.
+    pub async fn stop_packet_trace(&self) -> Result<crate::versions::java_1_21_11::PacketTrace> {
+        match &self.adapter {
+            Adapter::Java1_21_11(bot) => bot.stop_packet_trace().await,
+            Adapter::Java1_16_1(_) => Err(Error::new(
+                ErrorKind::Unsupported,
+                anyhow::anyhow!(
+                    "packet capture is not implemented for the 1.16.1 compatibility adapter"
+                ),
+            )),
+        }
+    }
+
+    /// Sends an ordinary use-on-block interaction. Dispatch is not acceptance.
+    pub async fn interact_block(&self, position: [i32; 3], face: crate::BlockFace) -> Result<()> {
+        match &self.adapter {
+            Adapter::Java1_21_11(bot) => bot.interact_block(position, face).await,
+            Adapter::Java1_16_1(bot) => {
+                bot.place_block(
+                    legacy::Hand::Main,
+                    legacy::BlockPos {
+                        x: position[0],
+                        y: position[1],
+                        z: position[2],
+                    },
+                    face,
+                    [0.5; 3],
+                    false,
+                )
+                .await
+            }
+        }
+    }
+
     /// Connects using only the selected version. Unsupported adapters fail before I/O.
     pub async fn connect(config: ConnectionConfig) -> Result<Self> {
         match config.version {
@@ -132,13 +182,14 @@ impl Client {
                 )
                 .await?;
                 Ok(Self {
-                    adapter: Adapter::Java1_16_1(bot),
+                    adapter: Adapter::Java1_16_1(Box::new(bot)),
                 })
             }
-            MinecraftVersion::Java1_21_11 => Err(Error::new(
-                ErrorKind::Unsupported,
-                anyhow::anyhow!("Java 1.21.11 adapter is not implemented yet"),
-            )),
+            MinecraftVersion::Java1_21_11 => Ok(Self {
+                adapter: Adapter::Java1_21_11(
+                    crate::versions::java_1_21_11::Bot::connect(config).await?,
+                ),
+            }),
         }
     }
 
@@ -146,6 +197,7 @@ impl Client {
     pub fn version(&self) -> MinecraftVersion {
         match self.adapter {
             Adapter::Java1_16_1(_) => MinecraftVersion::Java1_16_1,
+            Adapter::Java1_21_11(_) => MinecraftVersion::Java1_21_11,
         }
     }
 
@@ -153,6 +205,7 @@ impl Client {
     pub async fn wait_until_ready(&self) -> Result<()> {
         match &self.adapter {
             Adapter::Java1_16_1(bot) => bot.wait_until_ready().await,
+            Adapter::Java1_21_11(bot) => bot.wait_until_ready().await,
         }
     }
 
@@ -160,6 +213,7 @@ impl Client {
     pub async fn observe_region(&self, region: Region) -> Result<Observation> {
         region.volume()?;
         match &self.adapter {
+            Adapter::Java1_21_11(bot) => bot.observe_region(region).await,
             Adapter::Java1_16_1(bot) => {
                 if region.min[1] < 0 || region.max[1] > 255 {
                     return Err(Error::new(
@@ -179,6 +233,7 @@ impl Client {
                     version: self.version(),
                     connection_id: bot.connection_id(),
                     revision: snapshot.revision,
+                    receive_sequence: None,
                     captured_at: snapshot.captured_at,
                     region,
                     blocks,
@@ -191,6 +246,7 @@ impl Client {
     pub async fn disconnect(&self) -> Result<()> {
         match &self.adapter {
             Adapter::Java1_16_1(bot) => bot.disconnect().await,
+            Adapter::Java1_21_11(bot) => bot.disconnect().await,
         }
     }
 }
@@ -237,17 +293,17 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn unavailable_version_is_rejected_before_network_io() {
+    async fn invalid_modern_identity_is_rejected_before_network_io() {
         let config = ConnectionConfig::offline(
             legacy::Server::new("invalid.invalid", 1),
-            "Probe",
+            "",
             MinecraftVersion::Java1_21_11,
         );
         let error = match Client::connect(config).await {
-            Ok(_) => panic!("unimplemented version connected"),
+            Ok(_) => panic!("invalid identity connected"),
             Err(error) => error,
         };
-        assert_eq!(error.kind(), ErrorKind::Unsupported);
+        assert_eq!(error.kind(), ErrorKind::InvalidInput);
     }
 
     #[tokio::test]
