@@ -41,6 +41,24 @@ pub struct PlainItem {
     /// Native stack count.
     pub count: i32,
 }
+
+/// Validate a component-free stack against the pinned native item registry,
+/// without connecting or mutating inventory. Useful for preflighting a batch.
+pub fn default_item(name: &str, count: u8) -> Result<PlainItem> {
+    let native = name.strip_prefix("minecraft:").unwrap_or(name);
+    let definition = items()
+        .iter()
+        .find(|i| i.name == native)
+        .ok_or_else(|| invalid("unknown Java 1.21.11 item"))?;
+    if count == 0 || i32::from(count) > definition.stack_size {
+        return Err(invalid("invalid default item stack count"));
+    }
+    Ok(PlainItem {
+        name: format!("minecraft:{native}"),
+        item_id: definition.id,
+        count: i32::from(count),
+    })
+}
 /// Received inventory knowledge; unknown never means an empty slot.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -339,15 +357,9 @@ impl Operations {
         }
         let mut payload = (36 + i16::from(slot)).to_be_bytes().to_vec();
         if let Some((name, count)) = item {
-            let definition = items()
-                .iter()
-                .find(|i| name.strip_prefix("minecraft:").unwrap_or(name) == i.name)
-                .ok_or_else(|| invalid("unknown Java 1.21.11 item"))?;
-            if count == 0 || i32::from(count) > definition.stack_size {
-                return Err(invalid("invalid default item stack count"));
-            }
-            put_varint(&mut payload, i32::from(count));
-            put_varint(&mut payload, definition.id);
+            let item = default_item(name, count)?;
+            put_varint(&mut payload, item.count);
+            put_varint(&mut payload, item.item_id);
             payload.extend([0, 0]);
         } else {
             payload.push(0);
@@ -428,7 +440,7 @@ impl Operations {
             .await?;
         Ok(seq)
     }
-    fn ready(&self, state: &State) -> Result<()> {
+    pub(super) fn ready(&self, state: &State) -> Result<()> {
         self.bot.session.check(state)?;
         if !state.ready {
             return Err(invalid("play state is not ready"));

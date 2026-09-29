@@ -21,6 +21,27 @@ function output(name, contents) {
 }
 const blocks = JSON.stringify(data.blocksArray.map(({name, minStateId, maxStateId, states}) => ({name, minStateId, maxStateId, states}))) + '\n';
 const items = JSON.stringify(data.itemsArray.map(({id, name, stackSize}) => ({id, name, stackSize}))) + '\n';
+const stateShapes = [];
+const shapeKeys = Object.keys(data.blockCollisionShapes.shapes).map(Number);
+const shapes = Array.from({length:Math.max(...shapeKeys)+1},(_,id)=>data.blockCollisionShapes.shapes[id]);
+for (const shape of shapes) {
+  assert(Array.isArray(shape));
+  for (const box of shape) {
+    assert.equal(box.length,6);
+    assert(box.every(v=>Number.isFinite(v)&&v>=-0.25&&v<=1.5));
+    for(let axis=0;axis<3;axis++) assert(box[axis]<=box[axis+3]);
+  }
+}
+for (const block of data.blocksArray) {
+  const mapping = data.blockCollisionShapes.blocks[block.name];
+  assert.equal(stateShapes.length,block.minStateId);
+  if (Array.isArray(mapping)) assert.equal(mapping.length,block.maxStateId-block.minStateId+1);
+  for(let id=block.minStateId;id<=block.maxStateId;id++) {
+    const shape=Array.isArray(mapping)?mapping[id-block.minStateId]:mapping;
+    assert(Number.isInteger(shape)&&shapes[shape]); stateShapes.push(shape);
+  }
+}
+const collisions=JSON.stringify({state_shapes:stateShapes,shapes})+'\n';
 let ids = '// Packet IDs generated from minecraft-data 3.114.0, Java 1.21.11 (774).\n';
 let known;
 for (const phase of ['login', 'configuration', 'play']) {
@@ -52,6 +73,7 @@ assert(effectParticle);
 ids += `pub(crate) const ENTITY_EFFECT_PARTICLE: i32 = ${effectParticle[0]};\n`;
 output('data/java_1_21_11/blocks.json', blocks);
 output('data/java_1_21_11/items.json', items);
+output('data/java_1_21_11/collision_shapes.json', collisions);
 output('src/versions/java_1_21_11/ids.rs', ids);
 output('data/java_1_21_11/source.json', JSON.stringify({
   provider: 'minecraft-data',
@@ -59,8 +81,9 @@ output('data/java_1_21_11/source.json', JSON.stringify({
   minecraft: '1.21.11', protocol: 774, data_version: 4671,
   block_data_sha256: digest(blocks),
   item_data_sha256: digest(items),
+  collision_data_sha256: digest(collisions),
   packet_ids_sha256: digest(ids),
-  transformation: 'blocksArray projected to name, minStateId, maxStateId, states; itemsArray to id, name, stackSize; packet ID constants generated from login/configuration/play mappings; player entity, pose index, scale attribute and effect particle IDs projected from registries',
+  transformation: 'blocksArray projected to name, minStateId, maxStateId, states; itemsArray to id, name, stackSize; blockCollisionShapes flattened to complete native state IDs and AABBs; packet ID constants generated from login/configuration/play mappings; player entity, pose index, scale attribute and effect particle IDs projected from registries',
   generator: '../../scripts/generate_java_1_21_11.cjs',
   license_notice: '../../THIRD_PARTY_NOTICES.md',
 }, null, 2) + '\n');

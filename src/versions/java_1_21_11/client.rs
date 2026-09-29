@@ -2,6 +2,8 @@
 /// Explicit Java 1.21.11 operation API and received player state.
 pub mod operations;
 pub mod players;
+pub mod raycast;
+pub mod recording;
 use super::{
     ids,
     reconstruction::{Action, ClientObservation, Direction, Reconstruction},
@@ -101,6 +103,8 @@ impl TraceCapture {
 }
 
 struct State {
+    recording: Option<recording::Capture>,
+    recording_ordinal: u64,
     operations: operations::OperationState,
     players: players::PlayerTracker,
     phase: Phase,
@@ -117,6 +121,8 @@ struct State {
 impl Default for State {
     fn default() -> Self {
         Self {
+            recording: None,
+            recording_ordinal: 0,
             operations: operations::OperationState::default(),
             players: players::PlayerTracker::default(),
             phase: Phase::Configuration,
@@ -699,6 +705,9 @@ fn spawn_info(state: &mut State, r: &mut Reader<'_>) -> anyhow::Result<()> {
         .get(id)
         .context("unknown dimension registry ID")?;
     state.world.select_dimension(name, dimension);
+    if let Some(capture) = &mut state.recording {
+        capture.invalidate(recording::RecordingIssue::WorldChanged);
+    }
     state.reconstruction = Reconstruction::default();
     state.operations.reset_world(game_mode)?;
     state.players.reset_world();
@@ -803,22 +812,34 @@ fn apply_play(
         input::MAP_CHUNK => {
             let chunk = [r.i32()?, r.i32()?];
             let pistons = state.world.load(payload, max_chunks)?;
+            if let Some(capture) = &mut state.recording {
+                capture.chunk_changed(chunk);
+            }
             state
                 .reconstruction
                 .chunk_loaded(chunk, pistons, state.sequence);
         }
         input::BLOCK_CHANGE => {
             let changes = state.world.block_change(payload)?;
+            if let Some(capture) = &mut state.recording {
+                capture.received(&changes, state.sequence, state.reconstruction.tick)?;
+            }
             state.reconstruction.received(&changes);
         }
         input::MULTI_BLOCK_CHANGE => {
             let changes = state.world.section_changes(payload)?;
+            if let Some(capture) = &mut state.recording {
+                capture.received(&changes, state.sequence, state.reconstruction.tick)?;
+            }
             state.reconstruction.received(&changes);
         }
         input::UNLOAD_CHUNK => {
             let z = r.i32()?;
             let x = r.i32()?;
             state.world.unload(payload)?;
+            if let Some(capture) = &mut state.recording {
+                capture.chunk_changed([x, z]);
+            }
             state.reconstruction.chunk_replaced([x, z]);
         }
         input::BLOCK_ACTION => {
@@ -874,6 +895,9 @@ fn apply_play(
             state.reconstruction = Reconstruction::default();
             state.operations.reset_configuration(state.sequence);
             state.players = players::PlayerTracker::default();
+            if let Some(capture) = &mut state.recording {
+                capture.invalidate(recording::RecordingIssue::WorldChanged);
+            }
             responses.push((output::CONFIGURATION_ACKNOWLEDGED, vec![]));
             responses.push((ids::configuration_serverbound::SETTINGS, settings()));
         }

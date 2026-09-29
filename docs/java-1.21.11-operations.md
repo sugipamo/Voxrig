@@ -82,3 +82,44 @@ the retained replay was added; all six player tests (including that replay) then
 passed, along with all-target Clippy with warnings denied and generator/format
 checks. Logs are `.local/voxrig-players-all-targets.log`,
 `.local/voxrig-player-replay-tests.log` and `.local/voxrig-players-clippy.log`.
+
+## Static collision targeting
+
+`Operations::observe_player_target` reads the player pose and reconstructed world
+under one session lock. Its explicit `block_collision` geometry uses the pinned
+1.21.11 collision table, including partial shapes and boxes protruding into
+neighboring cells. Candidate traversal is bounded to 64 blocks. Unavailable
+chunks/poses/reconstruction and moving carriers cause an error; unknown cells
+are never air. Unloaded space beyond a nearer known collision is irrelevant.
+
+This is useful for selecting solid construction surfaces; it is not the graphical
+client's outline raycast. Fluids and decorations with empty collision shapes are
+not targeted, and entity-dependent collision behavior is not modeled. Edge ties
+use deterministic axis/cell order. The response retains the chosen geometry and
+connection, receive sequence and client frame; none implies server confirmation.
+
+`default_item` provides a pure native-registry preflight for creative batches;
+the creative inventory writer uses the same validation.
+
+## Received block update recordings
+
+`start_block_recording` / `stop_block_recording` capture a bounded stream of
+single-block and section-block update packets from a fully loaded baseline.
+Every event retains its previous received state, packet state, connection-local
+packet sequence, in-packet cell order and local 20 Hz frame. Piston actions and
+reconstructed frames remain separate evidence; this stream is not a complete
+server event history. An intersecting chunk reload/unload, world change or lost
+connection explicitly invalidates the recording. Overflow reports truncation
+and a total seen count; a wrong stop ID does not consume an active recording.
+
+The downstream DustRoute native bridge trial `bridge-b-20260929` retained 12
+ordered state updates for command writes, a lever toggle and ordinary creative
+stone placement/removal. Its final 648 cells independently matched a vanilla
+server assertion. No command-based readback is used by the recording API.
+
+Current increment validation: 114 unit tests and all examples pass, as do
+all-target Clippy with warnings denied, formatting and pinned generator checks.
+Logs: `.local/voxrig-target-recording-tests.log` and
+`.local/voxrig-final-clippy.log`. The target tests cover partial slabs, protruding
+fences and unavailable cells before/beyond a known collision. Recording tests
+cover native order, previous states, overflow and chunk invalidation.

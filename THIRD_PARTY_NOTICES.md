@@ -42,6 +42,9 @@ The Java 1.21.11 version adapter additionally uses `data/java_1_21_11/blocks.jso
 constants (including player registry IDs) in `src/versions/java_1_21_11/ids.rs`, and
 `data/java_1_21_11/items.json` (native item ID, name and default stack size)
 from the same exact package.
+`data/java_1_21_11/collision_shapes.json` projects that package's block collision
+shapes into native state IDs and AABBs. These are static collision shapes, not
+graphical selection outlines or entity-dependent collision decisions.
 `data/java_1_21_11/source.json` records the release, protocol, transformation and
 generated block-data digest. These data do not depend on a running JavaScript client.
 

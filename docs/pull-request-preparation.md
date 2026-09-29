@@ -21,7 +21,9 @@ Suggested description:
 > states. Existing unit tests, examples, doctest, formatting and Clippy checks are
 > retained. Follow-up commits add ordered slime/honey branches, reference-door
 > callbacks/reload, bounded creative construction controls, inventory knowledge
-> and remote-player packet observation. This does not claim entity physics,
+> and remote-player packet observation. Static collision targeting and bounded
+> block-update recordings preserve their geometry, clock and packet provenance.
+> This does not claim graphical outline targeting, entity physics,
 > survival pathfinding, online authentication or command-free server confirmation.
 
 Review order:
