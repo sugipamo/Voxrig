@@ -17,6 +17,20 @@ No Minecraft JAR or decompiled source is redistributed in this repository.
 The inspected version and mapping identification are recorded in
 `docs/client-piston-reconstruction.md`.
 
+## User-supplied reference door diagnostics
+
+`docs/evidence/client-reference-door-*-20260929*` records local observations of
+Bobiloosky's One-Wide 3x3 Piston Door:
+<https://www.planetminecraft.com/project/one-wide-3x3-piston-door-works-on-java-edition/>.
+The user supplied world ZIP (SHA-256 recorded in the evidence manifest) was
+previously inspected by DustRoute. Initial block coordinates/properties for
+these local tests were read from DustRoute's `reference-3x3-observed-a-v1.json`
+at commit `b1762b9`, translated by (-41900, 0, -900), and initialized on an
+isolated server. No DustRoute implementation source or Minecraft binary is
+included. These files are diagnostic records; Voxrig's MIT license does not
+claim ownership of the circuit design or relicense the supplied world. Review
+fixture redistribution attribution when preparing an upstream submission.
+
 ## minecraft-data 3.114.0
 
 Upstream: <https://github.com/PrismarineJS/minecraft-data>

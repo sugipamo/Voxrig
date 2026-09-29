@@ -23,7 +23,10 @@ live reload testing remains part of step 4. Step 2 now has the ordered adhesion
 planner, 6-direction/unit coverage and two independent 770-cell native matches;
 wider interaction cases remain for step 4. Step 3 now includes wire geometry,
 old/new prepare callbacks, supported gate/button removal, wool materials,
-98 unit tests and an independent 770-cell native callback comparison. Step 4 is next. Source inspection confirms that Java 1.21.11
+98 unit tests and an independent 770-cell native callback comparison. Step 4 now has the mixed 3x3 door: two close/open cycles, native checks
+of open/closed/reopened regions, reconnect and live chunk unload/reload. Its
+first failure exposed retracting-body support and was corrected with a
+six-direction regression. Step 5, the DustRoute observation adapter, is next. Source inspection confirms that Java 1.21.11
 `PistonBlockEntity.toInitialChunkDataNbt` sends its componentless NBT, including
 `blockState`, `facing`, `progress` (the serialized previous progress), `extending`
 and `source`. The old receiver discarded this data. The new decoder must not

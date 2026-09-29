@@ -202,6 +202,17 @@ impl Reconstruction {
         face: Direction,
     ) -> ApplyResult<bool> {
         let (s, kind) = self.kind(world, support)?;
+        if kind == Kind::Moving {
+            return self.moving_full_face(support, face);
+        }
+        Self::state_full_face(&s, kind, support, face)
+    }
+    fn state_full_face(
+        s: &NativeBlockState,
+        kind: Kind,
+        support: Pos,
+        face: Direction,
+    ) -> ApplyResult<bool> {
         Ok(match kind {
             Kind::Solid
             | Kind::Blocked
@@ -211,10 +222,10 @@ impl Reconstruction {
             | Kind::PowerBlock => true,
             Kind::Piston { .. } => {
                 s.properties.get("extended").is_some_and(|v| v == "false")
-                    || face == facing(&s)?.opposite()
+                    || face == facing(s)?.opposite()
             }
             Kind::Stairs => {
-                let dir = facing(&s)?;
+                let dir = facing(s)?;
                 let base = if s.properties.get("half").is_some_and(|v| v == "top") {
                     Direction::Up
                 } else {
@@ -233,10 +244,63 @@ impl Reconstruction {
             Kind::Head => {
                 return Err(ReconstructionIssue::UnsupportedBlock {
                     position: support,
-                    name: s.name,
+                    name: s.name.clone(),
                 });
             }
             _ => false,
         })
+    }
+    fn moving_full_face(&self, p: Pos, face: Direction) -> ApplyResult<bool> {
+        let Some(motion) = self.moving.get(&p) else {
+            // The native setBlockState callbacks run before addBlockEntity.
+            // During that local transaction the extension has empty collision.
+            // Unknown received carriers are rejected by read() before this query.
+            return Ok(false);
+        };
+        if motion.role == CarrierRole::Body {
+            // Retraction retains the stationary extended base collision shape;
+            // the head fills its missing quarter when progress reaches one.
+            let carried_facing = facing(&motion.carried)?;
+            if carried_facing != motion.direction {
+                return Err(ReconstructionIssue::InvalidAction);
+            }
+            return Ok(face == carried_facing.opposite() || motion.progress == MotionProgress::Full);
+        }
+        if motion.role == CarrierRole::Head {
+            return Ok(motion.progress == MotionProgress::Full && face == motion.direction);
+        }
+        let kind =
+            classify(&motion.carried).ok_or_else(|| ReconstructionIssue::UnsupportedBlock {
+                position: p,
+                name: motion.carried.name.clone(),
+            })?;
+        if motion.progress == MotionProgress::Full {
+            return Self::state_full_face(&motion.carried, kind, p, face);
+        }
+        if motion.progress == MotionProgress::Start {
+            return Ok(false);
+        }
+        match kind {
+            Kind::Solid
+            | Kind::Glass
+            | Kind::Observer
+            | Kind::PowerBlock
+            | Kind::Slime
+            | Kind::Piston { .. } => {
+                // A half-translated full cube covers only the face toward the
+                // cell it came from. Other faces have only partial coverage.
+                Ok(face
+                    == if motion.extending {
+                        motion.direction.opposite()
+                    } else {
+                        motion.direction
+                    })
+            }
+            Kind::Honey => Ok(false),
+            _ => Err(ReconstructionIssue::UnsupportedBlock {
+                position: p,
+                name: motion.carried.name.clone(),
+            }),
+        }
     }
 }

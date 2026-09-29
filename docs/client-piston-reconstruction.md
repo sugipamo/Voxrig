@@ -190,3 +190,35 @@ The original and compact captures are in the
 [adhesion manifest](evidence/client-adhesion-20260929.manifest.json); deterministic
 replay checks the client intermediate samples and final cells. These trials do
 not establish every interacting-piston or flying-machine configuration.
+
+## Mixed reference circuit and live reload
+
+`client-reference-door-20260929.manifest.json` records the user-supplied one-wide
+3x3 reference door (10 pistons, vertical and horizontal) in the same isolated
+vanilla server. Two close/open cycles fill/clear all nine aperture cells; both
+open samples restore the exact initial region. Separate closed and reopened
+trials, each after reconnect, and the final post-reload open trial each pass
+independent server checks of all 770 cells. Intermediate packet/frame samples
+replay; they do not establish continuous native server progress equality.
+
+The initial trial failed on the lever above a downward piston: moving blocks
+had been assumed to provide no support. `PistonBlockEntity.getCollisionShape`
+retains the stationary extended base during source retraction. Its back face
+therefore remains a full supporting face, and at progress one the head fills
+the remaining quarter. That rule is now covered in six directions. Full-cube
+payload faces at half progress are handled separately. Unsupported intermediate
+non-cube payload support still returns an explicit issue. During native
+setBlockState callbacks before carrier installation, collision is empty.
+
+After teleporting the client 256 blocks away, its dependency chunk is unloaded:
+all 770 requested cells become unavailable, with the required chunk explicit.
+Returning delivers a fresh chunk and restores availability. The capture includes
+that failure/recovery interval and is replayed with the live 1024-chunk cap.
+A first replay used the earlier 64-chunk harness cap and failed; it is not a
+client data-loss result. Other unrecoverable issue classes remain documented.
+
+The fixture uses strict initialization solely to establish the reference input
+state. It does not certify live construction order. Setup, command assertions,
+cleanup and normal server shutdown are recorded. The probe now retains compact
+intermediate samples and full initial/settled/final regions to avoid large
+duplicate air-cell allocations. No server MOD was used.

@@ -181,3 +181,17 @@ After increment 3: 98 unit tests, all examples, 1 doctest, Clippy with warnings
 denied, format and package-list checks passed, sequentially with `-j1` and one
 test thread. Logs are `.local/voxrig-callback-{all-targets,doc,clippy,package}.log`.
 Broader circuits and DustRoute integration remain subsequent work.
+
+## Rollout increment 4: mixed door and recovery
+
+The first repeated-door run exposed an incorrect missing-support assumption for
+a retracting piston body. The failure and fresh chunk comparison are retained.
+After fixing the dynamic back-face support, two close/open cycles restored the
+initial region, chunk unload made observations unavailable, and reload recovered.
+Three final native comparisons (post-reload open, separate close, separate reopen)
+matched all 770 cells. See `evidence/client-reference-door-20260929.manifest.json`.
+
+99 unit tests, all examples, 1 doctest, format, all-target Clippy and package-list
+checks passed. Logs: `.local/voxrig-door-{all-targets,doc,clippy,package}.log`.
+The owned fixture was cleared, its four force-loaded chunks removed, and the
+server saved all dimensions and stopped normally. DustRoute is next.

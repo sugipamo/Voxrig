@@ -278,6 +278,15 @@ fn retained_client_frames_replay_motion_roles_and_final_region() {
         &include_bytes!("../../../../docs/evidence/client-slime-branch-replay-20260929.json.gz")[..],
         &include_bytes!("../../../../docs/evidence/client-honey-branch-replay-20260929.json.gz")[..],
         &include_bytes!("../../../../docs/evidence/client-callback-replay-20260929.json.gz")[..],
+        &include_bytes!(
+            "../../../../docs/evidence/client-reference-door-b-replay-20260929.json.gz"
+        )[..],
+        &include_bytes!(
+            "../../../../docs/evidence/client-reference-door-c-replay-20260929.json.gz"
+        )[..],
+        &include_bytes!(
+            "../../../../docs/evidence/client-reference-door-d-replay-20260929.json.gz"
+        )[..],
     ] {
         let capture: serde_json::Value =
             serde_json::from_reader(flate2::read::GzDecoder::new(bytes)).unwrap();
@@ -304,16 +313,15 @@ fn retained_client_frames_replay_motion_roles_and_final_region() {
                     .advance(&state.world, record["client_tick"].as_u64().unwrap());
                 let bytes: Vec<u8> = serde_json::from_value(record["payload"].clone()).unwrap();
                 state
-                    .receive(record["packet_id"].as_i64().unwrap() as i32, &bytes, 64)
+                    .receive(record["packet_id"].as_i64().unwrap() as i32, &bytes, 1024)
                     .unwrap();
             }
             state
                 .reconstruction
                 .advance(&state.world, sample["client_tick"].as_u64().unwrap());
-            assert!(
-                state.reconstruction.issue.is_none(),
-                "{:?}",
-                state.reconstruction.issue
+            assert_eq!(
+                serde_json::to_value(&state.reconstruction.issue).unwrap(),
+                sample["issue"]
             );
             for b in sample["blocks"].as_array().unwrap() {
                 let pos = serde_json::from_value(b["position"].clone()).unwrap();

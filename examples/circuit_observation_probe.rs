@@ -15,14 +15,24 @@ struct Config {
     waits_ms: Vec<u64>,
 }
 
+async fn barrier(message: &str) -> anyhow::Result<()> {
+    println!("{message}; press enter after console setup");
+    io::stdout().flush()?;
+    let count = tokio::task::spawn_blocking(|| {
+        let mut line = String::new();
+        io::stdin().read_line(&mut line)
+    })
+    .await??;
+    anyhow::ensure!(count != 0, "interactive probe stdin closed");
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config: Config =
         serde_json::from_reader(std::fs::File::open(std::env::var("PROBE_CONFIG")?)?)?;
     anyhow::ensure!(
-        !config.waits_ms.is_empty()
-            && config.waits_ms.len() <= 8
-            && config.waits_ms.iter().all(|t| (500..=10000).contains(t)),
+        config.waits_ms.len() <= 8 && config.waits_ms.iter().all(|t| (500..=10000).contains(t)),
         "bounded input schedule required"
     );
     let file = std::fs::OpenOptions::new()
@@ -36,13 +46,7 @@ async fn main() -> anyhow::Result<()> {
     ))
     .await?;
     client.wait_until_ready().await?;
-    println!("READY_FOR_FIXTURE_AND_TELEPORT; press enter after setup");
-    io::stdout().flush()?;
-    tokio::task::spawn_blocking(|| {
-        let mut line = String::new();
-        io::stdin().read_line(&mut line)
-    })
-    .await??;
+    barrier("READY_FOR_FIXTURE_AND_TELEPORT").await?;
     tokio::time::sleep(Duration::from_secs(5)).await;
     let region = Region {
         min: config.min,
@@ -64,17 +68,38 @@ async fn main() -> anyhow::Result<()> {
         let started = tokio::time::Instant::now();
         while started.elapsed() < Duration::from_millis(wait) {
             tokio::time::sleep(Duration::from_millis(20)).await;
-            let sample = client.observe_client_region(region).await?;
+            let mut sample = client.observe_client_region(region).await?;
             // Preserve all packet/frame boundaries, but sample late settled states less often.
             if started.elapsed() < Duration::from_millis(1800) {
+                // Full regions remain in before/settled/final. Intermediate evidence
+                // retains every carrier and changed/non-air cell without duplicating
+                // thousands of received air cells per frame.
+                sample.received.blocks.clear();
+                sample.blocks.retain(|b| {
+                    b.moving.is_some()
+                        || b.state.as_ref().is_none_or(|s| s.name != "minecraft:air")
+                        || !matches!(
+                            b.origin,
+                            voxrig::versions::java_1_21_11::reconstruction::StateOrigin::Received
+                        )
+                });
                 transient.push(sample);
             }
         }
         settled.push(client.observe_client_region(region).await?);
     }
+    let mut reload = Vec::new();
+    if std::env::var("PROBE_RELOAD").as_deref() == Ok("1") {
+        barrier("READY_FOR_TELEPORT_AWAY").await?;
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        reload.push(client.observe_client_region(region).await?);
+        barrier("READY_FOR_TELEPORT_BACK").await?;
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        reload.push(client.observe_client_region(region).await?);
+    }
     let after_client = client.observe_client_region(region).await?;
     let trace = client.stop_packet_trace().await?;
-    let record = serde_json::json!({"fixture":config.fixture,"before":before,"trace":trace,"inputs":inputs,"settled":settled,"transient":transient,"after_client":after_client});
+    let record = serde_json::json!({"fixture":config.fixture,"before":before,"trace":trace,"inputs":inputs,"settled":settled,"transient":transient,"reload":reload,"after_client":after_client});
     serde_json::to_writer(file, &record)?;
     client.disconnect().await?;
     println!(

@@ -256,6 +256,53 @@ fn normal_and_sticky_carriers_complete_in_all_six_directions() {
 }
 
 #[test]
+fn retracting_piston_back_keeps_mounted_component_supported_in_all_directions() {
+    let p = [0, 80, 0];
+    for dir in Direction::ALL {
+        let back = dir.opposite();
+        let lever = state(
+            "lever",
+            &[
+                (
+                    "face",
+                    match back {
+                        Direction::Up => "floor",
+                        Direction::Down => "ceiling",
+                        _ => "wall",
+                    },
+                ),
+                (
+                    "facing",
+                    if back.horizontal() {
+                        back.name()
+                    } else {
+                        "north"
+                    },
+                ),
+                ("powered", "false"),
+            ],
+        );
+        let attachment = back.offset(p, 1);
+        let mut w = world();
+        put(&mut w, p, body(true, dir));
+        put(&mut w, attachment, lever.clone());
+        let mut r = Reconstruction::default();
+        r.action(&w, p, Action::Extend, dir, "minecraft:sticky_piston", 1);
+        r.advance(&w, 8);
+        r.action(&w, p, Action::Retract, dir, "minecraft:sticky_piston", 2);
+        for tick in 8..=16 {
+            r.advance(&w, tick);
+            assert!(r.issue.is_none(), "{dir:?} {:?}", r.issue);
+            assert_eq!(
+                r.cell(&w, attachment).state,
+                Some(lever.clone()),
+                "{dir:?} at frame {tick}"
+            );
+        }
+    }
+}
+
+#[test]
 fn forced_completion_and_drop_retraction_leave_payload_behind() {
     let p = [0, 80, 0];
     let dir = Direction::East;
