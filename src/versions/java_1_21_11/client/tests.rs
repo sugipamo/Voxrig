@@ -14,6 +14,44 @@ fn play_state() -> State {
 }
 
 #[test]
+fn initial_zero_tick_step_is_not_a_frozen_world() {
+    let mut state = play_state();
+    state
+        .receive(ids::play_clientbound::STEP_TICK, &[0], 64)
+        .unwrap();
+    assert!(state.reconstruction.issue.is_none());
+    state
+        .receive(ids::play_clientbound::STEP_TICK, &[1], 64)
+        .unwrap();
+    assert!(matches!(
+        state.reconstruction.issue,
+        Some(super::super::reconstruction::ReconstructionIssue::UnsupportedTickControl)
+    ));
+}
+
+#[test]
+fn piston_packet_rejects_truncation_and_unknown_action_without_applying_it() {
+    let mut valid = vec![0; 8];
+    valid.extend([0, 5]);
+    put_varint(&mut valid, 138);
+    for length in 0..valid.len() {
+        let mut state = play_state();
+        assert!(
+            state
+                .receive(ids::play_clientbound::BLOCK_ACTION, &valid[..length], 64)
+                .is_err()
+        );
+        assert!(state.failure.is_some());
+    }
+    valid[8] = 3;
+    assert!(
+        play_state()
+            .receive(ids::play_clientbound::BLOCK_ACTION, &valid, 64)
+            .is_err()
+    );
+}
+
+#[test]
 fn trace_overflow_never_reports_complete_or_resumes_after_a_gap() {
     let mut trace = TraceCapture {
         start: 10,
@@ -22,9 +60,9 @@ fn trace_overflow_never_reports_complete_or_resumes_after_a_gap() {
         complete: true,
         records: vec![],
     };
-    trace.record(11, Phase::Play, 8, &[1, 2]);
-    trace.record(12, Phase::Play, 8, &[3]);
-    trace.record(13, Phase::Play, 0, &[]);
+    trace.record(11, 0, Phase::Play, 8, &[1, 2]);
+    trace.record(12, 0, Phase::Play, 8, &[3]);
+    trace.record(13, 0, Phase::Play, 0, &[]);
     assert!(!trace.complete);
     assert_eq!(trace.records.len(), 1);
     assert_eq!(trace.records[0].sequence, 11);
@@ -202,6 +240,20 @@ fn retained_native_packets_reproduce_the_stale_stair_without_js() {
         .find(|b| b["position"] == serde_json::json!([102, 180, 99]))
         .unwrap();
     assert_eq!(fresh_target["state"]["properties"]["shape"], "straight");
+    assert!(
+        state.reconstruction.issue.is_none(),
+        "{:?}",
+        state.reconstruction.issue
+    );
+    for block in fresh["blocks"].as_array().unwrap() {
+        let p = serde_json::from_value(block["position"].clone()).unwrap();
+        assert_eq!(
+            serde_json::to_value(state.reconstruction.cell(&state.world, p).state.unwrap())
+                .unwrap(),
+            block["state"],
+            "reconstructed {p:?}"
+        );
+    }
 }
 
 fn assert_cells(state: &State, expected: &serde_json::Value) {
@@ -214,6 +266,87 @@ fn assert_cells(state: &State, expected: &serde_json::Value) {
             block["state"],
             "at {p:?}"
         );
+    }
+}
+
+#[test]
+fn retained_client_frames_replay_motion_roles_and_final_region() {
+    for bytes in [
+        &include_bytes!("../../../../docs/evidence/client-motion-b-replay-20260929.json.gz")[..],
+        &include_bytes!("../../../../docs/evidence/client-motion-c-replay-20260929.json.gz")[..],
+        &include_bytes!("../../../../docs/evidence/client-motion-d-replay-20260929.json.gz")[..],
+    ] {
+        let capture: serde_json::Value =
+            serde_json::from_reader(flate2::read::GzDecoder::new(bytes)).unwrap();
+        let mut state = play_state();
+        for b in capture["before"]["blocks"].as_array().unwrap() {
+            let pos = serde_json::from_value(b["position"].clone()).unwrap();
+            let native = serde_json::from_value(b["state"].clone()).unwrap();
+            state
+                .world
+                .seed_replay_cell(pos, super::super::state_id(&native).unwrap());
+        }
+        state.world.revision = capture["before"]["revision"].as_u64().unwrap();
+        state.sequence = capture["before"]["receive_sequence"].as_u64().unwrap();
+        assert_eq!(capture["trace"]["complete"], true);
+        let mut records = capture["trace"]["records"].as_array().unwrap().iter();
+        for sample in capture["samples"].as_array().unwrap() {
+            let sequence = sample["sequence"].as_u64().unwrap();
+            while state.sequence < sequence {
+                let record = records.next().unwrap();
+                assert_eq!(record["sequence"].as_u64().unwrap(), state.sequence + 1);
+                assert_eq!(record["phase"], "play");
+                state
+                    .reconstruction
+                    .advance(&state.world, record["client_tick"].as_u64().unwrap());
+                let bytes: Vec<u8> = serde_json::from_value(record["payload"].clone()).unwrap();
+                state
+                    .receive(record["packet_id"].as_i64().unwrap() as i32, &bytes, 64)
+                    .unwrap();
+            }
+            state
+                .reconstruction
+                .advance(&state.world, sample["client_tick"].as_u64().unwrap());
+            assert!(
+                state.reconstruction.issue.is_none(),
+                "{:?}",
+                state.reconstruction.issue
+            );
+            for b in sample["blocks"].as_array().unwrap() {
+                let pos = serde_json::from_value(b["position"].clone()).unwrap();
+                assert_eq!(
+                    serde_json::to_value(state.reconstruction.cell(&state.world, pos)).unwrap(),
+                    *b,
+                    "sample seq={sequence} at {pos:?}"
+                );
+            }
+            // A missing or extra live carrier also fails, even outside the selected states.
+            let count = sample["moving"].as_array().unwrap().len();
+            assert_eq!(
+                capture["before"]["blocks"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|b| {
+                        let pos = serde_json::from_value(b["position"].clone()).unwrap();
+                        state
+                            .reconstruction
+                            .cell(&state.world, pos)
+                            .moving
+                            .is_some()
+                    })
+                    .count(),
+                count
+            );
+        }
+        for b in capture["final"]["blocks"].as_array().unwrap() {
+            let pos = serde_json::from_value(b["position"].clone()).unwrap();
+            assert_eq!(
+                serde_json::to_value(state.reconstruction.cell(&state.world, pos)).unwrap(),
+                *b,
+                "final at {pos:?}"
+            );
+        }
     }
 }
 

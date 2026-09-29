@@ -8,8 +8,9 @@
 //!
 //! The established `Bot` API targets Java 1.16.1 (736). [`Client`] also offers a
 //! limited Java 1.21.11 (774) adapter for native block observations, packet traces
-//! and use-on-block interactions. It does not yet reproduce client-side piston
-//! or neighbor updates: received block states can remain stale after a piston event.
+//! and use-on-block interactions. [`Client::observe_client_region`] additionally
+//! reconstructs a bounded set of piston and neighbor effects, including independent
+//! moving carriers, while preserving the unchanged received-state view.
 //! Neither adapter's local cache is independent confirmation of server state.
 //! It does not implement Microsoft authentication or online-mode encryption.
 //!

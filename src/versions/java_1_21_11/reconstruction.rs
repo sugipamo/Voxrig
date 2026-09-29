@@ -1,0 +1,378 @@
+//! Bounded client-side piston state. Received state packets remain independently available.
+//! This is a local reconstruction, never independent confirmation of server state.
+mod motion;
+mod rules;
+pub(crate) use motion::Action;
+#[cfg(test)]
+mod tests;
+
+use super::world::World;
+use crate::{NativeBlockState, Observation};
+use rules::{Kind, classify, state};
+use std::collections::BTreeMap;
+
+type Pos = [i32; 3];
+type ApplyResult<T> = std::result::Result<T, ReconstructionIssue>;
+
+/// The native piston direction numbering, independent of protocol-specific packet IDs.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Direction {
+    /// Negative Y.
+    Down,
+    /// Positive Y.
+    Up,
+    /// Negative Z.
+    North,
+    /// Positive Z.
+    South,
+    /// Negative X.
+    West,
+    /// Positive X.
+    East,
+}
+impl Direction {
+    const ALL: [Self; 6] = [
+        Self::Down,
+        Self::Up,
+        Self::North,
+        Self::South,
+        Self::West,
+        Self::East,
+    ];
+    // AbstractBlock's shape update order, not Direction.values().
+    const SHAPE_ORDER: [Self; 6] = [
+        Self::West,
+        Self::East,
+        Self::North,
+        Self::South,
+        Self::Down,
+        Self::Up,
+    ];
+    pub(crate) fn from_id(id: u8) -> Option<Self> {
+        Self::ALL.get(usize::from(id)).copied()
+    }
+    fn from_name(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|d| d.name() == name)
+    }
+    fn name(self) -> &'static str {
+        ["down", "up", "north", "south", "west", "east"][self as usize]
+    }
+    fn opposite(self) -> Self {
+        Self::ALL[(self as usize) ^ 1]
+    }
+    fn horizontal(self) -> bool {
+        !matches!(self, Self::Down | Self::Up)
+    }
+    fn left(self) -> Self {
+        match self {
+            Self::North => Self::West,
+            Self::West => Self::South,
+            Self::South => Self::East,
+            Self::East => Self::North,
+            _ => self,
+        }
+    }
+    fn offset(self, p: Pos, n: i32) -> Pos {
+        let d = [
+            [0, -1, 0],
+            [0, 1, 0],
+            [0, 0, -1],
+            [0, 0, 1],
+            [-1, 0, 0],
+            [1, 0, 0],
+        ][self as usize];
+        std::array::from_fn(|i| p[i] + d[i] * n)
+    }
+}
+
+/// Exact half-step progress used by the native moving block entity.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MotionProgress {
+    /// Progress 0.
+    Start,
+    /// Progress 0.5.
+    Half,
+    /// Progress 1; materialization can still be pending.
+    Full,
+}
+/// Role of a moving block entity; each carrier has its own lifetime.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CarrierRole {
+    /// Retracting piston body.
+    Body,
+    /// Extending head.
+    Head,
+    /// A transported block.
+    Payload,
+}
+/// Local moving block state derived from a received piston action.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct MovingBlock {
+    /// Carrier coordinate.
+    pub position: Pos,
+    /// Block carried by the moving block entity.
+    pub carried: NativeBlockState,
+    /// Piston facing, including during retraction.
+    pub direction: Direction,
+    /// Whether this carrier extends.
+    pub extending: bool,
+    /// Body, head or transported payload.
+    pub role: CarrierRole,
+    /// Current half-step.
+    pub progress: MotionProgress,
+    /// Previous half-step, retained separately.
+    pub last_progress: MotionProgress,
+    /// Client completion waits already consumed (0..5).
+    pub completion_waits: u8,
+    /// Receive sequence which created this carrier.
+    pub action_sequence: u64,
+}
+/// A reason client reconstruction cannot provide a usable state.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ReconstructionIssue {
+    /// Client tick-rate/freeze semantics outside the validated 20 TPS mode.
+    UnsupportedTickControl,
+    /// A needed block lies in an unavailable chunk or outside the dimension.
+    MissingBlock {
+        /// Coordinate that could not be read.
+        position: Pos,
+    },
+    /// No client rule has been validated for this block/state.
+    UnsupportedBlock {
+        /// Coordinate requiring the rule.
+        position: Pos,
+        /// Native identifier.
+        name: String,
+    },
+    /// A moving state arrived without a known carried state.
+    MissingCarrier {
+        /// Carrier coordinate.
+        position: Pos,
+    },
+    /// Data dependencies crossed a chunk invalidation boundary.
+    ChunkInvalidated {
+        /// Chunk x,z.
+        chunk: [i32; 2],
+    },
+    /// The bounded local update could not finish.
+    Limit,
+    /// Unexpected state or event fields; no approximate result is adopted.
+    InvalidAction,
+}
+/// Provenance of the chosen block state.
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum StateOrigin {
+    /// Latest explicitly received state in this cache.
+    Received,
+    /// Local effect of a received block action.
+    ClientUpdate {
+        /// Causal received action.
+        action_sequence: u64,
+    },
+    /// Missing raw data or an unresolved local update.
+    Unavailable,
+}
+/// Both sources for one cell; the original received state lives in `received`.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct ClientBlock {
+    /// Absolute coordinate.
+    pub position: Pos,
+    /// Usable client state; absent on incomplete reconstruction.
+    pub state: Option<NativeBlockState>,
+    /// How the state was obtained.
+    pub origin: StateOrigin,
+    /// Per-carrier intermediate state when present.
+    pub moving: Option<MovingBlock>,
+}
+/// A client view and its independently retained received-packet snapshot.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct ClientObservation {
+    /// Original cache; never overwritten by local calculations.
+    pub received: Observation,
+    /// Current dimension identity.
+    pub dimension: String,
+    /// Local simulation frame, not a server game tick.
+    pub client_tick: u64,
+    /// Local world-effects revision.
+    pub client_revision: u64,
+    /// Client states for the same region.
+    pub blocks: Vec<ClientBlock>,
+    /// First unresolved effect in this dimension. Recovery currently requires a fresh world.
+    pub issue: Option<ReconstructionIssue>,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct Reconstruction {
+    overlay: BTreeMap<Pos, (NativeBlockState, u64)>,
+    moving: BTreeMap<Pos, MovingBlock>,
+    // Native block entities tick in registration order, not sorted coordinate order.
+    order: Vec<Pos>,
+    dependencies: std::collections::BTreeSet<[i32; 2]>,
+    pub tick: u64,
+    pub revision: u64,
+    pub issue: Option<ReconstructionIssue>,
+}
+impl Reconstruction {
+    pub fn cell(&self, world: &World, p: Pos) -> ClientBlock {
+        let received = world.block(p).and_then(|id| super::native_state(id).ok());
+        let unknown_carrier = self
+            .overlay
+            .get(&p)
+            .map(|(s, _)| s)
+            .or(received.as_ref())
+            .is_some_and(|s| s.name == "minecraft:moving_piston")
+            && !self.moving.contains_key(&p);
+        let (state, origin) = if self.issue.is_some() || unknown_carrier {
+            (None, StateOrigin::Unavailable)
+        } else if let Some((s, seq)) = self.overlay.get(&p) {
+            (
+                Some(s.clone()),
+                StateOrigin::ClientUpdate {
+                    action_sequence: *seq,
+                },
+            )
+        } else {
+            let origin = if received.is_some() {
+                StateOrigin::Received
+            } else {
+                StateOrigin::Unavailable
+            };
+            (received, origin)
+        };
+        let moving = state.as_ref().and_then(|_| self.moving.get(&p).cloned());
+        ClientBlock {
+            position: p,
+            state,
+            origin,
+            moving,
+        }
+    }
+    fn read(&mut self, world: &World, p: Pos) -> ApplyResult<NativeBlockState> {
+        self.dependencies
+            .insert([p[0].div_euclid(16), p[2].div_euclid(16)]);
+        if let Some((s, _)) = self.overlay.get(&p) {
+            return Ok(s.clone());
+        }
+        let state = world
+            .block(p)
+            .and_then(|id| super::native_state(id).ok())
+            .ok_or(ReconstructionIssue::MissingBlock { position: p })?;
+        if state.name == "minecraft:moving_piston" && !self.moving.contains_key(&p) {
+            return Err(ReconstructionIssue::MissingCarrier { position: p });
+        }
+        Ok(state)
+    }
+    fn kind(&mut self, world: &World, p: Pos) -> ApplyResult<(NativeBlockState, Kind)> {
+        let s = self.read(world, p)?;
+        let k = classify(&s).ok_or_else(|| ReconstructionIssue::UnsupportedBlock {
+            position: p,
+            name: s.name.clone(),
+        })?;
+        Ok((s, k))
+    }
+    fn put(
+        &mut self,
+        world: &World,
+        p: Pos,
+        s: NativeBlockState,
+        seq: u64,
+        shape: bool,
+        depth: usize,
+    ) -> ApplyResult<()> {
+        if depth > 128 || self.overlay.len() >= 65_536 {
+            return Err(ReconstructionIssue::Limit);
+        }
+        let before = self.read(world, p)?;
+        if before == s {
+            return Ok(());
+        }
+        self.overlay.insert(p, (s, seq));
+        self.revision += 1;
+        if shape {
+            self.neighbors(world, p, seq, depth + 1)?;
+        }
+        Ok(())
+    }
+    fn neighbors(&mut self, world: &World, p: Pos, seq: u64, depth: usize) -> ApplyResult<()> {
+        for direction in Direction::SHAPE_ORDER {
+            let target = direction.offset(p, 1);
+            let (before, kind) = self.kind(world, target)?;
+            let after = match kind {
+                Kind::Stairs if direction.horizontal() => {
+                    self.stair_shape(world, target, before.clone())?
+                }
+                Kind::Lever if Self::lever_support(target, &before)?.0 == p => {
+                    if self.lever_supported(world, target, &before)? {
+                        before.clone()
+                    } else {
+                        state("air", &[])
+                    }
+                }
+                Kind::Head if rules::facing(&before)?.opposite().offset(target, 1) == p => {
+                    if self.head_supported(world, target, &before)? {
+                        before.clone()
+                    } else {
+                        state("air", &[])
+                    }
+                }
+                _ => before.clone(),
+            };
+            if before != after {
+                self.put(world, target, after, seq, true, depth)?;
+            }
+        }
+        Ok(())
+    }
+    pub fn received(&mut self, changes: &[(Pos, i32)]) {
+        for (p, id) in changes {
+            self.overlay.remove(p);
+            if super::native_state(*id).is_ok_and(|s| s.name == "minecraft:moving_piston") {
+                if !self.moving.contains_key(p) {
+                    self.issue
+                        .get_or_insert(ReconstructionIssue::MissingCarrier { position: *p });
+                }
+            } else {
+                self.moving.remove(p);
+                self.order.retain(|pos| pos != p);
+            }
+        }
+        self.revision += 1;
+    }
+    pub fn chunk_replaced(&mut self, chunk: [i32; 2]) {
+        if self.dependencies.contains(&chunk) {
+            self.issue
+                .get_or_insert(ReconstructionIssue::ChunkInvalidated { chunk });
+        }
+        self.overlay
+            .retain(|p, _| [p[0].div_euclid(16), p[2].div_euclid(16)] != chunk);
+        self.moving
+            .retain(|p, _| [p[0].div_euclid(16), p[2].div_euclid(16)] != chunk);
+        self.order.retain(|p| self.moving.contains_key(p));
+        self.revision += 1;
+    }
+    pub fn advance(&mut self, world: &World, target_tick: u64) {
+        if target_tick <= self.tick {
+            return;
+        }
+        // All active carriers settle in at most eight client frames; no server timers run here.
+        let steps = (target_tick - self.tick).min(8);
+        if self.issue.is_none() {
+            let mut next = self.clone();
+            for _ in 0..steps {
+                if let Err(issue) = next.step(world) {
+                    self.issue = Some(issue);
+                    break;
+                }
+            }
+            if self.issue.is_none() {
+                *self = next;
+            }
+        }
+        self.tick = target_tick;
+    }
+}

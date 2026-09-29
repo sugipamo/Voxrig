@@ -60,15 +60,33 @@ async fn main() -> anyhow::Result<()> {
     client
         .interact_block([99, 180, 100], BlockFace::East)
         .await?;
-    tokio::time::sleep(Duration::from_millis(800)).await;
+    let wait_ms: u64 = std::env::var("INPUT_WAIT_MS")
+        .unwrap_or_else(|_| "800".into())
+        .parse()?;
+    let started = tokio::time::Instant::now();
+    let mut transient = Vec::new();
+    while started.elapsed() < Duration::from_millis(wait_ms) {
+        tokio::time::sleep(Duration::from_millis(10)).await;
+        let sample = client.observe_client_region(region).await?;
+        if transient.len() < 200 {
+            transient.push(sample);
+        }
+    }
     let on = client.observe_region(region).await?;
+    let on_client = client.observe_client_region(region).await?;
     client
         .interact_block([99, 180, 100], BlockFace::East)
         .await?;
-    tokio::time::sleep(Duration::from_secs(4)).await;
+    let started = tokio::time::Instant::now();
+    while started.elapsed() < Duration::from_millis(500) {
+        tokio::time::sleep(Duration::from_millis(10)).await;
+        transient.push(client.observe_client_region(region).await?);
+    }
+    tokio::time::sleep(Duration::from_millis(3500)).await;
     let after = client.observe_region(region).await?;
+    let after_client = client.observe_client_region(region).await?;
     let trace = client.stop_packet_trace().await?;
-    let record = serde_json::json!({"fixture":"device-stairs-inner-top-left-r0","input_wait_ms":800,"settling_ms":4000,"before":before,"on":on,"after":after,"trace":trace});
+    let record = serde_json::json!({"fixture":"device-stairs-inner-top-left-r0","input_wait_ms":wait_ms,"settling_ms":4000,"before":before,"on":on,"after":after,"trace":trace,"on_client":on_client,"after_client":after_client,"transient":transient});
     serde_json::to_writer_pretty(file, &record)?;
     println!(
         "TRACE_RETAINED complete={} packets={} target={}",
@@ -82,5 +100,10 @@ async fn main() -> anyhow::Result<()> {
             .unwrap()
     );
     client.disconnect().await?;
+    anyhow::ensure!(
+        record["after_client"]["issue"].is_null(),
+        "client reconstruction incomplete: {}",
+        record["after_client"]["issue"]
+    );
     Ok(())
 }

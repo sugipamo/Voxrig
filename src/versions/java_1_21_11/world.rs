@@ -86,14 +86,15 @@ impl World {
         }
         Ok(())
     }
-    pub fn block_change(&mut self, payload: &[u8]) -> Result<()> {
+    pub fn block_change(&mut self, payload: &[u8]) -> Result<Vec<([i32; 3], i32)>> {
         let mut r = Reader::new(payload);
         let p = unpack_position(r.u64()?);
         let id = r.varint()?;
         r.end()?;
-        self.set_block(p, id)
+        self.set_block(p, id)?;
+        Ok(vec![(p, id)])
     }
-    pub fn section_changes(&mut self, payload: &[u8]) -> Result<()> {
+    pub fn section_changes(&mut self, payload: &[u8]) -> Result<Vec<([i32; 3], i32)>> {
         let mut r = Reader::new(payload);
         let p = r.u64()?;
         let x = (p as i64 >> 42) as i32;
@@ -129,10 +130,10 @@ impl World {
         {
             bail!("section update outside dimension");
         }
-        for (p, id) in changes {
-            self.set_block(p, id)?;
+        for (p, id) in &changes {
+            self.set_block(*p, *id)?;
         }
-        Ok(())
+        Ok(changes)
     }
     pub fn unload(&mut self, payload: &[u8]) -> Result<()> {
         let mut r = Reader::new(payload);

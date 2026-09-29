@@ -36,6 +36,68 @@ pub(crate) struct StateRegistry {
 }
 
 impl StateRegistry {
+    pub(crate) fn block_name(&self, block_id: i32) -> Option<&str> {
+        usize::try_from(block_id)
+            .ok()
+            .and_then(|i| self.definitions.get(i))
+            .map(|b| b.name.as_str())
+    }
+    pub(crate) fn encode(&self, state: &NativeBlockState) -> Result<i32> {
+        let name = state.name.strip_prefix("minecraft:").ok_or_else(|| {
+            Error::new(
+                ErrorKind::InvalidInput,
+                anyhow::anyhow!("native block namespace required"),
+            )
+        })?;
+        let block = self
+            .definitions
+            .iter()
+            .find(|b| b.name == name)
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::InvalidInput,
+                    anyhow::anyhow!("unknown native block {}", state.name),
+                )
+            })?;
+        if state.properties.len() != block.states.len() {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                anyhow::anyhow!("complete native properties required"),
+            ));
+        }
+        let mut offset = 0u32;
+        for property in &block.states {
+            let value = state.properties.get(&property.name).ok_or_else(|| {
+                Error::new(
+                    ErrorKind::InvalidInput,
+                    anyhow::anyhow!("missing property {}", property.name),
+                )
+            })?;
+            let index = if let Some(values) = &property.values {
+                values.iter().position(|v| v == value).map(|i| i as u32)
+            } else if property.kind == "bool" {
+                match value.as_str() {
+                    "true" => Some(0),
+                    "false" => Some(1),
+                    _ => None,
+                }
+            } else {
+                value
+                    .parse::<u32>()
+                    .ok()
+                    .filter(|i| i.to_string() == *value)
+            }
+            .filter(|i| *i < property.num_values)
+            .ok_or_else(|| {
+                Error::new(
+                    ErrorKind::InvalidInput,
+                    anyhow::anyhow!("invalid property {}", property.name),
+                )
+            })?;
+            offset = offset * property.num_values + index;
+        }
+        Ok(block.min_state_id + offset as i32)
+    }
     pub(crate) fn validate_id(&self, id: i32) -> Result<()> {
         if id < 0 || self.definitions.last().is_none_or(|b| id > b.max_state_id) {
             return Err(Error::new(

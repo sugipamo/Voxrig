@@ -1,6 +1,7 @@
 //! Ordered 1.21.11 receive loop. Local state is committed under one session lock.
 use super::{
     ids,
+    reconstruction::{Action, ClientObservation, Direction, Reconstruction},
     wire::Reader,
     world::{Dimension, World},
 };
@@ -38,6 +39,8 @@ enum Phase {
 pub struct PacketRecord {
     /// Connection-local receive ordinal.
     pub sequence: u64,
+    /// Local frame at application, for replaying moving blocks; not a server tick.
+    pub client_tick: u64,
     /// Protocol state in which the packet was received.
     pub phase: &'static str,
     /// Native packet identifier.
@@ -72,7 +75,7 @@ struct TraceCapture {
 }
 
 impl TraceCapture {
-    fn record(&mut self, sequence: u64, phase: Phase, id: i32, payload: &[u8]) {
+    fn record(&mut self, sequence: u64, client_tick: u64, phase: Phase, id: i32, payload: &[u8]) {
         if !self.complete {
             return;
         }
@@ -83,6 +86,7 @@ impl TraceCapture {
         self.bytes += payload.len();
         self.records.push(PacketRecord {
             sequence,
+            client_tick,
             phase: match phase {
                 Phase::Configuration => "configuration",
                 Phase::Play => "play",
@@ -96,6 +100,7 @@ impl TraceCapture {
 struct State {
     phase: Phase,
     world: World,
+    reconstruction: Reconstruction,
     dimensions: Vec<Dimension>,
     position: Option<[f64; 3]>,
     rotation: [f32; 2],
@@ -109,6 +114,7 @@ impl Default for State {
         Self {
             phase: Phase::Configuration,
             world: World::default(),
+            reconstruction: Reconstruction::default(),
             dimensions: Vec::new(),
             position: None,
             rotation: [0.0; 2],
@@ -127,7 +133,13 @@ impl State {
         }
         self.sequence += 1;
         if let Some(trace) = &mut self.trace {
-            trace.record(self.sequence, self.phase, id, payload);
+            trace.record(
+                self.sequence,
+                self.reconstruction.tick,
+                self.phase,
+                id,
+                payload,
+            );
         }
         let result = match self.phase {
             Phase::Configuration => apply_configuration(self, id, payload),
@@ -449,9 +461,45 @@ impl Bot {
     }
 
     pub async fn observe_region(&self, region: Region) -> Result<Observation> {
-        let volume = region.volume()?;
         let state = self.session.state.lock().await;
+        self.observation(&state, region)
+    }
+
+    pub async fn observe_client_region(&self, region: Region) -> Result<ClientObservation> {
+        let mut state = self.session.state.lock().await;
         self.session.check(&state)?;
+        let target = self.session.started.elapsed().as_millis() as u64 / 50;
+        let State {
+            world,
+            reconstruction,
+            ..
+        } = &mut *state;
+        reconstruction.advance(world, target);
+        let received = self.observation(&state, region)?;
+        let blocks = received
+            .blocks
+            .iter()
+            .map(|b| state.reconstruction.cell(&state.world, b.position))
+            .collect();
+        Ok(ClientObservation {
+            received,
+            dimension: state
+                .world
+                .dimension
+                .as_ref()
+                .expect("validated observation dimension")
+                .0
+                .clone(),
+            client_tick: state.reconstruction.tick,
+            client_revision: state.reconstruction.revision,
+            blocks,
+            issue: state.reconstruction.issue.clone(),
+        })
+    }
+
+    fn observation(&self, state: &State, region: Region) -> Result<Observation> {
+        let volume = region.volume()?;
+        self.session.check(state)?;
         let dimension = state
             .world
             .dimension
@@ -529,6 +577,13 @@ impl Session {
             };
             let responses = {
                 let mut state = self.state.lock().await;
+                let target = self.started.elapsed().as_millis() as u64 / 50;
+                let State {
+                    world,
+                    reconstruction,
+                    ..
+                } = &mut *state;
+                reconstruction.advance(world, target);
                 state.receive(packet.0, &packet.1, self.limits.max_chunks)?
             };
             for (id, payload) in responses {
@@ -666,6 +721,7 @@ fn spawn_info(state: &mut State, r: &mut Reader<'_>) -> anyhow::Result<()> {
         .get(id)
         .context("unknown dimension registry ID")?;
     state.world.select_dimension(name, dimension);
+    state.reconstruction = Reconstruction::default();
     state.ready = false;
     state.position = None;
     Ok(())
@@ -757,10 +813,67 @@ fn apply_play(
             moved.push(0);
             responses.push((output::POSITION_LOOK, moved));
         }
-        input::MAP_CHUNK => state.world.load(payload, max_chunks)?,
-        input::BLOCK_CHANGE => state.world.block_change(payload)?,
-        input::MULTI_BLOCK_CHANGE => state.world.section_changes(payload)?,
-        input::UNLOAD_CHUNK => state.world.unload(payload)?,
+        input::MAP_CHUNK => {
+            let chunk = [r.i32()?, r.i32()?];
+            state.world.load(payload, max_chunks)?;
+            state.reconstruction.chunk_replaced(chunk);
+        }
+        input::BLOCK_CHANGE => {
+            let changes = state.world.block_change(payload)?;
+            state.reconstruction.received(&changes);
+        }
+        input::MULTI_BLOCK_CHANGE => {
+            let changes = state.world.section_changes(payload)?;
+            state.reconstruction.received(&changes);
+        }
+        input::UNLOAD_CHUNK => {
+            let z = r.i32()?;
+            let x = r.i32()?;
+            state.world.unload(payload)?;
+            state.reconstruction.chunk_replaced([x, z]);
+        }
+        input::BLOCK_ACTION => {
+            let p = super::wire::unpack_position(r.u64()?);
+            let action = r.u8()?;
+            let parameter = r.u8()?;
+            let block_id = r.varint()?;
+            r.end()?;
+            let name = super::registry()
+                .block_name(block_id)
+                .context("unknown block action ID")?;
+            if matches!(name, "piston" | "sticky_piston") {
+                let action = Action::from_id(action).context("unknown piston action")?;
+                let facing =
+                    Direction::from_id(parameter & 7).context("invalid piston direction")?;
+                state.reconstruction.action(
+                    &state.world,
+                    p,
+                    action,
+                    facing,
+                    &format!("minecraft:{name}"),
+                    state.sequence,
+                );
+            }
+        }
+        input::SET_TICKING_STATE => {
+            let rate = r.f32()?;
+            let frozen = r.bool()?;
+            r.end()?;
+            if rate != 20.0 || frozen {
+                state.reconstruction.issue.get_or_insert(
+                    super::reconstruction::ReconstructionIssue::UnsupportedTickControl,
+                );
+            }
+        }
+        input::STEP_TICK => {
+            let steps = r.count(1_000_000)?;
+            r.end()?;
+            if steps != 0 {
+                state.reconstruction.issue.get_or_insert(
+                    super::reconstruction::ReconstructionIssue::UnsupportedTickControl,
+                );
+            }
+        }
         input::CHUNK_BATCH_FINISHED => {
             r.count(65_536)?;
             r.end()?;
@@ -773,6 +886,7 @@ fn apply_play(
             state.position = None;
             state.dimensions.clear();
             state.world.reset();
+            state.reconstruction = Reconstruction::default();
             responses.push((output::CONFIGURATION_ACKNOWLEDGED, vec![]));
             responses.push((ids::configuration_serverbound::SETTINGS, settings()));
         }

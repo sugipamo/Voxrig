@@ -2,6 +2,7 @@
 mod client;
 #[allow(dead_code)]
 mod ids;
+pub mod reconstruction;
 mod wire;
 mod world;
 pub(crate) use client::Bot;
@@ -21,6 +22,11 @@ fn registry() -> &'static crate::block_state::StateRegistry {
 /// Interprets an ID only in the Java 1.21.11 registry.
 pub fn native_state(id: i32) -> crate::Result<crate::NativeBlockState> {
     registry().decode(id)
+}
+
+/// Resolves a complete native state using only the Java 1.21.11 registry.
+pub fn state_id(state: &crate::NativeBlockState) -> crate::Result<i32> {
+    registry().encode(state)
 }
 
 fn validate_state_id(id: i32) -> anyhow::Result<()> {

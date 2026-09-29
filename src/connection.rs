@@ -123,6 +123,20 @@ pub struct Client {
 }
 
 impl Client {
+    /// Returns the Java 1.21.11 client reconstruction alongside the unchanged received cache.
+    /// Incomplete reconstruction has absent client states and a typed issue; it is not server confirmation.
+    pub async fn observe_client_region(
+        &self,
+        region: Region,
+    ) -> Result<crate::versions::java_1_21_11::reconstruction::ClientObservation> {
+        match &self.adapter {
+            Adapter::Java1_21_11(bot) => bot.observe_client_region(region).await,
+            Adapter::Java1_16_1(_) => Err(Error::new(
+                ErrorKind::Unsupported,
+                anyhow::anyhow!("client piston reconstruction is not implemented for Java 1.16.1"),
+            )),
+        }
+    }
     /// Captures exact incoming packets for a bounded diagnostic interval.
     pub async fn start_packet_trace(&self, maximum_bytes: usize) -> Result<()> {
         match &self.adapter {

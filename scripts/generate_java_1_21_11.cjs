@@ -10,6 +10,8 @@ const metadata = require(path.join(source, 'package.json'));
 assert.equal(metadata.version, '3.114.0');
 const data = require(source)('1.21.11');
 assert.equal(data.version.version, 774);
+// Block-action packets use block IDs, unlike block updates which use state IDs.
+data.blocksArray.forEach((block, index) => assert.equal(block.id, index));
 const root = path.resolve(__dirname, '..');
 const digest = value => crypto.createHash('sha256').update(value).digest('hex');
 function output(name, contents) {
