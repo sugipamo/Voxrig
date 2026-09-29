@@ -1,6 +1,6 @@
 //! Boss bars, scoreboard, teams, titles, tab list, and world-border state.
 
-use crate::protocol::{get_string, get_varint};
+use crate::versions::java_1_16_1::protocol::{get_string, get_varint};
 use anyhow::{Context, Result, bail};
 use byteorder::{BigEndian, ReadBytesExt};
 use std::{collections::HashMap, io::Cursor};
@@ -398,7 +398,7 @@ fn get_varlong(r: &mut &[u8]) -> Result<i64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::{put_string, put_varint};
+    use crate::versions::java_1_16_1::protocol::{put_string, put_varint};
 
     #[test]
     fn scoreboard_create_score_and_remove_are_stateful() {

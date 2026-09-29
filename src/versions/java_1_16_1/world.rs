@@ -1,6 +1,6 @@
 //! Loaded chunk storage, block queries, lighting, collision, and raycasts.
 
-use crate::{
+use crate::versions::java_1_16_1::{
     collision::{block_name, shapes_for},
     interaction::{BlockFace, BlockPos, BlockRaycastHit},
     physics::{Aabb, Vec3},
@@ -1302,7 +1302,7 @@ mod tests {
         let mut packet = Vec::new();
         packet.extend(i32::MIN.to_be_bytes());
         packet.extend(0_i32.to_be_bytes());
-        crate::protocol::put_varint(&mut packet, 0);
+        crate::versions::java_1_16_1::protocol::put_varint(&mut packet, 0);
         assert!(World::default().apply_multi_block_change(&packet).is_err());
     }
 
@@ -1311,7 +1311,7 @@ mod tests {
         let mut world = World::default();
         world.chunks.insert((6, -13), Chunk::default());
         let mut packet = pack_position(99, 4, -198).to_be_bytes().to_vec();
-        crate::protocol::put_varint(&mut packet, 1);
+        crate::versions::java_1_16_1::protocol::put_varint(&mut packet, 1);
         assert_eq!(world.apply_block_change(&packet).unwrap(), (99, 4, -198, 1));
         assert_eq!(world.block(99, 4, -198), Some(1));
     }
@@ -1458,7 +1458,7 @@ mod tests {
     fn light_updates_are_kept_as_nibbles_in_chunk_snapshots() {
         let mut packet = Vec::new();
         for value in [2, 3, 1, 1 << 1, 1 << 1, 0, 0] {
-            crate::protocol::put_varint(&mut packet, value);
+            crate::versions::java_1_16_1::protocol::put_varint(&mut packet, value);
         }
         packet.extend([0x21; 2048]);
         packet.extend([0xa5; 2048]);
@@ -1643,8 +1643,10 @@ mod tests {
 
     #[test]
     fn obstacle_trajectories_match_prismarine_physics_fixtures() {
-        let fixtures: DifferentialFile =
-            serde_json::from_str(include_str!("../data/prismarine_physics_fixtures.json")).unwrap();
+        let fixtures: DifferentialFile = serde_json::from_str(include_str!(
+            "../../../data/prismarine_physics_fixtures.json"
+        ))
+        .unwrap();
         for fixture in fixtures
             .fixtures
             .into_iter()

@@ -1,6 +1,6 @@
 //! Tracked entity state, metadata, spawn parsing, and entity raycasts.
 
-use crate::{
+use crate::versions::java_1_16_1::{
     interaction::BlockPos,
     inventory::{ItemStack, read_slot},
     physics::Vec3,
@@ -210,10 +210,10 @@ impl EntityTracker {
             .filter_map(|entity| {
                 let (width, height) = entity
                     .type_id
-                    .and_then(crate::registry::entity_dimensions)
+                    .and_then(crate::versions::java_1_16_1::registry::entity_dimensions)
                     .unwrap_or((0.6, 1.8));
                 let half = width / 2.0;
-                let aabb = crate::Aabb {
+                let aabb = crate::versions::java_1_16_1::Aabb {
                     min_x: entity.position.x - half,
                     min_y: entity.position.y,
                     min_z: entity.position.z - half,
@@ -237,7 +237,11 @@ impl EntityTracker {
     }
 }
 
-fn ray_aabb_distance(origin: Vec3, direction: Vec3, aabb: crate::Aabb) -> Option<f64> {
+fn ray_aabb_distance(
+    origin: Vec3,
+    direction: Vec3,
+    aabb: crate::versions::java_1_16_1::Aabb,
+) -> Option<f64> {
     let mut near = f64::NEG_INFINITY;
     let mut far = f64::INFINITY;
     for (start, delta, min, max) in [
@@ -560,7 +564,7 @@ fn take_u64(rest: &mut &[u8]) -> Result<u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::put_varint;
+    use crate::versions::java_1_16_1::protocol::put_varint;
 
     #[test]
     fn metadata_keeps_raw_typed_values() {

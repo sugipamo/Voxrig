@@ -1,6 +1,6 @@
 //! Structured map-item updates and retained 128×128 color buffers.
 
-use crate::protocol::{get_string, get_varint};
+use crate::versions::java_1_16_1::protocol::{get_string, get_varint};
 use anyhow::{Context, Result, bail};
 use std::{collections::HashMap, sync::Arc};
 
@@ -185,7 +185,7 @@ fn take_bool(rest: &mut &[u8]) -> Result<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::put_varint;
+    use crate::versions::java_1_16_1::protocol::put_varint;
 
     #[test]
     fn partial_map_updates_are_applied_without_copying_unchanged_snapshots() {

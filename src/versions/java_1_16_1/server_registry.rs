@@ -1,6 +1,6 @@
 //! Runtime command-tree, tag, and recipe declarations sent by the server.
 
-use crate::{
+use crate::versions::java_1_16_1::{
     inventory::{ItemStack, read_slot},
     protocol::{get_string, get_varint},
 };
@@ -401,7 +401,7 @@ fn take_u8(rest: &mut &[u8]) -> Result<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
+    use crate::versions::java_1_16_1::{
         inventory::write_slot,
         protocol::{put_string, put_varint},
     };

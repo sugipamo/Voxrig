@@ -90,23 +90,25 @@ pub struct RawRecipe {
 fn registry() -> &'static Registry {
     static REGISTRY: OnceLock<Registry> = OnceLock::new();
     REGISTRY.get_or_init(|| Registry {
-        blocks: serde_json::from_str(include_str!("../data/blocks.json"))
+        blocks: serde_json::from_str(include_str!("../../../data/blocks.json"))
             .expect("embedded 1.16.1 blocks registry must be valid"),
-        items: serde_json::from_str::<Vec<ItemData>>(include_str!("../data/items.json"))
+        items: serde_json::from_str::<Vec<ItemData>>(include_str!("../../../data/items.json"))
             .expect("embedded 1.16.1 items registry must be valid")
             .into_iter()
             .map(|item| (item.id, (item.name, item.stack_size)))
             .collect(),
-        materials: serde_json::from_str(include_str!("../data/materials.json"))
+        materials: serde_json::from_str(include_str!("../../../data/materials.json"))
             .expect("embedded 1.16.1 materials registry must be valid"),
-        recipes: serde_json::from_str(include_str!("../data/recipes.json"))
+        recipes: serde_json::from_str(include_str!("../../../data/recipes.json"))
             .expect("embedded 1.16.1 recipes registry must be valid"),
-        entities: serde_json::from_str::<Vec<EntityData>>(include_str!("../data/entities.json"))
-            .expect("embedded 1.16.1 entities registry must be valid")
-            .into_iter()
-            .map(|entity| (entity.id, (entity.name, entity.width, entity.height)))
-            .collect(),
-        sounds: serde_json::from_str::<Vec<SoundData>>(include_str!("../data/sounds.json"))
+        entities: serde_json::from_str::<Vec<EntityData>>(include_str!(
+            "../../../data/entities.json"
+        ))
+        .expect("embedded 1.16.1 entities registry must be valid")
+        .into_iter()
+        .map(|entity| (entity.id, (entity.name, entity.width, entity.height)))
+        .collect(),
+        sounds: serde_json::from_str::<Vec<SoundData>>(include_str!("../../../data/sounds.json"))
             .expect("embedded 1.16.1 sounds registry must be valid")
             .into_iter()
             .map(|sound| (sound.id, sound.name))

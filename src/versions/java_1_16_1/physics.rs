@@ -1,6 +1,6 @@
 //! Player motion state, controls, collision geometry, and timing metrics.
 
-use crate::Player;
+use crate::versions::java_1_16_1::Player;
 use std::{
     collections::VecDeque,
     time::{Duration, Instant},
@@ -405,8 +405,10 @@ mod tests {
 
     #[test]
     fn flat_trajectories_match_prismarine_physics_fixtures() {
-        let file: FixtureFile =
-            serde_json::from_str(include_str!("../data/prismarine_physics_fixtures.json")).unwrap();
+        let file: FixtureFile = serde_json::from_str(include_str!(
+            "../../../data/prismarine_physics_fixtures.json"
+        ))
+        .unwrap();
         assert_eq!(file.generator, "prismarine-physics@1.11.1");
         assert_eq!(file.minecraft, "1.16.1");
         for fixture in file.fixtures {

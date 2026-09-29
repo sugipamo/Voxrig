@@ -1,6 +1,6 @@
 //! Structured chat messages and the server-maintained player list.
 
-use crate::protocol::{get_string, get_varint};
+use crate::versions::java_1_16_1::protocol::{get_string, get_varint};
 use anyhow::{Context, Result, bail};
 use std::collections::HashMap;
 
@@ -156,7 +156,7 @@ pub(crate) fn apply_player_info(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::put_string;
+    use crate::versions::java_1_16_1::protocol::put_string;
 
     #[test]
     fn chat_keeps_raw_json_and_sender() {

@@ -1,7 +1,7 @@
 //! Health, hunger, effects, attributes, game mode, and respawn state.
 
-use crate::protocol::{get_string, get_varint};
-use crate::world::skip_nbt;
+use crate::versions::java_1_16_1::protocol::{get_string, get_varint};
+use crate::versions::java_1_16_1::world::skip_nbt;
 use anyhow::{Result, bail};
 use byteorder::{BigEndian, ReadBytesExt};
 use std::{collections::HashMap, io::Cursor};
@@ -407,7 +407,7 @@ pub(crate) fn unpack_position(value: u64) -> SpawnPosition {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::{put_string, put_varint};
+    use crate::versions::java_1_16_1::protocol::{put_string, put_varint};
     use byteorder::WriteBytesExt;
 
     #[test]

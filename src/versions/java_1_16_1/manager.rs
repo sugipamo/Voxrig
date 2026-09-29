@@ -1,6 +1,6 @@
 //! Ownership and event aggregation for multiple Bots in one process.
 
-use crate::{
+use crate::versions::java_1_16_1::{
     Bot, ChunkStorageStats, ConnectionOptions, Event, PhysicsMetrics, Player, Result, Server,
     SharedChunkStorage,
 };
@@ -12,7 +12,7 @@ use tokio::sync::{RwLock, broadcast};
 
 macro_rules! bail {
     ($($argument:tt)*) => {
-        return Err(crate::Error::from(anyhow::anyhow!($($argument)*)).into())
+        return Err(crate::versions::java_1_16_1::Error::from(anyhow::anyhow!($($argument)*)).into())
     };
 }
 
@@ -225,7 +225,7 @@ impl BotManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::{read_packet, write_packet};
+    use crate::versions::java_1_16_1::protocol::{read_packet, write_packet};
     use tokio::{io::AsyncReadExt, net::TcpListener, time::Duration};
 
     async fn mock_login_server() -> (u16, tokio::task::JoinHandle<()>) {

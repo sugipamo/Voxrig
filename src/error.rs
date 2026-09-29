@@ -4,6 +4,8 @@ use std::{error::Error as StdError, fmt};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum ErrorKind {
+    /// This version adapter does not implement the requested capability.
+    Unsupported,
     /// A caller supplied an invalid value or requested an invalid operation.
     InvalidInput,
     /// Establishing or using the network connection failed.

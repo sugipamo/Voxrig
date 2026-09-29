@@ -1,7 +1,7 @@
 //! Connection lifecycle, protocol events, observations, and player operations.
 
-use crate::Result;
-use crate::{
+use crate::versions::java_1_16_1::Result;
+use crate::versions::java_1_16_1::{
     chat::{ChatMessage, PlayerList, apply_player_info, parse_chat},
     entity::{
         EntityState, EntityTracker, apply_relative, parse_metadata, parse_spawn_living,
@@ -42,7 +42,7 @@ use std::{
     io::Cursor,
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicU64, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicUsize, Ordering},
     },
 };
 use tokio::{
@@ -53,7 +53,7 @@ use tokio::{
 
 macro_rules! bail {
     ($($argument:tt)*) => {
-        return Err(crate::Error::from(anyhow::anyhow!($($argument)*)).into())
+        return Err(crate::versions::java_1_16_1::Error::from(anyhow::anyhow!($($argument)*)).into())
     };
 }
 
@@ -338,7 +338,7 @@ pub struct WorldParticleEvent {
     /// The `count` value.
     pub count: i32,
     /// The `data` value.
-    pub data: crate::ParticleData,
+    pub data: crate::versions::java_1_16_1::ParticleData,
     /// The `raw_data` value.
     pub raw_data: Vec<u8>,
 }
@@ -517,7 +517,7 @@ pub enum Event {
         state_id: i32,
     },
     /// Documentation for this public variant.
-    BlockEntityUpdated(crate::BlockEntityData),
+    BlockEntityUpdated(crate::versions::java_1_16_1::BlockEntityData),
     /// The `MultiBlockChanged` variant.
     MultiBlockChanged {
         /// The `count` value carried by this variant.
@@ -534,7 +534,7 @@ pub enum Event {
     /// Documentation for this public variant.
     GameStateChange(GameStateChange),
     /// Documentation for this public variant.
-    SpawnPosition(crate::SpawnPosition),
+    SpawnPosition(crate::versions::java_1_16_1::SpawnPosition),
     /// The `EntityStatus` variant.
     EntityStatus {
         /// The `entity_id` value carried by this variant.
@@ -588,7 +588,7 @@ pub enum Event {
     /// Documentation for this public variant.
     WindowTransaction(WindowTransaction),
     /// Documentation for this public variant.
-    MerchantOffers(crate::MerchantOffers),
+    MerchantOffers(crate::versions::java_1_16_1::MerchantOffers),
     /// Documentation for this public variant.
     EntitySpawned(EntityState),
     /// Documentation for this public variant.
@@ -712,7 +712,6 @@ struct Writer {
     inner: OwnedWriteHalf,
     compression: Option<i32>,
 }
-static NEXT_CONNECTION_ID: AtomicU64 = AtomicU64::new(1);
 
 /// State and protocol data represented by `Bot`.
 pub struct Bot {
@@ -839,7 +838,7 @@ impl Bot {
     pub(crate) async fn connect(
         server: Server,
         player: Player,
-        chunk_storage: Arc<crate::SharedChunkStorage>,
+        chunk_storage: Arc<crate::versions::java_1_16_1::SharedChunkStorage>,
         connection_options: ConnectionOptions,
     ) -> Result<Self> {
         player.validate()?;
@@ -893,7 +892,7 @@ impl Bot {
         let (events, _) = broadcast::channel(connection_options.event_channel_capacity.max(1));
         let connected_at = std::time::Instant::now();
         let bot = Self {
-            connection_id: NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed),
+            connection_id: crate::connection::next_connection_id(),
             server,
             writer,
             player: Arc::new(Mutex::new(Versioned::new(player, connected_at))),
@@ -1176,7 +1175,7 @@ impl Bot {
         self.motion.lock().await.snapshot()
     }
     /// Returns raw contact/environment facts used by client physics.
-    pub async fn environment_state(&self) -> crate::EnvironmentState {
+    pub async fn environment_state(&self) -> crate::versions::java_1_16_1::EnvironmentState {
         let player = self.player().await;
         self.world
             .lock()
@@ -1211,7 +1210,7 @@ impl Bot {
             .map_snapshot(|inventory| inventory.open_window.clone())
     }
     /// Performs the `merchant_offers` operation.
-    pub async fn merchant_offers(&self) -> Option<crate::MerchantOffers> {
+    pub async fn merchant_offers(&self) -> Option<crate::versions::java_1_16_1::MerchantOffers> {
         self.inventory.read().await.merchant_offers.clone()
     }
     /// Performs the `entity` operation.
@@ -1302,8 +1301,8 @@ impl Bot {
         self.set_control(ControlState::default()).await;
     }
     /// Access protocol-adjacent operations with weaker compatibility guarantees.
-    pub fn unstable(&self) -> crate::UnstableBot<'_> {
-        crate::UnstableBot { bot: self }
+    pub fn unstable(&self) -> crate::versions::java_1_16_1::UnstableBot<'_> {
+        crate::versions::java_1_16_1::UnstableBot { bot: self }
     }
     /// Temporarily stops the 20 Hz movement producer without changing `ControlState`.
     ///
@@ -1376,6 +1375,35 @@ impl Bot {
             )
         }))
     }
+
+    pub(crate) async fn observe_region_snapshot(
+        &self,
+        region: crate::Region,
+    ) -> Result<Snapshot<Vec<BlockObservation>>> {
+        let volume = region.volume()?;
+        if self.is_stopped() {
+            return Err(crate::Error::new(
+                crate::ErrorKind::Disconnected,
+                anyhow::anyhow!("connection closed before observation"),
+            ));
+        }
+        Ok(self.world.lock().await.map_snapshot(|world| {
+            let mut blocks = Vec::with_capacity(volume);
+            for x in region.min[0]..=region.max[0] {
+                for y in region.min[1]..=region.max[1] {
+                    for z in region.min[2]..=region.max[2] {
+                        blocks.push(BlockObservation {
+                            x,
+                            y,
+                            z,
+                            state_id: world.block(x, y, z),
+                        });
+                    }
+                }
+            }
+            blocks
+        }))
+    }
     /// Returns a loaded block-state ID, or `None` when the chunk is unavailable.
     ///
     /// `None` never means air.
@@ -1390,13 +1418,13 @@ impl Bot {
             .map_snapshot(|world| world.block(x, y, z))
     }
     /// Performs the `loaded_chunks` operation.
-    pub async fn loaded_chunks(&self) -> Vec<crate::ChunkPos> {
+    pub async fn loaded_chunks(&self) -> Vec<crate::versions::java_1_16_1::ChunkPos> {
         self.world.lock().await.loaded_chunks()
     }
     /// Performs the `query_blocks` operation.
     pub async fn query_blocks(
         &self,
-        region: crate::BlockRegion,
+        region: crate::versions::java_1_16_1::BlockRegion,
         state_ids: &[i32],
         limit: usize,
     ) -> Result<Vec<BlockPos>> {
@@ -1408,21 +1436,24 @@ impl Bot {
     }
 
     /// Performs the `is_chunk_loaded` operation.
-    pub async fn is_chunk_loaded(&self, position: crate::ChunkPos) -> bool {
+    pub async fn is_chunk_loaded(&self, position: crate::versions::java_1_16_1::ChunkPos) -> bool {
         self.world.lock().await.chunk_snapshot(position).is_some()
     }
 
     /// Returns a low-copy snapshot whose section and NBT buffers are Arc-backed.
-    pub async fn chunk_snapshot(&self, position: crate::ChunkPos) -> Option<crate::ChunkSnapshot> {
+    pub async fn chunk_snapshot(
+        &self,
+        position: crate::versions::java_1_16_1::ChunkPos,
+    ) -> Option<crate::versions::java_1_16_1::ChunkSnapshot> {
         self.world.lock().await.chunk_snapshot(position)
     }
 
     /// Performs the `wait_for_chunk` operation.
     pub async fn wait_for_chunk(
         &self,
-        position: crate::ChunkPos,
+        position: crate::versions::java_1_16_1::ChunkPos,
         wait: Duration,
-    ) -> Result<crate::ChunkSnapshot> {
+    ) -> Result<crate::versions::java_1_16_1::ChunkSnapshot> {
         Ok(timeout(wait, async {
             loop {
                 let notified = self.world_updated.notified();
@@ -1441,10 +1472,10 @@ impl Bot {
     /// Performs the `wait_for_chunks` operation.
     pub async fn wait_for_chunks(
         &self,
-        center: crate::ChunkPos,
+        center: crate::versions::java_1_16_1::ChunkPos,
         radius: i32,
         wait: Duration,
-    ) -> Result<Vec<crate::ChunkSnapshot>> {
+    ) -> Result<Vec<crate::versions::java_1_16_1::ChunkSnapshot>> {
         if !(0..=32).contains(&radius) {
             bail!("chunk wait radius must be 0..=32");
         }
@@ -1472,7 +1503,9 @@ impl Bot {
                 let mut complete = true;
                 for z in min_z..=max_z {
                     for x in min_x..=max_x {
-                        if let Some(chunk) = world.chunk_snapshot(crate::ChunkPos { x, z }) {
+                        if let Some(chunk) =
+                            world.chunk_snapshot(crate::versions::java_1_16_1::ChunkPos { x, z })
+                        {
                             chunks.push(chunk)
                         } else {
                             complete = false;
@@ -1621,7 +1654,7 @@ impl Bot {
         &self,
         direction: Vec3,
         max_distance: f64,
-    ) -> Option<crate::BlockRaycastHit> {
+    ) -> Option<crate::versions::java_1_16_1::BlockRaycastHit> {
         let player = self.player().await;
         self.world.lock().await.raycast_blocks(
             Vec3 {
@@ -1635,7 +1668,10 @@ impl Bot {
     }
 
     /// Returns the block intersected by the current yaw and pitch.
-    pub async fn targeted_block(&self, max_distance: f64) -> Option<crate::BlockRaycastHit> {
+    pub async fn targeted_block(
+        &self,
+        max_distance: f64,
+    ) -> Option<crate::versions::java_1_16_1::BlockRaycastHit> {
         let player = self.player().await;
         let yaw = (player.yaw as f64).to_radians();
         let pitch = (player.pitch as f64).to_radians();
@@ -1655,7 +1691,7 @@ impl Bot {
         &self,
         direction: Vec3,
         max_distance: f64,
-    ) -> Option<crate::EntityRaycastHit> {
+    ) -> Option<crate::versions::java_1_16_1::EntityRaycastHit> {
         let player = self.player().await;
         self.entities.read().await.raycast(
             Vec3 {
@@ -1670,7 +1706,10 @@ impl Bot {
     }
 
     /// Returns the visible entity under the current crosshair, accounting for block occlusion.
-    pub async fn targeted_entity(&self, max_distance: f64) -> Option<crate::EntityRaycastHit> {
+    pub async fn targeted_entity(
+        &self,
+        max_distance: f64,
+    ) -> Option<crate::versions::java_1_16_1::EntityRaycastHit> {
         let player = self.player().await;
         let yaw = (player.yaw as f64).to_radians();
         let pitch = (player.pitch as f64).to_radians();
@@ -1737,7 +1776,10 @@ impl Bot {
     }
 
     /// Performs the `digging_info` operation.
-    pub async fn digging_info(&self, position: BlockPos) -> crate::DiggingInfo {
+    pub async fn digging_info(
+        &self,
+        position: BlockPos,
+    ) -> crate::versions::java_1_16_1::DiggingInfo {
         let player = self.player().await;
         let eye = Vec3 {
             x: player.x,
@@ -1764,12 +1806,13 @@ impl Bot {
             .await
             .selected_item()
             .map(|item| item.item_id);
-        let mining = state_id.and_then(|id| crate::registry::mining_info(id, tool_id));
+        let mining = state_id
+            .and_then(|id| crate::versions::java_1_16_1::registry::mining_info(id, tool_id));
         let visible = self
             .raycast_blocks(direction, distance + 1.0e-7)
             .await
             .is_some_and(|hit| hit.position == position);
-        crate::DiggingInfo {
+        crate::versions::java_1_16_1::DiggingInfo {
             state_id,
             loaded: state_id.is_some(),
             reachable: state_id.is_some() && distance <= 4.5,
@@ -1782,7 +1825,10 @@ impl Bot {
     }
 
     /// Performs the `placement_info` operation.
-    pub async fn placement_info(&self, position: BlockPos) -> crate::PlacementInfo {
+    pub async fn placement_info(
+        &self,
+        position: BlockPos,
+    ) -> crate::versions::java_1_16_1::PlacementInfo {
         let player = self.player().await;
         let eye = Vec3 {
             x: player.x,
@@ -1815,7 +1861,7 @@ impl Bot {
             && target.min_y < player_box.max_y
             && target.max_z > player_box.min_z
             && target.min_z < player_box.max_z;
-        crate::PlacementInfo {
+        crate::versions::java_1_16_1::PlacementInfo {
             target_loaded,
             reachable: target_loaded && distance <= 4.5,
             visible,
@@ -2005,7 +2051,7 @@ impl Bot {
             .await
             .selected_item()
             .map(|item| item.item_id);
-        let ticks = crate::registry::mining_ticks(state_id, tool_id)
+        let ticks = crate::versions::java_1_16_1::registry::mining_ticks(state_id, tool_id)
             .context("target block is not diggable")?;
         let mut events = self.subscribe();
         self.send_digging_packet(DiggingStatus::Started, position, face)
@@ -2053,7 +2099,7 @@ impl Bot {
     /// Dispatches placement and waits until the caller-selected observed cell changes.
     pub async fn place_block_and_wait_for_change(
         &self,
-        request: crate::PlacementRequest,
+        request: crate::versions::java_1_16_1::PlacementRequest,
         observed: BlockPos,
         wait: Duration,
     ) -> Result<Snapshot<Option<i32>>> {
@@ -3669,7 +3715,10 @@ impl Bot {
             (None, Some(get_string(&mut rest)?))
         } else {
             let id = get_varint(&mut rest)?;
-            (Some(id), crate::registry::sound_name(id).map(str::to_owned))
+            (
+                Some(id),
+                crate::versions::java_1_16_1::registry::sound_name(id).map(str::to_owned),
+            )
         };
         let category = get_varint(&mut rest)?;
         let mut c = Cursor::new(rest);
@@ -3701,7 +3750,8 @@ impl Bot {
         let pitch = c.read_f32::<BigEndian>()?;
         self.emit(Event::Sound(SoundEvent {
             sound_id: Some(sound_id),
-            sound_name: crate::registry::sound_name(sound_id).map(str::to_owned),
+            sound_name: crate::versions::java_1_16_1::registry::sound_name(sound_id)
+                .map(str::to_owned),
             category,
             category_name: sound_category_name(category),
             source: SoundSource::Entity { entity_id },
@@ -3865,15 +3915,15 @@ fn parse_particle(payload: &[u8]) -> Result<WorldParticleEvent> {
     let raw_data = payload[cursor.position() as usize..].to_vec();
     let mut rest = raw_data.as_slice();
     let data = match particle_id {
-        3 | 23 => crate::ParticleData::BlockState(get_varint(&mut rest)?),
-        14 => crate::ParticleData::Dust {
+        3 | 23 => crate::versions::java_1_16_1::ParticleData::BlockState(get_varint(&mut rest)?),
+        14 => crate::versions::java_1_16_1::ParticleData::Dust {
             red: read_f32_slice(&mut rest)?,
             green: read_f32_slice(&mut rest)?,
             blue: read_f32_slice(&mut rest)?,
             scale: read_f32_slice(&mut rest)?,
         },
-        34 => crate::ParticleData::Item(read_slot(&mut rest)?),
-        _ => crate::ParticleData::None,
+        34 => crate::versions::java_1_16_1::ParticleData::Item(read_slot(&mut rest)?),
+        _ => crate::versions::java_1_16_1::ParticleData::None,
     };
     Ok(WorldParticleEvent {
         particle_id,
@@ -4038,7 +4088,7 @@ mod tests {
         let bot = Bot::connect(
             Server::new("127.0.0.1", port),
             Player::offline("DropProbe"),
-            Arc::new(crate::SharedChunkStorage::default()),
+            Arc::new(crate::versions::java_1_16_1::SharedChunkStorage::default()),
             ConnectionOptions::default(),
         )
         .await

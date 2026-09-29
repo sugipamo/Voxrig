@@ -1,6 +1,6 @@
 //! Recipe-book, statistic, and advancement state received from the server.
 
-use crate::{
+use crate::versions::java_1_16_1::{
     inventory::{ItemStack, read_slot},
     protocol::{get_string, get_varint},
 };
@@ -258,7 +258,7 @@ fn take_bool(rest: &mut &[u8]) -> Result<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::{put_string, put_varint};
+    use crate::versions::java_1_16_1::protocol::{put_string, put_varint};
     #[test]
     fn recipe_unlock_add_and_remove_updates_sets() {
         let mut state = RecipeBookState::default();
@@ -288,7 +288,7 @@ mod tests {
         packet.push(1);
         put_string(&mut packet, r#"{"text":"Test"}"#);
         put_string(&mut packet, r#"{"text":"Description"}"#);
-        crate::inventory::write_slot(
+        crate::versions::java_1_16_1::inventory::write_slot(
             &mut packet,
             Some(&ItemStack {
                 item_id: 1,

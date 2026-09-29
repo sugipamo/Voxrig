@@ -1,11 +1,11 @@
 //! Block positions, faces, digging, placement, and block raycast results.
 
-use crate::protocol::get_varint;
+use crate::versions::java_1_16_1::protocol::get_varint;
 use anyhow::{Context, Result};
 use byteorder::{BigEndian, ReadBytesExt};
 use std::io::Cursor;
 
-use crate::physics::Vec3;
+use crate::versions::java_1_16_1::physics::Vec3;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 /// State and protocol data represented by `BlockPos`.

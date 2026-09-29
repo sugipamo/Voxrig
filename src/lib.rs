@@ -39,80 +39,15 @@
 //! `docs/architecture.md` for the ownership boundary with external controllers.
 #![warn(missing_docs)]
 
-pub mod chat;
-pub mod client;
-mod collision;
-pub mod entity;
+pub mod block_state;
+pub mod connection;
 mod error;
-pub mod interaction;
-pub mod inventory;
-pub mod manager;
-pub mod map;
-pub mod physics;
-pub mod progress;
 mod protocol;
-pub mod registry;
-pub mod server_registry;
 pub mod snapshot;
-pub mod survival;
-pub mod ui;
-pub mod unstable;
-pub mod world;
+pub mod versions;
 
-/// Common imports for applications that control one or more clients.
-pub mod prelude {
-    pub use crate::{
-        BlockFace, BlockPos, Bot, BotManager, ClickMode, ControlState, Error, ErrorKind, Event,
-        Hand, Player, Result, Server,
-    };
-}
-
-// Root re-exports are retained as the concise and backwards-compatible API.
-pub use chat::{ChatMessage, PlayerList, PlayerListEntry, PlayerProperty};
-pub use client::{
-    BlockActionEvent, Bot, CLIENT_INFO, ChatMode, ClientCapabilities, ClientInfo, ClientSettings,
-    ConnectionOptions, Event, ExplosionEvent, MainHand, NbtQueryResponse, Player, ProtocolInfo,
-    ResourcePackRequest, ResourcePackStatus, Server, SoundEvent, SoundSource, StopSoundEvent,
-    TabCompletion, TabCompletionMatch, WorldEvent, WorldParticleEvent, WorldViewState,
-};
-pub use entity::{
-    EntityKind, EntityRaycastHit, EntityState, EntityTracker, MetadataValue, ParticleData,
-};
-pub use error::{Error, ErrorKind, Result};
-pub use interaction::{
-    BlockBreakProgress, BlockFace, BlockPos, BlockRaycastHit, DiggingAcknowledgement, DiggingInfo,
-    DiggingStatus, Hand, PlacementInfo, PlacementRequest,
-};
-pub use inventory::{
-    ClickMode, EquipmentSlot, InventoryState, ItemCollected, ItemStack, MerchantOffer,
-    MerchantOffers, OpenWindow, PendingClick, SlotUpdate, WindowProperty, WindowTransaction,
-};
-pub use manager::{BotEvent, BotManager};
-pub use map::{MapData, MapIcon, MapRectangle, MapStore, MapUpdate};
-pub use physics::{
-    Aabb, ControlState, CorrectionReason, MotionState, PhysicsMetrics, PositionCorrection, Vec3,
-    VehicleControl, VehiclePose,
-};
-pub use progress::{
-    AdvancementDefinition, AdvancementDisplay, AdvancementProgress, AdvancementState,
-    RecipeBookState, StatisticsState,
-};
-pub use registry::{
-    MiningInfo, RawRecipe, RecipeResult, block_name_from_state, entity_dimensions, entity_name,
-    item_name, mining_info, recipes_for_output, sound_name,
-};
-pub use server_registry::{
-    CommandNode, CommandNodeKind, CommandTree, Ingredient, ServerRecipe, ServerRecipeData,
-    ServerRecipes, ServerTags,
-};
-pub use snapshot::Snapshot;
-pub use survival::{
-    Attribute, AttributeModifier, CombatEvent, Difficulty, Experience, GameStateChange,
-    RespawnState, SpawnPosition, StatusEffect, SurvivalState, Vitals,
-};
-pub use ui::{BossBar, ScoreboardObjective, Team, TitleState, UiState, UiUpdateKind, WorldBorder};
-pub use unstable::UnstableBot;
-pub use world::{
-    BlockEntityData, BlockObservation, BlockRegion, ChunkPos, ChunkSnapshot, ChunkStorageStats,
-    EnvironmentState, FluidKind, SharedChunkStorage,
-};
+// The established 1.16.1 API remains source-compatible and explicitly pinned.
+pub use block_state::NativeBlockState;
+pub use connection::{Client, ConnectionConfig, Observation, ObservedBlock, Region};
+pub use versions::MinecraftVersion;
+pub use versions::java_1_16_1::*;

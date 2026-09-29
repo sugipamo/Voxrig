@@ -1,4 +1,4 @@
-use crate::physics::Aabb;
+use crate::versions::java_1_16_1::physics::Aabb;
 use serde::Deserialize;
 use serde_json::Value;
 use std::{collections::HashMap, sync::OnceLock};
@@ -64,10 +64,11 @@ pub(crate) fn block_name(state_id: i32) -> Option<&'static str> {
 
 fn load() -> CollisionRegistry {
     let ranges: Vec<BlockRange> =
-        serde_json::from_str(include_str!("../data/block_state_ranges.json"))
+        serde_json::from_str(include_str!("../../../data/block_state_ranges.json"))
             .expect("bundled block ranges must be valid");
-    let data: ShapeData = serde_json::from_str(include_str!("../data/block_collision_shapes.json"))
-        .expect("bundled collision shapes must be valid");
+    let data: ShapeData =
+        serde_json::from_str(include_str!("../../../data/block_collision_shapes.json"))
+            .expect("bundled collision shapes must be valid");
     let max_state = ranges.iter().map(|r| r.max_state_id).max().unwrap_or(0);
     let mut by_state = vec![Vec::new(); max_state + 1];
     let mut names_by_state = vec![String::new(); max_state + 1];
@@ -110,7 +111,7 @@ mod tests {
             &[RelativeAabb([0.0, 0.0, 0.0, 1.0, 1.0, 1.0])]
         );
         let ranges: Vec<BlockRange> =
-            serde_json::from_str(include_str!("../data/block_state_ranges.json")).unwrap();
+            serde_json::from_str(include_str!("../../../data/block_state_ranges.json")).unwrap();
         let slab = ranges.iter().find(|r| r.name == "oak_slab").unwrap();
         assert!(
             shapes_for(slab.min_state_id as i32)
@@ -123,9 +124,10 @@ mod tests {
     #[test]
     fn every_block_range_has_a_complete_shape_mapping() {
         let ranges: Vec<BlockRange> =
-            serde_json::from_str(include_str!("../data/block_state_ranges.json")).unwrap();
+            serde_json::from_str(include_str!("../../../data/block_state_ranges.json")).unwrap();
         let data: ShapeData =
-            serde_json::from_str(include_str!("../data/block_collision_shapes.json")).unwrap();
+            serde_json::from_str(include_str!("../../../data/block_collision_shapes.json"))
+                .unwrap();
         for range in ranges {
             let mapping = data
                 .blocks

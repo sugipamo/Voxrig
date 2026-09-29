@@ -1,6 +1,6 @@
 //! Player inventory, container windows, item stacks, and click transactions.
 
-use crate::{
+use crate::versions::java_1_16_1::{
     protocol::{get_varint, put_varint},
     world::skip_nbt,
 };
@@ -190,7 +190,7 @@ impl InventoryState {
 impl ItemStack {
     /// Performs the `name` operation.
     pub fn name(&self) -> Option<&'static str> {
-        crate::registry::item_name(self.item_id)
+        crate::versions::java_1_16_1::registry::item_name(self.item_id)
     }
 }
 
@@ -437,7 +437,8 @@ pub(crate) fn predict_normal_click(
         {
             let held = cursor.as_mut().expect("matched above");
             let item = target.as_mut().expect("matched above");
-            let capacity = crate::registry::item_stack_size(item.item_id) - item.count;
+            let capacity =
+                crate::versions::java_1_16_1::registry::item_stack_size(item.item_id) - item.count;
             let transferred = capacity.max(0).min(held.count);
             item.count += transferred;
             held.count -= transferred;
@@ -504,7 +505,7 @@ pub(crate) fn rollback_click(state: &mut InventoryState, pending: &PendingClick)
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::protocol::put_varint;
+    use crate::versions::java_1_16_1::protocol::put_varint;
     use byteorder::WriteBytesExt;
 
     #[test]

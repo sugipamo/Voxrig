@@ -3,7 +3,6 @@ use flate2::{Compression, read::ZlibDecoder, write::ZlibEncoder};
 use std::io::{Read, Write};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
-pub const PROTOCOL_VERSION: i32 = 736;
 pub const MAX_PACKET_SIZE: usize = 2_097_152;
 
 pub fn put_varint(out: &mut Vec<u8>, mut value: i32) {
