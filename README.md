@@ -48,8 +48,10 @@ async fn main() -> Result<()> {
 > [!IMPORTANT]
 > 従来の `Bot` / `BotManager` とcrate rootの操作型は1.16.1専用です。
 > 1.21.11は `Client` の領域観測・受信記録・通常のブロック使用に対応します。
-> 移動・inventory・ピストンに伴うクライアント更新は未実装で、階段形状が古く残る
-> 実例があります。Microsoft認証・online-mode暗号化は両版とも未対応です。
+> `observe_client_region` には、通常・粘着ピストンの移動中状態と階段形状を扱う
+> [限定的なクライアント更新機構](docs/client-piston-reconstruction.md)があります。
+> 受信状態と計算結果を分けて公開し、不足する処理・情報は明示します。
+> 1.21.11のプレイヤー移動・inventory、両版のMicrosoft認証・online-mode暗号化は未対応です。
 > 対応範囲と失敗した試行は[バージョン別の検証記録](docs/version-adapter-validation.md)を参照してください。
 
 ## 開発時の確認

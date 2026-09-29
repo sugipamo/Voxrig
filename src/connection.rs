@@ -124,7 +124,7 @@ pub struct Client {
 
 impl Client {
     /// Returns the Java 1.21.11 client reconstruction alongside the unchanged received cache.
-    /// Incomplete reconstruction has absent client states and a typed issue; it is not server confirmation.
+    /// Inspect both the typed issue and cell availability; this is not server confirmation.
     pub async fn observe_client_region(
         &self,
         region: Region,

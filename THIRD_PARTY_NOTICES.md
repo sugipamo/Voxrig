@@ -5,6 +5,18 @@ following open-source projects. The Voxrig MIT license does not replace their
 notices. Exact npm versions and registry integrity digests are recorded in
 `reference/package-lock.json`.
 
+## Locally recorded Java 1.21.11 diagnostics
+
+`docs/evidence/client-motion-*-20260929.json.gz` and their replay fixtures were
+recorded by this repository's `packet_trace_probe` against an isolated official
+Minecraft Java 1.21.11 server. The accompanying manifest identifies originals,
+transformations, checksums and failed trials. Native state names/properties use
+the pinned minecraft-data registry described below. These are local diagnostic
+observations and original test tooling, not imported DustRoute source or fixtures.
+No Minecraft JAR or decompiled source is redistributed in this repository.
+The inspected version and mapping identification are recorded in
+`docs/client-piston-reconstruction.md`.
+
 ## minecraft-data 3.114.0
 
 Upstream: <https://github.com/PrismarineJS/minecraft-data>

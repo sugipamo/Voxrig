@@ -78,7 +78,7 @@ Nodeは生成時だけの道具であり、新クライアントの実行時に�
 通常のuse-on-block packetも追加し、読み込み済み・到達距離の確認後に送信する。
 送信成功は操作のサーバー受理を意味しない。
 
-**実装していないもの:** 1.21.11の移動物理、inventory、汎用の配置・撤去、
+**第2段階の時点で実装していなかったもの:** 1.21.11の移動物理、inventory、汎用の配置・撤去、
 ピストンのBlock Actionから起こすローカル移動・隣接更新、完全なblock entity観測。
 online-mode、resource pack要求、experimental feature set等は未対応として拒否する。
 既存の1.16.1 `Bot` の機能が全て新版でも使えるという意味ではない。
@@ -123,3 +123,47 @@ VoxrigとDustRouteの接続、コマンド確認の除去は未着手。
 初回Clippyのenumサイズ・配列走査・test用Arc共有の指摘は修正して再確認した。
 ログは `/tmp/voxrig-stage2-{tests-final,doc-final,clippy-final2,fmt-final,package-final,generation-final}.log`。
 unitと静的検査の成功は、上記の階段同期や未確認のライブ試験の合格を意味しない。
+
+## 第3段階: 移動中状態とクライアントの形状更新
+
+追加実装の承認を受け、通常・粘着ピストンのBlock Actionから本体・ヘッド・運搬物を
+独立した移動状態として管理する処理を追加した。開始、半進行、完了待ち、強制完了、
+途中反転、引き戻さない収縮を扱う。対応する乾いた階段・レバー・ヘッドの隣接更新も行う。
+原受信cacheを維持したまま、`observe_client_region`で版別の再構成結果、移動状態、
+因果となった受信sequence、不完全な観測の理由を返す。
+
+1.21.11の隔離した公式サーバーで、通常ピストン、粘着ピストンの通常引き戻し、
+短い入力での引き戻さない収縮を試験した。3ケースとも、空気と全propertiesを含む
+**最終状態770セル**をサーバーの診断functionで照合して一致した。
+原受信cacheで`inner_left`が残る階段は、再構成するとサーバーと同じ`straight`となる。
+入力間隔は実時間800ms/70msであり、サーバーtick単位の入力保証ではない。
+移動中のsampleと受信packet・ローカルframeの再生は成功したが、
+実機の移動中block entityを連続観測して一致させたという主張はしない。
+
+不合格も保持した。最初の試行では初期`STEP_TICK=0`を未対応と誤判定したため修正。
+最初の診断コマンドは770条件を1行に連結してJavaのparserがStackOverflowErrorとなり、
+短い条件行を順番に実行するfunctionへ修正した。サーバーはそのまま継続し、修正後の
+全照合が成功した。後の既知carrier終了時の拒否は回帰テストで検出し、修正済み。
+詳細、再生fixture、失敗を含むcaptureとログは
+[実装と検証範囲](client-piston-reconstruction.md)と
+[証拠manifest](evidence/client-motion-20260929.manifest.json)に記録した。
+
+最終確認はCargoを逐次実行し、`-j1`、テスト1 threadで行った。
+
+| 確認 | 結果 |
+| --- | --- |
+| `cargo test --offline --locked -j1 --all-targets -- --test-threads=1` | unit 85件成功、全exampleをcompile |
+| `cargo test --offline --locked -j1 --doc` | 1件成功 |
+| `cargo clippy --offline --locked -j1 --all-targets -- -D warnings` | 成功 |
+| `cargo fmt --all -- --check` | 成功 |
+| `cargo package --offline --locked --list --allow-dirty` | 成功。package buildではない |
+| 生成スクリプトの `--check` | 固定データと一致 |
+
+ログ: `/tmp/voxrig-client-motion-{all-targets,doc,clippy-final,fmt,package}.log`。
+試験領域770セルを空気へ戻し、所有する4 chunkのforce-loadを解除して正常終了した。
+ユーザーの既存ワールドは変更していない。
+
+スライム・ハチミツの分岐連結、未列挙ブロックのcallback、流体・entity、
+移動中にjoinした場合のcarrier復元、標準以外のtick制御は未対応。
+縦を含む6方向はunitで確認し、今回の実機3ケースは水平のみ。
+DustRouteの接続先と確認契約は従来のまま。1.16.1の2 Bot移動試行の不合格も未解決。

@@ -15,6 +15,7 @@ include = [
     "/examples/**",
     "/docs/**",
     "/scripts/generate_java_1_21_11.cjs",
+    "/scripts/prepare_motion_confirmation.py",
     "/README.md",
     "/LICENSE",
     "/THIRD_PARTY_NOTICES.md",
