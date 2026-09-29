@@ -37,3 +37,11 @@ Actions arriving while recovery is pending extend the required baseline. No
 packet exists here to force an arbitrary server chunk resend. The client keeps
 unavailable observations explicit until data arrives or a new connection resets
 the world. Unsupported tick control cannot be cleared by refreshing a chunk.
+
+The observation portion of step 5 is committed in DustRoute as `68ce938`: an
+explicit optional native adapter and typed client evidence, with 11 bridge tests
+and Clippy passing. Existing server-confirmed capabilities are not fabricated.
+The core APIs needed for the interaction portion are now implemented in Voxrig
+and independently exercised in an isolated server; see
+[java-1.21.11-operations.md](java-1.21.11-operations.md). Remote-player observation,
+DustRoute operation dispatch and the final workflow/default migration remain.

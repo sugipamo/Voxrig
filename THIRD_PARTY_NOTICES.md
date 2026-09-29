@@ -36,8 +36,10 @@ fixture redistribution attribution when preparing an upstream submission.
 Upstream: <https://github.com/PrismarineJS/minecraft-data>
 
 The Java 1.21.11 version adapter additionally uses `data/java_1_21_11/blocks.json`
-(name, state ranges and complete property definitions) and generated packet-ID
-constants in `src/versions/java_1_21_11/ids.rs` from the same exact package.
+(name, state ranges and complete property definitions), generated packet-ID
+constants in `src/versions/java_1_21_11/ids.rs`, and
+`data/java_1_21_11/items.json` (native item ID, name and default stack size)
+from the same exact package.
 `data/java_1_21_11/source.json` records the release, protocol, transformation and
 generated block-data digest. These data do not depend on a running JavaScript client.
 

@@ -20,6 +20,7 @@ function output(name, contents) {
   else fs.writeFileSync(destination, contents);
 }
 const blocks = JSON.stringify(data.blocksArray.map(({name, minStateId, maxStateId, states}) => ({name, minStateId, maxStateId, states}))) + '\n';
+const items = JSON.stringify(data.itemsArray.map(({id, name, stackSize}) => ({id, name, stackSize}))) + '\n';
 let ids = '// Packet IDs generated from minecraft-data 3.114.0, Java 1.21.11 (774).\n';
 let known;
 for (const phase of ['login', 'configuration', 'play']) {
@@ -37,14 +38,16 @@ ids += '\npub(crate) const KNOWN_PLAY_CLIENTBOUND: &[i32] = &[\n';
 for (let i = 0; i < known.length; i += 16) ids += '    ' + known.slice(i, i + 16).join(', ') + ',\n';
 ids += '];\n';
 output('data/java_1_21_11/blocks.json', blocks);
+output('data/java_1_21_11/items.json', items);
 output('src/versions/java_1_21_11/ids.rs', ids);
 output('data/java_1_21_11/source.json', JSON.stringify({
   provider: 'minecraft-data',
   package_version: metadata.version,
   minecraft: '1.21.11', protocol: 774, data_version: 4671,
   block_data_sha256: digest(blocks),
+  item_data_sha256: digest(items),
   packet_ids_sha256: digest(ids),
-  transformation: 'blocksArray projected to name, minStateId, maxStateId, states; packet ID constants generated from login/configuration/play mappings',
+  transformation: 'blocksArray projected to name, minStateId, maxStateId, states; itemsArray to id, name, stackSize; packet ID constants generated from login/configuration/play mappings',
   generator: '../../scripts/generate_java_1_21_11.cjs',
   license_notice: '../../THIRD_PARTY_NOTICES.md',
 }, null, 2) + '\n');

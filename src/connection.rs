@@ -123,6 +123,18 @@ pub struct Client {
 }
 
 impl Client {
+    /// Version-specific modern controls. The established 1.16.1 Bot API coexists.
+    pub fn java_1_21_11_operations(
+        &self,
+    ) -> Result<crate::versions::java_1_21_11::operations::Operations> {
+        match &self.adapter {
+            Adapter::Java1_21_11(bot) => Ok(bot.operations()),
+            Adapter::Java1_16_1(_) => Err(Error::new(
+                ErrorKind::Unsupported,
+                anyhow::anyhow!("Java 1.21.11 operations require that version adapter"),
+            )),
+        }
+    }
     /// Returns the Java 1.21.11 client reconstruction alongside the unchanged received cache.
     /// Inspect both the typed issue and cell availability; this is not server confirmation.
     pub async fn observe_client_region(

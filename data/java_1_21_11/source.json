@@ -5,8 +5,9 @@
   "protocol": 774,
   "data_version": 4671,
   "block_data_sha256": "b152350461ff183c7444ad3107a98ac555de579c4afadd092f2c2d03fb5b80eb",
+  "item_data_sha256": "528dc62f92a40981e32ee8826adcf7ad00bce153484c17d5109d0f4353a70264",
   "packet_ids_sha256": "9a3916fc43790f93482744526a89db0e72346e0f8a823597a5952e909027aa07",
-  "transformation": "blocksArray projected to name, minStateId, maxStateId, states; packet ID constants generated from login/configuration/play mappings",
+  "transformation": "blocksArray projected to name, minStateId, maxStateId, states; itemsArray to id, name, stackSize; packet ID constants generated from login/configuration/play mappings",
   "generator": "../../scripts/generate_java_1_21_11.cjs",
   "license_notice": "../../THIRD_PARTY_NOTICES.md"
 }

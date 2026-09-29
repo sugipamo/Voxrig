@@ -1,5 +1,6 @@
 //! Java 1.21.11 wire protocol (774), registries and client behavior.
 mod client;
+mod component_nbt;
 #[allow(dead_code)]
 mod ids;
 mod piston_nbt;
@@ -9,6 +10,7 @@ mod recovery_tests;
 mod wire;
 mod world;
 pub(crate) use client::Bot;
+pub use client::operations;
 pub use client::{PacketRecord, PacketTrace};
 
 fn registry() -> &'static crate::block_state::StateRegistry {

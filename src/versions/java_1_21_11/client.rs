@@ -1,4 +1,6 @@
 //! Ordered 1.21.11 receive loop. Local state is committed under one session lock.
+/// Explicit Java 1.21.11 operation API and received player state.
+pub mod operations;
 use super::{
     ids,
     reconstruction::{Action, ClientObservation, Direction, Reconstruction},
@@ -98,6 +100,7 @@ impl TraceCapture {
 }
 
 struct State {
+    operations: operations::OperationState,
     phase: Phase,
     world: World,
     reconstruction: Reconstruction,
@@ -112,6 +115,7 @@ struct State {
 impl Default for State {
     fn default() -> Self {
         Self {
+            operations: operations::OperationState::default(),
             phase: Phase::Configuration,
             world: World::default(),
             reconstruction: Reconstruction::default(),
@@ -188,6 +192,9 @@ pub(crate) struct Bot {
 }
 
 impl Bot {
+    pub fn operations(&self) -> operations::Operations {
+        operations::Operations { bot: self.clone() }
+    }
     pub async fn start_packet_trace(&self, maximum_bytes: usize) -> Result<()> {
         if !(1..=16_777_216).contains(&maximum_bytes) {
             return Err(Error::new(
@@ -227,50 +234,8 @@ impl Bot {
     }
 
     pub async fn interact_block(&self, position: [i32; 3], face: crate::BlockFace) -> Result<()> {
-        let state = self.session.state.lock().await;
-        self.session.check(&state)?;
-        if !state.ready || state.world.block(position).is_none() {
-            return Err(Error::new(
-                ErrorKind::State,
-                anyhow::anyhow!("interaction target is not loaded"),
-            ));
-        }
-        let player = state.position.context("player position unavailable")?;
-        let distance = (player[0] - f64::from(position[0]) - 0.5).powi(2)
-            + (player[1] + 1.62 - f64::from(position[1]) - 0.5).powi(2)
-            + (player[2] - f64::from(position[2]) - 0.5).powi(2);
-        if distance > 4.5f64.powi(2) {
-            return Err(Error::new(
-                ErrorKind::InvalidInput,
-                anyhow::anyhow!("interaction target out of reach"),
-            ));
-        }
-        drop(state);
-        let packed = ((i64::from(position[0]) & 0x3ffffff) << 38)
-            | ((i64::from(position[2]) & 0x3ffffff) << 12)
-            | (i64::from(position[1]) & 0xfff);
-        let mut payload = Vec::new();
-        put_varint(&mut payload, 0);
-        payload.extend(packed.to_be_bytes());
-        put_varint(&mut payload, face as i32);
-        for _ in 0..3 {
-            payload.extend(0.5f32.to_be_bytes());
-        }
-        payload.extend([0, 0]);
-        let sequence = self
-            .session
-            .interaction_sequence
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |v| v.checked_add(1))
-            .map_err(|_| {
-                Error::new(
-                    ErrorKind::ResourceLimit,
-                    anyhow::anyhow!("interaction sequence exhausted"),
-                )
-            })?
-            + 1;
-        put_varint(&mut payload, sequence);
-        self.session
-            .send(ids::play_serverbound::BLOCK_PLACE, &payload)
+        self.operations()
+            .use_on_block(position, face, [0.5; 3])
             .await?;
         Ok(())
     }
@@ -686,12 +651,16 @@ fn apply_configuration(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Re
         input::CODE_OF_CONDUCT => bail!("server requires code-of-conduct acceptance"),
         input::ADD_RESOURCE_PACK => bail!("resource-pack negotiation is unsupported"),
         input::FEATURE_FLAGS => {
+            let mut features = Vec::new();
             for _ in 0..r.count(1024)? {
-                if r.string()? != "minecraft:vanilla" {
+                let name = r.string()?;
+                if name != "minecraft:vanilla" {
                     bail!("unsupported experimental feature set");
                 }
+                features.push(name);
             }
             r.end()?;
+            state.operations.features = Some(features);
         }
         // Presentation, tags and cookie storage do not change block-state IDs.
         input::CUSTOM_PAYLOAD
@@ -712,7 +681,7 @@ fn spawn_info(state: &mut State, r: &mut Reader<'_>) -> anyhow::Result<()> {
     let id = r.count(1024)?;
     let name = r.string()?;
     r.take(8)?;
-    r.u8()?;
+    let game_mode = r.u8()?;
     r.u8()?;
     r.bool()?;
     r.bool()?;
@@ -728,6 +697,7 @@ fn spawn_info(state: &mut State, r: &mut Reader<'_>) -> anyhow::Result<()> {
         .context("unknown dimension registry ID")?;
     state.world.select_dimension(name, dimension);
     state.reconstruction = Reconstruction::default();
+    state.operations.reset_world(game_mode)?;
     state.ready = false;
     state.position = None;
     Ok(())
@@ -742,6 +712,9 @@ fn apply_play(
     use ids::{play_clientbound as input, play_serverbound as output};
     let mut r = Reader::new(payload);
     let mut responses = Vec::new();
+    if operations::receive(state, id, payload)? {
+        return Ok(responses);
+    }
     match id {
         input::LOGIN => {
             r.i32()?;
@@ -804,6 +777,7 @@ fn apply_play(
                 bail!("non-finite relative rotation");
             }
             state.position = Some(position);
+            state.operations.position_from_server = true;
             state.rotation = rotation;
             state.ready = true;
             let mut confirm = Vec::new();
@@ -891,6 +865,7 @@ fn apply_play(
             state.dimensions.clear();
             state.world.reset();
             state.reconstruction = Reconstruction::default();
+            state.operations.reset_configuration(state.sequence);
             responses.push((output::CONFIGURATION_ACKNOWLEDGED, vec![]));
             responses.push((ids::configuration_serverbound::SETTINGS, settings()));
         }
