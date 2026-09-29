@@ -5,6 +5,8 @@ use super::*;
 pub(super) enum Kind {
     Air,
     Solid,
+    Slime,
+    Honey,
     Stairs,
     Lever,
     Piston { sticky: bool },
@@ -21,6 +23,8 @@ const RULES: &[(&str, Kind)] = &[
     ("quartz_block", Kind::Solid),
     ("smooth_quartz", Kind::Solid),
     ("glass", Kind::Solid),
+    ("slime_block", Kind::Slime),
+    ("honey_block", Kind::Honey),
     ("redstone_block", Kind::Solid),
     ("observer", Kind::Solid),
     ("redstone_lamp", Kind::Solid),
@@ -147,7 +151,7 @@ impl Reconstruction {
         let (support, face) = Self::lever_support(p, lever)?;
         let (s, kind) = self.kind(world, support)?;
         Ok(match kind {
-            Kind::Solid | Kind::Blocked => true,
+            Kind::Solid | Kind::Blocked | Kind::Slime => true,
             Kind::Piston { .. } => {
                 s.properties.get("extended").is_some_and(|v| v == "false")
                     || face == facing(&s)?.opposite()

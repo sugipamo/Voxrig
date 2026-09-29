@@ -69,7 +69,7 @@ no partial result is published as usable. The received cache remains readable.
 
 ## Current scope
 
-Supported movement materials are stone, cobblestone, quartz block, smooth quartz,
+Supported movement materials include slime/honey groups, stone, cobblestone, quartz block, smooth quartz,
 glass, redstone block, observer, redstone lamp, dry stone/cobblestone/quartz/smooth
 quartz stairs, and unextended pistons. Air variants, bedrock, obsidian, piston
 heads, moving pistons and levers have explicit roles. A lever in a pushed line
@@ -77,7 +77,7 @@ can be destroyed; dry stair shape changes and supported lever attachments have
 client shape rules. Piston-head attachment checks are included. Lever support on
 a piston head is not claimed and returns an unsupported-state issue.
 
-Not yet implemented: slime/honey attachment graphs, other block callbacks,
+Not yet implemented: other block callbacks,
 waterlogged movement, fluid/entity effects, non-default client ticking, and full player movement
 or inventory for 1.21.11. Unknown moving carriers yield unavailable client state.
 These limits apply to reconstruction, not the broader native-state receive codec.
@@ -162,3 +162,23 @@ fixture removed, and the server stopped normally.
 Follow-up validation passed 92 unit tests, all example targets, one doctest,
 formatting, all-target Clippy and package listing. Logs are retained locally as
 `.local/voxrig-recovery-{all-targets,doc,clippy,package}.log`.
+
+## Adhesion follow-up
+
+The ordered planner now follows side attachments and chains behind adhesive
+blocks, separates slime from honey, admits at most twelve moved blocks and
+reorders colliding branches. Retraction can leave a group behind when its path is
+blocked. Carrier installation precedes source clearing; source shape updates
+follow the native position-map order. Unsupported rules still invalidate the
+transaction instead of guessing a result. Entity transport is not included.
+
+Tests exercise six directions, both adhesive materials, reverse chains,
+obstructions, the 12/13-block boundary and all 128 occupied subsets containing
+the root of a 2x2x2 slime volume. Two isolated native trials add an adhesive
+upper branch and opposite-material neighbor to the earlier stair fixture.
+Both final regions match **all 770 cells** independently on the server. The
+retraction also pulls a stair newly adjacent to the moved adhesive group.
+The original and compact captures are in the
+[adhesion manifest](evidence/client-adhesion-20260929.manifest.json); deterministic
+replay checks the client intermediate samples and final cells. These trials do
+not establish every interacting-piston or flying-machine configuration.

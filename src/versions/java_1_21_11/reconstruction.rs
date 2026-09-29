@@ -1,5 +1,6 @@
 //! Bounded client-side piston state. Received state packets remain independently available.
 //! This is a local reconstruction, never independent confirmation of server state.
+mod adhesion;
 mod motion;
 mod rules;
 pub(crate) use motion::Action;

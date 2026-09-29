@@ -19,7 +19,9 @@ items stop the whole task for a report before implementation. In-scope additions
 already authorized do not require repeated permission.
 
 Step 1 implementation and native mid-motion chunk capture are complete; wider
-live reload testing remains part of step 4. Step 2 is next. Source inspection confirms that Java 1.21.11
+live reload testing remains part of step 4. Step 2 now has the ordered adhesion
+planner, 6-direction/unit coverage and two independent 770-cell native matches;
+wider interaction cases remain for step 4. Step 3 is next. Source inspection confirms that Java 1.21.11
 `PistonBlockEntity.toInitialChunkDataNbt` sends its componentless NBT, including
 `blockState`, `facing`, `progress` (the serialized previous progress), `extending`
 and `source`. The old receiver discarded this data. The new decoder must not

@@ -9,6 +9,8 @@ use voxrig::{BlockFace, Client, ConnectionConfig, MinecraftVersion, Region, Serv
 async fn main() -> anyhow::Result<()> {
     let port = std::env::var("MC_PORT")?.parse()?;
     let output = std::env::var("TRACE_OUTPUT")?;
+    let fixture =
+        std::env::var("FIXTURE_ID").unwrap_or_else(|_| "device-stairs-inner-top-left-r0".into());
     let file = std::fs::OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -86,7 +88,7 @@ async fn main() -> anyhow::Result<()> {
     let after = client.observe_region(region).await?;
     let after_client = client.observe_client_region(region).await?;
     let trace = client.stop_packet_trace().await?;
-    let record = serde_json::json!({"fixture":"device-stairs-inner-top-left-r0","input_wait_ms":wait_ms,"settling_ms":4000,"before":before,"on":on,"after":after,"trace":trace,"on_client":on_client,"after_client":after_client,"transient":transient});
+    let record = serde_json::json!({"fixture":fixture,"input_wait_ms":wait_ms,"settling_ms":4000,"before":before,"on":on,"after":after,"trace":trace,"on_client":on_client,"after_client":after_client,"transient":transient});
     serde_json::to_writer_pretty(file, &record)?;
     println!(
         "TRACE_RETAINED complete={} packets={} target={}",

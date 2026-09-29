@@ -153,7 +153,7 @@ fn unsupported_and_missing_dependencies_never_publish_partial_motion() {
     let p = [0, 80, 0];
     let mut w = world();
     put(&mut w, p, body(false, Direction::East));
-    put(&mut w, [1, 80, 0], state("slime_block", &[]));
+    put(&mut w, [1, 80, 0], state("sculk", &[]));
     let mut r = Reconstruction::default();
     r.action(
         &w,
@@ -305,4 +305,135 @@ fn complete_state_codec_roundtrips_every_bundled_state_and_rejects_missing_prope
         assert_eq!(super::super::state_id(&s).unwrap(), id);
     }
     assert!(super::super::state_id(&state("piston", &[("facing", "east")])).is_err());
+}
+
+#[test]
+fn slime_and_honey_pull_attached_payloads_in_six_directions_but_do_not_bond_to_each_other() {
+    let p = [0, 80, 0];
+    for dir in Direction::ALL {
+        let side = if dir.horizontal() {
+            Direction::Up
+        } else {
+            Direction::East
+        };
+        for (material, other) in [
+            ("slime_block", "honey_block"),
+            ("honey_block", "slime_block"),
+        ] {
+            let mut w = world();
+            let root = dir.offset(p, 1);
+            let stone = side.offset(root, 1);
+            let separate = side.opposite().offset(root, 1);
+            put(&mut w, p, body(true, dir));
+            put(&mut w, root, state(material, &[]));
+            put(&mut w, stone, state("stone", &[]));
+            put(&mut w, separate, state(other, &[]));
+            let mut r = Reconstruction::default();
+            r.action(&w, p, Action::Extend, dir, "minecraft:sticky_piston", 1);
+            assert!(r.issue.is_none(), "{:?}", r.issue);
+            assert_eq!(r.moving.len(), 3);
+            r.advance(&w, 8);
+            assert_eq!(
+                name(&r, &w, dir.offset(root, 1)),
+                format!("minecraft:{material}")
+            );
+            assert_eq!(name(&r, &w, dir.offset(stone, 1)), "minecraft:stone");
+            assert_eq!(name(&r, &w, separate), format!("minecraft:{other}"));
+            r.action(&w, p, Action::Retract, dir, "minecraft:sticky_piston", 2);
+            assert!(r.issue.is_none(), "{:?}", r.issue);
+            r.advance(&w, 16);
+            assert_eq!(name(&r, &w, root), format!("minecraft:{material}"));
+            assert_eq!(name(&r, &w, stone), "minecraft:stone");
+            assert_eq!(name(&r, &w, separate), format!("minecraft:{other}"));
+        }
+    }
+}
+
+#[test]
+fn adhesive_branch_limit_obstructions_and_reverse_line_membership() {
+    let p = [0, 80, 0];
+    for count in [12, 13] {
+        let mut w = world();
+        put(&mut w, p, body(false, Direction::East));
+        for dy in 0..count {
+            put(&mut w, [1, 80 + dy, 0], state("slime_block", &[]));
+        }
+        let mut r = Reconstruction::default();
+        let plan =
+            adhesion::MovementPlan::calculate(&mut r, &w, p, [1, 80, 0], Direction::East, true)
+                .unwrap();
+        assert_eq!(plan.is_some(), count == 12);
+        if let Some(plan) = plan {
+            assert_eq!(plan.moved.len(), 12);
+        }
+    }
+    let mut w = world();
+    put(&mut w, p, body(false, Direction::East));
+    for q in [[1, 80, 0], [1, 81, 0]] {
+        put(&mut w, q, state("slime_block", &[]));
+    }
+    put(&mut w, [0, 81, 0], state("stone", &[]));
+    put(&mut w, [1, 79, 0], state("obsidian", &[]));
+    let mut r = Reconstruction::default();
+    let plan = adhesion::MovementPlan::calculate(&mut r, &w, p, [1, 80, 0], Direction::East, true)
+        .unwrap()
+        .unwrap();
+    assert!(plan.moved.contains(&[0, 81, 0]));
+    assert!(!plan.moved.contains(&[1, 79, 0]));
+    put(&mut w, [2, 81, 0], state("obsidian", &[]));
+    assert!(
+        adhesion::MovementPlan::calculate(&mut r, &w, p, [1, 80, 0], Direction::East, true)
+            .unwrap()
+            .is_none()
+    );
+}
+
+#[test]
+fn connected_slime_shapes_move_each_block_once_even_when_branches_collide() {
+    let root = [1, 80, 0];
+    let positions: Vec<_> = (1..=2)
+        .flat_map(|x| (80..=81).flat_map(move |y| (0..=1).map(move |z| [x, y, z])))
+        .collect();
+    for mask in (1u16..256).filter(|v| v & 1 != 0) {
+        let occupied: std::collections::BTreeSet<_> = positions
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| mask & (1 << i) != 0)
+            .map(|(_, p)| *p)
+            .collect();
+        let mut connected = std::collections::BTreeSet::from([root]);
+        let mut queue = vec![root];
+        while let Some(p) = queue.pop() {
+            for dir in Direction::ALL {
+                let q = dir.offset(p, 1);
+                if occupied.contains(&q) && connected.insert(q) {
+                    queue.push(q);
+                }
+            }
+        }
+        let mut w = world();
+        put(&mut w, [0, 80, 0], body(false, Direction::East));
+        for p in &occupied {
+            put(&mut w, *p, state("slime_block", &[]));
+        }
+        let mut r = Reconstruction::default();
+        r.action(
+            &w,
+            [0, 80, 0],
+            Action::Extend,
+            Direction::East,
+            "minecraft:piston",
+            1,
+        );
+        assert!(r.issue.is_none(), "mask={mask}: {:?}", r.issue);
+        assert_eq!(r.moving.len(), connected.len() + 1, "mask={mask}");
+        r.advance(&w, 8);
+        for p in connected {
+            assert_eq!(
+                name(&r, &w, Direction::East.offset(p, 1)),
+                "minecraft:slime_block",
+                "mask={mask}"
+            );
+        }
+    }
 }

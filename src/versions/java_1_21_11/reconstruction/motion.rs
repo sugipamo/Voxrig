@@ -69,31 +69,7 @@ impl Reconstruction {
         let dir = facing(&body)?;
         let head = dir.offset(p, 1);
         if action == Action::Extend {
-            self.move_line(world, head, dir, dir, true, seq)?;
-            let carried = state(
-                "piston_head",
-                &[
-                    ("facing", dir.name()),
-                    ("type", if sticky { "sticky" } else { "normal" }),
-                    ("short", "false"),
-                ],
-            );
-            self.install(
-                world,
-                MovingBlock {
-                    position: head,
-                    carried,
-                    direction: dir,
-                    extending: true,
-                    role: CarrierRole::Head,
-                    progress: MotionProgress::Start,
-                    last_progress: MotionProgress::Start,
-                    completion_waits: 0,
-                    action_sequence: Some(seq),
-                    chunk_sequence: None,
-                },
-                sticky,
-            )?;
+            self.move_group(world, head, dir, dir, true, seq)?;
             let mut extended = body;
             extended.properties.insert("extended".into(), "true".into());
             self.put(world, p, extended, seq, true, 0)?;
@@ -133,21 +109,21 @@ impl Reconstruction {
                 if sticky && action == Action::Retract {
                     let (s, kind) = self.kind(world, payload)?;
                     if Self::movable(&s, kind) {
-                        self.move_line(world, payload, dir.opposite(), dir, false, seq)?;
+                        self.move_group(world, payload, dir.opposite(), dir, false, seq)?;
                     }
                 }
             }
         }
         Ok(())
     }
-    fn movable(s: &NativeBlockState, kind: Kind) -> bool {
+    pub(super) fn movable(s: &NativeBlockState, kind: Kind) -> bool {
         match kind {
-            Kind::Solid | Kind::Stairs => true,
+            Kind::Solid | Kind::Stairs | Kind::Slime | Kind::Honey => true,
             Kind::Piston { .. } => s.properties.get("extended").is_some_and(|s| s == "false"),
             _ => false,
         }
     }
-    fn move_line(
+    fn move_group(
         &mut self,
         world: &World,
         start: Pos,
@@ -156,29 +132,26 @@ impl Reconstruction {
         extending: bool,
         seq: u64,
     ) -> ApplyResult<()> {
-        let mut moved = Vec::new();
-        let mut destroyed = None;
-        for distance in 0..=12 {
-            let p = movement.offset(start, distance);
-            let (s, kind) = self.kind(world, p)?;
-            if kind == Kind::Air {
-                break;
-            }
-            if kind == Kind::Lever && extending {
-                destroyed = Some(p);
-                break;
-            }
-            if !Self::movable(&s, kind) || distance == 12 {
-                return Err(ReconstructionIssue::InvalidAction);
-            }
-            moved.push((p, s));
-            // Retraction pulls one stable payload. Branching adhesion remains explicitly unsupported.
-            if !extending {
-                break;
-            }
-        }
-        if let Some(p) = destroyed {
-            self.put(world, p, state("air", &[]), seq, false, 0)?;
+        let piston = facing
+            .opposite()
+            .offset(start, if extending { 1 } else { 2 });
+        let Some(plan) = super::adhesion::MovementPlan::calculate(
+            self, world, piston, start, movement, extending,
+        )?
+        else {
+            return if extending {
+                Err(ReconstructionIssue::InvalidAction)
+            } else {
+                Ok(())
+            };
+        };
+        let moved = plan
+            .moved
+            .iter()
+            .map(|p| Ok((*p, self.read(world, *p)?)))
+            .collect::<ApplyResult<Vec<_>>>()?;
+        for p in plan.destroyed.iter().rev() {
+            self.put(world, *p, state("air", &[]), seq, false, 0)?;
         }
         let destinations: Vec<_> = moved.iter().map(|(p, _)| movement.offset(*p, 1)).collect();
         for (p, carried) in moved.iter().rev() {
@@ -200,14 +173,46 @@ impl Reconstruction {
                 false,
             )?;
         }
-        for (p, _) in &moved {
-            if !destinations.contains(p) && !(extending && *p == start) {
-                self.put(world, *p, state("air", &[]), seq, false, 0)?;
-                self.neighbors(world, *p, seq, 0)?;
-            }
+        if extending {
+            let (_, kind) = self.kind(world, piston)?;
+            let sticky = matches!(kind, Kind::Piston { sticky: true });
+            let carried = state(
+                "piston_head",
+                &[
+                    ("facing", facing.name()),
+                    ("type", if sticky { "sticky" } else { "normal" }),
+                    ("short", "false"),
+                ],
+            );
+            self.install(
+                world,
+                MovingBlock {
+                    position: start,
+                    carried,
+                    direction: facing,
+                    extending: true,
+                    role: CarrierRole::Head,
+                    progress: MotionProgress::Start,
+                    last_progress: MotionProgress::Start,
+                    completion_waits: 0,
+                    action_sequence: Some(seq),
+                    chunk_sequence: None,
+                },
+                sticky,
+            )?;
         }
-        if let Some(p) = destroyed {
+        let vacated: Vec<_> = super::adhesion::position_map_order(&plan.moved)?
+            .into_iter()
+            .filter(|p| !destinations.contains(p) && !(extending && *p == start))
+            .collect();
+        for p in &vacated {
+            self.put(world, *p, state("air", &[]), seq, false, 0)?;
+        }
+        for p in vacated {
             self.neighbors(world, p, seq, 0)?;
+        }
+        for p in plan.destroyed.iter().rev() {
+            self.neighbors(world, *p, seq, 0)?;
         }
         Ok(())
     }
