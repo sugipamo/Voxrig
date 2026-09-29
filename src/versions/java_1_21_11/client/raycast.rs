@@ -1,13 +1,14 @@
-//! Static block-collision targeting, explicitly distinct from graphical outlines.
+//! Player block targeting with an explicit collision or outline geometry policy.
+mod outline;
 use super::{State, operations::Operations, players::ObservedPlayer};
 use crate::{Error, ErrorKind, NativeBlockState, Result};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeSet, sync::OnceLock};
 
-/// A collision-shape hit. Non-collidable decorations and fluids are not targets.
+/// A static block hit. The enclosing observation declares the geometry policy.
 #[derive(Clone, Debug, Serialize)]
-pub struct CollisionHit {
-    /// Cell owning the collision box, which may protrude outside that cell.
+pub struct BlockHit {
+    /// Cell owning the shape, which may protrude outside that cell.
     pub position: [i32; 3],
     /// Reconstructed native state at the observation boundary.
     pub state: NativeBlockState,
@@ -16,6 +17,8 @@ pub struct CollisionHit {
     /// Entry face; None when the ray starts within a collision box.
     pub face: Option<super::Direction>,
 }
+/// Compatibility name for callers of the collision-only query.
+pub type CollisionHit = BlockHit;
 /// Player pose and world geometry read under one connection lock.
 #[derive(Clone, Debug, Serialize)]
 pub struct PlayerTarget {
@@ -29,10 +32,10 @@ pub struct PlayerTarget {
     pub dimension: String,
     /// Latest received player position/pose.
     pub player: ObservedPlayer,
-    /// Always block collision geometry, not a rendered outline/crosshair claim.
+    /// Selection geometry. Client state is not a server or rendered-frame receipt.
     pub geometry: TargetGeometry,
-    /// None only after a complete, available ray found no collision.
-    pub hit: Option<CollisionHit>,
+    /// None only after a complete, available ray found no target.
+    pub hit: Option<BlockHit>,
 }
 /// The geometry used to determine a target.
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -40,6 +43,9 @@ pub struct PlayerTarget {
 pub enum TargetGeometry {
     /// Pinned native state collision boxes. Fluids/empty collision shapes are skipped.
     BlockCollision,
+    /// Audited native static outlines, including non-collidable circuit parts.
+    /// Fluids and entities are not selected. Unsupported shapes reject the query.
+    BlockOutline,
 }
 
 impl Operations {
@@ -50,6 +56,27 @@ impl Operations {
         &self,
         name: &str,
         max_distance: f64,
+    ) -> Result<PlayerTarget> {
+        self.observe_target(name, max_distance, TargetGeometry::BlockCollision)
+            .await
+    }
+    /// Query native static block outline selection, including dust, switches and
+    /// gates. Uses received player pose and reconstructed blocks under one lock.
+    /// Unsupported context-dependent shapes, unavailable cells and moving carriers
+    /// reject the query. Fluids/entities and graphical interpolation are excluded.
+    pub async fn observe_player_outline_target(
+        &self,
+        name: &str,
+        max_distance: f64,
+    ) -> Result<PlayerTarget> {
+        self.observe_target(name, max_distance, TargetGeometry::BlockOutline)
+            .await
+    }
+    async fn observe_target(
+        &self,
+        name: &str,
+        max_distance: f64,
+        geometry: TargetGeometry,
     ) -> Result<PlayerTarget> {
         if !max_distance.is_finite() || !(0.0..=64.0).contains(&max_distance) || max_distance == 0.0
         {
@@ -98,18 +125,26 @@ impl Operations {
             yaw.cos() * pitch.cos(),
         ];
         let (dimension, height) = world.dimension.as_ref().expect("ready dimension");
-        let hit = cast(origin, direction, max_distance, |p| {
+        let read = |p: [i32; 3]| {
             if p[1] < height.min_y || p[1] >= height.min_y + height.height {
                 return super::super::native_state(0).map_err(anyhow::Error::from);
             }
             let block = reconstruction.cell(world, p);
             if block.moving.is_some() {
-                anyhow::bail!("moving collision geometry unavailable at {p:?}");
+                anyhow::bail!("moving target geometry unavailable at {p:?}");
             }
             block
                 .state
                 .ok_or_else(|| anyhow::anyhow!("target geometry unavailable at {p:?}"))
-        })
+        };
+        let hit = match geometry {
+            TargetGeometry::BlockCollision => cast(origin, direction, max_distance, read),
+            TargetGeometry::BlockOutline => {
+                let direction = outline::direction(player.rotation);
+                let end = std::array::from_fn(|i| origin[i] + direction[i] * max_distance);
+                outline::cast(origin, end, read)
+            }
+        }
         .map_err(|error| Error::new(ErrorKind::State, error))?;
         let dimension = dimension.clone();
         Ok(PlayerTarget {
@@ -118,7 +153,7 @@ impl Operations {
             client_tick: state.reconstruction.tick,
             dimension,
             player,
-            geometry: TargetGeometry::BlockCollision,
+            geometry,
             hit,
         })
     }

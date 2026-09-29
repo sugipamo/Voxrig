@@ -1,6 +1,7 @@
 # Pull request preparation
 
-Working branch: `codex/dustroute-client`, based on upstream `6434b2c`.
+Working branch: `codex/native-client-usability`, based on upstream `6434b2c`.
+Local `develop` retains the prior implementation through `b98785e`.
 No branch push, upstream issue, or pull request has been submitted. The user
 authorized substantial local Voxrig changes and requested preparation for a later PR.
 
@@ -23,7 +24,9 @@ Suggested description:
 > callbacks/reload, bounded creative construction controls, inventory knowledge
 > and remote-player packet observation. Static collision targeting and bounded
 > block-update recordings preserve their geometry, clock and packet provenance.
-> This does not claim graphical outline targeting, entity physics,
+> Audited static outline targeting additionally selects thin circuit components,
+> with native raycast/rotation oracle tests and explicit unsupported geometry.
+> This does not claim a graphical camera-frame receipt, entity physics,
 > survival pathfinding, online authentication or command-free server confirmation.
 
 Review order:

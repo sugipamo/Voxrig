@@ -7,6 +7,14 @@ notices. Exact npm versions and registry integrity digests are recorded in
 
 ## Locally recorded Java 1.21.11 diagnostics
 
+`data/java_1_21_11/outline_*` contains factual shape coordinates, native state
+coverage and numeric raycast/rotation observations from a locally obtained Java
+1.21.11 game. Original Java/Python tooling invokes native APIs; it is not copied
+game source. Yarn 1.21.11+build.6 names identify the inspected methods. These data
+do not relicense Minecraft or Yarn; no game JAR, mapping or decompiled source is
+included. Exact source hashes, transformation and regeneration instructions are
+in `outline_source.json` and `docs/player-targeting.md`.
+
 `docs/evidence/client-motion-*-20260929.json.gz` and their replay fixtures were
 recorded by this repository's `packet_trace_probe` against an isolated official
 Minecraft Java 1.21.11 server. The accompanying manifest identifies originals,
