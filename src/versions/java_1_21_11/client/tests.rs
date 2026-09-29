@@ -350,6 +350,56 @@ fn retained_client_frames_replay_motion_roles_and_final_region() {
     }
 }
 
+#[test]
+fn retained_mid_motion_connection_restores_native_carriers_and_replays_client_views() {
+    let bytes =
+        &include_bytes!("../../../../docs/evidence/client-recovery-corrected-02-20260929.json.gz")
+            [..];
+    let capture: serde_json::Value =
+        serde_json::from_reader(flate2::read::GzDecoder::new(bytes)).unwrap();
+    assert_eq!(capture["trace"]["after_sequence"], 0);
+    assert_eq!(capture["trace"]["complete"], true);
+    let mut state = State::default();
+    let mut records = capture["trace"]["records"].as_array().unwrap().iter();
+    let mut restored = false;
+    for sample in capture["samples"].as_array().unwrap() {
+        let sequence = sample["received"]["receive_sequence"].as_u64().unwrap();
+        while state.sequence < sequence {
+            let record = records.next().unwrap();
+            assert_eq!(record["sequence"].as_u64().unwrap(), state.sequence + 1);
+            state
+                .reconstruction
+                .advance(&state.world, record["client_tick"].as_u64().unwrap());
+            let payload: Vec<u8> = serde_json::from_value(record["payload"].clone()).unwrap();
+            state
+                .receive(record["packet_id"].as_i64().unwrap() as i32, &payload, 1024)
+                .unwrap();
+        }
+        state
+            .reconstruction
+            .advance(&state.world, sample["client_tick"].as_u64().unwrap());
+        assert!(
+            state.reconstruction.issue.is_none(),
+            "{:?}",
+            state.reconstruction.issue
+        );
+        for expected in sample["blocks"].as_array().unwrap() {
+            let p = serde_json::from_value(expected["position"].clone()).unwrap();
+            let cell = state.reconstruction.cell(&state.world, p);
+            restored |= cell
+                .moving
+                .as_ref()
+                .is_some_and(|m| m.chunk_sequence.is_some());
+            assert_eq!(
+                serde_json::to_value(cell).unwrap(),
+                *expected,
+                "sequence={sequence} position={p:?}"
+            );
+        }
+    }
+    assert!(restored);
+}
+
 #[tokio::test]
 async fn modern_disconnect_and_reconnect_do_not_reuse_world_or_connection_identity() {
     use crate::protocol::{read_packet, write_packet};

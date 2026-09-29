@@ -494,6 +494,12 @@ impl Bot {
             client_revision: state.reconstruction.revision,
             blocks,
             issue: state.reconstruction.issue.clone(),
+            recovery_chunks: state
+                .reconstruction
+                .recovery_chunks
+                .iter()
+                .copied()
+                .collect(),
         })
     }
 
@@ -815,8 +821,10 @@ fn apply_play(
         }
         input::MAP_CHUNK => {
             let chunk = [r.i32()?, r.i32()?];
-            state.world.load(payload, max_chunks)?;
-            state.reconstruction.chunk_replaced(chunk);
+            let pistons = state.world.load(payload, max_chunks)?;
+            state
+                .reconstruction
+                .chunk_loaded(chunk, pistons, state.sequence);
         }
         input::BLOCK_CHANGE => {
             let changes = state.world.block_change(payload)?;
@@ -860,18 +868,14 @@ fn apply_play(
             let frozen = r.bool()?;
             r.end()?;
             if rate != 20.0 || frozen {
-                state.reconstruction.issue.get_or_insert(
-                    super::reconstruction::ReconstructionIssue::UnsupportedTickControl,
-                );
+                state.reconstruction.unsupported_ticking();
             }
         }
         input::STEP_TICK => {
             let steps = r.count(1_000_000)?;
             r.end()?;
             if steps != 0 {
-                state.reconstruction.issue.get_or_insert(
-                    super::reconstruction::ReconstructionIssue::UnsupportedTickControl,
-                );
+                state.reconstruction.unsupported_ticking();
             }
         }
         input::CHUNK_BATCH_FINISHED => {

@@ -18,8 +18,11 @@ a server simulator or a server-confirmed observation API.
 - Native updates supersede local effects at their coordinates and retire obsolete
   carriers. Delayed local completion cannot resurrect a server-removed block.
 - World/configuration resets discard reconstruction. Replacing or unloading a
-  chunk used by local effects invalidates reconstruction conservatively. Recovery
-  currently requires a fresh world/connection, even when another region is intact.
+  chunk used by local effects invalidates reconstruction conservatively. The
+  `recovery_chunks` field identifies the dependency chunks whose fresh full
+  snapshots must arrive before recovery. New actions during recovery require a
+  fresh baseline for loaded chunks. Other unsupported behavior still requires a
+  fresh world/connection; fresh chunks cannot clear unsupported clock semantics.
 
 `reconstruction/rules.rs` declares supported block classes. `motion.rs` handles
 block events and carrier lifetimes; `reconstruction.rs` owns the overlay,
@@ -35,6 +38,14 @@ actions remain distinct from state IDs used by state updates.
 Each carrier has its own carried state, facing, extension flag, role, progress,
 previous progress, completion-wait count and causal sequence. Body retraction
 uses a carrier at the body coordinate. Payload carriers are independent.
+
+Moving-piston chunk NBT is decoded and validated against native state properties.
+These carriers have `chunk_sequence` and no `action_sequence`; local completion
+uses `StateOrigin::ChunkUpdate`. The received `progress` is native serialized
+previous progress, used as both local progress values as in the native reader.
+Absent NBT remains unavailable, and malformed NBT cannot commit a partial chunk.
+Fresh chunk arrival is a passive recovery mechanism; vanilla does not provide a
+general client request to resend arbitrary dependency chunks.
 
 Progress advances through 0, 0.5 and 1. In the inspected client implementation,
 five additional completion checks wait before materialization. Forced completion
@@ -67,8 +78,7 @@ client shape rules. Piston-head attachment checks are included. Lever support on
 a piston head is not claimed and returns an unsupported-state issue.
 
 Not yet implemented: slime/honey attachment graphs, other block callbacks,
-waterlogged movement, fluid/entity effects, reconstruction of a moving block's
-NBT when joining mid-motion, non-default client ticking, and full player movement
+waterlogged movement, fluid/entity effects, non-default client ticking, and full player movement
 or inventory for 1.21.11. Unknown moving carriers yield unavailable client state.
 These limits apply to reconstruction, not the broader native-state receive codec.
 
@@ -131,3 +141,24 @@ Final checks passed: 85 unit tests and all example targets, one doctest,
 all-target Clippy with warnings denied, formatting, package-file listing and
 pinned registry/packet generation verification. Cargo ran sequentially with one
 build job and one test thread. Package listing is not a package build.
+
+## Native chunk recovery follow-up
+
+The next implementation adds the chunk NBT and recovery contract described above.
+An isolated ordinary sticky-piston clock (8 ticks on / 8 ticks off, 20 TPS, no MOD)
+was observed through fresh connections. The third corrected connection received
+native half-progress retracting body and payload NBT and continued observing
+without an issue. All packets and client frames replay the retained observations.
+An initial failure showed that `Direction.INDEX_CODEC` writes Byte NBT; the decoder
+and tests were corrected to accept this native representation. Failures are kept
+alongside successful captures in the [recovery manifest](evidence/client-recovery-20260929.manifest.json).
+
+Dependency refresh, unload during refresh, interleaved actions, clock errors,
+truncated/duplicate/invalid NBT and source roles are unit-tested. This does not
+claim a live comparison of every unload/reload scenario or continuous server
+current-progress equality. Owned schedules and force-load were cleared, the
+fixture removed, and the server stopped normally.
+
+Follow-up validation passed 92 unit tests, all example targets, one doctest,
+formatting, all-target Clippy and package listing. Logs are retained locally as
+`.local/voxrig-recovery-{all-targets,doc,clippy,package}.log`.

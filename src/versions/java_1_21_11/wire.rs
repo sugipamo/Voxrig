@@ -79,9 +79,23 @@ impl<'a> Reader<'a> {
         let length = self.count(maximum)?;
         self.take(length)
     }
-    fn nbt_string(&mut self) -> Result<String> {
+    pub(super) fn nbt_string(&mut self) -> Result<String> {
         let length = self.u16()? as usize;
         Ok(std::str::from_utf8(self.take(length)?)?.to_owned())
+    }
+    pub(super) fn nbt_field(&mut self) -> Result<Option<(u8, String)>> {
+        let kind = self.u8()?;
+        if kind == 0 {
+            return Ok(None);
+        }
+        Ok(Some((kind, self.nbt_string()?)))
+    }
+    pub(super) fn skip_optional_nbt(&mut self) -> Result<()> {
+        let kind = self.u8()?;
+        if kind != 0 {
+            self.skip_nbt_value(kind, 0)?;
+        }
+        Ok(())
     }
     /// Reads a whole unnamed compound, retaining only dimension height fields.
     pub fn dimension_nbt(&mut self) -> Result<(Option<i32>, Option<i32>)> {
@@ -115,7 +129,7 @@ impl<'a> Reader<'a> {
         }
         self.skip_nbt_value(kind, 0)
     }
-    fn skip_nbt_value(&mut self, kind: u8, depth: usize) -> Result<()> {
+    pub(super) fn skip_nbt_value(&mut self, kind: u8, depth: usize) -> Result<()> {
         if depth > 64 {
             bail!("NBT depth limit exceeded");
         }

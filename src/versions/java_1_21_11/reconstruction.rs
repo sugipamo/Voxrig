@@ -55,7 +55,7 @@ impl Direction {
     fn from_name(name: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|d| d.name() == name)
     }
-    fn name(self) -> &'static str {
+    pub(crate) fn name(self) -> &'static str {
         ["down", "up", "north", "south", "west", "east"][self as usize]
     }
     fn opposite(self) -> Self {
@@ -128,7 +128,20 @@ pub struct MovingBlock {
     /// Client completion waits already consumed (0..5).
     pub completion_waits: u8,
     /// Receive sequence which created this carrier.
-    pub action_sequence: u64,
+    pub action_sequence: Option<u64>,
+    /// Chunk receive sequence when restored from native block-entity data.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chunk_sequence: Option<u64>,
+}
+impl MovingBlock {
+    fn origin(&self) -> StateOrigin {
+        match self.action_sequence {
+            Some(action_sequence) => StateOrigin::ClientUpdate { action_sequence },
+            None => StateOrigin::ChunkUpdate {
+                chunk_sequence: self.chunk_sequence.expect("carrier provenance"),
+            },
+        }
+    }
 }
 /// A reason client reconstruction cannot provide a usable state.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -164,7 +177,7 @@ pub enum ReconstructionIssue {
     InvalidAction,
 }
 /// Provenance of the chosen block state.
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Copy, Debug, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum StateOrigin {
     /// Latest explicitly received state in this cache.
@@ -174,8 +187,18 @@ pub enum StateOrigin {
         /// Causal received action.
         action_sequence: u64,
     },
+    /// Local completion/shape update from native moving-piston chunk data.
+    ChunkUpdate {
+        /// Causal chunk receive sequence; not a block-action sequence.
+        chunk_sequence: u64,
+    },
     /// Missing raw data or an unresolved local update.
     Unavailable,
+}
+impl From<u64> for StateOrigin {
+    fn from(action_sequence: u64) -> Self {
+        Self::ClientUpdate { action_sequence }
+    }
 }
 /// Both sources for one cell; the original received state lives in `received`.
 #[derive(Clone, Debug, serde::Serialize)]
@@ -202,17 +225,21 @@ pub struct ClientObservation {
     pub client_revision: u64,
     /// Client states for the same region.
     pub blocks: Vec<ClientBlock>,
-    /// First unresolved effect in this dimension. Recovery currently requires a fresh world.
+    /// First unresolved effect in this dimension.
     pub issue: Option<ReconstructionIssue>,
+    /// Full chunk snapshots still required before invalidated local effects can recover.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub recovery_chunks: Vec<[i32; 2]>,
 }
 
 #[derive(Clone, Default)]
 pub(crate) struct Reconstruction {
-    overlay: BTreeMap<Pos, (NativeBlockState, u64)>,
+    overlay: BTreeMap<Pos, (NativeBlockState, StateOrigin)>,
     moving: BTreeMap<Pos, MovingBlock>,
     // Native block entities tick in registration order, not sorted coordinate order.
     order: Vec<Pos>,
     dependencies: std::collections::BTreeSet<[i32; 2]>,
+    pub recovery_chunks: std::collections::BTreeSet<[i32; 2]>,
     pub tick: u64,
     pub revision: u64,
     pub issue: Option<ReconstructionIssue>,
@@ -229,13 +256,8 @@ impl Reconstruction {
             && !self.moving.contains_key(&p);
         let (state, origin) = if self.issue.is_some() || unknown_carrier {
             (None, StateOrigin::Unavailable)
-        } else if let Some((s, seq)) = self.overlay.get(&p) {
-            (
-                Some(s.clone()),
-                StateOrigin::ClientUpdate {
-                    action_sequence: *seq,
-                },
-            )
+        } else if let Some((s, origin)) = self.overlay.get(&p) {
+            (Some(s.clone()), *origin)
         } else {
             let origin = if received.is_some() {
                 StateOrigin::Received
@@ -280,7 +302,7 @@ impl Reconstruction {
         world: &World,
         p: Pos,
         s: NativeBlockState,
-        seq: u64,
+        origin: impl Into<StateOrigin>,
         shape: bool,
         depth: usize,
     ) -> ApplyResult<()> {
@@ -291,14 +313,22 @@ impl Reconstruction {
         if before == s {
             return Ok(());
         }
-        self.overlay.insert(p, (s, seq));
+        let origin = origin.into();
+        self.overlay.insert(p, (s, origin));
         self.revision += 1;
         if shape {
-            self.neighbors(world, p, seq, depth + 1)?;
+            self.neighbors(world, p, origin, depth + 1)?;
         }
         Ok(())
     }
-    fn neighbors(&mut self, world: &World, p: Pos, seq: u64, depth: usize) -> ApplyResult<()> {
+    fn neighbors(
+        &mut self,
+        world: &World,
+        p: Pos,
+        origin: impl Into<StateOrigin>,
+        depth: usize,
+    ) -> ApplyResult<()> {
+        let origin = origin.into();
         for direction in Direction::SHAPE_ORDER {
             let target = direction.offset(p, 1);
             let (before, kind) = self.kind(world, target)?;
@@ -323,7 +353,7 @@ impl Reconstruction {
                 _ => before.clone(),
             };
             if before != after {
-                self.put(world, target, after, seq, true, depth)?;
+                self.put(world, target, after, origin, true, depth)?;
             }
         }
         Ok(())
@@ -344,15 +374,74 @@ impl Reconstruction {
         self.revision += 1;
     }
     pub fn chunk_replaced(&mut self, chunk: [i32; 2]) {
-        if self.dependencies.contains(&chunk) {
-            self.issue
-                .get_or_insert(ReconstructionIssue::ChunkInvalidated { chunk });
+        if self.recovery_chunks.is_empty()
+            && (self.dependencies.contains(&chunk)
+                || matches!(self.issue, Some(ReconstructionIssue::MissingCarrier { position }) if [position[0].div_euclid(16), position[2].div_euclid(16)] == chunk))
+            && (self.issue.is_none()
+                || matches!(self.issue, Some(ReconstructionIssue::MissingCarrier { .. })))
+        {
+            self.recovery_chunks
+                .extend(self.dependencies.iter().copied());
+            self.recovery_chunks.insert(chunk);
+            self.issue = Some(ReconstructionIssue::ChunkInvalidated { chunk });
+            self.overlay.clear();
+            self.moving.clear();
+            self.order.clear();
+        }
+        if !self.recovery_chunks.is_empty() && self.dependencies.contains(&chunk) {
+            self.recovery_chunks.insert(chunk);
         }
         self.overlay
             .retain(|p, _| [p[0].div_euclid(16), p[2].div_euclid(16)] != chunk);
         self.moving
             .retain(|p, _| [p[0].div_euclid(16), p[2].div_euclid(16)] != chunk);
         self.order.retain(|p| self.moving.contains_key(p));
+        self.revision += 1;
+    }
+    pub fn chunk_loaded(
+        &mut self,
+        chunk: [i32; 2],
+        pistons: Vec<(Pos, super::piston_nbt::PistonData)>,
+        sequence: u64,
+    ) {
+        self.chunk_replaced(chunk);
+        if self.moving.len() + pistons.len() > 4096 {
+            self.recovery_chunks.clear();
+            self.issue = Some(ReconstructionIssue::Limit);
+            return;
+        }
+        for (position, data) in pistons {
+            self.dependencies.insert(chunk);
+            self.order.push(position);
+            self.moving.insert(
+                position,
+                MovingBlock {
+                    position,
+                    carried: data.carried,
+                    direction: data.direction,
+                    extending: data.extending,
+                    role: data.role,
+                    progress: data.progress,
+                    last_progress: data.progress,
+                    completion_waits: 0,
+                    action_sequence: None,
+                    chunk_sequence: Some(sequence),
+                },
+            );
+        }
+        if self.recovery_chunks.remove(&chunk) && self.recovery_chunks.is_empty() {
+            self.issue = None;
+            self.dependencies = self
+                .moving
+                .keys()
+                .map(|p| [p[0].div_euclid(16), p[2].div_euclid(16)])
+                .collect();
+        }
+    }
+    pub fn unsupported_ticking(&mut self) {
+        // A fresh chunk does not restore unsupported clock semantics.
+        self.recovery_chunks.clear();
+        self.issue = Some(ReconstructionIssue::UnsupportedTickControl);
         self.revision += 1;
     }
     pub fn advance(&mut self, world: &World, target_tick: u64) {

@@ -29,6 +29,15 @@ impl Reconstruction {
         seq: u64,
     ) {
         if self.issue.is_some() {
+            if !self.recovery_chunks.is_empty() {
+                // A skipped action can affect fresh chunks again. Require a new baseline,
+                // never replay it on snapshots taken after that action.
+                self.recovery_chunks.extend(world.loaded_chunks());
+                self.dependencies.extend(world.loaded_chunks());
+                self.overlay.clear();
+                self.moving.clear();
+                self.order.clear();
+            }
             return;
         }
         let mut next = self.clone();
@@ -80,7 +89,8 @@ impl Reconstruction {
                     progress: MotionProgress::Start,
                     last_progress: MotionProgress::Start,
                     completion_waits: 0,
-                    action_sequence: seq,
+                    action_sequence: Some(seq),
+                    chunk_sequence: None,
                 },
                 sticky,
             )?;
@@ -104,7 +114,8 @@ impl Reconstruction {
                     progress: MotionProgress::Start,
                     last_progress: MotionProgress::Start,
                     completion_waits: 0,
-                    action_sequence: seq,
+                    action_sequence: Some(seq),
+                    chunk_sequence: None,
                 },
                 sticky,
             )?;
@@ -183,7 +194,8 @@ impl Reconstruction {
                     progress: MotionProgress::Start,
                     last_progress: MotionProgress::Start,
                     completion_waits: 0,
-                    action_sequence: seq,
+                    action_sequence: Some(seq),
+                    chunk_sequence: None,
                 },
                 false,
             )?;
@@ -211,14 +223,7 @@ impl Reconstruction {
             ],
         );
         let shape = motion.role != CarrierRole::Body; // flags 324 vs 276
-        self.put(
-            world,
-            motion.position,
-            moving,
-            motion.action_sequence,
-            shape,
-            0,
-        )?;
+        self.put(world, motion.position, moving, motion.origin(), shape, 0)?;
         self.order.retain(|p| *p != motion.position);
         self.order.push(motion.position);
         self.moving.insert(motion.position, motion);
@@ -233,15 +238,20 @@ impl Reconstruction {
             self.order.retain(|pos| *pos != p);
             return Ok(());
         }
+        let origin = motion.origin();
         let mut after = if forced && motion.role != CarrierRole::Payload {
             state("air", &[])
         } else {
             motion.carried
         };
-        if classify(&after) == Some(Kind::Stairs) {
+        let kind = classify(&after).ok_or_else(|| ReconstructionIssue::UnsupportedBlock {
+            position: p,
+            name: after.name.clone(),
+        })?;
+        if kind == Kind::Stairs {
             after = self.stair_shape(world, p, after)?;
         }
-        self.put(world, p, after, motion.action_sequence, true, 0)?;
+        self.put(world, p, after, origin, true, 0)?;
         self.moving.remove(&p);
         self.order.retain(|pos| *pos != p);
         Ok(())

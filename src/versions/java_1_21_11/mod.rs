@@ -2,7 +2,10 @@
 mod client;
 #[allow(dead_code)]
 mod ids;
+mod piston_nbt;
 pub mod reconstruction;
+#[cfg(test)]
+mod recovery_tests;
 mod wire;
 mod world;
 pub(crate) use client::Bot;

@@ -144,7 +144,14 @@ impl World {
         self.revision += 1;
         Ok(())
     }
-    pub fn load(&mut self, payload: &[u8], maximum: usize) -> Result<()> {
+    pub fn loaded_chunks(&self) -> impl Iterator<Item = [i32; 2]> + '_ {
+        self.chunks.keys().map(|&(x, z)| [x, z])
+    }
+    pub fn load(
+        &mut self,
+        payload: &[u8],
+        maximum: usize,
+    ) -> Result<Vec<([i32; 3], super::piston_nbt::PistonData)>> {
         let mut r = Reader::new(payload);
         let x = r.i32()?;
         let z = r.i32()?;
@@ -161,7 +168,7 @@ impl World {
             r.take(count * 8)?;
         }
         let mut data = Reader::new(r.byte_array(2_097_152)?);
-        let mut sections = Vec::new();
+        let mut sections: Vec<Arc<[i32; 4096]>> = Vec::new();
         for _ in 0..dimension.height / 16 {
             let non_air = data.u16()?;
             if non_air > 4096 {
@@ -179,11 +186,42 @@ impl World {
             palette(&mut data, 64, 1, 3, 8)?;
         }
         data.end()?;
+        let mut pistons = Vec::new();
+        let mut seen = std::collections::BTreeSet::new();
         for _ in 0..r.count(65_536)? {
-            r.u8()?;
-            r.take(2)?;
-            r.varint()?;
-            r.skip_nbt()?;
+            let xz = r.u8()?;
+            let y = r.u16()? as i16 as i32;
+            let p = [x * 16 + i32::from(xz >> 4), y, z * 16 + i32::from(xz & 15)];
+            if y < dimension.min_y || y >= dimension.min_y + dimension.height || !seen.insert(p) {
+                bail!("invalid/duplicate block entity position");
+            }
+            let kind = r.varint()?;
+            if kind < 0 {
+                bail!("negative block entity type");
+            }
+            if kind == super::piston_nbt::PISTON_TYPE {
+                let id = sections[((y - dimension.min_y) / 16) as usize][(y.rem_euclid(16) * 256
+                    + p[2].rem_euclid(16) * 16
+                    + p[0].rem_euclid(16))
+                    as usize];
+                let carrier = super::native_state(id)?;
+                if carrier.name != "minecraft:moving_piston" {
+                    bail!("piston entity without moving state");
+                }
+                if let Some(data) = super::piston_nbt::PistonData::read(&mut r)? {
+                    if carrier.properties.get("facing").map(String::as_str)
+                        != Some(data.direction.name())
+                    {
+                        bail!("piston entity facing mismatch");
+                    }
+                    if pistons.len() >= 4096 {
+                        bail!("chunk moving carrier limit exceeded");
+                    }
+                    pistons.push((p, data));
+                }
+            } else {
+                r.skip_optional_nbt()?;
+            }
         }
         for _ in 0..4 {
             let count = r.count(1024)?;
@@ -199,7 +237,7 @@ impl World {
         r.end()?;
         self.chunks.insert((x, z), sections);
         self.revision += 1;
-        Ok(())
+        Ok(pistons)
     }
 }
 
