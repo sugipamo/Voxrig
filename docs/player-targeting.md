@@ -4,6 +4,9 @@
 `observe_player_outline_target` returns `block_outline` and includes thin circuit
 parts. Both read player pose and the reconstructed world under one connection
 lock, returning connection ID, packet sequence and local client frame.
+Connection IDs are process-local counters. Archived observations must also be
+scoped to their owning process/capture; restarting a program does not make old
+observations current merely because its new connection counter is the same.
 
 The outline query selects **static blocks**, skips fluids, and does not select
 entities. It is based on received pose/rotation, not a graphical client's

@@ -96,7 +96,9 @@ pub struct ObservedBlock {
 pub struct Observation {
     /// Exact version used to interpret registry IDs.
     pub version: MinecraftVersion,
-    /// Connection identity; revisions from different connections are incomparable.
+    /// Process-local connection identity; revisions from different connections
+    /// are incomparable. Persisted captures also need their owning process/run
+    /// identity: this counter starts again in a new OS process.
     pub connection_id: u64,
     /// World-domain revision, not a server game tick.
     pub revision: u64,
