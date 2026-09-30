@@ -14,8 +14,9 @@ use crate::{
     inventory::{
         ClickMode, EquipmentSlot, InventoryState, ItemCollected, ItemStack, OpenWindow,
         PendingClick, SlotUpdate, WindowProperty, WindowTransaction, apply_slot,
-        parse_merchant_offers, parse_set_slot, parse_window_items, predict_normal_click, read_slot,
-        rollback_click, sync_player_inventory_from_window, write_slot,
+        apply_window_items, parse_merchant_offers, parse_set_slot, parse_window_items,
+        predict_normal_click, read_slot, rollback_click, sync_player_inventory_from_window,
+        write_slot,
     },
     map::{MapData, MapStore, MapUpdate, parse_map_update},
     physics::{
@@ -2871,8 +2872,7 @@ impl Bot {
                 0x14 => {
                     let (window_id, slots) = parse_window_items(&p)?;
                     let mut inventory = self.inventory.write().await;
-                    inventory.windows.insert(window_id, slots);
-                    sync_player_inventory_from_window(&mut inventory, window_id);
+                    apply_window_items(&mut inventory, window_id, slots);
                     drop(inventory);
                     self.emit(Event::InventoryUpdated { window_id });
                 }
@@ -2994,7 +2994,13 @@ impl Bot {
                         entity_id: Some(entity_id),
                         declared_slots: Some(declared_slots),
                     };
-                    self.inventory.write().await.open_window = Some(window.clone());
+                    let mut inventory = self.inventory.write().await;
+                    // IDs may be reused for a different kind of container.
+                    // Its layout becomes known when Window Items arrives.
+                    inventory.window_player_starts.remove(&window.id);
+                    inventory.windows.remove(&window.id);
+                    inventory.open_window = Some(window.clone());
+                    drop(inventory);
                     self.emit(Event::WindowOpened(window));
                 }
                 0x20 => self.send(0x10, &p).await?,
@@ -3143,7 +3149,13 @@ impl Bot {
                         entity_id: None,
                         declared_slots: None,
                     };
-                    self.inventory.write().await.open_window = Some(window.clone());
+                    let mut inventory = self.inventory.write().await;
+                    // IDs may be reused for a different kind of container.
+                    // Its layout becomes known when Window Items arrives.
+                    inventory.window_player_starts.remove(&window.id);
+                    inventory.windows.remove(&window.id);
+                    inventory.open_window = Some(window.clone());
+                    drop(inventory);
                     self.emit(Event::WindowOpened(window));
                 }
                 0x2f => {
@@ -4002,6 +4014,7 @@ fn sound_category_name(id: i32) -> Option<&'static str> {
 mod tests {
     use super::*;
     use tokio::{io::AsyncReadExt, net::TcpListener};
+
     async fn operation_test_bot(
         outbound_id: i32,
         response_id: i32,
