@@ -2015,7 +2015,7 @@ impl Bot {
             .await?;
         Ok(timeout(Duration::from_secs(5), async {
             loop {
-                if let Event::DiggingAcknowledged(ack) = events.recv().await? {
+                if let Event::DiggingAcknowledged(ack) = next_operation_event(&mut events).await? {
                     if ack.position == position && ack.status == DiggingStatus::Finished as i32 {
                         return Ok::<_, anyhow::Error>(ack);
                     }
@@ -2281,7 +2281,9 @@ impl Bot {
         let action = self.click_slot(window_id, slot, button, mode).await?;
         timeout(Duration::from_secs(5), async {
             loop {
-                if let Event::WindowTransaction(transaction) = events.recv().await? {
+                if let Event::WindowTransaction(transaction) =
+                    next_operation_event(&mut events).await?
+                {
                     if transaction.window_id == window_id && transaction.action == action {
                         if transaction.accepted {
                             return Ok::<(), anyhow::Error>(());
@@ -2356,7 +2358,7 @@ impl Bot {
                 {
                     return Ok::<(), anyhow::Error>(());
                 }
-                let _ = events.recv().await?;
+                let _ = next_operation_event(&mut events).await?;
             }
         })
         .await
@@ -3811,6 +3813,26 @@ fn parse_tab_completion(payload: &[u8]) -> Result<TabCompletion> {
         matches,
     })
 }
+// Unrelated world/entity bursts can overrun an operation's broadcast cursor.
+// Skip lost notifications while continuing to require the matching response;
+// never turn lag, missing acknowledgements or disconnects into success.
+async fn next_operation_event(events: &mut broadcast::Receiver<Event>) -> Result<Event> {
+    loop {
+        match events.recv().await {
+            Ok(Event::Disconnected { reason }) => bail!("disconnected: {reason}"),
+            Ok(Event::Error {
+                kind: "connection",
+                message,
+            }) => bail!("connection error: {message}"),
+            Ok(event) => return Ok(event),
+            Err(broadcast::error::RecvError::Lagged(_)) => continue,
+            Err(broadcast::error::RecvError::Closed) => {
+                bail!("connection closed while waiting for operation response")
+            }
+        }
+    }
+}
+
 async fn wait_for_nbt(
     events: &mut broadcast::Receiver<Event>,
     transaction_id: i32,
@@ -3980,6 +4002,165 @@ fn sound_category_name(id: i32) -> Option<&'static str> {
 mod tests {
     use super::*;
     use tokio::{io::AsyncReadExt, net::TcpListener};
+    async fn operation_test_bot(
+        outbound_id: i32,
+        response_id: i32,
+        response: Vec<u8>,
+    ) -> (
+        Bot,
+        tokio::sync::mpsc::UnboundedReceiver<(i32, Vec<u8>)>,
+        tokio::sync::oneshot::Sender<()>,
+        tokio::task::JoinHandle<()>,
+    ) {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (packets, received) = tokio::sync::mpsc::unbounded_channel();
+        let (release, released) = tokio::sync::oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let (mut reader, mut writer) = stream.into_split();
+            read_packet(&mut reader, None).await.unwrap();
+            read_packet(&mut reader, None).await.unwrap();
+            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            let mut released = Some(released);
+            while let Ok((id, payload)) = read_packet(&mut reader, None).await {
+                packets.send((id, payload.clone())).unwrap();
+                let matches = id == outbound_id
+                    && (id != 0x1b || payload.first() == Some(&(DiggingStatus::Finished as u8)));
+                if matches {
+                    if let Some(gate) = released.take() {
+                        gate.await.unwrap();
+                        write_packet(&mut writer, None, response_id, &response)
+                            .await
+                            .unwrap();
+                    }
+                }
+            }
+        });
+        let options = ConnectionOptions {
+            event_channel_capacity: 2,
+            ..ConnectionOptions::default()
+        };
+        let bot = Bot::connect(
+            Server::new("127.0.0.1", port),
+            Player::offline("LagProbe"),
+            Arc::new(crate::SharedChunkStorage::default()),
+            options,
+        )
+        .await
+        .unwrap();
+        (bot, received, release, server)
+    }
+
+    #[tokio::test]
+    async fn timed_dig_survives_event_lag_and_still_requires_matching_ack() {
+        let target = BlockPos { x: 0, y: 1, z: 0 };
+        let mut response = target.packed().to_be_bytes().to_vec();
+        put_varint(&mut response, 0);
+        put_varint(&mut response, DiggingStatus::Finished as i32);
+        response.push(1);
+        let (bot, mut packets, release, server) = operation_test_bot(0x1b, 0x07, response).await;
+        {
+            let mut world = bot.world.lock().await;
+            world.apply_chunk(&[0; 14], 256).unwrap();
+            let mut change = target.packed().to_be_bytes().to_vec();
+            let log = (0..18000)
+                .find(|id| crate::block_name_from_state(*id) == Some("oak_log"))
+                .unwrap();
+            put_varint(&mut change, log);
+            world.apply_block_change(&change).unwrap();
+        }
+        let worker = bot.clone();
+        let digging = tokio::spawn(async move { worker.dig_block(target, BlockFace::Up).await });
+        loop {
+            let (id, payload) = packets.recv().await.unwrap();
+            if id == 0x1b && payload.first() == Some(&(DiggingStatus::Started as u8)) {
+                break;
+            }
+        }
+        // The receiver is not polled during the dig timer. Overflow it before
+        // the server can acknowledge Finished, reproducing natural-world lag.
+        for x in 0..100 {
+            bot.emit(Event::ChunkLoaded { x, z: 0 });
+        }
+        release.send(()).unwrap();
+        let ack = timeout(Duration::from_secs(8), digging)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert!(ack.successful);
+        assert_eq!(ack.position, target);
+        bot.disconnect().await.unwrap();
+        server.await.unwrap();
+    }
+
+    async fn lagged_click(accepted: bool) -> Result<i16> {
+        // Confirm Transaction: i8 window + i16 action + bool accepted.
+        let response = vec![0, 0, 1, u8::from(accepted)];
+        let (bot, mut packets, release, server) = operation_test_bot(0x09, 0x12, response).await;
+        bot.inventory
+            .write()
+            .await
+            .windows
+            .insert(0, vec![None; 46]);
+        let worker = bot.clone();
+        let clicking =
+            tokio::spawn(
+                async move { worker.click_slot_and_wait(0, 9, 0, ClickMode::Normal).await },
+            );
+        while packets.recv().await.unwrap().0 != 0x09 {}
+        for x in 0..100 {
+            bot.emit(Event::ChunkLoaded { x, z: 0 });
+        }
+        release.send(()).unwrap();
+        let result = timeout(Duration::from_secs(2), clicking)
+            .await
+            .unwrap()
+            .unwrap();
+        bot.disconnect().await.unwrap();
+        server.await.unwrap();
+        result
+    }
+
+    #[tokio::test]
+    async fn accepted_click_survives_unrelated_event_lag() {
+        assert_eq!(lagged_click(true).await.unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn rejected_click_after_event_lag_is_still_rejected() {
+        assert_eq!(
+            lagged_click(false).await.unwrap_err().kind(),
+            crate::ErrorKind::Rejected
+        );
+    }
+
+    #[tokio::test]
+    async fn operation_wait_reports_disconnect_and_closed_channel() {
+        let (sender, mut receiver) = broadcast::channel(2);
+        sender
+            .send(Event::Disconnected {
+                reason: "test disconnect".into(),
+            })
+            .unwrap();
+        assert_eq!(
+            next_operation_event(&mut receiver)
+                .await
+                .unwrap_err()
+                .kind(),
+            crate::ErrorKind::Disconnected
+        );
+        let (sender, mut receiver) = broadcast::channel::<Event>(2);
+        drop(sender);
+        assert_eq!(
+            next_operation_event(&mut receiver)
+                .await
+                .unwrap_err()
+                .kind(),
+            crate::ErrorKind::Disconnected
+        );
+    }
     #[test]
     fn explosion_offsets_are_relative_to_floored_center() {
         let mut packet = Vec::new();
