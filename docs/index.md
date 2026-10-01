@@ -1,8 +1,11 @@
-# zen-minecraft-client ドキュメント
+# voxrig ドキュメント
 
-`zen-minecraft-client`は、外部の頭脳から直接操作するMinecraft Java Edition 1.16.1向けheadless clientクレートです。
+`voxrig`は、外部の頭脳から直接操作するMinecraft Java Edition 1.16.1向けheadless clientクレートです。
 
 ## 利用者向け
+
+- [公開client APIの設計](public-client-api.md)
+- [0.2 client APIへの移行](client-api-migration.md)
 
 - [導入と最初の接続](getting-started.md)
 - [対応機能と制約](capabilities.md)

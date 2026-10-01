@@ -1,4 +1,4 @@
-# zen-minecraft-client
+# voxrig
 
 Minecraft Java Edition 1.16.1（protocol 736、offline-mode）向けのRust製headless clientライブラリです。
 
@@ -6,12 +6,12 @@ Minecraft Java Edition 1.16.1（protocol 736、offline-mode）向けのRust製he
 
 ```toml
 [dependencies]
-zen-minecraft-client = { path = "../mc" }
+voxrig = { path = "../mc" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
 ```rust,no_run
-use zen_minecraft_client::prelude::*;
+use voxrig::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {

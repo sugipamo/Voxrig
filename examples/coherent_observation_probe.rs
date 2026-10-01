@@ -1,7 +1,7 @@
 use anyhow::{Result, ensure};
-use zen_minecraft_client::{
-    BlockPos, BotManager, CleanupDispatchOutcome, CleanupPrimitive, CoherentObservationRequest,
-    ConnectionLifecycle, Player, PrimitiveDispatchOutcome, PrimitiveOperation, Server,
+use voxrig::{
+    BlockPos, BotManager, CleanupDispatchOutcome, CleanupOperation, CoherentObservationRequest,
+    ConnectionState, DispatchOutcome, Operation, Player, Server,
 };
 
 #[tokio::main]
@@ -28,8 +28,8 @@ async fn main() -> Result<()> {
         },
     ];
     let request = CoherentObservationRequest {
-        body_interest_generation: Some(7),
-        observation_interest: requested.clone(),
+        interest_generation: Some(7),
+        interest: requested.clone(),
         ..CoherentObservationRequest::default()
     };
     let first = bot.capture_coherent_observation(request.clone()).await?;
@@ -37,9 +37,9 @@ async fn main() -> Result<()> {
 
     let context = bot.operation_context(second.sequence.get());
     let look = bot
-        .dispatch_primitive(
+        .dispatch_operation(
             context,
-            PrimitiveOperation::Look {
+            Operation::Look {
                 x: second.player.x,
                 y: second.player.y,
                 z: second.player.z,
@@ -50,9 +50,9 @@ async fn main() -> Result<()> {
         )
         .await
         .map_err(|error| anyhow::anyhow!("typed look dispatch failed: {error:?}"))?;
-    ensure!(look == PrimitiveDispatchOutcome::Dispatched);
+    ensure!(look == DispatchOutcome::Dispatched);
     let cleanup = bot
-        .dispatch_cleanup(context, CleanupPrimitive::ControlClear)
+        .dispatch_cleanup(context, CleanupOperation::ControlClear)
         .await
         .map_err(|error| anyhow::anyhow!("control cleanup failed: {error:?}"))?;
     ensure!(cleanup == CleanupDispatchOutcome::AppliedLocally);
@@ -60,15 +60,15 @@ async fn main() -> Result<()> {
     ensure!(first.generation == bot.connection_generation());
     ensure!(second.generation == first.generation);
     ensure!(second.sequence.get() == first.sequence.get() + 1);
-    ensure!(first.observation_interest.cells.len() == requested.len());
-    ensure!(first.observation_interest.unloaded_cells == 0);
+    ensure!(first.interest.cells.len() == requested.len());
+    ensure!(first.interest.unloaded_cells == 0);
     ensure!(
-        first.observation_interest.body_generation == Some(7),
+        first.interest.generation == Some(7),
         "interest generation changed"
     );
     ensure!(
         first
-            .observation_interest
+            .interest
             .cells
             .iter()
             .map(|cell| cell.position)
@@ -83,16 +83,16 @@ async fn main() -> Result<()> {
         first.generation.get(),
         first.sequence.get(),
         second.sequence.get(),
-        first.observation_interest.cells.len(),
-        first.observation_interest.light_unknown_cells,
-        first.observation_interest.cells.len(),
+        first.interest.cells.len(),
+        first.interest.light_unknown_cells,
+        first.interest.cells.len(),
         first.events.len(),
         first.events_omitted,
     );
 
     manager.disconnect_all().await?;
     ensure!(
-        bot.connection_lifecycle() == ConnectionLifecycle::Disconnected,
+        bot.connection_state() == ConnectionState::Disconnected,
         "disconnect did not reach a confirmed terminal state"
     );
     Ok(())

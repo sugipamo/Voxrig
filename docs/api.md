@@ -7,13 +7,13 @@
 基本操作ではpreludeを利用できます。
 
 ```rust
-use zen_minecraft_client::prelude::*;
+use voxrig::prelude::*;
 ```
 
 規模の大きな利用側では、用途別moduleから明示的にimportできます。
 
 ```rust
-use zen_minecraft_client::{
+use voxrig::{
     client::{Bot, Event},
     entity::EntityState,
     inventory::InventoryState,
@@ -93,7 +93,7 @@ crate rootのre-exportと用途別moduleは同一の型を参照します。
 | `query_blocks(region, state_ids, limit)` | 意味判断を含まないstate ID範囲検索 |
 | `raycast_blocks(direction, distance)` | 目の位置から実collision shapeへraycast |
 | `block_collision_shapes(state_id)` | 既知stateのraw collision boxを取得（経路選択なし） |
-| `capture_traversal_movement_facts(request)` | Rust Body service向けのgeneration-bound・bounded raw movement snapshot |
+| `capture_movement_snapshot(request)` | 外部controller向けのgeneration-bound・bounded raw movement snapshot |
 | `targeted_block(distance)` | 現在のyaw/pitchが指す最初のblock |
 | `raycast_entities(direction, distance)` | entity固有bounding boxへのraycast |
 | `targeted_entity(distance)` | block遮蔽を考慮したcrosshair上のentity |
@@ -123,14 +123,14 @@ crate rootのre-exportと用途別moduleは同一の型を参照します。
 
 `block()`の`None`は「空気」ではなく、その座標がlocal chunk cacheで利用できないことを表します。
 
-`capture_traversal_movement_facts()`は、経路選択を行わないRust間の統合境界です。指定generationを
+`capture_movement_snapshot()`は、経路選択を行わないRust間の統合境界です。指定generationを
 再確認し、connection actorのcoherent state gate内でplayer、motion、survival（active effectsを含む）、
 window-0 inventory/NBT、entity、block state、exact collision shape、raw registry factsを同じturnから取得します。
 region、entity radius、entity数には上限があり、各blockは`Loaded`、`Unloaded`、`Unknown`を区別します。
 Loaded blockのregistry factには、所属するminecraft-data block typeのraw minimum state ID、material tool-speed map、および`empty`／`block`のraw bounding-box classificationも含まれます。entity factにはregistry width／heightが含まれます。未知またはregistry外の値は`None`であり、clientはphysical／safeを判定しません。
 どちらも解決不能な場合は明示的な`None`として返し、providerは安全側に停止します。
-`safe`、`liquid`、`replaceable`、`climbable`、landingなどの意味判断は返さず、Mineflayer互換のprovider/Body側の
-単一正本に残ります。このAPIはJSON wireや公開Body契約を追加せず、provider parityが完了するまでproduction
+`safe`、`liquid`、`replaceable`、`climbable`、landingなどの意味判断は返さず、Mineflayer互換の利用側の
+単一正本に残ります。このAPIはJSON wireや利用側の契約を追加せず、provider parityが完了するまでproduction
 providerには接続しません。
 
 ## 操作
@@ -220,12 +220,12 @@ Sound eventはID、公式名、category、座標またはentity ID、volume、pi
 
 ## Errorとcancel
 
-fallibleな公開操作は`zen_minecraft_client::Result<T>`を返します。`Error::kind()`は、`InvalidInput`、`Connection`、`Timeout`、`Disconnected`、`Protocol`、`ResourceLimit`、`Rejected`、`State`、`Other`を安定した分類として返します。表示文字列は診断用であり、制御フローには使用しないでください。
+fallibleな公開操作は`voxrig::Result<T>`を返します。`Error::kind()`は、`InvalidInput`、`Connection`、`Timeout`、`Disconnected`、`Protocol`、`ResourceLimit`、`Rejected`、`State`、`Other`を安定した分類として返します。表示文字列は診断用であり、制御フローには使用しないでください。
 
 ```rust,no_run
-use zen_minecraft_client::{ErrorKind, Result};
+use voxrig::{ErrorKind, Result};
 
-# async fn run(bot: &zen_minecraft_client::Bot) -> Result<()> {
+# async fn run(bot: &voxrig::Bot) -> Result<()> {
 if let Err(error) = bot.wait_until_ready().await {
     match error.kind() {
         ErrorKind::Timeout | ErrorKind::Connection => {

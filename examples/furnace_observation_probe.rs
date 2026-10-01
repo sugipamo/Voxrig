@@ -1,9 +1,9 @@
 use anyhow::{Result, ensure};
 use std::time::Duration;
 use tokio::time::{sleep, timeout};
-use zen_minecraft_client::{
-    BlockFace, BlockPos, BotManager, CoherentObservationRequest, Hand, Player,
-    PrimitiveDispatchOutcome, PrimitiveOperation, Server,
+use voxrig::{
+    BlockFace, BlockPos, BotManager, CoherentObservationRequest, DispatchOutcome, Hand, Operation,
+    Player, Server,
 };
 
 #[tokio::main]
@@ -21,19 +21,19 @@ async fn main() -> Result<()> {
         .await?;
 
     let outcome = bot
-        .dispatch_primitive(
+        .dispatch_operation(
             bot.operation_context(source.sequence.get()),
-            PrimitiveOperation::BlockInteraction {
+            Operation::BlockInteraction {
                 hand: Hand::Main,
                 position: target,
                 face: BlockFace::Up,
                 cursor: [0.5, 1.0, 0.5],
                 inside_block: false,
-                sneak: zen_minecraft_client::InteractionSneakRequirement::not_required(),
+                sneak: voxrig::InteractionSneakRequirement::not_required(),
             },
         )
         .await?;
-    ensure!(outcome == PrimitiveDispatchOutcome::Dispatched);
+    ensure!(outcome == DispatchOutcome::Dispatched);
 
     let observation = timeout(Duration::from_secs(5), async {
         loop {

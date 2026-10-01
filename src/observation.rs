@@ -5,7 +5,7 @@ use std::{sync::Arc, time::Instant};
 use tokio::sync::oneshot;
 
 use crate::{
-    BlockCollisionShape, BlockPos, BlockRegion, ClientConnectionGeneration, EntityState, Event,
+    BlockCollisionShape, BlockPos, BlockRegion, ConnectionGeneration, EntityState, Event,
     InventoryState, ItemStack, MotionState, OpenWindow, Player, RawBlockMovementRegistryFact,
     SurvivalState, WindowProperty,
 };
@@ -35,19 +35,19 @@ pub struct CoherentObservationRequest {
     pub max_entities: u16,
     /// Maximum queued events returned, in `0..=256`.
     pub max_events: u16,
-    /// Body-owned generation of the sparse observation interest, if active.
-    pub body_interest_generation: Option<u64>,
-    /// Exact bounded sparse cells selected by the Body.
-    pub observation_interest: Vec<BlockPos>,
+    /// Caller-owned generation of the sparse observation interest, if active.
+    pub interest_generation: Option<u64>,
+    /// Exact bounded sparse cells selected by the caller.
+    pub interest: Vec<BlockPos>,
 }
 
 /// Bounded raw world request for the Rust traversal provider.
 ///
-/// This is a client integration request, not a Body or JSON wire message.
+/// This is a client integration request, independent of application wire messages.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct TraversalMovementFactsRequest {
+pub struct MovementSnapshotRequest {
     /// Generation that must own the returned snapshot.
-    pub expected_generation: ClientConnectionGeneration,
+    pub expected_generation: ConnectionGeneration,
     /// Inclusive block region required by the bounded provider.
     pub region: BlockRegion,
     /// Radius for raw entity facts around the captured player.
@@ -56,21 +56,21 @@ pub struct TraversalMovementFactsRequest {
     pub max_entities: u16,
 }
 
-/// Bounded raw traversal-geometry query for a Body-selected region.
+/// Bounded raw traversal-geometry query for a Caller-selected region.
 /// This is a fact read only; the client never selects a route or action.
 #[derive(Clone, Debug, PartialEq)]
-pub struct TraversalGeometryQuery {
+pub struct GeometryQuery {
     /// Capture lineage for the read. The connection generation must still
     /// match; block-geometry and inventory revisions are the caller's source
     /// snapshot and are refreshed by the coherent query.
-    pub expected_capture: SensorCaptureIdentity,
-    /// Exact protocol dimension required by the Body request.
+    pub expected_capture: CaptureIdentity,
+    /// Exact protocol dimension required by the caller request.
     pub expected_dimension: String,
     /// Inclusive bounded region containing only traversal-relevant geometry.
     pub region: BlockRegion,
 }
 
-impl TraversalGeometryQuery {
+impl GeometryQuery {
     pub(crate) fn validate(&self) -> crate::Result<()> {
         let axis = |min: i32, max: i32| {
             let length = i64::from(max) - i64::from(min) + 1;
@@ -117,9 +117,9 @@ impl TraversalGeometryQuery {
 /// This returns raw matching positions and coverage only; it grants no route,
 /// action, or semantic authority to the client.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct LoadedResourceQuery {
+pub struct BlockQuery {
     /// Connection generation that must own the coherent snapshot.
-    pub expected_generation: ClientConnectionGeneration,
+    pub expected_generation: ConnectionGeneration,
     /// Exact protocol dimension name expected by the requester.
     pub expected_dimension: String,
     /// Inclusive bounded region to inspect.
@@ -130,7 +130,7 @@ pub struct LoadedResourceQuery {
     pub limit: u16,
 }
 
-impl LoadedResourceQuery {
+impl BlockQuery {
     pub(crate) fn validate(&self) -> crate::Result<()> {
         if self.block_name.is_empty()
             || self.block_name.len() > 128
@@ -178,7 +178,7 @@ impl LoadedResourceQuery {
 
 /// Coverage of one coherent loaded-resource query.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum LoadedResourceCoverage {
+pub enum BlockQueryCoverage {
     /// Every chunk intersecting the requested horizontal region was loaded.
     Complete,
     /// At least one intersecting chunk was absent from the packet cache.
@@ -188,20 +188,20 @@ pub enum LoadedResourceCoverage {
     },
 }
 
-/// Raw coherent result of a [`LoadedResourceQuery`].
+/// Raw coherent result of a [`BlockQuery`].
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct LoadedResourceQuerySnapshot {
+pub struct BlockQuerySnapshot {
     /// Exact packet-domain capture shared with other purpose-specific sensors.
-    pub capture: SensorCaptureIdentity,
+    pub capture: CaptureIdentity,
     /// Exact loaded-chunk coverage classification.
-    pub coverage: LoadedResourceCoverage,
+    pub coverage: BlockQueryCoverage,
     /// Canonical matching positions retained up to the request limit.
     pub candidates: Vec<BlockPos>,
     /// Matching positions omitted after the request limit.
     pub omitted_candidates: u32,
 }
 
-impl TraversalMovementFactsRequest {
+impl MovementSnapshotRequest {
     const MAX_AXIS: i64 = 80;
     const MAX_VOLUME: i64 = 262_144;
     const MAX_ENTITY_RADIUS: u16 = 64;
@@ -245,7 +245,7 @@ impl TraversalMovementFactsRequest {
 
 /// One raw block state in a traversal provider snapshot.
 #[derive(Clone, Debug, PartialEq)]
-pub enum TraversalBlockFact {
+pub enum MovementBlock {
     /// A loaded state with exact registry geometry and raw registry data.
     Loaded {
         /// Integer world position.
@@ -279,8 +279,8 @@ pub enum TraversalBlockFact {
 /// Mining and movement-registry metadata intentionally remain outside this
 /// boundary.
 #[derive(Clone, Debug, PartialEq)]
-pub enum TraversalGeometryBlockFact {
-    /// A loaded state with the geometry fields requested by the Body.
+pub enum GeometryBlock {
+    /// A loaded state with the geometry fields requested by the caller.
     Loaded {
         /// Integer world position.
         position: BlockPos,
@@ -311,7 +311,7 @@ pub enum TraversalGeometryBlockFact {
 
 /// Exact raw dimensions for one known entity registry entry.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct TraversalEntityDimensions {
+pub struct EntityDimensions {
     /// Registry width in blocks.
     pub width: f64,
     /// Registry height in blocks.
@@ -320,17 +320,17 @@ pub struct TraversalEntityDimensions {
 
 /// One bounded entity retained with its raw registry dimensions.
 #[derive(Clone, Debug, PartialEq)]
-pub struct TraversalEntityFact {
+pub struct ObservedEntity {
     /// Packet-backed entity state.
     pub entity: EntityState,
     /// Exact registry dimensions, or `None` when the type is unknown.
     /// Consumers must fail closed when dimensions are unavailable.
-    pub dimensions: Option<TraversalEntityDimensions>,
+    pub dimensions: Option<EntityDimensions>,
 }
 
 /// One bounded inventory slot retained as a raw tool/NBT fact.
 #[derive(Clone, Debug, PartialEq)]
-pub struct TraversalInventorySlotFact {
+pub struct InventorySlotFact {
     /// Protocol window-0 slot number.
     pub slot: i16,
     /// Raw item stack, including its optional NBT payload.
@@ -339,18 +339,18 @@ pub struct TraversalInventorySlotFact {
 
 /// Raw player inventory facts used by the provider's tool-cost port.
 #[derive(Clone, Debug, PartialEq)]
-pub struct TraversalInventoryFact {
+pub struct InventoryFact {
     /// Selected hotbar index from the protocol cache.
     pub selected_hotbar: u8,
     /// Window-0 slots in deterministic slot order.
-    pub slots: Vec<TraversalInventorySlotFact>,
+    pub slots: Vec<InventorySlotFact>,
 }
 
 /// One coherent bounded raw movement-facts snapshot.
 #[derive(Clone, Debug, PartialEq)]
-pub struct TraversalMovementFactsSnapshot {
+pub struct MovementSnapshot {
     /// Client connection generation that produced the snapshot.
-    pub generation: ClientConnectionGeneration,
+    pub generation: ConnectionGeneration,
     /// Generation-local capture sequence.
     pub sequence: ObservationSequence,
     /// Player state captured in the same actor turn.
@@ -360,24 +360,24 @@ pub struct TraversalMovementFactsSnapshot {
     /// Full packet-backed survival state, including active effects.
     pub survival: SurvivalState,
     /// Bounded region facts in lexicographic x/y/z order.
-    pub blocks: Vec<TraversalBlockFact>,
+    pub blocks: Vec<MovementBlock>,
     /// Entity facts retained in entity-id order.
-    pub entities: Vec<TraversalEntityFact>,
+    pub entities: Vec<ObservedEntity>,
     /// Number of in-radius entities omitted by the explicit bound.
     pub entities_omitted: u32,
     /// Raw window-0 inventory/tool NBT facts.
-    pub inventory: TraversalInventoryFact,
+    pub inventory: InventoryFact,
 }
 
 /// Coherent packet-backed traversal geometry for exactly one bounded query.
 #[derive(Clone, Debug, PartialEq)]
-pub struct TraversalGeometrySnapshot {
+pub struct GeometrySnapshot {
     /// Exact packet-domain identity captured under the coherent state gate.
-    pub capture: SensorCaptureIdentity,
+    pub capture: CaptureIdentity,
     /// Actual player origin captured under the same coherent state gate.
     pub evaluated_origin: crate::Vec3,
     /// Lexicographically ordered facts for the exact requested region.
-    pub blocks: Vec<TraversalGeometryBlockFact>,
+    pub blocks: Vec<GeometryBlock>,
 }
 
 /// One immutable block-state section in an all-loaded geometry snapshot.
@@ -421,7 +421,7 @@ impl BlockRegistryIdentity {
 }
 
 /// Raw catalog identity of a known block state. The name is provenance for
-/// Body-owned catalog lookup and does not classify a resource or facility.
+/// Caller-owned catalog lookup and does not classify a resource or facility.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BlockCatalogIdentity {
     pub(crate) canonical_name: String,
@@ -442,7 +442,7 @@ impl BlockCatalogIdentity {
 }
 
 /// Bounded physical and raw-registry description of one known state ID.
-/// Route, hazard, resource, fuel and facility semantics remain Body-owned.
+/// Route, hazard, resource, fuel and facility semantics remain Caller-owned.
 #[derive(Clone)]
 pub struct BlockPhysicalDescriptor {
     pub(crate) state_id: i32,
@@ -460,7 +460,7 @@ impl BlockPhysicalDescriptor {
     pub const fn state_id(&self) -> i32 {
         self.state_id
     }
-    /// Raw catalog identity for Body-side semantic lookup.
+    /// Raw catalog identity for Caller-side semantic lookup.
     #[must_use]
     pub fn catalog(&self) -> &BlockCatalogIdentity {
         &self.catalog
@@ -577,7 +577,7 @@ impl std::fmt::Debug for LoadedGeometrySection {
 #[derive(Clone)]
 pub struct LoadedGeometrySnapshot {
     /// Coherent packet-domain identity of the captured world and inventory.
-    pub(crate) capture: SensorCaptureIdentity,
+    pub(crate) capture: CaptureIdentity,
     /// Exact protocol dimension captured with the chunk manifest.
     pub(crate) dimension: String,
     /// Canonically sorted complete set of chunks loaded at capture time.
@@ -620,7 +620,7 @@ impl LoadedGeometrySnapshot {
 
     /// Coherent packet-domain identity of this evidence.
     #[must_use]
-    pub const fn capture(&self) -> SensorCaptureIdentity {
+    pub const fn capture(&self) -> CaptureIdentity {
         self.capture
     }
 
@@ -696,9 +696,9 @@ impl std::fmt::Debug for LoadedGeometrySnapshot {
 /// observation sequences while retaining this identity when none of the
 /// relevant packet domains changed.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct SensorCaptureIdentity {
+pub struct CaptureIdentity {
     /// Connection generation that owns every revision below.
-    pub generation: ClientConnectionGeneration,
+    pub generation: ConnectionGeneration,
     /// Block/chunk geometry revision. Light and block-entity-only updates do
     /// not advance this traversal dependency.
     pub block_geometry_revision: u64,
@@ -712,8 +712,8 @@ impl Default for CoherentObservationRequest {
             entity_radius: 32.0,
             max_entities: 512,
             max_events: 256,
-            body_interest_generation: None,
-            observation_interest: Vec::new(),
+            interest_generation: None,
+            interest: Vec::new(),
         }
     }
 }
@@ -740,9 +740,8 @@ impl CoherentObservationRequest {
                 anyhow::anyhow!("coherent observation event limit must be at most 256"),
             ));
         }
-        let mut positions =
-            std::collections::HashSet::with_capacity(self.observation_interest.len());
-        for position in &self.observation_interest {
+        let mut positions = std::collections::HashSet::with_capacity(self.interest.len());
+        for position in &self.interest {
             if !positions.insert((position.x, position.y, position.z)) {
                 return Err(crate::Error::new(
                     crate::ErrorKind::InvalidInput,
@@ -750,7 +749,7 @@ impl CoherentObservationRequest {
                 ));
             }
         }
-        if self.body_interest_generation.is_none() && !self.observation_interest.is_empty() {
+        if self.interest_generation.is_none() && !self.interest.is_empty() {
             return Err(crate::Error::new(
                 crate::ErrorKind::InvalidInput,
                 anyhow::anyhow!("coherent observation interest cells require a generation"),
@@ -760,7 +759,7 @@ impl CoherentObservationRequest {
     }
 }
 
-/// One sparse Body-requested world cell captured without client-side selection.
+/// One sparse Caller-requested world cell captured without client-side selection.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CoherentInterestCell {
     /// Exact requested position.
@@ -771,11 +770,11 @@ pub struct CoherentInterestCell {
     pub light: CoherentLightState,
 }
 
-/// Body-selected sparse observation returned in full or rejected before capture.
+/// Caller-selected sparse observation returned in full or rejected before capture.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CoherentObservationInterest {
-    /// Body-owned interest generation copied without reinterpretation.
-    pub body_generation: Option<u64>,
+    /// Caller-owned interest generation copied without reinterpretation.
+    pub generation: Option<u64>,
     /// Cells in the exact request order.
     pub cells: Vec<CoherentInterestCell>,
     /// Requested cells whose chunks were unavailable.
@@ -789,7 +788,7 @@ pub struct CoherentObservationInterest {
 /// does not establish a semantic furnace transition result.
 #[derive(Clone, Debug, PartialEq)]
 pub struct OpenFurnaceObservation {
-    /// Block position supplied by the Body's block interaction.
+    /// Block position supplied by the caller's block interaction.
     pub position: BlockPos,
     /// Raw open-window header.
     pub window: OpenWindow,
@@ -812,7 +811,7 @@ pub struct CoherentWorldTime {
 }
 
 impl CoherentWorldTime {
-    /// Converts the signed Java 1.16.1 time-update value to the Body clock.
+    /// Converts the signed Java 1.16.1 time-update value to the caller clock.
     ///
     /// The protocol uses a negative time-of-day to freeze the daylight cycle;
     /// the magnitude is still the displayed time. The conversion therefore
@@ -841,17 +840,17 @@ pub enum CoherentLightState {
 
 /// One atomic raw client observation.
 ///
-/// This is an internal Rust integration contract, not the public Zen Body or
-/// JSON wire contract. The Body assigns its own `StateRevision` only after
-/// validating and accepting one value of this type.
+/// This public Rust value describes one local client capture. Applications
+/// assign their own state revisions after accepting it; the capture sequence
+/// never establishes server-side semantic completion.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CoherentObservation {
     /// Exact transport connection that produced this snapshot.
-    pub generation: ClientConnectionGeneration,
+    pub generation: ConnectionGeneration,
     /// Monotonic sequence scoped to `generation`.
     pub sequence: ObservationSequence,
     /// Packet-domain identity used to correlate purpose-specific sensors.
-    pub sensor_capture: SensorCaptureIdentity,
+    pub sensor_capture: CaptureIdentity,
     /// Monotonic capture time in this process.
     pub received_at: Instant,
     /// Local player state.
@@ -873,8 +872,8 @@ pub struct CoherentObservation {
     /// Furnace window correlated with the preceding exact block interaction.
     pub open_furnace: Option<OpenFurnaceObservation>,
     /// Bounded block observation.
-    /// Exact sparse observation interest selected by the Body.
-    pub observation_interest: CoherentObservationInterest,
+    /// Exact sparse observation interest selected by the caller.
+    pub interest: CoherentObservationInterest,
     /// Deterministically ordered bounded entities.
     pub entities: Vec<EntityState>,
     /// Valid in-radius entities omitted by `max_entities`.
@@ -896,17 +895,17 @@ pub(crate) struct CaptureCommand {
 }
 
 pub(crate) struct TraversalMovementFactsCommand {
-    pub(crate) request: TraversalMovementFactsRequest,
-    pub(crate) reply: oneshot::Sender<crate::Result<TraversalMovementFactsSnapshot>>,
+    pub(crate) request: MovementSnapshotRequest,
+    pub(crate) reply: oneshot::Sender<crate::Result<MovementSnapshot>>,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn request(region: BlockRegion) -> TraversalMovementFactsRequest {
-        TraversalMovementFactsRequest {
-            expected_generation: ClientConnectionGeneration::allocate(),
+    fn request(region: BlockRegion) -> MovementSnapshotRequest {
+        MovementSnapshotRequest {
+            expected_generation: ConnectionGeneration::allocate(),
             region,
             entity_radius: 32,
             max_entities: 512,
@@ -915,8 +914,8 @@ mod tests {
 
     #[test]
     fn movement_facts_request_rejects_overlarge_axes_volume_and_entities() {
-        let generation = ClientConnectionGeneration::allocate();
-        let valid = TraversalMovementFactsRequest {
+        let generation = ConnectionGeneration::allocate();
+        let valid = MovementSnapshotRequest {
             expected_generation: generation,
             region: BlockRegion::new(
                 BlockPos {
@@ -969,18 +968,18 @@ mod tests {
     #[test]
     fn movement_facts_snapshot_variants_keep_unknown_and_unloaded_distinct() {
         let position = BlockPos { x: 1, y: 2, z: 3 };
-        let unloaded = TraversalBlockFact::Unloaded { position };
-        let unknown = TraversalBlockFact::Unknown {
+        let unloaded = MovementBlock::Unloaded { position };
+        let unknown = MovementBlock::Unknown {
             position,
             state_id: i32::MAX,
         };
         assert_ne!(unloaded, unknown);
     }
 
-    fn geometry_query(region: BlockRegion) -> TraversalGeometryQuery {
-        TraversalGeometryQuery {
-            expected_capture: SensorCaptureIdentity {
-                generation: ClientConnectionGeneration::allocate(),
+    fn geometry_query(region: BlockRegion) -> GeometryQuery {
+        GeometryQuery {
+            expected_capture: CaptureIdentity {
+                generation: ConnectionGeneration::allocate(),
                 block_geometry_revision: 0,
                 inventory_revision: 0,
             },
@@ -1032,7 +1031,7 @@ mod tests {
 
     #[test]
     fn geometry_fact_surface_has_only_position_state_collision_and_properties() {
-        let loaded = TraversalGeometryBlockFact::Loaded {
+        let loaded = GeometryBlock::Loaded {
             position: BlockPos { x: 1, y: 2, z: 3 },
             state_id: 1,
             name: "stone".to_owned(),
@@ -1040,10 +1039,10 @@ mod tests {
             support_surface: crate::BlockSupportSurface::FullTop,
             properties: Vec::new(),
         };
-        let unloaded = TraversalGeometryBlockFact::Unloaded {
+        let unloaded = GeometryBlock::Unloaded {
             position: BlockPos { x: 1, y: 2, z: 3 },
         };
-        let unknown = TraversalGeometryBlockFact::Unknown {
+        let unknown = GeometryBlock::Unknown {
             position: BlockPos { x: 1, y: 2, z: 3 },
             state_id: i32::MAX,
         };

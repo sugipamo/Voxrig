@@ -3,10 +3,6 @@
 use crate::Result;
 use crate::{
     chat::{ChatMessage, PlayerList, apply_player_info, parse_chat},
-    connection::{
-        ClientConnectionGeneration, ClientOperationClass, ConnectionActor, ConnectionLifecycle,
-        OperationAdmissionError, OperationContext, ProtocolTransaction, TerminalClassification,
-    },
     entity::{
         EntityState, EntityTracker, MetadataValue, apply_relative, parse_metadata,
         parse_spawn_living, parse_spawn_object, parse_spawn_orb, parse_spawn_painting,
@@ -22,15 +18,19 @@ use crate::{
         parse_merchant_offers, parse_set_slot, parse_window_items, predict_normal_click, read_slot,
         rollback_click, sync_player_inventory_from_window, write_slot,
     },
+    lifecycle::{
+        ConnectionActor, ConnectionGeneration, ConnectionState, OperationAdmissionError,
+        OperationClass, OperationContext, ProtocolTransaction, TerminalClassification,
+    },
     map::{MapData, MapStore, MapUpdate, parse_map_update},
+    operation::{
+        AcknowledgedOperation, CleanupDispatchOutcome, CleanupOperation, DispatchError,
+        DispatchOutcome, EquipOperation, Operation, SlotExpectation, WindowClick,
+        WindowClickSequence,
+    },
     physics::{
         Aabb, ControlState, MotionState, PhysicsMetrics, PhysicsTracker, PositionCorrection, Vec3,
         VehicleControl, VehiclePose,
-    },
-    primitive::{
-        AcknowledgedPrimitive, CleanupDispatchOutcome, CleanupPrimitive, CraftClick,
-        CraftExecution, EquipOperation, FurnaceExecution, PrimitiveDispatchError,
-        PrimitiveDispatchOutcome, PrimitiveOperation, SlotExpectation,
     },
     progress::{AdvancementState, RecipeBookState, StatisticsState},
     protocol::*,
@@ -104,26 +104,26 @@ fn apply_accepted_normal_click(
         pending.slot,
         pending.button,
     )?;
-    // Check Body effects against the unmodified cache. Ordinary click
+    // Check Caller predictions against the unmodified cache. Ordinary click
     // prediction can clear a replenished recipe output, destroying the exact
     // prestate that authorizes its accepted effect.
-    apply_body_cache_effects(inventory, pending, &predicted)?;
-    let effects = &pending.accepted_cache_effects;
+    apply_window_prediction(inventory, pending, &predicted)?;
+    let effects = &pending.prediction;
     let clicked_slot_declared = effects
         .slots
         .iter()
         .any(|effect| effect.slot == i32::from(pending.slot));
-    let body_effects_declared = !effects.slots.is_empty()
+    let prediction_declared = !effects.slots.is_empty()
         || effects.cursor_before.is_some()
         || effects.cursor_after.is_some();
     // A server SetSlot/WindowItems fact always wins. The compatibility click
-    // prediction only fills domains with no Body-authored effect; it cannot
+    // prediction only fills domains with no Caller-supplied effect; it cannot
     // overwrite a declared identity effect or an early server update.
     if !clicked_slot_declared && current_slot == pending.slot_before {
         inventory.windows.get_mut(&pending.window_id).unwrap()[slot] =
             predicted.windows[&pending.window_id][slot].clone();
     }
-    if !body_effects_declared && current_cursor == pending.cursor_before {
+    if !prediction_declared && current_cursor == pending.cursor_before {
         inventory.cursor = predicted.cursor;
     }
     sync_player_inventory_from_window(inventory, pending.window_id);
@@ -147,12 +147,12 @@ fn effect_slot_matches(item: Option<&ItemStack>, expected: Option<&SlotExpectati
     optional_slot_matches(item, expected)
 }
 
-fn apply_body_cache_effects(
+fn apply_window_prediction(
     inventory: &mut InventoryState,
     pending: &PendingClick,
     predicted: &InventoryState,
 ) -> Result<()> {
-    let effects = &pending.accepted_cache_effects;
+    let effects = &pending.prediction;
     for effect in &effects.slots {
         let slot = usize::try_from(effect.slot).context("accepted cache effect slot")?;
         let current = inventory
@@ -221,14 +221,14 @@ fn apply_accepted_equip_swap(
 
 #[derive(Clone)]
 struct ExactWindowBarrier {
-    successor: Option<CraftClick>,
+    successor: Option<WindowClick>,
     confirmation_seen: bool,
 }
 
 fn click_precondition_matches(
     inventory: &InventoryState,
     window_id: i8,
-    click: &CraftClick,
+    click: &WindowClick,
 ) -> bool {
     let slot = usize::try_from(click.slot)
         .ok()
@@ -1305,14 +1305,17 @@ impl Bot {
         tokio::spawn(async move {
             match reader_task.await {
                 Ok(Ok(())) => {
-                    if supervisor.connection.lifecycle() == ConnectionLifecycle::Disconnected {
+                    if supervisor.connection.lifecycle() == ConnectionState::Disconnected {
                         supervisor.emit(Event::Disconnected {
                             reason: "server disconnect confirmed".to_owned(),
                         });
                     } else {
                         supervisor
                             .connection
-                            .mark_unknown("reader_unconfirmed_end", "reader stopped without a confirmed transport end".to_owned())
+                            .mark_unknown(
+                                "reader_unconfirmed_end",
+                                "reader stopped without a confirmed transport end".to_owned(),
+                            )
                             .await;
                         supervisor.emit(Event::Error {
                             kind: "connection",
@@ -1322,7 +1325,7 @@ impl Bot {
                 }
                 Ok(Err(error)) => {
                     let requested_transport_end = supervisor.connection.lifecycle()
-                        == ConnectionLifecycle::Disconnecting
+                        == ConnectionState::Disconnecting
                         && error.diagnostic().chain().any(|cause| {
                             cause.downcast_ref::<std::io::Error>().is_some_and(|io| {
                                 matches!(
@@ -1383,12 +1386,12 @@ impl Bot {
     }
     /// Returns the process-local identity of this exact transport connection.
     #[must_use]
-    pub const fn connection_generation(&self) -> ClientConnectionGeneration {
+    pub const fn connection_generation(&self) -> ConnectionGeneration {
         self.connection.generation()
     }
     /// Returns the latest lifecycle fact published by the connection actor.
     #[must_use]
-    pub fn connection_lifecycle(&self) -> ConnectionLifecycle {
+    pub fn connection_state(&self) -> ConnectionState {
         self.connection.lifecycle()
     }
     /// Creates an operation correlation context for this connection.
@@ -1401,44 +1404,44 @@ impl Bot {
     }
     /// Asks the connection actor to admit an operation before any packet write.
     ///
-    /// This read/validation API is public because the Zen in-process adapter
+    /// This read/validation API is public because external controllers
     /// must bind every low-level operation to the observation that selected it.
     pub async fn admit_operation(
         &self,
         context: OperationContext,
-        class: ClientOperationClass,
+        class: OperationClass,
     ) -> std::result::Result<(), OperationAdmissionError> {
         self.connection.admit(context, class).await
     }
 
-    /// Dispatches one new Zen low-level primitive through the actor-owned writer.
+    /// Dispatches one low-level client operation through the actor-owned writer.
     ///
     /// The context is mandatory so a primitive cannot be accidentally sent
     /// using a stale connection or an unrelated observation. This API reports
     /// only the transport dispatch stage; protocol acknowledgement and fresh
     /// semantic observation remain separate stages.
-    pub async fn dispatch_primitive(
+    pub async fn dispatch_operation(
         &self,
         context: OperationContext,
-        operation: PrimitiveOperation,
-    ) -> std::result::Result<PrimitiveDispatchOutcome, PrimitiveDispatchError> {
-        self.dispatch_primitive_with_diagnostic(context, operation, None)
+        operation: Operation,
+    ) -> std::result::Result<DispatchOutcome, DispatchError> {
+        self.dispatch_operation_with_diagnostic(context, operation, None)
             .await
     }
 
     /// Dispatches a primitive with an optional read-only diagnostic
-    /// correlation supplied by the in-process Zen adapter.
-    pub async fn dispatch_primitive_with_diagnostic(
+    /// correlation supplied by the external controller.
+    pub async fn dispatch_operation_with_diagnostic(
         &self,
         context: OperationContext,
-        operation: PrimitiveOperation,
-        diagnostic_correlation: Option<crate::PrimitiveDiagnosticCorrelationId>,
-    ) -> std::result::Result<PrimitiveDispatchOutcome, PrimitiveDispatchError> {
+        operation: Operation,
+        diagnostic_correlation: Option<crate::DiagnosticCorrelationId>,
+    ) -> std::result::Result<DispatchOutcome, DispatchError> {
         let diagnostic_correlation =
-            diagnostic_correlation.filter(|_| crate::connection::dig_lifecycle_trace_enabled());
+            diagnostic_correlation.filter(|_| crate::lifecycle::dig_lifecycle_trace_enabled());
         let dig_diagnostic = match (&operation, diagnostic_correlation) {
-            (PrimitiveOperation::DigStart { position, face }, Some(correlation)) => {
-                Some(crate::connection::DigWriteDiagnostic::new(
+            (Operation::DigStart { position, face }, Some(correlation)) => {
+                Some(crate::lifecycle::DigWriteDiagnostic::new(
                     correlation,
                     "start",
                     crate::DiggingStatus::Started as i32,
@@ -1450,12 +1453,12 @@ impl Bot {
         };
         let (packet_id, payload) = operation
             .encode()
-            .map_err(|_| PrimitiveDispatchError::InvalidInput)?;
+            .map_err(|_| DispatchError::InvalidInput)?;
         match operation {
-            PrimitiveOperation::BlockInteraction {
+            Operation::BlockInteraction {
                 position, sneak, ..
             }
-            | PrimitiveOperation::PlacementInteraction {
+            | Operation::PlacementInteraction {
                 position, sneak, ..
             } => {
                 let entity_id = self
@@ -1463,7 +1466,7 @@ impl Bot {
                     .lock()
                     .await
                     .entity_id
-                    .ok_or(PrimitiveDispatchError::InvalidInput)?;
+                    .ok_or(DispatchError::InvalidInput)?;
                 let restore_sneak = self.connection.control_snapshot().await.value.sneak;
                 let packets = vec![
                     encode_entity_action_packet(entity_id, sneak.is_required()),
@@ -1471,51 +1474,55 @@ impl Bot {
                     encode_entity_action_packet(entity_id, restore_sneak),
                 ];
                 let furnace_position =
-                    matches!(operation, PrimitiveOperation::BlockInteraction { .. })
-                        .then_some(position);
+                    matches!(operation, Operation::BlockInteraction { .. }).then_some(position);
                 self.connection
                     .dispatch_interaction_batch(
                         context,
-                        ClientOperationClass::Normal,
+                        OperationClass::Normal,
                         furnace_position,
                         packets,
                     )
                     .await
-                    .map_err(PrimitiveDispatchError::Admission)
+                    .map_err(DispatchError::Admission)
             }
             _ => self
                 .connection
-                .dispatch_primitive_with_diagnostic(
+                .dispatch_operation_with_diagnostic(
                     context,
-                    ClientOperationClass::Normal,
+                    OperationClass::Normal,
                     packet_id,
                     &payload,
                     dig_diagnostic,
                 )
                 .await
-                .map_err(PrimitiveDispatchError::Admission),
+                .map_err(DispatchError::Admission),
         }
     }
 
-    /// Dispatches one Body-selected main-hand operation without exposing the
+    /// Dispatches one Caller-selected main-hand operation without exposing the
     /// connection-local protocol transaction identity.
     pub async fn dispatch_equip(
         &self,
         context: OperationContext,
         operation: EquipOperation,
-    ) -> std::result::Result<PrimitiveDispatchOutcome, PrimitiveDispatchError> {
+    ) -> std::result::Result<DispatchOutcome, DispatchError> {
         let coherent_state = self.coherent_state_gate.lock().await;
         match operation {
             EquipOperation::SelectEmptyHotbar { hotbar_slot } => {
                 let inventory = self.inventory.read().await;
-                if hotbar_slot > 8 || !inventory.player_slots()
-                    .get(36 + usize::from(hotbar_slot)).is_some_and(Option::is_none) {
-                    return Err(PrimitiveDispatchError::InvalidInput);
+                if hotbar_slot > 8
+                    || !inventory
+                        .player_slots()
+                        .get(36 + usize::from(hotbar_slot))
+                        .is_some_and(Option::is_none)
+                {
+                    return Err(DispatchError::InvalidInput);
                 }
                 drop(inventory);
-                let outcome = self.dispatch_primitive(context,
-                    PrimitiveOperation::SelectHotbar { hotbar_slot }).await?;
-                if outcome == PrimitiveDispatchOutcome::Dispatched {
+                let outcome = self
+                    .dispatch_operation(context, Operation::SelectHotbar { hotbar_slot })
+                    .await?;
+                if outcome == DispatchOutcome::Dispatched {
                     self.inventory.write().await.selected_hotbar = hotbar_slot;
                 }
                 drop(coherent_state);
@@ -1532,13 +1539,13 @@ impl Bot {
                     .and_then(Option::as_ref)
                     .is_some_and(|item| slot_matches(item, &expected_item));
                 if !matches {
-                    return Err(PrimitiveDispatchError::InvalidInput);
+                    return Err(DispatchError::InvalidInput);
                 }
                 drop(inventory);
                 let outcome = self
-                    .dispatch_primitive(context, PrimitiveOperation::SelectHotbar { hotbar_slot })
+                    .dispatch_operation(context, Operation::SelectHotbar { hotbar_slot })
                     .await?;
-                if outcome == PrimitiveDispatchOutcome::Dispatched {
+                if outcome == DispatchOutcome::Dispatched {
                     self.inventory.write().await.selected_hotbar = hotbar_slot;
                 }
                 drop(coherent_state);
@@ -1569,24 +1576,24 @@ impl Bot {
                 let destination_match =
                     optional_slot_matches(destination.as_ref(), expected_destination.as_ref());
                 if !selected_match || !cursor_ok {
-                    return Err(PrimitiveDispatchError::InvalidInput);
+                    return Err(DispatchError::InvalidInput);
                 }
                 let Some(source) = source else {
-                    return Err(PrimitiveDispatchError::InvalidInput);
+                    return Err(DispatchError::InvalidInput);
                 };
                 if !destination_match {
-                    return Err(PrimitiveDispatchError::InvalidInput);
+                    return Err(DispatchError::InvalidInput);
                 }
                 drop(inventory);
                 let transaction = match self
                     .dispatch_acknowledged(
                         context,
-                        AcknowledgedPrimitive::WindowClick {
+                        AcknowledgedOperation::WindowClick {
                             window_id: 0,
                             slot: i16::try_from(inventory_slot)
-                                .map_err(|_| PrimitiveDispatchError::InvalidInput)?,
+                                .map_err(|_| DispatchError::InvalidInput)?,
                             button: i8::try_from(selected_hotbar_slot)
-                                .map_err(|_| PrimitiveDispatchError::InvalidInput)?,
+                                .map_err(|_| DispatchError::InvalidInput)?,
                             mode: ClickMode::Hotbar,
                             clicked: Some(source.clone()),
                         },
@@ -1598,7 +1605,7 @@ impl Bot {
                 };
                 drop(coherent_state);
                 let outcome = transaction.wait().await;
-                if outcome == PrimitiveDispatchOutcome::Acknowledged {
+                if outcome == DispatchOutcome::Acknowledged {
                     let _coherent_state = self.coherent_state_gate.lock().await;
                     let mut inventory = self.inventory.write().await;
                     apply_accepted_equip_swap(
@@ -1614,14 +1621,15 @@ impl Bot {
         }
     }
 
-    /// Dispatches an ordered Body-selected Craft click column. Every click is
+    /// Dispatches an ordered window click sequence. Every click is
     /// revalidated against coherent packet state before the actor allocates
     /// its connection-local transaction identity.
-    pub async fn dispatch_craft(
+    pub async fn dispatch_window_clicks(
         &self,
         context: OperationContext,
-        execution: CraftExecution,
-    ) -> std::result::Result<PrimitiveDispatchOutcome, PrimitiveDispatchError> {
+        execution: WindowClickSequence,
+    ) -> std::result::Result<DispatchOutcome, DispatchError> {
+        execution.validate()?;
         self.dispatch_exact_window_clicks(
             context,
             execution.window_id,
@@ -1631,43 +1639,19 @@ impl Bot {
         .await
     }
 
-    /// Dispatches exact Body-selected furnace clicks through the same actor
-    /// transaction owner used by Craft.
-    pub async fn dispatch_furnace(
-        &self,
-        context: OperationContext,
-        execution: FurnaceExecution,
-    ) -> std::result::Result<PrimitiveDispatchOutcome, PrimitiveDispatchError> {
-        self.dispatch_exact_window_clicks(context, execution.window_id, false, execution.clicks)
-            .await
-    }
-
     async fn dispatch_exact_window_clicks(
         &self,
         context: OperationContext,
         window_id: i8,
         close_window_after: bool,
-        clicks: Vec<crate::CraftClick>,
-    ) -> std::result::Result<PrimitiveDispatchOutcome, PrimitiveDispatchError> {
+        clicks: Vec<crate::WindowClick>,
+    ) -> std::result::Result<DispatchOutcome, DispatchError> {
         if clicks.is_empty() {
-            return Err(PrimitiveDispatchError::InvalidInput);
+            return Err(DispatchError::InvalidInput);
         }
         let _click_order = self.click_lock.lock().await;
         let mut acknowledged = 0usize;
         for (index, click) in clicks.iter().enumerate() {
-            if click.accepted_cache_effects.slots.len() > 16
-                || click.accepted_cache_effects.slots.iter().enumerate().any(
-                    |(effect_index, effect)| {
-                        effect.slot < 0
-                            || click.accepted_cache_effects.slots[..effect_index]
-                                .iter()
-                                .any(|previous| previous.slot == effect.slot)
-                    },
-                )
-                || click.accepted_cache_effects.cursor_before != click.expected_cursor
-            {
-                return Err(PrimitiveDispatchError::InvalidInput);
-            }
             let successor = clicks.get(index + 1).cloned();
             let coherent_state = self.coherent_state_gate.lock().await;
             let inventory = self.inventory.read().await;
@@ -1676,9 +1660,9 @@ impl Bot {
                 || (window_id == 0 && inventory.open_window.is_some())
             {
                 return Ok(if acknowledged == 0 {
-                    PrimitiveDispatchOutcome::Rejected
+                    DispatchOutcome::Rejected
                 } else {
-                    PrimitiveDispatchOutcome::DeliveryUnknown
+                    DispatchOutcome::DeliveryUnknown
                 });
             }
             let observed = inventory
@@ -1695,9 +1679,9 @@ impl Bot {
                 optional_slot_matches(inventory.cursor.as_ref(), click.expected_cursor.as_ref());
             if !slot_match || !cursor_match {
                 return Ok(if acknowledged == 0 {
-                    PrimitiveDispatchOutcome::Rejected
+                    DispatchOutcome::Rejected
                 } else {
-                    PrimitiveDispatchOutcome::DeliveryUnknown
+                    DispatchOutcome::DeliveryUnknown
                 });
             }
             let clicked = observed.cloned();
@@ -1707,7 +1691,7 @@ impl Bot {
             let transaction = match self
                 .dispatch_acknowledged(
                     context,
-                    AcknowledgedPrimitive::WindowClick {
+                    AcknowledgedOperation::WindowClick {
                         window_id,
                         slot: click.slot,
                         button: click.button,
@@ -1719,11 +1703,11 @@ impl Bot {
             {
                 Ok(transaction) => transaction,
                 Err(error) if acknowledged == 0 => return Err(error),
-                Err(_) => return Ok(PrimitiveDispatchOutcome::DeliveryUnknown),
+                Err(_) => return Ok(DispatchOutcome::DeliveryUnknown),
             };
             let action = transaction
                 .window_action()
-                .ok_or(PrimitiveDispatchError::InvalidInput)?;
+                .ok_or(DispatchError::InvalidInput)?;
             self.inventory.write().await.pending_clicks.insert(
                 (window_id, action),
                 PendingClick {
@@ -1734,7 +1718,7 @@ impl Bot {
                     mode: click.mode,
                     slot_before,
                     cursor_before,
-                    accepted_cache_effects: click.accepted_cache_effects.clone(),
+                    prediction: click.prediction.clone(),
                 },
             );
             self.exact_window_barriers.lock().await.insert(
@@ -1749,7 +1733,7 @@ impl Bot {
             let (outcome_tx, outcome_rx) = oneshot::channel();
             tokio::spawn(async move {
                 let outcome = transaction.wait().await;
-                if outcome != PrimitiveDispatchOutcome::Acknowledged {
+                if outcome != DispatchOutcome::Acknowledged {
                     let _gate = monitor.coherent_state_gate.lock().await;
                     monitor
                         .inventory
@@ -1765,42 +1749,34 @@ impl Bot {
                 }
                 let _ = outcome_tx.send(outcome);
             });
-            match outcome_rx
-                .await
-                .unwrap_or(PrimitiveDispatchOutcome::DeliveryUnknown)
-            {
-                PrimitiveDispatchOutcome::Acknowledged => acknowledged += 1,
-                PrimitiveDispatchOutcome::Rejected if acknowledged == 0 => {
-                    return Ok(PrimitiveDispatchOutcome::Rejected);
+            match outcome_rx.await.unwrap_or(DispatchOutcome::DeliveryUnknown) {
+                DispatchOutcome::Acknowledged => acknowledged += 1,
+                DispatchOutcome::Rejected if acknowledged == 0 => {
+                    return Ok(DispatchOutcome::Rejected);
                 }
-                PrimitiveDispatchOutcome::Rejected | PrimitiveDispatchOutcome::DeliveryUnknown => {
-                    return Ok(PrimitiveDispatchOutcome::DeliveryUnknown);
+                DispatchOutcome::Rejected | DispatchOutcome::DeliveryUnknown => {
+                    return Ok(DispatchOutcome::DeliveryUnknown);
                 }
-                PrimitiveDispatchOutcome::Dispatched => {
-                    return Ok(PrimitiveDispatchOutcome::DeliveryUnknown);
+                DispatchOutcome::Dispatched => {
+                    return Ok(DispatchOutcome::DeliveryUnknown);
                 }
             }
         }
         if close_window_after {
             let outcome = match self
                 .connection
-                .dispatch_primitive(
-                    context,
-                    ClientOperationClass::Cleanup,
-                    0x0a,
-                    &[window_id as u8],
-                )
+                .dispatch_operation(context, OperationClass::Cleanup, 0x0a, &[window_id as u8])
                 .await
             {
                 Ok(outcome) => outcome,
-                Err(_) => return Ok(PrimitiveDispatchOutcome::DeliveryUnknown),
+                Err(_) => return Ok(DispatchOutcome::DeliveryUnknown),
             };
-            if outcome != PrimitiveDispatchOutcome::Dispatched {
-                return Ok(PrimitiveDispatchOutcome::DeliveryUnknown);
+            if outcome != DispatchOutcome::Dispatched {
+                return Ok(DispatchOutcome::DeliveryUnknown);
             }
             self.clear_local_window(window_id).await;
         }
-        Ok(PrimitiveDispatchOutcome::Acknowledged)
+        Ok(DispatchOutcome::Acknowledged)
     }
 
     async fn commit_satisfied_window_barriers(&self) {
@@ -1829,9 +1805,9 @@ impl Bot {
         }
     }
 
-    /// Dispatches the Body-selected yaw and pitch as one rotation-only packet.
+    /// Dispatches the Caller-selected yaw and pitch as one rotation-only packet.
     ///
-    /// The on-ground bit is supplied by the Body observation that selected
+    /// The on-ground bit is supplied by the caller observation that selected
     /// this operation; the client does not re-read or derive it.
     ///
     /// # Errors
@@ -1844,16 +1820,16 @@ impl Bot {
         yaw: f32,
         pitch: f32,
         on_ground: bool,
-    ) -> std::result::Result<PrimitiveDispatchOutcome, PrimitiveDispatchError> {
+    ) -> std::result::Result<DispatchOutcome, DispatchError> {
         // A server does not echo ordinary client rotation packets. Serialize
         // the admitted write with coherent capture and project the exact sent
         // orientation into the local player state only after delivery is
         // known. This is client input state, not Minecraft semantic success.
         let _coherent_state = self.coherent_state_gate.lock().await;
         let outcome = self
-            .dispatch_primitive(
+            .dispatch_operation(
                 context,
-                PrimitiveOperation::LookRotation {
+                Operation::LookRotation {
                     yaw,
                     pitch,
                     on_ground,
@@ -1862,7 +1838,7 @@ impl Bot {
             .await?;
         if matches!(
             outcome,
-            PrimitiveDispatchOutcome::Dispatched | PrimitiveDispatchOutcome::Acknowledged
+            DispatchOutcome::Dispatched | DispatchOutcome::Acknowledged
         ) {
             let mut player = self.player.lock().await;
             player.yaw = yaw;
@@ -1875,33 +1851,33 @@ impl Bot {
     /// transaction identity and acknowledgement deadline.
     ///
     /// The returned transaction is a protocol fact only. Callers must use a
-    /// fresh Body observation to establish any semantic game effect.
+    /// fresh client observation to establish any semantic game effect.
     pub async fn dispatch_acknowledged(
         &self,
         context: OperationContext,
-        operation: AcknowledgedPrimitive,
-    ) -> std::result::Result<ProtocolTransaction, PrimitiveDispatchError> {
+        operation: AcknowledgedOperation,
+    ) -> std::result::Result<ProtocolTransaction, DispatchError> {
         self.dispatch_acknowledged_with_diagnostic(context, operation, None)
             .await
     }
 
     /// Dispatches an acknowledged primitive with an optional read-only
-    /// diagnostic correlation supplied by the in-process Zen adapter.
+    /// diagnostic correlation supplied by the external controller.
     pub async fn dispatch_acknowledged_with_diagnostic(
         &self,
         context: OperationContext,
-        operation: AcknowledgedPrimitive,
-        diagnostic_correlation: Option<crate::PrimitiveDiagnosticCorrelationId>,
-    ) -> std::result::Result<ProtocolTransaction, PrimitiveDispatchError> {
+        operation: AcknowledgedOperation,
+        diagnostic_correlation: Option<crate::DiagnosticCorrelationId>,
+    ) -> std::result::Result<ProtocolTransaction, DispatchError> {
         self.connection
             .dispatch_acknowledged_with_diagnostic(
                 context,
-                ClientOperationClass::Normal,
+                OperationClass::Normal,
                 operation,
                 diagnostic_correlation,
             )
             .await
-            .map_err(PrimitiveDispatchError::Admission)
+            .map_err(DispatchError::Admission)
     }
 
     /// Dispatches one finite cleanup primitive through the disconnect barrier.
@@ -1912,46 +1888,42 @@ impl Bot {
     pub async fn dispatch_cleanup(
         &self,
         context: OperationContext,
-        operation: CleanupPrimitive,
-    ) -> std::result::Result<CleanupDispatchOutcome, PrimitiveDispatchError> {
+        operation: CleanupOperation,
+    ) -> std::result::Result<CleanupDispatchOutcome, DispatchError> {
         self.dispatch_cleanup_with_diagnostic(context, operation, None)
             .await
     }
 
     /// Dispatches cleanup with an optional read-only Dig correlation.
     ///
-    /// This is public only so the Zen service can carry its opaque diagnostic
+    /// This is public only so the caller can carry its opaque diagnostic
     /// identity across the crate boundary to the cleanup writer. The identity
     /// has no admission or semantic-completion authority.
     pub async fn dispatch_cleanup_with_diagnostic(
         &self,
         context: OperationContext,
-        operation: CleanupPrimitive,
-        diagnostic_correlation: Option<crate::PrimitiveDiagnosticCorrelationId>,
-    ) -> std::result::Result<CleanupDispatchOutcome, PrimitiveDispatchError> {
-        if matches!(operation, CleanupPrimitive::ControlClear) {
+        operation: CleanupOperation,
+        diagnostic_correlation: Option<crate::DiagnosticCorrelationId>,
+    ) -> std::result::Result<CleanupDispatchOutcome, DispatchError> {
+        if matches!(operation, CleanupOperation::ControlClear) {
             self.connection
-                .replace_control(
-                    context,
-                    ClientOperationClass::Cleanup,
-                    ControlState::default(),
-                )
+                .replace_control(context, OperationClass::Cleanup, ControlState::default())
                 .await
-                .map_err(PrimitiveDispatchError::Admission)?;
+                .map_err(DispatchError::Admission)?;
             return Ok(CleanupDispatchOutcome::AppliedLocally);
         }
         let Some((packet_id, payload)) = operation
             .encode()
-            .map_err(|_| PrimitiveDispatchError::InvalidInput)?
+            .map_err(|_| DispatchError::InvalidInput)?
         else {
             unreachable!("ControlClear is handled above");
         };
         let dig_diagnostic = match (
             &operation,
-            diagnostic_correlation.filter(|_| crate::connection::dig_lifecycle_trace_enabled()),
+            diagnostic_correlation.filter(|_| crate::lifecycle::dig_lifecycle_trace_enabled()),
         ) {
-            (CleanupPrimitive::DigCancel { position, face }, Some(correlation)) => {
-                Some(crate::connection::DigWriteDiagnostic::new(
+            (CleanupOperation::DigCancel { position, face }, Some(correlation)) => {
+                Some(crate::lifecycle::DigWriteDiagnostic::new(
                     correlation,
                     "cancel",
                     crate::DiggingStatus::Cancelled as i32,
@@ -1963,35 +1935,35 @@ impl Bot {
         };
         let outcome = self
             .connection
-            .dispatch_primitive_with_diagnostic(
+            .dispatch_operation_with_diagnostic(
                 context,
-                ClientOperationClass::Cleanup,
+                OperationClass::Cleanup,
                 packet_id,
                 &payload,
                 dig_diagnostic,
             )
             .await
-            .map_err(PrimitiveDispatchError::Admission)?;
-        if matches!(operation, CleanupPrimitive::CloseWindow { .. })
+            .map_err(DispatchError::Admission)?;
+        if matches!(operation, CleanupOperation::CloseWindow { .. })
             && matches!(
                 outcome,
-                PrimitiveDispatchOutcome::Dispatched | PrimitiveDispatchOutcome::Acknowledged
+                DispatchOutcome::Dispatched | DispatchOutcome::Acknowledged
             )
         {
             // The close packet is a finite cleanup operation.  Keep the
             // predicted cache aligned with the already-written packet so the
-            // Body can observe the window as absent and schedule its bounded
+            // The caller can observe the window as absent and schedule its bounded
             // reopen interval.  This is local cache state, not proof that the
             // server applied the close; an uncertain write remains unknown.
-            if let CleanupPrimitive::CloseWindow { window_id } = operation {
+            if let CleanupOperation::CloseWindow { window_id } = operation {
                 self.clear_local_window(window_id).await;
             }
         }
         Ok(match outcome {
-            PrimitiveDispatchOutcome::Dispatched => CleanupDispatchOutcome::Dispatched,
-            PrimitiveDispatchOutcome::Acknowledged => CleanupDispatchOutcome::Acknowledged,
-            PrimitiveDispatchOutcome::Rejected => CleanupDispatchOutcome::Rejected,
-            PrimitiveDispatchOutcome::DeliveryUnknown => CleanupDispatchOutcome::DeliveryUnknown,
+            DispatchOutcome::Dispatched => CleanupDispatchOutcome::Dispatched,
+            DispatchOutcome::Acknowledged => CleanupDispatchOutcome::Acknowledged,
+            DispatchOutcome::Rejected => CleanupDispatchOutcome::Rejected,
+            DispatchOutcome::DeliveryUnknown => CleanupDispatchOutcome::DeliveryUnknown,
         })
     }
 
@@ -2023,20 +1995,20 @@ impl Bot {
     }
     /// Waits without an internal timeout for a confirmed or unknown terminal state.
     /// The outer PlaySupervisor owns the logout deadline.
-    pub async fn wait_for_transport_end(&self) -> ConnectionLifecycle {
+    pub async fn wait_for_transport_end(&self) -> ConnectionState {
         self.connection.wait_for_terminal().await
     }
     /// Captures all requested raw domains in one connection-actor turn.
     ///
     /// Packet application cannot interleave with this capture. The returned
     /// sequence is scoped to this connection generation and must not be reused
-    /// as a Zen Body `StateRevision`.
+    /// as a application `StateRevision`.
     pub async fn capture_coherent_observation(
         &self,
         request: crate::CoherentObservationRequest,
     ) -> Result<crate::CoherentObservation> {
         let request = request.validate()?;
-        if self.connection.lifecycle() != ConnectionLifecycle::Ready {
+        if self.connection.lifecycle() != ConnectionState::Ready {
             bail!("coherent observation requires a ready connection");
         }
         let (reply, result) = oneshot::channel();
@@ -2058,12 +2030,12 @@ impl Bot {
     }
 
     /// Captures a bounded raw movement-facts snapshot in one connection-actor
-    /// turn. This is an internal typed integration boundary for the Rust Body
-    /// service; it is not a JSON or public Body semantic contract.
-    pub async fn capture_traversal_movement_facts(
+    /// turn. This is an internal typed integration boundary for the application
+    /// service; it is not a JSON or public application semantic contract.
+    pub async fn capture_movement_snapshot(
         &self,
-        request: crate::TraversalMovementFactsRequest,
-    ) -> Result<crate::TraversalMovementFactsSnapshot> {
+        request: crate::MovementSnapshotRequest,
+    ) -> Result<crate::MovementSnapshot> {
         let request = request.validate()?;
         if request.expected_generation != self.connection_generation() {
             bail!("movement facts request belongs to a stale client generation");
@@ -2089,13 +2061,13 @@ impl Bot {
     /// Queries matching blocks and loaded coverage under one coherent client
     /// state gate. The result is raw packet-cache evidence only; callers own
     /// all candidate selection, route, and semantic decisions.
-    pub async fn query_loaded_resource(
+    pub async fn query_loaded_blocks(
         &self,
-        request: crate::LoadedResourceQuery,
-    ) -> Result<crate::LoadedResourceQuerySnapshot> {
+        request: crate::BlockQuery,
+    ) -> Result<crate::BlockQuerySnapshot> {
         request.validate()?;
         let _coherent_state = self.coherent_state_gate.lock().await;
-        if self.connection.lifecycle() != ConnectionLifecycle::Ready {
+        if self.connection.lifecycle() != ConnectionState::Ready {
             bail!("loaded resource query requires a ready connection");
         }
         if request.expected_generation != self.connection_generation() {
@@ -2165,31 +2137,31 @@ impl Bot {
         };
         let block_geometry_revision = self.block_geometry_revision.load(Ordering::Acquire);
         let inventory_revision = self.inventory.read().await.revision();
-        Ok(crate::LoadedResourceQuerySnapshot {
-            capture: crate::SensorCaptureIdentity {
+        Ok(crate::BlockQuerySnapshot {
+            capture: crate::CaptureIdentity {
                 generation,
                 block_geometry_revision,
                 inventory_revision,
             },
             coverage: if missing_chunks == 0 {
-                crate::LoadedResourceCoverage::Complete
+                crate::BlockQueryCoverage::Complete
             } else {
-                crate::LoadedResourceCoverage::Partial { missing_chunks }
+                crate::BlockQueryCoverage::Partial { missing_chunks }
             },
             candidates,
             omitted_candidates,
         })
     }
 
-    /// Reads one Body-selected traversal region under the coherent state gate.
+    /// Reads one Caller-selected traversal region under the coherent state gate.
     /// The returned facts carry no route, stand, target, or action authority.
-    pub async fn query_traversal_geometry(
+    pub async fn query_geometry(
         &self,
-        request: crate::TraversalGeometryQuery,
-    ) -> Result<crate::TraversalGeometrySnapshot> {
+        request: crate::GeometryQuery,
+    ) -> Result<crate::GeometrySnapshot> {
         request.validate()?;
         let _coherent_state = self.coherent_state_gate.lock().await;
-        if self.connection.lifecycle() != ConnectionLifecycle::Ready {
+        if self.connection.lifecycle() != ConnectionState::Ready {
             bail!("traversal geometry query requires a ready connection");
         }
         if request.expected_capture.generation != self.connection_generation() {
@@ -2212,38 +2184,26 @@ impl Bot {
                     for z in request.region.min.z..=request.region.max.z {
                         let position = crate::BlockPos { x, y, z };
                         let Some(state_id) = world.block(x, y, z) else {
-                            blocks.push(crate::TraversalGeometryBlockFact::Unloaded { position });
+                            blocks.push(crate::GeometryBlock::Unloaded { position });
                             continue;
                         };
                         let Some(name) = crate::block_name_from_state(state_id) else {
-                            blocks.push(crate::TraversalGeometryBlockFact::Unknown {
-                                position,
-                                state_id,
-                            });
+                            blocks.push(crate::GeometryBlock::Unknown { position, state_id });
                             continue;
                         };
                         let Some(collision) = crate::block_collision(state_id) else {
-                            blocks.push(crate::TraversalGeometryBlockFact::Unknown {
-                                position,
-                                state_id,
-                            });
+                            blocks.push(crate::GeometryBlock::Unknown { position, state_id });
                             continue;
                         };
                         let Some(support_surface) = crate::block_support_surface(state_id) else {
-                            blocks.push(crate::TraversalGeometryBlockFact::Unknown {
-                                position,
-                                state_id,
-                            });
+                            blocks.push(crate::GeometryBlock::Unknown { position, state_id });
                             continue;
                         };
                         let Some(properties) = crate::block_state_properties(state_id) else {
-                            blocks.push(crate::TraversalGeometryBlockFact::Unknown {
-                                position,
-                                state_id,
-                            });
+                            blocks.push(crate::GeometryBlock::Unknown { position, state_id });
                             continue;
                         };
-                        blocks.push(crate::TraversalGeometryBlockFact::Loaded {
+                        blocks.push(crate::GeometryBlock::Loaded {
                             position,
                             state_id,
                             name: name.to_owned(),
@@ -2260,12 +2220,12 @@ impl Bot {
         let inventory_revision = self.inventory.read().await.revision();
         let generation = self.connection_generation();
         if generation != request.expected_capture.generation
-            || self.connection.lifecycle() != ConnectionLifecycle::Ready
+            || self.connection.lifecycle() != ConnectionState::Ready
         {
             bail!("traversal geometry query crossed a connection generation boundary");
         }
-        Ok(crate::TraversalGeometrySnapshot {
-            capture: crate::SensorCaptureIdentity {
+        Ok(crate::GeometrySnapshot {
+            capture: crate::CaptureIdentity {
                 generation,
                 block_geometry_revision,
                 inventory_revision,
@@ -2290,7 +2250,7 @@ impl Bot {
         const SECTIONS_PER_CHUNK: usize = 16;
 
         let _coherent_state = self.coherent_state_gate.lock().await;
-        if self.connection.lifecycle() != ConnectionLifecycle::Ready {
+        if self.connection.lifecycle() != ConnectionState::Ready {
             bail!("loaded geometry capture requires a ready connection");
         }
         let generation = self.connection_generation();
@@ -2323,12 +2283,12 @@ impl Bot {
         let block_geometry_revision = self.block_geometry_revision.load(Ordering::Acquire);
         let inventory_revision = self.inventory.read().await.revision();
         if generation != self.connection_generation()
-            || self.connection.lifecycle() != ConnectionLifecycle::Ready
+            || self.connection.lifecycle() != ConnectionState::Ready
         {
             bail!("loaded geometry capture crossed a connection generation boundary");
         }
         Ok(crate::LoadedGeometrySnapshot {
-            capture: crate::SensorCaptureIdentity {
+            capture: crate::CaptureIdentity {
                 generation,
                 block_geometry_revision,
                 inventory_revision,
@@ -2651,15 +2611,11 @@ impl Bot {
     pub async fn set_control(&self, control: ControlState) {
         let _ = self
             .connection
-            .replace_control(
-                self.operation_context(0),
-                ClientOperationClass::Normal,
-                control,
-            )
+            .replace_control(self.operation_context(0), OperationClass::Normal, control)
             .await;
     }
 
-    /// Replaces the actor-owned control state for a Body-selected observation.
+    /// Replaces the actor-owned control state for a Caller-selected observation.
     ///
     /// The context is mandatory on the typed path so stale observations and
     /// post-barrier normal control cannot mutate the state or produce packets.
@@ -2673,11 +2629,11 @@ impl Bot {
         &self,
         context: OperationContext,
         control: ControlState,
-    ) -> std::result::Result<(), PrimitiveDispatchError> {
+    ) -> std::result::Result<(), DispatchError> {
         self.connection
-            .replace_control(context, ClientOperationClass::Normal, control)
+            .replace_control(context, OperationClass::Normal, control)
             .await
-            .map_err(PrimitiveDispatchError::Admission)
+            .map_err(DispatchError::Admission)
     }
     /// Clears every persistent control input locally.
     pub async fn clear_control(&self) {
@@ -2685,7 +2641,7 @@ impl Bot {
             .connection
             .replace_control(
                 self.operation_context(0),
-                ClientOperationClass::Cleanup,
+                OperationClass::Cleanup,
                 ControlState::default(),
             )
             .await;
@@ -3407,19 +3363,19 @@ impl Bot {
         let transaction = self
             .dispatch_acknowledged(
                 self.operation_context(0),
-                AcknowledgedPrimitive::DigFinish { position, face },
+                AcknowledgedOperation::DigFinish { position, face },
             )
             .await
             .map_err(|error| crate::Error::new(crate::ErrorKind::State, anyhow::anyhow!(error)))?;
         match transaction.wait().await {
-            PrimitiveDispatchOutcome::Acknowledged => {}
-            PrimitiveDispatchOutcome::Rejected => {
+            DispatchOutcome::Acknowledged => {}
+            DispatchOutcome::Rejected => {
                 bail!("server rejected digging action at {position:?}");
             }
-            PrimitiveDispatchOutcome::DeliveryUnknown => {
+            DispatchOutcome::DeliveryUnknown => {
                 bail!("delivery of digging acknowledgement is unknown");
             }
-            PrimitiveDispatchOutcome::Dispatched => {
+            DispatchOutcome::Dispatched => {
                 bail!("digging action was dispatched without acknowledgement");
             }
         }
@@ -3621,7 +3577,7 @@ impl Bot {
         // the actor's pending transaction.
         let monitor = self.clone_internal();
         tokio::spawn(async move {
-            if transaction.wait().await == PrimitiveDispatchOutcome::DeliveryUnknown {
+            if transaction.wait().await == DispatchOutcome::DeliveryUnknown {
                 monitor.rollback_pending_click(window_id, action).await;
             }
         });
@@ -3681,7 +3637,7 @@ impl Bot {
         let transaction = match self
             .dispatch_acknowledged(
                 self.operation_context(0),
-                AcknowledgedPrimitive::WindowClick {
+                AcknowledgedOperation::WindowClick {
                     window_id,
                     slot,
                     button,
@@ -3703,7 +3659,7 @@ impl Bot {
                         mode,
                         slot_before,
                         cursor_before,
-                        accepted_cache_effects: Default::default(),
+                        prediction: Default::default(),
                     };
                     rollback_click(&mut inventory, &pending);
                     sync_player_inventory_from_window(&mut inventory, window_id);
@@ -3723,7 +3679,7 @@ impl Bot {
                     mode,
                     slot_before,
                     cursor_before,
-                    accepted_cache_effects: Default::default(),
+                    prediction: Default::default(),
                 };
                 rollback_click(&mut inventory, &pending);
                 sync_player_inventory_from_window(&mut inventory, window_id);
@@ -3747,7 +3703,7 @@ impl Bot {
                 mode,
                 slot_before,
                 cursor_before,
-                accepted_cache_effects: Default::default(),
+                prediction: Default::default(),
             },
         );
         drop(inventory);
@@ -3766,15 +3722,15 @@ impl Bot {
             .click_slot_transaction(window_id, slot, button, mode)
             .await?;
         match transaction.wait().await {
-            crate::PrimitiveDispatchOutcome::Acknowledged => Ok(action),
-            crate::PrimitiveDispatchOutcome::Rejected => {
+            crate::DispatchOutcome::Acknowledged => Ok(action),
+            crate::DispatchOutcome::Rejected => {
                 bail!("server rejected window action {action}");
             }
-            crate::PrimitiveDispatchOutcome::DeliveryUnknown => {
+            crate::DispatchOutcome::DeliveryUnknown => {
                 self.rollback_pending_click(window_id, action).await;
                 bail!("delivery of window action {action} is unknown");
             }
-            crate::PrimitiveDispatchOutcome::Dispatched => {
+            crate::DispatchOutcome::Dispatched => {
                 bail!("window action {action} was dispatched without acknowledgement");
             }
         }
@@ -4008,7 +3964,7 @@ impl Bot {
             )
         })?;
         let cleanup = self
-            .dispatch_cleanup(self.operation_context(0), CleanupPrimitive::ControlClear)
+            .dispatch_cleanup(self.operation_context(0), CleanupOperation::ControlClear)
             .await
             .map_err(|error| {
                 crate::Error::new(
@@ -4024,8 +3980,8 @@ impl Bot {
             return Err(error);
         }
         match self.connection.wait_for_terminal().await {
-            ConnectionLifecycle::Disconnected => Ok(()),
-            ConnectionLifecycle::ConnectionStateUnknown => {
+            ConnectionState::Disconnected => Ok(()),
+            ConnectionState::ConnectionStateUnknown => {
                 bail!("connection state became unknown while disconnecting")
             }
             _ => unreachable!("terminal wait returned a non-terminal lifecycle"),
@@ -4054,7 +4010,10 @@ impl Bot {
                 self.physics.lock().await.record_tick(Duration::ZERO, lag);
                 continue;
             }
-            let (control, movement_fraction) = self.connection.consume_control_for_tick(Duration::from_millis(50)).await;
+            let (control, movement_fraction) = self
+                .connection
+                .consume_control_for_tick(Duration::from_millis(50))
+                .await;
             if control.sprint != sprinting {
                 if self
                     .send_entity_action(if control.sprint { 3 } else { 4 })
@@ -4079,7 +4038,11 @@ impl Bot {
                 (control.jump && !jump_held) || self.jump_requested.swap(false, Ordering::AcqRel);
             jump_held = control.jump;
             let tick_started = std::time::Instant::now();
-            if self.physics_tick_with_fraction(control, jump, movement_fraction).await.is_err() {
+            if self
+                .physics_tick_with_fraction(control, jump, movement_fraction)
+                .await
+                .is_err()
+            {
                 break;
             }
             self.physics
@@ -4094,7 +4057,12 @@ impl Bot {
         self.physics_tick_with_fraction(control, jump, 1.0).await
     }
 
-    async fn physics_tick_with_fraction(&self, control: ControlState, jump: bool, movement_fraction: f64) -> Result<()> {
+    async fn physics_tick_with_fraction(
+        &self,
+        control: ControlState,
+        jump: bool,
+        movement_fraction: f64,
+    ) -> Result<()> {
         let _coherent_state = self.coherent_state_gate.lock().await;
         let survival = self.survival.read().await;
         let movement_attribute = survival
@@ -4376,7 +4344,7 @@ impl Bot {
                     )
                     .await;
                 if let Some(correlation) = confirmation.diagnostic_correlation {
-                    crate::connection::emit_dig_lifecycle(|| {
+                    crate::lifecycle::emit_dig_lifecycle(|| {
                         serde_json::json!({
                             "stage": "acknowledgement_received",
                             "correlation_id": correlation.get(),
@@ -4942,7 +4910,9 @@ impl Bot {
             }
             0x3a => {
                 let respawn = parse_respawn(&p)?;
-                if !respawn.copy_metadata { *self.local_pose.lock().await = Some(0); }
+                if !respawn.copy_metadata {
+                    *self.local_pose.lock().await = Some(0);
+                }
                 let mut state = self.survival.write().await;
                 state.dimension = Some(respawn.dimension.clone());
                 state.world_name = Some(respawn.world_name.clone());
@@ -5275,7 +5245,7 @@ impl Bot {
         sequence: u64,
     ) -> Result<crate::CoherentObservation> {
         let _coherent_state = self.coherent_state_gate.lock().await;
-        if self.connection.lifecycle() != ConnectionLifecycle::Ready {
+        if self.connection.lifecycle() != ConnectionState::Ready {
             bail!("coherent observation capture crossed a non-ready lifecycle");
         }
 
@@ -5316,10 +5286,13 @@ impl Bot {
         };
         let world = self.world.lock().await;
         let block_geometry_revision = self.block_geometry_revision.load(Ordering::Acquire);
-        let mining_environment = crate::mining_environment::observe(*self.local_pose.lock().await, &player,
-            |x,y,z| world.block(x,y,z));
+        let mining_environment = crate::mining_environment::observe(
+            *self.local_pose.lock().await,
+            &player,
+            |x, y, z| world.block(x, y, z),
+        );
         let observation_interest_cells: Vec<_> = request
-            .observation_interest
+            .interest
             .iter()
             .map(|position| crate::CoherentInterestCell {
                 position: *position,
@@ -5391,7 +5364,7 @@ impl Bot {
         let observation = crate::CoherentObservation {
             generation: self.connection_generation(),
             sequence: crate::ObservationSequence::new(sequence),
-            sensor_capture: crate::SensorCaptureIdentity {
+            sensor_capture: crate::CaptureIdentity {
                 generation: self.connection_generation(),
                 block_geometry_revision,
                 inventory_revision,
@@ -5406,8 +5379,8 @@ impl Bot {
             inventory,
             open_window,
             open_furnace,
-            observation_interest: crate::CoherentObservationInterest {
-                body_generation: request.body_interest_generation,
+            interest: crate::CoherentObservationInterest {
+                generation: request.interest_generation,
                 cells: observation_interest_cells,
                 unloaded_cells: observation_interest_unloaded,
                 light_unknown_cells: observation_interest_light_unknown,
@@ -5433,11 +5406,11 @@ impl Bot {
 
     async fn capture_traversal_movement_facts_at_sequence(
         &self,
-        request: crate::TraversalMovementFactsRequest,
+        request: crate::MovementSnapshotRequest,
         sequence: u64,
-    ) -> Result<crate::TraversalMovementFactsSnapshot> {
+    ) -> Result<crate::MovementSnapshot> {
         let _coherent_state = self.coherent_state_gate.lock().await;
-        if self.connection.lifecycle() != ConnectionLifecycle::Ready {
+        if self.connection.lifecycle() != ConnectionState::Ready {
             bail!("movement facts capture requires a ready connection");
         }
         if request.expected_generation != self.connection_generation() {
@@ -5456,7 +5429,7 @@ impl Bot {
                     .iter()
                     .take(46)
                     .enumerate()
-                    .map(|(slot, item)| crate::TraversalInventorySlotFact {
+                    .map(|(slot, item)| crate::InventorySlotFact {
                         slot: i16::try_from(slot).expect("bounded inventory slot fits i16"),
                         item: item.clone(),
                     })
@@ -5471,26 +5444,26 @@ impl Bot {
                 for z in request.region.min.z..=request.region.max.z {
                     let position = crate::BlockPos { x, y, z };
                     let Some(state_id) = world.block(x, y, z) else {
-                        blocks.push(crate::TraversalBlockFact::Unloaded { position });
+                        blocks.push(crate::MovementBlock::Unloaded { position });
                         continue;
                     };
                     let Some(name) = crate::block_name_from_state(state_id) else {
-                        blocks.push(crate::TraversalBlockFact::Unknown { position, state_id });
+                        blocks.push(crate::MovementBlock::Unknown { position, state_id });
                         continue;
                     };
                     let Some(shapes) = crate::block_collision_shapes(state_id) else {
-                        blocks.push(crate::TraversalBlockFact::Unknown { position, state_id });
+                        blocks.push(crate::MovementBlock::Unknown { position, state_id });
                         continue;
                     };
                     let Some(registry) = crate::block_movement_registry_facts(state_id) else {
-                        blocks.push(crate::TraversalBlockFact::Unknown { position, state_id });
+                        blocks.push(crate::MovementBlock::Unknown { position, state_id });
                         continue;
                     };
                     let Some(properties) = crate::block_state_properties(state_id) else {
-                        blocks.push(crate::TraversalBlockFact::Unknown { position, state_id });
+                        blocks.push(crate::MovementBlock::Unknown { position, state_id });
                         continue;
                     };
-                    blocks.push(crate::TraversalBlockFact::Loaded {
+                    blocks.push(crate::MovementBlock::Loaded {
                         position,
                         state_id,
                         name: name.to_owned(),
@@ -5520,11 +5493,11 @@ impl Bot {
         entities.truncate(usize::from(request.max_entities));
         let entities = entities
             .into_iter()
-            .map(|entity| crate::TraversalEntityFact {
+            .map(|entity| crate::ObservedEntity {
                 dimensions: entity
                     .type_id
                     .and_then(crate::entity_dimensions)
-                    .map(|(width, height)| crate::TraversalEntityDimensions { width, height }),
+                    .map(|(width, height)| crate::EntityDimensions { width, height }),
                 entity,
             })
             .collect();
@@ -5533,7 +5506,7 @@ impl Bot {
         if request.expected_generation != generation {
             bail!("movement facts capture crossed a client generation boundary");
         }
-        if self.connection.lifecycle() != ConnectionLifecycle::Ready {
+        if self.connection.lifecycle() != ConnectionState::Ready {
             bail!("movement facts capture crossed a terminal lifecycle boundary");
         }
         let sequence = crate::ObservationSequence::new(sequence);
@@ -5547,7 +5520,7 @@ impl Bot {
                 )
             })?;
 
-        Ok(crate::TraversalMovementFactsSnapshot {
+        Ok(crate::MovementSnapshot {
             generation,
             sequence,
             player,
@@ -5556,7 +5529,7 @@ impl Bot {
             blocks,
             entities,
             entities_omitted,
-            inventory: crate::TraversalInventoryFact {
+            inventory: crate::InventoryFact {
                 selected_hotbar: inventory.selected_hotbar,
                 slots: inventory_slots,
             },
@@ -5772,12 +5745,7 @@ impl Bot {
     }
     async fn send(&self, id: i32, p: &[u8]) -> Result<()> {
         self.connection
-            .dispatch(
-                self.operation_context(0),
-                ClientOperationClass::Normal,
-                id,
-                p,
-            )
+            .dispatch(self.operation_context(0), OperationClass::Normal, id, p)
             .await
     }
     async fn send_protocol(&self, id: i32, p: &[u8]) -> Result<()> {
@@ -6036,8 +6004,8 @@ fn sound_category_name(id: i32) -> Option<&'static str> {
 mod tests {
     use super::*;
     use crate::{
-        BlockCollision, CoherentWorldTime, CraftAcceptedCacheEffects, CraftAcceptedSlotEffect,
-        TraversalGeometryBlockFact, TraversalGeometryQuery,
+        BlockCollision, CoherentWorldTime, GeometryBlock, GeometryQuery, SlotPrediction,
+        WindowPrediction,
     };
 
     fn repeated_pickup_fixture(window_id: i8) -> (InventoryState, PendingClick) {
@@ -6066,19 +6034,19 @@ mod tests {
             mode: ClickMode::Normal,
             slot_before: Some(stack("stick", 4)),
             cursor_before: None,
-            accepted_cache_effects: CraftAcceptedCacheEffects {
+            prediction: WindowPrediction {
                 slots: vec![
-                    CraftAcceptedSlotEffect {
+                    SlotPrediction {
                         slot: 0,
                         before: Some(output.clone()),
                         after: Some(output.clone()),
                     },
-                    CraftAcceptedSlotEffect {
+                    SlotPrediction {
                         slot: 1,
                         before: Some(expected("oak_planks", 2)),
                         after: Some(expected("oak_planks", 1)),
                     },
-                    CraftAcceptedSlotEffect {
+                    SlotPrediction {
                         slot: 3,
                         before: Some(expected("oak_planks", 2)),
                         after: Some(expected("oak_planks", 1)),
@@ -6102,7 +6070,7 @@ mod tests {
                 1
             );
         }
-        let output = pending.accepted_cache_effects.cursor_after.clone();
+        let output = pending.prediction.cursor_after.clone();
         let deposit = PendingClick {
             window_id,
             action: 2,
@@ -6111,8 +6079,8 @@ mod tests {
             mode: ClickMode::Normal,
             slot_before: None,
             cursor_before: inventory.cursor.clone(),
-            accepted_cache_effects: CraftAcceptedCacheEffects {
-                slots: vec![CraftAcceptedSlotEffect {
+            prediction: WindowPrediction {
+                slots: vec![SlotPrediction {
                     slot: 9,
                     before: None,
                     after: output.clone(),
@@ -6122,13 +6090,13 @@ mod tests {
             },
         };
         apply_accepted_normal_click(&mut inventory, &deposit).unwrap();
-        let next = CraftClick {
+        let next = WindowClick {
             slot: 0,
             button: 0,
             mode: ClickMode::Normal,
             expected_item: output,
             expected_cursor: None,
-            accepted_cache_effects: Default::default(),
+            prediction: Default::default(),
         };
         assert!(
             click_precondition_matches(&inventory, window_id, &next),
@@ -6192,8 +6160,8 @@ mod tests {
             mode: ClickMode::Normal,
             slot_before: Some(source.clone()),
             cursor_before: None,
-            accepted_cache_effects: CraftAcceptedCacheEffects {
-                slots: vec![CraftAcceptedSlotEffect {
+            prediction: WindowPrediction {
+                slots: vec![SlotPrediction {
                     slot: 9,
                     before: Some(expected.clone()),
                     after: None,
@@ -6237,8 +6205,8 @@ mod tests {
             mode: ClickMode::Normal,
             slot_before: Some(output.clone()),
             cursor_before: None,
-            accepted_cache_effects: CraftAcceptedCacheEffects {
-                slots: vec![CraftAcceptedSlotEffect {
+            prediction: WindowPrediction {
+                slots: vec![SlotPrediction {
                     slot: 0,
                     before: Some(SlotExpectation {
                         item_name: "oak_log".to_owned(),
@@ -6422,12 +6390,18 @@ mod tests {
         );
     }
     use crate::{
-        AttributeModifier, BlockRegion, CoherentObservationRequest, ErrorKind,
-        LoadedResourceCoverage,
+        AttributeModifier, BlockQueryCoverage, BlockRegion, CoherentObservationRequest, ErrorKind,
     };
     use std::collections::HashMap;
-    use tokio::{io::{AsyncRead, AsyncReadExt, ReadBuf}, net::TcpListener, sync::{oneshot, Notify}};
-    use std::{pin::Pin, task::{Context, Poll}};
+    use std::{
+        pin::Pin,
+        task::{Context, Poll},
+    };
+    use tokio::{
+        io::{AsyncRead, AsyncReadExt, ReadBuf},
+        net::TcpListener,
+        sync::{Notify, oneshot},
+    };
 
     include!("client/packet_deadline_tests.rs");
 
@@ -6438,7 +6412,11 @@ mod tests {
     }
 
     impl<R: AsyncRead + Unpin> AsyncRead for CountingRead<R> {
-        fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<std::io::Result<()>> {
+        fn poll_read(
+            mut self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+            buf: &mut ReadBuf<'_>,
+        ) -> Poll<std::io::Result<()>> {
             let before = buf.filled().len();
             let result = Pin::new(&mut self.inner).poll_read(cx, buf);
             if let Poll::Ready(Ok(())) = result {
@@ -6491,7 +6469,7 @@ mod tests {
         *bot.positioned.lock().await = true;
         bot.connection.mark_ready().await;
         tokio::time::timeout(Duration::from_secs(1), async {
-            while bot.connection_lifecycle() != ConnectionLifecycle::Ready {
+            while bot.connection_state() != ConnectionState::Ready {
                 tokio::task::yield_now().await;
             }
         })
@@ -6503,27 +6481,49 @@ mod tests {
     #[tokio::test]
     async fn exact_empty_hotbar_selection_uses_existing_packet_and_updates_cache() {
         let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
-        bot.inventory.write().await.windows.insert(0, vec![None; 45]);
-        let outcome = bot.dispatch_equip(bot.operation_context(0),
-            EquipOperation::SelectEmptyHotbar { hotbar_slot: 3 }).await.unwrap();
-        assert_eq!(outcome, PrimitiveDispatchOutcome::Dispatched);
+        bot.inventory
+            .write()
+            .await
+            .windows
+            .insert(0, vec![None; 45]);
+        let outcome = bot
+            .dispatch_equip(
+                bot.operation_context(0),
+                EquipOperation::SelectEmptyHotbar { hotbar_slot: 3 },
+            )
+            .await
+            .unwrap();
+        assert_eq!(outcome, DispatchOutcome::Dispatched);
         assert_eq!(bot.inventory.read().await.selected_hotbar, 3);
-        release.send(()).unwrap(); drop(bot); server.await.unwrap();
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
     }
 
     #[tokio::test]
     async fn exact_empty_hotbar_selection_rejects_occupied_and_out_of_range_slots() {
         let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
         let mut slots = vec![None; 45];
-        slots[39] = Some(ItemStack { item_id: 1, count: 1, nbt: None });
+        slots[39] = Some(ItemStack {
+            item_id: 1,
+            count: 1,
+            nbt: None,
+        });
         bot.inventory.write().await.windows.insert(0, slots);
         for hotbar_slot in [3, 9] {
-            assert!(matches!(bot.dispatch_equip(bot.operation_context(0),
-                EquipOperation::SelectEmptyHotbar { hotbar_slot }).await,
-                Err(PrimitiveDispatchError::InvalidInput)));
+            assert!(matches!(
+                bot.dispatch_equip(
+                    bot.operation_context(0),
+                    EquipOperation::SelectEmptyHotbar { hotbar_slot }
+                )
+                .await,
+                Err(DispatchError::InvalidInput)
+            ));
         }
         assert_eq!(bot.inventory.read().await.selected_hotbar, 0);
-        release.send(()).unwrap(); drop(bot); server.await.unwrap();
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
     }
 
     #[tokio::test]
@@ -6536,46 +6536,81 @@ mod tests {
             let consumed_notify = Arc::new(Notify::new());
             let (capture_tx, capture_rx) = tokio::sync::mpsc::channel(2);
             let (movement_tx, movement_rx) = tokio::sync::mpsc::channel(2);
-            let reader = CountingRead { inner: rx, consumed: Arc::clone(&consumed), consumed_notify: Arc::clone(&consumed_notify) };
+            let reader = CountingRead {
+                inner: rx,
+                consumed: Arc::clone(&consumed),
+                consumed_notify: Arc::clone(&consumed_notify),
+            };
             let loop_bot = bot.clone_internal();
-            let loop_task = tokio::spawn(async move { loop_bot.read_loop(reader, capture_rx, movement_rx).await });
+            let loop_task =
+                tokio::spawn(
+                    async move { loop_bot.read_loop(reader, capture_rx, movement_rx).await },
+                );
             // Compression-enabled, below-threshold packet: frame = 00 1e 01 00 00 00 00.
             let wire = [7, 0, 0x1e, 1, 0, 0, 0, 0];
-            tokio::io::AsyncWriteExt::write_all(&mut tx, &wire[..prefix_len]).await.unwrap();
+            tokio::io::AsyncWriteExt::write_all(&mut tx, &wire[..prefix_len])
+                .await
+                .unwrap();
             tokio::time::timeout(Duration::from_secs(1), async {
-                while consumed.load(Ordering::Acquire) < prefix_len { consumed_notify.notified().await; }
-            }).await.unwrap();
+                while consumed.load(Ordering::Acquire) < prefix_len {
+                    consumed_notify.notified().await;
+                }
+            })
+            .await
+            .unwrap();
             assert_eq!(consumed.load(Ordering::Acquire), prefix_len);
 
             for ordinal in 0..2 {
                 let (capture_reply, capture_result) = oneshot::channel();
-                capture_tx.send(crate::observation::CaptureCommand {
-                    request: CoherentObservationRequest::default(), reply: capture_reply,
-                }).await.unwrap();
+                capture_tx
+                    .send(crate::observation::CaptureCommand {
+                        request: CoherentObservationRequest::default(),
+                        reply: capture_reply,
+                    })
+                    .await
+                    .unwrap();
                 let observation = timeout(Duration::from_secs(1), capture_result)
-                    .await.unwrap().unwrap().unwrap();
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .unwrap();
                 assert_eq!(observation.sequence.get(), 2 * ordinal + 1);
                 let (movement_reply, movement_result) = oneshot::channel();
-                movement_tx.send(crate::observation::TraversalMovementFactsCommand {
-                    request: crate::TraversalMovementFactsRequest {
-                        expected_generation: bot.connection_generation(),
-                        region: BlockRegion::new(BlockPos { x: 0, y: 0, z: 0 }, BlockPos { x: 0, y: 0, z: 0 }),
-                        entity_radius: 0,
-                        max_entities: 0,
-                    },
-                    reply: movement_reply,
-                }).await.unwrap();
+                movement_tx
+                    .send(crate::observation::TraversalMovementFactsCommand {
+                        request: crate::MovementSnapshotRequest {
+                            expected_generation: bot.connection_generation(),
+                            region: BlockRegion::new(
+                                BlockPos { x: 0, y: 0, z: 0 },
+                                BlockPos { x: 0, y: 0, z: 0 },
+                            ),
+                            entity_radius: 0,
+                            max_entities: 0,
+                        },
+                        reply: movement_reply,
+                    })
+                    .await
+                    .unwrap();
                 let observation = timeout(Duration::from_secs(1), movement_result)
-                    .await.unwrap().unwrap().unwrap();
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .unwrap();
                 assert_eq!(observation.sequence.get(), 2 * ordinal + 2);
                 assert_eq!(bot.protocol_packet_sequence.load(Ordering::Acquire), 0);
                 assert_eq!(consumed.load(Ordering::Acquire), prefix_len);
             }
             // Only finish the frame after both request types completed twice.
-            tokio::io::AsyncWriteExt::write_all(&mut tx, &wire[prefix_len..]).await.unwrap();
+            tokio::io::AsyncWriteExt::write_all(&mut tx, &wire[prefix_len..])
+                .await
+                .unwrap();
             tokio::time::timeout(Duration::from_secs(1), async {
-                while bot.protocol_packet_sequence.load(Ordering::Acquire) != 1 { tokio::task::yield_now().await; }
-            }).await.unwrap();
+                while bot.protocol_packet_sequence.load(Ordering::Acquire) != 1 {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .unwrap();
             bot.cancel.notify_waiters();
             loop_task.await.unwrap().unwrap();
             drop(release);
@@ -6606,19 +6641,18 @@ mod tests {
             .set_block_for_test(BlockPos { x: 1, y: 0, z: 0 }, i32::MAX);
         let observation = bot
             .capture_coherent_observation(CoherentObservationRequest {
-
                 max_entities: 0,
                 max_events: 0,
                 ..CoherentObservationRequest::default()
             })
             .await
             .unwrap();
-        let request = TraversalGeometryQuery {
+        let request = GeometryQuery {
             expected_capture: observation.sensor_capture,
             expected_dimension: "minecraft:overworld".to_owned(),
             region: BlockRegion::new(BlockPos { x: 0, y: 0, z: 0 }, BlockPos { x: 1, y: 1, z: 1 }),
         };
-        let snapshot = bot.query_traversal_geometry(request.clone()).await.unwrap();
+        let snapshot = bot.query_geometry(request.clone()).await.unwrap();
         assert_eq!(snapshot.capture, request.expected_capture);
         assert_eq!(snapshot.evaluated_origin.x, observation.player.x);
         assert_eq!(snapshot.evaluated_origin.y, observation.player.y);
@@ -6628,11 +6662,9 @@ mod tests {
             .blocks
             .iter()
             .map(|fact| match fact {
-                TraversalGeometryBlockFact::Loaded { position, .. }
-                | TraversalGeometryBlockFact::Unloaded { position }
-                | TraversalGeometryBlockFact::Unknown { position, .. } => {
-                    (position.x, position.y, position.z)
-                }
+                GeometryBlock::Loaded { position, .. }
+                | GeometryBlock::Unloaded { position }
+                | GeometryBlock::Unknown { position, .. } => (position.x, position.y, position.z),
             })
             .collect::<Vec<_>>();
         assert_eq!(
@@ -6650,7 +6682,7 @@ mod tests {
         );
         assert!(matches!(
             snapshot.blocks[0],
-            TraversalGeometryBlockFact::Loaded {
+            GeometryBlock::Loaded {
                 collision: BlockCollision::NonEmpty,
                 support_surface: crate::BlockSupportSurface::FullTop,
                 ..
@@ -6658,23 +6690,23 @@ mod tests {
         ));
         assert!(matches!(
             snapshot.blocks[4],
-            TraversalGeometryBlockFact::Unknown {
+            GeometryBlock::Unknown {
                 state_id: i32::MAX,
                 ..
             }
         ));
 
-        let edge = TraversalGeometryQuery {
+        let edge = GeometryQuery {
             region: BlockRegion::new(
                 BlockPos { x: 15, y: 0, z: 0 },
                 BlockPos { x: 16, y: 0, z: 0 },
             ),
             ..request.clone()
         };
-        let edge_snapshot = bot.query_traversal_geometry(edge).await.unwrap();
+        let edge_snapshot = bot.query_geometry(edge).await.unwrap();
         assert!(matches!(
             edge_snapshot.blocks[0],
-            TraversalGeometryBlockFact::Loaded {
+            GeometryBlock::Loaded {
                 collision: BlockCollision::Empty,
                 support_surface: crate::BlockSupportSurface::NotFullTop,
                 ..
@@ -6682,7 +6714,7 @@ mod tests {
         ));
         assert!(matches!(
             edge_snapshot.blocks[1],
-            TraversalGeometryBlockFact::Unloaded { .. }
+            GeometryBlock::Unloaded { .. }
         ));
         release.send(()).unwrap();
         drop(bot);
@@ -6786,43 +6818,34 @@ mod tests {
         bot.survival.write().await.dimension = Some("minecraft:overworld".to_owned());
         let observation = bot
             .capture_coherent_observation(CoherentObservationRequest {
-
                 max_entities: 0,
                 max_events: 0,
                 ..CoherentObservationRequest::default()
             })
             .await
             .unwrap();
-        let request = TraversalGeometryQuery {
+        let request = GeometryQuery {
             expected_capture: observation.sensor_capture,
             expected_dimension: "minecraft:overworld".to_owned(),
             region: BlockRegion::new(BlockPos { x: 0, y: 0, z: 0 }, BlockPos { x: 0, y: 0, z: 0 }),
         };
         bot.player.lock().await.x = observation.player.x + 1.0;
-        let moved = bot.query_traversal_geometry(request.clone()).await.unwrap();
+        let moved = bot.query_geometry(request.clone()).await.unwrap();
         assert_eq!(moved.evaluated_origin.x, observation.player.x + 1.0);
         assert_eq!(moved.evaluated_origin.y, observation.player.y);
         assert_eq!(moved.evaluated_origin.z, observation.player.z);
 
         bot.player.lock().await.x = f64::NAN;
-        assert!(bot.query_traversal_geometry(request.clone()).await.is_err());
+        assert!(bot.query_geometry(request.clone()).await.is_err());
         bot.player.lock().await.x = observation.player.x;
 
         let mut generation_mismatch = request.clone();
-        generation_mismatch.expected_capture.generation = ClientConnectionGeneration::allocate();
-        assert!(
-            bot.query_traversal_geometry(generation_mismatch)
-                .await
-                .is_err()
-        );
+        generation_mismatch.expected_capture.generation = ConnectionGeneration::allocate();
+        assert!(bot.query_geometry(generation_mismatch).await.is_err());
 
         let mut dimension_mismatch = request.clone();
         dimension_mismatch.expected_dimension = "minecraft:the_nether".to_owned();
-        assert!(
-            bot.query_traversal_geometry(dimension_mismatch)
-                .await
-                .is_err()
-        );
+        assert!(bot.query_geometry(dimension_mismatch).await.is_err());
 
         let mut geometry_revision_mismatch = request.clone();
         bot.advance_block_geometry_revision();
@@ -6830,7 +6853,7 @@ mod tests {
             .expected_capture
             .block_geometry_revision += 1;
         let geometry_snapshot = bot
-            .query_traversal_geometry(geometry_revision_mismatch)
+            .query_geometry(geometry_revision_mismatch)
             .await
             .unwrap();
         assert_eq!(
@@ -6844,7 +6867,7 @@ mod tests {
             .expected_capture
             .inventory_revision += 1;
         let inventory_snapshot = bot
-            .query_traversal_geometry(inventory_revision_mismatch)
+            .query_geometry(inventory_revision_mismatch)
             .await
             .unwrap();
         assert_eq!(
@@ -6861,8 +6884,8 @@ mod tests {
         let (bot, server, release) =
             connected_test_bot(ConnectionOptions::default(), Vec::new()).await;
         bot.survival.write().await.dimension = Some("minecraft:overworld".to_owned());
-        let request = TraversalGeometryQuery {
-            expected_capture: crate::SensorCaptureIdentity {
+        let request = GeometryQuery {
+            expected_capture: crate::CaptureIdentity {
                 generation: bot.connection_generation(),
                 block_geometry_revision: 0,
                 inventory_revision: 0,
@@ -6870,8 +6893,8 @@ mod tests {
             expected_dimension: "minecraft:overworld".to_owned(),
             region: BlockRegion::new(BlockPos { x: 0, y: 0, z: 0 }, BlockPos { x: 0, y: 0, z: 0 }),
         };
-        assert_ne!(bot.connection_lifecycle(), ConnectionLifecycle::Ready);
-        assert!(bot.query_traversal_geometry(request).await.is_err());
+        assert_ne!(bot.connection_state(), ConnectionState::Ready);
+        assert!(bot.query_geometry(request).await.is_err());
 
         release.send(()).unwrap();
         drop(bot);
@@ -6885,7 +6908,6 @@ mod tests {
 
         let first = bot
             .capture_coherent_observation(CoherentObservationRequest {
-
                 max_entities: 0,
                 max_events: 0,
                 ..CoherentObservationRequest::default()
@@ -6898,7 +6920,6 @@ mod tests {
         assert!(bot.player_snapshot().await.revision > previous_player_revision);
         let second = bot
             .capture_coherent_observation(CoherentObservationRequest {
-
                 max_entities: 0,
                 max_events: 0,
                 ..CoherentObservationRequest::default()
@@ -6910,12 +6931,12 @@ mod tests {
         assert_eq!(second.generation, first.generation);
         assert_eq!(second.sensor_capture, first.sensor_capture);
 
-        let query = TraversalGeometryQuery {
+        let query = GeometryQuery {
             expected_capture: first.sensor_capture,
             expected_dimension: "minecraft:overworld".to_owned(),
             region: BlockRegion::new(BlockPos { x: 0, y: 0, z: 0 }, BlockPos { x: 0, y: 0, z: 0 }),
         };
-        assert!(bot.query_traversal_geometry(query).await.is_ok());
+        assert!(bot.query_geometry(query).await.is_ok());
 
         release.send(()).unwrap();
         drop(bot);
@@ -6927,8 +6948,8 @@ mod tests {
         region: BlockRegion,
         block_name: &str,
         limit: u16,
-    ) -> crate::LoadedResourceQuery {
-        crate::LoadedResourceQuery {
+    ) -> crate::BlockQuery {
+        crate::BlockQuery {
             expected_generation: bot.operation_context(0).generation,
             expected_dimension: "minecraft:overworld".to_owned(),
             region,
@@ -6947,7 +6968,7 @@ mod tests {
                 .unwrap()
         );
         let result = bot
-            .query_loaded_resource(loaded_resource_request(
+            .query_loaded_blocks(loaded_resource_request(
                 &bot,
                 BlockRegion::new(BlockPos { x: 0, y: 0, z: 0 }, BlockPos { x: 1, y: 0, z: 0 }),
                 "air",
@@ -6955,7 +6976,7 @@ mod tests {
             ))
             .await
             .unwrap();
-        assert_eq!(result.coverage, LoadedResourceCoverage::Complete);
+        assert_eq!(result.coverage, BlockQueryCoverage::Complete);
         assert_eq!(result.capture.generation, bot.connection_generation());
         assert_eq!(
             result.capture.block_geometry_revision,
@@ -6987,7 +7008,7 @@ mod tests {
             .await
             .set_block_for_test(BlockPos { x: 2, y: 3, z: 4 }, iron);
         let result = bot
-            .query_loaded_resource(loaded_resource_request(
+            .query_loaded_blocks(loaded_resource_request(
                 &bot,
                 BlockRegion::new(
                     BlockPos { x: 0, y: 0, z: 0 },
@@ -7020,7 +7041,7 @@ mod tests {
             }
         }
         assert!(
-            bot.query_loaded_resource(loaded_resource_request(
+            bot.query_loaded_blocks(loaded_resource_request(
                 &bot,
                 BlockRegion::new(
                     BlockPos { x: 0, y: 0, z: 0 },
@@ -7046,7 +7067,7 @@ mod tests {
         let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
         bot.survival.write().await.dimension = Some("minecraft:overworld".to_owned());
         let partial = bot
-            .query_loaded_resource(loaded_resource_request(
+            .query_loaded_blocks(loaded_resource_request(
                 &bot,
                 BlockRegion::new(
                     BlockPos { x: 0, y: 0, z: 0 },
@@ -7059,7 +7080,7 @@ mod tests {
             .unwrap();
         assert!(matches!(
             partial.coverage,
-            LoadedResourceCoverage::Partial { missing_chunks: 2 }
+            BlockQueryCoverage::Partial { missing_chunks: 2 }
         ));
         assert_eq!(partial.capture.generation, bot.connection_generation());
         assert_eq!(
@@ -7077,8 +7098,8 @@ mod tests {
             "air",
             4,
         );
-        stale.expected_generation = ClientConnectionGeneration::allocate();
-        assert!(bot.query_loaded_resource(stale).await.is_err());
+        stale.expected_generation = ConnectionGeneration::allocate();
+        assert!(bot.query_loaded_blocks(stale).await.is_err());
         release.send(()).unwrap();
         drop(bot);
         server.await.unwrap();
@@ -7120,10 +7141,7 @@ mod tests {
         assert_eq!(lifecycle.control().await, ControlState::default());
         release_tx.send(()).unwrap();
         assert!(disconnect.await.unwrap().is_ok());
-        assert_eq!(
-            lifecycle.connection_lifecycle(),
-            ConnectionLifecycle::Disconnected
-        );
+        assert_eq!(lifecycle.connection_state(), ConnectionState::Disconnected);
         server.await.unwrap();
     }
 
@@ -7134,7 +7152,7 @@ mod tests {
         bot.player.lock().await.spawned = true;
         *bot.positioned.lock().await = true;
         bot.wait_until_ready().await.unwrap();
-        assert_eq!(bot.connection_lifecycle(), ConnectionLifecycle::Ready);
+        assert_eq!(bot.connection_state(), ConnectionState::Ready);
         release.send(()).unwrap();
         drop(bot);
         server.await.unwrap();
@@ -7156,7 +7174,7 @@ mod tests {
         let window_transaction = bot
             .dispatch_acknowledged(
                 bot.operation_context(0),
-                AcknowledgedPrimitive::WindowClick {
+                AcknowledgedOperation::WindowClick {
                     window_id: 0,
                     slot: 0,
                     button: 0,
@@ -7177,7 +7195,7 @@ mod tests {
                 mode: ClickMode::Normal,
                 slot_before: Some(stack),
                 cursor_before: None,
-                accepted_cache_effects: Default::default(),
+                prediction: Default::default(),
             },
         );
         bot.exact_window_barriers.lock().await.insert(
@@ -7203,7 +7221,7 @@ mod tests {
         window_ack.push(1);
         assert!(bot.apply_packet(0x12, window_ack).await.unwrap());
         let (outcome, slot, cursor) = waiter.await.unwrap();
-        assert_eq!(outcome, PrimitiveDispatchOutcome::Acknowledged);
+        assert_eq!(outcome, DispatchOutcome::Acknowledged);
         assert!(slot.is_none());
         assert_eq!(cursor.map(|item| item.count), Some(2));
 
@@ -7215,7 +7233,7 @@ mod tests {
         let second = bot
             .dispatch_acknowledged(
                 bot.operation_context(0),
-                AcknowledgedPrimitive::WindowClick {
+                AcknowledgedOperation::WindowClick {
                     window_id: 0,
                     slot: 0,
                     button: 0,
@@ -7236,7 +7254,7 @@ mod tests {
                 mode: ClickMode::Normal,
                 slot_before: None,
                 cursor_before: None,
-                accepted_cache_effects: Default::default(),
+                prediction: Default::default(),
             },
         );
         bot.exact_window_barriers.lock().await.insert(
@@ -7256,14 +7274,14 @@ mod tests {
         second_ack.write_i16::<BigEndian>(second_action).unwrap();
         second_ack.push(1);
         assert!(bot.apply_packet(0x12, second_ack).await.unwrap());
-        assert_eq!(second.wait().await, PrimitiveDispatchOutcome::Acknowledged);
+        assert_eq!(second.wait().await, DispatchOutcome::Acknowledged);
         assert_eq!(bot.inventory.read().await.windows[&0][0], Some(corrective));
 
         let position = BlockPos { x: -2, y: 4, z: 6 };
         let dig_transaction = bot
             .dispatch_acknowledged(
                 bot.operation_context(0),
-                AcknowledgedPrimitive::DigFinish {
+                AcknowledgedOperation::DigFinish {
                     position,
                     face: BlockFace::North,
                 },
@@ -7276,10 +7294,7 @@ mod tests {
         put_varint(&mut dig_ack, DiggingStatus::Finished as i32);
         dig_ack.push(1);
         assert!(bot.apply_packet(0x07, dig_ack).await.unwrap());
-        assert_eq!(
-            dig_transaction.wait().await,
-            PrimitiveDispatchOutcome::Acknowledged
-        );
+        assert_eq!(dig_transaction.wait().await, DispatchOutcome::Acknowledged);
 
         release.send(()).unwrap();
         drop(bot);
@@ -7302,7 +7317,7 @@ mod tests {
         let transaction = bot
             .dispatch_acknowledged(
                 bot.operation_context(0),
-                AcknowledgedPrimitive::WindowClick {
+                AcknowledgedOperation::WindowClick {
                     window_id: 0,
                     slot: 0,
                     button: 0,
@@ -7323,19 +7338,19 @@ mod tests {
                 mode: ClickMode::Drop,
                 slot_before: Some(stack),
                 cursor_before: None,
-                accepted_cache_effects: Default::default(),
+                prediction: Default::default(),
             },
         );
         bot.exact_window_barriers.lock().await.insert(
             (0, action),
             ExactWindowBarrier {
-                successor: Some(CraftClick {
+                successor: Some(WindowClick {
                     slot: 1,
                     button: 0,
                     mode: ClickMode::Normal,
                     expected_item: None,
                     expected_cursor: None,
-                    accepted_cache_effects: Default::default(),
+                    prediction: Default::default(),
                 }),
                 confirmation_seen: false,
             },
@@ -7357,10 +7372,7 @@ mod tests {
         set_slot.write_i16::<BigEndian>(1).unwrap();
         write_slot(&mut set_slot, None);
         assert!(bot.apply_packet(0x16, set_slot).await.unwrap());
-        assert_eq!(
-            waiter.await.unwrap(),
-            PrimitiveDispatchOutcome::Acknowledged
-        );
+        assert_eq!(waiter.await.unwrap(), DispatchOutcome::Acknowledged);
         assert!(bot.exact_window_barriers.lock().await.is_empty());
 
         release.send(()).unwrap();
@@ -7501,7 +7513,6 @@ mod tests {
 
         let observation = bot
             .capture_coherent_observation(CoherentObservationRequest {
-
                 max_entities: 0,
                 max_events: 0,
                 ..CoherentObservationRequest::default()
@@ -7528,7 +7539,7 @@ mod tests {
         let successful = bot
             .dispatch_acknowledged(
                 bot.operation_context(0),
-                AcknowledgedPrimitive::DigFinish {
+                AcknowledgedOperation::DigFinish {
                     position,
                     face: BlockFace::North,
                 },
@@ -7543,14 +7554,11 @@ mod tests {
             .await
             .unwrap()
         );
-        assert_eq!(
-            successful.wait().await,
-            PrimitiveDispatchOutcome::Acknowledged
-        );
+        assert_eq!(successful.wait().await, DispatchOutcome::Acknowledged);
         let observation = bot
             .capture_coherent_observation(CoherentObservationRequest {
-                body_interest_generation: Some(1),
-                observation_interest: vec![BlockPos { x: 0, y: 0, z: 0 }],
+                interest_generation: Some(1),
+                interest: vec![BlockPos { x: 0, y: 0, z: 0 }],
 
                 max_entities: 0,
                 max_events: 0,
@@ -7558,19 +7566,19 @@ mod tests {
             })
             .await
             .unwrap();
-        assert_eq!(observation.observation_interest.cells[0].state_id, Some(0));
+        assert_eq!(observation.interest.cells[0].state_id, Some(0));
 
         let corrective_state = 42;
         bot.admit_operation(
             bot.operation_context(observation.sequence.get()),
-            ClientOperationClass::Normal,
+            OperationClass::Normal,
         )
         .await
         .unwrap();
         let failed = bot
             .dispatch_acknowledged(
                 bot.operation_context(observation.sequence.get()),
-                AcknowledgedPrimitive::DigFinish {
+                AcknowledgedOperation::DigFinish {
                     position,
                     face: BlockFace::North,
                 },
@@ -7585,11 +7593,11 @@ mod tests {
             .await
             .unwrap()
         );
-        assert_eq!(failed.wait().await, PrimitiveDispatchOutcome::Rejected);
+        assert_eq!(failed.wait().await, DispatchOutcome::Rejected);
         let observation = bot
             .capture_coherent_observation(CoherentObservationRequest {
-                body_interest_generation: Some(1),
-                observation_interest: vec![BlockPos { x: 0, y: 0, z: 0 }],
+                interest_generation: Some(1),
+                interest: vec![BlockPos { x: 0, y: 0, z: 0 }],
 
                 max_entities: 0,
                 max_events: 0,
@@ -7597,18 +7605,21 @@ mod tests {
             })
             .await
             .unwrap();
-        assert_eq!(observation.observation_interest.cells[0].state_id, Some(corrective_state));
+        assert_eq!(
+            observation.interest.cells[0].state_id,
+            Some(corrective_state)
+        );
 
         bot.admit_operation(
             bot.operation_context(observation.sequence.get()),
-            ClientOperationClass::Normal,
+            OperationClass::Normal,
         )
         .await
         .unwrap();
         let dropped = bot
             .dispatch_acknowledged(
                 bot.operation_context(observation.sequence.get()),
-                AcknowledgedPrimitive::DigFinish {
+                AcknowledgedOperation::DigFinish {
                     position,
                     face: BlockFace::North,
                 },
@@ -7643,7 +7654,7 @@ mod tests {
         })
         .await;
         assert_eq!(
-            bot.dispatch_cleanup(bot.operation_context(0), CleanupPrimitive::ControlClear,)
+            bot.dispatch_cleanup(bot.operation_context(0), CleanupOperation::ControlClear,)
                 .await
                 .unwrap(),
             CleanupDispatchOutcome::AppliedLocally
@@ -7652,7 +7663,7 @@ mod tests {
 
         bot.connection.begin_disconnect().await.unwrap();
         assert_eq!(
-            bot.dispatch_cleanup(bot.operation_context(0), CleanupPrimitive::UseStop,)
+            bot.dispatch_cleanup(bot.operation_context(0), CleanupOperation::UseStop,)
                 .await
                 .unwrap(),
             CleanupDispatchOutcome::Dispatched
@@ -7688,7 +7699,7 @@ mod tests {
         assert_eq!(
             bot.dispatch_cleanup(
                 bot.operation_context(0),
-                CleanupPrimitive::CloseWindow { window_id },
+                CleanupOperation::CloseWindow { window_id },
             )
             .await
             .unwrap(),
@@ -7709,13 +7720,13 @@ mod tests {
     async fn rotation_dispatch_reflects_exact_pose_only_after_delivery() {
         let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
         let stale_context = OperationContext {
-            generation: ClientConnectionGeneration::allocate(),
+            generation: ConnectionGeneration::allocate(),
             source_observation_sequence: 1,
         };
         assert_eq!(
             bot.dispatch_rotation(stale_context, 37.5, -22.0, true)
                 .await,
-            Err(PrimitiveDispatchError::Admission(
+            Err(DispatchError::Admission(
                 OperationAdmissionError::StaleGeneration,
             ))
         );
@@ -7730,7 +7741,7 @@ mod tests {
             bot.dispatch_rotation(bot.operation_context(0), 37.5, -22.0, true)
                 .await
                 .unwrap(),
-            PrimitiveDispatchOutcome::Dispatched
+            DispatchOutcome::Dispatched
         );
         let player = bot.player.lock().await;
         assert_eq!(player.yaw, 37.5);
@@ -7750,7 +7761,6 @@ mod tests {
         let capture = tokio::spawn(async move {
             capture_bot
                 .capture_coherent_observation(CoherentObservationRequest {
-
                     entity_radius: 0.0,
                     max_entities: 0,
                     max_events: 0,
@@ -7772,7 +7782,7 @@ mod tests {
         release.send(()).unwrap();
         assert_eq!(
             rotation.await.unwrap().unwrap(),
-            PrimitiveDispatchOutcome::Dispatched
+            DispatchOutcome::Dispatched
         );
         drop(bot);
         server.await.unwrap();
@@ -7784,9 +7794,9 @@ mod tests {
         bot.player.lock().await.entity_id = Some(42);
         let position = BlockPos { x: -3, y: 64, z: 5 };
         let outcome = bot
-            .dispatch_primitive(
+            .dispatch_operation(
                 bot.operation_context(0),
-                PrimitiveOperation::BlockInteraction {
+                Operation::BlockInteraction {
                     hand: Hand::Main,
                     position,
                     face: BlockFace::Up,
@@ -7797,15 +7807,15 @@ mod tests {
             )
             .await
             .unwrap();
-        assert_eq!(outcome, PrimitiveDispatchOutcome::Dispatched);
+        assert_eq!(outcome, DispatchOutcome::Dispatched);
         // A non-furnace window consumes the one-shot context and cannot leave it
         // available for a later furnace window.
         assert_eq!(bot.connection.observe_furnace_window(12).await, None);
         assert_eq!(bot.connection.observe_furnace_window(13).await, None);
         assert_eq!(
-            bot.dispatch_primitive(
+            bot.dispatch_operation(
                 bot.operation_context(0),
-                PrimitiveOperation::BlockInteraction {
+                Operation::BlockInteraction {
                     hand: Hand::Main,
                     position,
                     face: BlockFace::Up,
@@ -7816,7 +7826,7 @@ mod tests {
             )
             .await
             .unwrap(),
-            PrimitiveDispatchOutcome::Dispatched
+            DispatchOutcome::Dispatched
         );
         assert_eq!(
             bot.connection.observe_furnace_window(13).await,
@@ -7829,9 +7839,9 @@ mod tests {
         let second_position = BlockPos { x: 9, y: 65, z: -4 };
         for (_sequence, position) in [(3, position), (4, second_position)] {
             assert_eq!(
-                bot.dispatch_primitive(
+                bot.dispatch_operation(
                     bot.operation_context(0),
-                    PrimitiveOperation::BlockInteraction {
+                    Operation::BlockInteraction {
                         hand: Hand::Main,
                         position,
                         face: BlockFace::Up,
@@ -7842,7 +7852,7 @@ mod tests {
                 )
                 .await
                 .unwrap(),
-                PrimitiveDispatchOutcome::Dispatched
+                DispatchOutcome::Dispatched
             );
         }
         assert_eq!(bot.connection.observe_furnace_window(13).await, None);
@@ -7850,9 +7860,9 @@ mod tests {
         // The ambiguity is consumed and a later single interaction can correlate
         // exactly once again.
         assert_eq!(
-            bot.dispatch_primitive(
+            bot.dispatch_operation(
                 bot.operation_context(0),
-                PrimitiveOperation::BlockInteraction {
+                Operation::BlockInteraction {
                     hand: Hand::Main,
                     position: second_position,
                     face: BlockFace::Up,
@@ -7863,7 +7873,7 @@ mod tests {
             )
             .await
             .unwrap(),
-            PrimitiveDispatchOutcome::Dispatched
+            DispatchOutcome::Dispatched
         );
         assert_eq!(
             bot.connection.observe_furnace_window(13).await,
@@ -7872,9 +7882,9 @@ mod tests {
 
         // Expired markers are not allowed to explain a later window.
         assert_eq!(
-            bot.dispatch_primitive(
+            bot.dispatch_operation(
                 bot.operation_context(0),
-                PrimitiveOperation::BlockInteraction {
+                Operation::BlockInteraction {
                     hand: Hand::Main,
                     position,
                     face: BlockFace::Up,
@@ -7885,19 +7895,19 @@ mod tests {
             )
             .await
             .unwrap(),
-            PrimitiveDispatchOutcome::Dispatched
+            DispatchOutcome::Dispatched
         );
         tokio::time::sleep(Duration::from_secs(2) + Duration::from_millis(20)).await;
         assert_eq!(bot.connection.observe_furnace_window(13).await, None);
 
         let stale_context = OperationContext {
-            generation: ClientConnectionGeneration::allocate(),
+            generation: ConnectionGeneration::allocate(),
             source_observation_sequence: 7,
         };
         assert_eq!(
-            bot.dispatch_primitive(
+            bot.dispatch_operation(
                 stale_context,
-                PrimitiveOperation::BlockInteraction {
+                Operation::BlockInteraction {
                     hand: Hand::Main,
                     position,
                     face: BlockFace::Up,
@@ -7907,7 +7917,7 @@ mod tests {
                 },
             )
             .await,
-            Err(crate::PrimitiveDispatchError::Admission(
+            Err(crate::DispatchError::Admission(
                 OperationAdmissionError::StaleGeneration,
             ))
         );
@@ -7963,8 +7973,8 @@ mod tests {
         assert!(saw_error);
         assert!(!saw_disconnected);
         assert_eq!(
-            observer.connection_lifecycle(),
-            ConnectionLifecycle::ConnectionStateUnknown
+            observer.connection_state(),
+            ConnectionState::ConnectionStateUnknown
         );
         release_tx.send(()).unwrap();
         drop(observer);
@@ -8000,7 +8010,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             bot.wait_for_transport_end().await,
-            ConnectionLifecycle::Disconnected
+            ConnectionState::Disconnected
         );
         assert!(
             bot.respond_resource_pack(ResourcePackStatus::Accepted)
@@ -8018,7 +8028,7 @@ mod tests {
         let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
         let mut events = bot.subscribe();
         assert!(bot.apply_packet(0x1a, Vec::new()).await.is_err());
-        assert_eq!(bot.connection_lifecycle(), ConnectionLifecycle::Ready);
+        assert_eq!(bot.connection_state(), ConnectionState::Ready);
         assert!(
             tokio::time::timeout(Duration::from_millis(20), events.recv())
                 .await
@@ -8043,7 +8053,6 @@ mod tests {
             bot.survival.write().await.raining = Some(value % 2 == 0);
         }
         let request = CoherentObservationRequest {
-
             max_entities: 0,
             max_events: 0,
             ..CoherentObservationRequest::default()
@@ -8063,7 +8072,7 @@ mod tests {
         assert_eq!(
             bot.admit_operation(
                 bot.operation_context(first.sequence.get()),
-                ClientOperationClass::Normal,
+                OperationClass::Normal,
             )
             .await,
             Ok(())
@@ -8071,7 +8080,7 @@ mod tests {
         assert_eq!(
             bot.admit_operation(
                 bot.operation_context(second.sequence.get()),
-                ClientOperationClass::Normal,
+                OperationClass::Normal,
             )
             .await,
             Ok(())
@@ -8079,14 +8088,14 @@ mod tests {
         assert_eq!(
             bot.admit_operation(
                 bot.operation_context(first.sequence.get()),
-                ClientOperationClass::Normal,
+                OperationClass::Normal,
             )
             .await,
             Err(OperationAdmissionError::InvalidOperation)
         );
         assert_eq!(bot.player_snapshot().await.revision, 4);
         assert_eq!(bot.survival_snapshot().await.revision, 5);
-        assert_eq!(first.observation_interest.unloaded_cells, 0);
+        assert_eq!(first.interest.unloaded_cells, 0);
         release.send(()).unwrap();
         drop(bot);
         server.await.unwrap();
@@ -8100,7 +8109,7 @@ mod tests {
         known_entity.type_id = Some(1);
         known_entity.type_name = Some("armor_stand");
         bot.insert_entity(known_entity).await.unwrap();
-        let request = crate::TraversalMovementFactsRequest {
+        let request = crate::MovementSnapshotRequest {
             expected_generation: bot.connection_generation(),
             region: crate::BlockRegion::new(
                 crate::BlockPos { x: 0, y: 0, z: 0 },
@@ -8113,15 +8122,13 @@ mod tests {
         let guard = gate.lock().await;
         let capture_bot = bot.clone();
         let pending =
-            tokio::spawn(
-                async move { capture_bot.capture_traversal_movement_facts(request).await },
-            );
+            tokio::spawn(async move { capture_bot.capture_movement_snapshot(request).await });
         tokio::task::yield_now().await;
         assert!(!pending.is_finished());
         drop(guard);
         let serialized = pending.await.unwrap().unwrap();
-        let first = bot.capture_traversal_movement_facts(request).await.unwrap();
-        let second = bot.capture_traversal_movement_facts(request).await.unwrap();
+        let first = bot.capture_movement_snapshot(request).await.unwrap();
+        let second = bot.capture_movement_snapshot(request).await.unwrap();
         assert_eq!(serialized.generation, request.expected_generation);
         assert_eq!(serialized.sequence.get() + 1, first.sequence.get());
         assert_eq!(first.generation, request.expected_generation);
@@ -8129,25 +8136,25 @@ mod tests {
         assert_eq!(first.sequence.get() + 1, second.sequence.get());
         assert!(matches!(
             first.blocks.as_slice(),
-            [crate::TraversalBlockFact::Unloaded { .. }]
+            [crate::MovementBlock::Unloaded { .. }]
         ));
         assert_eq!(first.entities_omitted, 0);
         assert_eq!(first.entities.len(), 2);
         assert!(first.entities[0].dimensions.is_none());
         assert_eq!(
             first.entities[1].dimensions,
-            Some(crate::TraversalEntityDimensions {
+            Some(crate::EntityDimensions {
                 width: 0.5,
                 height: 1.975,
             })
         );
         assert_eq!(first.inventory.slots.len(), 0);
 
-        let stale = crate::TraversalMovementFactsRequest {
-            expected_generation: crate::ClientConnectionGeneration::allocate(),
+        let stale = crate::MovementSnapshotRequest {
+            expected_generation: crate::ConnectionGeneration::allocate(),
             ..request
         };
-        assert!(bot.capture_traversal_movement_facts(stale).await.is_err());
+        assert!(bot.capture_movement_snapshot(stale).await.is_err());
         release.send(()).unwrap();
         drop(bot);
         server.await.unwrap();
@@ -8155,35 +8162,57 @@ mod tests {
 
     #[tokio::test]
     async fn local_pose_metadata_is_retained_in_coherent_observation() {
-        let (bot,server,release)=ready_test_bot(ConnectionOptions::default()).await;
-        bot.player.lock().await.entity_id=Some(42);
-        let mut packet=Vec::new();
-        put_varint(&mut packet,42);
-        packet.push(6);put_varint(&mut packet,18);put_varint(&mut packet,5);packet.push(255);
-        bot.apply_packet(0x44,packet).await.unwrap();
-        let observed=bot.capture_coherent_observation(CoherentObservationRequest::default()).await.unwrap();
-        assert_eq!(observed.mining_environment.pose,Some(5));
-        assert_eq!(observed.mining_environment.eyes_in_water,None,"unloaded cells are not dry air");
-        release.send(()).unwrap();drop(bot);server.await.unwrap();
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        bot.player.lock().await.entity_id = Some(42);
+        let mut packet = Vec::new();
+        put_varint(&mut packet, 42);
+        packet.push(6);
+        put_varint(&mut packet, 18);
+        put_varint(&mut packet, 5);
+        packet.push(255);
+        bot.apply_packet(0x44, packet).await.unwrap();
+        let observed = bot
+            .capture_coherent_observation(CoherentObservationRequest::default())
+            .await
+            .unwrap();
+        assert_eq!(observed.mining_environment.pose, Some(5));
+        assert_eq!(
+            observed.mining_environment.eyes_in_water, None,
+            "unloaded cells are not dry air"
+        );
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
     }
 
     #[tokio::test]
     async fn coherent_capture_keeps_requested_block_and_light_evidence_aligned() {
         let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
-        let positions = vec![BlockPos { x: -17, y: 3, z: 9 }, BlockPos { x: 20, y: 64, z: 0 }];
-        let observation = bot.capture_coherent_observation(CoherentObservationRequest {
-            body_interest_generation: Some(1), observation_interest: positions.clone(),
-            max_entities: 0, max_events: 0, ..CoherentObservationRequest::default()
-        }).await.unwrap();
-        assert_eq!(observation.observation_interest.cells.len(), positions.len());
-        for (cell, position) in observation.observation_interest.cells.iter().zip(positions) {
+        let positions = vec![
+            BlockPos { x: -17, y: 3, z: 9 },
+            BlockPos { x: 20, y: 64, z: 0 },
+        ];
+        let observation = bot
+            .capture_coherent_observation(CoherentObservationRequest {
+                interest_generation: Some(1),
+                interest: positions.clone(),
+                max_entities: 0,
+                max_events: 0,
+                ..CoherentObservationRequest::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(observation.interest.cells.len(), positions.len());
+        for (cell, position) in observation.interest.cells.iter().zip(positions) {
             assert_eq!(cell.position, position);
             assert_eq!(cell.state_id, None);
             assert_eq!(cell.light, crate::CoherentLightState::Unknown);
         }
-        assert_eq!(observation.observation_interest.unloaded_cells, 2);
-        assert_eq!(observation.observation_interest.light_unknown_cells, 2);
-        release.send(()).unwrap(); drop(bot); server.await.unwrap();
+        assert_eq!(observation.interest.unloaded_cells, 2);
+        assert_eq!(observation.interest.light_unknown_cells, 2);
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
     }
 
     #[tokio::test]
@@ -8201,8 +8230,8 @@ mod tests {
         );
         let observation = bot
             .capture_coherent_observation(CoherentObservationRequest {
-                body_interest_generation: Some(1),
-                observation_interest: vec![BlockPos { x: 0, y: 0, z: 0 }],
+                interest_generation: Some(1),
+                interest: vec![BlockPos { x: 0, y: 0, z: 0 }],
 
                 entity_radius: 0.0,
                 max_entities: 0,
@@ -8211,13 +8240,13 @@ mod tests {
             })
             .await
             .unwrap();
-        assert_eq!(observation.observation_interest.cells.len(), 1);
-        assert_eq!(observation.observation_interest.cells.len(), 1);
+        assert_eq!(observation.interest.cells.len(), 1);
+        assert_eq!(observation.interest.cells.len(), 1);
         assert_eq!(
-            observation.observation_interest.cells[0].light,
+            observation.interest.cells[0].light,
             crate::CoherentLightState::Observed { block: 5, sky: 1 }
         );
-        assert_eq!(observation.observation_interest.light_unknown_cells, 0);
+        assert_eq!(observation.interest.light_unknown_cells, 0);
         release.send(()).unwrap();
         drop(bot);
         server.await.unwrap();
@@ -8228,7 +8257,6 @@ mod tests {
         let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
         bot.player.lock().await.spawned = false;
         let request = CoherentObservationRequest {
-
             max_entities: 0,
             max_events: 0,
             ..CoherentObservationRequest::default()
@@ -8287,7 +8315,6 @@ mod tests {
         put_string(&mut join, "minecraft:overworld");
         put_string(&mut join, "world");
         let request = CoherentObservationRequest {
-
             entity_radius: 0.0,
             max_entities: 0,
             max_events: 0,
@@ -8331,7 +8358,6 @@ mod tests {
         }
         let observation = bot
             .capture_coherent_observation(CoherentObservationRequest {
-
                 entity_radius: 10.0,
                 max_entities: 2,
                 max_events: 0,
@@ -8366,7 +8392,6 @@ mod tests {
         }
         let observation = bot
             .capture_coherent_observation(CoherentObservationRequest {
-
                 entity_radius: 0.0,
                 max_entities: 0,
                 max_events: 2,
@@ -8392,7 +8417,6 @@ mod tests {
         );
         let next = bot
             .capture_coherent_observation(CoherentObservationRequest {
-
                 entity_radius: 0.0,
                 max_entities: 0,
                 max_events: 256,
@@ -8440,8 +8464,8 @@ mod tests {
             .collect::<Vec<_>>();
         assert!(
             CoherentObservationRequest {
-                body_interest_generation: Some(1),
-                observation_interest: cells.clone(),
+                interest_generation: Some(1),
+                interest: cells.clone(),
                 ..CoherentObservationRequest::default()
             }
             .validate()
@@ -8449,8 +8473,8 @@ mod tests {
         );
         assert_eq!(
             CoherentObservationRequest {
-                body_interest_generation: Some(1),
-                observation_interest: vec![BlockPos { x: 1, y: 2, z: 3 }; 2],
+                interest_generation: Some(1),
+                interest: vec![BlockPos { x: 1, y: 2, z: 3 }; 2],
                 ..CoherentObservationRequest::default()
             }
             .validate()
@@ -8460,7 +8484,7 @@ mod tests {
         );
         assert_eq!(
             CoherentObservationRequest {
-                observation_interest: vec![BlockPos { x: 1, y: 2, z: 3 }],
+                interest: vec![BlockPos { x: 1, y: 2, z: 3 }],
                 ..CoherentObservationRequest::default()
             }
             .validate()
@@ -8489,30 +8513,29 @@ mod tests {
         ];
         let observation = bot
             .capture_coherent_observation(CoherentObservationRequest {
-
                 entity_radius: 0.0,
                 max_entities: 0,
                 max_events: 0,
-                body_interest_generation: Some(77),
-                observation_interest: requested.clone(),
+                interest_generation: Some(77),
+                interest: requested.clone(),
             })
             .await
             .unwrap();
-        assert_eq!(observation.observation_interest.body_generation, Some(77));
+        assert_eq!(observation.interest.generation, Some(77));
         assert_eq!(
             observation
-                .observation_interest
+                .interest
                 .cells
                 .iter()
                 .map(|cell| cell.position)
                 .collect::<Vec<_>>(),
             requested
         );
-        assert!(observation.observation_interest.cells.iter().all(
+        assert!(observation.interest.cells.iter().all(
             |cell| cell.state_id.is_none() && cell.light == crate::CoherentLightState::Unknown
         ));
-        assert_eq!(observation.observation_interest.unloaded_cells, 3);
-        assert_eq!(observation.observation_interest.light_unknown_cells, 3);
+        assert_eq!(observation.interest.unloaded_cells, 3);
+        assert_eq!(observation.interest.light_unknown_cells, 3);
         release.send(()).unwrap();
         drop(bot);
         server.await.unwrap();
@@ -8545,23 +8568,22 @@ mod tests {
 
         let observation = bot
             .capture_coherent_observation(CoherentObservationRequest {
-
                 entity_radius: 0.0,
                 max_entities: 0,
                 max_events: 0,
-                body_interest_generation: Some(1),
-                observation_interest: vec![position],
+                interest_generation: Some(1),
+                interest: vec![position],
             })
             .await
             .unwrap();
-        assert_eq!(observation.observation_interest.cells[0].state_id, Some(42));
-        assert_eq!(observation.observation_interest.cells[0].state_id, Some(42));
+        assert_eq!(observation.interest.cells[0].state_id, Some(42));
+        assert_eq!(observation.interest.cells[0].state_id, Some(42));
         assert_eq!(
-            observation.observation_interest.cells[0].light,
+            observation.interest.cells[0].light,
             crate::CoherentLightState::Observed { block: 5, sky: 1 }
         );
         assert_eq!(
-            observation.observation_interest.cells[0].light,
+            observation.interest.cells[0].light,
             crate::CoherentLightState::Observed { block: 5, sky: 1 }
         );
         release.send(()).unwrap();
@@ -8580,8 +8602,8 @@ mod tests {
             .await;
         assert!(observation.is_err());
         assert_eq!(
-            bot.connection_lifecycle(),
-            ConnectionLifecycle::ConnectionStateUnknown
+            bot.connection_state(),
+            ConnectionState::ConnectionStateUnknown
         );
         release.send(()).unwrap();
         drop(bot);
@@ -8604,7 +8626,7 @@ mod tests {
             .mark_terminal(TerminalClassification::ConnectionStateUnknown)
             .await;
         tokio::time::timeout(Duration::from_secs(1), async {
-            while bot.connection_lifecycle() != ConnectionLifecycle::ConnectionStateUnknown {
+            while bot.connection_state() != ConnectionState::ConnectionStateUnknown {
                 tokio::task::yield_now().await;
             }
         })
@@ -8627,7 +8649,6 @@ mod tests {
         let capture = tokio::spawn(async move {
             capture_bot
                 .capture_coherent_observation(CoherentObservationRequest {
-
                     entity_radius: 0.0,
                     max_entities: 0,
                     max_events: 0,
@@ -8657,7 +8678,9 @@ mod tests {
         // Keep the background producer out of this manually clocked physics test.
         bot.teleport_barrier_ticks.store(u8::MAX, Ordering::Release);
         tokio::time::sleep(Duration::from_millis(100)).await;
-        bot.apply_packet(0x21, empty_chunk_packet(0, 0)).await.unwrap();
+        bot.apply_packet(0x21, empty_chunk_packet(0, 0))
+            .await
+            .unwrap();
         {
             let mut world = bot.world.lock().await;
             for y in 62..=64 {
@@ -8689,15 +8712,19 @@ mod tests {
         .await
         .unwrap();
         let after_fraction = bot.player.lock().await.z;
-        assert!(after_fraction > before,
+        assert!(
+            after_fraction > before,
             "fractional input must advance the player: before={before} after={after_fraction} motion={:?}",
-            bot.motion.lock().await.velocity);
+            bot.motion.lock().await.velocity
+        );
         bot.physics_tick_with_fraction(ControlState::default(), false, 0.0)
             .await
             .unwrap();
         let after_zero_input = bot.player.lock().await.z;
-        assert!(after_zero_input > after_fraction,
-            "clearing input must preserve existing horizontal inertia for this tick");
+        assert!(
+            after_zero_input > after_fraction,
+            "clearing input must preserve existing horizontal inertia for this tick"
+        );
 
         // Reset the same real fixture and compare against a full-strength tick.
         {
@@ -8721,8 +8748,10 @@ mod tests {
         .unwrap();
         let full_delta = bot.player.lock().await.z - before;
         let quarter_delta = after_fraction - before;
-        assert!(full_delta > 0.0 && (quarter_delta / full_delta - 0.25).abs() < 1e-9,
-            "fraction must scale the same initial physical input: quarter={quarter_delta} full={full_delta}");
+        assert!(
+            full_delta > 0.0 && (quarter_delta / full_delta - 0.25).abs() < 1e-9,
+            "fraction must scale the same initial physical input: quarter={quarter_delta} full={full_delta}"
+        );
         release.send(()).unwrap();
         drop(bot);
         server.await.unwrap();
@@ -8899,7 +8928,7 @@ mod tests {
         assert!(event.1.contains("custom payload"));
         assert_eq!(
             bot.wait_for_transport_end().await,
-            ConnectionLifecycle::ConnectionStateUnknown
+            ConnectionState::ConnectionStateUnknown
         );
         drop(bot);
         tokio::time::timeout(Duration::from_secs(2), server)
@@ -8941,7 +8970,7 @@ mod tests {
         assert!(event.1.contains("session cache"));
         assert_eq!(
             bot.wait_for_transport_end().await,
-            ConnectionLifecycle::ConnectionStateUnknown
+            ConnectionState::ConnectionStateUnknown
         );
         drop(bot);
         tokio::time::timeout(Duration::from_secs(2), server)

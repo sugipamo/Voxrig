@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use tokio::time::{Duration, timeout};
-use zen_minecraft_client::{
+use voxrig::{
     BlockFace, BlockPos, Bot, BotManager, ClickMode, ControlState, Event, Hand, Player, Server,
 };
 

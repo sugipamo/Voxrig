@@ -11,7 +11,7 @@ AI / Planner / Behavior Tree
    外部controller層
            │ typed Rust API
            ▼
-      zen-minecraft-client
+      voxrig
            │ Minecraft protocol 736
            ▼
  Minecraft 1.16.1 server

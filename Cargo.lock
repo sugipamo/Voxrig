@@ -396,8 +396,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "zen-minecraft-client"
-version = "0.1.0"
+name = "voxrig"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "byteorder",

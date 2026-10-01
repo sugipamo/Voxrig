@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, ensure};
 use std::{collections::HashMap, sync::Arc, time::Duration};
-use zen_minecraft_client::{BotManager, ChunkPos, Player, Server};
+use voxrig::{BotManager, ChunkPos, Player, Server};
 
 #[tokio::main]
 async fn main() -> Result<()> {

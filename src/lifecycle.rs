@@ -19,15 +19,21 @@ use tokio::{
 use std::sync::Arc;
 
 fn emit_connection_diagnostic(
-    generation: ClientConnectionGeneration, previous: ConnectionLifecycle,
-    event: &'static str, site: &'static str, detail: impl FnOnce() -> String,
+    generation: ConnectionGeneration,
+    previous: ConnectionState,
+    event: &'static str,
+    site: &'static str,
+    detail: impl FnOnce() -> String,
 ) {
     // Terminal causes must survive runs without an optional event subscriber.
     // The owning actor emits at most once before exiting its terminal branch.
-    eprintln!("connection_owner_diagnostic {}", serde_json::json!({
-        "event": event, "generation": generation.get(), "previous": format!("{previous:?}"),
-        "site": site, "detail": detail().chars().take(2048).collect::<String>(),
-    }));
+    eprintln!(
+        "connection_owner_diagnostic {}",
+        serde_json::json!({
+            "event": event, "generation": generation.get(), "previous": format!("{previous:?}"),
+            "site": site, "detail": detail().chars().take(2048).collect::<String>(),
+        })
+    );
 }
 
 static NEXT_GENERATION: AtomicU64 = AtomicU64::new(1);
@@ -43,11 +49,11 @@ const FURNACE_WINDOW_TYPE: i32 = 13;
 /// Process-local identity of one Minecraft transport connection.
 ///
 /// Values are never intentionally reused. They are correlation identities,
-/// not Body state revisions or protocol transaction numbers.
+/// not application state revisions or protocol transaction numbers.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct ClientConnectionGeneration(u64);
+pub struct ConnectionGeneration(u64);
 
-impl ClientConnectionGeneration {
+impl ConnectionGeneration {
     pub(crate) fn allocate() -> Self {
         let value = NEXT_GENERATION.fetch_add(1, Ordering::Relaxed);
         assert!(value != 0, "client connection generation exhausted");
@@ -65,14 +71,14 @@ impl ClientConnectionGeneration {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct OperationContext {
     /// Connection generation observed by the caller.
-    pub generation: ClientConnectionGeneration,
+    pub generation: ConnectionGeneration,
     /// Client observation sequence used to choose the operation.
     pub source_observation_sequence: u64,
 }
 
 /// Lifecycle fact owned by the connection actor.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ConnectionLifecycle {
+pub enum ConnectionState {
     /// TCP/login or initial spawn/position synchronization is in progress.
     Connecting,
     /// Initial synchronization completed and normal operations may be admitted.
@@ -85,7 +91,7 @@ pub enum ConnectionLifecycle {
     ConnectionStateUnknown,
 }
 
-impl ConnectionLifecycle {
+impl ConnectionState {
     /// Returns whether no later lifecycle transition is permitted.
     #[must_use]
     pub const fn is_terminal(self) -> bool {
@@ -95,10 +101,10 @@ impl ConnectionLifecycle {
 
 /// Operation class used by the disconnect barrier.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ClientOperationClass {
-    /// Ordinary gameplay operation selected by the Body.
+pub enum OperationClass {
+    /// Ordinary gameplay operation selected by the caller.
     Normal,
-    /// Finite cleanup selected by the Body before disconnect completion.
+    /// Finite cleanup selected by the caller before disconnect completion.
     Cleanup,
 }
 
@@ -151,14 +157,14 @@ enum TransactionIdentity {
 }
 
 struct PendingTransaction {
-    completion: oneshot::Sender<crate::PrimitiveDispatchOutcome>,
+    completion: oneshot::Sender<crate::DispatchOutcome>,
     confirmation_seen: bool,
-    diagnostic_correlation: Option<crate::PrimitiveDiagnosticCorrelationId>,
+    diagnostic_correlation: Option<crate::DiagnosticCorrelationId>,
 }
 
 #[derive(Clone, Copy)]
 enum PendingDigDiagnostic {
-    Unique(crate::PrimitiveDiagnosticCorrelationId),
+    Unique(crate::DiagnosticCorrelationId),
     Retired,
 }
 
@@ -178,16 +184,16 @@ struct PendingFurnaceInteraction {
 pub struct ProtocolTransaction {
     identity: TransactionIdentity,
     dispatched: bool,
-    completion: oneshot::Receiver<crate::PrimitiveDispatchOutcome>,
+    completion: oneshot::Receiver<crate::DispatchOutcome>,
 }
 
 impl ProtocolTransaction {
     /// Waits for acknowledgement, rejection, or the actor-owned delivery
     /// deadline. A dropped actor is treated as delivery unknown.
-    pub async fn wait(self) -> crate::PrimitiveDispatchOutcome {
+    pub async fn wait(self) -> crate::DispatchOutcome {
         self.completion
             .await
-            .unwrap_or(crate::PrimitiveDispatchOutcome::DeliveryUnknown)
+            .unwrap_or(crate::DispatchOutcome::DeliveryUnknown)
     }
 
     pub(crate) const fn window_action(&self) -> Option<i16> {
@@ -221,7 +227,7 @@ enum Command {
     },
     Admit {
         context: OperationContext,
-        class: ClientOperationClass,
+        class: OperationClass,
         reply: oneshot::Sender<Result<(), OperationAdmissionError>>,
     },
     ConsumeControl {
@@ -230,41 +236,39 @@ enum Command {
     },
     ReplaceControl {
         context: OperationContext,
-        class: ClientOperationClass,
+        class: OperationClass,
         control: crate::ControlState,
         reply: oneshot::Sender<Result<(), OperationAdmissionError>>,
     },
     Dispatch {
         context: OperationContext,
-        class: ClientOperationClass,
+        class: OperationClass,
         packet_id: i32,
         payload: Vec<u8>,
         reply: oneshot::Sender<crate::Result<()>>,
     },
     DispatchPrimitive {
         context: OperationContext,
-        class: ClientOperationClass,
+        class: OperationClass,
         packet_id: i32,
         payload: Vec<u8>,
         dig_diagnostic: Option<DigWriteDiagnostic>,
-        reply: oneshot::Sender<
-            std::result::Result<crate::PrimitiveDispatchOutcome, OperationAdmissionError>,
-        >,
+        reply:
+            oneshot::Sender<std::result::Result<crate::DispatchOutcome, OperationAdmissionError>>,
     },
     DispatchInteractionBatch {
         context: OperationContext,
-        class: ClientOperationClass,
+        class: OperationClass,
         furnace_position: Option<crate::BlockPos>,
         packets: Vec<(i32, Vec<u8>)>,
-        reply: oneshot::Sender<
-            std::result::Result<crate::PrimitiveDispatchOutcome, OperationAdmissionError>,
-        >,
+        reply:
+            oneshot::Sender<std::result::Result<crate::DispatchOutcome, OperationAdmissionError>>,
     },
     DispatchAcknowledged {
         context: OperationContext,
-        class: ClientOperationClass,
-        operation: crate::AcknowledgedPrimitive,
-        diagnostic_correlation: Option<crate::PrimitiveDiagnosticCorrelationId>,
+        class: OperationClass,
+        operation: crate::AcknowledgedOperation,
+        diagnostic_correlation: Option<crate::DiagnosticCorrelationId>,
         reply: oneshot::Sender<std::result::Result<ProtocolTransaction, OperationAdmissionError>>,
     },
     ObserveWindowConfirmation {
@@ -289,7 +293,7 @@ enum Command {
         reply: oneshot::Sender<Option<crate::BlockPos>>,
     },
     ExpireTransaction(TransactionIdentity),
-    ExpireDigDiagnostic(TransactionIdentity, crate::PrimitiveDiagnosticCorrelationId),
+    ExpireDigDiagnostic(TransactionIdentity, crate::DiagnosticCorrelationId),
     DispatchProtocol {
         packet_id: i32,
         payload: Vec<u8>,
@@ -305,12 +309,12 @@ enum Command {
 pub(crate) struct DigConfirmation {
     #[allow(dead_code)]
     pub(crate) matched: bool,
-    pub(crate) diagnostic_correlation: Option<crate::PrimitiveDiagnosticCorrelationId>,
+    pub(crate) diagnostic_correlation: Option<crate::DiagnosticCorrelationId>,
 }
 
 #[derive(Clone, Copy)]
 pub(crate) struct DigWriteDiagnostic {
-    correlation: crate::PrimitiveDiagnosticCorrelationId,
+    correlation: crate::DiagnosticCorrelationId,
     phase: &'static str,
     status: i32,
     position: crate::BlockPos,
@@ -319,7 +323,7 @@ pub(crate) struct DigWriteDiagnostic {
 
 impl DigWriteDiagnostic {
     pub(crate) fn new(
-        correlation: crate::PrimitiveDiagnosticCorrelationId,
+        correlation: crate::DiagnosticCorrelationId,
         phase: &'static str,
         status: i32,
         position: crate::BlockPos,
@@ -338,7 +342,7 @@ impl DigWriteDiagnostic {
 pub(crate) fn emit_dig_lifecycle(make_value: impl FnOnce() -> serde_json::Value) {
     use std::sync::atomic::{AtomicU32, Ordering};
     static EMITTED: AtomicU32 = AtomicU32::new(0);
-    if std::env::var_os("ZEN_R9_INSTRUMENTATION").is_none() {
+    if std::env::var_os("VOXRIG_TRACE_OPERATIONS").is_none() {
         return;
     }
     let emitted = EMITTED.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
@@ -346,28 +350,28 @@ pub(crate) fn emit_dig_lifecycle(make_value: impl FnOnce() -> serde_json::Value)
     });
     if emitted.is_ok() {
         let value = make_value();
-        eprintln!("zen_client_dig_lifecycle {value}");
+        eprintln!("voxrig_dig_lifecycle {value}");
     } else if EMITTED
         .compare_exchange(4096, 4097, Ordering::Relaxed, Ordering::Relaxed)
         .is_ok()
     {
         eprintln!(
-            "zen_client_dig_lifecycle {}",
+            "voxrig_dig_lifecycle {}",
             serde_json::json!({"stage":"capacity_exhausted","capacity":4096})
         );
     }
 }
 
 pub(crate) fn dig_lifecycle_trace_enabled() -> bool {
-    std::env::var_os("ZEN_R9_INSTRUMENTATION").is_some()
+    std::env::var_os("VOXRIG_TRACE_OPERATIONS").is_some()
 }
 
 #[derive(Clone)]
 pub(crate) struct ConnectionActor {
-    generation: ClientConnectionGeneration,
+    generation: ConnectionGeneration,
     control: Arc<RwLock<crate::snapshot::Versioned<crate::ControlState>>>,
     commands: mpsc::Sender<Command>,
-    lifecycle: watch::Receiver<ConnectionLifecycle>,
+    lifecycle: watch::Receiver<ConnectionState>,
 }
 
 impl ConnectionActor {
@@ -376,13 +380,13 @@ impl ConnectionActor {
         acknowledgement_timeout: Duration,
         control: Arc<RwLock<crate::snapshot::Versioned<crate::ControlState>>>,
     ) -> Self {
-        let generation = ClientConnectionGeneration::allocate();
+        let generation = ConnectionGeneration::allocate();
         let (commands, mut receiver) = mpsc::channel(64);
         let expiry_commands = commands.clone();
-        let (lifecycle_tx, lifecycle) = watch::channel(ConnectionLifecycle::Connecting);
+        let (lifecycle_tx, lifecycle) = watch::channel(ConnectionState::Connecting);
         let actor_control = control.clone();
         tokio::spawn(async move {
-            let mut state = ConnectionLifecycle::Connecting;
+            let mut state = ConnectionState::Connecting;
             let mut next_actions = HashMap::<i8, i16>::new();
             let mut pending_transactions =
                 HashMap::<TransactionIdentity, PendingTransaction>::new();
@@ -396,8 +400,8 @@ impl ConnectionActor {
             while let Some(command) = receiver.recv().await {
                 match command {
                     Command::RecordObservation { sequence, reply } => {
-                        let result = if state != ConnectionLifecycle::Ready || sequence == 0 {
-                            Err(admit_lifecycle(state, ClientOperationClass::Normal)
+                        let result = if state != ConnectionState::Ready || sequence == 0 {
+                            Err(admit_lifecycle(state, OperationClass::Normal)
                                 .err()
                                 .unwrap_or(OperationAdmissionError::InvalidOperation))
                         } else if latest_observation_sequence
@@ -411,26 +415,26 @@ impl ConnectionActor {
                         let _ = reply.send(result);
                     }
                     Command::MarkReady { reply } => {
-                        if state == ConnectionLifecycle::Connecting {
-                            state = ConnectionLifecycle::Ready;
+                        if state == ConnectionState::Connecting {
+                            state = ConnectionState::Ready;
                             lifecycle_tx.send_replace(state);
                         }
                         let _ = reply.send(());
                     }
                     Command::BeginDisconnect { reply } => {
                         let result = match state {
-                            ConnectionLifecycle::Connecting | ConnectionLifecycle::Ready => {
-                                state = ConnectionLifecycle::Disconnecting;
+                            ConnectionState::Connecting | ConnectionState::Ready => {
+                                state = ConnectionState::Disconnecting;
                                 lifecycle_tx.send_replace(state);
                                 Ok(())
                             }
-                            ConnectionLifecycle::Disconnecting => {
+                            ConnectionState::Disconnecting => {
                                 Err(OperationAdmissionError::Disconnecting)
                             }
-                            ConnectionLifecycle::Disconnected => {
+                            ConnectionState::Disconnected => {
                                 Err(OperationAdmissionError::Disconnected)
                             }
-                            ConnectionLifecycle::ConnectionStateUnknown => {
+                            ConnectionState::ConnectionStateUnknown => {
                                 Err(OperationAdmissionError::ConnectionStateUnknown)
                             }
                         };
@@ -454,7 +458,7 @@ impl ConnectionActor {
                     Command::ConsumeControl { tick, reply } => {
                         let mut held = actor_control.write().await;
                         let mut sample = **held;
-                        let fraction = if state != ConnectionLifecycle::Ready {
+                        let fraction = if state != ConnectionState::Ready {
                             sample = crate::ControlState::default();
                             **held = sample;
                             0.0
@@ -467,8 +471,14 @@ impl ConnectionActor {
                                 held.left = false;
                                 held.right = false;
                             }
-                            if tick.is_zero() { 0.0 } else { consumed.as_secs_f64() / tick.as_secs_f64() }
-                        } else { 1.0 };
+                            if tick.is_zero() {
+                                0.0
+                            } else {
+                                consumed.as_secs_f64() / tick.as_secs_f64()
+                            }
+                        } else {
+                            1.0
+                        };
                         let _ = reply.send((sample, fraction));
                     }
                     Command::ReplaceControl {
@@ -513,8 +523,20 @@ impl ConnectionActor {
                         };
                         let write_failed = result.is_err() && admission.is_ok();
                         if write_failed {
-                            emit_connection_diagnostic(generation, state, "unknown_transition", "normal_write_failed", || result.as_ref().err().map(ToString::to_string).unwrap_or_default());
-                            state = ConnectionLifecycle::ConnectionStateUnknown;
+                            emit_connection_diagnostic(
+                                generation,
+                                state,
+                                "unknown_transition",
+                                "normal_write_failed",
+                                || {
+                                    result
+                                        .as_ref()
+                                        .err()
+                                        .map(ToString::to_string)
+                                        .unwrap_or_default()
+                                },
+                            );
+                            state = ConnectionState::ConnectionStateUnknown;
                             lifecycle_tx.send_replace(state);
                         }
                         let _ = reply.send(result);
@@ -616,15 +638,20 @@ impl ConnectionActor {
                                                 }
                                             }
                                         }
-                                        Ok(crate::PrimitiveDispatchOutcome::Dispatched)
+                                        Ok(crate::DispatchOutcome::Dispatched)
                                     }
                                     Err(error) => {
-                                        emit_connection_diagnostic(generation, state, "unknown_transition", "primitive_write_failed", || error.to_string());
-                            state = ConnectionLifecycle::ConnectionStateUnknown;
+                                        emit_connection_diagnostic(
+                                            generation,
+                                            state,
+                                            "unknown_transition",
+                                            "primitive_write_failed",
+                                            || error.to_string(),
+                                        );
+                                        state = ConnectionState::ConnectionStateUnknown;
                                         lifecycle_tx.send_replace(state);
-                                        let _ = reply.send(Ok(
-                                            crate::PrimitiveDispatchOutcome::DeliveryUnknown,
-                                        ));
+                                        let _ =
+                                            reply.send(Ok(crate::DispatchOutcome::DeliveryUnknown));
                                         break;
                                     }
                                 }
@@ -667,11 +694,22 @@ impl ConnectionActor {
                                     result
                                 };
                                 if write_result.is_err() {
-                                    emit_connection_diagnostic(generation, state, "unknown_transition", "interaction_batch_write_failed", || write_result.as_ref().err().map(ToString::to_string).unwrap_or_default());
-                            state = ConnectionLifecycle::ConnectionStateUnknown;
+                                    emit_connection_diagnostic(
+                                        generation,
+                                        state,
+                                        "unknown_transition",
+                                        "interaction_batch_write_failed",
+                                        || {
+                                            write_result
+                                                .as_ref()
+                                                .err()
+                                                .map(ToString::to_string)
+                                                .unwrap_or_default()
+                                        },
+                                    );
+                                    state = ConnectionState::ConnectionStateUnknown;
                                     lifecycle_tx.send_replace(state);
-                                    let _ = reply
-                                        .send(Ok(crate::PrimitiveDispatchOutcome::DeliveryUnknown));
+                                    let _ = reply.send(Ok(crate::DispatchOutcome::DeliveryUnknown));
                                     break;
                                 }
                                 if let Some(position) = furnace_position {
@@ -686,7 +724,7 @@ impl ConnectionActor {
                                         expires_at: now + FURNACE_CORRELATION_TTL,
                                     });
                                 }
-                                let _ = reply.send(Ok(crate::PrimitiveDispatchOutcome::Dispatched));
+                                let _ = reply.send(Ok(crate::DispatchOutcome::Dispatched));
                             }
                         }
                     }
@@ -704,7 +742,7 @@ impl ConnectionActor {
                             continue;
                         }
                         let identity = match &operation {
-                            crate::AcknowledgedPrimitive::WindowClick { window_id, .. } => {
+                            crate::AcknowledgedOperation::WindowClick { window_id, .. } => {
                                 if pending_transactions.keys().any(|identity| {
                                     matches!(
                                         identity,
@@ -725,7 +763,7 @@ impl ConnectionActor {
                                     action: *next,
                                 }
                             }
-                            crate::AcknowledgedPrimitive::DigFinish { position, .. } => {
+                            crate::AcknowledgedOperation::DigFinish { position, .. } => {
                                 let identity = TransactionIdentity::Dig {
                                     position: *position,
                                     status: crate::DiggingStatus::Finished as i32,
@@ -759,7 +797,7 @@ impl ConnectionActor {
                             TransactionIdentity::Dig { .. } => 0,
                         };
                         let acknowledged_dig = match &operation {
-                            crate::AcknowledgedPrimitive::DigFinish { position, face } => {
+                            crate::AcknowledgedOperation::DigFinish { position, face } => {
                                 Some((*position, *face))
                             }
                             _ => None,
@@ -781,12 +819,23 @@ impl ConnectionActor {
                             .await
                         };
                         if write_result.is_err() {
-                            emit_connection_diagnostic(generation, state, "unknown_transition", "transaction_write_failed", || write_result.as_ref().err().map(ToString::to_string).unwrap_or_default());
-                            state = ConnectionLifecycle::ConnectionStateUnknown;
+                            emit_connection_diagnostic(
+                                generation,
+                                state,
+                                "unknown_transition",
+                                "transaction_write_failed",
+                                || {
+                                    write_result
+                                        .as_ref()
+                                        .err()
+                                        .map(ToString::to_string)
+                                        .unwrap_or_default()
+                                },
+                            );
+                            state = ConnectionState::ConnectionStateUnknown;
                             lifecycle_tx.send_replace(state);
                             let (completion_tx, completion_rx) = oneshot::channel();
-                            let _ = completion_tx
-                                .send(crate::PrimitiveDispatchOutcome::DeliveryUnknown);
+                            let _ = completion_tx.send(crate::DispatchOutcome::DeliveryUnknown);
                             let _ = reply.send(Ok(ProtocolTransaction {
                                 identity,
                                 dispatched: false,
@@ -853,9 +902,7 @@ impl ConnectionActor {
                                 false
                             }
                         } else if let Some(pending) = pending_transactions.remove(&identity) {
-                            let _ = pending
-                                .completion
-                                .send(crate::PrimitiveDispatchOutcome::Rejected);
+                            let _ = pending.completion.send(crate::DispatchOutcome::Rejected);
                             true
                         } else {
                             false
@@ -875,7 +922,7 @@ impl ConnectionActor {
                             if let Some(pending) = pending_transactions.remove(&identity) {
                                 let _ = pending
                                     .completion
-                                    .send(crate::PrimitiveDispatchOutcome::Acknowledged);
+                                    .send(crate::DispatchOutcome::Acknowledged);
                             }
                         }
                         let _ = reply.send(committed);
@@ -891,9 +938,9 @@ impl ConnectionActor {
                             if let Some(pending) = pending_transactions.remove(&identity) {
                                 let correlation = pending.diagnostic_correlation;
                                 let outcome = if successful {
-                                    crate::PrimitiveDispatchOutcome::Acknowledged
+                                    crate::DispatchOutcome::Acknowledged
                                 } else {
-                                    crate::PrimitiveDispatchOutcome::Rejected
+                                    crate::DispatchOutcome::Rejected
                                 };
                                 let _ = pending.completion.send(outcome);
                                 DigConfirmation {
@@ -945,11 +992,23 @@ impl ConnectionActor {
                             }
                             let _ = pending
                                 .completion
-                                .send(crate::PrimitiveDispatchOutcome::DeliveryUnknown);
+                                .send(crate::DispatchOutcome::DeliveryUnknown);
                             retired_transactions.insert(identity);
                             if retired_transactions.len() >= MAX_RETIRED_TRANSACTIONS {
-                                emit_connection_diagnostic(generation, state, "unknown_transition", "retired_transaction_capacity", || format!("{} / {}", retired_transactions.len(), MAX_RETIRED_TRANSACTIONS));
-                            state = ConnectionLifecycle::ConnectionStateUnknown;
+                                emit_connection_diagnostic(
+                                    generation,
+                                    state,
+                                    "unknown_transition",
+                                    "retired_transaction_capacity",
+                                    || {
+                                        format!(
+                                            "{} / {}",
+                                            retired_transactions.len(),
+                                            MAX_RETIRED_TRANSACTIONS
+                                        )
+                                    },
+                                );
+                                state = ConnectionState::ConnectionStateUnknown;
                                 lifecycle_tx.send_replace(state);
                                 break;
                             }
@@ -972,10 +1031,8 @@ impl ConnectionActor {
                         payload,
                         reply,
                     } => {
-                        let admitted = matches!(
-                            state,
-                            ConnectionLifecycle::Connecting | ConnectionLifecycle::Ready
-                        );
+                        let admitted =
+                            matches!(state, ConnectionState::Connecting | ConnectionState::Ready);
                         let result = if admitted {
                             let mut writer = writer.lock().await;
                             let compression = writer.compression;
@@ -997,8 +1054,20 @@ impl ConnectionActor {
                         };
                         let write_failed = result.is_err() && admitted;
                         if write_failed {
-                            emit_connection_diagnostic(generation, state, "unknown_transition", "protocol_write_failed", || result.as_ref().err().map(ToString::to_string).unwrap_or_default());
-                            state = ConnectionLifecycle::ConnectionStateUnknown;
+                            emit_connection_diagnostic(
+                                generation,
+                                state,
+                                "unknown_transition",
+                                "protocol_write_failed",
+                                || {
+                                    result
+                                        .as_ref()
+                                        .err()
+                                        .map(ToString::to_string)
+                                        .unwrap_or_default()
+                                },
+                            );
+                            state = ConnectionState::ConnectionStateUnknown;
                             lifecycle_tx.send_replace(state);
                         }
                         let _ = reply.send(result);
@@ -1014,15 +1083,20 @@ impl ConnectionActor {
                     }
                     Command::MarkTerminal(classification, reason) => {
                         if classification == TerminalClassification::ConnectionStateUnknown {
-                            let (site, detail) = reason.unwrap_or(("unspecified_terminal", String::new()));
-                            emit_connection_diagnostic(generation, state, "unknown_transition", site, || detail);
+                            let (site, detail) =
+                                reason.unwrap_or(("unspecified_terminal", String::new()));
+                            emit_connection_diagnostic(
+                                generation,
+                                state,
+                                "unknown_transition",
+                                site,
+                                || detail,
+                            );
                         }
                         state = match classification {
-                            TerminalClassification::Disconnected => {
-                                ConnectionLifecycle::Disconnected
-                            }
+                            TerminalClassification::Disconnected => ConnectionState::Disconnected,
                             TerminalClassification::ConnectionStateUnknown => {
-                                ConnectionLifecycle::ConnectionStateUnknown
+                                ConnectionState::ConnectionStateUnknown
                             }
                         };
                         lifecycle_tx.send_replace(state);
@@ -1050,11 +1124,11 @@ impl ConnectionActor {
         }
     }
 
-    pub(crate) const fn generation(&self) -> ClientConnectionGeneration {
+    pub(crate) const fn generation(&self) -> ConnectionGeneration {
         self.generation
     }
 
-    pub(crate) fn lifecycle(&self) -> ConnectionLifecycle {
+    pub(crate) fn lifecycle(&self) -> ConnectionState {
         *self.lifecycle.borrow()
     }
 
@@ -1096,7 +1170,7 @@ impl ConnectionActor {
     pub(crate) async fn admit(
         &self,
         context: OperationContext,
-        class: ClientOperationClass,
+        class: OperationClass,
     ) -> Result<(), OperationAdmissionError> {
         let (reply, result) = oneshot::channel();
         self.commands
@@ -1113,7 +1187,7 @@ impl ConnectionActor {
     pub(crate) async fn replace_control(
         &self,
         context: OperationContext,
-        class: ClientOperationClass,
+        class: OperationClass,
         control: crate::ControlState,
     ) -> Result<(), OperationAdmissionError> {
         let (reply, result) = oneshot::channel();
@@ -1129,12 +1203,22 @@ impl ConnectionActor {
         result.await.map_err(|_| self.terminal_admission_error())?
     }
 
-    pub(crate) async fn consume_control_for_tick(&self, tick: Duration) -> (crate::ControlState, f64) {
+    pub(crate) async fn consume_control_for_tick(
+        &self,
+        tick: Duration,
+    ) -> (crate::ControlState, f64) {
         let (reply, result) = oneshot::channel();
-        if self.commands.send(Command::ConsumeControl { tick, reply }).await.is_err() {
+        if self
+            .commands
+            .send(Command::ConsumeControl { tick, reply })
+            .await
+            .is_err()
+        {
             return (crate::ControlState::default(), 0.0);
         }
-        result.await.unwrap_or((crate::ControlState::default(), 0.0))
+        result
+            .await
+            .unwrap_or((crate::ControlState::default(), 0.0))
     }
 
     pub(crate) async fn control_snapshot(&self) -> crate::Snapshot<crate::ControlState> {
@@ -1144,7 +1228,7 @@ impl ConnectionActor {
     pub(crate) async fn dispatch(
         &self,
         context: OperationContext,
-        class: ClientOperationClass,
+        class: OperationClass,
         packet_id: i32,
         payload: &[u8],
     ) -> crate::Result<()> {
@@ -1191,25 +1275,25 @@ impl ConnectionActor {
         })?
     }
 
-    pub(crate) async fn dispatch_primitive(
+    pub(crate) async fn dispatch_operation(
         &self,
         context: OperationContext,
-        class: ClientOperationClass,
+        class: OperationClass,
         packet_id: i32,
         payload: &[u8],
-    ) -> std::result::Result<crate::PrimitiveDispatchOutcome, OperationAdmissionError> {
-        self.dispatch_primitive_with_diagnostic(context, class, packet_id, payload, None)
+    ) -> std::result::Result<crate::DispatchOutcome, OperationAdmissionError> {
+        self.dispatch_operation_with_diagnostic(context, class, packet_id, payload, None)
             .await
     }
 
-    pub(crate) async fn dispatch_primitive_with_diagnostic(
+    pub(crate) async fn dispatch_operation_with_diagnostic(
         &self,
         context: OperationContext,
-        class: ClientOperationClass,
+        class: OperationClass,
         packet_id: i32,
         payload: &[u8],
         dig_diagnostic: Option<DigWriteDiagnostic>,
-    ) -> std::result::Result<crate::PrimitiveDispatchOutcome, OperationAdmissionError> {
+    ) -> std::result::Result<crate::DispatchOutcome, OperationAdmissionError> {
         let (reply, result) = oneshot::channel();
         self.commands
             .send(Command::DispatchPrimitive {
@@ -1228,10 +1312,10 @@ impl ConnectionActor {
     pub(crate) async fn dispatch_interaction_batch(
         &self,
         context: OperationContext,
-        class: ClientOperationClass,
+        class: OperationClass,
         furnace_position: Option<crate::BlockPos>,
         packets: Vec<(i32, Vec<u8>)>,
-    ) -> std::result::Result<crate::PrimitiveDispatchOutcome, OperationAdmissionError> {
+    ) -> std::result::Result<crate::DispatchOutcome, OperationAdmissionError> {
         let (reply, result) = oneshot::channel();
         self.commands
             .send(Command::DispatchInteractionBatch {
@@ -1250,8 +1334,8 @@ impl ConnectionActor {
     pub(crate) async fn dispatch_acknowledged(
         &self,
         context: OperationContext,
-        class: ClientOperationClass,
-        operation: crate::AcknowledgedPrimitive,
+        class: OperationClass,
+        operation: crate::AcknowledgedOperation,
     ) -> std::result::Result<ProtocolTransaction, OperationAdmissionError> {
         self.dispatch_acknowledged_with_diagnostic(context, class, operation, None)
             .await
@@ -1260,9 +1344,9 @@ impl ConnectionActor {
     pub(crate) async fn dispatch_acknowledged_with_diagnostic(
         &self,
         context: OperationContext,
-        class: ClientOperationClass,
-        operation: crate::AcknowledgedPrimitive,
-        diagnostic_correlation: Option<crate::PrimitiveDiagnosticCorrelationId>,
+        class: OperationClass,
+        operation: crate::AcknowledgedOperation,
+        diagnostic_correlation: Option<crate::DiagnosticCorrelationId>,
     ) -> std::result::Result<ProtocolTransaction, OperationAdmissionError> {
         let (reply, result) = oneshot::channel();
         self.commands
@@ -1410,12 +1494,16 @@ impl ConnectionActor {
     /// Diagnostic context is consumed by the existing state owner, not a second
     /// lifecycle or retained terminal-reason store.
     pub(crate) async fn mark_unknown(&self, site: &'static str, detail: String) {
-        let _ = self.commands.send(Command::MarkTerminal(
-            TerminalClassification::ConnectionStateUnknown, Some((site, detail)),
-        )).await;
+        let _ = self
+            .commands
+            .send(Command::MarkTerminal(
+                TerminalClassification::ConnectionStateUnknown,
+                Some((site, detail)),
+            ))
+            .await;
     }
 
-    pub(crate) async fn wait_for_terminal(&self) -> ConnectionLifecycle {
+    pub(crate) async fn wait_for_terminal(&self) -> ConnectionState {
         let mut lifecycle = self.lifecycle.clone();
         loop {
             let state = *lifecycle.borrow_and_update();
@@ -1423,20 +1511,26 @@ impl ConnectionActor {
                 return state;
             }
             if lifecycle.changed().await.is_err() {
-                emit_connection_diagnostic(self.generation, state, "terminal_observation", "lifecycle_watch_closed", || "lifecycle sender ended without a terminal value".to_owned());
-                return ConnectionLifecycle::ConnectionStateUnknown;
+                emit_connection_diagnostic(
+                    self.generation,
+                    state,
+                    "terminal_observation",
+                    "lifecycle_watch_closed",
+                    || "lifecycle sender ended without a terminal value".to_owned(),
+                );
+                return ConnectionState::ConnectionStateUnknown;
             }
         }
     }
 
     fn terminal_admission_error(&self) -> OperationAdmissionError {
         match self.lifecycle() {
-            ConnectionLifecycle::Connecting => OperationAdmissionError::Connecting,
-            ConnectionLifecycle::Ready | ConnectionLifecycle::Disconnecting => {
+            ConnectionState::Connecting => OperationAdmissionError::Connecting,
+            ConnectionState::Ready | ConnectionState::Disconnecting => {
                 OperationAdmissionError::ConnectionStateUnknown
             }
-            ConnectionLifecycle::Disconnected => OperationAdmissionError::Disconnected,
-            ConnectionLifecycle::ConnectionStateUnknown => {
+            ConnectionState::Disconnected => OperationAdmissionError::Disconnected,
+            ConnectionState::ConnectionStateUnknown => {
                 OperationAdmissionError::ConnectionStateUnknown
             }
         }
@@ -1444,17 +1538,17 @@ impl ConnectionActor {
 }
 
 fn admit(
-    generation: ClientConnectionGeneration,
-    state: ConnectionLifecycle,
+    generation: ConnectionGeneration,
+    state: ConnectionState,
     active_output_sequence: Option<u64>,
     context: OperationContext,
-    class: ClientOperationClass,
+    class: OperationClass,
 ) -> Result<(), OperationAdmissionError> {
     if context.generation != generation {
         return Err(OperationAdmissionError::StaleGeneration);
     }
     // Sequence zero is retained only for legacy convenience methods. Formal
-    // Zen packet operations must remain bound to the output sequence activated
+    // Context-bound packet operations must remain bound to the output sequence activated
     // by the actor preflight, even if a newer observation has since published.
     if context.source_observation_sequence != 0
         && active_output_sequence != Some(context.source_observation_sequence)
@@ -1465,12 +1559,12 @@ fn admit(
 }
 
 fn activate_output(
-    generation: ClientConnectionGeneration,
-    state: ConnectionLifecycle,
+    generation: ConnectionGeneration,
+    state: ConnectionState,
     latest_observation_sequence: Option<u64>,
     active_output_sequence: &mut Option<u64>,
     context: OperationContext,
-    class: ClientOperationClass,
+    class: OperationClass,
 ) -> Result<(), OperationAdmissionError> {
     if context.generation != generation {
         return Err(OperationAdmissionError::StaleGeneration);
@@ -1485,25 +1579,26 @@ fn activate_output(
     {
         return Err(OperationAdmissionError::InvalidOperation);
     }
-    // Repeating the same preflight is actor-idempotent. Body output identity
+    // Repeating the same preflight is actor-idempotent. Caller output identity
     // remains the higher-level duplicate owner and prevents replayed Outputs.
     *active_output_sequence = Some(sequence);
     Ok(())
 }
 
 fn admit_lifecycle(
-    state: ConnectionLifecycle,
-    class: ClientOperationClass,
+    state: ConnectionState,
+    class: OperationClass,
 ) -> Result<(), OperationAdmissionError> {
     match (state, class) {
-        (ConnectionLifecycle::Ready, _)
-        | (ConnectionLifecycle::Disconnecting, ClientOperationClass::Cleanup) => Ok(()),
-        (ConnectionLifecycle::Connecting, _) => Err(OperationAdmissionError::Connecting),
-        (ConnectionLifecycle::Disconnecting, ClientOperationClass::Normal) => {
+        (ConnectionState::Ready, _) | (ConnectionState::Disconnecting, OperationClass::Cleanup) => {
+            Ok(())
+        }
+        (ConnectionState::Connecting, _) => Err(OperationAdmissionError::Connecting),
+        (ConnectionState::Disconnecting, OperationClass::Normal) => {
             Err(OperationAdmissionError::Disconnecting)
         }
-        (ConnectionLifecycle::Disconnected, _) => Err(OperationAdmissionError::Disconnected),
-        (ConnectionLifecycle::ConnectionStateUnknown, _) => {
+        (ConnectionState::Disconnected, _) => Err(OperationAdmissionError::Disconnected),
+        (ConnectionState::ConnectionStateUnknown, _) => {
             Err(OperationAdmissionError::ConnectionStateUnknown)
         }
     }
@@ -1574,42 +1669,36 @@ mod tests {
             source_observation_sequence: 0,
         };
         assert_eq!(
-            actor.admit(current, ClientOperationClass::Normal).await,
+            actor.admit(current, OperationClass::Normal).await,
             Err(OperationAdmissionError::Connecting)
         );
         actor.mark_ready().await;
-        assert_eq!(
-            actor.admit(current, ClientOperationClass::Normal).await,
-            Ok(())
-        );
+        assert_eq!(actor.admit(current, OperationClass::Normal).await, Ok(()));
 
         let stale = OperationContext {
-            generation: ClientConnectionGeneration(current.generation.get() + 1),
+            generation: ConnectionGeneration(current.generation.get() + 1),
             source_observation_sequence: 0,
         };
         assert_eq!(
-            actor.admit(stale, ClientOperationClass::Normal).await,
+            actor.admit(stale, OperationClass::Normal).await,
             Err(OperationAdmissionError::StaleGeneration)
         );
 
         actor.begin_disconnect().await.unwrap();
         assert_eq!(
-            actor.admit(current, ClientOperationClass::Normal).await,
+            actor.admit(current, OperationClass::Normal).await,
             Err(OperationAdmissionError::Disconnecting)
         );
-        assert_eq!(
-            actor.admit(current, ClientOperationClass::Cleanup).await,
-            Ok(())
-        );
+        assert_eq!(actor.admit(current, OperationClass::Cleanup).await, Ok(()));
         actor
             .mark_terminal(TerminalClassification::Disconnected)
             .await;
         assert_eq!(
             actor.wait_for_terminal().await,
-            ConnectionLifecycle::Disconnected
+            ConnectionState::Disconnected
         );
         assert_eq!(
-            actor.admit(current, ClientOperationClass::Cleanup).await,
+            actor.admit(current, OperationClass::Cleanup).await,
             Err(OperationAdmissionError::Disconnected)
         );
     }
@@ -1623,16 +1712,15 @@ mod tests {
             .await;
         assert_eq!(
             actor.wait_for_terminal().await,
-            ConnectionLifecycle::ConnectionStateUnknown
+            ConnectionState::ConnectionStateUnknown
         );
-        actor.mark_unknown("test_later_reason", "must not replace first".to_owned()).await;
+        actor
+            .mark_unknown("test_later_reason", "must not replace first".to_owned())
+            .await;
         actor
             .mark_terminal(TerminalClassification::Disconnected)
             .await;
-        assert_eq!(
-            actor.lifecycle(),
-            ConnectionLifecycle::ConnectionStateUnknown
-        );
+        assert_eq!(actor.lifecycle(), ConnectionState::ConnectionStateUnknown);
     }
 
     #[tokio::test]
@@ -1654,27 +1742,21 @@ mod tests {
             generation: actor.generation(),
             source_observation_sequence: 1,
         };
-        assert_eq!(
-            actor.admit(first, ClientOperationClass::Normal).await,
-            Ok(())
-        );
-        // Repeating the same explicit preflight is actor-idempotent; Body owns
+        assert_eq!(actor.admit(first, OperationClass::Normal).await, Ok(()));
+        // Repeating the same explicit preflight is actor-idempotent; The caller owns
         // duplicate Output rejection above this packet boundary.
+        assert_eq!(actor.admit(first, OperationClass::Normal).await, Ok(()));
         assert_eq!(
-            actor.admit(first, ClientOperationClass::Normal).await,
-            Ok(())
+            actor
+                .dispatch_operation(first, OperationClass::Normal, 0x01, &[1])
+                .await,
+            Ok(crate::DispatchOutcome::Dispatched)
         );
         assert_eq!(
             actor
-                .dispatch_primitive(first, ClientOperationClass::Normal, 0x01, &[1])
+                .dispatch_operation(first, OperationClass::Normal, 0x02, &[2])
                 .await,
-            Ok(crate::PrimitiveDispatchOutcome::Dispatched)
-        );
-        assert_eq!(
-            actor
-                .dispatch_primitive(first, ClientOperationClass::Normal, 0x02, &[2])
-                .await,
-            Ok(crate::PrimitiveDispatchOutcome::Dispatched)
+            Ok(crate::DispatchOutcome::Dispatched)
         );
 
         let future = OperationContext {
@@ -1682,7 +1764,7 @@ mod tests {
             source_observation_sequence: 3,
         };
         assert_eq!(
-            actor.admit(future, ClientOperationClass::Normal).await,
+            actor.admit(future, OperationClass::Normal).await,
             Err(OperationAdmissionError::InvalidOperation)
         );
 
@@ -1690,26 +1772,23 @@ mod tests {
             generation: actor.generation(),
             source_observation_sequence: 2,
         };
+        assert_eq!(actor.admit(second, OperationClass::Normal).await, Ok(()));
         assert_eq!(
-            actor.admit(second, ClientOperationClass::Normal).await,
-            Ok(())
-        );
-        assert_eq!(
-            actor.admit(first, ClientOperationClass::Normal).await,
+            actor.admit(first, OperationClass::Normal).await,
             Err(OperationAdmissionError::InvalidOperation)
         );
         assert_eq!(
             actor
-                .dispatch_primitive(first, ClientOperationClass::Normal, 0x03, &[])
+                .dispatch_operation(first, OperationClass::Normal, 0x03, &[])
                 .await,
             Err(OperationAdmissionError::InvalidOperation)
         );
         actor.begin_disconnect().await.unwrap();
         assert_eq!(
             actor
-                .dispatch_primitive(second, ClientOperationClass::Cleanup, 0x04, &[4])
+                .dispatch_operation(second, OperationClass::Cleanup, 0x04, &[4])
                 .await,
-            Ok(crate::PrimitiveDispatchOutcome::Dispatched)
+            Ok(crate::DispatchOutcome::Dispatched)
         );
         assert_eq!(
             read_packet(&mut server, None).await.unwrap(),
@@ -1759,9 +1838,9 @@ mod tests {
         };
         assert_eq!(
             actor
-                .dispatch_primitive(legacy, ClientOperationClass::Normal, 0x04, &[9])
+                .dispatch_operation(legacy, OperationClass::Normal, 0x04, &[9])
                 .await,
-            Ok(crate::PrimitiveDispatchOutcome::Dispatched)
+            Ok(crate::DispatchOutcome::Dispatched)
         );
         assert_eq!(
             read_packet(&mut server, None).await.unwrap(),
@@ -1787,20 +1866,18 @@ mod tests {
             source_observation_sequence: 1,
         };
         assert_eq!(
-            second
-                .admit(second_context, ClientOperationClass::Normal)
-                .await,
+            second.admit(second_context, OperationClass::Normal).await,
             Ok(())
         );
         assert_eq!(
             second
-                .dispatch_primitive(second_context, ClientOperationClass::Normal, 0x05, &[])
+                .dispatch_operation(second_context, OperationClass::Normal, 0x05, &[])
                 .await,
-            Ok(crate::PrimitiveDispatchOutcome::Dispatched)
+            Ok(crate::DispatchOutcome::Dispatched)
         );
         assert_eq!(
             second
-                .dispatch_primitive(first_context, ClientOperationClass::Normal, 0x06, &[])
+                .dispatch_operation(first_context, OperationClass::Normal, 0x06, &[])
                 .await,
             Err(OperationAdmissionError::StaleGeneration)
         );
@@ -1810,9 +1887,9 @@ mod tests {
         };
         assert_eq!(
             second
-                .dispatch_primitive(
+                .dispatch_operation(
                     old_sequence_on_new_generation,
-                    ClientOperationClass::Normal,
+                    OperationClass::Normal,
                     0x07,
                     &[],
                 )
@@ -1831,12 +1908,12 @@ mod tests {
         let (actor, mut server) = actor_fixture().await;
         actor.mark_ready().await;
         let stale = OperationContext {
-            generation: ClientConnectionGeneration(actor.generation().get() + 1),
+            generation: ConnectionGeneration(actor.generation().get() + 1),
             source_observation_sequence: 0,
         };
         assert!(
             actor
-                .dispatch(stale, ClientOperationClass::Normal, 0x01, &[])
+                .dispatch(stale, OperationClass::Normal, 0x01, &[])
                 .await
                 .is_err()
         );
@@ -1853,9 +1930,9 @@ mod tests {
         };
         assert_eq!(
             actor
-                .dispatch_primitive(context, ClientOperationClass::Normal, 0x01, &[8])
+                .dispatch_operation(context, OperationClass::Normal, 0x01, &[8])
                 .await,
-            Ok(crate::PrimitiveDispatchOutcome::Dispatched)
+            Ok(crate::DispatchOutcome::Dispatched)
         );
         assert_eq!(
             read_packet(&mut server, None).await.unwrap(),
@@ -1868,12 +1945,12 @@ mod tests {
         let (actor, mut server) = actor_fixture().await;
         actor.mark_ready().await;
         let stale = OperationContext {
-            generation: ClientConnectionGeneration(actor.generation().get() + 1),
+            generation: ConnectionGeneration(actor.generation().get() + 1),
             source_observation_sequence: 0,
         };
         assert_eq!(
             actor
-                .dispatch_primitive(stale, ClientOperationClass::Normal, 0x02, &[])
+                .dispatch_operation(stale, OperationClass::Normal, 0x02, &[])
                 .await,
             Err(OperationAdmissionError::StaleGeneration)
         );
@@ -1892,12 +1969,12 @@ mod tests {
             actor
                 .dispatch_interaction_batch(
                     context,
-                    ClientOperationClass::Normal,
+                    OperationClass::Normal,
                     None,
                     vec![(0x1c, vec![1]), (0x2d, vec![2]), (0x1c, vec![3])],
                 )
                 .await,
-            Ok(crate::PrimitiveDispatchOutcome::Dispatched)
+            Ok(crate::DispatchOutcome::Dispatched)
         );
         assert_eq!(
             read_packet(&mut server, None).await.unwrap(),
@@ -1920,14 +1997,14 @@ mod tests {
         let (actor, mut server) = actor_fixture().await;
         actor.mark_ready().await;
         let stale = OperationContext {
-            generation: ClientConnectionGeneration(actor.generation().get() + 1),
+            generation: ConnectionGeneration(actor.generation().get() + 1),
             source_observation_sequence: 0,
         };
         assert_eq!(
             actor
                 .dispatch_interaction_batch(
                     stale,
-                    ClientOperationClass::Normal,
+                    OperationClass::Normal,
                     None,
                     vec![(0x1c, vec![1]), (0x2d, vec![2]), (0x1c, vec![3])],
                 )
@@ -1950,17 +2027,14 @@ mod tests {
             actor
                 .dispatch_interaction_batch(
                     context,
-                    ClientOperationClass::Normal,
+                    OperationClass::Normal,
                     None,
                     vec![(0x1c, vec![1]), (0x2d, vec![2]), (0x1c, vec![3])],
                 )
                 .await,
-            Ok(crate::PrimitiveDispatchOutcome::DeliveryUnknown)
+            Ok(crate::DispatchOutcome::DeliveryUnknown)
         );
-        assert_eq!(
-            actor.lifecycle(),
-            ConnectionLifecycle::ConnectionStateUnknown
-        );
+        assert_eq!(actor.lifecycle(), ConnectionState::ConnectionStateUnknown);
     }
 
     #[tokio::test]
@@ -1976,7 +2050,7 @@ mod tests {
                         generation: dispatch_actor.generation(),
                         source_observation_sequence: 0,
                     },
-                    ClientOperationClass::Normal,
+                    OperationClass::Normal,
                     None,
                     vec![(0x1c, vec![1]), (0x2d, vec![2]), (0x1c, vec![3])],
                 )
@@ -2014,7 +2088,7 @@ mod tests {
             ..crate::ControlState::default()
         };
         actor
-            .replace_control(context, ClientOperationClass::Normal, moving)
+            .replace_control(context, OperationClass::Normal, moving)
             .await
             .unwrap();
         let moving_snapshot = actor.control_snapshot().await;
@@ -2026,7 +2100,7 @@ mod tests {
             actor
                 .replace_control(
                     context,
-                    ClientOperationClass::Normal,
+                    OperationClass::Normal,
                     crate::ControlState::default()
                 )
                 .await,
@@ -2036,7 +2110,7 @@ mod tests {
         actor
             .replace_control(
                 context,
-                ClientOperationClass::Cleanup,
+                OperationClass::Cleanup,
                 crate::ControlState::default(),
             )
             .await
@@ -2065,33 +2139,61 @@ mod tests {
             ..crate::ControlState::default()
         };
         actor
-            .replace_control(context, ClientOperationClass::Normal, moving)
+            .replace_control(context, OperationClass::Normal, moving)
             .await
             .unwrap();
-        let (sample, fraction) = actor.consume_control_for_tick(Duration::from_millis(50)).await;
+        let (sample, fraction) = actor
+            .consume_control_for_tick(Duration::from_millis(50))
+            .await;
         assert!(sample.forward);
-        assert_eq!(sample.movement_press_duration, Some(Duration::from_micros(12_500)));
+        assert_eq!(
+            sample.movement_press_duration,
+            Some(Duration::from_micros(12_500))
+        );
         assert!((fraction - 0.25).abs() < 1e-12);
         let held_after_expiry = actor.control_snapshot().await.value;
-        assert!(!held_after_expiry.forward, "expired movement must release held forward");
-        assert!(held_after_expiry.sprint, "posture controls remain held across movement expiry");
-        let (sample, fraction) = actor.consume_control_for_tick(Duration::from_millis(50)).await;
-        assert!(!sample.forward, "the next tick observes the released movement controls");
+        assert!(
+            !held_after_expiry.forward,
+            "expired movement must release held forward"
+        );
+        assert!(
+            held_after_expiry.sprint,
+            "posture controls remain held across movement expiry"
+        );
+        let (sample, fraction) = actor
+            .consume_control_for_tick(Duration::from_millis(50))
+            .await;
+        assert!(
+            !sample.forward,
+            "the next tick observes the released movement controls"
+        );
         assert_eq!(sample.movement_press_duration, Some(Duration::ZERO));
         assert_eq!(fraction, 0.0);
 
         moving.movement_press_duration = Some(Duration::from_millis(75));
         actor
-            .replace_control(context, ClientOperationClass::Normal, moving)
+            .replace_control(context, OperationClass::Normal, moving)
             .await
             .unwrap();
-        let (sample, fraction) = actor.consume_control_for_tick(Duration::from_millis(50)).await;
-        assert_eq!(sample.movement_press_duration, Some(Duration::from_millis(75)));
+        let (sample, fraction) = actor
+            .consume_control_for_tick(Duration::from_millis(50))
+            .await;
+        assert_eq!(
+            sample.movement_press_duration,
+            Some(Duration::from_millis(75))
+        );
         assert_eq!(fraction, 1.0);
-        let (sample, fraction) = actor.consume_control_for_tick(Duration::from_millis(50)).await;
-        assert_eq!(sample.movement_press_duration, Some(Duration::from_millis(25)));
+        let (sample, fraction) = actor
+            .consume_control_for_tick(Duration::from_millis(50))
+            .await;
+        assert_eq!(
+            sample.movement_press_duration,
+            Some(Duration::from_millis(25))
+        );
         assert_eq!(fraction, 0.5);
-        let (sample, fraction) = actor.consume_control_for_tick(Duration::from_millis(50)).await;
+        let (sample, fraction) = actor
+            .consume_control_for_tick(Duration::from_millis(50))
+            .await;
         assert_eq!(sample.movement_press_duration, Some(Duration::ZERO));
         assert_eq!(fraction, 0.0);
 
@@ -2099,19 +2201,30 @@ mod tests {
         moving.right = true;
         moving.movement_press_duration = Some(Duration::from_millis(75));
         actor
-            .replace_control(context, ClientOperationClass::Normal, moving)
+            .replace_control(context, OperationClass::Normal, moving)
             .await
             .unwrap();
-        let (sample, _) = actor.consume_control_for_tick(Duration::from_millis(50)).await;
+        let (sample, _) = actor
+            .consume_control_for_tick(Duration::from_millis(50))
+            .await;
         assert!(!sample.forward && sample.right);
 
         actor
-            .replace_control(context, ClientOperationClass::Cleanup, crate::ControlState::default())
+            .replace_control(
+                context,
+                OperationClass::Cleanup,
+                crate::ControlState::default(),
+            )
             .await
             .unwrap();
-        let (sample, fraction) = actor.consume_control_for_tick(Duration::from_millis(50)).await;
+        let (sample, fraction) = actor
+            .consume_control_for_tick(Duration::from_millis(50))
+            .await;
         assert_eq!(sample, crate::ControlState::default());
-        assert_eq!(fraction, 1.0, "legacy None duration remains held-key compatible");
+        assert_eq!(
+            fraction, 1.0,
+            "legacy None duration remains held-key compatible"
+        );
         no_packet(&mut server).await;
     }
 
@@ -2128,21 +2241,18 @@ mod tests {
             actor
                 .dispatch_interaction_batch(
                     context,
-                    ClientOperationClass::Normal,
+                    OperationClass::Normal,
                     Some(crate::BlockPos { x: 1, y: 2, z: 3 }),
                     vec![(0x03, vec![1])],
                 )
                 .await,
-            Ok(crate::PrimitiveDispatchOutcome::DeliveryUnknown)
+            Ok(crate::DispatchOutcome::DeliveryUnknown)
         );
-        assert_eq!(
-            actor.lifecycle(),
-            ConnectionLifecycle::ConnectionStateUnknown
-        );
+        assert_eq!(actor.lifecycle(), ConnectionState::ConnectionStateUnknown);
         assert_eq!(actor.observe_furnace_window(13).await, None);
         assert!(
             actor
-                .dispatch_primitive(context, ClientOperationClass::Normal, 0x04, &[])
+                .dispatch_operation(context, OperationClass::Normal, 0x04, &[])
                 .await
                 .is_err()
         );
@@ -2161,8 +2271,8 @@ mod tests {
                     generation: actor.generation(),
                     source_observation_sequence: 0,
                 },
-                ClientOperationClass::Normal,
-                crate::AcknowledgedPrimitive::DigFinish {
+                OperationClass::Normal,
+                crate::AcknowledgedOperation::DigFinish {
                     position: crate::BlockPos { x: 1, y: 2, z: 3 },
                     face: crate::BlockFace::Up,
                 },
@@ -2171,12 +2281,9 @@ mod tests {
             .unwrap();
         assert_eq!(
             transaction.wait().await,
-            crate::PrimitiveDispatchOutcome::DeliveryUnknown
+            crate::DispatchOutcome::DeliveryUnknown
         );
-        assert_eq!(
-            actor.lifecycle(),
-            ConnectionLifecycle::ConnectionStateUnknown
-        );
+        assert_eq!(actor.lifecycle(), ConnectionState::ConnectionStateUnknown);
     }
 
     #[tokio::test]
@@ -2190,15 +2297,15 @@ mod tests {
         actor.begin_disconnect().await.unwrap();
         assert_eq!(
             actor
-                .dispatch_primitive(context, ClientOperationClass::Normal, 0x0b, &[1])
+                .dispatch_operation(context, OperationClass::Normal, 0x0b, &[1])
                 .await,
             Err(OperationAdmissionError::Disconnecting)
         );
         assert_eq!(
             actor
-                .dispatch_primitive(context, ClientOperationClass::Cleanup, 0x0c, &[2])
+                .dispatch_operation(context, OperationClass::Cleanup, 0x0c, &[2])
                 .await,
-            Ok(crate::PrimitiveDispatchOutcome::Dispatched)
+            Ok(crate::DispatchOutcome::Dispatched)
         );
         assert_eq!(
             read_packet(&mut server, None).await.unwrap(),
@@ -2217,8 +2324,8 @@ mod tests {
         let transaction = actor
             .dispatch_acknowledged(
                 context,
-                ClientOperationClass::Normal,
-                crate::AcknowledgedPrimitive::WindowClick {
+                OperationClass::Normal,
+                crate::AcknowledgedOperation::WindowClick {
                     window_id: 0,
                     slot: 9,
                     button: 0,
@@ -2235,7 +2342,7 @@ mod tests {
         actor.confirm_window_transaction(0, action, true).await;
         assert_eq!(
             transaction.wait().await,
-            crate::PrimitiveDispatchOutcome::Acknowledged
+            crate::DispatchOutcome::Acknowledged
         );
     }
 
@@ -2249,8 +2356,8 @@ mod tests {
                     generation: actor.generation(),
                     source_observation_sequence: 0,
                 },
-                ClientOperationClass::Normal,
-                crate::AcknowledgedPrimitive::WindowClick {
+                OperationClass::Normal,
+                crate::AcknowledgedOperation::WindowClick {
                     window_id: 0,
                     slot: 9,
                     button: 0,
@@ -2270,10 +2377,7 @@ mod tests {
                 .is_err()
         );
         assert!(actor.commit_window_barrier(0, action).await);
-        assert_eq!(
-            waiter.await.unwrap(),
-            crate::PrimitiveDispatchOutcome::Acknowledged
-        );
+        assert_eq!(waiter.await.unwrap(), crate::DispatchOutcome::Acknowledged);
         assert!(!actor.commit_window_barrier(0, action).await);
     }
 
@@ -2282,15 +2386,15 @@ mod tests {
         let (actor, mut server) = actor_fixture().await;
         actor.mark_ready().await;
         let stale = OperationContext {
-            generation: ClientConnectionGeneration(actor.generation().get() + 1),
+            generation: ConnectionGeneration(actor.generation().get() + 1),
             source_observation_sequence: 0,
         };
         assert!(matches!(
             actor
                 .dispatch_acknowledged(
                     stale,
-                    ClientOperationClass::Normal,
-                    crate::AcknowledgedPrimitive::WindowClick {
+                    OperationClass::Normal,
+                    crate::AcknowledgedOperation::WindowClick {
                         window_id: 0,
                         slot: 0,
                         button: 0,
@@ -2316,8 +2420,8 @@ mod tests {
         let first = actor
             .dispatch_acknowledged(
                 context,
-                ClientOperationClass::Normal,
-                crate::AcknowledgedPrimitive::WindowClick {
+                OperationClass::Normal,
+                crate::AcknowledgedOperation::WindowClick {
                     window_id: 1,
                     slot: 0,
                     button: 0,
@@ -2330,15 +2434,12 @@ mod tests {
         let (_, payload) = read_packet(&mut server, None).await.unwrap();
         let action = i16::from_be_bytes([payload[4], payload[5]]);
         actor.confirm_window_transaction(1, action, false).await;
-        assert_eq!(
-            first.wait().await,
-            crate::PrimitiveDispatchOutcome::Rejected
-        );
+        assert_eq!(first.wait().await, crate::DispatchOutcome::Rejected);
         let dropped = actor
             .dispatch_acknowledged(
                 context,
-                ClientOperationClass::Normal,
-                crate::AcknowledgedPrimitive::WindowClick {
+                OperationClass::Normal,
+                crate::AcknowledgedOperation::WindowClick {
                     window_id: 1,
                     slot: 1,
                     button: 0,
@@ -2355,8 +2456,8 @@ mod tests {
             actor
                 .dispatch_acknowledged(
                     context,
-                    ClientOperationClass::Normal,
-                    crate::AcknowledgedPrimitive::WindowClick {
+                    OperationClass::Normal,
+                    crate::AcknowledgedOperation::WindowClick {
                         window_id: 1,
                         slot: 1,
                         button: 0,
@@ -2375,8 +2476,8 @@ mod tests {
         let second = actor
             .dispatch_acknowledged(
                 context,
-                ClientOperationClass::Normal,
-                crate::AcknowledgedPrimitive::WindowClick {
+                OperationClass::Normal,
+                crate::AcknowledgedOperation::WindowClick {
                     window_id: 1,
                     slot: 1,
                     button: 0,
@@ -2387,10 +2488,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(second.window_action(), Some(dropped_action.wrapping_add(1)));
-        assert_eq!(
-            second.wait().await,
-            crate::PrimitiveDispatchOutcome::DeliveryUnknown
-        );
+        assert_eq!(second.wait().await, crate::DispatchOutcome::DeliveryUnknown);
     }
 
     #[tokio::test]
@@ -2405,8 +2503,8 @@ mod tests {
                     generation: actor.generation(),
                     source_observation_sequence: 0,
                 },
-                ClientOperationClass::Normal,
-                crate::AcknowledgedPrimitive::DigFinish {
+                OperationClass::Normal,
+                crate::AcknowledgedOperation::DigFinish {
                     position,
                     face: crate::BlockFace::Up,
                 },
@@ -2417,7 +2515,7 @@ mod tests {
         assert_eq!(packet_id, 0x1b);
         assert_eq!(
             transaction.wait().await,
-            crate::PrimitiveDispatchOutcome::DeliveryUnknown
+            crate::DispatchOutcome::DeliveryUnknown
         );
         assert!(matches!(
             actor
@@ -2426,8 +2524,8 @@ mod tests {
                         generation: actor.generation(),
                         source_observation_sequence: 0,
                     },
-                    ClientOperationClass::Normal,
-                    crate::AcknowledgedPrimitive::DigFinish {
+                    OperationClass::Normal,
+                    crate::AcknowledgedOperation::DigFinish {
                         position,
                         face: crate::BlockFace::Up,
                     },
@@ -2452,8 +2550,8 @@ mod tests {
                 actor
                     .dispatch_acknowledged(
                         context,
-                        ClientOperationClass::Normal,
-                        crate::AcknowledgedPrimitive::DigFinish {
+                        OperationClass::Normal,
+                        crate::AcknowledgedOperation::DigFinish {
                             position: crate::BlockPos {
                                 x: index as i32,
                                 y: 4,
@@ -2470,8 +2568,8 @@ mod tests {
             actor
                 .dispatch_acknowledged(
                     context,
-                    ClientOperationClass::Normal,
-                    crate::AcknowledgedPrimitive::DigFinish {
+                    OperationClass::Normal,
+                    crate::AcknowledgedOperation::DigFinish {
                         position: crate::BlockPos {
                             x: MAX_PENDING_TRANSACTIONS as i32,
                             y: 4,
@@ -2493,7 +2591,7 @@ mod tests {
                 .expect("at least one pending transaction")
                 .wait()
                 .await,
-            crate::PrimitiveDispatchOutcome::DeliveryUnknown
+            crate::DispatchOutcome::DeliveryUnknown
         );
         drop(pending);
     }
@@ -2508,18 +2606,15 @@ mod tests {
             generation: actor.generation(),
             source_observation_sequence: 1,
         };
-        actor
-            .admit(context, ClientOperationClass::Normal)
-            .await
-            .unwrap();
+        actor.admit(context, OperationClass::Normal).await.unwrap();
         // A newer capture does not replace the active Output or its client-owned
         // transaction identity before the next explicit activation.
         actor.record_observation(2).await.unwrap();
         let transaction = actor
             .dispatch_acknowledged(
                 context,
-                ClientOperationClass::Normal,
-                crate::AcknowledgedPrimitive::DigFinish {
+                OperationClass::Normal,
+                crate::AcknowledgedOperation::DigFinish {
                     position,
                     face: crate::BlockFace::North,
                 },
@@ -2540,8 +2635,8 @@ mod tests {
                         generation: actor.generation(),
                         source_observation_sequence: 0,
                     },
-                    ClientOperationClass::Normal,
-                    crate::AcknowledgedPrimitive::DigFinish {
+                    OperationClass::Normal,
+                    crate::AcknowledgedOperation::DigFinish {
                         position,
                         face: crate::BlockFace::North,
                     },
@@ -2554,7 +2649,7 @@ mod tests {
             .await;
         assert_eq!(
             transaction.wait().await,
-            crate::PrimitiveDispatchOutcome::Acknowledged
+            crate::DispatchOutcome::Acknowledged
         );
     }
 
@@ -2567,7 +2662,7 @@ mod tests {
             source_observation_sequence: 0,
         };
         actor
-            .dispatch(current, ClientOperationClass::Normal, 0x01, &[1])
+            .dispatch(current, OperationClass::Normal, 0x01, &[1])
             .await
             .unwrap();
         assert_eq!(
@@ -2577,7 +2672,7 @@ mod tests {
         actor.begin_disconnect().await.unwrap();
         assert!(
             actor
-                .dispatch(current, ClientOperationClass::Normal, 0x02, &[])
+                .dispatch(current, OperationClass::Normal, 0x02, &[])
                 .await
                 .is_err()
         );
@@ -2595,7 +2690,7 @@ mod tests {
         };
         actor.begin_disconnect().await.unwrap();
         actor
-            .dispatch(current, ClientOperationClass::Cleanup, 0x04, &[2])
+            .dispatch(current, OperationClass::Cleanup, 0x04, &[2])
             .await
             .unwrap();
         assert_eq!(
@@ -2613,7 +2708,7 @@ mod tests {
             source_observation_sequence: 0,
         };
         actor
-            .dispatch(current, ClientOperationClass::Normal, 0x05, &[3])
+            .dispatch(current, OperationClass::Normal, 0x05, &[3])
             .await
             .unwrap();
         actor.shutdown_writer().await.unwrap();
@@ -2640,17 +2735,14 @@ mod tests {
         };
         assert!(
             actor
-                .dispatch(current, ClientOperationClass::Normal, 0x08, &[4])
+                .dispatch(current, OperationClass::Normal, 0x08, &[4])
                 .await
                 .is_err()
         );
-        assert_eq!(
-            actor.lifecycle(),
-            ConnectionLifecycle::ConnectionStateUnknown
-        );
+        assert_eq!(actor.lifecycle(), ConnectionState::ConnectionStateUnknown);
         assert!(
             actor
-                .dispatch(current, ClientOperationClass::Normal, 0x09, &[5])
+                .dispatch(current, OperationClass::Normal, 0x09, &[5])
                 .await
                 .is_err()
         );
@@ -2664,10 +2756,7 @@ mod tests {
         writer.lock().await.inner.shutdown().await.unwrap();
         actor.mark_ready().await;
         assert!(actor.dispatch_protocol(0x0a, &[6]).await.is_err());
-        assert_eq!(
-            actor.lifecycle(),
-            ConnectionLifecycle::ConnectionStateUnknown
-        );
+        assert_eq!(actor.lifecycle(), ConnectionState::ConnectionStateUnknown);
         assert!(actor.dispatch_protocol(0x0b, &[7]).await.is_err());
         let mut byte = [0_u8; 1];
         assert_eq!(server.read(&mut byte).await.unwrap(), 0);
@@ -2686,7 +2775,7 @@ mod tests {
         };
         assert!(
             actor
-                .dispatch(current, ClientOperationClass::Normal, 0x06, &[])
+                .dispatch(current, OperationClass::Normal, 0x06, &[])
                 .await
                 .is_err()
         );

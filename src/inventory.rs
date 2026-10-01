@@ -152,8 +152,8 @@ pub struct PendingClick {
     pub slot_before: Option<ItemStack>,
     /// The `cursor_before` value.
     pub cursor_before: Option<ItemStack>,
-    /// Body-authored accepted cache effect carried by this pending click.
-    pub accepted_cache_effects: crate::CraftAcceptedCacheEffects,
+    /// Caller-supplied accepted cache effect carried by this pending click.
+    pub prediction: crate::WindowPrediction,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

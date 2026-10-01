@@ -1,12 +1,12 @@
 [package]
-name = "zen-minecraft-client"
-version = "0.1.0"
+name = "voxrig"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.85"
 description = "A headless Minecraft Java 1.16.1 client library for externally controlled agents"
 license = "MIT"
 readme = "README.md"
-documentation = "https://docs.rs/zen-minecraft-client"
+documentation = "https://docs.rs/voxrig"
 keywords = ["minecraft", "headless", "bot", "client", "protocol"]
 categories = ["game-development", "network-programming"]
 include = [
@@ -20,7 +20,7 @@ include = [
 ]
 
 [lib]
-name = "zen_minecraft_client"
+name = "voxrig"
 path = "src/lib.rs"
 
 [dependencies]

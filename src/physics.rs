@@ -257,17 +257,17 @@ pub struct PhysicsMetrics {
 /// correction.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PhysicsMeasurementEpoch {
-    generation: crate::ClientConnectionGeneration,
+    generation: crate::ConnectionGeneration,
 }
 
 impl PhysicsMeasurementEpoch {
-    pub(crate) const fn new(generation: crate::ClientConnectionGeneration) -> Self {
+    pub(crate) const fn new(generation: crate::ConnectionGeneration) -> Self {
         Self { generation }
     }
 
     /// Returns the client connection generation owning this epoch.
     #[must_use]
-    pub const fn generation(self) -> crate::ClientConnectionGeneration {
+    pub const fn generation(self) -> crate::ConnectionGeneration {
         self.generation
     }
 }

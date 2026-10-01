@@ -1,4 +1,4 @@
-# Contributing to zen-minecraft-client
+# Contributing to voxrig
 
 Issueやpull requestを歓迎します。大きなAPI変更やprotocol version追加は、実装前にissueで
 責務境界と互換性を相談してください。zen-minecraft-clientは低レベルなheadless clientを担当し、pathfinding、

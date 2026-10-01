@@ -1,5 +1,5 @@
 use anyhow::Result;
-use zen_minecraft_client::{BotManager, ControlState, Player, Server};
+use voxrig::{BotManager, ControlState, Player, Server};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -25,7 +25,7 @@ async fn main() -> Result<()> {
         tokio::try_join!(alpha.observe_snapshot(1), beta.observe_snapshot(1))?;
 
     println!("managed: {:?}", manager.usernames().await);
-    println!("client: {:?}", zen_minecraft_client::Bot::client_info());
+    println!("client: {:?}", voxrig::Bot::client_info());
     println!("AlphaBot observed {} blocks", alpha_blocks.value.len());
     println!("BetaBot observed {} blocks", beta_blocks.value.len());
     manager.disconnect_all().await?;

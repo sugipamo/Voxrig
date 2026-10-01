@@ -233,15 +233,21 @@ struct SoundData {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct EnchantmentDefinition {
+    /// Version-pinned enchantment ID.
     pub id: i32,
+    /// Registry enchantment name.
     pub name: String,
+    /// Vanilla maximum level.
     pub max_level: u16,
 }
 
 /// Resolve a vanilla enchantment name using the version-pinned registry.
 pub fn enchantment_definition(name: &str) -> Option<&'static EnchantmentDefinition> {
     let name = name.strip_prefix("minecraft:").unwrap_or(name);
-    registry().enchantments.iter().find(|definition| definition.name == name)
+    registry()
+        .enchantments
+        .iter()
+        .find(|definition| definition.name == name)
 }
 
 struct Registry {
@@ -385,7 +391,7 @@ pub fn item_name(id: i32) -> Option<&'static str> {
     registry().items.get(&id).map(|item| item.name.as_str())
 }
 
-/// Resolves a canonical item name to its protocol item id for Body-authored
+/// Resolves a canonical item name to its protocol item id for Caller-supplied
 /// cache effects. This is a private adapter fact, not recipe selection.
 pub fn item_id(name: &str) -> Option<i32> {
     registry()
@@ -459,7 +465,7 @@ pub fn block_state_properties(state_id: i32) -> Option<Vec<(String, String)>> {
             // values as true, then false.  In particular the default furnace
             // state is 3374 (the second state in its range), and is
             // `lit=false`; reversing this order makes every idle furnace
-            // appear lit to Body's safety gate.
+            // appear lit to the caller's safety gate.
             "bool" => match value_index {
                 0 => "true".to_owned(),
                 1 => "false".to_owned(),
@@ -481,7 +487,7 @@ pub fn block_state_properties(state_id: i32) -> Option<Vec<(String, String)>> {
 /// Returns raw movement-related registry facts for one known block state.
 ///
 /// Unknown state IDs and malformed registry records return `None`. Safety and
-/// route semantics remain with the consuming provider/Body layer.
+/// route semantics remain with the consuming application layer.
 pub fn block_movement_registry_facts(state_id: i32) -> Option<RawBlockMovementRegistryFact> {
     let registry = registry();
     let block = registry
@@ -586,7 +592,12 @@ mod tests {
             assert!(row.max_level > 0);
             assert_eq!(enchantment_definition(&row.name), Some(row));
         }
-        assert_eq!(enchantment_definition("minecraft:silk_touch").unwrap().max_level, 1);
+        assert_eq!(
+            enchantment_definition("minecraft:silk_touch")
+                .unwrap()
+                .max_level,
+            1
+        );
         assert!(enchantment_definition("not_an_enchantment").is_none());
     }
 
@@ -596,13 +607,25 @@ mod tests {
         let ranges = block_state_ranges_for_names(&["oak_log"]);
         assert_eq!(ranges.len(), 1);
         let (first, last) = ranges[0];
-        let axes = (first..=last).map(|state| {
-            assert_eq!(block_name_from_state(state), Some("oak_log"));
-            block_state_properties(state).unwrap().into_iter()
-                .find(|(key, _)| key == "axis").unwrap().1
-        }).collect::<std::collections::BTreeSet<_>>();
-        assert_eq!(axes, ["x", "y", "z"].into_iter().map(str::to_owned).collect());
-        assert_eq!(block_state_ranges_for_names(&["oak_log", "oak_log"]), ranges);
+        let axes = (first..=last)
+            .map(|state| {
+                assert_eq!(block_name_from_state(state), Some("oak_log"));
+                block_state_properties(state)
+                    .unwrap()
+                    .into_iter()
+                    .find(|(key, _)| key == "axis")
+                    .unwrap()
+                    .1
+            })
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(
+            axes,
+            ["x", "y", "z"].into_iter().map(str::to_owned).collect()
+        );
+        assert_eq!(
+            block_state_ranges_for_names(&["oak_log", "oak_log"]),
+            ranges
+        );
     }
 
     #[test]
@@ -683,23 +706,56 @@ mod tests {
     fn descriptor_cache_is_lazy_and_shared_between_concurrent_callers() {
         let cache = DescriptorCache::new();
         assert!(cache.slots.iter().all(|slot| slot.get().is_none()));
-        assert!(matches!(cache.get(-1), crate::BlockPhysicalDescriptorLookup::UnknownStateId));
-        assert!(matches!(cache.get(i32::MAX), crate::BlockPhysicalDescriptorLookup::UnknownStateId));
+        assert!(matches!(
+            cache.get(-1),
+            crate::BlockPhysicalDescriptorLookup::UnknownStateId
+        ));
+        assert!(matches!(
+            cache.get(i32::MAX),
+            crate::BlockPhysicalDescriptorLookup::UnknownStateId
+        ));
         assert!(cache.slots.iter().all(|slot| slot.get().is_none()));
         let values = std::thread::scope(|scope| {
-            let handles: Vec<_> = (0..32).map(|_| scope.spawn(|| {
-                let crate::BlockPhysicalDescriptorLookup::Known(value) = cache.get(0) else {
-                    panic!("air descriptor missing");
-                };
-                value
-            })).collect();
-            handles.into_iter().map(|handle| handle.join().unwrap()).collect::<Vec<_>>()
+            let handles: Vec<_> = (0..32)
+                .map(|_| {
+                    scope.spawn(|| {
+                        let crate::BlockPhysicalDescriptorLookup::Known(value) = cache.get(0)
+                        else {
+                            panic!("air descriptor missing");
+                        };
+                        value
+                    })
+                })
+                .collect();
+            handles
+                .into_iter()
+                .map(|handle| handle.join().unwrap())
+                .collect::<Vec<_>>()
         });
         assert!(values.iter().all(|value| Arc::ptr_eq(&values[0], value)));
-        assert_eq!(cache.slots.iter().filter(|slot| slot.get().is_some()).count(), 1);
-        assert!(matches!(cache.get(3356), crate::BlockPhysicalDescriptorLookup::Known(_)));
-        assert_eq!(cache.slots.iter().filter(|slot| slot.get().is_some()).count(), 2);
-        let crate::BlockPhysicalDescriptorLookup::Known(air) = cache.get(0) else { unreachable!() };
+        assert_eq!(
+            cache
+                .slots
+                .iter()
+                .filter(|slot| slot.get().is_some())
+                .count(),
+            1
+        );
+        assert!(matches!(
+            cache.get(3356),
+            crate::BlockPhysicalDescriptorLookup::Known(_)
+        ));
+        assert_eq!(
+            cache
+                .slots
+                .iter()
+                .filter(|slot| slot.get().is_some())
+                .count(),
+            2
+        );
+        let crate::BlockPhysicalDescriptorLookup::Known(air) = cache.get(0) else {
+            unreachable!()
+        };
         assert!(Arc::ptr_eq(&air, &values[0]));
     }
 
@@ -790,13 +846,18 @@ mod tests {
 
     #[test]
     fn item_durability_resolves_known_definitions_and_keeps_unknown_distinct() {
-        for (name, maximum) in [("wooden_pickaxe",59),("stone_pickaxe",131),
-            ("iron_pickaxe",250),("diamond_pickaxe",1561),("golden_pickaxe",32),
-            ("netherite_pickaxe",2031),("stone",0)] {
-            assert_eq!(item_max_durability(item_id(name).unwrap()),Some(maximum));
+        for (name, maximum) in [
+            ("wooden_pickaxe", 59),
+            ("stone_pickaxe", 131),
+            ("iron_pickaxe", 250),
+            ("diamond_pickaxe", 1561),
+            ("golden_pickaxe", 32),
+            ("netherite_pickaxe", 2031),
+            ("stone", 0),
+        ] {
+            assert_eq!(item_max_durability(item_id(name).unwrap()), Some(maximum));
         }
-        assert_eq!(item_max_durability(-1),None);
-        assert_eq!(item_max_durability(i32::MAX),None);
+        assert_eq!(item_max_durability(-1), None);
+        assert_eq!(item_max_durability(i32::MAX), None);
     }
-
 }

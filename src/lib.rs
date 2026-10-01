@@ -1,6 +1,6 @@
 //! A headless Minecraft Java 1.16.1 client for externally controlled agents.
 //!
-//! `zen-minecraft-client` implements the protocol-facing body of an agent: connection
+//! `voxrig` implements the protocol-facing body of an agent: connection
 //! management, world and entity observation, player state, physics, inventory,
 //! crafting, containers, interaction, combat, chat, and structured sound events.
 //! It deliberately does not provide pathfinding, semantic perception, planning,
@@ -12,7 +12,7 @@
 //! # Quick start
 //!
 //! ```no_run
-//! use zen_minecraft_client::prelude::*;
+//! use voxrig::prelude::*;
 //!
 //! # async fn run() -> anyhow::Result<()> {
 //! let manager = BotManager::new(Server::new("127.0.0.1", 25565));
@@ -42,16 +42,16 @@
 pub mod chat;
 pub mod client;
 mod collision;
-pub mod connection;
 pub mod entity;
 mod error;
 pub mod interaction;
 pub mod inventory;
+pub mod lifecycle;
 pub mod manager;
 pub mod map;
 pub mod observation;
+pub mod operation;
 pub mod physics;
-pub mod primitive;
 pub mod progress;
 mod protocol;
 pub mod registry;
@@ -82,10 +82,6 @@ pub use collision::{
     BlockCollision, BlockCollisionShape, BlockSupportSurface, block_collision,
     block_collision_shapes, block_support_surface,
 };
-pub use connection::{
-    ClientConnectionGeneration, ClientOperationClass, ConnectionLifecycle, OperationAdmissionError,
-    OperationContext, ProtocolTransaction,
-};
 pub use entity::{
     EntityKind, EntityRaycastHit, EntityState, EntityTracker, MetadataValue, ParticleData,
 };
@@ -98,29 +94,31 @@ pub use inventory::{
     ClickMode, EquipmentSlot, InventoryState, ItemCollected, ItemStack, MerchantOffer,
     MerchantOffers, OpenWindow, PendingClick, SlotUpdate, WindowProperty, WindowTransaction,
 };
+pub use lifecycle::{
+    ConnectionGeneration, ConnectionState, OperationAdmissionError, OperationClass,
+    OperationContext, ProtocolTransaction,
+};
 pub use manager::{BotEvent, BotManager};
 pub use map::{MapData, MapIcon, MapRectangle, MapStore, MapUpdate};
 pub use observation::{
-    BlockCatalogIdentity, BlockPhysicalDescriptor, BlockPhysicalDescriptorLookup,
-    BlockRegistryIdentity, CoherentInterestCell, CoherentLightState, CoherentObservation,
-    CoherentObservationInterest, CoherentObservationRequest,
-    CoherentWorldTime, LoadedGeometrySection, LoadedGeometrySnapshot, LoadedResourceCoverage,
-    LoadedResourceQuery, LoadedResourceQuerySnapshot, ObservationSequence, OpenFurnaceObservation,
-    PlacedBlockPhysicalDescriptorLookup, SensorCaptureIdentity, TraversalBlockFact,
-    TraversalEntityDimensions, TraversalEntityFact, TraversalGeometryBlockFact,
-    TraversalGeometryQuery, TraversalGeometrySnapshot, TraversalInventoryFact,
-    TraversalInventorySlotFact, TraversalMovementFactsRequest, TraversalMovementFactsSnapshot,
+    BlockCatalogIdentity, BlockPhysicalDescriptor, BlockPhysicalDescriptorLookup, BlockQuery,
+    BlockQueryCoverage, BlockQuerySnapshot, BlockRegistryIdentity, CaptureIdentity,
+    CoherentInterestCell, CoherentLightState, CoherentObservation, CoherentObservationInterest,
+    CoherentObservationRequest, CoherentWorldTime, EntityDimensions, GeometryBlock, GeometryQuery,
+    GeometrySnapshot, InventoryFact, InventorySlotFact, LoadedGeometrySection,
+    LoadedGeometrySnapshot, MovementBlock, MovementSnapshot, MovementSnapshotRequest,
+    ObservationSequence, ObservedEntity, OpenFurnaceObservation,
+    PlacedBlockPhysicalDescriptorLookup,
+};
+pub use operation::{
+    AcknowledgedOperation, CleanupDispatchOutcome, CleanupOperation, CleanupRequest,
+    DiagnosticCorrelationId, DispatchError, DispatchOutcome, EquipOperation,
+    InteractionSneakRequirement, Operation, OperationRequest, SlotExpectation, SlotPrediction,
+    WindowClick, WindowClickSequence, WindowPrediction,
 };
 pub use physics::{
     Aabb, ControlState, CorrectionReason, MotionState, PhysicsMeasurementEpoch, PhysicsMetrics,
     PositionCorrection, Vec3, VehicleControl, VehiclePose,
-};
-pub use primitive::{
-    AcknowledgedPrimitive, CleanupDispatchOutcome, CleanupPrimitive, CleanupRequest,
-    CraftAcceptedCacheEffects, CraftAcceptedSlotEffect, CraftClick, CraftExecution, EquipOperation,
-    FurnaceExecution, FurnaceExecutionPhase, InteractionSneakRequirement,
-    PrimitiveDiagnosticCorrelationId, PrimitiveDispatchError, PrimitiveDispatchOutcome,
-    PrimitiveOperation, PrimitiveRequest, SlotExpectation,
 };
 pub use progress::{
     AdvancementDefinition, AdvancementDisplay, AdvancementProgress, AdvancementState,
