@@ -8,6 +8,8 @@
 以下の`Bot`、inventory、physicsとcoherent observationは1.16.1専用です。
 rootの互換importと`versions::java_1_16_1`は同じ型です。
 1.21.11の対応操作は[版別操作API](java-1.21.11-operations.md)を参照してください。
+サバイバルでの単純スタック交換は[在庫交換API](survival-inventory.md)の
+`swap_player_hotbar` / `wait_inventory_swap`を使います。
 
 ## Import
 

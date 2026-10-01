@@ -15,6 +15,7 @@
 - [導入と最初の接続](getting-started.md)
 - [対応機能と制約](capabilities.md)
 - [公開API](api.md)
+- [Java 1.21.11のサバイバル所持品交換](survival-inventory.md)
 - [Headless client API拡張ロードマップ](headless-api-roadmap.md)
 - [API契約と所有権](api-contracts.md)
 - [状態・イベントの扱い](state-and-events.md)

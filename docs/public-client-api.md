@@ -50,6 +50,14 @@ accepted confirmationの後、cacheが指定prestateと一致するときだけ�
 観測されるinventoryはclient cacheであり、クリック予測を含み得る。server上の完了の独立証拠には
 しない。名称を`prediction`とし、製作の成功やserver observationと取り違えない。
 
+1.21.11の`swap_player_hotbar`は単純スタックの通常交換を送信する。
+`InventorySwap`は接続と受信境界に結び付いた送信記録であり、ackではない。
+`wait_inventory_swap`は送信後の両slotの受信値・sequenceを照合し、
+`InventorySwapObservation`を返す。local slotの予測更新は行わない。
+timeoutや取消ではpendingを維持し、同じ接続で読出し待機を再開できる。
+staleなscreen revisionでもserverはクリックを実行し得るため、自動再送しない。
+この受信記録も独立したserver確認ではなく、1.16.1のcache予測とは異なる契約である。
+
 装備操作、block properties、衝突geometry、採掘条件、entity寸法、item上限はclientの事実を返す。
 資源検索は`BlockQuery`/`query_loaded_blocks`へ、移動用の観測は`MovementSnapshot`、
 geometryの取得は`GeometryQuery`へ名称を変更する。経路や採取対象を選ぶAPIではない。

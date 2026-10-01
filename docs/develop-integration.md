@@ -72,3 +72,35 @@ deepplanningとminetoolの利用側は、この環境から取得できる配置
 公開は不要であり、移行表に従って非公開環境で固定commitを検証できる。
 3プロジェクトの同一commitによる採用検証が揃うまでmainへ統合しない。
 DustRouteで過去に記録された1.16.1同地点2 Bot移動の不合格も、基準版比較を含めて未解決。
+
+## サバイバル在庫交換の追加統合
+
+2026-10-02（JST）。`codex/survival-construction`の
+`da5ad589b47e5ba70e4f579eab5a38f88daf2b75`をdevelopへ追加統合した。
+同ブランチは旧DustRoute snapshotから派生していたため、READMEの対応範囲の競合を解消し、
+package/crateの`voxrig` 0.2.0、版別構成、既存のclient API整理とRust 1.85対応を維持した。
+
+1.21.11の通常SWAP送信と、両slotの送信後の受信を照合する読出し待機を追加する。
+交換の予測をclient cacheへ適用せず、timeout・取消の後もpendingを保持する。
+製作・チェスト取得・サバイバルの移動物理や採掘・建築全体の実装は今回の追加に含まない。
+1.21.11の`Inventory`に追加されたprivate fieldとfixtureの移行は移行表へ追記した。
+
+| 確認 | 結果 |
+| --- | --- |
+| 全target、Rust 1.97.1、`-j1 -- --test-threads=1` | 281件成功、任意の性能比較1件スキップ、全exampleをコンパイル |
+| docテスト、Rust 1.97.1 | 1件成功 |
+| fmt | 成功 |
+| 全target Clippy、Rust 1.99.0、`-D warnings` | 成功 |
+| rustdoc、Rust 1.97.1、`-D warnings` | 成功 |
+| package作成・展開後コンパイル、Rust 1.97.1 | 成功、227ファイル。Java検証ツールとpacket fixtureも収録 |
+| MSRV、Rust 1.85.0、全target | 成功 |
+
+追加5件は不正packetの原子性、cursor/window/stackの送信条件、両slotの受信の新しさ、
+window変更と接続の所有、実TCPによる部分更新・timeout・重複送信の拒否・待機再開を確認する。
+Rust側でnative codec由来のpacket fixtureを照合した。Javaのnative codec検証と
+Minecraft実サーバーでのサバイバル操作は、この統合環境では再実行していない。
+ログは`.local/integration-validation/survival-merge/`へ保存する。
+
+採用検証の対象はこの追加を含むdevelopの新しい固定commitへ更新する。
+旧`ab726cb`の確認結果だけでは新しいcommitの採用検証を完了したとは扱わない。
+各利用プロジェクト側で移行・検証し、同一commitの結果が揃ってからmainへ統合する。

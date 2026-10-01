@@ -72,9 +72,18 @@ Window Itemsで確定したplayer slot offsetを保持し、部分更新でinven
 
 ## DustRouteから
 
-`Client`、`ConnectionConfig`、`MinecraftVersion`、1.21.11の公開APIは維持します。
+`Client`、`ConnectionConfig`、`MinecraftVersion`、既存の1.21.11操作メソッドは維持します。
 vendorの内容をdevelopの固定commitで置き換えるか、同じcommitをGit dependencyの`rev`へ指定します。
 Cargo.lockも更新し、`voxrig` feature付きのbridge・operation・recording試験を行います。
+
+1.21.11の`Inventory`はscreen revision・cursor・pending swapを含むようになり、
+内部のslot sequenceをprivate fieldとして保持します。利用側のfixtureで直接struct literalを
+構築していた場合は`Inventory::default()`を作り、必要な公開fieldを後から設定してください。
+通常は操作APIから受信済みsnapshotを取得します。
+
+サバイバルの在庫交換は`swap_player_hotbar`へ送信し、その送信記録を
+`wait_inventory_swap`へ渡します。timeoutや取消の後も送信を繰り返さず、
+同じ接続の読出し待機を再開して両slotの新しい受信を確認します。
 
 ## 採用検証
 
