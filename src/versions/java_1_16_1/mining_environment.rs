@@ -118,9 +118,8 @@ mod tests {
     #[test]
     fn water_registry_preserves_flowing_and_waterlogged_states() {
         let states: Vec<_> = (0..20000)
-            .filter_map(|s| {
-                (crate::block_name_from_state(s) == Some("water")).then(|| water_amount(s).unwrap())
-            })
+            .filter(|s| crate::block_name_from_state(*s) == Some("water"))
+            .map(|s| water_amount(s).unwrap())
             .collect();
         assert!(states.contains(&1));
         assert!(states.contains(&8));

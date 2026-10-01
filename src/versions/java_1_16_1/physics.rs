@@ -284,7 +284,7 @@ pub(crate) struct PhysicsTracker {
 /// include the approved R9 limits so a p99 below a limit is never rounded up
 /// merely because it fell into a broad logarithmic bucket. `max` remains
 /// exact, while p99 is the conservative upper bound of its bucket.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 struct DurationHistogram {
     counts: [u64; 24],
     count: u64,
@@ -318,17 +318,6 @@ const HISTOGRAM_UPPER_BOUNDS: [u64; 24] = [
     1_000_000,
     u64::MAX,
 ];
-
-impl Default for DurationHistogram {
-    fn default() -> Self {
-        Self {
-            counts: [0; 24],
-            count: 0,
-            max: 0,
-            overflowed: false,
-        }
-    }
-}
 
 impl DurationHistogram {
     fn record(&mut self, value: Duration) {

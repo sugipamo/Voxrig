@@ -50,13 +50,12 @@ async fn main() -> Result<()> {
             y: 4,
             z: 0,
             state_id,
-        } = event
-            && placed
-            && state_id != 0
-        {
-            println!("PLACED state_id={state_id}");
-            manager.disconnect_all().await?;
-            return Ok(());
+        } = event {
+            if placed && state_id != 0 {
+                println!("PLACED state_id={state_id}");
+                manager.disconnect_all().await?;
+                return Ok(());
+            }
         }
     }
     anyhow::bail!("place sequence timed out")

@@ -7,8 +7,9 @@
 //! memory, or an AI runtime. Those belong in a consumer crate.
 //!
 //! The established `Bot` API targets Java 1.16.1 (736). [`Client`] also offers a
-//! limited Java 1.21.11 (774) adapter for native block observations, packet traces
-//! and use-on-block interactions. [`Client::observe_client_region`] additionally
+//! Java 1.21.11 (774) adapter for native block observations, packet traces,
+//! outline targeting, creative inventory and block operations, and direct movement.
+//! [`Client::observe_client_region`] additionally
 //! reconstructs a bounded set of piston and neighbor effects, including independent
 //! moving carriers, while preserving the unchanged received-state view.
 //! Neither adapter's local cache is independent confirmation of server state.

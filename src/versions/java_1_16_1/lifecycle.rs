@@ -345,6 +345,8 @@ pub(crate) fn emit_dig_lifecycle(make_value: impl FnOnce() -> serde_json::Value)
     if std::env::var_os("VOXRIG_TRACE_OPERATIONS").is_none() {
         return;
     }
+    // Atomic::try_update is unavailable on our Rust 1.85 MSRV.
+    #[allow(deprecated)]
     let emitted = EMITTED.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
         (value < 4096).then_some(value + 1)
     });

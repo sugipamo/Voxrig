@@ -9,11 +9,27 @@ cargo test --doc
 cargo clippy --all-targets -- -D warnings
 ```
 
+メモリが限られる環境では、Cargoと利用側プロジェクトのビルドを同時に実行せず、
+各コマンドの終了を確認してから次へ進みます。ビルドの並列数とテストのスレッド数も制限します。
+
+```bash
+export CARGO_BUILD_JOBS=1
+cargo fmt --all -- --check
+cargo test --locked --all-targets -j1 -- --test-threads=1
+cargo test --locked --doc -j1
+cargo clippy --locked --all-targets -j1 -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps -j1
+cargo +1.85.0 check --locked --all-targets -j1
+```
+
 配布packageの内容と、展開後にcompileできることは次で確認します。
 
 ```bash
 cargo package --allow-dirty
 ```
+
+上記の制限を使う場合はpackage検証にも`-j1`を指定します。
+統合検証のログはGit管理外の`.local/integration-validation/`へ保存します。
 
 ## Testの種類
 

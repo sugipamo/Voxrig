@@ -454,6 +454,8 @@ impl Operations {
         }
         Ok(())
     }
+    // Atomic::try_update is unavailable on our Rust 1.85 MSRV.
+    #[allow(deprecated)]
     fn next_sequence(&self) -> Result<i32> {
         self.bot
             .session

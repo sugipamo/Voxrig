@@ -147,15 +147,14 @@ fn support_surface_from_shapes(shapes: &[RelativeAabb]) -> Option<BlockSupportSu
     }
     let rectangles = shapes
         .iter()
-        .filter_map(|shape| {
-            (shape.0[1] < 1.0 && shape.0[4] == 1.0).then(|| {
-                (
-                    shape.0[0].clamp(0.0, 1.0),
-                    shape.0[3].clamp(0.0, 1.0),
-                    shape.0[2].clamp(0.0, 1.0),
-                    shape.0[5].clamp(0.0, 1.0),
-                )
-            })
+        .filter(|shape| shape.0[1] < 1.0 && shape.0[4] == 1.0)
+        .map(|shape| {
+            (
+                shape.0[0].clamp(0.0, 1.0),
+                shape.0[3].clamp(0.0, 1.0),
+                shape.0[2].clamp(0.0, 1.0),
+                shape.0[5].clamp(0.0, 1.0),
+            )
         })
         .filter(|(min_x, max_x, min_z, max_z)| min_x < max_x && min_z < max_z)
         .collect::<Vec<_>>();

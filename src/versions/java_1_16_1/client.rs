@@ -1054,6 +1054,8 @@ impl Drop for Bot {
 }
 
 impl Bot {
+    // Atomic::try_update is unavailable on our Rust 1.85 MSRV.
+    #[allow(deprecated)]
     fn advance_block_geometry_revision(&self) {
         self.block_geometry_revision
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |revision| {
@@ -1602,7 +1604,7 @@ impl Bot {
                     .await
                 {
                     Ok(transaction) => transaction,
-                    Err(error) => return Err(error.into()),
+                    Err(error) => return Err(error),
                 };
                 drop(coherent_state);
                 let outcome = transaction.wait().await;
@@ -4036,6 +4038,8 @@ impl Bot {
         }
     }
 
+    // Atomic::try_update is unavailable on our Rust 1.85 MSRV.
+    #[allow(deprecated)]
     async fn control_loop(&self) {
         if self.wait_until_ready().await.is_err() {
             return;
@@ -8314,11 +8318,9 @@ mod tests {
                 entity_radius: 0.0,
                 max_entities: 0,
                 max_events: 0,
-                ..CoherentObservationRequest::default()
             })
             .await
             .unwrap();
-        assert_eq!(observation.interest.cells.len(), 1);
         assert_eq!(observation.interest.cells.len(), 1);
         assert_eq!(
             observation.interest.cells[0].light,

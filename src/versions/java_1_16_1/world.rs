@@ -15,9 +15,11 @@ use std::{
     sync::{Arc, Mutex as StdMutex, OnceLock, Weak},
 };
 
+type ChunkResourceIndex = HashMap<i32, BTreeSet<(i32, i32, i32)>>;
+
 pub(crate) struct World {
     chunks: HashMap<(i32, i32), Chunk>,
-    resource_index: HashMap<(i32, i32), HashMap<i32, BTreeSet<(i32, i32, i32)>>>,
+    resource_index: HashMap<(i32, i32), ChunkResourceIndex>,
     resource_index_entries: usize,
     resource_index_incomplete_chunks: BTreeSet<(i32, i32)>,
     storage: Arc<SharedChunkStorage>,
