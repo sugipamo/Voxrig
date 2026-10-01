@@ -1,7 +1,7 @@
 # Third-party notices
 
-Voxrig includes generated registry data and test fixtures derived from the
-following open-source projects. The Voxrig MIT license does not replace their
+zen-minecraft-client includes generated registry data and test fixtures derived from the
+following open-source projects. The zen-minecraft-client MIT license does not replace their
 notices. Exact npm versions and registry integrity digests are recorded in
 `reference/package-lock.json`.
 
@@ -47,7 +47,7 @@ Source: <https://github.com/PrismarineJS/prismarine-block/tree/1.23.0>
 
 `prismarine-block` was used by `reference/generate_fixtures.js` to construct
 blocks supplied to the reference physics implementation. No
-`prismarine-block` source code is embedded in Voxrig. The exact npm package
+`prismarine-block` source code is embedded in zen-minecraft-client. The exact npm package
 contains no standalone license file; its package metadata names
 `Romain Beaumont <romain.rom1@gmail.com>` as author and declares MIT.
 
@@ -103,3 +103,30 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+The minecraft-data notice above also covers data/enchantments.json.
+It uses the package dataPaths mapping for PC 1.16.1 to PC 1.13.2 shared
+definitions. Exact path, package integrity and file SHA256 are recorded
+in data/enchantments-source.json.
+
+## Java 1.16.1 mining tool gate corrections v1
+
+`data/harvest_gate_corrections.json` records name-based corrections to the
+upstream `harvestTools` gate. The original upstream JSON files remain unchanged.
+The manifest pins their SHA256 hashes and every corrected row's original names.
+The loader rejects different source data, version, names or preimages.
+
+Evidence: official Minecraft Java 1.16.1 server SHA1
+`a412fd69db1f81db3f511c1463fd304675244077`, with official server mappings SHA1
+`11120c39da4df293c4bd020896391fb9ddd6c2ba`.
+The verification probe enumerated registered block states and called
+`requiresCorrectToolForDrops` and `Item.isCorrectToolForDrops` directly.
+The probe and audit are retained in the consuming zen repository as
+`tools/C17HarvestOracle.java` and `docs/analysis/C17_HARVEST_LOOT_AUDIT.md`.
+
+These corrections describe only the mining tool gate. They do not guarantee a
+loot item, replace loot tables, change mining speed, or make unbreakable blocks
+breakable. Silk Touch, block-state conditions and special destruction behavior
+remain separate. Descriptor revision 3 distinguishes these effective definitions
+from the original registry. Upstream PR #407 is background evidence of the
+netherite additions, not the authority used to infer corrected tool membership.

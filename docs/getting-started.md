@@ -15,14 +15,14 @@ offline-modeとは認証を省略したMinecraft serverへ接続するという�
 
 ```toml
 [dependencies]
-voxrig = { path = "../mc" }
+zen-minecraft-client = { path = "../mc" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
 ```
 
 ## 1 Botを接続する
 
 ```rust,no_run
-use voxrig::prelude::*;
+use zen_minecraft_client::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {

@@ -1,0 +1,5901 @@
+{
+  "status": "verified_tool_gate_corrections",
+  "minecraft_version": "1.16.1",
+  "upstream": "minecraft-data npm 3.114.0 / pc/1.16.1",
+  "source_sha256": {
+    "blocks.json": "9955a271f507cf8d8d47b3d52c52137539dd5f70171353870f7cb0b72f6e41a0",
+    "items.json": "94132023a25ffbe5410c186a263dce79a3e6f469f196e2978778e9a129a69021",
+    "materials.json": "64172813642aae7c05321fe36136a37b2f98845732541e025d296628a7944b1f"
+  },
+  "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+  "oracle_sha256": "5e6992001b2522de4e6158395a446bb402f366175c770800dbfd9898c7098509",
+  "rows": [
+    {
+      "block": "stone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/stone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "granite",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/granite",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "polished_granite",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/polished_granite",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "diorite",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/diorite",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "polished_diorite",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/polished_diorite",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "andesite",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/andesite",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "polished_andesite",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/polished_andesite",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "cobblestone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/cobblestone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "gold_ore",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/gold_ore",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "iron_ore",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe",
+        "stone_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/iron_ore",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "coal_ore",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/coal_ore",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "nether_gold_ore",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/nether_gold_ore",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "lapis_ore",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe",
+        "stone_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/lapis_ore",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "lapis_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe",
+        "stone_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/lapis_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dispenser",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/dispenser",
+      "states_checked": 12,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "sandstone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/sandstone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "chiseled_sandstone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/chiseled_sandstone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "cut_sandstone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/cut_sandstone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "cobweb",
+      "expected_tools": [
+        "diamond_sword",
+        "golden_sword",
+        "iron_sword",
+        "shears",
+        "stone_sword",
+        "wooden_sword"
+      ],
+      "corrected_gate_tools": [
+        "diamond_sword",
+        "golden_sword",
+        "iron_sword",
+        "netherite_sword",
+        "shears",
+        "stone_sword",
+        "wooden_sword"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/cobweb",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "gold_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/gold_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "iron_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe",
+        "stone_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/iron_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "bricks",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/bricks",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "mossy_cobblestone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/mossy_cobblestone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "obsidian",
+      "expected_tools": [
+        "diamond_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "netherite_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/obsidian",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "spawner",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/spawner",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "diamond_ore",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/diamond_ore",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "diamond_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/diamond_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "furnace",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/furnace",
+      "states_checked": 8,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "cobblestone_stairs",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/cobblestone_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "stone_pressure_plate",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/stone_pressure_plate",
+      "states_checked": 2,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "iron_door",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/iron_door",
+      "states_checked": 64,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "redstone_ore",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/redstone_ore",
+      "states_checked": 2,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "snow",
+      "expected_tools": [
+        "diamond_shovel",
+        "golden_shovel",
+        "iron_shovel",
+        "netherite_pickaxe",
+        "stone_shovel",
+        "wooden_shovel"
+      ],
+      "corrected_gate_tools": [
+        "diamond_shovel",
+        "golden_shovel",
+        "iron_shovel",
+        "netherite_shovel",
+        "stone_shovel",
+        "wooden_shovel"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/snow",
+      "states_checked": 8,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "snow_block",
+      "expected_tools": [
+        "diamond_shovel",
+        "golden_shovel",
+        "iron_shovel",
+        "netherite_pickaxe",
+        "stone_shovel",
+        "wooden_shovel"
+      ],
+      "corrected_gate_tools": [
+        "diamond_shovel",
+        "golden_shovel",
+        "iron_shovel",
+        "netherite_shovel",
+        "stone_shovel",
+        "wooden_shovel"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/snow_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "netherrack",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/netherrack",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "basalt",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/basalt",
+      "states_checked": 3,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "polished_basalt",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/polished_basalt",
+      "states_checked": 3,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "stone_bricks",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/stone_bricks",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "mossy_stone_bricks",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/mossy_stone_bricks",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "cracked_stone_bricks",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/cracked_stone_bricks",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "chiseled_stone_bricks",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/chiseled_stone_bricks",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "infested_stone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": null,
+      "classification": "silk_touch_and_code_side_effect",
+      "loot_table": "minecraft:blocks/infested_stone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "infested_cobblestone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": null,
+      "classification": "silk_touch_and_code_side_effect",
+      "loot_table": "minecraft:blocks/infested_cobblestone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "infested_stone_bricks",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": null,
+      "classification": "silk_touch_and_code_side_effect",
+      "loot_table": "minecraft:blocks/infested_stone_bricks",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "infested_mossy_stone_bricks",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": null,
+      "classification": "silk_touch_and_code_side_effect",
+      "loot_table": "minecraft:blocks/infested_mossy_stone_bricks",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "infested_cracked_stone_bricks",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": null,
+      "classification": "silk_touch_and_code_side_effect",
+      "loot_table": "minecraft:blocks/infested_cracked_stone_bricks",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "infested_chiseled_stone_bricks",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": null,
+      "classification": "silk_touch_and_code_side_effect",
+      "loot_table": "minecraft:blocks/infested_chiseled_stone_bricks",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "iron_bars",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/iron_bars",
+      "states_checked": 32,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "chain",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/chain",
+      "states_checked": 2,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "brick_stairs",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/brick_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "stone_brick_stairs",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/stone_brick_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "nether_bricks",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/nether_bricks",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "nether_brick_fence",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/nether_brick_fence",
+      "states_checked": 32,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "nether_brick_stairs",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/nether_brick_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "enchanting_table",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/enchanting_table",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "brewing_stand",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/brewing_stand",
+      "states_checked": 8,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "cauldron",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/cauldron",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "end_stone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/end_stone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "sandstone_stairs",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/sandstone_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "emerald_ore",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/emerald_ore",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "ender_chest",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/ender_chest",
+      "states_checked": 8,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "emerald_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/emerald_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "command_block",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "empty_loot_special_block",
+      "loot_table": "minecraft:empty",
+      "states_checked": 12,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "cobblestone_wall",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/cobblestone_wall",
+      "states_checked": 324,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "mossy_cobblestone_wall",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/mossy_cobblestone_wall",
+      "states_checked": 324,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "anvil",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/anvil",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "chipped_anvil",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/chipped_anvil",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "damaged_anvil",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/damaged_anvil",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "light_weighted_pressure_plate",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/light_weighted_pressure_plate",
+      "states_checked": 16,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "heavy_weighted_pressure_plate",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/heavy_weighted_pressure_plate",
+      "states_checked": 16,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "redstone_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/redstone_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "nether_quartz_ore",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/nether_quartz_ore",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "hopper",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/hopper",
+      "states_checked": 10,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "quartz_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/quartz_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "chiseled_quartz_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/chiseled_quartz_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "quartz_pillar",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/quartz_pillar",
+      "states_checked": 3,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "quartz_stairs",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/quartz_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dropper",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/dropper",
+      "states_checked": 12,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "white_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/white_terracotta",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "orange_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/orange_terracotta",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "magenta_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/magenta_terracotta",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "light_blue_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/light_blue_terracotta",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "yellow_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/yellow_terracotta",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "lime_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/lime_terracotta",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "pink_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/pink_terracotta",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "gray_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/gray_terracotta",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "light_gray_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/light_gray_terracotta",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "cyan_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/cyan_terracotta",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "purple_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/purple_terracotta",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "blue_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/blue_terracotta",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "brown_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/brown_terracotta",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "green_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/green_terracotta",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "red_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/red_terracotta",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "black_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/black_terracotta",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "iron_trapdoor",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/iron_trapdoor",
+      "states_checked": 64,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "prismarine",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/prismarine",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "prismarine_bricks",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/prismarine_bricks",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dark_prismarine",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/dark_prismarine",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "prismarine_stairs",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/prismarine_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "prismarine_brick_stairs",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/prismarine_brick_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dark_prismarine_stairs",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/dark_prismarine_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "prismarine_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/prismarine_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "prismarine_brick_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/prismarine_brick_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dark_prismarine_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/dark_prismarine_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/terracotta",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "coal_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/coal_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "peony",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": null,
+      "classification": "state_conditioned_loot",
+      "loot_table": "minecraft:blocks/peony",
+      "states_checked": 2,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "red_sandstone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/red_sandstone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "chiseled_red_sandstone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/chiseled_red_sandstone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "cut_red_sandstone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/cut_red_sandstone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "red_sandstone_stairs",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/red_sandstone_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "oak_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": null,
+      "classification": "state_conditioned_loot",
+      "loot_table": "minecraft:blocks/oak_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "spruce_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": null,
+      "classification": "state_conditioned_loot",
+      "loot_table": "minecraft:blocks/spruce_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "birch_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": null,
+      "classification": "state_conditioned_loot",
+      "loot_table": "minecraft:blocks/birch_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "jungle_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": null,
+      "classification": "state_conditioned_loot",
+      "loot_table": "minecraft:blocks/jungle_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "acacia_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": null,
+      "classification": "state_conditioned_loot",
+      "loot_table": "minecraft:blocks/acacia_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dark_oak_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": null,
+      "classification": "state_conditioned_loot",
+      "loot_table": "minecraft:blocks/dark_oak_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "stone_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/stone_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "smooth_stone_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/smooth_stone_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "sandstone_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/sandstone_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "cut_sandstone_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/cut_sandstone_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "petrified_oak_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/petrified_oak_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "cobblestone_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/cobblestone_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "brick_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/brick_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "stone_brick_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/stone_brick_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "nether_brick_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/nether_brick_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "quartz_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/quartz_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "red_sandstone_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/red_sandstone_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "cut_red_sandstone_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/cut_red_sandstone_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "purpur_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/purpur_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "smooth_stone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/smooth_stone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "smooth_sandstone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/smooth_sandstone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "smooth_quartz",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/smooth_quartz",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "smooth_red_sandstone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/smooth_red_sandstone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "purpur_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/purpur_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "purpur_pillar",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/purpur_pillar",
+      "states_checked": 3,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "purpur_stairs",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/purpur_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "end_stone_bricks",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/end_stone_bricks",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "repeating_command_block",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "empty_loot_special_block",
+      "loot_table": "minecraft:empty",
+      "states_checked": 12,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "chain_command_block",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "empty_loot_special_block",
+      "loot_table": "minecraft:empty",
+      "states_checked": 12,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "magma_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/magma_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "red_nether_bricks",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/red_nether_bricks",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "bone_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/bone_block",
+      "states_checked": 3,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "observer",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/observer",
+      "states_checked": 12,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "white_glazed_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/white_glazed_terracotta",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "orange_glazed_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/orange_glazed_terracotta",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "magenta_glazed_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/magenta_glazed_terracotta",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "light_blue_glazed_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/light_blue_glazed_terracotta",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "yellow_glazed_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/yellow_glazed_terracotta",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "lime_glazed_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/lime_glazed_terracotta",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "pink_glazed_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/pink_glazed_terracotta",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "gray_glazed_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/gray_glazed_terracotta",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "light_gray_glazed_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/light_gray_glazed_terracotta",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "cyan_glazed_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/cyan_glazed_terracotta",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "purple_glazed_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/purple_glazed_terracotta",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "blue_glazed_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/blue_glazed_terracotta",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "brown_glazed_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/brown_glazed_terracotta",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "green_glazed_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/green_glazed_terracotta",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "red_glazed_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/red_glazed_terracotta",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "black_glazed_terracotta",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/black_glazed_terracotta",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "white_concrete",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/white_concrete",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "orange_concrete",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/orange_concrete",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "magenta_concrete",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/magenta_concrete",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "light_blue_concrete",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/light_blue_concrete",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "yellow_concrete",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/yellow_concrete",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "lime_concrete",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/lime_concrete",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "pink_concrete",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/pink_concrete",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "gray_concrete",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/gray_concrete",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "light_gray_concrete",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/light_gray_concrete",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "cyan_concrete",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/cyan_concrete",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "purple_concrete",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/purple_concrete",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "blue_concrete",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/blue_concrete",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "brown_concrete",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/brown_concrete",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "green_concrete",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/green_concrete",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "red_concrete",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/red_concrete",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "black_concrete",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/black_concrete",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_tube_coral_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/dead_tube_coral_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_brain_coral_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/dead_brain_coral_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_bubble_coral_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/dead_bubble_coral_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_fire_coral_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/dead_fire_coral_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_horn_coral_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/dead_horn_coral_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "tube_coral_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/tube_coral_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "brain_coral_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/brain_coral_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "bubble_coral_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/bubble_coral_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "fire_coral_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/fire_coral_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "horn_coral_block",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/horn_coral_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_tube_coral",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_conditioned_loot",
+      "loot_table": "minecraft:blocks/dead_tube_coral",
+      "states_checked": 2,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_brain_coral",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_conditioned_loot",
+      "loot_table": "minecraft:blocks/dead_brain_coral",
+      "states_checked": 2,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_bubble_coral",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_conditioned_loot",
+      "loot_table": "minecraft:blocks/dead_bubble_coral",
+      "states_checked": 2,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_fire_coral",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_conditioned_loot",
+      "loot_table": "minecraft:blocks/dead_fire_coral",
+      "states_checked": 2,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_horn_coral",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_conditioned_loot",
+      "loot_table": "minecraft:blocks/dead_horn_coral",
+      "states_checked": 2,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_tube_coral_fan",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_conditioned_loot",
+      "loot_table": "minecraft:blocks/dead_tube_coral_fan",
+      "states_checked": 2,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_brain_coral_fan",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_conditioned_loot",
+      "loot_table": "minecraft:blocks/dead_brain_coral_fan",
+      "states_checked": 2,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_bubble_coral_fan",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_conditioned_loot",
+      "loot_table": "minecraft:blocks/dead_bubble_coral_fan",
+      "states_checked": 2,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_fire_coral_fan",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_conditioned_loot",
+      "loot_table": "minecraft:blocks/dead_fire_coral_fan",
+      "states_checked": 2,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_horn_coral_fan",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_conditioned_loot",
+      "loot_table": "minecraft:blocks/dead_horn_coral_fan",
+      "states_checked": 2,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_tube_coral_wall_fan",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_conditioned_loot",
+      "loot_table": "minecraft:blocks/dead_tube_coral_fan",
+      "states_checked": 8,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_brain_coral_wall_fan",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_conditioned_loot",
+      "loot_table": "minecraft:blocks/dead_brain_coral_fan",
+      "states_checked": 8,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_bubble_coral_wall_fan",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_conditioned_loot",
+      "loot_table": "minecraft:blocks/dead_bubble_coral_fan",
+      "states_checked": 8,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_fire_coral_wall_fan",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_conditioned_loot",
+      "loot_table": "minecraft:blocks/dead_fire_coral_fan",
+      "states_checked": 8,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "dead_horn_coral_wall_fan",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_conditioned_loot",
+      "loot_table": "minecraft:blocks/dead_horn_coral_fan",
+      "states_checked": 8,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "polished_granite_stairs",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/polished_granite_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "smooth_red_sandstone_stairs",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/smooth_red_sandstone_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "mossy_stone_brick_stairs",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/mossy_stone_brick_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "polished_diorite_stairs",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/polished_diorite_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "mossy_cobblestone_stairs",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/mossy_cobblestone_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "end_stone_brick_stairs",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/end_stone_brick_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "stone_stairs",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/stone_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "smooth_sandstone_stairs",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/smooth_sandstone_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "smooth_quartz_stairs",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/smooth_quartz_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "granite_stairs",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/granite_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "andesite_stairs",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/andesite_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "red_nether_brick_stairs",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/red_nether_brick_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "polished_andesite_stairs",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/polished_andesite_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "diorite_stairs",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/diorite_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "polished_granite_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/polished_granite_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "smooth_red_sandstone_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/smooth_red_sandstone_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "mossy_stone_brick_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/mossy_stone_brick_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "polished_diorite_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/polished_diorite_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "mossy_cobblestone_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/mossy_cobblestone_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "end_stone_brick_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/end_stone_brick_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "smooth_sandstone_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/smooth_sandstone_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "smooth_quartz_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/smooth_quartz_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "granite_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/granite_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "andesite_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/andesite_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "red_nether_brick_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/red_nether_brick_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "polished_andesite_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/polished_andesite_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "diorite_slab",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/diorite_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "brick_wall",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/brick_wall",
+      "states_checked": 324,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "prismarine_wall",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/prismarine_wall",
+      "states_checked": 324,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "red_sandstone_wall",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/red_sandstone_wall",
+      "states_checked": 324,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "mossy_stone_brick_wall",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/mossy_stone_brick_wall",
+      "states_checked": 324,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "granite_wall",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/granite_wall",
+      "states_checked": 324,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "stone_brick_wall",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/stone_brick_wall",
+      "states_checked": 324,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "nether_brick_wall",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/nether_brick_wall",
+      "states_checked": 324,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "andesite_wall",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/andesite_wall",
+      "states_checked": 324,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "red_nether_brick_wall",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/red_nether_brick_wall",
+      "states_checked": 324,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "sandstone_wall",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/sandstone_wall",
+      "states_checked": 324,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "end_stone_brick_wall",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/end_stone_brick_wall",
+      "states_checked": 324,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "diorite_wall",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/diorite_wall",
+      "states_checked": 324,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "smoker",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/smoker",
+      "states_checked": 8,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "blast_furnace",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/blast_furnace",
+      "states_checked": 8,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "grindstone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/grindstone",
+      "states_checked": 12,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "stonecutter",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/stonecutter",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "bell",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/bell",
+      "states_checked": 32,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "lantern",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/lantern",
+      "states_checked": 2,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "soul_lantern",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/soul_lantern",
+      "states_checked": 2,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "warped_nylium",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/warped_nylium",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "warped_wart_block",
+      "expected_tools": [],
+      "corrected_gate_tools": null,
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/warped_wart_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "crimson_nylium",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/crimson_nylium",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "shroomlight",
+      "expected_tools": [],
+      "corrected_gate_tools": null,
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/shroomlight",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "crimson_pressure_plate",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": null,
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/crimson_pressure_plate",
+      "states_checked": 2,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "warped_pressure_plate",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": null,
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/warped_pressure_plate",
+      "states_checked": 2,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "structure_block",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "empty_loot_special_block",
+      "loot_table": "minecraft:empty",
+      "states_checked": 4,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "jigsaw",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "empty_loot_special_block",
+      "loot_table": "minecraft:empty",
+      "states_checked": 12,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "target",
+      "expected_tools": [],
+      "corrected_gate_tools": null,
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/target",
+      "states_checked": 16,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "netherite_block",
+      "expected_tools": [
+        "diamond_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "netherite_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/netherite_block",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "ancient_debris",
+      "expected_tools": [
+        "diamond_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "netherite_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/ancient_debris",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "crying_obsidian",
+      "expected_tools": [
+        "diamond_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "netherite_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/crying_obsidian",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "respawn_anchor",
+      "expected_tools": [
+        "diamond_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "netherite_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/respawn_anchor",
+      "states_checked": 5,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "lodestone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/lodestone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "blackstone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/blackstone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "blackstone_stairs",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/blackstone_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "blackstone_wall",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/blackstone_wall",
+      "states_checked": 324,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "blackstone_slab",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "state_conditioned_loot",
+      "loot_table": "minecraft:blocks/blackstone_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "polished_blackstone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/polished_blackstone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "polished_blackstone_bricks",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/polished_blackstone_bricks",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "cracked_polished_blackstone_bricks",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/cracked_polished_blackstone_bricks",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "chiseled_polished_blackstone",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/chiseled_polished_blackstone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "polished_blackstone_brick_slab",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "state_conditioned_loot",
+      "loot_table": "minecraft:blocks/polished_blackstone_brick_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "polished_blackstone_brick_stairs",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/polished_blackstone_brick_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "polished_blackstone_brick_wall",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/polished_blackstone_brick_wall",
+      "states_checked": 324,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "gilded_blackstone",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/gilded_blackstone",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "polished_blackstone_stairs",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "ordinary_loot_gate_correction_candidate",
+      "loot_table": "minecraft:blocks/polished_blackstone_stairs",
+      "states_checked": 80,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "polished_blackstone_slab",
+      "expected_tools": null,
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "state_conditioned_loot",
+      "loot_table": "minecraft:blocks/polished_blackstone_slab",
+      "states_checked": 6,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "polished_blackstone_pressure_plate",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/polished_blackstone_pressure_plate",
+      "states_checked": 2,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "polished_blackstone_wall",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/polished_blackstone_wall",
+      "states_checked": 324,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "chiseled_nether_bricks",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/chiseled_nether_bricks",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "cracked_nether_bricks",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/cracked_nether_bricks",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    },
+    {
+      "block": "quartz_bricks",
+      "expected_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_axe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "corrected_gate_tools": [
+        "diamond_pickaxe",
+        "golden_pickaxe",
+        "iron_pickaxe",
+        "netherite_pickaxe",
+        "stone_pickaxe",
+        "wooden_pickaxe"
+      ],
+      "classification": "tool_membership_difference",
+      "loot_table": "minecraft:blocks/quartz_bricks",
+      "states_checked": 1,
+      "scope": "mining tool gate only; not a promise of loot"
+    }
+  ],
+  "correction_version": "java-1.16.1/harvest-gate-v1"
+}

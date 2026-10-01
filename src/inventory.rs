@@ -30,13 +30,16 @@ pub struct InventoryState {
     pub selected_hotbar: u8,
     /// The `open_window` value.
     pub open_window: Option<OpenWindow>,
+    /// Latest actor-ordered server transaction acknowledgement.
+    pub last_transaction: Option<WindowTransaction>,
     /// The `properties` value.
     pub properties: HashMap<(i8, i16), i16>,
-    /// The `pending_clicks` value.
+    /// Compatibility click-prediction metadata awaiting packet application.
+    /// Transaction identity, acknowledgement, and deadline ownership belong
+    /// to the connection actor rather than this state snapshot.
     pub pending_clicks: HashMap<(i8, i16), PendingClick>,
     /// The `merchant_offers` value.
     pub merchant_offers: Option<MerchantOffers>,
-    pub(crate) next_actions: HashMap<i8, i16>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -149,6 +152,8 @@ pub struct PendingClick {
     pub slot_before: Option<ItemStack>,
     /// The `cursor_before` value.
     pub cursor_before: Option<ItemStack>,
+    /// Body-authored accepted cache effect carried by this pending click.
+    pub accepted_cache_effects: crate::CraftAcceptedCacheEffects,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -160,6 +165,8 @@ pub struct WindowTransaction {
     pub action: i16,
     /// The `accepted` value.
     pub accepted: bool,
+    /// Connection-local inbound packet ordering fact.
+    pub packet_sequence: u64,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -203,6 +210,8 @@ pub struct SlotUpdate {
     pub slot: i16,
     /// The `item` value.
     pub item: Option<ItemStack>,
+    /// Connection-local inbound packet ordering fact.
+    pub packet_sequence: u64,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -214,6 +223,10 @@ pub struct ItemCollected {
     pub collector_entity_id: i32,
     /// The `count` value.
     pub count: i32,
+    /// Connection-local inbound packet ordering fact.
+    pub packet_sequence: u64,
+    /// Item name available from the collected entity metadata at packet time.
+    pub collected_item_name: Option<&'static str>,
 }
 
 pub(crate) fn read_slot(input: &mut &[u8]) -> Result<Option<ItemStack>> {
@@ -336,6 +349,7 @@ pub(crate) fn parse_set_slot(payload: &[u8]) -> Result<SlotUpdate> {
         window_id,
         slot,
         item: read_slot(&mut rest)?,
+        packet_sequence: 0,
     })
 }
 
@@ -543,6 +557,7 @@ mod tests {
                     count: 1,
                     nbt: None,
                 }),
+                packet_sequence: 0,
             },
         )
         .unwrap();

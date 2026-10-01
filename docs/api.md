@@ -7,13 +7,13 @@
 基本操作ではpreludeを利用できます。
 
 ```rust
-use voxrig::prelude::*;
+use zen_minecraft_client::prelude::*;
 ```
 
 規模の大きな利用側では、用途別moduleから明示的にimportできます。
 
 ```rust
-use voxrig::{
+use zen_minecraft_client::{
     client::{Bot, Event},
     entity::EntityState,
     inventory::InventoryState,
@@ -54,6 +54,7 @@ crate rootのre-exportと用途別moduleは同一の型を参照します。
 - `get(username)`：usernameからBot handleを取得
 - `usernames()`：管理中のusername一覧
 - `physics_metrics()`：Botごとの物理計測値
+- `begin_measurement_epoch()`：R9等の外部計測境界で、物理状態を変えず診断累積器だけを基準化するtyped epochを開始
 - `chunk_storage_stats()`：Bot間で共有中のchunk section buffer数
 - `subscribe()`：`BotEvent { username, event }`を購読
 - `disconnect(username)`、`disconnect_all()`：切断
@@ -81,7 +82,7 @@ crate rootのre-exportと用途別moduleは同一の型を参照します。
 | `motion()` | 速度と移動状態 |
 | `environment_state()` | fluid、眼の水没、climbable、特殊接触、足元block |
 | `survival_state()` | health、food、経験値、時間、天候、effect、attribute、dimension |
-| `inventory()` | player/window slot、cursor、property、pending transaction |
+| `inventory()` | player/window slot、cursor、property、click prediction metadata |
 | `open_window_state()` | 現在開いているwindow |
 | `block(x, y, z)` | 読み込み済み座標のblock state |
 | `observe(radius)` | プレイヤー周囲のblock cube |
@@ -91,6 +92,8 @@ crate rootのre-exportと用途別moduleは同一の型を参照します。
 | `wait_for_chunks(center, radius, timeout)` | 正方形範囲の全chunk受信待機 |
 | `query_blocks(region, state_ids, limit)` | 意味判断を含まないstate ID範囲検索 |
 | `raycast_blocks(direction, distance)` | 目の位置から実collision shapeへraycast |
+| `block_collision_shapes(state_id)` | 既知stateのraw collision boxを取得（経路選択なし） |
+| `capture_traversal_movement_facts(request)` | Rust Body service向けのgeneration-bound・bounded raw movement snapshot |
 | `targeted_block(distance)` | 現在のyaw/pitchが指す最初のblock |
 | `raycast_entities(direction, distance)` | entity固有bounding boxへのraycast |
 | `targeted_entity(distance)` | block遮蔽を考慮したcrosshair上のentity |
@@ -111,6 +114,7 @@ crate rootのre-exportと用途別moduleは同一の型を参照します。
 | `command_tree_snapshot()`、`tags_snapshot()` | Brigadier command treeとserver registry tags |
 | `server_recipes_snapshot()` | server宣言recipeの材料候補、結果、調理情報 |
 | `physics_metrics()` | movement/server position packet、補正、tick、queue lag、切断の計測 |
+| `begin_measurement_epoch()` | client generationに束縛した診断計測epoch。player／motion／cache／`last_sent`は変更しない |
 
 大きな状態を別層へ転送する場合は、`player_snapshot()`、`survival_snapshot()`、`inventory_snapshot()`、`observe_snapshot()`などのrevision付きAPIを利用できます。revisionが変わっていない領域は再転送する必要がありません。所有権と比較規則は[API契約と所有権](api-contracts.md)を参照してください。
 
@@ -118,6 +122,16 @@ crate rootのre-exportと用途別moduleは同一の型を参照します。
 特定cellの値が変わることを待つ場合は`wait_for_block_change()`を使います。
 
 `block()`の`None`は「空気」ではなく、その座標がlocal chunk cacheで利用できないことを表します。
+
+`capture_traversal_movement_facts()`は、経路選択を行わないRust間の統合境界です。指定generationを
+再確認し、connection actorのcoherent state gate内でplayer、motion、survival（active effectsを含む）、
+window-0 inventory/NBT、entity、block state、exact collision shape、raw registry factsを同じturnから取得します。
+region、entity radius、entity数には上限があり、各blockは`Loaded`、`Unloaded`、`Unknown`を区別します。
+Loaded blockのregistry factには、所属するminecraft-data block typeのraw minimum state ID、material tool-speed map、および`empty`／`block`のraw bounding-box classificationも含まれます。entity factにはregistry width／heightが含まれます。未知またはregistry外の値は`None`であり、clientはphysical／safeを判定しません。
+どちらも解決不能な場合は明示的な`None`として返し、providerは安全側に停止します。
+`safe`、`liquid`、`replaceable`、`climbable`、landingなどの意味判断は返さず、Mineflayer互換のprovider/Body側の
+単一正本に残ります。このAPIはJSON wireや公開Body契約を追加せず、provider parityが完了するまでproduction
+providerには接続しません。
 
 ## 操作
 
@@ -151,7 +165,7 @@ serverからのvehicle poseは`vehicle_pose()`と`VehiclePosition` eventで取�
 - `select_enchantment(option)`、`rename_item(name)`、`set_beacon_effects(...)`
 - `update_sign(position, lines)`、`swap_hands()`
 
-`click_slot()`は送信したtransaction番号を返します。同じwindowでは未確認transactionを一つだけ許可し、採番・予測・送信を直列化します。承認または拒否まで待つ場合は`click_slot_and_wait()`を使います。
+`click_slot()`はactorが採番したtransaction番号を返します。同じwindowでは未確認transactionを一つだけ許可し、connection actorが採番・確認待ち・送信を直列化します。承認または拒否まで待つ場合は`click_slot_and_wait()`を使います。
 
 ### Blockとitem
 
@@ -206,12 +220,12 @@ Sound eventはID、公式名、category、座標またはentity ID、volume、pi
 
 ## Errorとcancel
 
-fallibleな公開操作は`voxrig::Result<T>`を返します。`Error::kind()`は、`InvalidInput`、`Connection`、`Timeout`、`Disconnected`、`Protocol`、`ResourceLimit`、`Rejected`、`State`、`Other`を安定した分類として返します。表示文字列は診断用であり、制御フローには使用しないでください。
+fallibleな公開操作は`zen_minecraft_client::Result<T>`を返します。`Error::kind()`は、`InvalidInput`、`Connection`、`Timeout`、`Disconnected`、`Protocol`、`ResourceLimit`、`Rejected`、`State`、`Other`を安定した分類として返します。表示文字列は診断用であり、制御フローには使用しないでください。
 
 ```rust,no_run
-use voxrig::{ErrorKind, Result};
+use zen_minecraft_client::{ErrorKind, Result};
 
-# async fn run(bot: &voxrig::Bot) -> Result<()> {
+# async fn run(bot: &zen_minecraft_client::Bot) -> Result<()> {
 if let Err(error) = bot.wait_until_ready().await {
     match error.kind() {
         ErrorKind::Timeout | ErrorKind::Connection => {

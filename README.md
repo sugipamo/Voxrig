@@ -1,4 +1,4 @@
-# Voxrig
+# zen-minecraft-client
 
 Minecraft Java Edition 1.16.1（protocol 736、offline-mode）向けのRust製headless clientライブラリです。
 
@@ -6,12 +6,12 @@ Minecraft Java Edition 1.16.1（protocol 736、offline-mode）向けのRust製he
 
 ```toml
 [dependencies]
-voxrig = { path = "../mc" }
+zen-minecraft-client = { path = "../mc" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
 ```rust,no_run
-use voxrig::prelude::*;
+use zen_minecraft_client::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -57,5 +57,5 @@ cargo clippy --all-targets -- -D warnings
 
 ## ライセンス
 
-Voxrigは[MIT License](LICENSE)で提供します。組み込まれたregistry dataと
+zen-minecraft-clientは[MIT License](LICENSE)で提供します。組み込まれたregistry dataと
 fixtureの出典・ライセンスは[Third-party notices](THIRD_PARTY_NOTICES.md)を参照してください。

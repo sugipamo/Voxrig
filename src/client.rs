@@ -3,9 +3,14 @@
 use crate::Result;
 use crate::{
     chat::{ChatMessage, PlayerList, apply_player_info, parse_chat},
+    connection::{
+        ClientConnectionGeneration, ClientOperationClass, ConnectionActor, ConnectionLifecycle,
+        OperationAdmissionError, OperationContext, ProtocolTransaction, TerminalClassification,
+    },
     entity::{
-        EntityState, EntityTracker, apply_relative, parse_metadata, parse_spawn_living,
-        parse_spawn_object, parse_spawn_orb, parse_spawn_painting, parse_spawn_player,
+        EntityState, EntityTracker, MetadataValue, apply_relative, parse_metadata,
+        parse_spawn_living, parse_spawn_object, parse_spawn_orb, parse_spawn_painting,
+        parse_spawn_player,
     },
     interaction::{
         BlockBreakProgress, BlockFace, BlockPos, DiggingAcknowledgement, DiggingStatus, Hand,
@@ -22,6 +27,11 @@ use crate::{
         Aabb, ControlState, MotionState, PhysicsMetrics, PhysicsTracker, PositionCorrection, Vec3,
         VehicleControl, VehiclePose,
     },
+    primitive::{
+        AcknowledgedPrimitive, CleanupDispatchOutcome, CleanupPrimitive, CraftClick,
+        CraftExecution, EquipOperation, FurnaceExecution, PrimitiveDispatchError,
+        PrimitiveDispatchOutcome, PrimitiveOperation, SlotExpectation,
+    },
     progress::{AdvancementState, RecipeBookState, StatisticsState},
     protocol::*,
     server_registry::{
@@ -29,9 +39,9 @@ use crate::{
     },
     snapshot::{Snapshot, Versioned},
     survival::{
-        CombatEvent, Difficulty, Experience, GameStateChange, RespawnState, SurvivalState, Vitals,
-        parse_attributes, parse_combat_event, parse_effect, parse_experience, parse_join,
-        parse_respawn, parse_vitals, unpack_position,
+        Attribute, CombatEvent, Difficulty, Experience, GameStateChange, RespawnState,
+        SurvivalState, Vitals, parse_attributes, parse_combat_event, parse_effect,
+        parse_experience, parse_join, parse_respawn, parse_vitals, unpack_position,
     },
     ui::{UiState, UiUpdateKind},
     world::{BlockObservation, Fluid, World},
@@ -39,15 +49,203 @@ use crate::{
 use anyhow::Context;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::{
+    collections::{HashMap, VecDeque},
     io::Cursor,
     sync::{
-        Arc,
+        Arc, Mutex as StdMutex,
         atomic::{AtomicBool, AtomicI32, AtomicU8, AtomicU64, AtomicUsize, Ordering},
     },
 };
+
+fn slot_matches(item: &ItemStack, expected: &SlotExpectation) -> bool {
+    item.name() == Some(expected.item_name.as_str())
+        && i32::from(item.count) == expected.count
+        && expected.metadata == 0
+}
+
+fn optional_slot_matches(item: Option<&ItemStack>, expected: Option<&SlotExpectation>) -> bool {
+    match (item, expected) {
+        (None, None) => true,
+        (Some(item), Some(expected)) => slot_matches(item, expected),
+        _ => false,
+    }
+}
+
+fn apply_accepted_normal_click(
+    inventory: &mut InventoryState,
+    pending: &PendingClick,
+) -> Result<()> {
+    let current_slot = usize::try_from(pending.slot)
+        .ok()
+        .and_then(|slot| {
+            inventory
+                .windows
+                .get(&pending.window_id)
+                .and_then(|slots| slots.get(slot))
+        })
+        .cloned()
+        .flatten();
+    let current_cursor = inventory.cursor.clone();
+    let mut predicted = inventory.clone();
+    let slot =
+        usize::try_from(pending.slot).map_err(|_| anyhow::anyhow!("invalid pending slot"))?;
+    let slots = predicted
+        .windows
+        .get_mut(&pending.window_id)
+        .context("pending window has no slots")?;
+    let target = slots
+        .get_mut(slot)
+        .context("pending slot is outside window")?;
+    *target = pending.slot_before.clone();
+    predicted.cursor = pending.cursor_before.clone();
+    predict_normal_click(
+        &mut predicted,
+        pending.window_id,
+        pending.slot,
+        pending.button,
+    )?;
+    // Check Body effects against the unmodified cache. Ordinary click
+    // prediction can clear a replenished recipe output, destroying the exact
+    // prestate that authorizes its accepted effect.
+    apply_body_cache_effects(inventory, pending, &predicted)?;
+    let effects = &pending.accepted_cache_effects;
+    let clicked_slot_declared = effects
+        .slots
+        .iter()
+        .any(|effect| effect.slot == i32::from(pending.slot));
+    let body_effects_declared = !effects.slots.is_empty()
+        || effects.cursor_before.is_some()
+        || effects.cursor_after.is_some();
+    // A server SetSlot/WindowItems fact always wins. The compatibility click
+    // prediction only fills domains with no Body-authored effect; it cannot
+    // overwrite a declared identity effect or an early server update.
+    if !clicked_slot_declared && current_slot == pending.slot_before {
+        inventory.windows.get_mut(&pending.window_id).unwrap()[slot] =
+            predicted.windows[&pending.window_id][slot].clone();
+    }
+    if !body_effects_declared && current_cursor == pending.cursor_before {
+        inventory.cursor = predicted.cursor;
+    }
+    sync_player_inventory_from_window(inventory, pending.window_id);
+    Ok(())
+}
+
+fn effect_stack(expectation: &SlotExpectation) -> Result<ItemStack> {
+    let item_id = crate::registry::item_id(&expectation.item_name)
+        .context("accepted cache effect names unknown item")?;
+    if expectation.metadata != 0 || !(1..=64).contains(&expectation.count) {
+        return Err(anyhow::anyhow!("accepted cache effect stack invalid").into());
+    }
+    Ok(ItemStack {
+        item_id,
+        count: i8::try_from(expectation.count).context("accepted cache effect count")?,
+        nbt: None,
+    })
+}
+
+fn effect_slot_matches(item: Option<&ItemStack>, expected: Option<&SlotExpectation>) -> bool {
+    optional_slot_matches(item, expected)
+}
+
+fn apply_body_cache_effects(
+    inventory: &mut InventoryState,
+    pending: &PendingClick,
+    predicted: &InventoryState,
+) -> Result<()> {
+    let effects = &pending.accepted_cache_effects;
+    for effect in &effects.slots {
+        let slot = usize::try_from(effect.slot).context("accepted cache effect slot")?;
+        let current = inventory
+            .windows
+            .get(&pending.window_id)
+            .and_then(|slots| slots.get(slot))
+            .context("accepted cache effect slot outside window")?
+            .as_ref();
+        if effect_slot_matches(current, effect.before.as_ref()) {
+            let predicted_slot = predicted
+                .windows
+                .get(&pending.window_id)
+                .and_then(|slots| slots.get(slot))
+                .and_then(Option::as_ref);
+            let after = if effect_slot_matches(predicted_slot, effect.after.as_ref()) {
+                predicted_slot.cloned()
+            } else {
+                effect.after.as_ref().map(effect_stack).transpose()?
+            };
+            inventory.windows.get_mut(&pending.window_id).unwrap()[slot] = after;
+        }
+    }
+    if effect_slot_matches(inventory.cursor.as_ref(), effects.cursor_before.as_ref()) {
+        inventory.cursor =
+            if effect_slot_matches(predicted.cursor.as_ref(), effects.cursor_after.as_ref()) {
+                predicted.cursor.clone()
+            } else {
+                effects
+                    .cursor_after
+                    .as_ref()
+                    .map(effect_stack)
+                    .transpose()?
+            };
+    }
+    Ok(())
+}
+
+/// Completes the client cache for an accepted protocol mode-2 hotbar swap.
+///
+/// Vanilla 1.16 servers may acknowledge the number-key click without
+/// echoing either changed player slot. Each domain is therefore repaired only
+/// while its exact prestate is still present; an early SetSlot fact remains
+/// authoritative. The actual cached stacks are moved so NBT is preserved.
+fn apply_accepted_equip_swap(
+    inventory: &mut InventoryState,
+    source_slot: u16,
+    selected_hotbar_slot: u8,
+    source_before: &ItemStack,
+    destination_before: Option<&ItemStack>,
+) {
+    let source_index = usize::from(source_slot);
+    let destination_index = 36 + usize::from(selected_hotbar_slot);
+    let Some(slots) = inventory.windows.get_mut(&0) else {
+        return;
+    };
+    if source_index >= slots.len() || destination_index >= slots.len() {
+        return;
+    }
+    if slots[source_index].as_ref() == Some(source_before) {
+        slots[source_index] = destination_before.cloned();
+    }
+    if slots[destination_index] == destination_before.cloned() {
+        slots[destination_index] = Some(source_before.clone());
+    }
+}
+
+#[derive(Clone)]
+struct ExactWindowBarrier {
+    successor: Option<CraftClick>,
+    confirmation_seen: bool,
+}
+
+fn click_precondition_matches(
+    inventory: &InventoryState,
+    window_id: i8,
+    click: &CraftClick,
+) -> bool {
+    let slot = usize::try_from(click.slot)
+        .ok()
+        .and_then(|slot| {
+            inventory
+                .windows
+                .get(&window_id)
+                .and_then(|slots| slots.get(slot))
+        })
+        .and_then(Option::as_ref);
+    optional_slot_matches(slot, click.expected_item.as_ref())
+        && optional_slot_matches(inventory.cursor.as_ref(), click.expected_cursor.as_ref())
+}
+
 use tokio::{
     net::{TcpStream, tcp::OwnedWriteHalf},
-    sync::{Mutex, Notify, RwLock, broadcast},
+    sync::{Mutex, Notify, RwLock, broadcast, mpsc, oneshot},
     time::{Duration, timeout},
 };
 
@@ -55,6 +253,60 @@ macro_rules! bail {
     ($($argument:tt)*) => {
         return Err(crate::Error::from(anyhow::anyhow!($($argument)*)).into())
     };
+}
+
+fn oxygen_level_from_air_ticks(air_ticks: i32) -> Option<u8> {
+    if air_ticks < 0 {
+        return None;
+    }
+    let rounded = (i64::from(air_ticks) + 7) / 15;
+    u8::try_from(rounded).ok().filter(|value| *value <= 20)
+}
+
+// Protocol 736 Entity metadata index 1 (air supply) is backed by the
+// LivingEntity data-tracker default of 300 ticks. Vanilla does not promise to
+// send unchanged default metadata for the local player after Join Game, so
+// the client cache must be initialized from the protocol entity default and
+// then replaced only by packet facts.
+const PROTOCOL_736_DEFAULT_AIR_TICKS: i32 = 300;
+
+fn protocol_default_oxygen_level() -> u8 {
+    oxygen_level_from_air_ticks(PROTOCOL_736_DEFAULT_AIR_TICKS)
+        .expect("protocol 736 default air supply is representable")
+}
+
+fn oxygen_level_after_respawn(current: Option<u8>, copy_metadata: bool) -> Option<u8> {
+    if copy_metadata {
+        current
+    } else {
+        Some(protocol_default_oxygen_level())
+    }
+}
+
+const VANILLA_SPRINT_MODIFIER_UUID: [u8; 16] = [
+    0x66, 0x2a, 0x6b, 0x8d, 0xda, 0x3e, 0x4c, 0x1c, 0x88, 0x13, 0x96, 0xea, 0x60, 0x97, 0x27, 0x8d,
+];
+
+fn movement_speed_for_control(movement_attribute: Option<&Attribute>, sprint: bool) -> f64 {
+    let base_movement_speed = movement_attribute.map_or(0.1, Attribute::value);
+    let sprint_modifier_observed = movement_attribute.is_some_and(|attribute| {
+        attribute.modifiers.iter().any(|modifier| {
+            modifier.uuid == VANILLA_SPRINT_MODIFIER_UUID && modifier.operation == 2
+        })
+    });
+    if sprint && !sprint_modifier_observed {
+        base_movement_speed * 1.3
+    } else {
+        base_movement_speed
+    }
+}
+
+fn encode_entity_action_packet(entity_id: i32, sneaking: bool) -> (i32, Vec<u8>) {
+    let mut payload = Vec::new();
+    put_varint(&mut payload, entity_id);
+    put_varint(&mut payload, if sneaking { 0 } else { 1 });
+    put_varint(&mut payload, 0);
+    (0x1c, payload)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -104,6 +356,8 @@ pub struct ConnectionOptions {
     pub max_custom_payload_bytes: usize,
     /// Number of events retained for each Bot broadcast receiver.
     pub event_channel_capacity: usize,
+    /// Maximum time the connection actor waits for a protocol acknowledgement.
+    pub protocol_ack_timeout: Duration,
 }
 
 impl Default for ConnectionOptions {
@@ -119,6 +373,7 @@ impl Default for ConnectionOptions {
             max_cached_records: 4_096,
             max_custom_payload_bytes: 65_536,
             event_channel_capacity: 256,
+            protocol_ack_timeout: Duration::from_secs(5),
         }
     }
 }
@@ -552,6 +807,8 @@ pub enum Event {
     InventoryUpdated {
         /// The `window_id` value carried by this variant.
         window_id: i8,
+        /// Connection-local inbound packet ordering fact.
+        packet_sequence: u64,
     },
     /// Documentation for this public variant.
     SlotUpdated(SlotUpdate),
@@ -708,17 +965,21 @@ pub enum Event {
     PositionCorrection(PositionCorrection),
 }
 
-struct Writer {
-    inner: OwnedWriteHalf,
-    compression: Option<i32>,
+pub(crate) struct PacketWriter {
+    pub(crate) inner: OwnedWriteHalf,
+    pub(crate) compression: Option<i32>,
 }
-static NEXT_CONNECTION_ID: AtomicU64 = AtomicU64::new(1);
+
+struct ObservationEventQueue {
+    events: VecDeque<Event>,
+    omitted: u32,
+}
 
 /// State and protocol data represented by `Bot`.
 pub struct Bot {
-    connection_id: u64,
+    connection: ConnectionActor,
     server: Server,
-    writer: Arc<Mutex<Writer>>,
+    writer: Arc<Mutex<PacketWriter>>,
     player: Arc<Mutex<Versioned<Player>>>,
     world: Arc<Mutex<Versioned<World>>>,
     positioned: Arc<Mutex<bool>>,
@@ -726,14 +987,20 @@ pub struct Bot {
     world_updated: Arc<Notify>,
     events: broadcast::Sender<Event>,
     physics: Arc<Mutex<PhysicsTracker>>,
-    control: Arc<RwLock<Versioned<ControlState>>>,
     stopped: Arc<AtomicBool>,
     terminal_emitted: Arc<AtomicBool>,
     jump_requested: Arc<AtomicBool>,
     teleport_barrier_ticks: Arc<AtomicU8>,
     motion: Arc<Mutex<Versioned<MotionState>>>,
     survival: Arc<RwLock<Versioned<SurvivalState>>>,
+    world_time_observed: Arc<AtomicBool>,
+    oxygen_level: Arc<Mutex<Option<u8>>>,
+    local_pose: Arc<Mutex<Option<i32>>>,
+    protocol_packet_sequence: Arc<AtomicU64>,
+    block_geometry_revision: Arc<AtomicU64>,
     inventory: Arc<RwLock<Versioned<InventoryState>>>,
+    exact_window_barriers: Arc<Mutex<HashMap<(i8, i16), ExactWindowBarrier>>>,
+    furnace_window_position: Arc<Mutex<Option<(i8, BlockPos)>>>,
     click_lock: Arc<Mutex<()>>,
     entities: Arc<RwLock<Versioned<EntityTracker>>>,
     last_attack: Arc<Mutex<Option<std::time::Instant>>>,
@@ -759,6 +1026,11 @@ pub struct Bot {
     cancel: Arc<Notify>,
     external_handles: Arc<AtomicUsize>,
     counts_as_external_handle: bool,
+    capture_requests: mpsc::Sender<crate::observation::CaptureCommand>,
+    traversal_movement_facts_requests:
+        mpsc::Sender<crate::observation::TraversalMovementFactsCommand>,
+    coherent_state_gate: Arc<Mutex<()>>,
+    observation_events: Arc<StdMutex<ObservationEventQueue>>,
 }
 
 impl Clone for Bot {
@@ -781,12 +1053,20 @@ impl Drop for Bot {
 }
 
 impl Bot {
+    fn advance_block_geometry_revision(&self) {
+        self.block_geometry_revision
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |revision| {
+                revision.checked_add(1)
+            })
+            .expect("block geometry revision exhausted");
+    }
+
     fn clone_with_handle(&self, counts_as_external_handle: bool) -> Self {
         if counts_as_external_handle {
             self.external_handles.fetch_add(1, Ordering::Relaxed);
         }
         Self {
-            connection_id: self.connection_id,
+            connection: self.connection.clone(),
             server: self.server.clone(),
             writer: self.writer.clone(),
             player: self.player.clone(),
@@ -796,14 +1076,20 @@ impl Bot {
             world_updated: self.world_updated.clone(),
             events: self.events.clone(),
             physics: self.physics.clone(),
-            control: self.control.clone(),
             stopped: self.stopped.clone(),
             terminal_emitted: self.terminal_emitted.clone(),
             jump_requested: self.jump_requested.clone(),
             teleport_barrier_ticks: self.teleport_barrier_ticks.clone(),
             motion: self.motion.clone(),
             survival: self.survival.clone(),
+            world_time_observed: self.world_time_observed.clone(),
+            oxygen_level: self.oxygen_level.clone(),
+            local_pose: self.local_pose.clone(),
+            protocol_packet_sequence: self.protocol_packet_sequence.clone(),
+            block_geometry_revision: self.block_geometry_revision.clone(),
             inventory: self.inventory.clone(),
+            exact_window_barriers: self.exact_window_barriers.clone(),
+            furnace_window_position: self.furnace_window_position.clone(),
             click_lock: self.click_lock.clone(),
             entities: self.entities.clone(),
             last_attack: self.last_attack.clone(),
@@ -829,6 +1115,10 @@ impl Bot {
             cancel: self.cancel.clone(),
             external_handles: self.external_handles.clone(),
             counts_as_external_handle,
+            capture_requests: self.capture_requests.clone(),
+            traversal_movement_facts_requests: self.traversal_movement_facts_requests.clone(),
+            coherent_state_gate: self.coherent_state_gate.clone(),
+            observation_events: self.observation_events.clone(),
         }
     }
 
@@ -851,7 +1141,7 @@ impl Bot {
         .context("connect timed out")?
         .context("connect failed")?;
         let (mut reader, writer) = stream.into_split();
-        let writer = Arc::new(Mutex::new(Writer {
+        let writer = Arc::new(Mutex::new(PacketWriter {
             inner: writer,
             compression: None,
         }));
@@ -892,8 +1182,20 @@ impl Bot {
         }
         let (events, _) = broadcast::channel(connection_options.event_channel_capacity.max(1));
         let connected_at = std::time::Instant::now();
+        let control = Arc::new(RwLock::new(Versioned::new(
+            ControlState::default(),
+            connected_at,
+        )));
+        let connection = ConnectionActor::spawn(
+            writer.clone(),
+            connection_options.protocol_ack_timeout,
+            control,
+        );
+        let (capture_requests, capture_receiver) = mpsc::channel(16);
+        let (traversal_movement_facts_requests, traversal_movement_facts_receiver) =
+            mpsc::channel(4);
         let bot = Self {
-            connection_id: NEXT_CONNECTION_ID.fetch_add(1, Ordering::Relaxed),
+            connection,
             server,
             writer,
             player: Arc::new(Mutex::new(Versioned::new(player, connected_at))),
@@ -906,10 +1208,6 @@ impl Bot {
             world_updated: Arc::new(Notify::new()),
             events,
             physics: Arc::new(Mutex::new(PhysicsTracker::new())),
-            control: Arc::new(RwLock::new(Versioned::new(
-                ControlState::default(),
-                connected_at,
-            ))),
             stopped: Arc::new(AtomicBool::new(false)),
             terminal_emitted: Arc::new(AtomicBool::new(false)),
             jump_requested: Arc::new(AtomicBool::new(false)),
@@ -922,10 +1220,17 @@ impl Bot {
                 SurvivalState::default(),
                 connected_at,
             ))),
+            world_time_observed: Arc::new(AtomicBool::new(false)),
+            oxygen_level: Arc::new(Mutex::new(None)),
+            local_pose: Arc::new(Mutex::new(None)),
+            protocol_packet_sequence: Arc::new(AtomicU64::new(0)),
+            block_geometry_revision: Arc::new(AtomicU64::new(0)),
             inventory: Arc::new(RwLock::new(Versioned::new(
                 InventoryState::default(),
                 connected_at,
             ))),
+            exact_window_barriers: Arc::new(Mutex::new(HashMap::new())),
+            furnace_window_position: Arc::new(Mutex::new(None)),
             click_lock: Arc::new(Mutex::new(())),
             entities: Arc::new(RwLock::new(Versioned::new(
                 EntityTracker::default(),
@@ -981,24 +1286,83 @@ impl Bot {
             cancel: Arc::new(Notify::new()),
             external_handles: Arc::new(AtomicUsize::new(1)),
             counts_as_external_handle: true,
+            capture_requests,
+            traversal_movement_facts_requests,
+            coherent_state_gate: Arc::new(Mutex::new(())),
+            observation_events: Arc::new(StdMutex::new(ObservationEventQueue {
+                events: VecDeque::with_capacity(256),
+                omitted: 0,
+            })),
         };
         bot.emit(Event::Login);
         let background = bot.clone_internal();
-        let reader_task = tokio::spawn(async move { background.read_loop(reader).await });
+        let reader_task = tokio::spawn(async move {
+            background
+                .read_loop(reader, capture_receiver, traversal_movement_facts_receiver)
+                .await
+        });
         let supervisor = bot.clone_internal();
         tokio::spawn(async move {
             match reader_task.await {
-                Ok(Ok(())) => supervisor.emit(Event::Disconnected {
-                    reason: "connection closed".to_owned(),
-                }),
-                Ok(Err(error)) => supervisor.emit(Event::Error {
-                    kind: "connection",
-                    message: error.to_string(),
-                }),
-                Err(error) => supervisor.emit(Event::Error {
-                    kind: "connection",
-                    message: format!("reader task terminated unexpectedly: {error}"),
-                }),
+                Ok(Ok(())) => {
+                    if supervisor.connection.lifecycle() == ConnectionLifecycle::Disconnected {
+                        supervisor.emit(Event::Disconnected {
+                            reason: "server disconnect confirmed".to_owned(),
+                        });
+                    } else {
+                        supervisor
+                            .connection
+                            .mark_unknown("reader_unconfirmed_end", "reader stopped without a confirmed transport end".to_owned())
+                            .await;
+                        supervisor.emit(Event::Error {
+                            kind: "connection",
+                            message: "reader stopped without a confirmed transport end".to_owned(),
+                        });
+                    }
+                }
+                Ok(Err(error)) => {
+                    let requested_transport_end = supervisor.connection.lifecycle()
+                        == ConnectionLifecycle::Disconnecting
+                        && error.diagnostic().chain().any(|cause| {
+                            cause.downcast_ref::<std::io::Error>().is_some_and(|io| {
+                                matches!(
+                                    io.kind(),
+                                    std::io::ErrorKind::UnexpectedEof
+                                        | std::io::ErrorKind::ConnectionReset
+                                        | std::io::ErrorKind::ConnectionAborted
+                                        | std::io::ErrorKind::BrokenPipe
+                                )
+                            })
+                        });
+                    if requested_transport_end {
+                        supervisor
+                            .connection
+                            .mark_terminal(TerminalClassification::Disconnected)
+                            .await;
+                        supervisor.emit(Event::Disconnected {
+                            reason: "transport ended after disconnect request".to_owned(),
+                        });
+                    } else {
+                        supervisor
+                            .connection
+                            .mark_unknown("reader_error", format!("{:#}", error.diagnostic()))
+                            .await;
+                        supervisor.emit(Event::Error {
+                            kind: "connection",
+                            message: error.to_string(),
+                        });
+                    }
+                }
+                Err(error) => {
+                    supervisor
+                        .connection
+                        .mark_unknown("reader_task_failed", error.to_string())
+                        .await;
+                    supervisor.emit(Event::Error {
+                        kind: "connection",
+                        message: format!("reader task terminated unexpectedly: {error}"),
+                    });
+                }
             }
             supervisor.physics.lock().await.record_disconnect();
             supervisor.stopped.store(true, Ordering::Release);
@@ -1012,10 +1376,968 @@ impl Bot {
         self.events.subscribe()
     }
     pub(crate) const fn connection_id(&self) -> u64 {
-        self.connection_id
+        self.connection.generation().get()
     }
     pub(crate) fn is_stopped(&self) -> bool {
         self.stopped.load(Ordering::Acquire)
+    }
+    /// Returns the process-local identity of this exact transport connection.
+    #[must_use]
+    pub const fn connection_generation(&self) -> ClientConnectionGeneration {
+        self.connection.generation()
+    }
+    /// Returns the latest lifecycle fact published by the connection actor.
+    #[must_use]
+    pub fn connection_lifecycle(&self) -> ConnectionLifecycle {
+        self.connection.lifecycle()
+    }
+    /// Creates an operation correlation context for this connection.
+    #[must_use]
+    pub const fn operation_context(&self, source_observation_sequence: u64) -> OperationContext {
+        OperationContext {
+            generation: self.connection_generation(),
+            source_observation_sequence,
+        }
+    }
+    /// Asks the connection actor to admit an operation before any packet write.
+    ///
+    /// This read/validation API is public because the Zen in-process adapter
+    /// must bind every low-level operation to the observation that selected it.
+    pub async fn admit_operation(
+        &self,
+        context: OperationContext,
+        class: ClientOperationClass,
+    ) -> std::result::Result<(), OperationAdmissionError> {
+        self.connection.admit(context, class).await
+    }
+
+    /// Dispatches one new Zen low-level primitive through the actor-owned writer.
+    ///
+    /// The context is mandatory so a primitive cannot be accidentally sent
+    /// using a stale connection or an unrelated observation. This API reports
+    /// only the transport dispatch stage; protocol acknowledgement and fresh
+    /// semantic observation remain separate stages.
+    pub async fn dispatch_primitive(
+        &self,
+        context: OperationContext,
+        operation: PrimitiveOperation,
+    ) -> std::result::Result<PrimitiveDispatchOutcome, PrimitiveDispatchError> {
+        self.dispatch_primitive_with_diagnostic(context, operation, None)
+            .await
+    }
+
+    /// Dispatches a primitive with an optional read-only diagnostic
+    /// correlation supplied by the in-process Zen adapter.
+    pub async fn dispatch_primitive_with_diagnostic(
+        &self,
+        context: OperationContext,
+        operation: PrimitiveOperation,
+        diagnostic_correlation: Option<crate::PrimitiveDiagnosticCorrelationId>,
+    ) -> std::result::Result<PrimitiveDispatchOutcome, PrimitiveDispatchError> {
+        let diagnostic_correlation =
+            diagnostic_correlation.filter(|_| crate::connection::dig_lifecycle_trace_enabled());
+        let dig_diagnostic = match (&operation, diagnostic_correlation) {
+            (PrimitiveOperation::DigStart { position, face }, Some(correlation)) => {
+                Some(crate::connection::DigWriteDiagnostic::new(
+                    correlation,
+                    "start",
+                    crate::DiggingStatus::Started as i32,
+                    *position,
+                    *face,
+                ))
+            }
+            _ => None,
+        };
+        let (packet_id, payload) = operation
+            .encode()
+            .map_err(|_| PrimitiveDispatchError::InvalidInput)?;
+        match operation {
+            PrimitiveOperation::BlockInteraction {
+                position, sneak, ..
+            }
+            | PrimitiveOperation::PlacementInteraction {
+                position, sneak, ..
+            } => {
+                let entity_id = self
+                    .player
+                    .lock()
+                    .await
+                    .entity_id
+                    .ok_or(PrimitiveDispatchError::InvalidInput)?;
+                let restore_sneak = self.connection.control_snapshot().await.value.sneak;
+                let packets = vec![
+                    encode_entity_action_packet(entity_id, sneak.is_required()),
+                    (packet_id, payload),
+                    encode_entity_action_packet(entity_id, restore_sneak),
+                ];
+                let furnace_position =
+                    matches!(operation, PrimitiveOperation::BlockInteraction { .. })
+                        .then_some(position);
+                self.connection
+                    .dispatch_interaction_batch(
+                        context,
+                        ClientOperationClass::Normal,
+                        furnace_position,
+                        packets,
+                    )
+                    .await
+                    .map_err(PrimitiveDispatchError::Admission)
+            }
+            _ => self
+                .connection
+                .dispatch_primitive_with_diagnostic(
+                    context,
+                    ClientOperationClass::Normal,
+                    packet_id,
+                    &payload,
+                    dig_diagnostic,
+                )
+                .await
+                .map_err(PrimitiveDispatchError::Admission),
+        }
+    }
+
+    /// Dispatches one Body-selected main-hand operation without exposing the
+    /// connection-local protocol transaction identity.
+    pub async fn dispatch_equip(
+        &self,
+        context: OperationContext,
+        operation: EquipOperation,
+    ) -> std::result::Result<PrimitiveDispatchOutcome, PrimitiveDispatchError> {
+        let coherent_state = self.coherent_state_gate.lock().await;
+        match operation {
+            EquipOperation::SelectEmptyHotbar { hotbar_slot } => {
+                let inventory = self.inventory.read().await;
+                if hotbar_slot > 8 || !inventory.player_slots()
+                    .get(36 + usize::from(hotbar_slot)).is_some_and(Option::is_none) {
+                    return Err(PrimitiveDispatchError::InvalidInput);
+                }
+                drop(inventory);
+                let outcome = self.dispatch_primitive(context,
+                    PrimitiveOperation::SelectHotbar { hotbar_slot }).await?;
+                if outcome == PrimitiveDispatchOutcome::Dispatched {
+                    self.inventory.write().await.selected_hotbar = hotbar_slot;
+                }
+                drop(coherent_state);
+                Ok(outcome)
+            }
+            EquipOperation::SelectHotbar {
+                hotbar_slot,
+                expected_item,
+            } => {
+                let inventory = self.inventory.read().await;
+                let matches = inventory
+                    .player_slots()
+                    .get(36 + usize::from(hotbar_slot))
+                    .and_then(Option::as_ref)
+                    .is_some_and(|item| slot_matches(item, &expected_item));
+                if !matches {
+                    return Err(PrimitiveDispatchError::InvalidInput);
+                }
+                drop(inventory);
+                let outcome = self
+                    .dispatch_primitive(context, PrimitiveOperation::SelectHotbar { hotbar_slot })
+                    .await?;
+                if outcome == PrimitiveDispatchOutcome::Dispatched {
+                    self.inventory.write().await.selected_hotbar = hotbar_slot;
+                }
+                drop(coherent_state);
+                Ok(outcome)
+            }
+            EquipOperation::SwapIntoSelectedHotbar {
+                inventory_slot,
+                selected_hotbar_slot,
+                expected_source,
+                expected_destination,
+                cursor_must_be_empty,
+            } => {
+                let inventory = self.inventory.read().await;
+                let selected_match = inventory.selected_hotbar == selected_hotbar_slot;
+                let cursor_empty = inventory.cursor.is_none();
+                let cursor_ok = !cursor_must_be_empty || cursor_empty;
+                let source = inventory
+                    .player_slots()
+                    .get(usize::from(inventory_slot))
+                    .and_then(Option::as_ref)
+                    .filter(|item| slot_matches(item, &expected_source))
+                    .cloned();
+                let destination = inventory
+                    .player_slots()
+                    .get(36 + usize::from(selected_hotbar_slot))
+                    .and_then(Option::as_ref)
+                    .cloned();
+                let destination_match =
+                    optional_slot_matches(destination.as_ref(), expected_destination.as_ref());
+                if !selected_match || !cursor_ok {
+                    return Err(PrimitiveDispatchError::InvalidInput);
+                }
+                let Some(source) = source else {
+                    return Err(PrimitiveDispatchError::InvalidInput);
+                };
+                if !destination_match {
+                    return Err(PrimitiveDispatchError::InvalidInput);
+                }
+                drop(inventory);
+                let transaction = match self
+                    .dispatch_acknowledged(
+                        context,
+                        AcknowledgedPrimitive::WindowClick {
+                            window_id: 0,
+                            slot: i16::try_from(inventory_slot)
+                                .map_err(|_| PrimitiveDispatchError::InvalidInput)?,
+                            button: i8::try_from(selected_hotbar_slot)
+                                .map_err(|_| PrimitiveDispatchError::InvalidInput)?,
+                            mode: ClickMode::Hotbar,
+                            clicked: Some(source.clone()),
+                        },
+                    )
+                    .await
+                {
+                    Ok(transaction) => transaction,
+                    Err(error) => return Err(error.into()),
+                };
+                drop(coherent_state);
+                let outcome = transaction.wait().await;
+                if outcome == PrimitiveDispatchOutcome::Acknowledged {
+                    let _coherent_state = self.coherent_state_gate.lock().await;
+                    let mut inventory = self.inventory.write().await;
+                    apply_accepted_equip_swap(
+                        &mut inventory,
+                        inventory_slot,
+                        selected_hotbar_slot,
+                        &source,
+                        destination.as_ref(),
+                    );
+                }
+                Ok(outcome)
+            }
+        }
+    }
+
+    /// Dispatches an ordered Body-selected Craft click column. Every click is
+    /// revalidated against coherent packet state before the actor allocates
+    /// its connection-local transaction identity.
+    pub async fn dispatch_craft(
+        &self,
+        context: OperationContext,
+        execution: CraftExecution,
+    ) -> std::result::Result<PrimitiveDispatchOutcome, PrimitiveDispatchError> {
+        self.dispatch_exact_window_clicks(
+            context,
+            execution.window_id,
+            execution.close_window_after,
+            execution.clicks,
+        )
+        .await
+    }
+
+    /// Dispatches exact Body-selected furnace clicks through the same actor
+    /// transaction owner used by Craft.
+    pub async fn dispatch_furnace(
+        &self,
+        context: OperationContext,
+        execution: FurnaceExecution,
+    ) -> std::result::Result<PrimitiveDispatchOutcome, PrimitiveDispatchError> {
+        self.dispatch_exact_window_clicks(context, execution.window_id, false, execution.clicks)
+            .await
+    }
+
+    async fn dispatch_exact_window_clicks(
+        &self,
+        context: OperationContext,
+        window_id: i8,
+        close_window_after: bool,
+        clicks: Vec<crate::CraftClick>,
+    ) -> std::result::Result<PrimitiveDispatchOutcome, PrimitiveDispatchError> {
+        if clicks.is_empty() {
+            return Err(PrimitiveDispatchError::InvalidInput);
+        }
+        let _click_order = self.click_lock.lock().await;
+        let mut acknowledged = 0usize;
+        for (index, click) in clicks.iter().enumerate() {
+            if click.accepted_cache_effects.slots.len() > 16
+                || click.accepted_cache_effects.slots.iter().enumerate().any(
+                    |(effect_index, effect)| {
+                        effect.slot < 0
+                            || click.accepted_cache_effects.slots[..effect_index]
+                                .iter()
+                                .any(|previous| previous.slot == effect.slot)
+                    },
+                )
+                || click.accepted_cache_effects.cursor_before != click.expected_cursor
+            {
+                return Err(PrimitiveDispatchError::InvalidInput);
+            }
+            let successor = clicks.get(index + 1).cloned();
+            let coherent_state = self.coherent_state_gate.lock().await;
+            let inventory = self.inventory.read().await;
+            if (window_id != 0
+                && inventory.open_window.as_ref().map(|window| window.id) != Some(window_id))
+                || (window_id == 0 && inventory.open_window.is_some())
+            {
+                return Ok(if acknowledged == 0 {
+                    PrimitiveDispatchOutcome::Rejected
+                } else {
+                    PrimitiveDispatchOutcome::DeliveryUnknown
+                });
+            }
+            let observed = inventory
+                .windows
+                .get(&window_id)
+                .and_then(|slots| {
+                    usize::try_from(click.slot)
+                        .ok()
+                        .and_then(|slot| slots.get(slot))
+                })
+                .and_then(Option::as_ref);
+            let slot_match = optional_slot_matches(observed, click.expected_item.as_ref());
+            let cursor_match =
+                optional_slot_matches(inventory.cursor.as_ref(), click.expected_cursor.as_ref());
+            if !slot_match || !cursor_match {
+                return Ok(if acknowledged == 0 {
+                    PrimitiveDispatchOutcome::Rejected
+                } else {
+                    PrimitiveDispatchOutcome::DeliveryUnknown
+                });
+            }
+            let clicked = observed.cloned();
+            let slot_before = clicked.clone();
+            let cursor_before = inventory.cursor.clone();
+            drop(inventory);
+            let transaction = match self
+                .dispatch_acknowledged(
+                    context,
+                    AcknowledgedPrimitive::WindowClick {
+                        window_id,
+                        slot: click.slot,
+                        button: click.button,
+                        mode: click.mode,
+                        clicked,
+                    },
+                )
+                .await
+            {
+                Ok(transaction) => transaction,
+                Err(error) if acknowledged == 0 => return Err(error),
+                Err(_) => return Ok(PrimitiveDispatchOutcome::DeliveryUnknown),
+            };
+            let action = transaction
+                .window_action()
+                .ok_or(PrimitiveDispatchError::InvalidInput)?;
+            self.inventory.write().await.pending_clicks.insert(
+                (window_id, action),
+                PendingClick {
+                    window_id,
+                    action,
+                    slot: click.slot,
+                    button: click.button,
+                    mode: click.mode,
+                    slot_before,
+                    cursor_before,
+                    accepted_cache_effects: click.accepted_cache_effects.clone(),
+                },
+            );
+            self.exact_window_barriers.lock().await.insert(
+                (window_id, action),
+                ExactWindowBarrier {
+                    successor,
+                    confirmation_seen: false,
+                },
+            );
+            drop(coherent_state);
+            let monitor = self.clone_internal();
+            let (outcome_tx, outcome_rx) = oneshot::channel();
+            tokio::spawn(async move {
+                let outcome = transaction.wait().await;
+                if outcome != PrimitiveDispatchOutcome::Acknowledged {
+                    let _gate = monitor.coherent_state_gate.lock().await;
+                    monitor
+                        .inventory
+                        .write()
+                        .await
+                        .pending_clicks
+                        .remove(&(window_id, action));
+                    monitor
+                        .exact_window_barriers
+                        .lock()
+                        .await
+                        .remove(&(window_id, action));
+                }
+                let _ = outcome_tx.send(outcome);
+            });
+            match outcome_rx
+                .await
+                .unwrap_or(PrimitiveDispatchOutcome::DeliveryUnknown)
+            {
+                PrimitiveDispatchOutcome::Acknowledged => acknowledged += 1,
+                PrimitiveDispatchOutcome::Rejected if acknowledged == 0 => {
+                    return Ok(PrimitiveDispatchOutcome::Rejected);
+                }
+                PrimitiveDispatchOutcome::Rejected | PrimitiveDispatchOutcome::DeliveryUnknown => {
+                    return Ok(PrimitiveDispatchOutcome::DeliveryUnknown);
+                }
+                PrimitiveDispatchOutcome::Dispatched => {
+                    return Ok(PrimitiveDispatchOutcome::DeliveryUnknown);
+                }
+            }
+        }
+        if close_window_after {
+            let outcome = match self
+                .connection
+                .dispatch_primitive(
+                    context,
+                    ClientOperationClass::Cleanup,
+                    0x0a,
+                    &[window_id as u8],
+                )
+                .await
+            {
+                Ok(outcome) => outcome,
+                Err(_) => return Ok(PrimitiveDispatchOutcome::DeliveryUnknown),
+            };
+            if outcome != PrimitiveDispatchOutcome::Dispatched {
+                return Ok(PrimitiveDispatchOutcome::DeliveryUnknown);
+            }
+            self.clear_local_window(window_id).await;
+        }
+        Ok(PrimitiveDispatchOutcome::Acknowledged)
+    }
+
+    async fn commit_satisfied_window_barriers(&self) {
+        let inventory = self.inventory.read().await;
+        let mut barriers = self.exact_window_barriers.lock().await;
+        let ready = barriers
+            .iter()
+            .filter_map(|(&(window_id, action), barrier)| {
+                (barrier.confirmation_seen
+                    && barrier.successor.as_ref().is_none_or(|successor| {
+                        click_precondition_matches(&inventory, window_id, successor)
+                    }))
+                .then_some((window_id, action))
+            })
+            .collect::<Vec<_>>();
+        for identity in &ready {
+            barriers.remove(identity);
+        }
+        drop(barriers);
+        drop(inventory);
+        for (window_id, action) in ready {
+            let _ = self
+                .connection
+                .commit_window_barrier(window_id, action)
+                .await;
+        }
+    }
+
+    /// Dispatches the Body-selected yaw and pitch as one rotation-only packet.
+    ///
+    /// The on-ground bit is supplied by the Body observation that selected
+    /// this operation; the client does not re-read or derive it.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed admission or transport error before semantic success is
+    /// implied.
+    pub async fn dispatch_rotation(
+        &self,
+        context: OperationContext,
+        yaw: f32,
+        pitch: f32,
+        on_ground: bool,
+    ) -> std::result::Result<PrimitiveDispatchOutcome, PrimitiveDispatchError> {
+        // A server does not echo ordinary client rotation packets. Serialize
+        // the admitted write with coherent capture and project the exact sent
+        // orientation into the local player state only after delivery is
+        // known. This is client input state, not Minecraft semantic success.
+        let _coherent_state = self.coherent_state_gate.lock().await;
+        let outcome = self
+            .dispatch_primitive(
+                context,
+                PrimitiveOperation::LookRotation {
+                    yaw,
+                    pitch,
+                    on_ground,
+                },
+            )
+            .await?;
+        if matches!(
+            outcome,
+            PrimitiveDispatchOutcome::Dispatched | PrimitiveDispatchOutcome::Acknowledged
+        ) {
+            let mut player = self.player.lock().await;
+            player.yaw = yaw;
+            player.pitch = pitch;
+        }
+        Ok(outcome)
+    }
+
+    /// Dispatches one protocol-acknowledged primitive with a client-owned
+    /// transaction identity and acknowledgement deadline.
+    ///
+    /// The returned transaction is a protocol fact only. Callers must use a
+    /// fresh Body observation to establish any semantic game effect.
+    pub async fn dispatch_acknowledged(
+        &self,
+        context: OperationContext,
+        operation: AcknowledgedPrimitive,
+    ) -> std::result::Result<ProtocolTransaction, PrimitiveDispatchError> {
+        self.dispatch_acknowledged_with_diagnostic(context, operation, None)
+            .await
+    }
+
+    /// Dispatches an acknowledged primitive with an optional read-only
+    /// diagnostic correlation supplied by the in-process Zen adapter.
+    pub async fn dispatch_acknowledged_with_diagnostic(
+        &self,
+        context: OperationContext,
+        operation: AcknowledgedPrimitive,
+        diagnostic_correlation: Option<crate::PrimitiveDiagnosticCorrelationId>,
+    ) -> std::result::Result<ProtocolTransaction, PrimitiveDispatchError> {
+        self.connection
+            .dispatch_acknowledged_with_diagnostic(
+                context,
+                ClientOperationClass::Normal,
+                operation,
+                diagnostic_correlation,
+            )
+            .await
+            .map_err(PrimitiveDispatchError::Admission)
+    }
+
+    /// Dispatches one finite cleanup primitive through the disconnect barrier.
+    ///
+    /// Cleanup remains available in `Disconnecting`, while ordinary primitive
+    /// operations are rejected there. Cleanup is not evidence of semantic
+    /// success and an uncertain write is reported as `DeliveryUnknown`.
+    pub async fn dispatch_cleanup(
+        &self,
+        context: OperationContext,
+        operation: CleanupPrimitive,
+    ) -> std::result::Result<CleanupDispatchOutcome, PrimitiveDispatchError> {
+        self.dispatch_cleanup_with_diagnostic(context, operation, None)
+            .await
+    }
+
+    /// Dispatches cleanup with an optional read-only Dig correlation.
+    ///
+    /// This is public only so the Zen service can carry its opaque diagnostic
+    /// identity across the crate boundary to the cleanup writer. The identity
+    /// has no admission or semantic-completion authority.
+    pub async fn dispatch_cleanup_with_diagnostic(
+        &self,
+        context: OperationContext,
+        operation: CleanupPrimitive,
+        diagnostic_correlation: Option<crate::PrimitiveDiagnosticCorrelationId>,
+    ) -> std::result::Result<CleanupDispatchOutcome, PrimitiveDispatchError> {
+        if matches!(operation, CleanupPrimitive::ControlClear) {
+            self.connection
+                .replace_control(
+                    context,
+                    ClientOperationClass::Cleanup,
+                    ControlState::default(),
+                )
+                .await
+                .map_err(PrimitiveDispatchError::Admission)?;
+            return Ok(CleanupDispatchOutcome::AppliedLocally);
+        }
+        let Some((packet_id, payload)) = operation
+            .encode()
+            .map_err(|_| PrimitiveDispatchError::InvalidInput)?
+        else {
+            unreachable!("ControlClear is handled above");
+        };
+        let dig_diagnostic = match (
+            &operation,
+            diagnostic_correlation.filter(|_| crate::connection::dig_lifecycle_trace_enabled()),
+        ) {
+            (CleanupPrimitive::DigCancel { position, face }, Some(correlation)) => {
+                Some(crate::connection::DigWriteDiagnostic::new(
+                    correlation,
+                    "cancel",
+                    crate::DiggingStatus::Cancelled as i32,
+                    *position,
+                    *face,
+                ))
+            }
+            _ => None,
+        };
+        let outcome = self
+            .connection
+            .dispatch_primitive_with_diagnostic(
+                context,
+                ClientOperationClass::Cleanup,
+                packet_id,
+                &payload,
+                dig_diagnostic,
+            )
+            .await
+            .map_err(PrimitiveDispatchError::Admission)?;
+        if matches!(operation, CleanupPrimitive::CloseWindow { .. })
+            && matches!(
+                outcome,
+                PrimitiveDispatchOutcome::Dispatched | PrimitiveDispatchOutcome::Acknowledged
+            )
+        {
+            // The close packet is a finite cleanup operation.  Keep the
+            // predicted cache aligned with the already-written packet so the
+            // Body can observe the window as absent and schedule its bounded
+            // reopen interval.  This is local cache state, not proof that the
+            // server applied the close; an uncertain write remains unknown.
+            if let CleanupPrimitive::CloseWindow { window_id } = operation {
+                self.clear_local_window(window_id).await;
+            }
+        }
+        Ok(match outcome {
+            PrimitiveDispatchOutcome::Dispatched => CleanupDispatchOutcome::Dispatched,
+            PrimitiveDispatchOutcome::Acknowledged => CleanupDispatchOutcome::Acknowledged,
+            PrimitiveDispatchOutcome::Rejected => CleanupDispatchOutcome::Rejected,
+            PrimitiveDispatchOutcome::DeliveryUnknown => CleanupDispatchOutcome::DeliveryUnknown,
+        })
+    }
+
+    async fn clear_local_window(&self, window_id: i8) {
+        let _coherent_state = self.coherent_state_gate.lock().await;
+        let mut inventory = self.inventory.write().await;
+        if inventory
+            .open_window
+            .as_ref()
+            .is_none_or(|window| window.id != window_id)
+        {
+            return;
+        }
+        inventory.open_window = None;
+        inventory.last_transaction = None;
+        inventory.merchant_offers = None;
+        inventory.windows.remove(&window_id);
+        inventory.properties.retain(|(id, _), _| *id != window_id);
+        inventory
+            .pending_clicks
+            .retain(|(id, _), _| *id != window_id);
+        let mut furnace_window_position = self.furnace_window_position.lock().await;
+        if furnace_window_position.is_some_and(|(id, _)| id == window_id) {
+            *furnace_window_position = None;
+        }
+        drop(furnace_window_position);
+        drop(inventory);
+        self.emit(Event::WindowClosed { window_id });
+    }
+    /// Waits without an internal timeout for a confirmed or unknown terminal state.
+    /// The outer PlaySupervisor owns the logout deadline.
+    pub async fn wait_for_transport_end(&self) -> ConnectionLifecycle {
+        self.connection.wait_for_terminal().await
+    }
+    /// Captures all requested raw domains in one connection-actor turn.
+    ///
+    /// Packet application cannot interleave with this capture. The returned
+    /// sequence is scoped to this connection generation and must not be reused
+    /// as a Zen Body `StateRevision`.
+    pub async fn capture_coherent_observation(
+        &self,
+        request: crate::CoherentObservationRequest,
+    ) -> Result<crate::CoherentObservation> {
+        let request = request.validate()?;
+        if self.connection.lifecycle() != ConnectionLifecycle::Ready {
+            bail!("coherent observation requires a ready connection");
+        }
+        let (reply, result) = oneshot::channel();
+        self.capture_requests
+            .send(crate::observation::CaptureCommand { request, reply })
+            .await
+            .map_err(|_| {
+                crate::Error::new(
+                    crate::ErrorKind::State,
+                    anyhow::anyhow!("connection actor no longer accepts observation capture"),
+                )
+            })?;
+        result.await.map_err(|_| {
+            crate::Error::new(
+                crate::ErrorKind::State,
+                anyhow::anyhow!("connection actor dropped observation capture result"),
+            )
+        })?
+    }
+
+    /// Captures a bounded raw movement-facts snapshot in one connection-actor
+    /// turn. This is an internal typed integration boundary for the Rust Body
+    /// service; it is not a JSON or public Body semantic contract.
+    pub async fn capture_traversal_movement_facts(
+        &self,
+        request: crate::TraversalMovementFactsRequest,
+    ) -> Result<crate::TraversalMovementFactsSnapshot> {
+        let request = request.validate()?;
+        if request.expected_generation != self.connection_generation() {
+            bail!("movement facts request belongs to a stale client generation");
+        }
+        let (reply, result) = oneshot::channel();
+        self.traversal_movement_facts_requests
+            .send(crate::observation::TraversalMovementFactsCommand { request, reply })
+            .await
+            .map_err(|_| {
+                crate::Error::new(
+                    crate::ErrorKind::State,
+                    anyhow::anyhow!("connection actor no longer accepts movement facts capture"),
+                )
+            })?;
+        result.await.map_err(|_| {
+            crate::Error::new(
+                crate::ErrorKind::State,
+                anyhow::anyhow!("connection actor dropped movement facts capture result"),
+            )
+        })?
+    }
+
+    /// Queries matching blocks and loaded coverage under one coherent client
+    /// state gate. The result is raw packet-cache evidence only; callers own
+    /// all candidate selection, route, and semantic decisions.
+    pub async fn query_loaded_resource(
+        &self,
+        request: crate::LoadedResourceQuery,
+    ) -> Result<crate::LoadedResourceQuerySnapshot> {
+        request.validate()?;
+        let _coherent_state = self.coherent_state_gate.lock().await;
+        if self.connection.lifecycle() != ConnectionLifecycle::Ready {
+            bail!("loaded resource query requires a ready connection");
+        }
+        if request.expected_generation != self.connection_generation() {
+            bail!("loaded resource query belongs to a stale client generation");
+        }
+        if self.survival.read().await.dimension.as_deref()
+            != Some(request.expected_dimension.as_str())
+        {
+            bail!("loaded resource query belongs to a stale dimension");
+        }
+        let generation = self.connection_generation();
+        let world = self.world.lock().await;
+        let min_chunk_x = request.region.min.x.div_euclid(16);
+        let max_chunk_x = request.region.max.x.div_euclid(16);
+        let min_chunk_z = request.region.min.z.div_euclid(16);
+        let max_chunk_z = request.region.max.z.div_euclid(16);
+        let mut missing_chunks = 0_u32;
+        for chunk_x in min_chunk_x..=max_chunk_x {
+            for chunk_z in min_chunk_z..=max_chunk_z {
+                if world
+                    .chunk_snapshot(crate::ChunkPos {
+                        x: chunk_x,
+                        z: chunk_z,
+                    })
+                    .is_none()
+                {
+                    missing_chunks = missing_chunks.saturating_add(1);
+                }
+            }
+        }
+        let (candidates, omitted_candidates) = match world.query_resource_index(
+            request.region,
+            request.block_name.as_str(),
+            usize::from(request.limit),
+        ) {
+            crate::world::ResourceIndexQuery::Complete {
+                candidates,
+                omitted,
+            } => (candidates, omitted),
+            crate::world::ResourceIndexQuery::Unsupported => {
+                let mut candidates = Vec::new();
+                let mut omitted = 0_u32;
+                for x in request.region.min.x..=request.region.max.x {
+                    for y in request.region.min.y..=request.region.max.y {
+                        for z in request.region.min.z..=request.region.max.z {
+                            let Some(state_id) = world.block(x, y, z) else {
+                                continue;
+                            };
+                            if crate::block_name_from_state(state_id)
+                                != Some(request.block_name.as_str())
+                            {
+                                continue;
+                            }
+                            if candidates.len() < usize::from(request.limit) {
+                                candidates.push(crate::BlockPos { x, y, z });
+                            } else {
+                                omitted = omitted.saturating_add(1);
+                            }
+                        }
+                    }
+                }
+                (candidates, omitted)
+            }
+            crate::world::ResourceIndexQuery::Unknown => {
+                bail!("loaded resource query index is incomplete")
+            }
+        };
+        let block_geometry_revision = self.block_geometry_revision.load(Ordering::Acquire);
+        let inventory_revision = self.inventory.read().await.revision();
+        Ok(crate::LoadedResourceQuerySnapshot {
+            capture: crate::SensorCaptureIdentity {
+                generation,
+                block_geometry_revision,
+                inventory_revision,
+            },
+            coverage: if missing_chunks == 0 {
+                crate::LoadedResourceCoverage::Complete
+            } else {
+                crate::LoadedResourceCoverage::Partial { missing_chunks }
+            },
+            candidates,
+            omitted_candidates,
+        })
+    }
+
+    /// Reads one Body-selected traversal region under the coherent state gate.
+    /// The returned facts carry no route, stand, target, or action authority.
+    pub async fn query_traversal_geometry(
+        &self,
+        request: crate::TraversalGeometryQuery,
+    ) -> Result<crate::TraversalGeometrySnapshot> {
+        request.validate()?;
+        let _coherent_state = self.coherent_state_gate.lock().await;
+        if self.connection.lifecycle() != ConnectionLifecycle::Ready {
+            bail!("traversal geometry query requires a ready connection");
+        }
+        if request.expected_capture.generation != self.connection_generation() {
+            bail!("traversal geometry query belongs to a stale client generation");
+        }
+        if self.survival.read().await.dimension.as_deref()
+            != Some(request.expected_dimension.as_str())
+        {
+            bail!("traversal geometry query belongs to a stale dimension");
+        }
+        let player = self.player.lock().await.snapshot();
+        if !player.value.x.is_finite() || !player.value.y.is_finite() || !player.value.z.is_finite()
+        {
+            bail!("traversal geometry query captured a non-finite player origin");
+        }
+        let world = self.world.lock().await.map_snapshot(|world| {
+            let mut blocks = Vec::new();
+            for x in request.region.min.x..=request.region.max.x {
+                for y in request.region.min.y..=request.region.max.y {
+                    for z in request.region.min.z..=request.region.max.z {
+                        let position = crate::BlockPos { x, y, z };
+                        let Some(state_id) = world.block(x, y, z) else {
+                            blocks.push(crate::TraversalGeometryBlockFact::Unloaded { position });
+                            continue;
+                        };
+                        let Some(name) = crate::block_name_from_state(state_id) else {
+                            blocks.push(crate::TraversalGeometryBlockFact::Unknown {
+                                position,
+                                state_id,
+                            });
+                            continue;
+                        };
+                        let Some(collision) = crate::block_collision(state_id) else {
+                            blocks.push(crate::TraversalGeometryBlockFact::Unknown {
+                                position,
+                                state_id,
+                            });
+                            continue;
+                        };
+                        let Some(support_surface) = crate::block_support_surface(state_id) else {
+                            blocks.push(crate::TraversalGeometryBlockFact::Unknown {
+                                position,
+                                state_id,
+                            });
+                            continue;
+                        };
+                        let Some(properties) = crate::block_state_properties(state_id) else {
+                            blocks.push(crate::TraversalGeometryBlockFact::Unknown {
+                                position,
+                                state_id,
+                            });
+                            continue;
+                        };
+                        blocks.push(crate::TraversalGeometryBlockFact::Loaded {
+                            position,
+                            state_id,
+                            name: name.to_owned(),
+                            collision,
+                            support_surface,
+                            properties,
+                        });
+                    }
+                }
+            }
+            blocks
+        });
+        let block_geometry_revision = self.block_geometry_revision.load(Ordering::Acquire);
+        let inventory_revision = self.inventory.read().await.revision();
+        let generation = self.connection_generation();
+        if generation != request.expected_capture.generation
+            || self.connection.lifecycle() != ConnectionLifecycle::Ready
+        {
+            bail!("traversal geometry query crossed a connection generation boundary");
+        }
+        Ok(crate::TraversalGeometrySnapshot {
+            capture: crate::SensorCaptureIdentity {
+                generation,
+                block_geometry_revision,
+                inventory_revision,
+            },
+            evaluated_origin: crate::Vec3 {
+                x: player.value.x,
+                y: player.value.y,
+                z: player.value.z,
+            },
+            blocks: world.value,
+        })
+    }
+
+    /// Captures every chunk currently loaded by this client as one immutable,
+    /// low-copy Rust integration object.
+    ///
+    /// Public visibility is required for the in-process service-to-runtime
+    /// Production proof boundary. This method exposes packet facts only and
+    /// grants no semantic, route, target, or action authority.
+    pub async fn capture_loaded_geometry(&self) -> Result<crate::LoadedGeometrySnapshot> {
+        const CELLS_PER_CHUNK: usize = 16 * 16 * 256;
+        const SECTIONS_PER_CHUNK: usize = 16;
+
+        let _coherent_state = self.coherent_state_gate.lock().await;
+        if self.connection.lifecycle() != ConnectionLifecycle::Ready {
+            bail!("loaded geometry capture requires a ready connection");
+        }
+        let generation = self.connection_generation();
+        let dimension = self
+            .survival
+            .read()
+            .await
+            .dimension
+            .clone()
+            .context("loaded geometry capture requires a known dimension")?;
+        let (loaded_chunks, sections) = self
+            .world
+            .lock()
+            .await
+            .map_snapshot(|world| world.loaded_geometry_parts())
+            .value;
+        if loaded_chunks.len() > self.connection_options.max_chunks
+            || sections.len()
+                > loaded_chunks
+                    .len()
+                    .checked_mul(SECTIONS_PER_CHUNK)
+                    .context("loaded geometry section bound overflow")?
+        {
+            bail!("loaded geometry capture exceeds configured world bounds");
+        }
+        let logical_cell_count = loaded_chunks
+            .len()
+            .checked_mul(CELLS_PER_CHUNK)
+            .context("loaded geometry logical cell count overflow")?;
+        let block_geometry_revision = self.block_geometry_revision.load(Ordering::Acquire);
+        let inventory_revision = self.inventory.read().await.revision();
+        if generation != self.connection_generation()
+            || self.connection.lifecycle() != ConnectionLifecycle::Ready
+        {
+            bail!("loaded geometry capture crossed a connection generation boundary");
+        }
+        Ok(crate::LoadedGeometrySnapshot {
+            capture: crate::SensorCaptureIdentity {
+                generation,
+                block_geometry_revision,
+                inventory_revision,
+            },
+            dimension,
+            loaded_chunks,
+            sections,
+            logical_cell_count,
+        })
     }
     /// Public constant `fn`.
     pub const fn client_info() -> ClientInfo {
@@ -1130,6 +2452,18 @@ impl Bot {
 
     /// Replaces and dispatches the standard Client Settings and brand payloads.
     pub async fn set_client_settings(&self, settings: ClientSettings) -> Result<()> {
+        self.dispatch_client_settings(settings, false).await
+    }
+
+    async fn set_client_settings_protocol(&self, settings: ClientSettings) -> Result<()> {
+        self.dispatch_client_settings(settings, true).await
+    }
+
+    async fn dispatch_client_settings(
+        &self,
+        settings: ClientSettings,
+        protocol_response: bool,
+    ) -> Result<()> {
         if settings.locale.is_empty() || settings.locale.len() > 16 {
             bail!("locale must contain 1..=16 bytes");
         }
@@ -1143,11 +2477,19 @@ impl Bot {
         payload.push(u8::from(settings.chat_colors));
         payload.push(settings.skin_parts);
         put_varint(&mut payload, settings.main_hand as i32);
-        self.send(0x05, &payload).await?;
+        if protocol_response {
+            self.send_protocol(0x05, &payload).await?;
+        } else {
+            self.send(0x05, &payload).await?;
+        }
         let mut brand = Vec::new();
         put_string(&mut brand, "minecraft:brand");
         put_string(&mut brand, &settings.brand);
-        self.send(0x0b, &brand).await?;
+        if protocol_response {
+            self.send_protocol(0x0b, &brand).await?;
+        } else {
+            self.send(0x0b, &brand).await?;
+        }
         *self.client_settings.write().await = settings;
         Ok(())
     }
@@ -1166,6 +2508,18 @@ impl Bot {
     /// Performs the `physics_metrics` operation.
     pub async fn physics_metrics(&self) -> PhysicsMetrics {
         self.physics.lock().await.snapshot()
+    }
+
+    /// Starts a typed diagnostic measurement window for this connection.
+    ///
+    /// Only the client-owned physics instrumentation accumulators are reset;
+    /// player state, packet caches, movement proposals, and correction
+    /// classification remain untouched. The returned token lets an integrating
+    /// service bind its private metrics to the exact client generation.
+    pub async fn begin_measurement_epoch(&self) -> crate::physics::PhysicsMeasurementEpoch {
+        let generation = self.connection_generation();
+        self.physics.lock().await.begin_measurement_epoch();
+        crate::physics::PhysicsMeasurementEpoch::new(generation)
     }
     /// Performs the `motion` operation.
     pub async fn motion(&self) -> MotionState {
@@ -1287,7 +2641,7 @@ impl Bot {
     }
     /// Performs the `control_snapshot` operation.
     pub async fn control_snapshot(&self) -> Snapshot<ControlState> {
-        self.control.read().await.snapshot()
+        self.connection.control_snapshot().await
     }
     /// Replaces the persistent input state consumed by the 20 Hz physics loop.
     ///
@@ -1295,11 +2649,46 @@ impl Bot {
     /// movement packet or server acknowledgement. The state remains active
     /// until replaced or cleared.
     pub async fn set_control(&self, control: ControlState) {
-        **self.control.write().await = control;
+        let _ = self
+            .connection
+            .replace_control(
+                self.operation_context(0),
+                ClientOperationClass::Normal,
+                control,
+            )
+            .await;
+    }
+
+    /// Replaces the actor-owned control state for a Body-selected observation.
+    ///
+    /// The context is mandatory on the typed path so stale observations and
+    /// post-barrier normal control cannot mutate the state or produce packets.
+    /// The replacement is admitted and committed by one connection-actor
+    /// command; this method does not choose movement policy or route.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed admission error before the replacement is committed.
+    pub async fn set_control_with_context(
+        &self,
+        context: OperationContext,
+        control: ControlState,
+    ) -> std::result::Result<(), PrimitiveDispatchError> {
+        self.connection
+            .replace_control(context, ClientOperationClass::Normal, control)
+            .await
+            .map_err(PrimitiveDispatchError::Admission)
     }
     /// Clears every persistent control input locally.
     pub async fn clear_control(&self) {
-        self.set_control(ControlState::default()).await;
+        let _ = self
+            .connection
+            .replace_control(
+                self.operation_context(0),
+                ClientOperationClass::Cleanup,
+                ControlState::default(),
+            )
+            .await;
     }
     /// Access protocol-adjacent operations with weaker compatibility guarantees.
     pub fn unstable(&self) -> crate::UnstableBot<'_> {
@@ -1324,6 +2713,7 @@ impl Bot {
             let spawned = self.player.lock().await.spawned;
             let positioned = *self.positioned.lock().await;
             if spawned && positioned {
+                self.connection.mark_ready().await;
                 return Ok(());
             }
             timeout(self.connection_options.ready_timeout, notified)
@@ -1333,6 +2723,7 @@ impl Bot {
     }
     pub(crate) async fn move_relative_unchecked(&self, forward: f64, strafe: f64) -> Result<()> {
         self.wait_until_ready().await?;
+        let _coherent_state = self.coherent_state_gate.lock().await;
         let mut p = self.player.lock().await;
         let yaw = (p.yaw as f64).to_radians();
         p.x += -yaw.sin() * forward + yaw.cos() * strafe;
@@ -1348,6 +2739,7 @@ impl Bot {
             bail!("look angles must be finite");
         }
         self.wait_until_ready().await?;
+        let _coherent_state = self.coherent_state_gate.lock().await;
         let mut p = self.player.lock().await;
         p.yaw = yaw;
         p.pitch = pitch.clamp(-90.0, 90.0);
@@ -1893,6 +3285,7 @@ impl Bot {
         if slot > 8 {
             bail!("hotbar slot must be 0..=8");
         }
+        let _coherent_state = self.coherent_state_gate.lock().await;
         let mut payload = Vec::new();
         payload.write_i16::<BigEndian>(i16::from(slot))?;
         self.send(0x24, &payload).await?;
@@ -2011,19 +3404,32 @@ impl Bot {
         self.send_digging_packet(DiggingStatus::Started, position, face)
             .await?;
         tokio::time::sleep(Duration::from_millis(ticks.saturating_mul(50))).await;
-        self.send_digging_packet(DiggingStatus::Finished, position, face)
-            .await?;
-        Ok(timeout(Duration::from_secs(5), async {
-            loop {
-                if let Event::DiggingAcknowledged(ack) = events.recv().await? {
-                    if ack.position == position && ack.status == DiggingStatus::Finished as i32 {
-                        return Ok::<_, anyhow::Error>(ack);
-                    }
+        let transaction = self
+            .dispatch_acknowledged(
+                self.operation_context(0),
+                AcknowledgedPrimitive::DigFinish { position, face },
+            )
+            .await
+            .map_err(|error| crate::Error::new(crate::ErrorKind::State, anyhow::anyhow!(error)))?;
+        match transaction.wait().await {
+            PrimitiveDispatchOutcome::Acknowledged => {}
+            PrimitiveDispatchOutcome::Rejected => {
+                bail!("server rejected digging action at {position:?}");
+            }
+            PrimitiveDispatchOutcome::DeliveryUnknown => {
+                bail!("delivery of digging acknowledgement is unknown");
+            }
+            PrimitiveDispatchOutcome::Dispatched => {
+                bail!("digging action was dispatched without acknowledgement");
+            }
+        }
+        loop {
+            if let Event::DiggingAcknowledged(ack) = events.recv().await? {
+                if ack.position == position && ack.status == DiggingStatus::Finished as i32 {
+                    return Ok(ack);
                 }
             }
-        })
-        .await
-        .context("timed out waiting for digging acknowledgement")??)
+        }
     }
     /// Dispatches a block-placement interaction.
     ///
@@ -2147,7 +3553,9 @@ impl Bot {
         let mut payload = Vec::new();
         put_varint(&mut payload, entity_id);
         put_varint(&mut payload, 1);
-        payload.push(u8::from(self.control.read().await.sneak));
+        payload.push(u8::from(
+            self.connection.control_snapshot().await.value.sneak,
+        ));
         self.send(0x0e, &payload).await?;
         self.swing_arm(Hand::Main).await?;
         *last_attack = Some(std::time::Instant::now());
@@ -2204,8 +3612,41 @@ impl Bot {
         button: i8,
         mode: ClickMode,
     ) -> Result<i16> {
+        let (action, transaction) = self
+            .click_slot_transaction(window_id, slot, button, mode)
+            .await?;
+        // This compatibility API returns before confirmation. Keep the
+        // actor-owned transaction alive and clean prediction metadata if its
+        // delivery deadline expires; dropping a caller future must not cancel
+        // the actor's pending transaction.
+        let monitor = self.clone_internal();
+        tokio::spawn(async move {
+            if transaction.wait().await == PrimitiveDispatchOutcome::DeliveryUnknown {
+                monitor.rollback_pending_click(window_id, action).await;
+            }
+        });
+        Ok(action)
+    }
+
+    async fn rollback_pending_click(&self, window_id: i8, action: i16) {
+        let _coherent_state = self.coherent_state_gate.lock().await;
+        let mut inventory = self.inventory.write().await;
+        if let Some(pending) = inventory.pending_clicks.remove(&(window_id, action)) {
+            rollback_click(&mut inventory, &pending);
+            sync_player_inventory_from_window(&mut inventory, window_id);
+        }
+    }
+
+    async fn click_slot_transaction(
+        &self,
+        window_id: i8,
+        slot: i16,
+        button: i8,
+        mode: ClickMode,
+    ) -> Result<(i16, ProtocolTransaction)> {
         let _click_guard = self.click_lock.lock().await;
-        let (action, clicked) = {
+        let _coherent_state = self.coherent_state_gate.lock().await;
+        let (clicked, slot_before, cursor_before) = {
             let mut inventory = self.inventory.write().await;
             if window_id != 0
                 && inventory.open_window.as_ref().map(|window| window.id) != Some(window_id)
@@ -2235,10 +3676,70 @@ impl Bot {
                 predict_normal_click(&mut inventory, window_id, slot, button)?;
                 sync_player_inventory_from_window(&mut inventory, window_id);
             }
-            let next = inventory.next_actions.entry(window_id).or_default();
-            *next = next.wrapping_add(1);
-            let action = *next;
-            let pending = PendingClick {
+            (clicked, slot_before, cursor_before)
+        };
+        let transaction = match self
+            .dispatch_acknowledged(
+                self.operation_context(0),
+                AcknowledgedPrimitive::WindowClick {
+                    window_id,
+                    slot,
+                    button,
+                    mode,
+                    clicked,
+                },
+            )
+            .await
+        {
+            Ok(transaction) => transaction,
+            Err(error) => {
+                let mut inventory = self.inventory.write().await;
+                if mode == ClickMode::Normal {
+                    let pending = PendingClick {
+                        window_id,
+                        action: 0,
+                        slot,
+                        button,
+                        mode,
+                        slot_before,
+                        cursor_before,
+                        accepted_cache_effects: Default::default(),
+                    };
+                    rollback_click(&mut inventory, &pending);
+                    sync_player_inventory_from_window(&mut inventory, window_id);
+                }
+                let message = anyhow::anyhow!(error.to_string());
+                return Err(crate::Error::new(crate::ErrorKind::State, message));
+            }
+        };
+        if !transaction.was_dispatched() {
+            let mut inventory = self.inventory.write().await;
+            if mode == ClickMode::Normal {
+                let pending = PendingClick {
+                    window_id,
+                    action: 0,
+                    slot,
+                    button,
+                    mode,
+                    slot_before,
+                    cursor_before,
+                    accepted_cache_effects: Default::default(),
+                };
+                rollback_click(&mut inventory, &pending);
+                sync_player_inventory_from_window(&mut inventory, window_id);
+            }
+            return Err(crate::Error::new(
+                crate::ErrorKind::Connection,
+                anyhow::anyhow!("window click delivery is unknown"),
+            ));
+        }
+        let action = transaction
+            .window_action()
+            .context("window click transaction did not expose a local action")?;
+        let mut inventory = self.inventory.write().await;
+        inventory.pending_clicks.insert(
+            (window_id, action),
+            PendingClick {
                 window_id,
                 action,
                 slot,
@@ -2246,30 +3747,14 @@ impl Bot {
                 mode,
                 slot_before,
                 cursor_before,
-            };
-            inventory
-                .pending_clicks
-                .insert((window_id, action), pending);
-            (action, clicked)
-        };
-        let mut payload = Vec::new();
-        payload.push(window_id as u8);
-        payload.write_i16::<BigEndian>(slot)?;
-        payload.write_i8(button)?;
-        payload.write_i16::<BigEndian>(action)?;
-        payload.write_i8(mode as i8)?;
-        write_slot(&mut payload, clicked.as_ref());
-        if let Err(error) = self.send(0x09, &payload).await {
-            let mut inventory = self.inventory.write().await;
-            if let Some(pending) = inventory.pending_clicks.remove(&(window_id, action)) {
-                rollback_click(&mut inventory, &pending);
-                sync_player_inventory_from_window(&mut inventory, window_id);
-            }
-            return Err(error);
-        }
-        Ok(action)
+                accepted_cache_effects: Default::default(),
+            },
+        );
+        drop(inventory);
+        Ok((action, transaction))
     }
-    /// Dispatches a click and waits for the matching accepted transaction.
+
+    /// Dispatches a click and waits for the matching protocol transaction.
     pub async fn click_slot_and_wait(
         &self,
         window_id: i8,
@@ -2277,23 +3762,22 @@ impl Bot {
         button: i8,
         mode: ClickMode,
     ) -> Result<i16> {
-        let mut events = self.subscribe();
-        let action = self.click_slot(window_id, slot, button, mode).await?;
-        timeout(Duration::from_secs(5), async {
-            loop {
-                if let Event::WindowTransaction(transaction) = events.recv().await? {
-                    if transaction.window_id == window_id && transaction.action == action {
-                        if transaction.accepted {
-                            return Ok::<(), anyhow::Error>(());
-                        }
-                        bail!("server rejected window action {action}");
-                    }
-                }
+        let (action, transaction) = self
+            .click_slot_transaction(window_id, slot, button, mode)
+            .await?;
+        match transaction.wait().await {
+            crate::PrimitiveDispatchOutcome::Acknowledged => Ok(action),
+            crate::PrimitiveDispatchOutcome::Rejected => {
+                bail!("server rejected window action {action}");
             }
-        })
-        .await
-        .context("timed out waiting for slot synchronization")??;
-        Ok(action)
+            crate::PrimitiveDispatchOutcome::DeliveryUnknown => {
+                self.rollback_pending_click(window_id, action).await;
+                bail!("delivery of window action {action} is unknown");
+            }
+            crate::PrimitiveDispatchOutcome::Dispatched => {
+                bail!("window action {action} was dispatched without acknowledgement");
+            }
+        }
     }
     /// Performs the `craft_once` operation.
     pub async fn craft_once(
@@ -2371,6 +3855,7 @@ impl Bot {
             .await
             .context("collect crafting result")?;
         {
+            let _coherent_state = self.coherent_state_gate.lock().await;
             // Accepted crafting-result clicks consume one item from every occupied
             // recipe slot client-side; vanilla does not necessarily echo these slots.
             let mut inventory = self.inventory.write().await;
@@ -2415,6 +3900,7 @@ impl Bot {
     }
     /// Dispatches close-window and immediately clears the predicted local window.
     pub async fn close_window(&self) -> Result<()> {
+        let _coherent_state = self.coherent_state_gate.lock().await;
         let window_id = self
             .inventory
             .read()
@@ -2426,11 +3912,18 @@ impl Bot {
         self.send(0x0a, &[window_id as u8]).await?;
         let mut inventory = self.inventory.write().await;
         inventory.open_window = None;
+        inventory.last_transaction = None;
         inventory.merchant_offers = None;
         inventory.windows.remove(&window_id);
+        inventory.properties.retain(|(id, _), _| *id != window_id);
         inventory
             .pending_clicks
             .retain(|(id, _), _| *id != window_id);
+        let mut furnace_window_position = self.furnace_window_position.lock().await;
+        if furnace_window_position.is_some_and(|(id, _)| id == window_id) {
+            *furnace_window_position = None;
+        }
+        drop(furnace_window_position);
         drop(inventory);
         self.emit(Event::WindowClosed { window_id });
         Ok(())
@@ -2502,16 +3995,41 @@ impl Bot {
         )
         .await
     }
-    /// Stops local movement and closes the TCP writer.
+    /// Starts the operation barrier, stops local movement, closes the TCP
+    /// writer, and waits for the reader to publish a terminal transport fact.
     ///
-    /// This does not wait for a server-side disconnect event.
+    /// This method owns no timeout. Callers that require a logout deadline must
+    /// apply it outside this client.
     pub async fn disconnect(&self) -> Result<()> {
-        self.emit(Event::Disconnected {
-            reason: "client disconnected".to_owned(),
-        });
-        self.clear_control().await;
-        tokio::io::AsyncWriteExt::shutdown(&mut self.writer.lock().await.inner).await?;
-        Ok(())
+        self.connection.begin_disconnect().await.map_err(|error| {
+            crate::Error::new(
+                crate::ErrorKind::State,
+                anyhow::anyhow!("disconnect rejected: {error:?}"),
+            )
+        })?;
+        let cleanup = self
+            .dispatch_cleanup(self.operation_context(0), CleanupPrimitive::ControlClear)
+            .await
+            .map_err(|error| {
+                crate::Error::new(
+                    crate::ErrorKind::State,
+                    anyhow::anyhow!("disconnect control cleanup rejected: {error:?}"),
+                )
+            })?;
+        require_disconnect_control_cleanup(cleanup)?;
+        if let Err(error) = self.connection.shutdown_writer().await {
+            self.connection
+                .mark_unknown("shutdown_writer_failed", error.to_string())
+                .await;
+            return Err(error);
+        }
+        match self.connection.wait_for_terminal().await {
+            ConnectionLifecycle::Disconnected => Ok(()),
+            ConnectionLifecycle::ConnectionStateUnknown => {
+                bail!("connection state became unknown while disconnecting")
+            }
+            _ => unreachable!("terminal wait returned a non-terminal lifecycle"),
+        }
     }
 
     async fn control_loop(&self) {
@@ -2536,7 +4054,7 @@ impl Bot {
                 self.physics.lock().await.record_tick(Duration::ZERO, lag);
                 continue;
             }
-            let control = **self.control.read().await;
+            let (control, movement_fraction) = self.connection.consume_control_for_tick(Duration::from_millis(50)).await;
             if control.sprint != sprinting {
                 if self
                     .send_entity_action(if control.sprint { 3 } else { 4 })
@@ -2561,7 +4079,7 @@ impl Bot {
                 (control.jump && !jump_held) || self.jump_requested.swap(false, Ordering::AcqRel);
             jump_held = control.jump;
             let tick_started = std::time::Instant::now();
-            if self.physics_tick(control, jump).await.is_err() {
+            if self.physics_tick_with_fraction(control, jump, movement_fraction).await.is_err() {
                 break;
             }
             self.physics
@@ -2571,13 +4089,19 @@ impl Bot {
         }
     }
 
+    #[cfg(test)]
     async fn physics_tick(&self, control: ControlState, jump: bool) -> Result<()> {
+        self.physics_tick_with_fraction(control, jump, 1.0).await
+    }
+
+    async fn physics_tick_with_fraction(&self, control: ControlState, jump: bool, movement_fraction: f64) -> Result<()> {
+        let _coherent_state = self.coherent_state_gate.lock().await;
         let survival = self.survival.read().await;
-        let base_movement_speed = survival
+        let movement_attribute = survival
             .attributes
             .get("minecraft:generic.movement_speed")
-            .or_else(|| survival.attributes.get("generic.movement_speed"))
-            .map_or(0.1, |attribute| attribute.value());
+            .or_else(|| survival.attributes.get("generic.movement_speed"));
+        let movement_speed = movement_speed_for_control(movement_attribute, control.sprint);
         drop(survival);
         let mut player = self.player.lock().await;
         let mut motion = self.motion.lock().await;
@@ -2593,8 +4117,8 @@ impl Bot {
             forward /= input_length;
             strafe /= input_length;
         }
-        forward *= 0.98;
-        strafe *= 0.98;
+        forward *= 0.98 * movement_fraction;
+        strafe *= 0.98 * movement_fraction;
 
         let aabb = Aabb::player(player.x, player.y, player.z);
         let world = self.world.lock().await;
@@ -2609,10 +4133,10 @@ impl Bot {
             _ => 0.6,
         };
         let ground_friction: f64 = 0.91 * slipperiness;
-        // The server attribute already includes the vanilla sprint modifier
-        // (operation 2, +30%) while sprinting. Applying another local factor
-        // makes ground acceleration 0.169 instead of the authoritative 0.13.
-        let movement_speed = base_movement_speed;
+        // Vanilla applies the +30% sprint modifier locally as soon as sprint
+        // input is active. A server attribute update may already carry the
+        // stable sprint UUID; only that exact evidence suppresses local
+        // application so the modifier is never doubled.
         let acceleration = if fluid.is_some() {
             0.02
         } else if was_on_ground {
@@ -2742,98 +4266,220 @@ impl Bot {
         self.send_position().await
     }
 
-    async fn read_loop(&self, mut reader: tokio::net::tcp::OwnedReadHalf) -> Result<()> {
+    async fn read_loop<R: tokio::io::AsyncRead + Unpin>(
+        &self,
+        mut reader: R,
+        mut capture_requests: mpsc::Receiver<crate::observation::CaptureCommand>,
+        mut traversal_movement_facts_requests: mpsc::Receiver<
+            crate::observation::TraversalMovementFactsCommand,
+        >,
+    ) -> Result<()> {
+        let mut next_observation_sequence = 1_u64;
         while !self.stopped.load(Ordering::Acquire) {
             let compression = self.writer.lock().await.compression;
-            let packet = tokio::select! {
-                biased;
-                _ = self.cancel.notified() => return Ok(()),
-                packet = timeout(
-                    self.connection_options.play_packet_timeout,
-                    read_packet(&mut reader, compression),
-                ) => packet.context("play packet timed out")?,
+            // A capture may interrupt waiting, but must not discard bytes
+            // already consumed from this packet. Keep both read progress and
+            // its original deadline until the packet completes or we exit.
+            let packet_read = timeout(
+                self.connection_options.play_packet_timeout,
+                read_packet(&mut reader, compression),
+            );
+            tokio::pin!(packet_read);
+            let packet = loop {
+                tokio::select! {
+                    biased;
+                    _ = self.cancel.notified() => return Ok(()),
+                    request = capture_requests.recv() => {
+                        let Some(request) = request else {
+                            return Ok(());
+                        };
+                        let result = self
+                            .capture_observation_at_sequence(request.request, next_observation_sequence)
+                            .await;
+                        if result.is_ok() {
+                            next_observation_sequence = next_observation_sequence
+                                .checked_add(1)
+                                .context("coherent observation sequence exhausted")?;
+                        }
+                        let _ = request.reply.send(result);
+                        continue;
+                    }
+                    request = traversal_movement_facts_requests.recv() => {
+                        let Some(request) = request else {
+                            return Ok(());
+                        };
+                        let result = self
+                            .capture_traversal_movement_facts_at_sequence(
+                                request.request,
+                                next_observation_sequence,
+                            )
+                            .await;
+                        if result.is_ok() {
+                            next_observation_sequence = next_observation_sequence
+                                .checked_add(1)
+                                .context("coherent observation sequence exhausted")?;
+                        }
+                        let _ = request.reply.send(result);
+                        continue;
+                    }
+                    packet = &mut packet_read => break packet.context("play packet timed out")?,
+                }
             };
             let (id, p) = packet?;
-            match id {
-                0x00 => self.insert_entity(parse_spawn_object(&p)?).await?,
-                0x01 => self.insert_entity(parse_spawn_orb(&p)?).await?,
-                0x02 => self.insert_entity(parse_spawn_living(&p)?).await?,
-                0x03 => self.insert_entity(parse_spawn_painting(&p)?).await?,
-                0x04 => self.insert_entity(parse_spawn_player(&p)?).await?,
-                0x05 => {
-                    let mut rest = p.as_slice();
-                    self.emit(Event::EntityAnimation {
-                        entity_id: get_varint(&mut rest)?,
-                        animation: *rest.first().context("missing animation")?,
+            if !self.apply_packet(id, p).await? {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    async fn apply_packet(&self, id: i32, p: Vec<u8>) -> Result<bool> {
+        let _coherent_state = self.coherent_state_gate.lock().await;
+        let packet_sequence = self
+            .protocol_packet_sequence
+            .fetch_add(1, Ordering::AcqRel)
+            .checked_add(1)
+            .context("protocol packet sequence exhausted")?;
+        match id {
+            0x00 => self.insert_entity(parse_spawn_object(&p)?).await?,
+            0x01 => self.insert_entity(parse_spawn_orb(&p)?).await?,
+            0x02 => self.insert_entity(parse_spawn_living(&p)?).await?,
+            0x03 => self.insert_entity(parse_spawn_painting(&p)?).await?,
+            0x04 => self.insert_entity(parse_spawn_player(&p)?).await?,
+            0x05 => {
+                let mut rest = p.as_slice();
+                self.emit(Event::EntityAnimation {
+                    entity_id: get_varint(&mut rest)?,
+                    animation: *rest.first().context("missing animation")?,
+                });
+            }
+            0x06 => {
+                self.statistics.write().await.apply(&p)?;
+                self.emit(Event::StatisticsUpdated);
+            }
+            0x07 => {
+                let acknowledgement = parse_digging_ack(&p)?;
+                let geometry_revision_before = self.block_geometry_revision.load(Ordering::Acquire);
+                self.world.lock().await.apply_acknowledged_block_state(
+                    acknowledgement.position,
+                    acknowledgement.block_state_id,
+                );
+                self.advance_block_geometry_revision();
+                let geometry_revision_after = self.block_geometry_revision.load(Ordering::Acquire);
+                self.world_updated.notify_waiters();
+                let confirmation = self
+                    .connection
+                    .confirm_dig_transaction_detailed(
+                        acknowledgement.position,
+                        acknowledgement.status,
+                        acknowledgement.successful,
+                    )
+                    .await;
+                if let Some(correlation) = confirmation.diagnostic_correlation {
+                    crate::connection::emit_dig_lifecycle(|| {
+                        serde_json::json!({
+                            "stage": "acknowledgement_received",
+                            "correlation_id": correlation.get(),
+                            "position": {"x": acknowledgement.position.x, "y": acknowledgement.position.y, "z": acknowledgement.position.z},
+                            "status": acknowledgement.status,
+                            "successful": acknowledgement.successful,
+                            "block_state_id": acknowledgement.block_state_id,
+                            "geometry_revision_before": geometry_revision_before,
+                            "geometry_revision_after": geometry_revision_after,
+                            "pending_matched": true,
+                        })
                     });
                 }
-                0x06 => {
-                    self.statistics.write().await.apply(&p)?;
-                    self.emit(Event::StatisticsUpdated);
-                }
-                0x07 => self.emit(Event::DiggingAcknowledged(parse_digging_ack(&p)?)),
-                0x08 => self.emit(Event::BlockBreakProgress(parse_break_progress(&p)?)),
-                0x09 => {
-                    let update = self.world.lock().await.apply_block_entity(&p)?;
-                    self.world_updated.notify_waiters();
-                    self.emit(Event::BlockEntityUpdated(update));
-                }
-                0x0a => {
-                    let mut cursor = Cursor::new(&p);
-                    let event = BlockActionEvent {
-                        position: BlockPos::unpack(cursor.read_u64::<BigEndian>()?),
-                        action: cursor.read_u8()?,
-                        parameter: cursor.read_u8()?,
-                        block_id: {
-                            let mut rest = &p[cursor.position() as usize..];
-                            get_varint(&mut rest)?
-                        },
-                    };
-                    self.emit(Event::BlockAction(event));
-                }
-                0x0b => {
-                    let (x, y, z, state_id) = self.world.lock().await.apply_block_change(&p)?;
-                    self.world_updated.notify_waiters();
-                    self.emit(Event::BlockChanged { x, y, z, state_id });
-                }
-                0x0c => {
-                    self.ui.write().await.apply_boss_bar(&p)?;
-                    self.emit(Event::UiStateUpdated(UiUpdateKind::BossBar));
-                }
-                0x0d => {
-                    let difficulty = Difficulty {
-                        id: *p.first().context("missing difficulty")?,
-                        locked: *p.get(1).context("missing difficulty lock")? != 0,
-                    };
-                    self.survival.write().await.difficulty = Some(difficulty);
-                    self.emit(Event::Difficulty(difficulty));
-                }
-                0x0e => self.emit(Event::Chat(parse_chat(&p)?)),
-                0x0f => {
-                    let count = self.world.lock().await.apply_multi_block_change(&p)?;
-                    self.world_updated.notify_waiters();
-                    self.emit(Event::MultiBlockChanged { count });
-                }
-                0x10 => self.emit(Event::TabCompletion(parse_tab_completion(&p)?)),
-                0x11 => {
-                    **self.command_tree.write().await = Some(parse_command_tree(&p)?);
-                    self.emit(Event::CommandTreeUpdated);
-                }
-                0x12 => {
-                    let mut c = Cursor::new(&p);
-                    let transaction = WindowTransaction {
-                        window_id: c.read_i8()?,
-                        action: c.read_i16::<BigEndian>()?,
-                        accepted: c.read_u8()? != 0,
-                    };
-                    let mut inventory = self.inventory.write().await;
+                self.emit(Event::DiggingAcknowledged(acknowledgement));
+            }
+            0x08 => self.emit(Event::BlockBreakProgress(parse_break_progress(&p)?)),
+            0x09 => {
+                let update = self.world.lock().await.apply_block_entity(&p)?;
+                self.world_updated.notify_waiters();
+                self.emit(Event::BlockEntityUpdated(update));
+            }
+            0x0a => {
+                let mut cursor = Cursor::new(&p);
+                let event = BlockActionEvent {
+                    position: BlockPos::unpack(cursor.read_u64::<BigEndian>()?),
+                    action: cursor.read_u8()?,
+                    parameter: cursor.read_u8()?,
+                    block_id: {
+                        let mut rest = &p[cursor.position() as usize..];
+                        get_varint(&mut rest)?
+                    },
+                };
+                self.emit(Event::BlockAction(event));
+            }
+            0x0b => {
+                let (x, y, z, state_id) = self.world.lock().await.apply_block_change(&p)?;
+                self.advance_block_geometry_revision();
+                self.world_updated.notify_waiters();
+                self.emit(Event::BlockChanged { x, y, z, state_id });
+            }
+            0x0c => {
+                self.ui.write().await.apply_boss_bar(&p)?;
+                self.emit(Event::UiStateUpdated(UiUpdateKind::BossBar));
+            }
+            0x0d => {
+                let difficulty = Difficulty {
+                    id: *p.first().context("missing difficulty")?,
+                    locked: *p.get(1).context("missing difficulty lock")? != 0,
+                };
+                self.survival.write().await.difficulty = Some(difficulty);
+                self.emit(Event::Difficulty(difficulty));
+            }
+            0x0e => self.emit(Event::Chat(parse_chat(&p)?)),
+            0x0f => {
+                let count = self.world.lock().await.apply_multi_block_change(&p)?;
+                self.advance_block_geometry_revision();
+                self.world_updated.notify_waiters();
+                self.emit(Event::MultiBlockChanged { count });
+            }
+            0x10 => self.emit(Event::TabCompletion(parse_tab_completion(&p)?)),
+            0x11 => {
+                **self.command_tree.write().await = Some(parse_command_tree(&p)?);
+                self.emit(Event::CommandTreeUpdated);
+            }
+            0x12 => {
+                let mut c = Cursor::new(&p);
+                let transaction = WindowTransaction {
+                    window_id: c.read_i8()?,
+                    action: c.read_i16::<BigEndian>()?,
+                    accepted: c.read_u8()? != 0,
+                    packet_sequence,
+                };
+                self.inventory.write().await.last_transaction = Some(transaction);
+                let transaction_context = (
+                    transaction.window_id,
+                    transaction.action,
+                    transaction.accepted,
+                );
+                let confirmation_observed = self
+                    .connection
+                    .observe_window_confirmation(
+                        transaction_context.0,
+                        transaction_context.1,
+                        transaction_context.2,
+                    )
+                    .await;
+                let identity = (transaction.window_id, transaction.action);
+                let exact = self
+                    .exact_window_barriers
+                    .lock()
+                    .await
+                    .contains_key(&identity);
+                let mut inventory = self.inventory.write().await;
+                if confirmation_observed {
                     let pending = inventory
                         .pending_clicks
                         .remove(&(transaction.window_id, transaction.action));
                     if let Some(pending) = &pending {
-                        if !transaction.accepted {
+                        if exact && transaction.accepted && pending.mode == ClickMode::Normal {
+                            apply_accepted_normal_click(&mut inventory, pending)?;
+                        } else if !exact && !transaction.accepted {
                             rollback_click(&mut inventory, pending);
-                        } else if pending.mode == ClickMode::Normal {
+                        } else if !exact && pending.mode == ClickMode::Normal {
                             rollback_click(&mut inventory, pending);
                             predict_normal_click(
                                 &mut inventory,
@@ -2844,709 +4490,1079 @@ impl Bot {
                             sync_player_inventory_from_window(&mut inventory, pending.window_id);
                         }
                     }
-                    drop(inventory);
+                }
+                drop(inventory);
+                if confirmation_observed {
                     if !transaction.accepted {
-                        let mut payload = Vec::new();
-                        payload.write_i8(transaction.window_id)?;
-                        payload.write_i16::<BigEndian>(transaction.action)?;
-                        payload.push(1);
-                        self.send(0x07, &payload).await?;
-                    }
-                    self.emit(Event::WindowTransaction(transaction));
-                }
-                0x13 => {
-                    let window_id = *p.first().context("missing closed window ID")? as i8;
-                    let mut inventory = self.inventory.write().await;
-                    inventory.open_window = None;
-                    inventory.merchant_offers = None;
-                    inventory.windows.remove(&window_id);
-                    inventory
-                        .pending_clicks
-                        .retain(|(id, _), _| *id != window_id);
-                    drop(inventory);
-                    self.emit(Event::WindowClosed { window_id });
-                }
-                0x14 => {
-                    let (window_id, slots) = parse_window_items(&p)?;
-                    let mut inventory = self.inventory.write().await;
-                    inventory.windows.insert(window_id, slots);
-                    sync_player_inventory_from_window(&mut inventory, window_id);
-                    drop(inventory);
-                    self.emit(Event::InventoryUpdated { window_id });
-                }
-                0x15 => {
-                    let mut c = Cursor::new(&p);
-                    let property = WindowProperty {
-                        window_id: c.read_u8()? as i8,
-                        property: c.read_i16::<BigEndian>()?,
-                        value: c.read_i16::<BigEndian>()?,
-                    };
-                    self.inventory
-                        .write()
-                        .await
-                        .properties
-                        .insert((property.window_id, property.property), property.value);
-                    self.emit(Event::WindowProperty(property));
-                }
-                0x16 => {
-                    let update = parse_set_slot(&p)?;
-                    let mut inventory = self.inventory.write().await;
-                    apply_slot(&mut inventory, &update)?;
-                    drop(inventory);
-                    self.emit(Event::SlotUpdated(update));
-                }
-                0x17 => {
-                    let mut rest = p.as_slice();
-                    let item_id = get_varint(&mut rest)?;
-                    let ticks = get_varint(&mut rest)?;
-                    self.survival
-                        .write()
-                        .await
-                        .item_cooldowns
-                        .insert(item_id, ticks);
-                    self.emit(Event::ItemCooldown { item_id, ticks });
-                }
-                0x18 => {
-                    let mut rest = p.as_slice();
-                    let channel = get_string(&mut rest)?;
-                    if rest.len() > self.connection_options.max_custom_payload_bytes {
-                        bail!(
-                            "custom payload has {} bytes, limit is {}",
-                            rest.len(),
-                            self.connection_options.max_custom_payload_bytes
-                        );
-                    }
-                    let data = Arc::from(rest);
-                    if channel == "minecraft:brand" {
-                        let mut brand_data = rest;
-                        if let Ok(brand) = get_string(&mut brand_data) {
-                            **self.server_brand.write().await = Some(brand.clone());
-                            self.emit(Event::ServerBrand(brand));
-                        }
-                    }
-                    self.emit(Event::CustomPayload { channel, data });
-                }
-                0x19 => self.handle_sound(&p, true)?,
-                0x1a => {
-                    let mut s = p.as_slice();
-                    self.physics.lock().await.record_disconnect();
-                    self.emit(Event::Disconnected {
-                        reason: get_string(&mut s).unwrap_or_default(),
-                    });
-                    break;
-                }
-                0x1b => {
-                    let mut c = Cursor::new(&p);
-                    let entity_id = c.read_i32::<BigEndian>()?;
-                    let status = c.read_i8()?;
-                    self.emit(Event::EntityStatus { entity_id, status });
-                }
-                0x1c => {
-                    let explosion = parse_explosion(&p)?;
-                    self.world
-                        .lock()
-                        .await
-                        .apply_explosion_blocks(&explosion.affected_blocks);
-                    self.world_updated.notify_waiters();
-                    let mut motion = self.motion.lock().await;
-                    motion.velocity.x += explosion.player_motion.x;
-                    motion.velocity.y += explosion.player_motion.y;
-                    motion.velocity.z += explosion.player_motion.z;
-                    drop(motion);
-                    self.emit(Event::Explosion(explosion));
-                }
-                0x1d => {
-                    let (x, z) = self.world.lock().await.unload_chunk(&p)?;
-                    self.emit(Event::ChunkUnloaded { x, z });
-                }
-                0x1e => {
-                    let mut c = Cursor::new(&p);
-                    let change = GameStateChange {
-                        reason: c.read_u8()?,
-                        value: c.read_f32::<BigEndian>()?,
-                    };
-                    let mut state = self.survival.write().await;
-                    match change.reason {
-                        1 => state.raining = Some(false),
-                        2 => state.raining = Some(true),
-                        3 => state.game_mode = Some(change.value as u8),
-                        7 => state.rain_level = Some(change.value),
-                        8 => state.thunder_level = Some(change.value),
-                        _ => {}
-                    }
-                    drop(state);
-                    self.emit(Event::GameStateChange(change));
-                }
-                0x1f => {
-                    let mut rest = p.as_slice();
-                    let window_id = i8::try_from(*rest.first().context("missing horse window ID")?)
-                        .context("horse window ID out of range")?;
-                    rest = &rest[1..];
-                    let declared_slots = get_varint(&mut rest)?;
-                    let mut cursor = Cursor::new(rest);
-                    let entity_id = cursor.read_i32::<BigEndian>()?;
-                    let window = OpenWindow {
-                        id: window_id,
-                        window_type: -1,
-                        title_json: String::new(),
-                        entity_id: Some(entity_id),
-                        declared_slots: Some(declared_slots),
-                    };
-                    self.inventory.write().await.open_window = Some(window.clone());
-                    self.emit(Event::WindowOpened(window));
-                }
-                0x20 => self.send(0x10, &p).await?,
-                0x21 => match self
-                    .world
-                    .lock()
-                    .await
-                    .apply_chunk(&p, self.connection_options.max_chunks)
-                {
-                    Ok((x, z)) => {
-                        self.world_updated.notify_waiters();
-                        self.emit(Event::ChunkLoaded { x, z });
-                    }
-                    Err(e) => self.emit(Event::Error {
-                        kind: "chunk_decode",
-                        message: e.to_string(),
-                    }),
-                },
-                0x22 => self.emit(Event::WorldEvent(parse_world_event(&p)?)),
-                0x23 => self.emit(Event::Particle(parse_particle(&p)?)),
-                0x24 => match self
-                    .world
-                    .lock()
-                    .await
-                    .apply_light(&p, self.connection_options.max_chunks)
-                {
-                    Ok((x, z)) => {
-                        self.world_updated.notify_waiters();
-                        self.emit(Event::ChunkLightUpdated { x, z });
-                    }
-                    Err(e) => self.emit(Event::Error {
-                        kind: "light_decode",
-                        message: e.to_string(),
-                    }),
-                },
-                0x25 => {
-                    let join = parse_join(&p)?;
-                    let mut player = self.player.lock().await;
-                    player.entity_id = Some(join.entity_id);
-                    player.spawned = true;
-                    drop(player);
-                    let mut survival = self.survival.write().await;
-                    survival.game_mode = Some(join.game_mode);
-                    survival.previous_game_mode = Some(join.previous_game_mode);
-                    survival.dimension = Some(join.dimension);
-                    survival.world_name = Some(join.world_name);
-                    drop(survival);
-                    self.ready.notify_waiters();
-                    self.emit(Event::Spawn);
-                    self.set_client_settings(self.client_settings().await)
-                        .await?;
-                }
-                0x26 => {
-                    let update = parse_map_update(&p)?;
-                    self.maps
-                        .write()
-                        .await
-                        .apply(&update, self.connection_options.max_maps)?;
-                    self.emit(Event::MapUpdated(update));
-                }
-                0x27 => {
-                    let offers = parse_merchant_offers(&p)?;
-                    self.inventory.write().await.merchant_offers = Some(offers.clone());
-                    self.emit(Event::MerchantOffers(offers));
-                }
-                0x28 | 0x29 => {
-                    let mut rest = p.as_slice();
-                    let entity_id = get_varint(&mut rest)?;
-                    if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
-                        apply_relative(entity, &p, id == 0x29)?;
-                        self.emit(Event::EntityUpdated(entity.clone()));
-                    }
-                }
-                0x2a => {
-                    let mut rest = p.as_slice();
-                    let entity_id = get_varint(&mut rest)?;
-                    if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
-                        entity.yaw = f32::from(*rest.first().context("missing entity yaw")? as i8)
-                            * 360.0
-                            / 256.0;
-                        entity.pitch =
-                            f32::from(*rest.get(1).context("missing entity pitch")? as i8) * 360.0
-                                / 256.0;
-                        entity.on_ground = *rest.get(2).context("missing entity ground flag")? != 0;
-                        self.emit(Event::EntityUpdated(entity.clone()));
-                    }
-                }
-                0x2b => {
-                    let mut rest = p.as_slice();
-                    let entity_id = get_varint(&mut rest)?;
-                    let on_ground = *rest.first().context("missing entity ground flag")? != 0;
-                    if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
-                        entity.on_ground = on_ground;
-                        self.emit(Event::EntityUpdated(entity.clone()));
-                    }
-                }
-                0x2c => {
-                    let mut cursor = Cursor::new(&p);
-                    let pose = VehiclePose {
-                        position: Vec3 {
-                            x: cursor.read_f64::<BigEndian>()?,
-                            y: cursor.read_f64::<BigEndian>()?,
-                            z: cursor.read_f64::<BigEndian>()?,
-                        },
-                        yaw: cursor.read_f32::<BigEndian>()?,
-                        pitch: cursor.read_f32::<BigEndian>()?,
-                    };
-                    validate_position(pose.position.x, pose.position.y, pose.position.z)?;
-                    if !pose.yaw.is_finite() || !pose.pitch.is_finite() {
-                        bail!("vehicle position contains a non-finite rotation");
-                    }
-                    if let Some(vehicle) = self.vehicle().await {
-                        if let Some(tracked) = self
-                            .entities
-                            .write()
-                            .await
-                            .entities
-                            .get_mut(&vehicle.entity_id)
+                        self.exact_window_barriers.lock().await.remove(&identity);
+                    } else if exact {
+                        if let Some(barrier) =
+                            self.exact_window_barriers.lock().await.get_mut(&identity)
                         {
-                            tracked.position = pose.position;
-                            tracked.yaw = pose.yaw;
-                            tracked.pitch = pose.pitch;
+                            barrier.confirmation_seen = true;
                         }
+                        self.commit_satisfied_window_barriers().await;
+                    } else {
+                        let _ = self
+                            .connection
+                            .commit_window_barrier(transaction.window_id, transaction.action)
+                            .await;
                     }
-                    self.emit(Event::VehiclePosition(pose));
                 }
-                0x2d => {
-                    let mut rest = p.as_slice();
-                    let hand = match get_varint(&mut rest)? {
-                        0 => Hand::Main,
-                        1 => Hand::Off,
-                        value => bail!("unknown book hand {value}"),
-                    };
-                    self.emit(Event::BookOpened { hand });
+                if !transaction.accepted {
+                    let mut payload = Vec::new();
+                    payload.write_i8(transaction.window_id)?;
+                    payload.write_i16::<BigEndian>(transaction.action)?;
+                    payload.push(1);
+                    self.send_protocol(0x07, &payload).await?;
                 }
-                0x2e => {
-                    let mut rest = p.as_slice();
-                    let id = get_varint(&mut rest)?;
-                    if !(0..=127).contains(&id) {
-                        bail!("invalid open window ID {id}");
+                self.emit(Event::WindowTransaction(transaction));
+            }
+            0x13 => {
+                let window_id = *p.first().context("missing closed window ID")? as i8;
+                let mut inventory = self.inventory.write().await;
+                inventory.open_window = None;
+                inventory.last_transaction = None;
+                inventory.merchant_offers = None;
+                inventory.windows.remove(&window_id);
+                inventory.properties.retain(|(id, _), _| *id != window_id);
+                inventory
+                    .pending_clicks
+                    .retain(|(id, _), _| *id != window_id);
+                let mut furnace_window_position = self.furnace_window_position.lock().await;
+                if furnace_window_position.is_some_and(|(id, _)| id == window_id) {
+                    *furnace_window_position = None;
+                }
+                drop(furnace_window_position);
+                drop(inventory);
+                self.emit(Event::WindowClosed { window_id });
+            }
+            0x14 => {
+                let (window_id, slots) = parse_window_items(&p)?;
+                let mut inventory = self.inventory.write().await;
+                inventory.windows.insert(window_id, slots);
+                sync_player_inventory_from_window(&mut inventory, window_id);
+                drop(inventory);
+                self.commit_satisfied_window_barriers().await;
+                self.emit(Event::InventoryUpdated {
+                    window_id,
+                    packet_sequence,
+                });
+            }
+            0x15 => {
+                let mut c = Cursor::new(&p);
+                let property = WindowProperty {
+                    window_id: c.read_u8()? as i8,
+                    property: c.read_i16::<BigEndian>()?,
+                    value: c.read_i16::<BigEndian>()?,
+                };
+                self.inventory
+                    .write()
+                    .await
+                    .properties
+                    .insert((property.window_id, property.property), property.value);
+                self.emit(Event::WindowProperty(property));
+            }
+            0x16 => {
+                let mut update = parse_set_slot(&p)?;
+                update.packet_sequence = packet_sequence;
+                let mut inventory = self.inventory.write().await;
+                apply_slot(&mut inventory, &update)?;
+                drop(inventory);
+                self.commit_satisfied_window_barriers().await;
+                self.emit(Event::SlotUpdated(update));
+            }
+            0x17 => {
+                let mut rest = p.as_slice();
+                let item_id = get_varint(&mut rest)?;
+                let ticks = get_varint(&mut rest)?;
+                self.survival
+                    .write()
+                    .await
+                    .item_cooldowns
+                    .insert(item_id, ticks);
+                self.emit(Event::ItemCooldown { item_id, ticks });
+            }
+            0x18 => {
+                let mut rest = p.as_slice();
+                let channel = get_string(&mut rest)?;
+                if rest.len() > self.connection_options.max_custom_payload_bytes {
+                    bail!(
+                        "custom payload has {} bytes, limit is {}",
+                        rest.len(),
+                        self.connection_options.max_custom_payload_bytes
+                    );
+                }
+                let data = Arc::from(rest);
+                if channel == "minecraft:brand" {
+                    let mut brand_data = rest;
+                    if let Ok(brand) = get_string(&mut brand_data) {
+                        **self.server_brand.write().await = Some(brand.clone());
+                        self.emit(Event::ServerBrand(brand));
                     }
-                    let window = OpenWindow {
-                        id: id as i8,
-                        window_type: get_varint(&mut rest)?,
-                        title_json: get_string(&mut rest)?,
-                        entity_id: None,
-                        declared_slots: None,
-                    };
-                    self.inventory.write().await.open_window = Some(window.clone());
-                    self.emit(Event::WindowOpened(window));
                 }
-                0x2f => {
-                    let mut cursor = Cursor::new(&p);
-                    self.emit(Event::SignEditorOpened {
-                        position: BlockPos::unpack(cursor.read_u64::<BigEndian>()?),
-                    });
+                self.emit(Event::CustomPayload { channel, data });
+            }
+            0x19 => self.handle_sound(&p, true)?,
+            0x1a => {
+                let mut s = p.as_slice();
+                // Decode the terminal reason before committing lifecycle.
+                // A truncated kick is malformed input and must remain
+                // classifiable as unknown by the supervisor.
+                let reason = get_string(&mut s)?;
+                self.physics.lock().await.record_disconnect();
+                self.connection
+                    .mark_terminal(TerminalClassification::Disconnected)
+                    .await;
+                self.emit(Event::Disconnected { reason });
+                return Ok(false);
+            }
+            0x1b => {
+                let mut c = Cursor::new(&p);
+                let entity_id = c.read_i32::<BigEndian>()?;
+                let status = c.read_i8()?;
+                self.emit(Event::EntityStatus { entity_id, status });
+            }
+            0x1c => {
+                let explosion = parse_explosion(&p)?;
+                self.world
+                    .lock()
+                    .await
+                    .apply_explosion_blocks(&explosion.affected_blocks);
+                self.advance_block_geometry_revision();
+                self.world_updated.notify_waiters();
+                let mut motion = self.motion.lock().await;
+                motion.velocity.x += explosion.player_motion.x;
+                motion.velocity.y += explosion.player_motion.y;
+                motion.velocity.z += explosion.player_motion.z;
+                drop(motion);
+                self.emit(Event::Explosion(explosion));
+            }
+            0x1d => {
+                let (x, z) = self.world.lock().await.unload_chunk(&p)?;
+                self.advance_block_geometry_revision();
+                self.emit(Event::ChunkUnloaded { x, z });
+            }
+            0x1e => {
+                let mut c = Cursor::new(&p);
+                let change = GameStateChange {
+                    reason: c.read_u8()?,
+                    value: c.read_f32::<BigEndian>()?,
+                };
+                let mut state = self.survival.write().await;
+                match change.reason {
+                    1 => state.raining = Some(false),
+                    2 => state.raining = Some(true),
+                    3 => state.game_mode = Some(change.value as u8),
+                    7 => state.rain_level = Some(change.value),
+                    8 => state.thunder_level = Some(change.value),
+                    _ => {}
                 }
-                0x30 => {
-                    let mut rest = p.as_slice();
-                    let window = get_varint(&mut rest)?;
-                    let window_id =
-                        i8::try_from(window).context("craft response window ID out of range")?;
-                    let recipe_id = get_string(&mut rest)?;
-                    self.emit(Event::CraftRecipeResponse {
-                        window_id,
-                        recipe_id,
-                    });
+                drop(state);
+                self.emit(Event::GameStateChange(change));
+            }
+            0x1f => {
+                let mut rest = p.as_slice();
+                let window_id = i8::try_from(*rest.first().context("missing horse window ID")?)
+                    .context("horse window ID out of range")?;
+                rest = &rest[1..];
+                let declared_slots = get_varint(&mut rest)?;
+                let mut cursor = Cursor::new(rest);
+                let entity_id = cursor.read_i32::<BigEndian>()?;
+                let window = OpenWindow {
+                    id: window_id,
+                    window_type: -1,
+                    title_json: String::new(),
+                    entity_id: Some(entity_id),
+                    declared_slots: Some(declared_slots),
+                };
+                self.inventory.write().await.open_window = Some(window.clone());
+                *self.furnace_window_position.lock().await = None;
+                self.emit(Event::WindowOpened(window));
+            }
+            0x20 => self.send_protocol(0x10, &p).await?,
+            0x21 => match self
+                .world
+                .lock()
+                .await
+                .apply_chunk(&p, self.connection_options.max_chunks)
+            {
+                Ok((x, z)) => {
+                    self.advance_block_geometry_revision();
+                    self.world_updated.notify_waiters();
+                    self.emit(Event::ChunkLoaded { x, z });
                 }
-                0x31 => {
-                    let mut c = Cursor::new(&p);
-                    let flags = c.read_i8()? as u8;
-                    let mut state = self.survival.write().await;
-                    state.invulnerable = flags & 0x01 != 0;
-                    state.flying = flags & 0x02 != 0;
-                    state.flying_allowed = flags & 0x04 != 0;
-                    state.creative_mode = flags & 0x08 != 0;
-                    state.flying_speed = c.read_f32::<BigEndian>()?;
-                    state.walking_speed = c.read_f32::<BigEndian>()?;
-                    drop(state);
-                    self.emit(Event::SurvivalStateUpdated);
+                Err(e) => self.emit(Event::Error {
+                    kind: "chunk_decode",
+                    message: e.to_string(),
+                }),
+            },
+            0x22 => self.emit(Event::WorldEvent(parse_world_event(&p)?)),
+            0x23 => self.emit(Event::Particle(parse_particle(&p)?)),
+            0x24 => match self
+                .world
+                .lock()
+                .await
+                .apply_light(&p, self.connection_options.max_chunks)
+            {
+                Ok((x, z)) => {
+                    self.world_updated.notify_waiters();
+                    self.emit(Event::ChunkLightUpdated { x, z });
                 }
-                0x32 => self.emit(Event::Combat(parse_combat_event(&p)?)),
-                0x33 => {
-                    let mut players = self.players.write().await;
-                    let (action, uuids) = apply_player_info(&mut players, &p)?;
-                    drop(players);
-                    self.emit(Event::PlayerListUpdated { action, uuids });
+                Err(e) => self.emit(Event::Error {
+                    kind: "light_decode",
+                    message: e.to_string(),
+                }),
+            },
+            0x25 => {
+                let join = parse_join(&p)?;
+                let mut player = self.player.lock().await;
+                player.entity_id = Some(join.entity_id);
+                player.spawned = true;
+                drop(player);
+                *self.oxygen_level.lock().await = Some(protocol_default_oxygen_level());
+                *self.local_pose.lock().await = Some(0);
+                let mut survival = self.survival.write().await;
+                survival.game_mode = Some(join.game_mode);
+                survival.previous_game_mode = Some(join.previous_game_mode);
+                survival.dimension = Some(join.dimension);
+                survival.world_name = Some(join.world_name);
+                drop(survival);
+                self.ready.notify_waiters();
+                self.emit(Event::Spawn);
+                self.set_client_settings_protocol(self.client_settings().await)
+                    .await?;
+            }
+            0x26 => {
+                let update = parse_map_update(&p)?;
+                self.maps
+                    .write()
+                    .await
+                    .apply(&update, self.connection_options.max_maps)?;
+                self.emit(Event::MapUpdated(update));
+            }
+            0x27 => {
+                let offers = parse_merchant_offers(&p)?;
+                self.inventory.write().await.merchant_offers = Some(offers.clone());
+                self.emit(Event::MerchantOffers(offers));
+            }
+            0x28 | 0x29 => {
+                let mut rest = p.as_slice();
+                let entity_id = get_varint(&mut rest)?;
+                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                    apply_relative(entity, &p, id == 0x29)?;
+                    self.emit(Event::EntityUpdated(entity.clone()));
                 }
-                0x34 => {
-                    let mut rest = p.as_slice();
-                    let source_anchor = get_varint(&mut rest)?;
-                    let mut cursor = Cursor::new(rest);
-                    let target = Vec3 {
+            }
+            0x2a => {
+                let mut rest = p.as_slice();
+                let entity_id = get_varint(&mut rest)?;
+                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                    entity.yaw = f32::from(*rest.first().context("missing entity yaw")? as i8)
+                        * 360.0
+                        / 256.0;
+                    entity.pitch = f32::from(*rest.get(1).context("missing entity pitch")? as i8)
+                        * 360.0
+                        / 256.0;
+                    entity.on_ground = *rest.get(2).context("missing entity ground flag")? != 0;
+                    self.emit(Event::EntityUpdated(entity.clone()));
+                }
+            }
+            0x2b => {
+                let mut rest = p.as_slice();
+                let entity_id = get_varint(&mut rest)?;
+                let on_ground = *rest.first().context("missing entity ground flag")? != 0;
+                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                    entity.on_ground = on_ground;
+                    self.emit(Event::EntityUpdated(entity.clone()));
+                }
+            }
+            0x2c => {
+                let mut cursor = Cursor::new(&p);
+                let pose = VehiclePose {
+                    position: Vec3 {
                         x: cursor.read_f64::<BigEndian>()?,
                         y: cursor.read_f64::<BigEndian>()?,
                         z: cursor.read_f64::<BigEndian>()?,
-                    };
-                    let consumed = cursor.position() as usize;
-                    rest = &rest[consumed..];
-                    let is_entity = *rest.first().context("missing face-player entity flag")? != 0;
-                    rest = &rest[1..];
-                    if is_entity {
-                        let _ = get_varint(&mut rest)?;
-                        let _ = get_varint(&mut rest)?;
-                    }
-                    let mut player = self.player.lock().await;
-                    let source_y = player.y + if source_anchor == 1 { 1.62 } else { 0.0 };
-                    let dx = target.x - player.x;
-                    let dy = target.y - source_y;
-                    let dz = target.z - player.z;
-                    player.yaw = (-dx).atan2(dz).to_degrees() as f32;
-                    player.pitch = (-dy).atan2(dx.hypot(dz)).to_degrees() as f32;
-                    self.emit(Event::Position(player.clone()));
+                    },
+                    yaw: cursor.read_f32::<BigEndian>()?,
+                    pitch: cursor.read_f32::<BigEndian>()?,
+                };
+                validate_position(pose.position.x, pose.position.y, pose.position.z)?;
+                if !pose.yaw.is_finite() || !pose.pitch.is_finite() {
+                    bail!("vehicle position contains a non-finite rotation");
                 }
-                0x35 => self.handle_position(&p).await?,
-                0x36 => {
-                    self.recipe_book.write().await.apply(&p)?;
-                    self.emit(Event::RecipeBookUpdated);
-                }
-                0x37 => {
-                    let mut rest = p.as_slice();
-                    let count = get_varint(&mut rest)?;
-                    if !(0..=65_536).contains(&count) {
-                        bail!("invalid destroyed entity count {count}");
-                    }
-                    let mut entity_ids = Vec::with_capacity(count as usize);
-                    let mut entities = self.entities.write().await;
-                    for _ in 0..count {
-                        let entity_id = get_varint(&mut rest)?;
-                        entities.entities.remove(&entity_id);
-                        entity_ids.push(entity_id);
-                    }
-                    drop(entities);
-                    self.emit(Event::EntitiesDestroyed { entity_ids });
-                }
-                0x38 => {
-                    let mut rest = p.as_slice();
-                    let entity_id = get_varint(&mut rest)?;
-                    let effect_id = *rest.first().context("missing removed effect ID")? as i8;
-                    if Some(entity_id) == self.player.lock().await.entity_id {
-                        self.survival.write().await.effects.remove(&effect_id);
-                        self.emit(Event::SurvivalStateUpdated);
-                    }
-                }
-                0x39 => {
-                    let mut rest = p.as_slice();
-                    let request = ResourcePackRequest {
-                        url: get_string(&mut rest)?,
-                        hash: get_string(&mut rest)?,
-                    };
-                    **self.resource_pack.write().await = Some(request.clone());
-                    self.emit(Event::ResourcePackRequested(request));
-                }
-                0x3a => {
-                    let respawn = parse_respawn(&p)?;
-                    let mut state = self.survival.write().await;
-                    state.dimension = Some(respawn.dimension.clone());
-                    state.world_name = Some(respawn.world_name.clone());
-                    state.game_mode = Some(respawn.game_mode);
-                    state.previous_game_mode = Some(respawn.previous_game_mode);
-                    if !respawn.copy_metadata {
-                        state.effects.clear();
-                        state.attributes.clear();
-                    }
-                    drop(state);
-                    self.world.lock().await.clear();
-                    **self.motion.lock().await = MotionState::default();
-                    *self.positioned.lock().await = false;
-                    **self.entities.write().await = EntityTracker::default();
-                    if !respawn.copy_metadata {
-                        **self.inventory.write().await = InventoryState::default();
-                    }
-                    self.emit(Event::Respawn(respawn));
-                }
-                0x3b => {
-                    let mut rest = p.as_slice();
-                    let entity_id = get_varint(&mut rest)?;
-                    if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
-                        entity.head_yaw =
-                            f32::from(*rest.first().context("missing entity head yaw")? as i8)
-                                * 360.0
-                                / 256.0;
-                        self.emit(Event::EntityUpdated(entity.clone()));
-                    }
-                }
-                0x3c => {
-                    let mut rest = p.as_slice();
-                    let selected = if *rest.first().context("missing advancement tab flag")? != 0 {
-                        rest = &rest[1..];
-                        Some(get_string(&mut rest)?)
-                    } else {
-                        None
-                    };
-                    self.advancements.write().await.selected_tab = selected;
-                    self.emit(Event::AdvancementsUpdated);
-                }
-                0x3d => {
-                    self.ui.write().await.apply_border(&p)?;
-                    self.emit(Event::UiStateUpdated(UiUpdateKind::WorldBorder));
-                }
-                0x3e => {
-                    let mut rest = p.as_slice();
-                    let entity_id = get_varint(&mut rest)?;
-                    **self.camera_entity_id.write().await = Some(entity_id);
-                    self.emit(Event::CameraChanged { entity_id });
-                }
-                0x3f => {
-                    let raw = *p.first().context("missing held item slot")?;
-                    if raw > 8 {
-                        bail!("invalid held item slot {raw}");
-                    }
-                    self.inventory.write().await.selected_hotbar = raw;
-                    self.emit(Event::HeldItemChanged { slot: raw });
-                }
-                0x40 => {
-                    let mut rest = p.as_slice();
-                    let x = get_varint(&mut rest)?;
-                    let z = get_varint(&mut rest)?;
-                    let mut view = self.world_view.write().await;
-                    view.center_x = x;
-                    view.center_z = z;
-                    let snapshot = **view;
-                    drop(view);
-                    self.emit(Event::WorldViewUpdated(snapshot));
-                }
-                0x41 => {
-                    let mut rest = p.as_slice();
-                    let distance = get_varint(&mut rest)?;
-                    let mut view = self.world_view.write().await;
-                    view.distance = distance;
-                    let snapshot = **view;
-                    drop(view);
-                    self.emit(Event::WorldViewUpdated(snapshot));
-                }
-                0x42 => {
-                    let mut c = Cursor::new(&p);
-                    let position = unpack_position(c.read_u64::<BigEndian>()?);
-                    self.survival.write().await.spawn_position = Some(position);
-                    self.emit(Event::SpawnPosition(position));
-                }
-                0x43 => {
-                    self.ui.write().await.apply_display(&p)?;
-                    self.emit(Event::UiStateUpdated(UiUpdateKind::DisplayObjective));
-                }
-                0x44 => {
-                    let (entity_id, metadata) = parse_metadata(&p)?;
-                    if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
-                        entity.metadata.extend(metadata);
-                        self.emit(Event::EntityUpdated(entity.clone()));
-                    }
-                }
-                0x45 => {
-                    let mut cursor = Cursor::new(&p);
-                    let entity_id = cursor.read_i32::<BigEndian>()?;
-                    let raw = cursor.read_i32::<BigEndian>()?;
-                    let attached_to = (raw != -1).then_some(raw);
-                    if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
-                        entity.attached_to = attached_to;
-                    }
-                    self.emit(Event::EntityAttached {
-                        entity_id,
-                        attached_to,
-                    });
-                }
-                0x46 => {
-                    let mut rest = p.as_slice();
-                    let entity_id = get_varint(&mut rest)?;
-                    let mut c = Cursor::new(rest);
-                    let velocity = Vec3 {
-                        x: f64::from(c.read_i16::<BigEndian>()?) / 8000.0,
-                        y: f64::from(c.read_i16::<BigEndian>()?) / 8000.0,
-                        z: f64::from(c.read_i16::<BigEndian>()?) / 8000.0,
-                    };
-                    if Some(entity_id) == self.player.lock().await.entity_id {
-                        self.motion.lock().await.velocity = velocity;
-                    }
-                    if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
-                        entity.velocity = velocity;
-                        self.emit(Event::EntityUpdated(entity.clone()));
-                    }
-                }
-                0x47 => {
-                    let mut rest = p.as_slice();
-                    let entity_id = get_varint(&mut rest)?;
-                    let mut equipment = Vec::new();
-                    loop {
-                        if equipment.len() >= 16 {
-                            bail!("entity equipment packet exceeds 16 entries");
-                        }
-                        let raw_slot = *rest.first().context("missing equipment slot")?;
-                        rest = &rest[1..];
-                        equipment.push(((raw_slot & 0x7f) as i8, read_slot(&mut rest)?));
-                        if raw_slot & 0x80 == 0 {
-                            break;
-                        }
-                    }
-                    if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
-                        entity.equipment.extend(equipment);
-                        self.emit(Event::EntityUpdated(entity.clone()));
-                    }
-                }
-                0x48 => {
-                    let experience = parse_experience(&p)?;
-                    self.survival.write().await.experience = experience;
-                    self.emit(Event::Experience(experience));
-                }
-                0x49 => {
-                    let vitals = parse_vitals(&p)?;
-                    self.survival.write().await.vitals = Some(vitals);
-                    self.emit(Event::Vitals(vitals));
-                }
-                0x4a => {
-                    self.ui.write().await.apply_objective(&p)?;
-                    self.emit(Event::UiStateUpdated(UiUpdateKind::Objective));
-                }
-                0x4b => {
-                    let mut rest = p.as_slice();
-                    let vehicle_id = get_varint(&mut rest)?;
-                    let count = get_varint(&mut rest)?;
-                    if !(0..=1024).contains(&count) {
-                        bail!("invalid passenger count {count}");
-                    }
-                    let mut passengers = Vec::with_capacity(count as usize);
-                    for _ in 0..count {
-                        passengers.push(get_varint(&mut rest)?);
-                    }
-                    if let Some(vehicle) = self.entities.write().await.entities.get_mut(&vehicle_id)
+                if let Some(vehicle) = self.vehicle().await {
+                    if let Some(tracked) = self
+                        .entities
+                        .write()
+                        .await
+                        .entities
+                        .get_mut(&vehicle.entity_id)
                     {
-                        vehicle.passengers = passengers.clone();
+                        tracked.position = pose.position;
+                        tracked.yaw = pose.yaw;
+                        tracked.pitch = pose.pitch;
                     }
-                    self.emit(Event::PassengersUpdated {
-                        vehicle_id,
-                        passengers,
-                    });
                 }
-                0x4c => {
-                    self.ui.write().await.apply_team(&p)?;
-                    self.emit(Event::UiStateUpdated(UiUpdateKind::Team));
+                self.emit(Event::VehiclePosition(pose));
+            }
+            0x2d => {
+                let mut rest = p.as_slice();
+                let hand = match get_varint(&mut rest)? {
+                    0 => Hand::Main,
+                    1 => Hand::Off,
+                    value => bail!("unknown book hand {value}"),
+                };
+                self.emit(Event::BookOpened { hand });
+            }
+            0x2e => {
+                let mut rest = p.as_slice();
+                let id = get_varint(&mut rest)?;
+                if !(0..=127).contains(&id) {
+                    bail!("invalid open window ID {id}");
                 }
-                0x4d => {
-                    self.ui.write().await.apply_score(&p)?;
-                    self.emit(Event::UiStateUpdated(UiUpdateKind::Score));
+                let window = OpenWindow {
+                    id: id as i8,
+                    window_type: get_varint(&mut rest)?,
+                    title_json: get_string(&mut rest)?,
+                    entity_id: None,
+                    declared_slots: None,
+                };
+                self.inventory.write().await.open_window = Some(window.clone());
+                let furnace_position = self
+                    .connection
+                    .observe_furnace_window(window.window_type)
+                    .await;
+                *self.furnace_window_position.lock().await =
+                    furnace_position.map(|position| (window.id, position));
+                self.emit(Event::WindowOpened(window));
+            }
+            0x2f => {
+                let mut cursor = Cursor::new(&p);
+                self.emit(Event::SignEditorOpened {
+                    position: BlockPos::unpack(cursor.read_u64::<BigEndian>()?),
+                });
+            }
+            0x30 => {
+                let mut rest = p.as_slice();
+                let window = get_varint(&mut rest)?;
+                let window_id =
+                    i8::try_from(window).context("craft response window ID out of range")?;
+                let recipe_id = get_string(&mut rest)?;
+                self.emit(Event::CraftRecipeResponse {
+                    window_id,
+                    recipe_id,
+                });
+            }
+            0x31 => {
+                let mut c = Cursor::new(&p);
+                let flags = c.read_i8()? as u8;
+                let mut state = self.survival.write().await;
+                state.invulnerable = flags & 0x01 != 0;
+                state.flying = flags & 0x02 != 0;
+                state.flying_allowed = flags & 0x04 != 0;
+                state.creative_mode = flags & 0x08 != 0;
+                state.flying_speed = c.read_f32::<BigEndian>()?;
+                state.walking_speed = c.read_f32::<BigEndian>()?;
+                drop(state);
+                self.emit(Event::SurvivalStateUpdated);
+            }
+            0x32 => self.emit(Event::Combat(parse_combat_event(&p)?)),
+            0x33 => {
+                let mut players = self.players.write().await;
+                let (action, uuids) = apply_player_info(&mut players, &p)?;
+                drop(players);
+                self.emit(Event::PlayerListUpdated { action, uuids });
+            }
+            0x34 => {
+                let mut rest = p.as_slice();
+                let source_anchor = get_varint(&mut rest)?;
+                let mut cursor = Cursor::new(rest);
+                let target = Vec3 {
+                    x: cursor.read_f64::<BigEndian>()?,
+                    y: cursor.read_f64::<BigEndian>()?,
+                    z: cursor.read_f64::<BigEndian>()?,
+                };
+                let consumed = cursor.position() as usize;
+                rest = &rest[consumed..];
+                let is_entity = *rest.first().context("missing face-player entity flag")? != 0;
+                rest = &rest[1..];
+                if is_entity {
+                    let _ = get_varint(&mut rest)?;
+                    let _ = get_varint(&mut rest)?;
                 }
-                0x4e => {
-                    let mut c = Cursor::new(&p);
+                let mut player = self.player.lock().await;
+                let source_y = player.y + if source_anchor == 1 { 1.62 } else { 0.0 };
+                let dx = target.x - player.x;
+                let dy = target.y - source_y;
+                let dz = target.z - player.z;
+                player.yaw = (-dx).atan2(dz).to_degrees() as f32;
+                player.pitch = (-dy).atan2(dx.hypot(dz)).to_degrees() as f32;
+                self.emit(Event::Position(player.clone()));
+            }
+            0x35 => self.handle_position(&p).await?,
+            0x36 => {
+                self.recipe_book.write().await.apply(&p)?;
+                self.emit(Event::RecipeBookUpdated);
+            }
+            0x37 => {
+                let mut rest = p.as_slice();
+                let count = get_varint(&mut rest)?;
+                if !(0..=65_536).contains(&count) {
+                    bail!("invalid destroyed entity count {count}");
+                }
+                let mut entity_ids = Vec::with_capacity(count as usize);
+                let mut entities = self.entities.write().await;
+                for _ in 0..count {
+                    let entity_id = get_varint(&mut rest)?;
+                    entities.entities.remove(&entity_id);
+                    entity_ids.push(entity_id);
+                }
+                drop(entities);
+                self.emit(Event::EntitiesDestroyed { entity_ids });
+            }
+            0x38 => {
+                let mut rest = p.as_slice();
+                let entity_id = get_varint(&mut rest)?;
+                let effect_id = *rest.first().context("missing removed effect ID")? as i8;
+                if Some(entity_id) == self.player.lock().await.entity_id {
+                    self.survival.write().await.effects.remove(&effect_id);
+                    self.emit(Event::SurvivalStateUpdated);
+                }
+            }
+            0x39 => {
+                let mut rest = p.as_slice();
+                let request = ResourcePackRequest {
+                    url: get_string(&mut rest)?,
+                    hash: get_string(&mut rest)?,
+                };
+                **self.resource_pack.write().await = Some(request.clone());
+                self.emit(Event::ResourcePackRequested(request));
+            }
+            0x3a => {
+                let respawn = parse_respawn(&p)?;
+                if !respawn.copy_metadata { *self.local_pose.lock().await = Some(0); }
+                let mut state = self.survival.write().await;
+                state.dimension = Some(respawn.dimension.clone());
+                state.world_name = Some(respawn.world_name.clone());
+                state.game_mode = Some(respawn.game_mode);
+                state.previous_game_mode = Some(respawn.previous_game_mode);
+                self.world_time_observed.store(false, Ordering::Release);
+                let mut oxygen_level = self.oxygen_level.lock().await;
+                *oxygen_level = oxygen_level_after_respawn(*oxygen_level, respawn.copy_metadata);
+                drop(oxygen_level);
+                if !respawn.copy_metadata {
+                    state.effects.clear();
+                    state.attributes.clear();
+                }
+                drop(state);
+                self.world.lock().await.clear();
+                self.advance_block_geometry_revision();
+                **self.motion.lock().await = MotionState::default();
+                *self.positioned.lock().await = false;
+                **self.entities.write().await = EntityTracker::default();
+                if !respawn.copy_metadata {
+                    **self.inventory.write().await = InventoryState::default();
+                } else {
+                    self.inventory.write().await.last_transaction = None;
+                }
+                self.emit(Event::Respawn(respawn));
+            }
+            0x3b => {
+                let mut rest = p.as_slice();
+                let entity_id = get_varint(&mut rest)?;
+                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                    entity.head_yaw =
+                        f32::from(*rest.first().context("missing entity head yaw")? as i8) * 360.0
+                            / 256.0;
+                    self.emit(Event::EntityUpdated(entity.clone()));
+                }
+            }
+            0x3c => {
+                let mut rest = p.as_slice();
+                let selected = if *rest.first().context("missing advancement tab flag")? != 0 {
+                    rest = &rest[1..];
+                    Some(get_string(&mut rest)?)
+                } else {
+                    None
+                };
+                self.advancements.write().await.selected_tab = selected;
+                self.emit(Event::AdvancementsUpdated);
+            }
+            0x3d => {
+                self.ui.write().await.apply_border(&p)?;
+                self.emit(Event::UiStateUpdated(UiUpdateKind::WorldBorder));
+            }
+            0x3e => {
+                let mut rest = p.as_slice();
+                let entity_id = get_varint(&mut rest)?;
+                **self.camera_entity_id.write().await = Some(entity_id);
+                self.emit(Event::CameraChanged { entity_id });
+            }
+            0x3f => {
+                let raw = *p.first().context("missing held item slot")?;
+                if raw > 8 {
+                    bail!("invalid held item slot {raw}");
+                }
+                self.inventory.write().await.selected_hotbar = raw;
+                self.emit(Event::HeldItemChanged { slot: raw });
+            }
+            0x40 => {
+                let mut rest = p.as_slice();
+                let x = get_varint(&mut rest)?;
+                let z = get_varint(&mut rest)?;
+                let mut view = self.world_view.write().await;
+                view.center_x = x;
+                view.center_z = z;
+                let snapshot = **view;
+                drop(view);
+                self.emit(Event::WorldViewUpdated(snapshot));
+            }
+            0x41 => {
+                let mut rest = p.as_slice();
+                let distance = get_varint(&mut rest)?;
+                let mut view = self.world_view.write().await;
+                view.distance = distance;
+                let snapshot = **view;
+                drop(view);
+                self.emit(Event::WorldViewUpdated(snapshot));
+            }
+            0x42 => {
+                let mut c = Cursor::new(&p);
+                let position = unpack_position(c.read_u64::<BigEndian>()?);
+                self.survival.write().await.spawn_position = Some(position);
+                self.emit(Event::SpawnPosition(position));
+            }
+            0x43 => {
+                self.ui.write().await.apply_display(&p)?;
+                self.emit(Event::UiStateUpdated(UiUpdateKind::DisplayObjective));
+            }
+            0x44 => {
+                let (entity_id, metadata) = parse_metadata(&p)?;
+                if Some(entity_id) == self.player.lock().await.entity_id {
+                    if let Some(MetadataValue::VarInt(pose)) = metadata.get(&6) {
+                        *self.local_pose.lock().await = Some(*pose);
+                    }
+                    if let Some(MetadataValue::VarInt(air_ticks)) = metadata.get(&1) {
+                        *self.oxygen_level.lock().await = oxygen_level_from_air_ticks(*air_ticks);
+                    }
+                }
+                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                    entity.metadata.extend(metadata);
+                    self.emit(Event::EntityUpdated(entity.clone()));
+                }
+            }
+            0x45 => {
+                let mut cursor = Cursor::new(&p);
+                let entity_id = cursor.read_i32::<BigEndian>()?;
+                let raw = cursor.read_i32::<BigEndian>()?;
+                let attached_to = (raw != -1).then_some(raw);
+                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                    entity.attached_to = attached_to;
+                }
+                self.emit(Event::EntityAttached {
+                    entity_id,
+                    attached_to,
+                });
+            }
+            0x46 => {
+                let mut rest = p.as_slice();
+                let entity_id = get_varint(&mut rest)?;
+                let mut c = Cursor::new(rest);
+                let velocity = Vec3 {
+                    x: f64::from(c.read_i16::<BigEndian>()?) / 8000.0,
+                    y: f64::from(c.read_i16::<BigEndian>()?) / 8000.0,
+                    z: f64::from(c.read_i16::<BigEndian>()?) / 8000.0,
+                };
+                if Some(entity_id) == self.player.lock().await.entity_id {
+                    self.motion.lock().await.velocity = velocity;
+                }
+                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                    entity.velocity = velocity;
+                    self.emit(Event::EntityUpdated(entity.clone()));
+                }
+            }
+            0x47 => {
+                let mut rest = p.as_slice();
+                let entity_id = get_varint(&mut rest)?;
+                let mut equipment = Vec::new();
+                loop {
+                    if equipment.len() >= 16 {
+                        bail!("entity equipment packet exceeds 16 entries");
+                    }
+                    let raw_slot = *rest.first().context("missing equipment slot")?;
+                    rest = &rest[1..];
+                    equipment.push(((raw_slot & 0x7f) as i8, read_slot(&mut rest)?));
+                    if raw_slot & 0x80 == 0 {
+                        break;
+                    }
+                }
+                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                    entity.equipment.extend(equipment);
+                    self.emit(Event::EntityUpdated(entity.clone()));
+                }
+            }
+            0x48 => {
+                let experience = parse_experience(&p)?;
+                self.survival.write().await.experience = experience;
+                self.emit(Event::Experience(experience));
+            }
+            0x49 => {
+                let vitals = parse_vitals(&p)?;
+                self.survival.write().await.vitals = Some(vitals);
+                self.emit(Event::Vitals(vitals));
+            }
+            0x4a => {
+                self.ui.write().await.apply_objective(&p)?;
+                self.emit(Event::UiStateUpdated(UiUpdateKind::Objective));
+            }
+            0x4b => {
+                let mut rest = p.as_slice();
+                let vehicle_id = get_varint(&mut rest)?;
+                let count = get_varint(&mut rest)?;
+                if !(0..=1024).contains(&count) {
+                    bail!("invalid passenger count {count}");
+                }
+                let mut passengers = Vec::with_capacity(count as usize);
+                for _ in 0..count {
+                    passengers.push(get_varint(&mut rest)?);
+                }
+                if let Some(vehicle) = self.entities.write().await.entities.get_mut(&vehicle_id) {
+                    vehicle.passengers = passengers.clone();
+                }
+                self.emit(Event::PassengersUpdated {
+                    vehicle_id,
+                    passengers,
+                });
+            }
+            0x4c => {
+                self.ui.write().await.apply_team(&p)?;
+                self.emit(Event::UiStateUpdated(UiUpdateKind::Team));
+            }
+            0x4d => {
+                self.ui.write().await.apply_score(&p)?;
+                self.emit(Event::UiStateUpdated(UiUpdateKind::Score));
+            }
+            0x4e => {
+                let mut c = Cursor::new(&p);
+                let mut state = self.survival.write().await;
+                state.world_age = c.read_i64::<BigEndian>()?;
+                state.time_of_day = c.read_i64::<BigEndian>()?;
+                self.world_time_observed.store(true, Ordering::Release);
+                drop(state);
+                self.emit(Event::SurvivalStateUpdated);
+            }
+            0x4f => {
+                self.ui.write().await.apply_title(&p)?;
+                self.emit(Event::UiStateUpdated(UiUpdateKind::Title));
+            }
+            0x50 => self.handle_entity_sound(&p)?,
+            0x51 => self.handle_sound(&p, false)?,
+            0x52 => {
+                let mut rest = p.as_slice();
+                let flags = *rest.first().context("missing stop-sound flags")?;
+                rest = &rest[1..];
+                let category = if flags & 1 != 0 {
+                    Some(get_varint(&mut rest)?)
+                } else {
+                    None
+                };
+                let sound_name = if flags & 2 != 0 {
+                    Some(get_string(&mut rest)?)
+                } else {
+                    None
+                };
+                self.emit(Event::StopSound(StopSoundEvent {
+                    category,
+                    sound_name,
+                }));
+            }
+            0x53 => {
+                self.ui.write().await.apply_tab(&p)?;
+                self.emit(Event::UiStateUpdated(UiUpdateKind::TabList));
+            }
+            0x54 => {
+                let mut rest = p.as_slice();
+                let transaction_id = get_varint(&mut rest)?;
+                self.emit(Event::NbtQueryResponse(NbtQueryResponse {
+                    transaction_id,
+                    nbt: Arc::from(rest.to_vec()),
+                }));
+            }
+            0x55 => {
+                let mut rest = p.as_slice();
+                let collected_entity_id = get_varint(&mut rest)?;
+                let collector_entity_id = get_varint(&mut rest)?;
+                let count = get_varint(&mut rest)?;
+                let collected_item_name = self
+                    .entities
+                    .read()
+                    .await
+                    .entities
+                    .get(&collected_entity_id)
+                    .and_then(EntityState::item_drop)
+                    .and_then(ItemStack::name);
+                self.emit(Event::ItemCollected(ItemCollected {
+                    collected_entity_id,
+                    collector_entity_id,
+                    count,
+                    packet_sequence,
+                    collected_item_name,
+                }));
+            }
+            0x56 => {
+                let mut rest = p.as_slice();
+                let entity_id = get_varint(&mut rest)?;
+                let mut c = Cursor::new(rest);
+                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                    let position = Vec3 {
+                        x: c.read_f64::<BigEndian>()?,
+                        y: c.read_f64::<BigEndian>()?,
+                        z: c.read_f64::<BigEndian>()?,
+                    };
+                    validate_position(position.x, position.y, position.z)?;
+                    entity.position = position;
+                    entity.yaw = f32::from(c.read_i8()?) * 360.0 / 256.0;
+                    entity.pitch = f32::from(c.read_i8()?) * 360.0 / 256.0;
+                    entity.on_ground = c.read_u8()? != 0;
+                    self.emit(Event::EntityUpdated(entity.clone()));
+                }
+            }
+            0x57 => {
+                self.advancements.write().await.apply(&p)?;
+                self.emit(Event::AdvancementsUpdated);
+            }
+            0x58 => {
+                let (entity_id, attributes) = parse_attributes(&p)?;
+                if Some(entity_id) == self.player.lock().await.entity_id {
                     let mut state = self.survival.write().await;
-                    state.world_age = c.read_i64::<BigEndian>()?;
-                    state.time_of_day = c.read_i64::<BigEndian>()?;
+                    for attribute in attributes {
+                        state.attributes.insert(attribute.key.clone(), attribute);
+                    }
                     drop(state);
                     self.emit(Event::SurvivalStateUpdated);
                 }
-                0x4f => {
-                    self.ui.write().await.apply_title(&p)?;
-                    self.emit(Event::UiStateUpdated(UiUpdateKind::Title));
-                }
-                0x50 => self.handle_entity_sound(&p)?,
-                0x51 => self.handle_sound(&p, false)?,
-                0x52 => {
-                    let mut rest = p.as_slice();
-                    let flags = *rest.first().context("missing stop-sound flags")?;
-                    rest = &rest[1..];
-                    let category = if flags & 1 != 0 {
-                        Some(get_varint(&mut rest)?)
-                    } else {
-                        None
-                    };
-                    let sound_name = if flags & 2 != 0 {
-                        Some(get_string(&mut rest)?)
-                    } else {
-                        None
-                    };
-                    self.emit(Event::StopSound(StopSoundEvent {
-                        category,
-                        sound_name,
-                    }));
-                }
-                0x53 => {
-                    self.ui.write().await.apply_tab(&p)?;
-                    self.emit(Event::UiStateUpdated(UiUpdateKind::TabList));
-                }
-                0x54 => {
-                    let mut rest = p.as_slice();
-                    let transaction_id = get_varint(&mut rest)?;
-                    self.emit(Event::NbtQueryResponse(NbtQueryResponse {
-                        transaction_id,
-                        nbt: Arc::from(rest.to_vec()),
-                    }));
-                }
-                0x55 => {
-                    let mut rest = p.as_slice();
-                    self.emit(Event::ItemCollected(ItemCollected {
-                        collected_entity_id: get_varint(&mut rest)?,
-                        collector_entity_id: get_varint(&mut rest)?,
-                        count: get_varint(&mut rest)?,
-                    }));
-                }
-                0x56 => {
-                    let mut rest = p.as_slice();
-                    let entity_id = get_varint(&mut rest)?;
-                    let mut c = Cursor::new(rest);
-                    if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
-                        let position = Vec3 {
-                            x: c.read_f64::<BigEndian>()?,
-                            y: c.read_f64::<BigEndian>()?,
-                            z: c.read_f64::<BigEndian>()?,
-                        };
-                        validate_position(position.x, position.y, position.z)?;
-                        entity.position = position;
-                        entity.yaw = f32::from(c.read_i8()?) * 360.0 / 256.0;
-                        entity.pitch = f32::from(c.read_i8()?) * 360.0 / 256.0;
-                        entity.on_ground = c.read_u8()? != 0;
-                        self.emit(Event::EntityUpdated(entity.clone()));
-                    }
-                }
-                0x57 => {
-                    self.advancements.write().await.apply(&p)?;
-                    self.emit(Event::AdvancementsUpdated);
-                }
-                0x58 => {
-                    let (entity_id, attributes) = parse_attributes(&p)?;
-                    if Some(entity_id) == self.player.lock().await.entity_id {
-                        let mut state = self.survival.write().await;
-                        for attribute in attributes {
-                            state.attributes.insert(attribute.key.clone(), attribute);
-                        }
-                        drop(state);
-                        self.emit(Event::SurvivalStateUpdated);
-                    }
-                }
-                0x59 => {
-                    let (entity_id, effect) = parse_effect(&p)?;
-                    if Some(entity_id) == self.player.lock().await.entity_id {
-                        self.survival
-                            .write()
-                            .await
-                            .effects
-                            .insert(effect.id, effect);
-                        self.emit(Event::SurvivalStateUpdated);
-                    }
-                }
-                0x5a => {
-                    **self.server_recipes.write().await = parse_recipes(&p)?;
-                    self.emit(Event::RecipesDeclared);
-                }
-                0x5b => {
-                    **self.tags.write().await = parse_tags(&p)?;
-                    self.emit(Event::TagsUpdated);
-                }
-                _ => {}
             }
-            self.enforce_session_limits().await?;
+            0x59 => {
+                let (entity_id, effect) = parse_effect(&p)?;
+                if Some(entity_id) == self.player.lock().await.entity_id {
+                    self.survival
+                        .write()
+                        .await
+                        .effects
+                        .insert(effect.id, effect);
+                    self.emit(Event::SurvivalStateUpdated);
+                }
+            }
+            0x5a => {
+                **self.server_recipes.write().await = parse_recipes(&p)?;
+                self.emit(Event::RecipesDeclared);
+            }
+            0x5b => {
+                **self.tags.write().await = parse_tags(&p)?;
+                self.emit(Event::TagsUpdated);
+            }
+            _ => {}
         }
-        Ok(())
+        self.enforce_session_limits().await?;
+        Ok(true)
     }
+
+    async fn capture_observation_at_sequence(
+        &self,
+        request: crate::CoherentObservationRequest,
+        sequence: u64,
+    ) -> Result<crate::CoherentObservation> {
+        let _coherent_state = self.coherent_state_gate.lock().await;
+        if self.connection.lifecycle() != ConnectionLifecycle::Ready {
+            bail!("coherent observation capture crossed a non-ready lifecycle");
+        }
+
+        let player_guard = self.player.lock().await;
+        let player = player_guard.clone();
+        drop(player_guard);
+        let motion = **self.motion.lock().await;
+        let survival = self.survival.read().await.clone();
+        let inventory_guard = self.inventory.read().await;
+        let inventory_revision = inventory_guard.revision();
+        let inventory = inventory_guard.clone();
+        drop(inventory_guard);
+        let open_window = inventory.open_window.clone();
+        let furnace_window_position = *self.furnace_window_position.lock().await;
+        let open_furnace = match (open_window.as_ref(), furnace_window_position) {
+            (Some(window), Some((window_id, position))) if window.id == window_id => {
+                inventory.windows.get(&window.id).cloned().map(|slots| {
+                    let mut properties = inventory
+                        .properties
+                        .iter()
+                        .filter(|((id, _), _)| *id == window.id)
+                        .map(|((window_id, property), value)| WindowProperty {
+                            window_id: *window_id,
+                            property: *property,
+                            value: *value,
+                        })
+                        .collect::<Vec<_>>();
+                    properties.sort_by_key(|property| property.property);
+                    crate::OpenFurnaceObservation {
+                        position,
+                        window: window.clone(),
+                        slots,
+                        properties,
+                    }
+                })
+            }
+            _ => None,
+        };
+        let world = self.world.lock().await;
+        let block_geometry_revision = self.block_geometry_revision.load(Ordering::Acquire);
+        let mining_environment = crate::mining_environment::observe(*self.local_pose.lock().await, &player,
+            |x,y,z| world.block(x,y,z));
+        let observation_interest_cells: Vec<_> = request
+            .observation_interest
+            .iter()
+            .map(|position| crate::CoherentInterestCell {
+                position: *position,
+                state_id: world.block(position.x, position.y, position.z),
+                light: world
+                    .light_at(position.x, position.y, position.z)
+                    .map_or(crate::CoherentLightState::Unknown, |(block, sky)| {
+                        crate::CoherentLightState::Observed { block, sky }
+                    }),
+            })
+            .collect();
+        let observation_interest_unloaded = observation_interest_cells
+            .iter()
+            .filter(|cell| cell.state_id.is_none())
+            .count()
+            .try_into()
+            .unwrap_or(u32::MAX);
+        let observation_interest_light_unknown = observation_interest_cells
+            .iter()
+            .filter(|cell| matches!(cell.light, crate::CoherentLightState::Unknown))
+            .count()
+            .try_into()
+            .unwrap_or(u32::MAX);
+        drop(world);
+
+        let mut entities = self.entities.read().await.observe(
+            Vec3 {
+                x: player.x,
+                y: player.y,
+                z: player.z,
+            },
+            request.entity_radius,
+        );
+        entities.sort_by_key(|entity| entity.entity_id);
+        let entity_limit = usize::from(request.max_entities);
+        let entities_omitted = entities
+            .len()
+            .saturating_sub(entity_limit)
+            .try_into()
+            .unwrap_or(u32::MAX);
+        entities.truncate(entity_limit);
+
+        let (events, events_queue_omitted, events_request_omitted) = {
+            let mut queued = self
+                .observation_events
+                .lock()
+                .expect("observation event queue poisoned");
+            let event_limit = usize::from(request.max_events);
+            let omitted_by_request = queued.events.len().saturating_sub(event_limit);
+            let drain_len = event_limit.min(queued.events.len());
+            let events = queued.events.drain(..drain_len).collect();
+            queued.events.clear();
+            let queue_omitted = queued.omitted;
+            let request_omitted = omitted_by_request.try_into().unwrap_or(u32::MAX);
+            queued.omitted = 0;
+            (events, queue_omitted, request_omitted)
+        };
+        let events_omitted = events_queue_omitted.saturating_add(events_request_omitted);
+
+        let world_time =
+            self.world_time_observed
+                .load(Ordering::Acquire)
+                .then_some(crate::CoherentWorldTime {
+                    world_age: survival.world_age,
+                    time_of_day: survival.time_of_day,
+                    daylight_cycle: Some(survival.time_of_day >= 0),
+                });
+
+        let observation = crate::CoherentObservation {
+            generation: self.connection_generation(),
+            sequence: crate::ObservationSequence::new(sequence),
+            sensor_capture: crate::SensorCaptureIdentity {
+                generation: self.connection_generation(),
+                block_geometry_revision,
+                inventory_revision,
+            },
+            received_at: std::time::Instant::now(),
+            player,
+            motion,
+            survival,
+            oxygen_level: *self.oxygen_level.lock().await,
+            mining_environment,
+            world_time,
+            inventory,
+            open_window,
+            open_furnace,
+            observation_interest: crate::CoherentObservationInterest {
+                body_generation: request.body_interest_generation,
+                cells: observation_interest_cells,
+                unloaded_cells: observation_interest_unloaded,
+                light_unknown_cells: observation_interest_light_unknown,
+            },
+            entities,
+            entities_omitted,
+            events,
+            events_omitted,
+            events_queue_omitted,
+            events_request_omitted,
+        };
+        self.connection
+            .record_observation(sequence)
+            .await
+            .map_err(|error| {
+                crate::Error::new(
+                    crate::ErrorKind::State,
+                    anyhow::anyhow!("coherent observation publication rejected: {error}"),
+                )
+            })?;
+        Ok(observation)
+    }
+
+    async fn capture_traversal_movement_facts_at_sequence(
+        &self,
+        request: crate::TraversalMovementFactsRequest,
+        sequence: u64,
+    ) -> Result<crate::TraversalMovementFactsSnapshot> {
+        let _coherent_state = self.coherent_state_gate.lock().await;
+        if self.connection.lifecycle() != ConnectionLifecycle::Ready {
+            bail!("movement facts capture requires a ready connection");
+        }
+        if request.expected_generation != self.connection_generation() {
+            bail!("movement facts request belongs to a stale client generation");
+        }
+
+        let player = self.player.lock().await.clone();
+        let motion = **self.motion.lock().await;
+        let survival = self.survival.read().await.clone();
+        let inventory = self.inventory.read().await.clone();
+        let inventory_slots = inventory
+            .windows
+            .get(&0)
+            .map(|slots| {
+                slots
+                    .iter()
+                    .take(46)
+                    .enumerate()
+                    .map(|(slot, item)| crate::TraversalInventorySlotFact {
+                        slot: i16::try_from(slot).expect("bounded inventory slot fits i16"),
+                        item: item.clone(),
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let world = self.world.lock().await;
+        let mut blocks = Vec::new();
+        for x in request.region.min.x..=request.region.max.x {
+            for y in request.region.min.y..=request.region.max.y {
+                for z in request.region.min.z..=request.region.max.z {
+                    let position = crate::BlockPos { x, y, z };
+                    let Some(state_id) = world.block(x, y, z) else {
+                        blocks.push(crate::TraversalBlockFact::Unloaded { position });
+                        continue;
+                    };
+                    let Some(name) = crate::block_name_from_state(state_id) else {
+                        blocks.push(crate::TraversalBlockFact::Unknown { position, state_id });
+                        continue;
+                    };
+                    let Some(shapes) = crate::block_collision_shapes(state_id) else {
+                        blocks.push(crate::TraversalBlockFact::Unknown { position, state_id });
+                        continue;
+                    };
+                    let Some(registry) = crate::block_movement_registry_facts(state_id) else {
+                        blocks.push(crate::TraversalBlockFact::Unknown { position, state_id });
+                        continue;
+                    };
+                    let Some(properties) = crate::block_state_properties(state_id) else {
+                        blocks.push(crate::TraversalBlockFact::Unknown { position, state_id });
+                        continue;
+                    };
+                    blocks.push(crate::TraversalBlockFact::Loaded {
+                        position,
+                        state_id,
+                        name: name.to_owned(),
+                        shapes,
+                        registry,
+                        properties,
+                    });
+                }
+            }
+        }
+        drop(world);
+
+        let mut entities = self.entities.read().await.observe(
+            Vec3 {
+                x: player.x,
+                y: player.y,
+                z: player.z,
+            },
+            f64::from(request.entity_radius),
+        );
+        entities.sort_by_key(|entity| entity.entity_id);
+        let entities_omitted = entities
+            .len()
+            .saturating_sub(usize::from(request.max_entities))
+            .try_into()
+            .unwrap_or(u32::MAX);
+        entities.truncate(usize::from(request.max_entities));
+        let entities = entities
+            .into_iter()
+            .map(|entity| crate::TraversalEntityFact {
+                dimensions: entity
+                    .type_id
+                    .and_then(crate::entity_dimensions)
+                    .map(|(width, height)| crate::TraversalEntityDimensions { width, height }),
+                entity,
+            })
+            .collect();
+
+        let generation = self.connection_generation();
+        if request.expected_generation != generation {
+            bail!("movement facts capture crossed a client generation boundary");
+        }
+        if self.connection.lifecycle() != ConnectionLifecycle::Ready {
+            bail!("movement facts capture crossed a terminal lifecycle boundary");
+        }
+        let sequence = crate::ObservationSequence::new(sequence);
+        self.connection
+            .record_observation(sequence.get())
+            .await
+            .map_err(|error| {
+                crate::Error::new(
+                    crate::ErrorKind::State,
+                    anyhow::anyhow!("movement facts publication rejected: {error}"),
+                )
+            })?;
+
+        Ok(crate::TraversalMovementFactsSnapshot {
+            generation,
+            sequence,
+            player,
+            motion,
+            survival,
+            blocks,
+            entities,
+            entities_omitted,
+            inventory: crate::TraversalInventoryFact {
+                selected_hotbar: inventory.selected_hotbar,
+                slots: inventory_slots,
+            },
+        })
+    }
+
     async fn insert_entity(&self, entity: EntityState) -> Result<()> {
         validate_position(entity.position.x, entity.position.y, entity.position.z)?;
         if !entity.velocity.x.is_finite()
@@ -3658,8 +5674,8 @@ impl Bot {
         self.ready.notify_waiters();
         let mut payload = Vec::new();
         put_varint(&mut payload, teleport);
-        self.send(0x00, &payload).await?;
-        self.send_position().await?;
+        self.send_protocol(0x00, &payload).await?;
+        self.send_position_protocol().await?;
         self.emit(Event::Position(snapshot));
         Ok(())
     }
@@ -3741,10 +5757,31 @@ impl Bot {
         self.physics.lock().await.record_movement(p);
         Ok(())
     }
+    async fn send_position_protocol(&self) -> Result<()> {
+        let p = self.player().await;
+        let mut payload = Vec::new();
+        payload.write_f64::<BigEndian>(p.x)?;
+        payload.write_f64::<BigEndian>(p.y)?;
+        payload.write_f64::<BigEndian>(p.z)?;
+        payload.write_f32::<BigEndian>(p.yaw)?;
+        payload.write_f32::<BigEndian>(p.pitch)?;
+        payload.push(p.on_ground as u8);
+        self.send_protocol(0x13, &payload).await?;
+        self.physics.lock().await.record_movement(p);
+        Ok(())
+    }
     async fn send(&self, id: i32, p: &[u8]) -> Result<()> {
-        let mut w = self.writer.lock().await;
-        let compression = w.compression;
-        Ok(write_packet(&mut w.inner, compression, id, p).await?)
+        self.connection
+            .dispatch(
+                self.operation_context(0),
+                ClientOperationClass::Normal,
+                id,
+                p,
+            )
+            .await
+    }
+    async fn send_protocol(&self, id: i32, p: &[u8]) -> Result<()> {
+        self.connection.dispatch_protocol(id, p).await
     }
     async fn send_entity_action(&self, action: i32) -> Result<()> {
         let entity_id = self
@@ -3776,6 +5813,17 @@ impl Bot {
             self.cancel.notify_waiters();
             self.ready.notify_waiters();
             self.world_updated.notify_waiters();
+        }
+        {
+            let mut queued = self
+                .observation_events
+                .lock()
+                .expect("observation event queue poisoned");
+            if queued.events.len() == 256 {
+                queued.events.pop_front();
+                queued.omitted = queued.omitted.saturating_add(1);
+            }
+            queued.events.push_back(event.clone());
         }
         let _ = self.events.send(event);
     }
@@ -3952,6 +6000,14 @@ fn parse_explosion(payload: &[u8]) -> Result<ExplosionEvent> {
     })
 }
 
+fn require_disconnect_control_cleanup(outcome: CleanupDispatchOutcome) -> Result<()> {
+    if outcome == CleanupDispatchOutcome::AppliedLocally {
+        Ok(())
+    } else {
+        bail!("disconnect control cleanup did not commit locally: {outcome:?}")
+    }
+}
+
 fn validate_position(x: f64, y: f64, z: f64) -> Result<()> {
     if !x.is_finite() || !y.is_finite() || !z.is_finite() {
         bail!("position contains a non-finite coordinate");
@@ -3979,7 +6035,2722 @@ fn sound_category_name(id: i32) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::{io::AsyncReadExt, net::TcpListener};
+    use crate::{
+        BlockCollision, CoherentWorldTime, CraftAcceptedCacheEffects, CraftAcceptedSlotEffect,
+        TraversalGeometryBlockFact, TraversalGeometryQuery,
+    };
+
+    fn repeated_pickup_fixture(window_id: i8) -> (InventoryState, PendingClick) {
+        let expected = |name: &str, count| SlotExpectation {
+            item_name: name.to_owned(),
+            count,
+            metadata: 0,
+        };
+        let stack = |name, count| ItemStack {
+            item_id: crate::registry::item_id(name).unwrap(),
+            count,
+            nbt: None,
+        };
+        let output = expected("stick", 4);
+        let mut inventory = InventoryState::default();
+        let mut slots = vec![None; 46];
+        slots[0] = Some(stack("stick", 4));
+        slots[1] = Some(stack("oak_planks", 2));
+        slots[3] = Some(stack("oak_planks", 2));
+        inventory.windows.insert(window_id, slots);
+        let pending = PendingClick {
+            window_id,
+            action: 1,
+            slot: 0,
+            button: 0,
+            mode: ClickMode::Normal,
+            slot_before: Some(stack("stick", 4)),
+            cursor_before: None,
+            accepted_cache_effects: CraftAcceptedCacheEffects {
+                slots: vec![
+                    CraftAcceptedSlotEffect {
+                        slot: 0,
+                        before: Some(output.clone()),
+                        after: Some(output.clone()),
+                    },
+                    CraftAcceptedSlotEffect {
+                        slot: 1,
+                        before: Some(expected("oak_planks", 2)),
+                        after: Some(expected("oak_planks", 1)),
+                    },
+                    CraftAcceptedSlotEffect {
+                        slot: 3,
+                        before: Some(expected("oak_planks", 2)),
+                        after: Some(expected("oak_planks", 1)),
+                    },
+                ],
+                cursor_before: None,
+                cursor_after: Some(output),
+            },
+        };
+        (inventory, pending)
+    }
+
+    fn assert_repeated_pickup_can_continue(window_id: i8) {
+        let (mut inventory, pending) = repeated_pickup_fixture(window_id);
+        apply_accepted_normal_click(&mut inventory, &pending).unwrap();
+        assert_eq!(inventory.windows[&window_id][0], pending.slot_before);
+        assert_eq!(inventory.cursor, pending.slot_before);
+        for slot in [1, 3] {
+            assert_eq!(
+                inventory.windows[&window_id][slot].as_ref().unwrap().count,
+                1
+            );
+        }
+        let output = pending.accepted_cache_effects.cursor_after.clone();
+        let deposit = PendingClick {
+            window_id,
+            action: 2,
+            slot: 9,
+            button: 0,
+            mode: ClickMode::Normal,
+            slot_before: None,
+            cursor_before: inventory.cursor.clone(),
+            accepted_cache_effects: CraftAcceptedCacheEffects {
+                slots: vec![CraftAcceptedSlotEffect {
+                    slot: 9,
+                    before: None,
+                    after: output.clone(),
+                }],
+                cursor_before: output.clone(),
+                cursor_after: None,
+            },
+        };
+        apply_accepted_normal_click(&mut inventory, &deposit).unwrap();
+        let next = CraftClick {
+            slot: 0,
+            button: 0,
+            mode: ClickMode::Normal,
+            expected_item: output,
+            expected_cursor: None,
+            accepted_cache_effects: Default::default(),
+        };
+        assert!(
+            click_precondition_matches(&inventory, window_id, &next),
+            "confirmed deposit must release the next output pickup barrier"
+        );
+    }
+
+    #[test]
+    fn confirmed_inventory_output_replenishes_for_next_pickup() {
+        assert_repeated_pickup_can_continue(0);
+    }
+
+    #[test]
+    fn confirmed_table_output_replenishes_for_next_pickup() {
+        assert_repeated_pickup_can_continue(1);
+    }
+
+    #[test]
+    fn confirmed_repeating_pickup_preserves_early_empty_server_output() {
+        let (mut inventory, pending) = repeated_pickup_fixture(0);
+        inventory.windows.get_mut(&0).unwrap()[0] = None;
+        apply_accepted_normal_click(&mut inventory, &pending).unwrap();
+        assert!(inventory.windows[&0][0].is_none());
+        assert_eq!(inventory.cursor, pending.slot_before);
+    }
+
+    #[test]
+    fn confirmed_repeating_pickup_preserves_early_server_cursor() {
+        let (mut inventory, pending) = repeated_pickup_fixture(0);
+        let server_cursor = ItemStack {
+            item_id: crate::registry::item_id("oak_planks").unwrap(),
+            count: 1,
+            nbt: None,
+        };
+        inventory.cursor = Some(server_cursor.clone());
+        apply_accepted_normal_click(&mut inventory, &pending).unwrap();
+        assert_eq!(inventory.cursor, Some(server_cursor));
+    }
+
+    #[test]
+    fn confirmed_body_effect_retains_matching_predicted_stack_nbt() {
+        let mut inventory = InventoryState::default();
+        let source = ItemStack {
+            item_id: crate::registry::item_id("oak_log").unwrap(),
+            count: 3,
+            nbt: Some(vec![10, 0, 0, 0]),
+        };
+        let expected = SlotExpectation {
+            item_name: "oak_log".to_owned(),
+            count: 3,
+            metadata: 0,
+        };
+        let mut slots = vec![None; 46];
+        slots[9] = Some(source.clone());
+        inventory.windows.insert(0, slots);
+        let pending = PendingClick {
+            window_id: 0,
+            action: 1,
+            slot: 9,
+            button: 0,
+            mode: ClickMode::Normal,
+            slot_before: Some(source.clone()),
+            cursor_before: None,
+            accepted_cache_effects: CraftAcceptedCacheEffects {
+                slots: vec![CraftAcceptedSlotEffect {
+                    slot: 9,
+                    before: Some(expected.clone()),
+                    after: None,
+                }],
+                cursor_before: None,
+                cursor_after: Some(expected),
+            },
+        };
+        apply_accepted_normal_click(&mut inventory, &pending).unwrap();
+        assert!(inventory.windows[&0][9].is_none());
+        assert_eq!(inventory.cursor, Some(source));
+    }
+
+    #[test]
+    fn disconnect_accepts_only_actor_applied_control_cleanup() {
+        assert!(require_disconnect_control_cleanup(CleanupDispatchOutcome::AppliedLocally).is_ok());
+        for non_local in [
+            CleanupDispatchOutcome::Dispatched,
+            CleanupDispatchOutcome::Acknowledged,
+            CleanupDispatchOutcome::Rejected,
+            CleanupDispatchOutcome::DeliveryUnknown,
+        ] {
+            assert!(require_disconnect_control_cleanup(non_local).is_err());
+        }
+    }
+
+    #[test]
+    fn accepted_normal_click_preserves_early_server_slot_fact_and_applies_cursor_effect() {
+        let output = ItemStack {
+            item_id: 15,
+            count: 4,
+            nbt: None,
+        };
+        let mut inventory = InventoryState::default();
+        inventory.windows.insert(0, vec![None]);
+        let pending = PendingClick {
+            window_id: 0,
+            action: 3,
+            slot: 0,
+            button: 0,
+            mode: ClickMode::Normal,
+            slot_before: Some(output.clone()),
+            cursor_before: None,
+            accepted_cache_effects: CraftAcceptedCacheEffects {
+                slots: vec![CraftAcceptedSlotEffect {
+                    slot: 0,
+                    before: Some(SlotExpectation {
+                        item_name: "oak_log".to_owned(),
+                        count: 1,
+                        metadata: 0,
+                    }),
+                    after: None,
+                }],
+                cursor_before: None,
+                cursor_after: Some(SlotExpectation {
+                    item_name: "oak_planks".to_owned(),
+                    count: 4,
+                    metadata: 0,
+                }),
+            },
+        };
+        apply_accepted_normal_click(&mut inventory, &pending).unwrap();
+        assert!(inventory.windows[&0][0].is_none());
+        assert_eq!(inventory.cursor, Some(output));
+    }
+
+    #[test]
+    fn accepted_equip_swap_repairs_omitted_player_slot_facts_and_preserves_nbt() {
+        let source = ItemStack {
+            item_id: crate::registry::item_id("crafting_table").unwrap(),
+            count: 1,
+            nbt: Some(vec![10, 1, 2]),
+        };
+        let destination = ItemStack {
+            item_id: crate::registry::item_id("oak_log").unwrap(),
+            count: 2,
+            nbt: None,
+        };
+        let mut inventory = InventoryState {
+            windows: [(0, {
+                let mut slots = vec![None; 46];
+                slots[9] = Some(source.clone());
+                slots[36] = Some(destination.clone());
+                slots
+            })]
+            .into_iter()
+            .collect(),
+            ..InventoryState::default()
+        };
+        apply_accepted_equip_swap(&mut inventory, 9, 0, &source, Some(&destination));
+        assert_eq!(inventory.windows[&0][9], Some(destination.clone()));
+        assert_eq!(inventory.windows[&0][36], Some(source.clone()));
+
+        // An early server fact wins per domain; the missing source update can
+        // still be repaired without overwriting the already-factual target.
+        inventory.windows.get_mut(&0).unwrap()[36] = Some(ItemStack {
+            item_id: crate::registry::item_id("stick").unwrap(),
+            count: 1,
+            nbt: None,
+        });
+        apply_accepted_equip_swap(&mut inventory, 9, 0, &source, Some(&destination));
+        assert_eq!(inventory.windows[&0][9], Some(destination));
+        assert_eq!(
+            inventory.windows[&0][36].as_ref().unwrap().name(),
+            Some("stick")
+        );
+    }
+
+    #[test]
+    fn exact_slot_precondition_rejects_wrong_metadata_before_dispatch() {
+        let item = ItemStack {
+            item_id: 1,
+            count: 2,
+            nbt: None,
+        };
+        let exact = SlotExpectation {
+            item_name: item.name().unwrap().to_owned(),
+            count: 2,
+            metadata: 0,
+        };
+        assert!(slot_matches(&item, &exact));
+        assert!(!slot_matches(
+            &item,
+            &SlotExpectation {
+                metadata: 1,
+                ..exact
+            }
+        ));
+    }
+
+    #[test]
+    fn interaction_entity_actions_encode_required_state_and_exact_restore() {
+        assert_eq!(
+            encode_entity_action_packet(42, true),
+            (0x1c, vec![42, 0, 0])
+        );
+        assert_eq!(
+            encode_entity_action_packet(42, false),
+            (0x1c, vec![42, 1, 0])
+        );
+
+        for restore in [false, true] {
+            let packets = [
+                encode_entity_action_packet(42, true),
+                (0x2d, vec![7]),
+                encode_entity_action_packet(42, restore),
+            ];
+            assert_eq!(packets[0], (0x1c, vec![42, 0, 0]));
+            assert_eq!(packets[1], (0x2d, vec![7]));
+            assert_eq!(packets[2], encode_entity_action_packet(42, restore));
+        }
+    }
+
+    #[test]
+    fn protocol_time_and_air_values_preserve_vanilla_semantics() {
+        assert_eq!(
+            CoherentWorldTime {
+                world_age: 1,
+                time_of_day: 24_001,
+                daylight_cycle: Some(true),
+            }
+            .contract_time_of_day(),
+            Some((1, true))
+        );
+        assert_eq!(
+            CoherentWorldTime {
+                world_age: 1,
+                time_of_day: -24_001,
+                daylight_cycle: Some(false),
+            }
+            .contract_time_of_day(),
+            Some((1, false))
+        );
+        assert_eq!(oxygen_level_from_air_ticks(300), Some(20));
+        assert_eq!(oxygen_level_from_air_ticks(0), Some(0));
+        assert_eq!(oxygen_level_from_air_ticks(316), None);
+        assert_eq!(oxygen_level_from_air_ticks(-1), None);
+        assert_eq!(protocol_default_oxygen_level(), 20);
+        assert_eq!(oxygen_level_after_respawn(Some(7), true), Some(7));
+        assert_eq!(oxygen_level_after_respawn(None, true), None);
+        assert_eq!(oxygen_level_after_respawn(Some(7), false), Some(20));
+    }
+
+    #[test]
+    fn movement_speed_applies_sprint_once_using_protocol_attributes() {
+        let no_attribute = None;
+        assert!((movement_speed_for_control(no_attribute, false) - 0.1).abs() < 1.0e-12);
+        assert!((movement_speed_for_control(no_attribute, true) - 0.13).abs() < 1.0e-12);
+
+        let base_attribute = Attribute {
+            key: "generic.movement_speed".into(),
+            base: 0.2,
+            modifiers: Vec::new(),
+        };
+        assert!((movement_speed_for_control(Some(&base_attribute), false) - 0.2).abs() < 1.0e-12);
+        assert!((movement_speed_for_control(Some(&base_attribute), true) - 0.26).abs() < 1.0e-12);
+
+        let known_sprint_attribute = Attribute {
+            key: "generic.movement_speed".into(),
+            base: 0.1,
+            modifiers: vec![AttributeModifier {
+                uuid: VANILLA_SPRINT_MODIFIER_UUID,
+                amount: 0.3,
+                operation: 2,
+            }],
+        };
+        let observed_speed = known_sprint_attribute.value();
+        assert!((observed_speed - 0.13).abs() < 1.0e-12);
+        assert!(
+            (movement_speed_for_control(Some(&known_sprint_attribute), true) - 0.13).abs()
+                < 1.0e-12
+        );
+
+        let unrelated_modifier_attribute = Attribute {
+            key: "generic.movement_speed".into(),
+            base: 0.1,
+            modifiers: vec![AttributeModifier {
+                uuid: [0; 16],
+                amount: 0.2,
+                operation: 2,
+            }],
+        };
+        assert!(
+            (movement_speed_for_control(Some(&unrelated_modifier_attribute), true) - 0.156).abs()
+                < 1.0e-12
+        );
+    }
+    use crate::{
+        AttributeModifier, BlockRegion, CoherentObservationRequest, ErrorKind,
+        LoadedResourceCoverage,
+    };
+    use std::collections::HashMap;
+    use tokio::{io::{AsyncRead, AsyncReadExt, ReadBuf}, net::TcpListener, sync::{oneshot, Notify}};
+    use std::{pin::Pin, task::{Context, Poll}};
+
+    include!("client/packet_deadline_tests.rs");
+
+    struct CountingRead<R> {
+        inner: R,
+        consumed: Arc<AtomicUsize>,
+        consumed_notify: Arc<Notify>,
+    }
+
+    impl<R: AsyncRead + Unpin> AsyncRead for CountingRead<R> {
+        fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<std::io::Result<()>> {
+            let before = buf.filled().len();
+            let result = Pin::new(&mut self.inner).poll_read(cx, buf);
+            if let Poll::Ready(Ok(())) = result {
+                let delta = buf.filled().len().saturating_sub(before);
+                if delta != 0 {
+                    self.consumed.fetch_add(delta, Ordering::AcqRel);
+                    self.consumed_notify.notify_one();
+                }
+            }
+            result
+        }
+    }
+
+    async fn connected_test_bot(
+        connection_options: ConnectionOptions,
+        play_packets: Vec<(i32, Vec<u8>)>,
+    ) -> (Bot, tokio::task::JoinHandle<()>, oneshot::Sender<()>) {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (release_tx, release_rx) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let (mut reader, mut writer) = stream.into_split();
+            read_packet(&mut reader, None).await.unwrap();
+            read_packet(&mut reader, None).await.unwrap();
+            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            release_rx.await.unwrap();
+            for (id, payload) in play_packets {
+                write_packet(&mut writer, None, id, &payload).await.unwrap();
+            }
+            let mut byte = [0_u8; 1];
+            let _ = reader.read(&mut byte).await;
+        });
+        let bot = Bot::connect(
+            Server::new("127.0.0.1", port),
+            Player::offline("LimitProbe"),
+            Arc::new(crate::SharedChunkStorage::default()),
+            connection_options,
+        )
+        .await
+        .unwrap();
+        (bot, server, release_tx)
+    }
+
+    async fn ready_test_bot(
+        connection_options: ConnectionOptions,
+    ) -> (Bot, tokio::task::JoinHandle<()>, oneshot::Sender<()>) {
+        let (bot, server, release) = connected_test_bot(connection_options, Vec::new()).await;
+        bot.player.lock().await.spawned = true;
+        *bot.positioned.lock().await = true;
+        bot.connection.mark_ready().await;
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while bot.connection_lifecycle() != ConnectionLifecycle::Ready {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        (bot, server, release)
+    }
+
+    #[tokio::test]
+    async fn exact_empty_hotbar_selection_uses_existing_packet_and_updates_cache() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        bot.inventory.write().await.windows.insert(0, vec![None; 45]);
+        let outcome = bot.dispatch_equip(bot.operation_context(0),
+            EquipOperation::SelectEmptyHotbar { hotbar_slot: 3 }).await.unwrap();
+        assert_eq!(outcome, PrimitiveDispatchOutcome::Dispatched);
+        assert_eq!(bot.inventory.read().await.selected_hotbar, 3);
+        release.send(()).unwrap(); drop(bot); server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn exact_empty_hotbar_selection_rejects_occupied_and_out_of_range_slots() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        let mut slots = vec![None; 45];
+        slots[39] = Some(ItemStack { item_id: 1, count: 1, nbt: None });
+        bot.inventory.write().await.windows.insert(0, slots);
+        for hotbar_slot in [3, 9] {
+            assert!(matches!(bot.dispatch_equip(bot.operation_context(0),
+                EquipOperation::SelectEmptyHotbar { hotbar_slot }).await,
+                Err(PrimitiveDispatchError::InvalidInput)));
+        }
+        assert_eq!(bot.inventory.read().await.selected_hotbar, 0);
+        release.send(()).unwrap(); drop(bot); server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn generic_read_loop_preserves_one_partial_packet_future_deterministically() {
+        for prefix_len in [1, 2, 3] {
+            let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+            bot.writer.lock().await.compression = Some(256);
+            let (mut tx, rx) = tokio::io::duplex(1024);
+            let consumed = Arc::new(AtomicUsize::new(0));
+            let consumed_notify = Arc::new(Notify::new());
+            let (capture_tx, capture_rx) = tokio::sync::mpsc::channel(2);
+            let (movement_tx, movement_rx) = tokio::sync::mpsc::channel(2);
+            let reader = CountingRead { inner: rx, consumed: Arc::clone(&consumed), consumed_notify: Arc::clone(&consumed_notify) };
+            let loop_bot = bot.clone_internal();
+            let loop_task = tokio::spawn(async move { loop_bot.read_loop(reader, capture_rx, movement_rx).await });
+            // Compression-enabled, below-threshold packet: frame = 00 1e 01 00 00 00 00.
+            let wire = [7, 0, 0x1e, 1, 0, 0, 0, 0];
+            tokio::io::AsyncWriteExt::write_all(&mut tx, &wire[..prefix_len]).await.unwrap();
+            tokio::time::timeout(Duration::from_secs(1), async {
+                while consumed.load(Ordering::Acquire) < prefix_len { consumed_notify.notified().await; }
+            }).await.unwrap();
+            assert_eq!(consumed.load(Ordering::Acquire), prefix_len);
+
+            for ordinal in 0..2 {
+                let (capture_reply, capture_result) = oneshot::channel();
+                capture_tx.send(crate::observation::CaptureCommand {
+                    request: CoherentObservationRequest::default(), reply: capture_reply,
+                }).await.unwrap();
+                let observation = timeout(Duration::from_secs(1), capture_result)
+                    .await.unwrap().unwrap().unwrap();
+                assert_eq!(observation.sequence.get(), 2 * ordinal + 1);
+                let (movement_reply, movement_result) = oneshot::channel();
+                movement_tx.send(crate::observation::TraversalMovementFactsCommand {
+                    request: crate::TraversalMovementFactsRequest {
+                        expected_generation: bot.connection_generation(),
+                        region: BlockRegion::new(BlockPos { x: 0, y: 0, z: 0 }, BlockPos { x: 0, y: 0, z: 0 }),
+                        entity_radius: 0,
+                        max_entities: 0,
+                    },
+                    reply: movement_reply,
+                }).await.unwrap();
+                let observation = timeout(Duration::from_secs(1), movement_result)
+                    .await.unwrap().unwrap().unwrap();
+                assert_eq!(observation.sequence.get(), 2 * ordinal + 2);
+                assert_eq!(bot.protocol_packet_sequence.load(Ordering::Acquire), 0);
+                assert_eq!(consumed.load(Ordering::Acquire), prefix_len);
+            }
+            // Only finish the frame after both request types completed twice.
+            tokio::io::AsyncWriteExt::write_all(&mut tx, &wire[prefix_len..]).await.unwrap();
+            tokio::time::timeout(Duration::from_secs(1), async {
+                while bot.protocol_packet_sequence.load(Ordering::Acquire) != 1 { tokio::task::yield_now().await; }
+            }).await.unwrap();
+            bot.cancel.notify_waiters();
+            loop_task.await.unwrap().unwrap();
+            drop(release);
+            server.abort();
+        }
+    }
+
+    #[tokio::test]
+    async fn traversal_geometry_query_projects_exact_order_and_unknown_states() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        bot.survival.write().await.dimension = Some("minecraft:overworld".to_owned());
+        let empty = bot.capture_loaded_geometry().await.unwrap();
+        assert!(empty.loaded_chunks().is_empty());
+        assert!(empty.sections().is_empty());
+        assert_eq!(empty.logical_cell_count(), 0);
+        assert!(
+            bot.apply_packet(0x21, empty_chunk_packet(0, 0))
+                .await
+                .unwrap()
+        );
+        bot.world
+            .lock()
+            .await
+            .set_block_for_test(BlockPos { x: 0, y: 0, z: 0 }, 1);
+        bot.world
+            .lock()
+            .await
+            .set_block_for_test(BlockPos { x: 1, y: 0, z: 0 }, i32::MAX);
+        let observation = bot
+            .capture_coherent_observation(CoherentObservationRequest {
+
+                max_entities: 0,
+                max_events: 0,
+                ..CoherentObservationRequest::default()
+            })
+            .await
+            .unwrap();
+        let request = TraversalGeometryQuery {
+            expected_capture: observation.sensor_capture,
+            expected_dimension: "minecraft:overworld".to_owned(),
+            region: BlockRegion::new(BlockPos { x: 0, y: 0, z: 0 }, BlockPos { x: 1, y: 1, z: 1 }),
+        };
+        let snapshot = bot.query_traversal_geometry(request.clone()).await.unwrap();
+        assert_eq!(snapshot.capture, request.expected_capture);
+        assert_eq!(snapshot.evaluated_origin.x, observation.player.x);
+        assert_eq!(snapshot.evaluated_origin.y, observation.player.y);
+        assert_eq!(snapshot.evaluated_origin.z, observation.player.z);
+        assert_eq!(snapshot.blocks.len(), 8);
+        let positions = snapshot
+            .blocks
+            .iter()
+            .map(|fact| match fact {
+                TraversalGeometryBlockFact::Loaded { position, .. }
+                | TraversalGeometryBlockFact::Unloaded { position }
+                | TraversalGeometryBlockFact::Unknown { position, .. } => {
+                    (position.x, position.y, position.z)
+                }
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            positions,
+            vec![
+                (0, 0, 0),
+                (0, 0, 1),
+                (0, 1, 0),
+                (0, 1, 1),
+                (1, 0, 0),
+                (1, 0, 1),
+                (1, 1, 0),
+                (1, 1, 1),
+            ]
+        );
+        assert!(matches!(
+            snapshot.blocks[0],
+            TraversalGeometryBlockFact::Loaded {
+                collision: BlockCollision::NonEmpty,
+                support_surface: crate::BlockSupportSurface::FullTop,
+                ..
+            }
+        ));
+        assert!(matches!(
+            snapshot.blocks[4],
+            TraversalGeometryBlockFact::Unknown {
+                state_id: i32::MAX,
+                ..
+            }
+        ));
+
+        let edge = TraversalGeometryQuery {
+            region: BlockRegion::new(
+                BlockPos { x: 15, y: 0, z: 0 },
+                BlockPos { x: 16, y: 0, z: 0 },
+            ),
+            ..request.clone()
+        };
+        let edge_snapshot = bot.query_traversal_geometry(edge).await.unwrap();
+        assert!(matches!(
+            edge_snapshot.blocks[0],
+            TraversalGeometryBlockFact::Loaded {
+                collision: BlockCollision::Empty,
+                support_surface: crate::BlockSupportSurface::NotFullTop,
+                ..
+            }
+        ));
+        assert!(matches!(
+            edge_snapshot.blocks[1],
+            TraversalGeometryBlockFact::Unloaded { .. }
+        ));
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn loaded_geometry_snapshot_is_canonical_complete_and_immutable() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        bot.survival.write().await.dimension = Some("minecraft:overworld".to_owned());
+        assert!(
+            bot.apply_packet(0x21, empty_chunk_packet(1, 0))
+                .await
+                .unwrap()
+        );
+        assert!(
+            bot.apply_packet(0x21, empty_chunk_packet(-1, 0))
+                .await
+                .unwrap()
+        );
+        let position = BlockPos { x: -1, y: 64, z: 0 };
+        bot.world.lock().await.set_block_for_test(position, 1);
+        bot.world.lock().await.set_block_for_test(
+            BlockPos {
+                x: -16,
+                y: 255,
+                z: 15,
+            },
+            2,
+        );
+
+        let snapshot = bot.capture_loaded_geometry().await.unwrap();
+        assert_eq!(snapshot.dimension(), "minecraft:overworld");
+        assert_eq!(
+            snapshot.loaded_chunks(),
+            &[
+                crate::ChunkPos { x: -1, z: 0 },
+                crate::ChunkPos { x: 1, z: 0 }
+            ]
+        );
+        assert_eq!(snapshot.logical_cell_count(), 2 * 16 * 16 * 256);
+        assert_eq!(snapshot.state_id(position), Some(1));
+        assert_eq!(
+            snapshot.state_id(BlockPos {
+                x: -16,
+                y: 255,
+                z: 15
+            }),
+            Some(2),
+            "negative chunk coordinates use Euclidean local coordinates"
+        );
+        assert_eq!(snapshot.state_id(BlockPos { x: -1, y: -1, z: 0 }), None);
+        assert_eq!(
+            snapshot.state_id(BlockPos {
+                x: -1,
+                y: 256,
+                z: 0
+            }),
+            None
+        );
+        assert!(snapshot.sections().windows(2).all(|pair| {
+            (pair[0].chunk(), pair[0].section_y()) < (pair[1].chunk(), pair[1].section_y())
+        }));
+        assert!(format!("{snapshot:?}").len() < 512);
+        let crate::PlacedBlockPhysicalDescriptorLookup::Known(furnace) =
+            snapshot.placed_descriptor("furnace")
+        else {
+            panic!("snapshot-bound registry resolves invariant furnace placement facts")
+        };
+        assert_eq!(furnace.state_id(), 3374);
+        assert_eq!(snapshot.registry_identity().descriptor_revision(), 3);
+        assert_eq!(
+            snapshot.state_id(BlockPos {
+                x: 16,
+                y: 200,
+                z: 0
+            }),
+            Some(0),
+            "a missing section in a loaded chunk is implicit air"
+        );
+        assert_eq!(
+            snapshot.state_id(BlockPos { x: 0, y: 64, z: 0 }),
+            None,
+            "a position outside the loaded manifest is unavailable"
+        );
+
+        bot.world.lock().await.set_block_for_test(position, 2);
+        assert_eq!(snapshot.state_id(position), Some(1));
+        let newer = bot.capture_loaded_geometry().await.unwrap();
+        assert_eq!(newer.state_id(position), Some(2));
+
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn traversal_geometry_query_returns_actual_origin_and_rejects_generation_dimension_and_nonfinite_origin()
+     {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        bot.survival.write().await.dimension = Some("minecraft:overworld".to_owned());
+        let observation = bot
+            .capture_coherent_observation(CoherentObservationRequest {
+
+                max_entities: 0,
+                max_events: 0,
+                ..CoherentObservationRequest::default()
+            })
+            .await
+            .unwrap();
+        let request = TraversalGeometryQuery {
+            expected_capture: observation.sensor_capture,
+            expected_dimension: "minecraft:overworld".to_owned(),
+            region: BlockRegion::new(BlockPos { x: 0, y: 0, z: 0 }, BlockPos { x: 0, y: 0, z: 0 }),
+        };
+        bot.player.lock().await.x = observation.player.x + 1.0;
+        let moved = bot.query_traversal_geometry(request.clone()).await.unwrap();
+        assert_eq!(moved.evaluated_origin.x, observation.player.x + 1.0);
+        assert_eq!(moved.evaluated_origin.y, observation.player.y);
+        assert_eq!(moved.evaluated_origin.z, observation.player.z);
+
+        bot.player.lock().await.x = f64::NAN;
+        assert!(bot.query_traversal_geometry(request.clone()).await.is_err());
+        bot.player.lock().await.x = observation.player.x;
+
+        let mut generation_mismatch = request.clone();
+        generation_mismatch.expected_capture.generation = ClientConnectionGeneration::allocate();
+        assert!(
+            bot.query_traversal_geometry(generation_mismatch)
+                .await
+                .is_err()
+        );
+
+        let mut dimension_mismatch = request.clone();
+        dimension_mismatch.expected_dimension = "minecraft:the_nether".to_owned();
+        assert!(
+            bot.query_traversal_geometry(dimension_mismatch)
+                .await
+                .is_err()
+        );
+
+        let mut geometry_revision_mismatch = request.clone();
+        bot.advance_block_geometry_revision();
+        geometry_revision_mismatch
+            .expected_capture
+            .block_geometry_revision += 1;
+        let geometry_snapshot = bot
+            .query_traversal_geometry(geometry_revision_mismatch)
+            .await
+            .unwrap();
+        assert_eq!(
+            geometry_snapshot.capture.block_geometry_revision,
+            request.expected_capture.block_geometry_revision + 1
+        );
+
+        let mut inventory_revision_mismatch = request.clone();
+        bot.inventory.write().await.selected_hotbar = 1;
+        inventory_revision_mismatch
+            .expected_capture
+            .inventory_revision += 1;
+        let inventory_snapshot = bot
+            .query_traversal_geometry(inventory_revision_mismatch)
+            .await
+            .unwrap();
+        assert_eq!(
+            inventory_snapshot.capture.inventory_revision,
+            request.expected_capture.inventory_revision + 1
+        );
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn traversal_geometry_query_rejects_a_non_ready_lifecycle() {
+        let (bot, server, release) =
+            connected_test_bot(ConnectionOptions::default(), Vec::new()).await;
+        bot.survival.write().await.dimension = Some("minecraft:overworld".to_owned());
+        let request = TraversalGeometryQuery {
+            expected_capture: crate::SensorCaptureIdentity {
+                generation: bot.connection_generation(),
+                block_geometry_revision: 0,
+                inventory_revision: 0,
+            },
+            expected_dimension: "minecraft:overworld".to_owned(),
+            region: BlockRegion::new(BlockPos { x: 0, y: 0, z: 0 }, BlockPos { x: 0, y: 0, z: 0 }),
+        };
+        assert_ne!(bot.connection_lifecycle(), ConnectionLifecycle::Ready);
+        assert!(bot.query_traversal_geometry(request).await.is_err());
+
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn unrelated_observation_sequence_advances_without_changing_sensor_identity() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        bot.survival.write().await.dimension = Some("minecraft:overworld".to_owned());
+
+        let first = bot
+            .capture_coherent_observation(CoherentObservationRequest {
+
+                max_entities: 0,
+                max_events: 0,
+                ..CoherentObservationRequest::default()
+            })
+            .await
+            .unwrap();
+        let previous_player_revision = bot.player_snapshot().await.revision;
+        let on_ground = bot.player_snapshot().await.value.on_ground;
+        bot.player.lock().await.on_ground = !on_ground;
+        assert!(bot.player_snapshot().await.revision > previous_player_revision);
+        let second = bot
+            .capture_coherent_observation(CoherentObservationRequest {
+
+                max_entities: 0,
+                max_events: 0,
+                ..CoherentObservationRequest::default()
+            })
+            .await
+            .unwrap();
+
+        assert!(second.sequence > first.sequence);
+        assert_eq!(second.generation, first.generation);
+        assert_eq!(second.sensor_capture, first.sensor_capture);
+
+        let query = TraversalGeometryQuery {
+            expected_capture: first.sensor_capture,
+            expected_dimension: "minecraft:overworld".to_owned(),
+            region: BlockRegion::new(BlockPos { x: 0, y: 0, z: 0 }, BlockPos { x: 0, y: 0, z: 0 }),
+        };
+        assert!(bot.query_traversal_geometry(query).await.is_ok());
+
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    fn loaded_resource_request(
+        bot: &Bot,
+        region: BlockRegion,
+        block_name: &str,
+        limit: u16,
+    ) -> crate::LoadedResourceQuery {
+        crate::LoadedResourceQuery {
+            expected_generation: bot.operation_context(0).generation,
+            expected_dimension: "minecraft:overworld".to_owned(),
+            region,
+            block_name: block_name.to_owned(),
+            limit,
+        }
+    }
+
+    #[tokio::test]
+    async fn loaded_resource_query_reports_complete_coverage_and_bounded_matches() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        bot.survival.write().await.dimension = Some("minecraft:overworld".to_owned());
+        assert!(
+            bot.apply_packet(0x21, empty_chunk_packet(0, 0))
+                .await
+                .unwrap()
+        );
+        let result = bot
+            .query_loaded_resource(loaded_resource_request(
+                &bot,
+                BlockRegion::new(BlockPos { x: 0, y: 0, z: 0 }, BlockPos { x: 1, y: 0, z: 0 }),
+                "air",
+                1,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(result.coverage, LoadedResourceCoverage::Complete);
+        assert_eq!(result.capture.generation, bot.connection_generation());
+        assert_eq!(
+            result.capture.block_geometry_revision,
+            bot.block_geometry_revision.load(Ordering::Acquire)
+        );
+        assert_eq!(
+            result.capture.inventory_revision,
+            bot.inventory.read().await.revision()
+        );
+        assert_eq!(result.candidates, vec![BlockPos { x: 0, y: 0, z: 0 }]);
+        assert_eq!(result.omitted_candidates, 1);
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn loaded_resource_query_uses_index_and_fails_closed_when_it_is_incomplete() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        bot.survival.write().await.dimension = Some("minecraft:overworld".to_owned());
+        assert!(
+            bot.apply_packet(0x21, empty_chunk_packet(0, 0))
+                .await
+                .unwrap()
+        );
+        let iron = crate::registry::block_state_ranges_for_names(&["iron_ore"])[0].0;
+        bot.world
+            .lock()
+            .await
+            .set_block_for_test(BlockPos { x: 2, y: 3, z: 4 }, iron);
+        let result = bot
+            .query_loaded_resource(loaded_resource_request(
+                &bot,
+                BlockRegion::new(
+                    BlockPos { x: 0, y: 0, z: 0 },
+                    BlockPos {
+                        x: 15,
+                        y: 31,
+                        z: 15,
+                    },
+                ),
+                "iron_ore",
+                4,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(result.candidates, vec![BlockPos { x: 2, y: 3, z: 4 }]);
+
+        {
+            let mut world = bot.world.lock().await;
+            for index in 0..8_193_i32 {
+                let y = index / 256;
+                let local = index % 256;
+                world.set_block_for_test(
+                    BlockPos {
+                        x: local % 16,
+                        y,
+                        z: local / 16,
+                    },
+                    iron,
+                );
+            }
+        }
+        assert!(
+            bot.query_loaded_resource(loaded_resource_request(
+                &bot,
+                BlockRegion::new(
+                    BlockPos { x: 0, y: 0, z: 0 },
+                    BlockPos {
+                        x: 15,
+                        y: 32,
+                        z: 15
+                    }
+                ),
+                "iron_ore",
+                4,
+            ))
+            .await
+            .is_err()
+        );
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn loaded_resource_query_reports_partial_coverage_and_stale_generation() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        bot.survival.write().await.dimension = Some("minecraft:overworld".to_owned());
+        let partial = bot
+            .query_loaded_resource(loaded_resource_request(
+                &bot,
+                BlockRegion::new(
+                    BlockPos { x: 0, y: 0, z: 0 },
+                    BlockPos { x: 16, y: 0, z: 0 },
+                ),
+                "air",
+                4,
+            ))
+            .await
+            .unwrap();
+        assert!(matches!(
+            partial.coverage,
+            LoadedResourceCoverage::Partial { missing_chunks: 2 }
+        ));
+        assert_eq!(partial.capture.generation, bot.connection_generation());
+        assert_eq!(
+            partial.capture.block_geometry_revision,
+            bot.block_geometry_revision.load(Ordering::Acquire)
+        );
+        assert_eq!(
+            partial.capture.inventory_revision,
+            bot.inventory.read().await.revision()
+        );
+
+        let mut stale = loaded_resource_request(
+            &bot,
+            BlockRegion::new(BlockPos { x: 0, y: 0, z: 0 }, BlockPos { x: 0, y: 0, z: 0 }),
+            "air",
+            4,
+        );
+        stale.expected_generation = ClientConnectionGeneration::allocate();
+        assert!(bot.query_loaded_resource(stale).await.is_err());
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn disconnect_waits_for_server_read_eof() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (release_tx, release_rx) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let (mut reader, mut _writer) = stream.into_split();
+            read_packet(&mut reader, None).await.unwrap();
+            read_packet(&mut reader, None).await.unwrap();
+            write_packet(&mut _writer, None, 0x02, &[]).await.unwrap();
+            release_rx.await.unwrap();
+        });
+        let bot = Bot::connect(
+            Server::new("127.0.0.1", port),
+            Player::offline("DiscBarrier"),
+            Arc::new(crate::SharedChunkStorage::default()),
+            ConnectionOptions::default(),
+        )
+        .await
+        .unwrap();
+        bot.set_control(ControlState {
+            forward: true,
+            ..ControlState::default()
+        })
+        .await;
+        let lifecycle = bot.clone();
+        let mut disconnect = tokio::spawn(async move { bot.disconnect().await });
+        assert!(
+            tokio::time::timeout(Duration::from_millis(50), &mut disconnect)
+                .await
+                .is_err()
+        );
+        assert_eq!(lifecycle.control().await, ControlState::default());
+        release_tx.send(()).unwrap();
+        assert!(disconnect.await.unwrap().is_ok());
+        assert_eq!(
+            lifecycle.connection_lifecycle(),
+            ConnectionLifecycle::Disconnected
+        );
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn wait_until_ready_returns_only_after_actor_ready_commit() {
+        let (bot, server, release) =
+            connected_test_bot(ConnectionOptions::default(), Vec::new()).await;
+        bot.player.lock().await.spawned = true;
+        *bot.positioned.lock().await = true;
+        bot.wait_until_ready().await.unwrap();
+        assert_eq!(bot.connection_lifecycle(), ConnectionLifecycle::Ready);
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn packet_acknowledgements_route_to_actor_transactions() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        let stack = ItemStack {
+            item_id: 1,
+            count: 2,
+            nbt: None,
+        };
+        bot.inventory
+            .write()
+            .await
+            .windows
+            .insert(0, vec![Some(stack.clone())]);
+        let window_transaction = bot
+            .dispatch_acknowledged(
+                bot.operation_context(0),
+                AcknowledgedPrimitive::WindowClick {
+                    window_id: 0,
+                    slot: 0,
+                    button: 0,
+                    mode: ClickMode::Normal,
+                    clicked: Some(stack.clone()),
+                },
+            )
+            .await
+            .unwrap();
+        let action = window_transaction.window_action().unwrap();
+        bot.inventory.write().await.pending_clicks.insert(
+            (0, action),
+            PendingClick {
+                window_id: 0,
+                action,
+                slot: 0,
+                button: 0,
+                mode: ClickMode::Normal,
+                slot_before: Some(stack),
+                cursor_before: None,
+                accepted_cache_effects: Default::default(),
+            },
+        );
+        bot.exact_window_barriers.lock().await.insert(
+            (0, action),
+            ExactWindowBarrier {
+                successor: None,
+                confirmation_seen: false,
+            },
+        );
+        let waiter_bot = bot.clone_internal();
+        let waiter = tokio::spawn(async move {
+            let outcome = window_transaction.wait().await;
+            let inventory = waiter_bot.inventory.read().await;
+            (
+                outcome,
+                inventory.windows[&0][0].clone(),
+                inventory.cursor.clone(),
+            )
+        });
+        let mut window_ack = Vec::new();
+        window_ack.write_i8(0).unwrap();
+        window_ack.write_i16::<BigEndian>(action).unwrap();
+        window_ack.push(1);
+        assert!(bot.apply_packet(0x12, window_ack).await.unwrap());
+        let (outcome, slot, cursor) = waiter.await.unwrap();
+        assert_eq!(outcome, PrimitiveDispatchOutcome::Acknowledged);
+        assert!(slot.is_none());
+        assert_eq!(cursor.map(|item| item.count), Some(2));
+
+        let corrective = ItemStack {
+            item_id: 3,
+            count: 1,
+            nbt: None,
+        };
+        let second = bot
+            .dispatch_acknowledged(
+                bot.operation_context(0),
+                AcknowledgedPrimitive::WindowClick {
+                    window_id: 0,
+                    slot: 0,
+                    button: 0,
+                    mode: ClickMode::Normal,
+                    clicked: None,
+                },
+            )
+            .await
+            .unwrap();
+        let second_action = second.window_action().unwrap();
+        bot.inventory.write().await.pending_clicks.insert(
+            (0, second_action),
+            PendingClick {
+                window_id: 0,
+                action: second_action,
+                slot: 0,
+                button: 0,
+                mode: ClickMode::Normal,
+                slot_before: None,
+                cursor_before: None,
+                accepted_cache_effects: Default::default(),
+            },
+        );
+        bot.exact_window_barriers.lock().await.insert(
+            (0, second_action),
+            ExactWindowBarrier {
+                successor: None,
+                confirmation_seen: false,
+            },
+        );
+        {
+            let mut inventory = bot.inventory.write().await;
+            inventory.windows.get_mut(&0).unwrap()[0] = Some(corrective.clone());
+            inventory.cursor = None;
+        }
+        let mut second_ack = Vec::new();
+        second_ack.write_i8(0).unwrap();
+        second_ack.write_i16::<BigEndian>(second_action).unwrap();
+        second_ack.push(1);
+        assert!(bot.apply_packet(0x12, second_ack).await.unwrap());
+        assert_eq!(second.wait().await, PrimitiveDispatchOutcome::Acknowledged);
+        assert_eq!(bot.inventory.read().await.windows[&0][0], Some(corrective));
+
+        let position = BlockPos { x: -2, y: 4, z: 6 };
+        let dig_transaction = bot
+            .dispatch_acknowledged(
+                bot.operation_context(0),
+                AcknowledgedPrimitive::DigFinish {
+                    position,
+                    face: BlockFace::North,
+                },
+            )
+            .await
+            .unwrap();
+        let mut dig_ack = Vec::new();
+        dig_ack.write_u64::<BigEndian>(position.packed()).unwrap();
+        put_varint(&mut dig_ack, 0);
+        put_varint(&mut dig_ack, DiggingStatus::Finished as i32);
+        dig_ack.push(1);
+        assert!(bot.apply_packet(0x07, dig_ack).await.unwrap());
+        assert_eq!(
+            dig_transaction.wait().await,
+            PrimitiveDispatchOutcome::Acknowledged
+        );
+
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn exact_confirmation_waits_for_successor_server_cache_fact() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        let stack = ItemStack {
+            item_id: 1,
+            count: 1,
+            nbt: None,
+        };
+        bot.inventory
+            .write()
+            .await
+            .windows
+            .insert(0, vec![Some(stack.clone()), Some(stack.clone())]);
+        let transaction = bot
+            .dispatch_acknowledged(
+                bot.operation_context(0),
+                AcknowledgedPrimitive::WindowClick {
+                    window_id: 0,
+                    slot: 0,
+                    button: 0,
+                    mode: ClickMode::Drop,
+                    clicked: Some(stack.clone()),
+                },
+            )
+            .await
+            .unwrap();
+        let action = transaction.window_action().unwrap();
+        bot.inventory.write().await.pending_clicks.insert(
+            (0, action),
+            PendingClick {
+                window_id: 0,
+                action,
+                slot: 0,
+                button: 0,
+                mode: ClickMode::Drop,
+                slot_before: Some(stack),
+                cursor_before: None,
+                accepted_cache_effects: Default::default(),
+            },
+        );
+        bot.exact_window_barriers.lock().await.insert(
+            (0, action),
+            ExactWindowBarrier {
+                successor: Some(CraftClick {
+                    slot: 1,
+                    button: 0,
+                    mode: ClickMode::Normal,
+                    expected_item: None,
+                    expected_cursor: None,
+                    accepted_cache_effects: Default::default(),
+                }),
+                confirmation_seen: false,
+            },
+        );
+        let mut waiter = tokio::spawn(transaction.wait());
+        let mut confirmation = Vec::new();
+        confirmation.write_i8(0).unwrap();
+        confirmation.write_i16::<BigEndian>(action).unwrap();
+        confirmation.push(1);
+        assert!(bot.apply_packet(0x12, confirmation).await.unwrap());
+        assert!(
+            tokio::time::timeout(Duration::from_millis(10), &mut waiter)
+                .await
+                .is_err()
+        );
+
+        let mut set_slot = Vec::new();
+        set_slot.write_i8(0).unwrap();
+        set_slot.write_i16::<BigEndian>(1).unwrap();
+        write_slot(&mut set_slot, None);
+        assert!(bot.apply_packet(0x16, set_slot).await.unwrap());
+        assert_eq!(
+            waiter.await.unwrap(),
+            PrimitiveDispatchOutcome::Acknowledged
+        );
+        assert!(bot.exact_window_barriers.lock().await.is_empty());
+
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    fn empty_chunk_packet(x: i32, z: i32) -> Vec<u8> {
+        let mut packet = Vec::new();
+        packet.write_i32::<BigEndian>(x).unwrap();
+        packet.write_i32::<BigEndian>(z).unwrap();
+        packet.push(1);
+        packet.push(0);
+        put_varint(&mut packet, 0);
+        packet.push(0);
+        packet.extend([0_u8; 4096]);
+        put_varint(&mut packet, 0);
+        put_varint(&mut packet, 0);
+        packet
+    }
+
+    fn digging_ack_packet(
+        position: BlockPos,
+        block_state_id: i32,
+        status: DiggingStatus,
+        successful: bool,
+    ) -> Vec<u8> {
+        let mut packet = Vec::new();
+        packet.write_u64::<BigEndian>(position.packed()).unwrap();
+        put_varint(&mut packet, block_state_id);
+        put_varint(&mut packet, status as i32);
+        packet.push(u8::from(successful));
+        packet
+    }
+
+    fn light_update_packet() -> Vec<u8> {
+        let mut packet = Vec::new();
+        for value in [0, 0, 1, 1 << 1, 1 << 1, 0, 0] {
+            put_varint(&mut packet, value);
+        }
+        packet.extend([0x21; 2048]);
+        packet.extend([0xa5; 2048]);
+        packet
+    }
+
+    fn multi_block_change_packet(position: BlockPos, state_id: i32) -> Vec<u8> {
+        let mut packet = Vec::new();
+        packet.extend(position.x.div_euclid(16).to_be_bytes());
+        packet.extend(position.z.div_euclid(16).to_be_bytes());
+        put_varint(&mut packet, 1);
+        packet.push((position.x.rem_euclid(16) << 4 | position.z.rem_euclid(16)) as u8);
+        packet.push(position.y.rem_euclid(16) as u8);
+        put_varint(&mut packet, state_id);
+        packet
+    }
+
+    fn explosion_packet() -> Vec<u8> {
+        let mut packet = Vec::new();
+        for value in [0.5f32, 64.0, 0.5, 1.0] {
+            packet.extend(value.to_be_bytes());
+        }
+        packet.extend(1i32.to_be_bytes());
+        packet.extend([0u8, 0, 0]);
+        for value in [0.0f32, 0.0, 0.0] {
+            packet.extend(value.to_be_bytes());
+        }
+        packet
+    }
+
+    fn respawn_packet() -> Vec<u8> {
+        let mut packet = Vec::new();
+        put_string(&mut packet, "minecraft:overworld");
+        put_string(&mut packet, "world");
+        packet.extend(0i64.to_be_bytes());
+        packet.extend([0, 0, 0, 0, 0]);
+        packet
+    }
+
+    #[tokio::test]
+    async fn block_geometry_revision_tracks_only_geometry_packets() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        let position = BlockPos { x: 0, y: 0, z: 0 };
+        assert_eq!(bot.block_geometry_revision.load(Ordering::Acquire), 0);
+
+        // A malformed chunk never reaches the world mutation or revision gate.
+        assert!(bot.apply_packet(0x21, Vec::new()).await.unwrap());
+        assert_eq!(bot.block_geometry_revision.load(Ordering::Acquire), 0);
+
+        assert!(
+            bot.apply_packet(0x21, empty_chunk_packet(0, 0))
+                .await
+                .unwrap()
+        );
+        assert_eq!(bot.block_geometry_revision.load(Ordering::Acquire), 1);
+
+        // Light and block-entity packets mutate their own domains only.
+        assert!(bot.apply_packet(0x24, light_update_packet()).await.unwrap());
+        let mut block_entity = position.packed().to_be_bytes().to_vec();
+        block_entity.push(0);
+        assert!(bot.apply_packet(0x09, block_entity).await.unwrap());
+        assert_eq!(bot.block_geometry_revision.load(Ordering::Acquire), 1);
+
+        let mut block_change = position.packed().to_be_bytes().to_vec();
+        put_varint(&mut block_change, 1);
+        assert!(bot.apply_packet(0x0b, block_change).await.unwrap());
+        assert_eq!(bot.block_geometry_revision.load(Ordering::Acquire), 2);
+        assert!(
+            bot.apply_packet(0x0f, multi_block_change_packet(position, 2))
+                .await
+                .unwrap()
+        );
+        assert_eq!(bot.block_geometry_revision.load(Ordering::Acquire), 3);
+        assert!(
+            bot.apply_packet(
+                0x07,
+                digging_ack_packet(position, 3, DiggingStatus::Finished, true),
+            )
+            .await
+            .unwrap()
+        );
+        assert_eq!(bot.block_geometry_revision.load(Ordering::Acquire), 4);
+        assert!(bot.apply_packet(0x1c, explosion_packet()).await.unwrap());
+        assert_eq!(bot.block_geometry_revision.load(Ordering::Acquire), 5);
+        assert!(
+            bot.apply_packet(0x1d, [0i32.to_be_bytes(), 0i32.to_be_bytes()].concat())
+                .await
+                .unwrap()
+        );
+        assert_eq!(bot.block_geometry_revision.load(Ordering::Acquire), 6);
+        assert!(
+            bot.apply_packet(0x21, empty_chunk_packet(0, 0))
+                .await
+                .unwrap()
+        );
+        assert_eq!(bot.block_geometry_revision.load(Ordering::Acquire), 7);
+        assert!(bot.apply_packet(0x3a, respawn_packet()).await.unwrap());
+        assert_eq!(bot.block_geometry_revision.load(Ordering::Acquire), 8);
+
+        let observation = bot
+            .capture_coherent_observation(CoherentObservationRequest {
+
+                max_entities: 0,
+                max_events: 0,
+                ..CoherentObservationRequest::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(observation.sensor_capture.block_geometry_revision, 8);
+        assert_eq!(observation.generation, bot.connection_generation());
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn digging_ack_applies_exact_server_state_before_coherent_capture() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        assert!(
+            bot.apply_packet(0x21, empty_chunk_packet(0, 0))
+                .await
+                .unwrap()
+        );
+        let position = BlockPos { x: 0, y: 0, z: 0 };
+
+        let successful = bot
+            .dispatch_acknowledged(
+                bot.operation_context(0),
+                AcknowledgedPrimitive::DigFinish {
+                    position,
+                    face: BlockFace::North,
+                },
+            )
+            .await
+            .unwrap();
+        assert!(
+            bot.apply_packet(
+                0x07,
+                digging_ack_packet(position, 0, DiggingStatus::Finished, true),
+            )
+            .await
+            .unwrap()
+        );
+        assert_eq!(
+            successful.wait().await,
+            PrimitiveDispatchOutcome::Acknowledged
+        );
+        let observation = bot
+            .capture_coherent_observation(CoherentObservationRequest {
+                body_interest_generation: Some(1),
+                observation_interest: vec![BlockPos { x: 0, y: 0, z: 0 }],
+
+                max_entities: 0,
+                max_events: 0,
+                ..CoherentObservationRequest::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(observation.observation_interest.cells[0].state_id, Some(0));
+
+        let corrective_state = 42;
+        bot.admit_operation(
+            bot.operation_context(observation.sequence.get()),
+            ClientOperationClass::Normal,
+        )
+        .await
+        .unwrap();
+        let failed = bot
+            .dispatch_acknowledged(
+                bot.operation_context(observation.sequence.get()),
+                AcknowledgedPrimitive::DigFinish {
+                    position,
+                    face: BlockFace::North,
+                },
+            )
+            .await
+            .unwrap();
+        assert!(
+            bot.apply_packet(
+                0x07,
+                digging_ack_packet(position, corrective_state, DiggingStatus::Finished, false,),
+            )
+            .await
+            .unwrap()
+        );
+        assert_eq!(failed.wait().await, PrimitiveDispatchOutcome::Rejected);
+        let observation = bot
+            .capture_coherent_observation(CoherentObservationRequest {
+                body_interest_generation: Some(1),
+                observation_interest: vec![BlockPos { x: 0, y: 0, z: 0 }],
+
+                max_entities: 0,
+                max_events: 0,
+                ..CoherentObservationRequest::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(observation.observation_interest.cells[0].state_id, Some(corrective_state));
+
+        bot.admit_operation(
+            bot.operation_context(observation.sequence.get()),
+            ClientOperationClass::Normal,
+        )
+        .await
+        .unwrap();
+        let dropped = bot
+            .dispatch_acknowledged(
+                bot.operation_context(observation.sequence.get()),
+                AcknowledgedPrimitive::DigFinish {
+                    position,
+                    face: BlockFace::North,
+                },
+            )
+            .await
+            .unwrap();
+        drop(dropped);
+        assert!(
+            bot.apply_packet(
+                0x07,
+                digging_ack_packet(position, 77, DiggingStatus::Finished, true),
+            )
+            .await
+            .unwrap()
+        );
+        assert_eq!(
+            bot.block(position.x, position.y, position.z).await,
+            Some(77)
+        );
+
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn cleanup_api_uses_barrier_and_keeps_local_clear_distinct() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        bot.set_control(ControlState {
+            forward: true,
+            ..ControlState::default()
+        })
+        .await;
+        assert_eq!(
+            bot.dispatch_cleanup(bot.operation_context(0), CleanupPrimitive::ControlClear,)
+                .await
+                .unwrap(),
+            CleanupDispatchOutcome::AppliedLocally
+        );
+        assert_eq!(bot.control().await, ControlState::default());
+
+        bot.connection.begin_disconnect().await.unwrap();
+        assert_eq!(
+            bot.dispatch_cleanup(bot.operation_context(0), CleanupPrimitive::UseStop,)
+                .await
+                .unwrap(),
+            CleanupDispatchOutcome::Dispatched
+        );
+
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn furnace_close_cleanup_clears_local_window_without_server_echo() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        let window_id = 2;
+        bot.inventory.write().await.open_window = Some(OpenWindow {
+            id: window_id,
+            window_type: 13,
+            title_json: "{}".to_owned(),
+            entity_id: None,
+            declared_slots: Some(39),
+        });
+        bot.inventory
+            .write()
+            .await
+            .windows
+            .insert(window_id, vec![None; 39]);
+        bot.inventory
+            .write()
+            .await
+            .properties
+            .insert((window_id, 0), 0);
+
+        assert_eq!(
+            bot.dispatch_cleanup(
+                bot.operation_context(0),
+                CleanupPrimitive::CloseWindow { window_id },
+            )
+            .await
+            .unwrap(),
+            CleanupDispatchOutcome::Dispatched
+        );
+        assert!(bot.open_window_state().await.is_none());
+        let inventory = bot.inventory.read().await;
+        assert!(!inventory.windows.contains_key(&window_id));
+        assert!(!inventory.properties.keys().any(|(id, _)| *id == window_id));
+        drop(inventory);
+
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn rotation_dispatch_reflects_exact_pose_only_after_delivery() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        let stale_context = OperationContext {
+            generation: ClientConnectionGeneration::allocate(),
+            source_observation_sequence: 1,
+        };
+        assert_eq!(
+            bot.dispatch_rotation(stale_context, 37.5, -22.0, true)
+                .await,
+            Err(PrimitiveDispatchError::Admission(
+                OperationAdmissionError::StaleGeneration,
+            ))
+        );
+        {
+            let player = bot.player.lock().await;
+            assert_eq!(player.yaw, 0.0);
+            assert_eq!(player.pitch, 0.0);
+        }
+
+        release.send(()).unwrap();
+        assert_eq!(
+            bot.dispatch_rotation(bot.operation_context(0), 37.5, -22.0, true)
+                .await
+                .unwrap(),
+            PrimitiveDispatchOutcome::Dispatched
+        );
+        let player = bot.player.lock().await;
+        assert_eq!(player.yaw, 37.5);
+        assert_eq!(player.pitch, -22.0);
+        drop(player);
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn rotation_dispatch_serializes_with_coherent_capture() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        let gate = bot.coherent_state_gate.clone();
+        let guard = gate.lock().await;
+        let capture_bot = bot.clone();
+        let rotation_bot = bot.clone();
+        let capture = tokio::spawn(async move {
+            capture_bot
+                .capture_coherent_observation(CoherentObservationRequest {
+
+                    entity_radius: 0.0,
+                    max_entities: 0,
+                    max_events: 0,
+                    ..CoherentObservationRequest::default()
+                })
+                .await
+        });
+        let rotation = tokio::spawn(async move {
+            rotation_bot
+                .dispatch_rotation(rotation_bot.operation_context(0), 15.0, -10.0, true)
+                .await
+        });
+        tokio::task::yield_now().await;
+        assert!(!capture.is_finished());
+        assert!(!rotation.is_finished());
+        drop(guard);
+
+        assert!(capture.await.unwrap().is_ok());
+        release.send(()).unwrap();
+        assert_eq!(
+            rotation.await.unwrap().unwrap(),
+            PrimitiveDispatchOutcome::Dispatched
+        );
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn block_interaction_correlation_is_single_use_bounded_and_actor_owned() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        bot.player.lock().await.entity_id = Some(42);
+        let position = BlockPos { x: -3, y: 64, z: 5 };
+        let outcome = bot
+            .dispatch_primitive(
+                bot.operation_context(0),
+                PrimitiveOperation::BlockInteraction {
+                    hand: Hand::Main,
+                    position,
+                    face: BlockFace::Up,
+                    cursor: [0.5, 1.0, 0.5],
+                    inside_block: false,
+                    sneak: crate::InteractionSneakRequirement::not_required(),
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(outcome, PrimitiveDispatchOutcome::Dispatched);
+        // A non-furnace window consumes the one-shot context and cannot leave it
+        // available for a later furnace window.
+        assert_eq!(bot.connection.observe_furnace_window(12).await, None);
+        assert_eq!(bot.connection.observe_furnace_window(13).await, None);
+        assert_eq!(
+            bot.dispatch_primitive(
+                bot.operation_context(0),
+                PrimitiveOperation::BlockInteraction {
+                    hand: Hand::Main,
+                    position,
+                    face: BlockFace::Up,
+                    cursor: [0.5, 1.0, 0.5],
+                    inside_block: false,
+                    sneak: crate::InteractionSneakRequirement::not_required(),
+                },
+            )
+            .await
+            .unwrap(),
+            PrimitiveDispatchOutcome::Dispatched
+        );
+        assert_eq!(
+            bot.connection.observe_furnace_window(13).await,
+            Some(position)
+        );
+        assert_eq!(bot.connection.observe_furnace_window(13).await, None);
+
+        // A second unexpired interaction makes the correlation ambiguous; it must
+        // fail closed rather than attributing the window to either position.
+        let second_position = BlockPos { x: 9, y: 65, z: -4 };
+        for (_sequence, position) in [(3, position), (4, second_position)] {
+            assert_eq!(
+                bot.dispatch_primitive(
+                    bot.operation_context(0),
+                    PrimitiveOperation::BlockInteraction {
+                        hand: Hand::Main,
+                        position,
+                        face: BlockFace::Up,
+                        cursor: [0.5, 1.0, 0.5],
+                        inside_block: false,
+                        sneak: crate::InteractionSneakRequirement::not_required(),
+                    },
+                )
+                .await
+                .unwrap(),
+                PrimitiveDispatchOutcome::Dispatched
+            );
+        }
+        assert_eq!(bot.connection.observe_furnace_window(13).await, None);
+
+        // The ambiguity is consumed and a later single interaction can correlate
+        // exactly once again.
+        assert_eq!(
+            bot.dispatch_primitive(
+                bot.operation_context(0),
+                PrimitiveOperation::BlockInteraction {
+                    hand: Hand::Main,
+                    position: second_position,
+                    face: BlockFace::Up,
+                    cursor: [0.5, 1.0, 0.5],
+                    inside_block: false,
+                    sneak: crate::InteractionSneakRequirement::not_required(),
+                },
+            )
+            .await
+            .unwrap(),
+            PrimitiveDispatchOutcome::Dispatched
+        );
+        assert_eq!(
+            bot.connection.observe_furnace_window(13).await,
+            Some(second_position)
+        );
+
+        // Expired markers are not allowed to explain a later window.
+        assert_eq!(
+            bot.dispatch_primitive(
+                bot.operation_context(0),
+                PrimitiveOperation::BlockInteraction {
+                    hand: Hand::Main,
+                    position,
+                    face: BlockFace::Up,
+                    cursor: [0.5, 1.0, 0.5],
+                    inside_block: false,
+                    sneak: crate::InteractionSneakRequirement::not_required(),
+                },
+            )
+            .await
+            .unwrap(),
+            PrimitiveDispatchOutcome::Dispatched
+        );
+        tokio::time::sleep(Duration::from_secs(2) + Duration::from_millis(20)).await;
+        assert_eq!(bot.connection.observe_furnace_window(13).await, None);
+
+        let stale_context = OperationContext {
+            generation: ClientConnectionGeneration::allocate(),
+            source_observation_sequence: 7,
+        };
+        assert_eq!(
+            bot.dispatch_primitive(
+                stale_context,
+                PrimitiveOperation::BlockInteraction {
+                    hand: Hand::Main,
+                    position,
+                    face: BlockFace::Up,
+                    cursor: [0.5, 1.0, 0.5],
+                    inside_block: false,
+                    sneak: crate::InteractionSneakRequirement::not_required(),
+                },
+            )
+            .await,
+            Err(crate::PrimitiveDispatchError::Admission(
+                OperationAdmissionError::StaleGeneration,
+            ))
+        );
+        assert_eq!(bot.connection.observe_furnace_window(13).await, None);
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn local_cancel_becomes_unknown_without_disconnected_event() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (release_tx, release_rx) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let (mut reader, mut writer) = stream.into_split();
+            read_packet(&mut reader, None).await.unwrap();
+            read_packet(&mut reader, None).await.unwrap();
+            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            release_rx.await.unwrap();
+        });
+        let bot = Bot::connect(
+            Server::new("127.0.0.1", port),
+            Player::offline("LocalCancel"),
+            Arc::new(crate::SharedChunkStorage::default()),
+            ConnectionOptions::default(),
+        )
+        .await
+        .unwrap();
+        let observer = bot.clone_internal();
+        let mut events = bot.subscribe();
+        drop(bot);
+
+        let mut saw_error = false;
+        let mut saw_disconnected = false;
+        for _ in 0..4 {
+            match tokio::time::timeout(Duration::from_secs(1), events.recv()).await {
+                Ok(Ok(Event::Error {
+                    kind: "connection", ..
+                })) => {
+                    saw_error = true;
+                    break;
+                }
+                Ok(Ok(Event::Disconnected { .. })) => {
+                    saw_disconnected = true;
+                    break;
+                }
+                Ok(Ok(_)) => {}
+                Ok(Err(_)) | Err(_) => break,
+            }
+        }
+        assert!(saw_error);
+        assert!(!saw_disconnected);
+        assert_eq!(
+            observer.connection_lifecycle(),
+            ConnectionLifecycle::ConnectionStateUnknown
+        );
+        release_tx.send(()).unwrap();
+        drop(observer);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn terminal_connection_rejects_packet_write() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (observed_tx, observed_rx) = oneshot::channel();
+        let (release_tx, release_rx) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let (mut reader, mut writer) = stream.into_split();
+            read_packet(&mut reader, None).await.unwrap();
+            read_packet(&mut reader, None).await.unwrap();
+            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            write_packet(&mut writer, None, 0x1a, &[0]).await.unwrap();
+            let mut byte = [0_u8; 1];
+            let result =
+                tokio::time::timeout(Duration::from_millis(100), reader.read(&mut byte)).await;
+            let _ = observed_tx.send(result.map(|read| read.unwrap_or_default()));
+            release_rx.await.unwrap();
+        });
+        let bot = Bot::connect(
+            Server::new("127.0.0.1", port),
+            Player::offline("TerminalWrite"),
+            Arc::new(crate::SharedChunkStorage::default()),
+            ConnectionOptions::default(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            bot.wait_for_transport_end().await,
+            ConnectionLifecycle::Disconnected
+        );
+        assert!(
+            bot.respond_resource_pack(ResourcePackStatus::Accepted)
+                .await
+                .is_err()
+        );
+        assert!(observed_rx.await.unwrap().is_err());
+        release_tx.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn malformed_kick_reason_does_not_commit_clean_disconnect() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        let mut events = bot.subscribe();
+        assert!(bot.apply_packet(0x1a, Vec::new()).await.is_err());
+        assert_eq!(bot.connection_lifecycle(), ConnectionLifecycle::Ready);
+        assert!(
+            tokio::time::timeout(Duration::from_millis(20), events.recv())
+                .await
+                .is_err()
+        );
+
+        bot.connection
+            .mark_terminal(TerminalClassification::ConnectionStateUnknown)
+            .await;
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn coherent_capture_sequence_is_generation_bound_and_not_a_domain_revision() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        for _ in 0..3 {
+            bot.player.lock().await.x += 1.0;
+        }
+        for value in 0..5 {
+            bot.survival.write().await.raining = Some(value % 2 == 0);
+        }
+        let request = CoherentObservationRequest {
+
+            max_entities: 0,
+            max_events: 0,
+            ..CoherentObservationRequest::default()
+        };
+        let first = bot
+            .capture_coherent_observation(request.clone())
+            .await
+            .unwrap();
+        let second = bot
+            .capture_coherent_observation(request.clone())
+            .await
+            .unwrap();
+        assert_eq!(first.generation, bot.connection_generation());
+        assert_eq!(second.generation, first.generation);
+        assert_eq!(first.sequence.get(), 1);
+        assert_eq!(second.sequence.get(), 2);
+        assert_eq!(
+            bot.admit_operation(
+                bot.operation_context(first.sequence.get()),
+                ClientOperationClass::Normal,
+            )
+            .await,
+            Ok(())
+        );
+        assert_eq!(
+            bot.admit_operation(
+                bot.operation_context(second.sequence.get()),
+                ClientOperationClass::Normal,
+            )
+            .await,
+            Ok(())
+        );
+        assert_eq!(
+            bot.admit_operation(
+                bot.operation_context(first.sequence.get()),
+                ClientOperationClass::Normal,
+            )
+            .await,
+            Err(OperationAdmissionError::InvalidOperation)
+        );
+        assert_eq!(bot.player_snapshot().await.revision, 4);
+        assert_eq!(bot.survival_snapshot().await.revision, 5);
+        assert_eq!(first.observation_interest.unloaded_cells, 0);
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn traversal_facts_capture_is_generation_bound_and_coherent() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        bot.insert_entity(test_entity(7)).await.unwrap();
+        let mut known_entity = test_entity(8);
+        known_entity.type_id = Some(1);
+        known_entity.type_name = Some("armor_stand");
+        bot.insert_entity(known_entity).await.unwrap();
+        let request = crate::TraversalMovementFactsRequest {
+            expected_generation: bot.connection_generation(),
+            region: crate::BlockRegion::new(
+                crate::BlockPos { x: 0, y: 0, z: 0 },
+                crate::BlockPos { x: 0, y: 0, z: 0 },
+            ),
+            entity_radius: 0,
+            max_entities: 2,
+        };
+        let gate = bot.coherent_state_gate.clone();
+        let guard = gate.lock().await;
+        let capture_bot = bot.clone();
+        let pending =
+            tokio::spawn(
+                async move { capture_bot.capture_traversal_movement_facts(request).await },
+            );
+        tokio::task::yield_now().await;
+        assert!(!pending.is_finished());
+        drop(guard);
+        let serialized = pending.await.unwrap().unwrap();
+        let first = bot.capture_traversal_movement_facts(request).await.unwrap();
+        let second = bot.capture_traversal_movement_facts(request).await.unwrap();
+        assert_eq!(serialized.generation, request.expected_generation);
+        assert_eq!(serialized.sequence.get() + 1, first.sequence.get());
+        assert_eq!(first.generation, request.expected_generation);
+        assert_eq!(first.generation, second.generation);
+        assert_eq!(first.sequence.get() + 1, second.sequence.get());
+        assert!(matches!(
+            first.blocks.as_slice(),
+            [crate::TraversalBlockFact::Unloaded { .. }]
+        ));
+        assert_eq!(first.entities_omitted, 0);
+        assert_eq!(first.entities.len(), 2);
+        assert!(first.entities[0].dimensions.is_none());
+        assert_eq!(
+            first.entities[1].dimensions,
+            Some(crate::TraversalEntityDimensions {
+                width: 0.5,
+                height: 1.975,
+            })
+        );
+        assert_eq!(first.inventory.slots.len(), 0);
+
+        let stale = crate::TraversalMovementFactsRequest {
+            expected_generation: crate::ClientConnectionGeneration::allocate(),
+            ..request
+        };
+        assert!(bot.capture_traversal_movement_facts(stale).await.is_err());
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn local_pose_metadata_is_retained_in_coherent_observation() {
+        let (bot,server,release)=ready_test_bot(ConnectionOptions::default()).await;
+        bot.player.lock().await.entity_id=Some(42);
+        let mut packet=Vec::new();
+        put_varint(&mut packet,42);
+        packet.push(6);put_varint(&mut packet,18);put_varint(&mut packet,5);packet.push(255);
+        bot.apply_packet(0x44,packet).await.unwrap();
+        let observed=bot.capture_coherent_observation(CoherentObservationRequest::default()).await.unwrap();
+        assert_eq!(observed.mining_environment.pose,Some(5));
+        assert_eq!(observed.mining_environment.eyes_in_water,None,"unloaded cells are not dry air");
+        release.send(()).unwrap();drop(bot);server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn coherent_capture_keeps_requested_block_and_light_evidence_aligned() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        let positions = vec![BlockPos { x: -17, y: 3, z: 9 }, BlockPos { x: 20, y: 64, z: 0 }];
+        let observation = bot.capture_coherent_observation(CoherentObservationRequest {
+            body_interest_generation: Some(1), observation_interest: positions.clone(),
+            max_entities: 0, max_events: 0, ..CoherentObservationRequest::default()
+        }).await.unwrap();
+        assert_eq!(observation.observation_interest.cells.len(), positions.len());
+        for (cell, position) in observation.observation_interest.cells.iter().zip(positions) {
+            assert_eq!(cell.position, position);
+            assert_eq!(cell.state_id, None);
+            assert_eq!(cell.light, crate::CoherentLightState::Unknown);
+        }
+        assert_eq!(observation.observation_interest.unloaded_cells, 2);
+        assert_eq!(observation.observation_interest.light_unknown_cells, 2);
+        release.send(()).unwrap(); drop(bot); server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn coherent_capture_reports_observed_light_nibbles() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        let mut packet = Vec::new();
+        for value in [0, 0, 1, 1 << 1, 1 << 1, 0, 0] {
+            put_varint(&mut packet, value);
+        }
+        packet.extend([0x21; 2048]);
+        packet.extend([0xa5; 2048]);
+        assert_eq!(
+            bot.world.lock().await.apply_light(&packet, 256).unwrap(),
+            (0, 0)
+        );
+        let observation = bot
+            .capture_coherent_observation(CoherentObservationRequest {
+                body_interest_generation: Some(1),
+                observation_interest: vec![BlockPos { x: 0, y: 0, z: 0 }],
+
+                entity_radius: 0.0,
+                max_entities: 0,
+                max_events: 0,
+                ..CoherentObservationRequest::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(observation.observation_interest.cells.len(), 1);
+        assert_eq!(observation.observation_interest.cells.len(), 1);
+        assert_eq!(
+            observation.observation_interest.cells[0].light,
+            crate::CoherentLightState::Observed { block: 5, sky: 1 }
+        );
+        assert_eq!(observation.observation_interest.light_unknown_cells, 0);
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn packet_apply_updates_multiple_domains_before_capture() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        bot.player.lock().await.spawned = false;
+        let request = CoherentObservationRequest {
+
+            max_entities: 0,
+            max_events: 0,
+            ..CoherentObservationRequest::default()
+        };
+        let before = bot
+            .capture_coherent_observation(request.clone())
+            .await
+            .unwrap();
+        assert!(!before.player.spawned);
+
+        let mut join = Vec::new();
+        join.write_i32::<BigEndian>(42).unwrap();
+        join.extend([1, 0]);
+        put_varint(&mut join, 1);
+        put_string(&mut join, "minecraft:overworld");
+        join.push(0);
+        put_string(&mut join, "minecraft:overworld");
+        put_string(&mut join, "world");
+        assert!(bot.apply_packet(0x25, join).await.unwrap());
+
+        let after = bot
+            .capture_coherent_observation(request.clone())
+            .await
+            .unwrap();
+        assert!(after.player.spawned);
+        assert_eq!(after.player.entity_id, Some(42));
+        assert_eq!(after.oxygen_level, Some(20));
+        assert_eq!(
+            after.survival.dimension.as_deref(),
+            Some("minecraft:overworld")
+        );
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn packet_apply_and_capture_linearize_without_torn_domains() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        {
+            let mut player = bot.player.lock().await;
+            player.entity_id = None;
+            player.spawned = false;
+        }
+        {
+            let mut survival = bot.survival.write().await;
+            survival.dimension = None;
+            survival.world_name = None;
+        }
+        let mut join = Vec::new();
+        join.write_i32::<BigEndian>(42).unwrap();
+        join.extend([1, 0]);
+        put_varint(&mut join, 1);
+        put_string(&mut join, "minecraft:overworld");
+        join.push(0);
+        put_string(&mut join, "minecraft:overworld");
+        put_string(&mut join, "world");
+        let request = CoherentObservationRequest {
+
+            entity_radius: 0.0,
+            max_entities: 0,
+            max_events: 0,
+            ..CoherentObservationRequest::default()
+        };
+
+        let gate = bot.coherent_state_gate.clone();
+        let guard = gate.lock().await;
+        let capture_bot = bot.clone();
+        let apply_bot = bot.clone();
+        let capture =
+            tokio::spawn(async move { capture_bot.capture_coherent_observation(request).await });
+        let apply = tokio::spawn(async move { apply_bot.apply_packet(0x25, join).await });
+        tokio::task::yield_now().await;
+        assert!(!capture.is_finished());
+        assert!(!apply.is_finished());
+        drop(guard);
+
+        let observation = capture.await.unwrap().unwrap();
+        assert!(apply.await.unwrap().unwrap());
+        let before = (false, None, None);
+        let after = (true, Some(42), Some("minecraft:overworld".to_owned()));
+        let observed = (
+            observation.player.spawned,
+            observation.player.entity_id,
+            observation.survival.dimension,
+        );
+        assert!(observed == before || observed == after);
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn coherent_capture_sorts_and_reports_entity_truncation() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        for id in [3, 1, 2] {
+            let mut entity = test_entity(id);
+            entity.position = Vec3::default();
+            bot.insert_entity(entity).await.unwrap();
+        }
+        let observation = bot
+            .capture_coherent_observation(CoherentObservationRequest {
+
+                entity_radius: 10.0,
+                max_entities: 2,
+                max_events: 0,
+                ..CoherentObservationRequest::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            observation
+                .entities
+                .iter()
+                .map(|entity| entity.entity_id)
+                .collect::<Vec<_>>(),
+            vec![1, 2]
+        );
+        assert_eq!(observation.entities_omitted, 1);
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn coherent_capture_reports_event_queue_and_request_omission() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        {
+            let mut queued = bot.observation_events.lock().unwrap();
+            queued.events.clear();
+            queued.omitted = 0;
+        }
+        for _ in 0..258 {
+            bot.emit(Event::Login);
+        }
+        let observation = bot
+            .capture_coherent_observation(CoherentObservationRequest {
+
+                entity_radius: 0.0,
+                max_entities: 0,
+                max_events: 2,
+                ..CoherentObservationRequest::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(observation.events.len(), 2);
+        assert!(
+            observation
+                .events
+                .iter()
+                .all(|event| *event == Event::Login)
+        );
+        assert_eq!(observation.events_omitted, 256);
+        assert_eq!(observation.events_queue_omitted, 2);
+        assert_eq!(observation.events_request_omitted, 254);
+        assert_eq!(
+            observation.events_omitted,
+            observation
+                .events_queue_omitted
+                .saturating_add(observation.events_request_omitted)
+        );
+        let next = bot
+            .capture_coherent_observation(CoherentObservationRequest {
+
+                entity_radius: 0.0,
+                max_entities: 0,
+                max_events: 256,
+                ..CoherentObservationRequest::default()
+            })
+            .await
+            .unwrap();
+        assert!(next.events.is_empty());
+        assert_eq!(next.events_omitted, 0);
+        assert_eq!(next.events_queue_omitted, 0);
+        assert_eq!(next.events_request_omitted, 0);
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[test]
+    fn coherent_capture_rejects_invalid_bounds() {
+        let invalid_requests = [
+            CoherentObservationRequest {
+                entity_radius: f64::NAN,
+                ..CoherentObservationRequest::default()
+            },
+            CoherentObservationRequest {
+                max_entities: 513,
+                ..CoherentObservationRequest::default()
+            },
+            CoherentObservationRequest {
+                max_events: 257,
+                ..CoherentObservationRequest::default()
+            },
+        ];
+        for request in invalid_requests {
+            assert_eq!(
+                request.validate().unwrap_err().kind(),
+                ErrorKind::InvalidInput
+            );
+        }
+    }
+
+    #[test]
+    fn large_sparse_interest_and_generation_are_validated() {
+        let cells = (0..4607)
+            .map(|x| BlockPos { x, y: 0, z: 0 })
+            .collect::<Vec<_>>();
+        assert!(
+            CoherentObservationRequest {
+                body_interest_generation: Some(1),
+                observation_interest: cells.clone(),
+                ..CoherentObservationRequest::default()
+            }
+            .validate()
+            .is_ok()
+        );
+        assert_eq!(
+            CoherentObservationRequest {
+                body_interest_generation: Some(1),
+                observation_interest: vec![BlockPos { x: 1, y: 2, z: 3 }; 2],
+                ..CoherentObservationRequest::default()
+            }
+            .validate()
+            .unwrap_err()
+            .kind(),
+            ErrorKind::InvalidInput
+        );
+        assert_eq!(
+            CoherentObservationRequest {
+                observation_interest: vec![BlockPos { x: 1, y: 2, z: 3 }],
+                ..CoherentObservationRequest::default()
+            }
+            .validate()
+            .unwrap_err()
+            .kind(),
+            ErrorKind::InvalidInput
+        );
+        assert!(CoherentObservationRequest::default().validate().is_ok());
+    }
+
+    #[tokio::test]
+    async fn sparse_interest_preserves_request_order_and_unknown_counts() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        let requested = vec![
+            BlockPos {
+                x: -16,
+                y: 0,
+                z: -16,
+            },
+            BlockPos { x: 3, y: 4, z: 5 },
+            BlockPos {
+                x: -1,
+                y: -2,
+                z: -3,
+            },
+        ];
+        let observation = bot
+            .capture_coherent_observation(CoherentObservationRequest {
+
+                entity_radius: 0.0,
+                max_entities: 0,
+                max_events: 0,
+                body_interest_generation: Some(77),
+                observation_interest: requested.clone(),
+            })
+            .await
+            .unwrap();
+        assert_eq!(observation.observation_interest.body_generation, Some(77));
+        assert_eq!(
+            observation
+                .observation_interest
+                .cells
+                .iter()
+                .map(|cell| cell.position)
+                .collect::<Vec<_>>(),
+            requested
+        );
+        assert!(observation.observation_interest.cells.iter().all(
+            |cell| cell.state_id.is_none() && cell.light == crate::CoherentLightState::Unknown
+        ));
+        assert_eq!(observation.observation_interest.unloaded_cells, 3);
+        assert_eq!(observation.observation_interest.light_unknown_cells, 3);
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn sparse_interest_and_cube_share_packet_state_without_client_selection() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        let mut light_packet = Vec::new();
+        for value in [0, 0, 1, 1 << 1, 1 << 1, 0, 0] {
+            put_varint(&mut light_packet, value);
+        }
+        light_packet.extend([0x21; 2048]);
+        light_packet.extend([0xa5; 2048]);
+        assert_eq!(
+            bot.world
+                .lock()
+                .await
+                .apply_light(&light_packet, 256)
+                .unwrap(),
+            (0, 0)
+        );
+        let position = BlockPos { x: 0, y: 0, z: 0 };
+        let mut block_packet = Vec::new();
+        block_packet
+            .write_u64::<BigEndian>(position.packed())
+            .unwrap();
+        put_varint(&mut block_packet, 42);
+        assert!(bot.apply_packet(0x0b, block_packet).await.unwrap());
+
+        let observation = bot
+            .capture_coherent_observation(CoherentObservationRequest {
+
+                entity_radius: 0.0,
+                max_entities: 0,
+                max_events: 0,
+                body_interest_generation: Some(1),
+                observation_interest: vec![position],
+            })
+            .await
+            .unwrap();
+        assert_eq!(observation.observation_interest.cells[0].state_id, Some(42));
+        assert_eq!(observation.observation_interest.cells[0].state_id, Some(42));
+        assert_eq!(
+            observation.observation_interest.cells[0].light,
+            crate::CoherentLightState::Observed { block: 5, sky: 1 }
+        );
+        assert_eq!(
+            observation.observation_interest.cells[0].light,
+            crate::CoherentLightState::Observed { block: 5, sky: 1 }
+        );
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn capture_after_terminal_is_fail_closed() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        bot.connection
+            .mark_terminal(TerminalClassification::ConnectionStateUnknown)
+            .await;
+        let observation = bot
+            .capture_coherent_observation(CoherentObservationRequest::default())
+            .await;
+        assert!(observation.is_err());
+        assert_eq!(
+            bot.connection_lifecycle(),
+            ConnectionLifecycle::ConnectionStateUnknown
+        );
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn terminal_capture_race_fails_closed_at_capture_boundary() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        let gate = bot.coherent_state_gate.clone();
+        let guard = gate.lock().await;
+        let capture_bot = bot.clone();
+        let capture = tokio::spawn(async move {
+            capture_bot
+                .capture_coherent_observation(CoherentObservationRequest::default())
+                .await
+        });
+        tokio::task::yield_now().await;
+        bot.connection
+            .mark_terminal(TerminalClassification::ConnectionStateUnknown)
+            .await;
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while bot.connection_lifecycle() != ConnectionLifecycle::ConnectionStateUnknown {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        drop(guard);
+        assert!(capture.await.unwrap().is_err());
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn capture_and_physics_tick_are_serialized_by_the_coherent_gate() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        let gate = bot.coherent_state_gate.clone();
+        let guard = gate.lock().await;
+        let capture_bot = bot.clone();
+        let physics_bot = bot.clone();
+        let capture = tokio::spawn(async move {
+            capture_bot
+                .capture_coherent_observation(CoherentObservationRequest {
+
+                    entity_radius: 0.0,
+                    max_entities: 0,
+                    max_events: 0,
+                    ..CoherentObservationRequest::default()
+                })
+                .await
+        });
+        let physics = tokio::spawn(async move {
+            physics_bot
+                .physics_tick(ControlState::default(), false)
+                .await
+        });
+        tokio::task::yield_now().await;
+        assert!(!capture.is_finished());
+        assert!(!physics.is_finished());
+        drop(guard);
+        assert!(capture.await.unwrap().is_ok());
+        assert!(physics.await.unwrap().is_ok());
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn physics_fraction_scales_input_but_zero_input_preserves_inertia() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        // Keep the background producer out of this manually clocked physics test.
+        bot.teleport_barrier_ticks.store(u8::MAX, Ordering::Release);
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        bot.apply_packet(0x21, empty_chunk_packet(0, 0)).await.unwrap();
+        {
+            let mut world = bot.world.lock().await;
+            for y in 62..=64 {
+                for x in -1..=1 {
+                    for z in -1..=1 {
+                        world.set_block_for_test(BlockPos { x, y, z }, if y == 63 { 1 } else { 0 });
+                    }
+                }
+            }
+        }
+        {
+            let mut player = bot.player.lock().await;
+            player.x = 0.5;
+            player.y = 64.0;
+            player.z = 0.5;
+            player.yaw = 0.0;
+            player.on_ground = true;
+        }
+        **bot.motion.lock().await = MotionState::default();
+        let before = bot.player.lock().await.z;
+        bot.physics_tick_with_fraction(
+            ControlState {
+                forward: true,
+                ..ControlState::default()
+            },
+            false,
+            0.25,
+        )
+        .await
+        .unwrap();
+        let after_fraction = bot.player.lock().await.z;
+        assert!(after_fraction > before,
+            "fractional input must advance the player: before={before} after={after_fraction} motion={:?}",
+            bot.motion.lock().await.velocity);
+        bot.physics_tick_with_fraction(ControlState::default(), false, 0.0)
+            .await
+            .unwrap();
+        let after_zero_input = bot.player.lock().await.z;
+        assert!(after_zero_input > after_fraction,
+            "clearing input must preserve existing horizontal inertia for this tick");
+
+        // Reset the same real fixture and compare against a full-strength tick.
+        {
+            let mut player = bot.player.lock().await;
+            player.x = 0.5;
+            player.y = 64.0;
+            player.z = 0.5;
+            player.on_ground = true;
+            player.yaw = 0.0;
+        }
+        **bot.motion.lock().await = MotionState::default();
+        bot.physics_tick_with_fraction(
+            ControlState {
+                forward: true,
+                ..ControlState::default()
+            },
+            false,
+            1.0,
+        )
+        .await
+        .unwrap();
+        let full_delta = bot.player.lock().await.z - before;
+        let quarter_delta = after_fraction - before;
+        assert!(full_delta > 0.0 && (quarter_delta / full_delta - 0.25).abs() < 1e-9,
+            "fraction must scale the same initial physical input: quarter={quarter_delta} full={full_delta}");
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    fn test_entity(entity_id: i32) -> EntityState {
+        EntityState {
+            entity_id,
+            uuid: None,
+            kind: crate::entity::EntityKind::Object,
+            type_id: None,
+            type_name: None,
+            position: Vec3::default(),
+            velocity: Vec3::default(),
+            yaw: 0.0,
+            pitch: 0.0,
+            head_yaw: 0.0,
+            on_ground: false,
+            object_data: None,
+            experience_count: None,
+            painting_motive: None,
+            painting_direction: None,
+            metadata: HashMap::new(),
+            equipment: HashMap::new(),
+            passengers: Vec::new(),
+            attached_to: None,
+        }
+    }
     #[test]
     fn explosion_offsets_are_relative_to_floored_center() {
         let mut packet = Vec::new();
@@ -4045,5 +8816,160 @@ mod tests {
         .unwrap();
         drop(bot);
         server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn entity_limit_rejects_new_entity_without_mutation() {
+        let options = ConnectionOptions {
+            max_entities: 0,
+            ..ConnectionOptions::default()
+        };
+        let (bot, server, release) = connected_test_bot(options, Vec::new()).await;
+        assert!(bot.insert_entity(test_entity(1)).await.is_err());
+        assert!(bot.entities.read().await.entities.is_empty());
+        release.send(()).unwrap();
+        drop(bot);
+        tokio::time::timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn aggregate_cache_limit_is_observable() {
+        let options = ConnectionOptions {
+            max_cached_records: 1,
+            ..ConnectionOptions::default()
+        };
+        let (bot, server, release) = connected_test_bot(options, Vec::new()).await;
+        bot.players.write().await.entries.insert(
+            [0; 16],
+            crate::chat::PlayerListEntry {
+                uuid: [0; 16],
+                name: "one".to_owned(),
+                properties: Vec::new(),
+                game_mode: 0,
+                latency: 0,
+                display_name_json: None,
+            },
+        );
+        assert!(bot.enforce_session_limits().await.is_ok());
+        bot.players.write().await.entries.insert(
+            [1; 16],
+            crate::chat::PlayerListEntry {
+                uuid: [1; 16],
+                name: "two".to_owned(),
+                properties: Vec::new(),
+                game_mode: 0,
+                latency: 0,
+                display_name_json: None,
+            },
+        );
+        assert!(bot.enforce_session_limits().await.is_err());
+        release.send(()).unwrap();
+        drop(bot);
+        tokio::time::timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn custom_payload_limit_rejects_before_event_emission() {
+        let mut payload = Vec::new();
+        put_string(&mut payload, "minecraft:test");
+        payload.extend([1, 2, 3]);
+        let options = ConnectionOptions {
+            max_custom_payload_bytes: 2,
+            ..ConnectionOptions::default()
+        };
+        let (bot, server, release) = connected_test_bot(options, vec![(0x18, payload)]).await;
+        let mut events = bot.subscribe();
+        release.send(()).unwrap();
+        let event = tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                if let Event::Error { kind, message } = events.recv().await.unwrap() {
+                    break (kind, message);
+                }
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(event.0, "connection");
+        assert!(event.1.contains("custom payload"));
+        assert_eq!(
+            bot.wait_for_transport_end().await,
+            ConnectionLifecycle::ConnectionStateUnknown
+        );
+        drop(bot);
+        tokio::time::timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn aggregate_limit_error_makes_generation_unknown() {
+        let options = ConnectionOptions {
+            max_cached_records: 0,
+            ..ConnectionOptions::default()
+        };
+        let (bot, server, release) = connected_test_bot(options, vec![(0x3f, vec![0])]).await;
+        bot.players.write().await.entries.insert(
+            [0; 16],
+            crate::chat::PlayerListEntry {
+                uuid: [0; 16],
+                name: "one".to_owned(),
+                properties: Vec::new(),
+                game_mode: 0,
+                latency: 0,
+                display_name_json: None,
+            },
+        );
+        let mut events = bot.subscribe();
+        release.send(()).unwrap();
+        let event = tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                if let Event::Error { kind, message } = events.recv().await.unwrap() {
+                    break (kind, message);
+                }
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(event.0, "connection");
+        assert!(event.1.contains("session cache"));
+        assert_eq!(
+            bot.wait_for_transport_end().await,
+            ConnectionLifecycle::ConnectionStateUnknown
+        );
+        drop(bot);
+        tokio::time::timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn event_receiver_reports_lag_instead_of_unbounded_growth() {
+        let options = ConnectionOptions {
+            event_channel_capacity: 2,
+            ..ConnectionOptions::default()
+        };
+        let (bot, server, release) = connected_test_bot(options, Vec::new()).await;
+        let mut events = bot.subscribe();
+        bot.emit(Event::Login);
+        bot.emit(Event::Login);
+        bot.emit(Event::Login);
+        assert!(matches!(
+            events.recv().await,
+            Err(broadcast::error::RecvError::Lagged(1))
+        ));
+        release.send(()).unwrap();
+        drop(bot);
+        tokio::time::timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
     }
 }

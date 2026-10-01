@@ -71,6 +71,23 @@ pub struct EntityState {
     pub attached_to: Option<i32>,
 }
 
+impl EntityState {
+    /// Returns the protocol metadata item carried by a dropped-item entity.
+    ///
+    /// Metadata index 7 is the vanilla item-stack field for item entities in
+    /// protocol 736. No item is synthesized when the metadata is absent.
+    #[must_use]
+    pub fn item_drop(&self) -> Option<&ItemStack> {
+        if self.type_name != Some("item") {
+            return None;
+        }
+        match self.metadata.get(&7) {
+            Some(MetadataValue::Slot(Some(item))) => Some(item),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 /// State and protocol data represented by `EntityRaycastHit`.
 pub struct EntityRaycastHit {
@@ -577,6 +594,30 @@ mod tests {
         assert_eq!(id, 7);
         assert_eq!(values.get(&0), Some(&MetadataValue::Byte(5)));
         assert_eq!(values.get(&7), Some(&MetadataValue::Bool(true)));
+    }
+
+    #[test]
+    fn protocol_736_item_drop_uses_exact_metadata_index_seven() {
+        let stack = ItemStack {
+            item_id: 17,
+            count: 1,
+            nbt: None,
+        };
+        let mut entity = base_entity(1, None, EntityKind::Object, None, Vec3::default());
+        entity.type_name = Some("item");
+
+        assert!(
+            entity.item_drop().is_none(),
+            "missing metadata stays absent"
+        );
+        entity
+            .metadata
+            .insert(8, MetadataValue::Slot(Some(stack.clone())));
+        assert!(entity.item_drop().is_none(), "index 8 is not a fallback");
+        entity
+            .metadata
+            .insert(7, MetadataValue::Slot(Some(stack.clone())));
+        assert_eq!(entity.item_drop(), Some(&stack));
     }
 
     #[test]

@@ -1,7 +1,7 @@
-# Contributing to Voxrig
+# Contributing to zen-minecraft-client
 
 Issueやpull requestを歓迎します。大きなAPI変更やprotocol version追加は、実装前にissueで
-責務境界と互換性を相談してください。Voxrigは低レベルなheadless clientを担当し、pathfinding、
+責務境界と互換性を相談してください。zen-minecraft-clientは低レベルなheadless clientを担当し、pathfinding、
 計画、AI runtimeは利用側の責務とします。
 
 変更前後に次を実行してください。

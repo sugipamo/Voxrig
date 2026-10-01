@@ -1,16 +1,16 @@
 //! Player motion state, controls, collision geometry, and timing metrics.
 
 use crate::Player;
-use std::{
-    collections::VecDeque,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 /// State and protocol data represented by `ControlState`.
 pub struct ControlState {
     /// The `forward` value.
     pub forward: bool,
+    /// Latest observation's finite locomotion budget; None retains held-key behavior.
+    /// The connection actor alone consumes this duration at physics boundaries.
+    pub movement_press_duration: Option<Duration>,
     /// The `back` value.
     pub back: bool,
     /// The `left` value.
@@ -237,17 +237,133 @@ pub struct PhysicsMetrics {
     pub physics_tick_lag_p99: Duration,
     /// The `physics_tick_lag_max` value.
     pub physics_tick_lag_max: Duration,
+    /// Total number of tick duration samples represented by the bounded
+    /// histogram (not merely the retained diagnostic window).
+    pub physics_tick_samples: u64,
+    /// True only if the bounded accumulator could not represent another
+    /// sample. A gate must fail closed when this is set.
+    pub physics_tick_histogram_overflowed: bool,
+    /// Total number of scheduler-lag samples represented by the histogram.
+    pub physics_tick_lag_samples: u64,
+    /// True if the scheduler-lag histogram could not represent a sample.
+    pub physics_tick_lag_histogram_overflowed: bool,
+}
+
+/// A boundary token for an instrumentation measurement window.
+///
+/// Establishing an epoch resets only the diagnostic accumulators returned by
+/// [`crate::Bot::begin_measurement_epoch`]. It never rewinds physics state,
+/// packet caches, or the last movement proposal used to classify a server
+/// correction.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PhysicsMeasurementEpoch {
+    generation: crate::ClientConnectionGeneration,
+}
+
+impl PhysicsMeasurementEpoch {
+    pub(crate) const fn new(generation: crate::ClientConnectionGeneration) -> Self {
+        Self { generation }
+    }
+
+    /// Returns the client connection generation owning this epoch.
+    #[must_use]
+    pub const fn generation(self) -> crate::ClientConnectionGeneration {
+        self.generation
+    }
 }
 
 pub(crate) struct PhysicsTracker {
     connected_at: Instant,
     last_sent: Option<(Player, Instant)>,
     metrics: PhysicsMetrics,
-    tick_durations_micros: VecDeque<u64>,
-    tick_lag_micros: VecDeque<u64>,
+    tick_durations: DurationHistogram,
+    tick_lag: DurationHistogram,
 }
 
-const METRIC_SAMPLE_WINDOW: usize = 1_200;
+/// A fixed-size, mergeable duration summary. Bucket boundaries deliberately
+/// include the approved R9 limits so a p99 below a limit is never rounded up
+/// merely because it fell into a broad logarithmic bucket. `max` remains
+/// exact, while p99 is the conservative upper bound of its bucket.
+#[derive(Clone, Debug)]
+struct DurationHistogram {
+    counts: [u64; 24],
+    count: u64,
+    max: u64,
+    overflowed: bool,
+}
+
+const HISTOGRAM_UPPER_BOUNDS: [u64; 24] = [
+    0,
+    1,
+    2,
+    4,
+    8,
+    16,
+    32,
+    64,
+    128,
+    256,
+    512,
+    1024,
+    2048,
+    4095,
+    4999,
+    5000,
+    9999,
+    19999,
+    39999,
+    49999,
+    50000,
+    65535,
+    1_000_000,
+    u64::MAX,
+];
+
+impl Default for DurationHistogram {
+    fn default() -> Self {
+        Self {
+            counts: [0; 24],
+            count: 0,
+            max: 0,
+            overflowed: false,
+        }
+    }
+}
+
+impl DurationHistogram {
+    fn record(&mut self, value: Duration) {
+        let micros = value.as_micros().min(u128::from(u64::MAX)) as u64;
+        let Some(index) = HISTOGRAM_UPPER_BOUNDS
+            .iter()
+            .position(|upper| micros <= *upper)
+        else {
+            self.overflowed = true;
+            return;
+        };
+        if self.count == u64::MAX || self.counts[index] == u64::MAX {
+            self.overflowed = true;
+            return;
+        }
+        self.count += 1;
+        self.counts[index] += 1;
+        self.max = self.max.max(micros);
+    }
+
+    fn p99(&self) -> u64 {
+        if self.count == 0 {
+            return 0;
+        }
+        let rank = self.count.saturating_mul(99).div_ceil(100).max(1);
+        let mut cumulative = 0_u64;
+        for (index, count) in self.counts.iter().copied().enumerate() {
+            cumulative = cumulative.saturating_add(count);
+            if cumulative >= rank {
+                return HISTOGRAM_UPPER_BOUNDS[index];
+            }
+        }
+        u64::MAX
+    }
+}
 
 impl PhysicsTracker {
     pub fn new() -> Self {
@@ -255,8 +371,8 @@ impl PhysicsTracker {
             connected_at: Instant::now(),
             last_sent: None,
             metrics: PhysicsMetrics::default(),
-            tick_durations_micros: VecDeque::with_capacity(METRIC_SAMPLE_WINDOW),
-            tick_lag_micros: VecDeque::with_capacity(METRIC_SAMPLE_WINDOW),
+            tick_durations: DurationHistogram::default(),
+            tick_lag: DurationHistogram::default(),
         }
     }
 
@@ -296,36 +412,34 @@ impl PhysicsTracker {
 
     pub fn record_tick(&mut self, duration: Duration, lag: Duration) {
         self.metrics.physics_ticks += 1;
-        self.metrics.physics_tick_max = self.metrics.physics_tick_max.max(duration);
-        push_bounded(&mut self.tick_durations_micros, duration.as_micros() as u64);
-        self.metrics.physics_tick_lag_max = self.metrics.physics_tick_lag_max.max(lag);
-        push_bounded(&mut self.tick_lag_micros, lag.as_micros() as u64);
+        self.tick_durations.record(duration);
+        self.tick_lag.record(lag);
+        self.metrics.physics_tick_max = Duration::from_micros(self.tick_durations.max);
+        self.metrics.physics_tick_lag_max = Duration::from_micros(self.tick_lag.max);
     }
 
     pub fn snapshot(&self) -> PhysicsMetrics {
         let mut metrics = self.metrics.clone();
         metrics.connected_for = self.connected_at.elapsed();
-        if !self.tick_durations_micros.is_empty() {
-            let mut samples: Vec<_> = self.tick_durations_micros.iter().copied().collect();
-            samples.sort_unstable();
-            let index = ((samples.len() * 99).div_ceil(100)).saturating_sub(1);
-            metrics.physics_tick_p99 = Duration::from_micros(samples[index]);
-        }
-        if !self.tick_lag_micros.is_empty() {
-            let mut samples: Vec<_> = self.tick_lag_micros.iter().copied().collect();
-            samples.sort_unstable();
-            let index = ((samples.len() * 99).div_ceil(100)).saturating_sub(1);
-            metrics.physics_tick_lag_p99 = Duration::from_micros(samples[index]);
-        }
+        metrics.physics_tick_p99 = Duration::from_micros(self.tick_durations.p99());
+        metrics.physics_tick_lag_p99 = Duration::from_micros(self.tick_lag.p99());
+        metrics.physics_tick_samples = self.tick_durations.count;
+        metrics.physics_tick_histogram_overflowed = self.tick_durations.overflowed;
+        metrics.physics_tick_lag_samples = self.tick_lag.count;
+        metrics.physics_tick_lag_histogram_overflowed = self.tick_lag.overflowed;
         metrics
     }
-}
 
-fn push_bounded(samples: &mut VecDeque<u64>, value: u64) {
-    if samples.len() == METRIC_SAMPLE_WINDOW {
-        samples.pop_front();
+    /// Starts a new diagnostic measurement window without changing physics
+    /// state. In particular, `last_sent` is retained so a server position
+    /// packet received after the boundary is classified against the exact
+    /// movement proposal that produced it.
+    pub fn begin_measurement_epoch(&mut self) {
+        self.connected_at = Instant::now();
+        self.metrics = PhysicsMetrics::default();
+        self.tick_durations = DurationHistogram::default();
+        self.tick_lag = DurationHistogram::default();
     }
-    samples.push_back(value);
 }
 
 #[cfg(test)]
@@ -383,24 +497,29 @@ mod tests {
         }
         let metrics = tracker.snapshot();
         assert_eq!(metrics.physics_ticks, 100);
-        assert_eq!(metrics.physics_tick_p99, Duration::from_micros(99));
+        assert_eq!(metrics.physics_tick_p99, Duration::from_micros(128));
         assert_eq!(metrics.physics_tick_max, Duration::from_micros(100));
-        assert_eq!(metrics.physics_tick_lag_p99, Duration::from_micros(198));
+        assert_eq!(metrics.physics_tick_lag_p99, Duration::from_micros(256));
         assert_eq!(metrics.physics_tick_lag_max, Duration::from_micros(200));
+        assert_eq!(metrics.physics_tick_samples, 100);
+        assert!(!metrics.physics_tick_histogram_overflowed);
     }
 
     #[test]
-    fn tick_metric_samples_are_bounded() {
+    fn tick_metric_histogram_is_bounded_and_covers_the_full_run() {
         let mut tracker = PhysicsTracker::new();
-        for micros in 0..METRIC_SAMPLE_WINDOW * 2 {
+        for micros in 0..100_000 {
             tracker.record_tick(
                 Duration::from_micros(micros as u64),
                 Duration::from_micros(micros as u64),
             );
         }
-        assert_eq!(tracker.tick_durations_micros.len(), METRIC_SAMPLE_WINDOW);
-        assert_eq!(tracker.tick_lag_micros.len(), METRIC_SAMPLE_WINDOW);
-        assert_eq!(tracker.tick_durations_micros.front(), Some(&1200));
+        let metrics = tracker.snapshot();
+        assert_eq!(metrics.physics_ticks, 100_000);
+        assert_eq!(metrics.physics_tick_samples, 100_000);
+        assert_eq!(metrics.physics_tick_lag_samples, 100_000);
+        assert!(!metrics.physics_tick_histogram_overflowed);
+        assert!(!metrics.physics_tick_lag_histogram_overflowed);
     }
 
     #[test]
@@ -506,6 +625,27 @@ mod tests {
         tracker.record_movement(player.clone());
         assert!(tracker.record_server_position(&player).is_none());
         assert_eq!(tracker.snapshot().position_corrections, 0);
+    }
+
+    #[test]
+    fn measurement_epoch_resets_diagnostics_without_replacing_movement_proposal() {
+        let mut tracker = PhysicsTracker::new();
+        let mut expected = Player::offline("MetricBot");
+        expected.x = 10.0;
+        tracker.record_movement(expected);
+        tracker.record_tick(Duration::from_micros(3), Duration::from_micros(4));
+        tracker.begin_measurement_epoch();
+
+        let mut received = Player::offline("MetricBot");
+        received.x = 9.5;
+        let correction = tracker
+            .record_server_position(&received)
+            .expect("epoch must retain the movement proposal");
+        assert_eq!(correction.distance, 0.5);
+        let metrics = tracker.snapshot();
+        assert_eq!(metrics.movement_packets, 0);
+        assert_eq!(metrics.position_corrections, 1);
+        assert_eq!(metrics.physics_ticks, 0);
     }
 
     #[test]

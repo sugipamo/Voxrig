@@ -1,6 +1,6 @@
 use std::{error::Error as StdError, fmt};
 
-/// Stable, coarse category for failures returned by Voxrig's public API.
+/// Stable, coarse category for failures returned by zen-minecraft-client's public API.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum ErrorKind {
@@ -24,7 +24,7 @@ pub enum ErrorKind {
     Other,
 }
 
-/// Error returned by Voxrig's public fallible operations.
+/// Error returned by zen-minecraft-client's public fallible operations.
 ///
 /// Match on [`Error::kind`] for control flow. Display text and the source chain
 /// are diagnostic details and are not a stable API contract.
@@ -133,7 +133,7 @@ impl StdError for Error {
     }
 }
 
-/// Result type used by Voxrig's public fallible API.
+/// Result type used by zen-minecraft-client's public fallible API.
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[cfg(test)]

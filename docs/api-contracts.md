@@ -1,6 +1,6 @@
 # API契約と所有権
 
-この文書は、外部controllerが`Voxrig`の戻り値と完了をどう解釈するかを定義します。関数シグネチャの正本はrustdoc、用途別一覧は[公開API](api.md)です。
+この文書は、外部controllerが`zen-minecraft-client`の戻り値と完了をどう解釈するかを定義します。関数シグネチャの正本はrustdoc、用途別一覧は[公開API](api.md)です。
 
 ## Stableとunstable
 
@@ -13,6 +13,33 @@ bot.unstable().move_relative(0.1, 0.0).await?;
 ```
 
 通常移動には`set_control()`、block破壊には`dig_block()`を使用してください。
+
+Zen adapter向けには、`OperationContext`を必須とする
+`Bot::dispatch_primitive()`と`Bot::dispatch_cleanup()`を用意しています。
+前者はBodyが選んだ単一の低レベルprimitive、後者はdisconnecting中にも有限に
+許可されるdig cancel、use stop、control clear、window closeだけを受理します。
+`PrimitiveDispatchOutcome::Dispatched`はwriterの事実であり、protocolの
+`Acknowledged`やfresh observation／semantic successを意味しません。
+write境界が不明な場合は`DeliveryUnknown`として扱います。`ControlClear`だけは
+packetを持たないため、`CleanupDispatchOutcome::AppliedLocally`で表します。
+
+`AcknowledgedPrimitive`（WindowClick、DigFinish）は、接続actorが
+connection-localなtransaction identity、pending queue、confirmation order、
+ack deadlineを一元所有するtyped APIです。`ProtocolTransaction::wait()`の
+`Acknowledged`／`Rejected`／`DeliveryUnknown`はprotocol事実であり、fresh
+observationやsemantic successではありません。Futureをdropしても、既に
+writeされたpacketやactorのpending transactionは取り消されません。未確認の
+pending transactionは接続actor内で最大1024件に制限され、上限時は新しい
+acknowledged dispatchを`TransactionInProgress`としてwrite前に拒否します。
+Digging Ackはpositionと要求status（Finished）で相関し、block-state IDは
+結果値として扱います。
+
+既存の`click_slot*`互換APIは同じactor queueを使うadapterです。
+`InventoryState::pending_clicks`は予測状態のrollback用metadataだけを保持し、
+transaction identity、ack期限、確認結果の正本ではありません。Window
+ConfirmationとDigging Ackはpacket applyからactorへroutingされ、既存eventの
+発火とtyped protocol outcomeを分離します。未対応のack protocolは二重queueを
+作らず、明示的な後続範囲として残します。
 
 ## 操作完了の段階
 
@@ -65,7 +92,7 @@ if snapshot.revision != previous_revision {
 | --- | --- |
 | `player`、`motion`、`control` | 小さいowned copy |
 | `survival_state` | mapを含むowned clone |
-| `inventory` | slot、NBT、pending transactionを含むowned clone |
+| `inventory` | slot、NBT、click prediction metadataを含むowned clone |
 | `player_list` | list全体のowned clone |
 | `observe_entities` | 対象entityのowned clone |
 | `observe` | 毎回新しい`Vec`を確保 |
@@ -81,4 +108,4 @@ revisionは不要な再転送を避けるために使えます。通常のgetter
 
 接続・login・play packet・ready待機のtimeoutと、接続ごとのchunk・entity・map・総cache record、CustomPayload、event queueの上限は`ConnectionOptions`で変更できます。上限超過は接続errorとして終了します。自動再接続とbackoffは外部controllerの方針です。
 
-公開されるfallible APIは`voxrig::Result<T>`を返します。再試行や入力修正の判断にはerror文字列ではなく`Error::kind()`を使用します。`ErrorKind`は将来追加され得るため、matchにはfallback branchが必要です。
+公開されるfallible APIは`zen_minecraft_client::Result<T>`を返します。再試行や入力修正の判断にはerror文字列ではなく`Error::kind()`を使用します。`ErrorKind`は将来追加され得るため、matchにはfallback branchが必要です。

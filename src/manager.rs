@@ -189,9 +189,17 @@ impl BotManager {
     }
     /// Performs the `disconnect` operation.
     pub async fn disconnect(&self, username: &str) -> Result<bool> {
-        let bot = self.inner.bots.write().await.remove(username);
+        let bot = self.inner.bots.read().await.get(username).cloned();
         if let Some(bot) = bot {
+            let connection_id = bot.connection_id();
             bot.disconnect().await?;
+            let mut bots = self.inner.bots.write().await;
+            if bots
+                .get(username)
+                .is_some_and(|managed| managed.connection_id() == connection_id)
+            {
+                bots.remove(username);
+            }
             return Ok(true);
         }
         Ok(false)
@@ -201,15 +209,23 @@ impl BotManager {
         let bots: Vec<_> = self
             .inner
             .bots
-            .write()
+            .read()
             .await
-            .drain()
-            .map(|(_, bot)| bot)
+            .iter()
+            .map(|(username, bot)| (username.clone(), bot.clone()))
             .collect();
         let mut errors = Vec::new();
-        for bot in bots {
+        for (username, bot) in bots {
+            let connection_id = bot.connection_id();
             if let Err(error) = bot.disconnect().await {
                 errors.push(error.to_string());
+            }
+            let mut managed = self.inner.bots.write().await;
+            if managed
+                .get(&username)
+                .is_some_and(|current| current.connection_id() == connection_id)
+            {
+                managed.remove(&username);
             }
         }
         if !errors.is_empty() {
@@ -226,7 +242,7 @@ impl BotManager {
 mod tests {
     use super::*;
     use crate::protocol::{read_packet, write_packet};
-    use tokio::{io::AsyncReadExt, net::TcpListener, time::Duration};
+    use tokio::{io::AsyncReadExt, net::TcpListener, sync::oneshot, time::Duration};
 
     async fn mock_login_server() -> (u16, tokio::task::JoinHandle<()>) {
         let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
@@ -239,6 +255,7 @@ mod tests {
             write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
             let mut byte = [0_u8; 1];
             let _ = reader.read_exact(&mut byte).await;
+            write_packet(&mut writer, None, 0x1a, &[0]).await.unwrap();
         });
         (port, task)
     }
@@ -268,6 +285,106 @@ mod tests {
         })
         .await
         .expect("direct disconnect left a stale managed bot");
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn pending_disconnect_blocks_same_username_until_terminal() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (shutdown_seen_tx, shutdown_seen_rx) = oneshot::channel();
+        let (release_tx, release_rx) = oneshot::channel();
+        let (second_release_tx, second_release_rx) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let (mut reader, mut writer) = stream.into_split();
+            read_packet(&mut reader, None).await.unwrap();
+            read_packet(&mut reader, None).await.unwrap();
+            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            let mut byte = [0_u8; 1];
+            let _ = reader.read(&mut byte).await;
+            let _ = shutdown_seen_tx.send(());
+            release_rx.await.unwrap();
+            drop(reader);
+            drop(writer);
+
+            let (stream, _) = listener.accept().await.unwrap();
+            let (mut reader, mut writer) = stream.into_split();
+            read_packet(&mut reader, None).await.unwrap();
+            read_packet(&mut reader, None).await.unwrap();
+            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            second_release_rx.await.unwrap();
+            write_packet(&mut writer, None, 0x1a, &[0]).await.unwrap();
+        });
+        let manager = BotManager::new(Server::new("127.0.0.1", port));
+        let bot = manager
+            .connect(Player::offline("SameUsername"))
+            .await
+            .unwrap();
+        let disconnecting = {
+            let manager = manager.clone();
+            tokio::spawn(async move { manager.disconnect("SameUsername").await })
+        };
+        shutdown_seen_rx.await.unwrap();
+        assert!(
+            manager
+                .connect(Player::offline("SameUsername"))
+                .await
+                .is_err()
+        );
+        release_tx.send(()).unwrap();
+        assert!(disconnecting.await.unwrap().unwrap());
+        assert!(manager.get("SameUsername").await.is_none());
+        drop(bot);
+        let reconnected = manager
+            .connect(Player::offline("SameUsername"))
+            .await
+            .unwrap();
+        assert!(manager.get("SameUsername").await.is_some());
+        second_release_tx.send(()).unwrap();
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while manager.get("SameUsername").await.is_some() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("completed reconnect was not removed after terminal event");
+        drop(reconnected);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn disconnect_all_keeps_registry_until_terminal() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (shutdown_seen_tx, shutdown_seen_rx) = oneshot::channel();
+        let (release_tx, release_rx) = oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let (mut reader, mut writer) = stream.into_split();
+            read_packet(&mut reader, None).await.unwrap();
+            read_packet(&mut reader, None).await.unwrap();
+            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            let mut byte = [0_u8; 1];
+            let _ = reader.read(&mut byte).await;
+            let _ = shutdown_seen_tx.send(());
+            release_rx.await.unwrap();
+        });
+        let manager = BotManager::new(Server::new("127.0.0.1", port));
+        let bot = manager
+            .connect(Player::offline("AllDisconnect"))
+            .await
+            .unwrap();
+        let disconnecting = {
+            let manager = manager.clone();
+            tokio::spawn(async move { manager.disconnect_all().await })
+        };
+        shutdown_seen_rx.await.unwrap();
+        assert_eq!(manager.usernames().await, vec!["AllDisconnect".to_owned()]);
+        release_tx.send(()).unwrap();
+        disconnecting.await.unwrap().unwrap();
+        assert!(manager.usernames().await.is_empty());
+        drop(bot);
         server.await.unwrap();
     }
 }

@@ -8,7 +8,7 @@ use std::{
     time::{Duration, Instant},
 };
 use tokio::sync::Mutex;
-use voxrig::{BotManager, ControlState, Event, Player, Server};
+use zen_minecraft_client::{BotManager, ControlState, Event, Player, Server};
 
 struct Summary {
     corrections: u64,
@@ -301,7 +301,7 @@ async fn write_report(
 async fn write_diagnostic(
     path: &str,
     lock: &Mutex<()>,
-    bot: &voxrig::Bot,
+    bot: &zen_minecraft_client::Bot,
     event: &str,
 ) -> Result<()> {
     let player = bot.player().await;
@@ -318,7 +318,7 @@ async fn write_diagnostic(
         .into_iter()
         .filter_map(|block| {
             let state = block.state_id?;
-            let name = voxrig::block_name_from_state(state)?;
+            let name = zen_minecraft_client::block_name_from_state(state)?;
             (name != "air").then_some(format!(
                 "{}@{},{},{}#{}",
                 name, block.x, block.y, block.z, state
@@ -386,7 +386,12 @@ async fn watch_server_log(
     }
 }
 
-async fn wander_loop(bot: voxrig::Bot, index: usize, mut yaw: f32, mut control: ControlState) {
+async fn wander_loop(
+    bot: zen_minecraft_client::Bot,
+    index: usize,
+    mut yaw: f32,
+    mut control: ControlState,
+) {
     let mut ticker = tokio::time::interval(Duration::from_millis(100));
     ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     let mut last = bot.player().await;

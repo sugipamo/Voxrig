@@ -18,6 +18,8 @@
 - 20 Hz物理、AABB collision、step、液体、登攀、主要特殊block
 - chunk palette、block state、biome、light、heightmap/block entity NBT、map item
 - block/entity raycast、crosshair target、視線・reach、採掘/設置事前判定
+- block stateごとのexact collision box raw registry query（経路選択は含まない）
+- bounded・generation-bound raw movement-facts snapshot（player/motion/survival、block shape・registry facts・tool speed map、寸法付きentity、tool/NBT inventory；経路選択は含まない）
 - chunk単位の低コピーsnapshot、同一manager内のsection共有・copy-on-write
 - health、food、experience、time、weather、effect、attribute、dimension
 - player inventory、hotbar、armor、offhand、ItemStack、NBT

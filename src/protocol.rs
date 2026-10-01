@@ -98,6 +98,9 @@ pub async fn read_packet<R: AsyncRead + Unpin>(
             if decoded.len() != uncompressed_len as usize {
                 bail!("decompressed length mismatch");
             }
+            if decoder.total_in() != cursor.len() as u64 {
+                bail!("compressed packet contains trailing data");
+            }
             decoded
         }
     } else {
@@ -161,6 +164,17 @@ mod tests {
         }
     }
 
+    #[test]
+    fn varint_rejects_truncation_and_sixth_byte() {
+        assert!(get_varint(&mut [0x80].as_slice()).is_err());
+        assert!(get_varint(&mut [0x80; 6].as_slice()).is_err());
+    }
+
+    #[tokio::test]
+    async fn async_varint_rejects_sixth_byte() {
+        assert!(read_varint(&mut [0x80; 6].as_slice()).await.is_err());
+    }
+
     #[tokio::test]
     async fn packet_round_trip_with_each_compression_mode() {
         for compression in [None, Some(0), Some(256)] {
@@ -192,6 +206,72 @@ mod tests {
         let compressed = encoder.finish().unwrap();
         let mut frame = Vec::new();
         put_varint(&mut frame, 2);
+        frame.extend(compressed);
+        let mut wire = Vec::new();
+        put_varint(&mut wire, frame.len() as i32);
+        wire.extend(frame);
+        assert!(read_packet(&mut wire.as_slice(), Some(0)).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn read_packet_rejects_oversized_and_truncated_frames() {
+        let mut oversized = Vec::new();
+        put_varint(&mut oversized, MAX_PACKET_SIZE as i32 + 1);
+        assert!(read_packet(&mut oversized.as_slice(), None).await.is_err());
+
+        let mut truncated = Vec::new();
+        put_varint(&mut truncated, 2);
+        truncated.push(0);
+        assert!(read_packet(&mut truncated.as_slice(), None).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn write_packet_rejects_body_above_limit() {
+        let payload = vec![0; MAX_PACKET_SIZE];
+        let mut sink = tokio::io::sink();
+        assert!(write_packet(&mut sink, None, 0, &payload).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn compressed_packet_rejects_threshold_mismatches() {
+        let mut uncompressed_frame = Vec::new();
+        put_varint(&mut uncompressed_frame, 0);
+        uncompressed_frame.extend([0, 1, 2]);
+        let mut uncompressed_wire = Vec::new();
+        put_varint(&mut uncompressed_wire, uncompressed_frame.len() as i32);
+        uncompressed_wire.extend(uncompressed_frame);
+        assert!(
+            read_packet(&mut uncompressed_wire.as_slice(), Some(3))
+                .await
+                .is_err()
+        );
+
+        let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(&[0, 1]).unwrap();
+        let compressed = encoder.finish().unwrap();
+        let mut compressed_frame = Vec::new();
+        put_varint(&mut compressed_frame, 2);
+        compressed_frame.extend(compressed);
+        let mut compressed_wire = Vec::new();
+        put_varint(&mut compressed_wire, compressed_frame.len() as i32);
+        compressed_wire.extend(compressed_frame);
+        assert!(
+            read_packet(&mut compressed_wire.as_slice(), Some(3))
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn compressed_packet_rejects_trailing_stream_data() {
+        let body = [0, 1, 2];
+        let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(&body).unwrap();
+        let mut compressed = encoder.finish().unwrap();
+        compressed.extend([0xaa, 0xbb]);
+
+        let mut frame = Vec::new();
+        put_varint(&mut frame, body.len() as i32);
         frame.extend(compressed);
         let mut wire = Vec::new();
         put_varint(&mut wire, frame.len() as i32);

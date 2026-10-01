@@ -203,4 +203,25 @@ mod tests {
         assert_eq!(map.colors[4 * 128 + 3], 9);
         assert_eq!(map.colors[4 * 128 + 4], 10);
     }
+
+    #[test]
+    fn map_limit_rejects_new_map_without_partial_update() {
+        let mut packet = Vec::new();
+        put_varint(&mut packet, 7);
+        packet.extend([2, 1, 0]);
+        put_varint(&mut packet, 0);
+        packet.extend([0, 0, 0, 0]);
+        let update = parse_map_update(&packet).unwrap();
+
+        let mut store = MapStore::default();
+        store.apply(&update, 1).unwrap();
+        let before = store.maps.get(&7).cloned().unwrap();
+
+        let mut second = update;
+        second.id = 8;
+        assert!(store.apply(&second, 1).is_err());
+        assert_eq!(store.maps.len(), 1);
+        assert_eq!(store.maps.get(&7), Some(&before));
+        assert!(!store.maps.contains_key(&8));
+    }
 }

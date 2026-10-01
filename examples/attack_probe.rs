@@ -1,6 +1,6 @@
 use anyhow::Result;
 use tokio::time::{Duration, timeout};
-use voxrig::{BotManager, Event, Player, Server};
+use zen_minecraft_client::{BotManager, Event, Player, Server};
 
 #[tokio::main]
 async fn main() -> Result<()> {

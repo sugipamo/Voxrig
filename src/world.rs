@@ -9,14 +9,17 @@ use crate::{
 use anyhow::{Context, Result, bail};
 use byteorder::{BigEndian, ReadBytesExt};
 use std::{
-    collections::HashMap,
+    collections::{BTreeSet, HashMap, HashSet},
     hash::{DefaultHasher, Hash, Hasher},
     io::{Cursor, Read},
-    sync::{Arc, Mutex as StdMutex, Weak},
+    sync::{Arc, Mutex as StdMutex, OnceLock, Weak},
 };
 
 pub(crate) struct World {
     chunks: HashMap<(i32, i32), Chunk>,
+    resource_index: HashMap<(i32, i32), HashMap<i32, BTreeSet<(i32, i32, i32)>>>,
+    resource_index_entries: usize,
+    resource_index_incomplete_chunks: BTreeSet<(i32, i32)>,
     storage: Arc<SharedChunkStorage>,
 }
 
@@ -276,6 +279,16 @@ pub(crate) enum Fluid {
     Lava,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ResourceIndexQuery {
+    Complete {
+        candidates: Vec<BlockPos>,
+        omitted: u32,
+    },
+    Unsupported,
+    Unknown,
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct ContactEffects {
     pub cobweb: bool,
@@ -287,12 +300,18 @@ impl World {
     pub(crate) fn with_storage(storage: Arc<SharedChunkStorage>) -> Self {
         Self {
             chunks: HashMap::new(),
+            resource_index: HashMap::new(),
+            resource_index_entries: 0,
+            resource_index_incomplete_chunks: BTreeSet::new(),
             storage,
         }
     }
 
     pub(crate) fn clear(&mut self) {
         self.chunks.clear();
+        self.resource_index.clear();
+        self.resource_index_entries = 0;
+        self.resource_index_incomplete_chunks.clear();
     }
 
     pub(crate) fn apply_explosion_blocks(&mut self, positions: &[BlockPos]) {
@@ -339,6 +358,32 @@ impl World {
             .map(|&(x, z)| ChunkPos { x, z })
             .collect()
     }
+
+    pub(crate) fn loaded_geometry_parts(
+        &self,
+    ) -> (Vec<ChunkPos>, Vec<crate::LoadedGeometrySection>) {
+        let mut loaded_chunks = self
+            .chunks
+            .keys()
+            .map(|&(x, z)| ChunkPos { x, z })
+            .collect::<Vec<_>>();
+        loaded_chunks.sort();
+        let mut sections = self
+            .chunks
+            .iter()
+            .flat_map(|(&(x, z), chunk)| {
+                chunk.sections.iter().map(move |(&section_y, state_ids)| {
+                    crate::LoadedGeometrySection {
+                        chunk: ChunkPos { x, z },
+                        section_y,
+                        state_ids: Arc::clone(state_ids),
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+        sections.sort_by_key(|section| (section.chunk, section.section_y));
+        (loaded_chunks, sections)
+    }
     pub(crate) fn query_blocks(
         &self,
         region: BlockRegion,
@@ -372,6 +417,159 @@ impl World {
         Ok(out)
     }
 
+    pub(crate) fn query_resource_index(
+        &self,
+        region: BlockRegion,
+        block_name: &str,
+        limit: usize,
+    ) -> ResourceIndexQuery {
+        if !is_indexed_resource(block_name) {
+            return ResourceIndexQuery::Unsupported;
+        }
+        let min_chunk_x = region.min.x.div_euclid(16);
+        let max_chunk_x = region.max.x.div_euclid(16);
+        let min_chunk_z = region.min.z.div_euclid(16);
+        let max_chunk_z = region.max.z.div_euclid(16);
+        if self.resource_index_incomplete_chunks.iter().any(|(x, z)| {
+            (min_chunk_x..=max_chunk_x).contains(x) && (min_chunk_z..=max_chunk_z).contains(z)
+        }) {
+            return ResourceIndexQuery::Unknown;
+        }
+        let mut matches = BTreeSet::new();
+        for ((chunk_x, chunk_z), states) in &self.resource_index {
+            if *chunk_x < region.min.x.div_euclid(16)
+                || *chunk_x > region.max.x.div_euclid(16)
+                || *chunk_z < region.min.z.div_euclid(16)
+                || *chunk_z > region.max.z.div_euclid(16)
+            {
+                continue;
+            }
+            for (state_id, positions) in states {
+                if crate::block_name_from_state(*state_id) != Some(block_name) {
+                    continue;
+                }
+                matches.extend(positions.iter().copied().filter(|(x, y, z)| {
+                    (region.min.x..=region.max.x).contains(x)
+                        && (region.min.y..=region.max.y).contains(y)
+                        && (region.min.z..=region.max.z).contains(z)
+                }));
+            }
+        }
+        let total = matches.len();
+        let candidates = matches
+            .into_iter()
+            .take(limit)
+            .map(|(x, y, z)| BlockPos { x, y, z })
+            .collect::<Vec<_>>();
+        let omitted = total.saturating_sub(candidates.len());
+        ResourceIndexQuery::Complete {
+            candidates,
+            omitted: u32::try_from(omitted).unwrap_or(u32::MAX),
+        }
+    }
+
+    fn remove_resource_index_chunk(&mut self, chunk: (i32, i32)) {
+        if let Some(states) = self.resource_index.remove(&chunk) {
+            let removed = states.values().map(BTreeSet::len).sum::<usize>();
+            self.resource_index_entries = self.resource_index_entries.saturating_sub(removed);
+        }
+        self.resource_index_incomplete_chunks.remove(&chunk);
+    }
+
+    fn rebuild_resource_index_chunk(&mut self, chunk_x: i32, chunk_z: i32) {
+        const MAX_RESOURCE_INDEX_ENTRIES_PER_CHUNK: usize = 8_192;
+        const MAX_RESOURCE_INDEX_ENTRIES: usize = 262_144;
+        let chunk_key = (chunk_x, chunk_z);
+        self.remove_resource_index_chunk(chunk_key);
+        let mut indexed = HashMap::<i32, BTreeSet<(i32, i32, i32)>>::new();
+        let mut indexed_count = 0_usize;
+        if let Some(chunk) = self.chunks.get(&(chunk_x, chunk_z)) {
+            for (section_y, states) in &chunk.sections {
+                for (index, state_id) in states.iter().copied().enumerate() {
+                    if !is_indexed_resource_state(state_id) {
+                        continue;
+                    }
+                    let local_y = i32::try_from(index / 256).unwrap_or(0);
+                    let local_z = i32::try_from((index % 256) / 16).unwrap_or(0);
+                    let local_x = i32::try_from(index % 16).unwrap_or(0);
+                    if indexed.entry(state_id).or_default().insert((
+                        chunk_x.saturating_mul(16).saturating_add(local_x),
+                        section_y.saturating_mul(16).saturating_add(local_y),
+                        chunk_z.saturating_mul(16).saturating_add(local_z),
+                    )) {
+                        indexed_count = indexed_count.saturating_add(1);
+                    }
+                    if indexed_count > MAX_RESOURCE_INDEX_ENTRIES_PER_CHUNK {
+                        self.resource_index_incomplete_chunks.insert(chunk_key);
+                        return;
+                    }
+                }
+            }
+        }
+        if self.resource_index_entries.saturating_add(indexed_count) > MAX_RESOURCE_INDEX_ENTRIES {
+            self.resource_index_incomplete_chunks.insert(chunk_key);
+            return;
+        }
+        if indexed.is_empty() {
+            self.resource_index.remove(&chunk_key);
+        } else {
+            self.resource_index_entries = self.resource_index_entries.saturating_add(indexed_count);
+            self.resource_index.insert(chunk_key, indexed);
+        }
+    }
+
+    fn update_resource_index_block(
+        &mut self,
+        position: BlockPos,
+        old_state_id: i32,
+        new_state_id: i32,
+    ) {
+        let chunk = (position.x.div_euclid(16), position.z.div_euclid(16));
+        if self.resource_index_incomplete_chunks.contains(&chunk) {
+            return;
+        }
+        if is_indexed_resource_state(old_state_id)
+            && let Some(states) = self.resource_index.get_mut(&chunk)
+        {
+            let mut removed = false;
+            if let Some(positions) = states.get_mut(&old_state_id) {
+                removed = positions.remove(&(position.x, position.y, position.z));
+                if positions.is_empty() {
+                    states.remove(&old_state_id);
+                }
+            }
+            let empty = states.is_empty();
+            if removed {
+                self.resource_index_entries = self.resource_index_entries.saturating_sub(1);
+            }
+            if empty {
+                self.resource_index.remove(&chunk);
+            }
+        }
+        if (0..=255).contains(&position.y) && is_indexed_resource_state(new_state_id) {
+            let chunk_entries = self
+                .resource_index
+                .get(&chunk)
+                .map(|states| states.values().map(BTreeSet::len).sum::<usize>())
+                .unwrap_or(0);
+            if self.resource_index_entries >= 262_144 || chunk_entries >= 8_192 {
+                self.remove_resource_index_chunk(chunk);
+                self.resource_index_incomplete_chunks.insert(chunk);
+                return;
+            }
+            let inserted = self
+                .resource_index
+                .entry(chunk)
+                .or_default()
+                .entry(new_state_id)
+                .or_default()
+                .insert((position.x, position.y, position.z));
+            if inserted {
+                self.resource_index_entries = self.resource_index_entries.saturating_add(1);
+            }
+        }
+    }
+
     pub(crate) fn chunk_snapshot(&self, position: ChunkPos) -> Option<ChunkSnapshot> {
         let chunk = self.chunks.get(&(position.x, position.z))?;
         Some(ChunkSnapshot {
@@ -384,6 +582,16 @@ impl World {
             block_light: chunk.block_light.clone(),
             block_entities: chunk.block_entities.clone(),
         })
+    }
+
+    pub(crate) fn light_at(&self, x: i32, y: i32, z: i32) -> Option<(u8, u8)> {
+        let chunk = self.chunks.get(&(x.div_euclid(16), z.div_euclid(16)))?;
+        let local_x = u8::try_from(x.rem_euclid(16)).ok()?;
+        let local_z = u8::try_from(z.rem_euclid(16)).ok()?;
+        Some((
+            light_value(&chunk.block_light, local_x, y, local_z)?,
+            light_value(&chunk.sky_light, local_x, y, local_z)?,
+        ))
     }
     pub(crate) fn raycast_blocks(
         &self,
@@ -889,6 +1097,7 @@ impl World {
                 block_entities: previous.block_entities,
             },
         );
+        self.rebuild_resource_index_chunk(x, z);
         Ok((x, z))
     }
 
@@ -940,6 +1149,7 @@ impl World {
         let x = c.read_i32::<BigEndian>()?;
         let z = c.read_i32::<BigEndian>()?;
         self.chunks.remove(&(x, z));
+        self.remove_resource_index_chunk((x, z));
         Ok((x, z))
     }
 
@@ -949,6 +1159,10 @@ impl World {
         let state_id = read_vi(&mut c)?;
         self.set_block(x, y, z, state_id);
         Ok((x, y, z, state_id))
+    }
+
+    pub(crate) fn apply_acknowledged_block_state(&mut self, position: BlockPos, state_id: i32) {
+        self.set_block(position.x, position.y, position.z, state_id);
     }
 
     pub(crate) fn apply_multi_block_change(&mut self, payload: &[u8]) -> Result<usize> {
@@ -982,6 +1196,7 @@ impl World {
     }
 
     fn set_block(&mut self, x: i32, y: i32, z: i32, state_id: i32) {
+        let position = BlockPos { x, y, z };
         let Some(chunk) = self.chunks.get_mut(&(x.div_euclid(16), z.div_euclid(16))) else {
             return;
         };
@@ -990,9 +1205,50 @@ impl World {
             .entry(y.div_euclid(16))
             .or_insert_with(|| Arc::new([0; 4096]));
         let i = ((y.rem_euclid(16) * 256) + (z.rem_euclid(16) * 16) + x.rem_euclid(16)) as usize;
+        let old_state_id = Arc::make_mut(section)[i];
         Arc::make_mut(section)[i] = state_id;
+        self.update_resource_index_block(position, old_state_id, state_id);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_block_for_test(&mut self, position: BlockPos, state_id: i32) {
+        self.set_block(position.x, position.y, position.z, state_id);
     }
 }
+
+fn is_indexed_resource(name: &str) -> bool {
+    INDEXED_RESOURCES.contains(&name)
+}
+
+fn is_indexed_resource_state(state_id: i32) -> bool {
+    static STATES: OnceLock<HashSet<i32>> = OnceLock::new();
+    STATES
+        .get_or_init(|| {
+            crate::registry::block_state_ranges_for_names(INDEXED_RESOURCES)
+                .into_iter()
+                .flat_map(|(min, max)| min..=max)
+                .collect()
+        })
+        .contains(&state_id)
+}
+
+const INDEXED_RESOURCES: &[&str] = &[
+    "iron_ore",
+    "coal_ore",
+    "gold_ore",
+    "diamond_ore",
+    "redstone_ore",
+    "lapis_ore",
+    "emerald_ore",
+    "nether_quartz_ore",
+    "ancient_debris",
+    "oak_log",
+    "birch_log",
+    "spruce_log",
+    "jungle_log",
+    "acacia_log",
+    "dark_oak_log",
+];
 
 fn apply_light_mask(
     target: &mut HashMap<i32, Arc<[u8; 2048]>>,
@@ -1280,6 +1536,68 @@ mod tests {
         ((x as u64 & 0x3ff_ffff) << 38) | ((z as u64 & 0x3ff_ffff) << 12) | (y as u64 & 0xfff)
     }
 
+    fn indexed_state(name: &str) -> i32 {
+        crate::registry::block_state_ranges_for_names(&[name])
+            .into_iter()
+            .next()
+            .map(|(min, _)| min)
+            .unwrap()
+    }
+
+    /// Builds the smallest valid protocol chunk containing one palette state
+    /// repeated throughout section 0. The resource index tests use this to
+    /// exercise the real chunk-replace path rather than inserting a fixture
+    /// directly into the decoded world.
+    fn uniform_chunk_packet(x: i32, z: i32, state_id: i32) -> Vec<u8> {
+        let mut packet = Vec::new();
+        packet.extend(x.to_be_bytes());
+        packet.extend(z.to_be_bytes());
+        packet.extend([1, 0]);
+        crate::protocol::put_varint(&mut packet, 1);
+        packet.push(0); // End tag heightmap NBT.
+        packet.extend([0; 1024 * 4]);
+
+        let mut section = Vec::new();
+        section.extend(0_i16.to_be_bytes());
+        section.push(4); // Four bits per palette entry.
+        crate::protocol::put_varint(&mut section, 1);
+        crate::protocol::put_varint(&mut section, state_id);
+        crate::protocol::put_varint(&mut section, 256);
+        section.extend([0; 256 * 8]);
+        crate::protocol::put_varint(&mut packet, i32::try_from(section.len()).unwrap());
+        packet.extend(section);
+        crate::protocol::put_varint(&mut packet, 0); // Block entities.
+        packet
+    }
+
+    fn block_change_packet(position: BlockPos, state_id: i32) -> Vec<u8> {
+        let mut packet = pack_position(position.x, position.y, position.z)
+            .to_be_bytes()
+            .to_vec();
+        crate::protocol::put_varint(&mut packet, state_id);
+        packet
+    }
+
+    fn multi_block_change_packet(chunk_x: i32, chunk_z: i32, updates: &[(u8, u8, i32)]) -> Vec<u8> {
+        let mut packet = Vec::new();
+        packet.extend(chunk_x.to_be_bytes());
+        packet.extend(chunk_z.to_be_bytes());
+        crate::protocol::put_varint(&mut packet, i32::try_from(updates.len()).unwrap());
+        for &(horizontal, y, state_id) in updates {
+            packet.extend([horizontal, y]);
+            crate::protocol::put_varint(&mut packet, state_id);
+        }
+        packet
+    }
+
+    fn unload_chunk_packet(chunk_x: i32, chunk_z: i32) -> Vec<u8> {
+        [chunk_x.to_be_bytes(), chunk_z.to_be_bytes()].concat()
+    }
+
+    fn query_region(min: BlockPos, max: BlockPos) -> BlockRegion {
+        BlockRegion::new(min, max)
+    }
+
     #[test]
     fn packed_positions_preserve_signed_coordinates() {
         for position in [(0, 0, 0), (99, 4, -198), (-30_000_000, -64, 30_000_000)] {
@@ -1307,6 +1625,17 @@ mod tests {
     }
 
     #[test]
+    fn chunk_limit_rejects_new_chunk_before_mutation() {
+        let mut world = World::default();
+        let mut packet = Vec::new();
+        packet.extend(7_i32.to_be_bytes());
+        packet.extend((-3_i32).to_be_bytes());
+
+        assert!(world.apply_chunk(&packet, 0).is_err());
+        assert!(world.chunks.is_empty());
+    }
+
+    #[test]
     fn block_change_updates_loaded_chunk() {
         let mut world = World::default();
         world.chunks.insert((6, -13), Chunk::default());
@@ -1315,6 +1644,264 @@ mod tests {
         assert_eq!(world.apply_block_change(&packet).unwrap(), (99, 4, -198, 1));
         assert_eq!(world.block(99, 4, -198), Some(1));
     }
+
+    #[test]
+    fn replacing_a_chunk_builds_a_matching_canonical_resource_index() {
+        let state = indexed_state("iron_ore");
+        let mut world = World::default();
+        world
+            .apply_chunk(&uniform_chunk_packet(-1, -1, state), 256)
+            .unwrap();
+        let region = query_region(
+            BlockPos {
+                x: -16,
+                y: 0,
+                z: -16,
+            },
+            BlockPos { x: -1, y: 0, z: -1 },
+        );
+        let indexed = world.query_resource_index(region, "iron_ore", 3);
+        assert_eq!(
+            indexed,
+            ResourceIndexQuery::Complete {
+                candidates: vec![
+                    BlockPos {
+                        x: -16,
+                        y: 0,
+                        z: -16
+                    },
+                    BlockPos {
+                        x: -16,
+                        y: 0,
+                        z: -15
+                    },
+                    BlockPos {
+                        x: -16,
+                        y: 0,
+                        z: -14
+                    },
+                ],
+                omitted: 253,
+            }
+        );
+        let mut control = Vec::new();
+        for x in region.min.x..=region.max.x {
+            for y in region.min.y..=region.max.y {
+                for z in region.min.z..=region.max.z {
+                    if world.block(x, y, z) == Some(state) {
+                        control.push(BlockPos { x, y, z });
+                        if control.len() == 3 {
+                            break;
+                        }
+                    }
+                }
+                if control.len() == 3 {
+                    break;
+                }
+            }
+            if control.len() == 3 {
+                break;
+            }
+        }
+        assert_eq!(
+            indexed,
+            ResourceIndexQuery::Complete {
+                candidates: control,
+                omitted: 253,
+            }
+        );
+    }
+
+    #[test]
+    fn single_multi_explosion_and_ack_updates_remove_and_add_index_entries() {
+        let iron = indexed_state("iron_ore");
+        let stone = indexed_state("stone");
+        let mut world = World::default();
+        world.chunks.insert((0, 0), Chunk::default());
+        let first = BlockPos { x: 1, y: 4, z: 2 };
+        let second = BlockPos { x: 3, y: 4, z: 2 };
+        let third = BlockPos { x: 5, y: 4, z: 2 };
+        world.set_block(first.x, first.y, first.z, iron);
+        assert_eq!(
+            world.query_resource_index(query_region(first, first), "iron_ore", 4),
+            ResourceIndexQuery::Complete {
+                candidates: vec![first],
+                omitted: 0
+            }
+        );
+
+        world
+            .apply_block_change(&block_change_packet(first, stone))
+            .unwrap();
+        assert_eq!(
+            world.query_resource_index(query_region(first, first), "iron_ore", 4),
+            ResourceIndexQuery::Complete {
+                candidates: vec![],
+                omitted: 0
+            }
+        );
+        world
+            .apply_block_change(&block_change_packet(first, iron))
+            .unwrap();
+        world.set_block(second.x, second.y, second.z, stone);
+        world
+            .apply_multi_block_change(&multi_block_change_packet(
+                0,
+                0,
+                &[(2 << 4 | 2, 4, stone), (3 << 4 | 2, 4, iron)],
+            ))
+            .unwrap();
+        assert_eq!(
+            world.query_resource_index(query_region(first, second), "iron_ore", 4),
+            ResourceIndexQuery::Complete {
+                candidates: vec![first, second],
+                omitted: 0
+            }
+        );
+
+        world.apply_explosion_blocks(&[first]);
+        assert_eq!(
+            world.query_resource_index(query_region(first, second), "iron_ore", 4),
+            ResourceIndexQuery::Complete {
+                candidates: vec![second],
+                omitted: 0
+            }
+        );
+        world.apply_acknowledged_block_state(third, iron);
+        assert_eq!(
+            world.query_resource_index(query_region(first, third), "iron_ore", 4),
+            ResourceIndexQuery::Complete {
+                candidates: vec![second, third],
+                omitted: 0
+            }
+        );
+    }
+
+    #[test]
+    fn unload_and_clear_remove_resource_index_state() {
+        let iron = indexed_state("iron_ore");
+        let mut world = World::default();
+        world.chunks.insert((2, -3), Chunk::default());
+        world.set_block(32, 2, -48, iron);
+        assert!(matches!(world.query_resource_index(
+            query_region(BlockPos { x: 32, y: 2, z: -48 }, BlockPos { x: 32, y: 2, z: -48 }),
+            "iron_ore", 4), ResourceIndexQuery::Complete { candidates, omitted: 0 }
+            if candidates == vec![BlockPos { x: 32, y: 2, z: -48 }]
+        ));
+        world.unload_chunk(&unload_chunk_packet(2, -3)).unwrap();
+        assert!(world.loaded_chunks().is_empty());
+        assert_eq!(world.resource_index_entries, 0);
+        assert_eq!(
+            world.query_resource_index(
+                query_region(
+                    BlockPos {
+                        x: 32,
+                        y: 2,
+                        z: -48
+                    },
+                    BlockPos {
+                        x: 32,
+                        y: 2,
+                        z: -48
+                    }
+                ),
+                "iron_ore",
+                4
+            ),
+            ResourceIndexQuery::Complete {
+                candidates: vec![],
+                omitted: 0
+            }
+        );
+        world.chunks.insert((0, 0), Chunk::default());
+        world.set_block(0, 0, 0, iron);
+        world.clear();
+        assert!(world.chunks.is_empty());
+        assert!(world.resource_index.is_empty());
+        assert_eq!(world.resource_index_entries, 0);
+        assert!(world.resource_index_incomplete_chunks.is_empty());
+    }
+
+    #[test]
+    fn negative_chunks_and_out_of_range_y_are_handled_without_indexing_invalid_cells() {
+        let iron = indexed_state("iron_ore");
+        let mut world = World::default();
+        world.chunks.insert((-1, -1), Chunk::default());
+        let negative = BlockPos { x: -1, y: 0, z: -1 };
+        world.set_block(negative.x, negative.y, negative.z, iron);
+        world.set_block(-1, -1, -1, iron);
+        world.set_block(-1, 256, -1, iron);
+        assert_eq!(
+            world.query_resource_index(
+                query_region(
+                    BlockPos {
+                        x: -1,
+                        y: -1,
+                        z: -1
+                    },
+                    BlockPos {
+                        x: -1,
+                        y: 256,
+                        z: -1
+                    }
+                ),
+                "iron_ore",
+                4
+            ),
+            ResourceIndexQuery::Complete {
+                candidates: vec![negative],
+                omitted: 0
+            }
+        );
+    }
+
+    #[test]
+    fn unsupported_resources_and_capacity_overflow_fail_closed() {
+        let iron = indexed_state("iron_ore");
+        let mut world = World::default();
+        world.chunks.insert((0, 0), Chunk::default());
+        assert_eq!(
+            world.query_resource_index(
+                query_region(BlockPos { x: 0, y: 0, z: 0 }, BlockPos { x: 0, y: 0, z: 0 }),
+                "air",
+                4
+            ),
+            ResourceIndexQuery::Unsupported
+        );
+        assert_eq!(
+            world.query_resource_index(
+                query_region(BlockPos { x: 0, y: 0, z: 0 }, BlockPos { x: 0, y: 0, z: 0 }),
+                "not_a_block",
+                4
+            ),
+            ResourceIndexQuery::Unsupported
+        );
+        for section_y in 0..3 {
+            world
+                .chunks
+                .get_mut(&(0, 0))
+                .unwrap()
+                .sections
+                .insert(section_y, Arc::new([iron; 4096]));
+        }
+        world.rebuild_resource_index_chunk(0, 0);
+        assert_eq!(
+            world.query_resource_index(
+                query_region(
+                    BlockPos { x: 0, y: 0, z: 0 },
+                    BlockPos {
+                        x: 15,
+                        y: 47,
+                        z: 15
+                    }
+                ),
+                "iron_ore",
+                4
+            ),
+            ResourceIndexQuery::Unknown
+        );
+    }
+
     #[test]
     fn block_query_filters_state_ids_and_honors_limit() {
         let mut world = World::default();
@@ -1469,6 +2056,21 @@ mod tests {
         assert_eq!(snapshot.sky_light(1, 0, 0), Some(2));
         assert_eq!(snapshot.block_light(0, 0, 0), Some(5));
         assert_eq!(snapshot.block_light(1, 0, 0), Some(10));
+    }
+
+    #[test]
+    fn light_lookup_handles_negative_chunk_coordinates() {
+        let mut packet = Vec::new();
+        for value in [-1, -1, 1, 1 << 1, 1 << 1, 0, 0] {
+            crate::protocol::put_varint(&mut packet, value);
+        }
+        packet.extend([0x21; 2048]);
+        packet.extend([0xa5; 2048]);
+        let mut world = World::default();
+        assert_eq!(world.apply_light(&packet, 256).unwrap(), (-1, -1));
+        assert_eq!(world.light_at(-16, 0, -16), Some((5, 1)));
+        assert_eq!(world.light_at(-1, 0, -1), Some((10, 2)));
+        assert_eq!(world.light_at(-17, 0, -16), None);
     }
 
     #[test]
