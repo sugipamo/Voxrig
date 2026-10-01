@@ -26,6 +26,7 @@
 ## 開発・検証
 
 - [開発とテスト](development.md)
+- [develop統合の差分と検証記録](develop-integration.md)
 - [Server teleport後の位置補正調査](teleport-investigation.md)
 - 実サーバーの構築（repository版の`test-server/README.md`）
 - 耐久試験の結果（repository版の`reports/`）

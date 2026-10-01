@@ -50,7 +50,8 @@ async fn main() -> Result<()> {
             y: 4,
             z: 0,
             state_id,
-        } = event {
+        } = event
+        {
             if placed && state_id != 0 {
                 println!("PLACED state_id={state_id}");
                 manager.disconnect_all().await?;
