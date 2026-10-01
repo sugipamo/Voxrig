@@ -20,6 +20,7 @@ include = [
     "/scripts/ExportOutlineShapes.java",
     "/scripts/PrepareOutlineOracle.java",
     "/scripts/VerifyInventoryClick.java",
+    "/scripts/VerifySurvivalFoundation.java",
     "/README.md",
     "/LICENSE",
     "/THIRD_PARTY_NOTICES.md",

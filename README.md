@@ -53,6 +53,7 @@ async fn main() -> Result<()> {
 > 受信状態と計算結果を分けて公開し、不足する処理・情報は明示します。
 > 1.21.11のinventoryは、受信した単純スタックの観測と、survivalでの
 > [メイン所持品・ホットバー間の確認付き交換](docs/survival-inventory.md)に限定して対応します。
+> [静止した通常立位の接地判定と自身の受信状態](docs/survival-standing-context.md)も提供します。
 > 1.21.11のサバイバル歩行・採掘、両版のMicrosoft認証・online-mode暗号化は未対応です。
 > 対応範囲と失敗した試行は[バージョン別の検証記録](docs/version-adapter-validation.md)を参照してください。
 
