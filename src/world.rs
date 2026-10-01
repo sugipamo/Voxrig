@@ -599,6 +599,41 @@ impl World {
         direction: Vec3,
         max_distance: f64,
     ) -> Option<BlockRaycastHit> {
+        self.raycast_blocks_with_target(origin, direction, max_distance, None)
+    }
+
+    /// A digging target can have no movement collision (plants/crops).
+    /// Use its cell as a target only, while keeping collision-shape occlusion
+    /// for intervening blocks and rejecting unloaded parts of the sight line.
+    pub(crate) fn block_visible(&self, origin: Vec3, target: BlockPos) -> bool {
+        let Some(state) = self.block(target.x, target.y, target.z) else {
+            return false;
+        };
+        if matches!(
+            block_name(state),
+            None | Some("air" | "cave_air" | "void_air")
+        ) {
+            return false;
+        }
+        let direction = Vec3 {
+            x: f64::from(target.x) + 0.5 - origin.x,
+            y: f64::from(target.y) + 0.5 - origin.y,
+            z: f64::from(target.z) + 0.5 - origin.z,
+        };
+        let distance =
+            (direction.x * direction.x + direction.y * direction.y + direction.z * direction.z)
+                .sqrt();
+        self.raycast_blocks_with_target(origin, direction, distance + 1.0e-7, Some(target))
+            .is_some_and(|hit| hit.position == target)
+    }
+
+    fn raycast_blocks_with_target(
+        &self,
+        origin: Vec3,
+        direction: Vec3,
+        max_distance: f64,
+        target: Option<BlockPos>,
+    ) -> Option<BlockRaycastHit> {
         let length =
             (direction.x * direction.x + direction.y * direction.y + direction.z * direction.z)
                 .sqrt();
@@ -631,9 +666,15 @@ impl World {
             let exit_distance = t_max_x.min(t_max_y).min(t_max_z).min(max_distance);
             if let Some(state_id) = self.block(x, y, z) {
                 let mut nearest = None;
-                for shape in shapes_for(state_id) {
-                    let Some((distance, face)) = ray_aabb(origin, direction, shape.at(x, y, z))
-                    else {
+                let shapes = shapes_for(state_id);
+                let target_cell = (shapes.is_empty() && target == Some(BlockPos { x, y, z }))
+                    .then(|| Aabb::block(x, y, z));
+                for shape in shapes
+                    .iter()
+                    .map(|shape| shape.at(x, y, z))
+                    .chain(target_cell)
+                {
+                    let Some((distance, face)) = ray_aabb(origin, direction, shape) else {
                         continue;
                     };
                     let is_nearer = match nearest {
@@ -657,6 +698,9 @@ impl World {
                         distance,
                     });
                 }
+            }
+            if target.is_some() && self.block(x, y, z).is_none() {
+                return None;
             }
             let next = t_max_x.min(t_max_y).min(t_max_z);
             if next > max_distance {
@@ -1921,6 +1965,34 @@ mod tests {
             .unwrap();
         assert_eq!(found.len(), 1);
         assert_eq!(world.block(found[0].x, found[0].y, found[0].z), Some(1));
+    }
+
+    #[test]
+    fn block_visibility_does_not_accept_unloaded_sight_lines_or_air() {
+        let mut world = World::default();
+        world.chunks.insert((0, 0), Chunk::default());
+        world.chunks.insert((2, 0), Chunk::default());
+        let target = BlockPos { x: 32, y: 1, z: 0 };
+        let wheat = (0..18000)
+            .find(|id| crate::block_name_from_state(*id) == Some("wheat"))
+            .unwrap();
+        world.set_block(target.x, target.y, target.z, wheat);
+        let origin = Vec3 {
+            x: 15.5,
+            y: 1.5,
+            z: 0.5,
+        };
+        assert!(!world.block_visible(origin, target));
+        world.chunks.insert((1, 0), Chunk::default());
+        assert!(world.block_visible(origin, target));
+        assert!(!world.block_visible(origin, BlockPos { x: 16, y: 1, z: 0 }));
+        assert!(!world.block_visible(
+            Vec3 {
+                x: f64::NAN,
+                ..origin
+            },
+            target
+        ));
     }
 
     #[test]

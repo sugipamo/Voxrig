@@ -40,6 +40,8 @@ pub struct InventoryState {
     pub pending_clicks: HashMap<(i8, i16), PendingClick>,
     /// The `merchant_offers` value.
     pub merchant_offers: Option<MerchantOffers>,
+    // Retain the complete layout across close and delayed slot updates.
+    pub(crate) window_player_starts: HashMap<i8, usize>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -374,6 +376,25 @@ pub(crate) fn apply_slot(state: &mut InventoryState, update: &SlotUpdate) -> Res
     Ok(())
 }
 
+pub(crate) fn apply_window_items(
+    state: &mut InventoryState,
+    window_id: i8,
+    slots: Vec<Option<ItemStack>>,
+) {
+    if window_id != 0 {
+        match slots.len().checked_sub(36) {
+            Some(start) => {
+                state.window_player_starts.insert(window_id, start);
+            }
+            None => {
+                state.window_player_starts.remove(&window_id);
+            }
+        }
+    }
+    state.windows.insert(window_id, slots);
+    sync_player_inventory_from_window(state, window_id);
+}
+
 pub(crate) fn sync_player_inventory_from_window(state: &mut InventoryState, window_id: i8) {
     if window_id == 0 {
         return;
@@ -381,10 +402,13 @@ pub(crate) fn sync_player_inventory_from_window(state: &mut InventoryState, wind
     let Some(window) = state.windows.get(&window_id) else {
         return;
     };
-    let Some(player_start) = window.len().checked_sub(36) else {
+    let Some(&player_start) = state.window_player_starts.get(&window_id) else {
         return;
     };
-    let appended = window[player_start..].to_vec();
+    let Some(appended) = window.get(player_start..player_start + 36) else {
+        return;
+    };
+    let appended = appended.to_vec();
     let player = state.windows.entry(0).or_insert_with(|| vec![None; 46]);
     if player.len() < 46 {
         player.resize(46, None);
@@ -406,7 +430,7 @@ fn sync_player_slot_from_window(state: &mut InventoryState, window_id: i8, index
     let Some(window) = state.windows.get(&window_id) else {
         return;
     };
-    let Some(player_start) = window.len().checked_sub(36) else {
+    let Some(&player_start) = state.window_player_starts.get(&window_id) else {
         return;
     };
     if index < player_start {
@@ -520,6 +544,98 @@ mod tests {
     use super::*;
     use crate::protocol::put_varint;
     use byteorder::WriteBytesExt;
+
+    #[test]
+    fn trailing_closed_window_slot_keeps_its_original_player_offset() {
+        let mut state = InventoryState::default();
+        let tool = ItemStack {
+            item_id: 1,
+            count: 1,
+            nbt: None,
+        };
+        let mut slots = vec![None; 46]; // crafting table: 10 + 36 player slots
+        slots[37] = Some(tool.clone()); // selected hotbar slot
+        apply_window_items(&mut state, 4, slots);
+        assert_eq!(state.player_slots()[36], Some(tool.clone()));
+        state.windows.remove(&4); // close_window removes the slot cache
+        let damaged = ItemStack {
+            nbt: Some(vec![10, 0, 0, 0]),
+            ..tool
+        };
+        apply_slot(
+            &mut state,
+            &SlotUpdate {
+                packet_sequence: 0,
+                window_id: 4,
+                slot: 37,
+                item: Some(damaged.clone()),
+            },
+        )
+        .unwrap();
+        assert_eq!(state.player_slots()[36], Some(damaged));
+        assert_eq!(state.player_slots()[44], None);
+        assert_eq!(state.player_slots().iter().flatten().count(), 1);
+    }
+
+    #[test]
+    fn partial_unknown_window_cannot_invent_a_player_inventory_layout() {
+        let mut state = InventoryState::default();
+        state.windows.insert(0, vec![None; 46]);
+        apply_slot(
+            &mut state,
+            &SlotUpdate {
+                packet_sequence: 0,
+                window_id: 5,
+                slot: 37,
+                item: Some(ItemStack {
+                    item_id: 1,
+                    count: 1,
+                    nbt: None,
+                }),
+            },
+        )
+        .unwrap();
+        assert!(state.player_slots().iter().all(Option::is_none));
+    }
+
+    #[test]
+    fn full_window_items_replace_a_reused_window_layout() {
+        let mut state = InventoryState::default();
+        apply_window_items(&mut state, 4, vec![None; 46]);
+        // A single chest has 27 + 36 slots; its hotbar starts at 54.
+        apply_window_items(&mut state, 4, vec![None; 63]);
+        let tool = ItemStack {
+            item_id: 1,
+            count: 1,
+            nbt: None,
+        };
+        apply_slot(
+            &mut state,
+            &SlotUpdate {
+                packet_sequence: 0,
+                window_id: 4,
+                slot: 54,
+                item: Some(tool.clone()),
+            },
+        )
+        .unwrap();
+        assert_eq!(state.player_slots()[36], Some(tool));
+        apply_slot(
+            &mut state,
+            &SlotUpdate {
+                packet_sequence: 0,
+                window_id: 4,
+                slot: 2,
+                item: Some(ItemStack {
+                    item_id: 2,
+                    count: 64,
+                    nbt: None,
+                }),
+            },
+        )
+        .unwrap();
+        assert_eq!(state.player_slots().iter().flatten().count(), 1);
+    }
 
     #[test]
     fn slot_preserves_raw_nbt() {

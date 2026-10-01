@@ -15,8 +15,9 @@ use crate::{
     inventory::{
         ClickMode, EquipmentSlot, InventoryState, ItemCollected, ItemStack, OpenWindow,
         PendingClick, SlotUpdate, WindowProperty, WindowTransaction, apply_slot,
-        parse_merchant_offers, parse_set_slot, parse_window_items, predict_normal_click, read_slot,
-        rollback_click, sync_player_inventory_from_window, write_slot,
+        apply_window_items, parse_merchant_offers, parse_set_slot, parse_window_items,
+        predict_normal_click, read_slot, rollback_click, sync_player_inventory_from_window,
+        write_slot,
     },
     lifecycle::{
         ConnectionActor, ConnectionGeneration, ConnectionState, OperationAdmissionError,
@@ -3113,10 +3114,7 @@ impl Bot {
             .selected_item()
             .map(|item| item.item_id);
         let mining = state_id.and_then(|id| crate::registry::mining_info(id, tool_id));
-        let visible = self
-            .raycast_blocks(direction, distance + 1.0e-7)
-            .await
-            .is_some_and(|hit| hit.position == position);
+        let visible = self.world.lock().await.block_visible(eye, position);
         crate::DiggingInfo {
             state_id,
             loaded: state_id.is_some(),
@@ -3379,13 +3377,17 @@ impl Bot {
                 bail!("digging action was dispatched without acknowledgement");
             }
         }
-        loop {
-            if let Event::DiggingAcknowledged(ack) = events.recv().await? {
-                if ack.position == position && ack.status == DiggingStatus::Finished as i32 {
-                    return Ok(ack);
+        timeout(self.connection_options.protocol_ack_timeout, async {
+            loop {
+                if let Event::DiggingAcknowledged(ack) = next_operation_event(&mut events).await? {
+                    if ack.position == position && ack.status == DiggingStatus::Finished as i32 {
+                        return Ok(ack);
+                    }
                 }
             }
-        }
+        })
+        .await
+        .context("timed out waiting for digging response event")?
     }
     /// Dispatches a block-placement interaction.
     ///
@@ -3796,7 +3798,7 @@ impl Bot {
                 {
                     return Ok::<(), anyhow::Error>(());
                 }
-                let _ = events.recv().await?;
+                let _ = next_operation_event(&mut events).await?;
             }
         })
         .await
@@ -4508,8 +4510,7 @@ impl Bot {
             0x14 => {
                 let (window_id, slots) = parse_window_items(&p)?;
                 let mut inventory = self.inventory.write().await;
-                inventory.windows.insert(window_id, slots);
-                sync_player_inventory_from_window(&mut inventory, window_id);
+                apply_window_items(&mut inventory, window_id, slots);
                 drop(inventory);
                 self.commit_satisfied_window_barriers().await;
                 self.emit(Event::InventoryUpdated {
@@ -4644,7 +4645,12 @@ impl Bot {
                     entity_id: Some(entity_id),
                     declared_slots: Some(declared_slots),
                 };
-                self.inventory.write().await.open_window = Some(window.clone());
+                {
+                    let mut inventory = self.inventory.write().await;
+                    inventory.window_player_starts.remove(&window.id);
+                    inventory.windows.remove(&window.id);
+                    inventory.open_window = Some(window.clone());
+                }
                 *self.furnace_window_position.lock().await = None;
                 self.emit(Event::WindowOpened(window));
             }
@@ -4797,7 +4803,12 @@ impl Bot {
                     entity_id: None,
                     declared_slots: None,
                 };
-                self.inventory.write().await.open_window = Some(window.clone());
+                {
+                    let mut inventory = self.inventory.write().await;
+                    inventory.window_player_starts.remove(&window.id);
+                    inventory.windows.remove(&window.id);
+                    inventory.open_window = Some(window.clone());
+                }
                 let furnace_position = self
                     .connection
                     .observe_furnace_window(window.window_type)
@@ -5998,6 +6009,23 @@ fn sound_category_name(id: i32) -> Option<&'static str> {
     ]
     .get(id as usize)
     .copied()
+}
+
+async fn next_operation_event(events: &mut broadcast::Receiver<Event>) -> Result<Event> {
+    loop {
+        match events.recv().await {
+            Ok(Event::Disconnected { reason }) => bail!("disconnected: {reason}"),
+            Ok(Event::Error {
+                kind: "connection",
+                message,
+            }) => bail!("connection error: {message}"),
+            Ok(event) => return Ok(event),
+            Err(broadcast::error::RecvError::Lagged(_)) => continue,
+            Err(broadcast::error::RecvError::Closed) => {
+                bail!("connection closed while waiting for operation response")
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -8779,6 +8807,217 @@ mod tests {
             passengers: Vec::new(),
             attached_to: None,
         }
+    }
+    async fn operation_test_bot(
+        outbound_id: i32,
+        response_id: i32,
+        response: Vec<u8>,
+    ) -> (
+        Bot,
+        tokio::sync::mpsc::UnboundedReceiver<(i32, Vec<u8>)>,
+        tokio::sync::oneshot::Sender<()>,
+        tokio::task::JoinHandle<()>,
+    ) {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (packets, received) = tokio::sync::mpsc::unbounded_channel();
+        let (release, released) = tokio::sync::oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let (mut reader, mut writer) = stream.into_split();
+            read_packet(&mut reader, None).await.unwrap();
+            read_packet(&mut reader, None).await.unwrap();
+            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            let mut released = Some(released);
+            while let Ok((id, payload)) = read_packet(&mut reader, None).await {
+                packets.send((id, payload.clone())).unwrap();
+                let matches = id == outbound_id
+                    && (id != 0x1b || payload.first() == Some(&(DiggingStatus::Finished as u8)));
+                if matches {
+                    if let Some(gate) = released.take() {
+                        gate.await.unwrap();
+                        write_packet(&mut writer, None, response_id, &response)
+                            .await
+                            .unwrap();
+                    }
+                }
+            }
+            let _ = write_packet(&mut writer, None, 0x1a, &[0]).await;
+        });
+        let options = ConnectionOptions {
+            event_channel_capacity: 2,
+            ..ConnectionOptions::default()
+        };
+        let bot = Bot::connect(
+            Server::new("127.0.0.1", port),
+            Player::offline("LagProbe"),
+            Arc::new(crate::SharedChunkStorage::default()),
+            options,
+        )
+        .await
+        .unwrap();
+        bot.player.lock().await.spawned = true;
+        *bot.positioned.lock().await = true;
+        bot.connection.mark_ready().await;
+        timeout(Duration::from_secs(1), async {
+            while bot.connection_state() != ConnectionState::Ready {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        (bot, received, release, server)
+    }
+
+    #[tokio::test]
+    async fn digging_visibility_accepts_a_crop_without_ignoring_occluders() {
+        let (bot, _packets, _release, server) = operation_test_bot(0x7f, 0x7f, vec![]).await;
+        let target = BlockPos { x: 0, y: 1, z: 3 };
+        {
+            let mut p = bot.player.lock().await;
+            p.x = 0.5;
+            p.y = 0.;
+            p.z = 0.5;
+        }
+        {
+            let mut world = bot.world.lock().await;
+            world.apply_chunk(&[0; 14], 256).unwrap();
+            let wheat = (0..18000)
+                .find(|id| crate::block_name_from_state(*id) == Some("wheat"))
+                .unwrap();
+            let mut change = target.packed().to_be_bytes().to_vec();
+            put_varint(&mut change, wheat);
+            world.apply_block_change(&change).unwrap();
+        }
+        assert!(
+            bot.digging_info(target).await.visible,
+            "collision-free crop is a visible digging target"
+        );
+        {
+            let mut world = bot.world.lock().await;
+            let mut change = BlockPos { x: 0, y: 1, z: 2 }
+                .packed()
+                .to_be_bytes()
+                .to_vec();
+            put_varint(&mut change, 1);
+            world.apply_block_change(&change).unwrap();
+        }
+        assert!(
+            !bot.can_see_block(target).await,
+            "solid intervening block still occludes the crop"
+        );
+        bot.disconnect().await.unwrap();
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn timed_dig_survives_event_lag_and_still_requires_matching_ack() {
+        let target = BlockPos { x: 0, y: 1, z: 0 };
+        let mut response = target.packed().to_be_bytes().to_vec();
+        put_varint(&mut response, 0);
+        put_varint(&mut response, DiggingStatus::Finished as i32);
+        response.push(1);
+        let (bot, mut packets, release, server) = operation_test_bot(0x1b, 0x07, response).await;
+        {
+            let mut world = bot.world.lock().await;
+            world.apply_chunk(&[0; 14], 256).unwrap();
+            let mut change = target.packed().to_be_bytes().to_vec();
+            let log = (0..18000)
+                .find(|id| crate::block_name_from_state(*id) == Some("oak_log"))
+                .unwrap();
+            put_varint(&mut change, log);
+            world.apply_block_change(&change).unwrap();
+        }
+        let worker = bot.clone();
+        let digging = tokio::spawn(async move { worker.dig_block(target, BlockFace::Up).await });
+        loop {
+            let (id, payload) = packets.recv().await.unwrap();
+            if id == 0x1b && payload.first() == Some(&(DiggingStatus::Started as u8)) {
+                break;
+            }
+        }
+        // The receiver is not polled during the dig timer. Overflow it before
+        // the server can acknowledge Finished, reproducing natural-world lag.
+        for x in 0..100 {
+            bot.emit(Event::ChunkLoaded { x, z: 0 });
+        }
+        release.send(()).unwrap();
+        let ack = timeout(Duration::from_secs(8), digging)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert!(ack.successful);
+        assert_eq!(ack.position, target);
+        bot.disconnect().await.unwrap();
+        server.await.unwrap();
+    }
+
+    async fn lagged_click(accepted: bool) -> Result<i16> {
+        // Confirm Transaction: i8 window + i16 action + bool accepted.
+        let response = vec![0, 0, 1, u8::from(accepted)];
+        let (bot, mut packets, release, server) = operation_test_bot(0x09, 0x12, response).await;
+        bot.inventory
+            .write()
+            .await
+            .windows
+            .insert(0, vec![None; 46]);
+        let worker = bot.clone();
+        let clicking =
+            tokio::spawn(
+                async move { worker.click_slot_and_wait(0, 9, 0, ClickMode::Normal).await },
+            );
+        while packets.recv().await.unwrap().0 != 0x09 {}
+        for x in 0..100 {
+            bot.emit(Event::ChunkLoaded { x, z: 0 });
+        }
+        release.send(()).unwrap();
+        let result = timeout(Duration::from_secs(2), clicking)
+            .await
+            .unwrap()
+            .unwrap();
+        bot.disconnect().await.unwrap();
+        server.await.unwrap();
+        result
+    }
+
+    #[tokio::test]
+    async fn accepted_click_survives_unrelated_event_lag() {
+        assert_eq!(lagged_click(true).await.unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn rejected_click_after_event_lag_is_still_rejected() {
+        assert_eq!(
+            lagged_click(false).await.unwrap_err().kind(),
+            crate::ErrorKind::Rejected
+        );
+    }
+
+    #[tokio::test]
+    async fn operation_wait_reports_disconnect_and_closed_channel() {
+        let (sender, mut receiver) = broadcast::channel(2);
+        sender
+            .send(Event::Disconnected {
+                reason: "test disconnect".into(),
+            })
+            .unwrap();
+        assert_eq!(
+            next_operation_event(&mut receiver)
+                .await
+                .unwrap_err()
+                .kind(),
+            crate::ErrorKind::Disconnected
+        );
+        let (sender, mut receiver) = broadcast::channel::<Event>(2);
+        drop(sender);
+        assert_eq!(
+            next_operation_event(&mut receiver)
+                .await
+                .unwrap_err()
+                .kind(),
+            crate::ErrorKind::Disconnected
+        );
     }
     #[test]
     fn explosion_offsets_are_relative_to_floored_center() {
