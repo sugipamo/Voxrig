@@ -19,6 +19,7 @@ include = [
     "/scripts/export_outline_shapes.py",
     "/scripts/ExportOutlineShapes.java",
     "/scripts/PrepareOutlineOracle.java",
+    "/scripts/VerifyInventoryClick.java",
     "/README.md",
     "/LICENSE",
     "/THIRD_PARTY_NOTICES.md",

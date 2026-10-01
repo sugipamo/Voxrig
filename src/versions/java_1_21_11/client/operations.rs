@@ -1,9 +1,11 @@
-//! Creative construction controls. Sending is not server acceptance.
+//! Version-specific player construction controls. Sending is not server acceptance.
 //! Player collision/pathfinding, survival mining and complex item components are
 //! deliberately not inferred from this API.
+mod inventory;
 #[cfg(test)]
 mod tests;
 use super::*;
+pub use inventory::{InventorySwap, InventorySwapObservation};
 use serde::Serialize;
 
 /// Game mode observed in a native login/respawn/change packet.
@@ -84,6 +86,16 @@ pub struct Inventory {
     pub unsupported_components: bool,
     /// Submitted creative hotbar writes still awaiting a native inventory update.
     pub pending_creative: Vec<u8>,
+    /// Active received container, unknown until an inventory/window packet arrives.
+    pub window_id: Option<i32>,
+    /// Latest received player-screen revision, never incremented from a submitted click.
+    pub screen_revision: Option<i32>,
+    /// Received carried stack. Unavailable never means an empty cursor.
+    pub cursor: InventorySlot,
+    /// An unresolved ordinary swap. Cancellation/timeout never clears its uncertainty.
+    pub pending_swap: Option<InventorySwap>,
+    #[serde(skip)]
+    slot_sequences: Vec<Option<u64>>,
 }
 impl Default for Inventory {
     fn default() -> Self {
@@ -92,6 +104,11 @@ impl Default for Inventory {
             receive_sequence: None,
             unsupported_components: false,
             pending_creative: Vec::new(),
+            window_id: None,
+            screen_revision: None,
+            cursor: InventorySlot::Unavailable,
+            pending_swap: None,
+            slot_sequences: vec![None; 46],
         }
     }
 }
@@ -383,6 +400,12 @@ impl Operations {
         }
         let state = self.bot.session.state.lock().await;
         self.ready(&state)?;
+        if state.operations.inventory.pending_swap.is_some() {
+            return Err(Error::new(
+                ErrorKind::State,
+                anyhow::anyhow!("inventory swap needs inspection"),
+            ));
+        }
         self.bot
             .session
             .send(
@@ -424,6 +447,12 @@ impl Operations {
         }
         let state = self.bot.session.state.lock().await;
         self.ready(&state)?;
+        if state.operations.inventory.pending_swap.is_some() {
+            return Err(Error::new(
+                ErrorKind::State,
+                anyhow::anyhow!("inventory swap needs inspection"),
+            ));
+        }
         check_reach(&state, position)?;
         let seq = self.next_sequence()?;
         let mut payload = vec![0];
@@ -449,6 +478,12 @@ impl Operations {
     }
     fn creative(&self, state: &State) -> Result<()> {
         self.ready(state)?;
+        if state.operations.inventory.pending_swap.is_some() {
+            return Err(Error::new(
+                ErrorKind::State,
+                anyhow::anyhow!("inventory swap needs inspection"),
+            ));
+        }
         if state.operations.game_mode != Some(GameMode::Creative) {
             return Err(invalid("operation requires received creative game mode"));
         }
@@ -547,6 +582,9 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             | input::WINDOW_ITEMS
             | input::SET_SLOT
             | input::SET_PLAYER_INVENTORY
+            | input::SET_CURSOR_ITEM
+            | input::OPEN_WINDOW
+            | input::CLOSE_WINDOW
             | input::SYSTEM_CHAT
             | input::UPDATE_TIME
     ) {
@@ -621,83 +659,13 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             }
             next.ack = Some(next.ack.unwrap_or(0).max(seq));
         }
-        input::WINDOW_ITEMS => {
-            let window = r.varint()?;
-            let _revision = r.count(i32::MAX as usize)?;
-            let count = r.count(1024)?;
-            if window != 0 {
-                state
-                    .operations
-                    .inventory
-                    .slots
-                    .fill(InventorySlot::Unavailable);
-                return Ok(true);
-            }
-            if count != 46 {
-                bail!("unexpected player inventory size");
-            }
-            let mut slots = Vec::with_capacity(count);
-            let mut unsupported = false;
-            for _ in 0..count {
-                if let Some(value) = slot(&mut r)? {
-                    slots.push(value);
-                } else {
-                    unsupported = true;
-                    break;
-                }
-            }
-            if !unsupported {
-                unsupported = slot(&mut r)?.is_none();
-            }
-            if !unsupported {
-                r.end()?;
-                next.inventory.slots = slots;
-                next.inventory.pending_creative.clear();
-            } else {
-                next.inventory.slots.fill(InventorySlot::Unavailable);
-            }
-            next.inventory.unsupported_components = unsupported;
-            next.inventory.receive_sequence = Some(state.sequence);
-        }
-        input::SET_SLOT | input::SET_PLAYER_INVENTORY => {
-            let index = if id == input::SET_SLOT {
-                let window = r.varint()?;
-                r.count(i32::MAX as usize)?;
-                let index = r.u16()? as i16;
-                if window != 0 {
-                    state
-                        .operations
-                        .inventory
-                        .slots
-                        .fill(InventorySlot::Unavailable);
-                    return Ok(true);
-                }
-                usize::try_from(index).context("negative player slot")?
-            } else {
-                let index = r.count(40)?;
-                match index {
-                    0..=8 => index + 36,
-                    9..=35 => index,
-                    36..=39 => 44 - index,
-                    40 => 45,
-                    _ => unreachable!(),
-                }
-            };
-            if index >= 46 {
-                bail!("invalid player slot");
-            }
-            let value = slot(&mut r)?;
-            next.inventory.slots[index] = if let Some(v) = value {
-                r.end()?;
-                next.inventory
-                    .pending_creative
-                    .retain(|s| 36 + usize::from(*s) != index);
-                v
-            } else {
-                next.inventory.unsupported_components = true;
-                InventorySlot::Unavailable
-            };
-            next.inventory.receive_sequence = Some(state.sequence);
+        input::WINDOW_ITEMS
+        | input::SET_SLOT
+        | input::SET_PLAYER_INVENTORY
+        | input::SET_CURSOR_ITEM
+        | input::OPEN_WINDOW
+        | input::CLOSE_WINDOW => {
+            inventory::receive(&mut next.inventory, id, payload, state.sequence)?;
         }
         _ => return Ok(false),
     }
