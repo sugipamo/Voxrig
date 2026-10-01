@@ -15,8 +15,10 @@
 
 この文書の`Bot`、physics、inventory、survivalの一覧は1.16.1専用です。
 1.21.11ではnative block観測、piston再構成、記録、照準、remote player観測と
-限定的なクリエイティブ操作と、サバイバルでのメイン所持品・ホットバー間の単純スタック交換を提供します。
-詳細は[1.21.11操作](java-1.21.11-operations.md)、[在庫交換](survival-inventory.md)と
+限定的なクリエイティブ操作、サバイバルでのメイン所持品・ホットバー間の単純スタック交換、
+自身の受信状態と静止した通常立位の接地判定を提供します。
+詳細は[1.21.11操作](java-1.21.11-operations.md)、[在庫交換](survival-inventory.md)、
+[静止・接地判定](survival-standing-context.md)と
 [版別検証](version-adapter-validation.md)を参照してください。
 
 ## 実装済み

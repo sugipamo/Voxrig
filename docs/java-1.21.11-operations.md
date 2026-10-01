@@ -13,10 +13,20 @@ A block interaction acknowledgement is not proof that the requested block was
 placed or removed: callers must observe the resulting world state.
 
 Movement updates the local position with `position_from_server=false` until a
-server position packet replaces it. There is no collision/pathfinding or survival
-movement/mining implementation in this increment. Flight requires a received
+server position packet replaces it. Walking collision/pathfinding and survival
+movement/mining remain unimplemented. Flight requires a received
 permission and explicit request; creative inventory/digging requires a received
 creative game mode. Position, hit, slot, stack and sequence bounds are checked.
+
+`player_state().local_player` exposes own-player defaults and received updates
+with their provenance. `standing_context()` derives stationary normal-size
+standing contact in bounded dry static geometry. Survival `look()` rechecks that
+context before sending its ground bit; unknown motion, posture or unsupported
+geometry refuses before any packet or rotation change. Creative look retains its
+existing behavior. See [standing context](survival-standing-context.md) for the
+admission scope and [inventory swaps](survival-inventory.md) for ordinary survival
+inventory operations. Neither derived contact nor a submitted look is server
+acceptance, and this addition does not implement walking or timed mining.
 
 The generated item registry is pinned beside the block registry. Creative writes
 use default items without added/removed components. Received complex components

@@ -1,12 +1,18 @@
 //! Version-specific player construction controls. Sending is not server acceptance.
-//! Player collision/pathfinding, survival mining and complex item components are
-//! deliberately not inferred from this API.
+//! Stationary standing contact is bounded to supported static geometry.
+//! Walking collision/pathfinding, survival mining and complex item components
+//! are deliberately not inferred from this API.
 mod inventory;
+mod survival;
 #[cfg(test)]
 mod tests;
 use super::*;
 pub use inventory::{InventorySwap, InventorySwapObservation};
 use serde::Serialize;
+pub use survival::{
+    AttributeValue, LocalPlayerState, MotionInterruption, PlayerHealth, ReceivedEffect,
+    StandingContext, ValueBasis, VelocitySample,
+};
 
 /// Game mode observed in a native login/respawn/change packet.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -137,6 +143,8 @@ pub struct PlayerState {
     pub acknowledged_interaction: Option<i32>,
     /// Inventory as received, never filled from submitted creative packets.
     pub inventory: Inventory,
+    /// Own-player defaults and received updates, with explicit provenance.
+    pub local_player: LocalPlayerState,
     /// Configuration flags actually received, absent until observed.
     pub enabled_features: Option<Vec<String>>,
     /// Last periodic server-time sample; never a current-tick fence.
@@ -190,6 +198,7 @@ pub(super) struct OperationState {
     pub position_from_server: bool,
     ack: Option<i32>,
     inventory: Inventory,
+    pub(super) local_player: LocalPlayerState,
 }
 impl OperationState {
     pub fn reset_configuration(&mut self, sequence: u64) {
@@ -199,6 +208,7 @@ impl OperationState {
         };
     }
     pub fn reset_world(&mut self, game_mode: u8) -> anyhow::Result<()> {
+        let local_player = self.local_player.reset_world();
         let features = self.features.take();
         let messages = std::mem::take(&mut self.messages);
         let messages_dropped_through = self.messages_dropped_through;
@@ -207,6 +217,7 @@ impl OperationState {
             messages,
             messages_dropped_through,
             game_mode: Some(GameMode::decode(game_mode)?),
+            local_player,
             ..Self::default()
         };
         Ok(())
@@ -252,6 +263,7 @@ impl Operations {
             requested_flying: state.operations.requested_flying,
             acknowledged_interaction: state.operations.ack,
             inventory: state.operations.inventory.clone(),
+            local_player: state.operations.local_player.clone(),
             enabled_features: state.operations.features.clone(),
             server_time: state.operations.server_time.clone(),
         })
@@ -351,6 +363,8 @@ impl Operations {
         Ok(())
     }
     /// Submit a view direction in native degrees, without changing position.
+    /// Survival rechecks stationary standing geometry to derive the ground bit;
+    /// unavailable or unsupported context refuses before sending or changing rotation.
     pub async fn look(&self, rotation: [f32; 2]) -> Result<()> {
         validate_pose([0.0; 3], rotation)?;
         let mut state = self.bot.session.state.lock().await;
@@ -359,7 +373,10 @@ impl Operations {
         for v in rotation {
             payload.extend(v.to_be_bytes());
         }
-        payload.push(0);
+        payload.push(survival::look_flags(
+            &mut state,
+            self.bot.session.started.elapsed().as_millis() as u64 / 50,
+        )?);
         self.bot
             .session
             .send(ids::play_serverbound::LOOK, &payload)
@@ -576,6 +593,9 @@ fn slot(r: &mut Reader<'_>) -> anyhow::Result<Option<InventorySlot>> {
 }
 pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Result<bool> {
     use ids::play_clientbound as input;
+    if survival::receive(state, id, payload)? {
+        return Ok(true);
+    }
     if !matches!(
         id,
         input::ABILITIES

@@ -58,6 +58,14 @@ timeoutや取消ではpendingを維持し、同じ接続で読出し待機を再
 staleなscreen revisionでもserverはクリックを実行し得るため、自動再送しない。
 この受信記録も独立したserver確認ではなく、1.16.1のcache予測とは異なる契約である。
 
+1.21.11の`PlayerState::local_player`は自身の体力・速度・姿勢・属性・effect更新を返す。
+`ValueBasis`でnative初期値と受信値を区別し、effectの残時間や一覧の完全性は推定しない。
+`standing_context()`は同じsession lock内で自身の状態と限定的な静止geometryを照合する。
+接地はclientの導出結果でありserverのackではない。サバイバルの`look()`は送信直前に
+この判定を再実行し、速度・姿勢・周囲のgeometryが不明または未対応なら送信前に拒否する。
+観測を保存して後の操作許可として再利用せず、歩行・落下・採掘の実装として扱わない。
+対応条件は[静止・接地判定](survival-standing-context.md)に記録する。
+
 装備操作、block properties、衝突geometry、採掘条件、entity寸法、item上限はclientの事実を返す。
 資源検索は`BlockQuery`/`query_loaded_blocks`へ、移動用の観測は`MovementSnapshot`、
 geometryの取得は`GeometryQuery`へ名称を変更する。経路や採取対象を選ぶAPIではない。

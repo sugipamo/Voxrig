@@ -9,7 +9,8 @@
 //! The established `Bot` API targets Java 1.16.1 (736). [`Client`] also offers a
 //! Java 1.21.11 (774) adapter for native block observations, packet traces,
 //! outline targeting, creative inventory and block operations, direct movement,
-//! and received-result-checked survival inventory swaps.
+//! received-result-checked survival inventory swaps, and bounded stationary
+//! standing contact with own-player state observations.
 //! [`Client::observe_client_region`] additionally
 //! reconstructs a bounded set of piston and neighbor effects, including independent
 //! moving carriers, while preserving the unchanged received-state view.

@@ -85,6 +85,14 @@ Cargo.lockも更新し、`voxrig` feature付きのbridge・operation・recording
 `wait_inventory_swap`へ渡します。timeoutや取消の後も送信を繰り返さず、
 同じ接続の読出し待機を再開して両slotの新しい受信を確認します。
 
+1.21.11の`PlayerState`に`local_player: LocalPlayerState`が追加されます。
+直接struct literalを構築するfixtureはこのfieldも指定してください。
+通常は`player_state()`でnative初期値・受信sequence付きの観測を取得します。
+`standing_context()`は静止した通常立位と対応geometryに限定され、サバイバルの
+`look()`も送信前にこの条件を確認します。未ロード、姿勢・速度の欠測、液体等の未対応
+geometryではエラーを利用側へ返し、送信成功や通常歩行の保証へ読み替えないでください。
+クリエイティブの視点変更は既存の経路を維持します。
+
 ## 採用検証
 
 Voxrig commit、利用側commit、ゲーム版、Rust toolchain、実行コマンドと結果を記録します。

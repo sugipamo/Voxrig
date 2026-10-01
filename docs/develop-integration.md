@@ -104,3 +104,39 @@ Minecraft実サーバーでのサバイバル操作は、この統合環境で�
 採用検証の対象はこの追加を含むdevelopの新しい固定commitへ更新する。
 旧`ab726cb`の確認結果だけでは新しいcommitの採用検証を完了したとは扱わない。
 各利用プロジェクト側で移行・検証し、同一commitの結果が揃ってからmainへ統合する。
+
+## 自身の状態と静止・接地判定の追加統合
+
+2026-10-02（JST）。`codex/survival-construction`の追加commit
+`ab55da095a0fa388bd1b10cb87e64f47829427bf`をdevelopへ統合した。
+READMEの対応範囲の競合を解消し、版別構成と公開client APIの責務を維持した。
+1.16.1の実装には変更を加えていない。
+
+1.21.11の`PlayerState::local_player`で自身の体力・速度・姿勢・属性・effect更新を公開する。
+native初期値と受信値の由来を区別し、未受信の体力やeffect一覧の完全性は推定しない。
+`standing_context()`は限定的な乾いた静止geometryから通常立位の接地を導出する。
+サバイバルの`look()`は送信直前にこの条件を確認し、未対応・欠測では送信前に拒否する。
+歩行・落下の物理、時間を要する採掘、サバイバル建築全体の実装は含まない。
+公開API仕様と移行表へ`local_player`の追加と`look()`の条件変更を記録した。
+
+| 確認 | 結果 |
+| --- | --- |
+| 全target、Rust 1.97.1、`-j1 -- --test-threads=1` | 288件成功、任意の性能比較1件スキップ、全exampleをコンパイル |
+| docテスト、Rust 1.97.1 | 1件成功 |
+| fmt | 成功 |
+| 全target Clippy、Rust 1.99.0、`-D warnings` | 成功 |
+| rustdoc、Rust 1.97.1、`-D warnings` | 成功 |
+| MSRV、Rust 1.85.0、全target | 成功 |
+
+追加7件はnative由来fixtureとの寸法・属性・velocity・接地の照合、
+自身とremote entityの分離、不正packetの原子性、reset、geometry変更後の再計算、
+欠測・液体・未対応motionの拒否、実TCPでのlook送信と拒否時の無送信を確認する。
+Java検証ツールとfixtureのSHA-256が付属manifestと一致することも確認した。
+Javaのnative API検証とMinecraft実サーバーでの操作は、この統合環境では再実行していない。
+詳細な対応条件は[静止・接地判定](survival-standing-context.md)を参照する。
+
+ログは`.local/integration-validation/standing-merge/`へ保存する。
+package検証と隔離コピーのDustRoute互換性確認の結果は統合PRへ記録する。
+採用検証の対象はこの追加を含むdevelopの新しい固定commitへ更新する。
+旧`44efce7`の結果だけでは今回の候補を検証済みとは扱わず、
+各利用プロジェクトの同一commitでの結果が揃ってからmainへ統合する。
