@@ -1766,10 +1766,7 @@ impl Bot {
             .selected_item()
             .map(|item| item.item_id);
         let mining = state_id.and_then(|id| crate::registry::mining_info(id, tool_id));
-        let visible = self
-            .raycast_blocks(direction, distance + 1.0e-7)
-            .await
-            .is_some_and(|hit| hit.position == position);
+        let visible = self.world.lock().await.block_visible(eye, position);
         crate::DiggingInfo {
             state_id,
             loaded: state_id.is_some(),
@@ -4063,6 +4060,47 @@ mod tests {
         .await
         .unwrap();
         (bot, received, release, server)
+    }
+
+    #[tokio::test]
+    async fn digging_visibility_accepts_a_crop_without_ignoring_occluders() {
+        let (bot, _packets, _release, server) = operation_test_bot(0x7f, 0x7f, vec![]).await;
+        let target = BlockPos { x: 0, y: 1, z: 3 };
+        {
+            let mut p = bot.player.lock().await;
+            p.x = 0.5;
+            p.y = 0.;
+            p.z = 0.5;
+        }
+        {
+            let mut world = bot.world.lock().await;
+            world.apply_chunk(&[0; 14], 256).unwrap();
+            let wheat = (0..18000)
+                .find(|id| crate::block_name_from_state(*id) == Some("wheat"))
+                .unwrap();
+            let mut change = target.packed().to_be_bytes().to_vec();
+            put_varint(&mut change, wheat);
+            world.apply_block_change(&change).unwrap();
+        }
+        assert!(
+            bot.digging_info(target).await.visible,
+            "collision-free crop is a visible digging target"
+        );
+        {
+            let mut world = bot.world.lock().await;
+            let mut change = BlockPos { x: 0, y: 1, z: 2 }
+                .packed()
+                .to_be_bytes()
+                .to_vec();
+            put_varint(&mut change, 1);
+            world.apply_block_change(&change).unwrap();
+        }
+        assert!(
+            !bot.can_see_block(target).await,
+            "solid intervening block still occludes the crop"
+        );
+        bot.disconnect().await.unwrap();
+        server.await.unwrap();
     }
 
     #[tokio::test]
