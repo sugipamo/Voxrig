@@ -1,12 +1,17 @@
-# voxrig ドキュメント
+# Voxrig ドキュメント
 
-`voxrig`は、外部の頭脳から直接操作するMinecraft Java Edition 1.16.1向けheadless clientクレートです。
+`voxrig`は、外部の頭脳から直接操作するMinecraft Java Edition向けheadless clientクレートです。
+
+`Bot` の既存説明は1.16.1専用です。共存する1.21.11観測アダプタは
+[移行計画](dustroute-integration.md)、[対応範囲と検証](version-adapter-validation.md)、
+[ピストン通知と階段の未同期](piston-client-update-prerequisite.md)を参照してください。
+追加実装は[クライアント側ピストン処理](client-piston-reconstruction.md)、
+レビュー方針は[PR準備](pull-request-preparation.md)にまとめています。
 
 ## 利用者向け
 
 - [公開client APIの設計](public-client-api.md)
 - [0.2 client APIへの移行](client-api-migration.md)
-
 - [導入と最初の接続](getting-started.md)
 - [対応機能と制約](capabilities.md)
 - [公開API](api.md)

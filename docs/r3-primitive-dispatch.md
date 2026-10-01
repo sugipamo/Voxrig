@@ -1,5 +1,7 @@
 # R3 primitive dispatch checkpoint
 
+> 過去の派生版の実装・検証記録です。現行の名称・統合方針は[client API設計](public-client-api.md)を参照してください。
+
 This checkpoint adds a typed, context-bound low-level dispatch surface for the
 Zen adapter. `PrimitiveOperation` is for ordinary Body-selected packets and
 `CleanupPrimitive` is a separate finite cleanup surface. Both pass through the

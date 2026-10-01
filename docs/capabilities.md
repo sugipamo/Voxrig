@@ -11,6 +11,13 @@
 | Bot数 | 1プロセス複数Bot |
 | 操作interface | 直接呼び出す型付きRust API |
 
+## 版別の対応
+
+この文書の`Bot`、physics、inventory、survivalの一覧は1.16.1専用です。
+1.21.11ではnative block観測、piston再構成、記録、照準、remote player観測と
+限定的なクリエイティブ操作を提供します。
+詳細は[1.21.11操作](java-1.21.11-operations.md)と[版別検証](version-adapter-validation.md)を参照してください。
+
 ## 実装済み
 
 - 接続、packet圧縮、Keep Alive、Teleport Confirm、respawn、切断

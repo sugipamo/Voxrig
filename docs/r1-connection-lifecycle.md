@@ -1,5 +1,7 @@
 # R1a connection lifecycle checkpoint
 
+> 過去の派生版の実装・検証記録です。現行の名称・統合方針は[client API設計](public-client-api.md)を参照してください。
+
 Status: checkpoint; R1 is not complete.
 
 ## Implemented

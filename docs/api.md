@@ -2,6 +2,13 @@
 
 この文書は、外部controllerが利用する公開面を用途別に示します。正確な引数型と戻り値は`cargo doc --open`で生成されるrustdocを正とします。
 
+## ゲーム版と操作の入口
+
+`Client` / `ConnectionConfig` / `MinecraftVersion`で接続版を明示します。
+以下の`Bot`、inventory、physicsとcoherent observationは1.16.1専用です。
+rootの互換importと`versions::java_1_16_1`は同じ型です。
+1.21.11の対応操作は[版別操作API](java-1.21.11-operations.md)を参照してください。
+
 ## Import
 
 基本操作ではpreludeを利用できます。
@@ -73,6 +80,27 @@ crate rootのre-exportと用途別moduleは同一の型を参照します。
 - `disconnect()`：切断
 
 `Bot`はclone可能な共有handleです。状態getterはsnapshotを返すため、利用側が内部lockを保持することはありません。
+
+## 観測に結び付いた操作
+
+```rust,no_run
+use voxrig::{Bot, CoherentObservationRequest, Operation, OperationClass};
+
+async fn rotate(bot: &Bot) -> anyhow::Result<()> {
+    let observation = bot.capture_coherent_observation(CoherentObservationRequest::default()).await?;
+    let context = observation.operation_context();
+    bot.admit_operation(context, OperationClass::Normal).await?;
+    let outcome = bot.dispatch_operation(context, Operation::LookRotation {
+        yaw: 90.0, pitch: 0.0, on_ground: observation.player.on_ground,
+    }).await?;
+    println!("{outcome:?}");
+    Ok(())
+}
+```
+
+ウィンドウ操作は`dispatch_window_clicks(context, WindowClickSequence)`で指定します。
+製作・かまど・containerの手順選択は利用側が担当します。
+公開名と保証の正本は[client API設計](public-client-api.md)を参照してください。
 
 ## 状態の取得
 

@@ -1,5 +1,7 @@
 # R2 coherent observation checkpoint
 
+> 過去の派生版の実装・検証記録です。現行の名称・統合方針は[client API設計](public-client-api.md)を参照してください。
+
 Status: checkpoint; the R2 data contract and capture boundary are implemented,
 but the final R2 gate remains coupled to the R3 actor migration described
 below.

@@ -5,9 +5,56 @@ following open-source projects. The zen-minecraft-client MIT license does not re
 notices. Exact npm versions and registry integrity digests are recorded in
 `reference/package-lock.json`.
 
+## Locally recorded Java 1.21.11 diagnostics
+
+`data/java_1_21_11/outline_*` contains factual shape coordinates, native state
+coverage and numeric raycast/rotation observations from a locally obtained Java
+1.21.11 game. Original Java/Python tooling invokes native APIs; it is not copied
+game source. Yarn 1.21.11+build.6 names identify the inspected methods. These data
+do not relicense Minecraft or Yarn; no game JAR, mapping or decompiled source is
+included. Exact source hashes, transformation and regeneration instructions are
+in `outline_source.json` and `docs/player-targeting.md`.
+
+`docs/evidence/client-motion-*-20260929.json.gz` and their replay fixtures were
+recorded by this repository's `packet_trace_probe` against an isolated official
+Minecraft Java 1.21.11 server. The accompanying manifest identifies originals,
+transformations, checksums and failed trials. Native state names/properties use
+the pinned minecraft-data registry described below. These are local diagnostic
+observations and original test tooling, not imported DustRoute source or fixtures.
+The `client-players-*` records likewise come from two local clients on that
+isolated server and include the failed/corrected native attribute-ID trial.
+No Minecraft JAR or decompiled source is redistributed in this repository.
+The inspected version and mapping identification are recorded in
+`docs/client-piston-reconstruction.md`.
+
+## User-supplied reference door diagnostics
+
+`docs/evidence/client-reference-door-*-20260929*` records local observations of
+Bobiloosky's One-Wide 3x3 Piston Door:
+<https://www.planetminecraft.com/project/one-wide-3x3-piston-door-works-on-java-edition/>.
+The user supplied world ZIP (SHA-256 recorded in the evidence manifest) was
+previously inspected by DustRoute. Initial block coordinates/properties for
+these local tests were read from DustRoute's `reference-3x3-observed-a-v1.json`
+at commit `b1762b9`, translated by (-41900, 0, -900), and initialized on an
+isolated server. No DustRoute implementation source or Minecraft binary is
+included. These files are diagnostic records; Voxrig's MIT license does not
+claim ownership of the circuit design or relicense the supplied world. Review
+fixture redistribution attribution when preparing an upstream submission.
+
 ## minecraft-data 3.114.0
 
 Upstream: <https://github.com/PrismarineJS/minecraft-data>
+
+The Java 1.21.11 version adapter additionally uses `data/java_1_21_11/blocks.json`
+(name, state ranges and complete property definitions), generated packet-ID
+constants (including player registry IDs) in `src/versions/java_1_21_11/ids.rs`, and
+`data/java_1_21_11/items.json` (native item ID, name and default stack size)
+from the same exact package.
+`data/java_1_21_11/collision_shapes.json` projects that package's block collision
+shapes into native state IDs and AABBs. These are static collision shapes, not
+graphical selection outlines or entity-dependent collision decisions.
+`data/java_1_21_11/source.json` records the release, protocol, transformation and
+generated block-data digest. These data do not depend on a running JavaScript client.
 
 The files `data/blocks.json`, `data/items.json`, `data/materials.json`,
 `data/entities.json`, `data/recipes.json`, `data/sounds.json`,

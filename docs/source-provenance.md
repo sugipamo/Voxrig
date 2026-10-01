@@ -1,5 +1,7 @@
 # Source provenance
 
+> 過去の派生版の実装・検証記録です。現行の名称・統合方針は[client API設計](public-client-api.md)を参照してください。
+
 ## Rebuild base
 
 `zen_minecraft_client` starts from the complete Git history of Voxrig at the

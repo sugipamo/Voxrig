@@ -1,4 +1,5 @@
 /target
+/.local/
 /test-server/server.jar
 
 # JavaScript reference-tool dependencies and bundled runtimes
