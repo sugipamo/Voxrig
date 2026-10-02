@@ -96,6 +96,11 @@ staleなscreen revisionでもserverはクリックを実行し得るため、自
 未解決・競合・timeoutは成功やrollbackへ読み替えず、同じ操作を繰り返さない。
 survivalのraw `use_on_block`は拒否し、この確認付き経路を使う。
 
+位置誤差を含む照準は、同じfull cubeの同じ面へreach内で到達する条件と、
+視線が連続して通り得るcellを検査する。視線の外側のblockは遮蔽物と扱わず、
+通過範囲の非air・未知cell・境界の曖昧さは拒否する。有限個のray sampleだけを
+誤差範囲全体の証明にしない。立位の支持・身体の接触判定は別に維持する。
+
 `preview_survival_motion`は有限の入力列を予測する読出し、`start_survival_motion`は
 1～120tickの入力と位置送信を所有する有限taskである。経路選択は利用側に残る。
 `OwnMotion`で自身の受信と送信を分け、移動後の`StandingPositionBasis::PredictedAndObserved`
@@ -119,6 +124,12 @@ survivalのraw `use_on_block`は拒否し、この確認付き経路を使う。
 `HypotheticalAimRequirement`は将来必要な独立終点観測を示す条件であり、
 現在の`StandingPositionBasis`や実行結果ではない。`validate_survival_scene`も読出しだけで、
 各実操作には現在の検査と受信結果が必要となる。
+liveと仮想のpreviewはtick 0の`initial_frame`も保持し、移動後の静止と
+新接続の初期速度・接地状態を区別する。`after_expected_reconnect`は仮想sceneの
+新接続初期化を明示し、`ReceivedAfterReconnect`を将来必要な受信条件として返す。
+`HypotheticalReconnectBoundary::validate_received_start`は実際に取得した新sceneの
+接続・dimension・足位置・受信由来の立位を比較する。retirementの証明、world内容、
+captureの新しさは別途必要で、比較成功を操作許可や永続jobの復旧と扱わない。
 対応範囲と検証条件は[採掘](survival-mining.md)、[配置](survival-placement.md)、
 [移動制御](survival-motion-controls.md)、[仮想場面](survival-hypothetical-scenes.md)、
 [検査付きAPIの責務](survival-api.md)を参照する。

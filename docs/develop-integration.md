@@ -279,3 +279,28 @@ feature branchはPRで検証し、同一refの古い実行は新しい実行で�
 fmt・全target Clippy・MSRV 1.85・警告をエラーにしたrustdocも成功した。
 各利用側の移行・実採用検証はこの修正を含む新しいdevelop commitで揃える。
 Golemkitの実サーバー検証をこの統合環境で行ったとは扱わない。
+
+## 視線の連続誤差判定と仮想再接続の追加統合
+
+2026-10-02（UTC）。`codex/survival-construction`の追加3コミットを競合なく取り込んだ。
+取込先端は`2b6e7bfc94e6270054eac5c7b14a74d4657a411c`。
+
+| commit | 内容 |
+| --- | --- |
+| `6b47f26` | 屋根候補の照準で、視線から外れた足元の支持blockが拒否原因になるケースをテスト化 |
+| `1877209` | 位置誤差を含む視線の連続した通過範囲を検査し、視線外のblockによる過剰な拒否を修正 |
+| `2b6e7bf` | 静止後と新接続の初期modelを区別し、仮想再接続境界と実受信の開始状態との照合を追加 |
+
+照準判定は面・reach・通過範囲の未知cellや遮蔽を保守的に検査し、立位の支持・身体判定も維持する。
+仮想再接続は送信・切断を行わず、現接続の状態を書き換えない。
+`initial_frame`の追加と`ReceivedAfterReconnect`の新variantを公開設計・移行表へ記録した。
+比較APIは実際のretirementやworld内容・captureの新しさの証明を代替しない。
+
+検証ログは`.local/integration-validation/survival-sight-merge/`へ保存する。
+全targetは351件成功・6件スキップ、docテスト4件成功。
+fmt・MSRV 1.85の全target・Clippy・警告をエラーにしたrustdocも成功した。
+追加の回帰試験は屋根候補の照準、全6面・reach境界・未知／遮蔽cell・連続誤差範囲、
+実受信の新接続と仮想初期化の一致・状態不一致の拒否・無送信を確認する。
+package等の結果と新しい固定commitは統合PRへ記録する。
+屋根作業で得た姿勢・入力の回帰fixtureを含むが、完全な屋根施工や実サーバーの採用検証を
+この統合環境で実行したとは扱わない。利用側の検証は新しいdevelop commitで揃える。

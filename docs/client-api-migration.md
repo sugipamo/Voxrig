@@ -152,6 +152,25 @@ stackを上限までまとめます。player windowでは収納可能なoffhand�
 詳細は[API契約](survival-api.md)、[仮想場面](survival-hypothetical-scenes.md)、
 [受信中の採掘前提変更](survival-inventory-interruption.md)を参照してください。
 
+### 視線の誤差判定と仮想再接続の追加
+
+1.21.11の採掘・配置は、位置誤差を含む視線の連続した通過範囲を検査します。
+視線から外れた足元の支持blockによる過剰な拒否を解消しますが、実際の遮蔽物・未知cell・
+面の端・reachの曖昧さは拒否します。立位や操作結果の確認条件は引き続き必要です。
+
+`SurvivalMovementPreview`と`HypotheticalMovementPreview`にtick 0の`initial_frame`を追加します。
+前者を直接構築するfixture、previewを保存・表示するschemaを更新してください。
+同じ座標でも移動後の静止と新接続の初期状態では速度・接地flagが異なるため、
+開始位置だけで予測の同一性を判定しないでください。
+
+`HypotheticalAimRequirement::ReceivedAfterReconnect`を追加します。網羅的な`match`を更新してください。
+`SurvivalScenario::after_expected_reconnect()`は安全な停止点から新接続を仮定した枝と
+`HypotheticalReconnectBoundary`を返します。実際の再接続後に取得したsceneを
+`validate_received_start(&fresh, retired_connection_id)`で照合します。
+同じ接続・異なるdimensionや足位置・受信由来でない立位を拒否する比較であり、
+retirementの証明、world内容とcaptureの新しさは利用側が別途確認します。
+この呼出しは切断・再接続・送信を行わず、実操作の現在の検査を置き換えません。
+
 ## 採用検証
 
 Voxrig commit、利用側commit、ゲーム版、Rust toolchain、実行コマンドと結果を記録します。
