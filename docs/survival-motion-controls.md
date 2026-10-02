@@ -147,3 +147,19 @@ player context or predicted frames reject before I/O. Saved or caller-modified
 previews are constraints, not authority: current mode, geometry, terminal margin,
 observer and mutation gates still apply. TCP coverage exercises turning around
 an obstacle and rejects stale previews without emitting controls.
+
+## Roof preflight characterization (2026-10-02 UTC)
+
+`roof_diagonal_view_is_refused_by_off_ray_foot_support` records a concrete instance
+of the documented bounding-corridor limitation. At predicted feet
+`[2.5,-59,6.544924947876652]`, placement towards the upper ground face at
+`[0,-61,4]` is refused because the bounding box also includes the dirt supporting
+the player at `[2,-60,6]`. The native center ray and 25 sampled eye offsets hit
+the intended face; removing only that off-ray cube from a diagnostic view makes
+the guard pass, while inserting a real ray obstacle changes the native hit.
+
+This is a test-only characterization, not evidence that finite ray samples cover
+continuous uncertainty or permission to omit standing support. The production
+guard is unchanged. A tighter conservative swept-ray admission check is proposed
+in DustRoute's `docs/survival-roof-execution.md`, pending the user's review under
+the stop-on-prerequisite instruction. The full roof preflight is not a pass.
