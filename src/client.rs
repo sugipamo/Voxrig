@@ -556,6 +556,9 @@ pub enum Event {
     },
     /// Documentation for this public variant.
     SlotUpdated(SlotUpdate),
+    /// An immutable server Set Slot packet paired with the inventory revision
+    /// at which it was applied. Queued events can be compared to snapshots.
+    InventorySlotObserved(Snapshot<SlotUpdate>),
     /// The `HeldItemChanged` variant.
     HeldItemChanged {
         /// The `slot` value carried by this variant.
@@ -2891,7 +2894,9 @@ impl Bot {
                     let update = parse_set_slot(&p)?;
                     let mut inventory = self.inventory.write().await;
                     apply_slot(&mut inventory, &update)?;
+                    let observed = inventory.map_snapshot(|_| update.clone());
                     drop(inventory);
+                    self.emit(Event::InventorySlotObserved(observed));
                     self.emit(Event::SlotUpdated(update));
                 }
                 0x17 => {
@@ -4060,6 +4065,33 @@ mod tests {
         .await
         .unwrap();
         (bot, received, release, server)
+    }
+
+    #[tokio::test]
+    async fn server_slot_event_retains_the_revision_at_application() {
+        let (bot, _packets, release, server) =
+            operation_test_bot(0x2c, 0x16, vec![0, 0, 36, 0]).await;
+        let mut events = bot.subscribe();
+        let before = bot.inventory_snapshot().await;
+        bot.send(0x2c, &[0]).await.unwrap();
+        release.send(()).unwrap();
+        let packet = tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                if let Ok(Event::InventorySlotObserved(sample)) = events.recv().await {
+                    break sample;
+                }
+            }
+        })
+        .await
+        .unwrap();
+        assert!(packet.revision > before.revision);
+        assert_eq!(packet.revision, bot.inventory_snapshot().await.revision);
+        assert_eq!(packet.value.slot, 36);
+        assert_eq!(packet.value.item, None);
+        bot.inventory.write().await.windows.insert(9, vec![]);
+        assert!(bot.inventory_snapshot().await.revision > packet.revision);
+        bot.disconnect().await.unwrap();
+        server.abort();
     }
 
     #[tokio::test]
