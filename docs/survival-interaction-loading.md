@@ -53,3 +53,26 @@ including the one-cell halo across chunk edges. Own-chunk readiness alone does
 not establish this larger site baseline. The same region calculation serves
 readiness and validation; missing neighbors wait, invalid dimension bounds refuse,
 and unsupported received geometry is not converted to an empty cell.
+
+## Native acceptance
+
+The [immutable run](evidence/survival-interaction-loading-20261002-c.json.gz),
+[server log](evidence/survival-interaction-loading-server-20261002-c.log) and
+[provenance](evidence/survival-interaction-loading-20261002-source.json) record
+execution revision `0e6afd4d8431a71a0226c5b5fdecbb89e871363e` on the dedicated
+non-OP vanilla fixture. All four cases passed, including retirement and fresh
+loading. Normal dirt mining observed air at 1,218 ms; early finish plus abort
+still removed stone at 7,562 ms. External air/immediate replacement completed at
+1,454 ms and the replacement was later observed as air at 7,459 ms. This does
+not claim the client necessarily receives the brief intermediate air.
+
+Early disconnect retained stone through 9,300 ms. After independently confirmed
+retirement, fresh public-API mining began about 250 ms after connection start
+and independently observed removal in 8,573 ms. No test-private PLAYER_LOADED,
+login sleep or console target edit occurred during that fresh mining operation.
+The 8,500 ms mining intent estimate is action timing, not loading authority.
+
+An earlier trial timed out waiting for fixture input; another exposed missing
+neighbor terrain in fresh recovery. The final run includes the standing-halo
+fix and its offline regression. The isolated server was stopped cleanly. This
+acceptance does not establish survival placement, walking or a complete build.
