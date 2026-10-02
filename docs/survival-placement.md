@@ -55,3 +55,22 @@ sends clicked/adjacent block updates; its later tick emits the accumulated seque
 response. This processed marker is used with the two independent received results,
 never as success by itself. The dedicated native comparison records actual
 inventory synchronization rather than assuming the server echoes a packet.
+
+## Native comparison
+
+The [raw comparison](evidence/survival-placement-20261002-a.json.gz),
+[server log](evidence/survival-placement-server-20261002-a.log) and
+[provenance](evidence/survival-placement-20261002-source.json) pin execution to
+`c230027c02ed1e7b5deae3ddd05b7fce642f3906`. A non-OP survival bot received three
+dirt in main inventory, moved them to its hotbar with an ordinary verified swap,
+and placed three blocks on the same connection (two top faces, then one side).
+Every placement had an independent observer result and selected-stack decrement,
+ending with both main and hotbar slots empty. Empty-hand retry was refused.
+Observed completion took 81, 80 and 100 ms respectively on this localhost fixture;
+this is not a throughput benchmark for real construction. The fixture is stopped.
+
+Six added offline tests cover admission, independently encoded packets/materials,
+receipt order, partial outcomes, processed sequence, last-item consumption,
+conflict latching, chunk/mode changes, cancelled dispatch and retained history.
+The full source suite passes 161 tests (4 opt-in tests ignored). This milestone
+has no walking, access planning, durable Blueprint job or complete build acceptance.
