@@ -183,3 +183,36 @@ Java native oracleとMinecraft実サーバーの試行はこの統合環境で�
 package検証と隔離コピーのDustRoute互換性確認の結果は統合PRへ記録する。
 採用検証はこの追加を含むdevelopの新しい固定commitで揃える。
 旧`78dfc8c`の結果だけでmainへの統合条件を満たしたとは扱わない。
+
+## 終点clearanceと明示的な再観測の追加統合
+
+2026-10-02（JST）。上記の検証中の再同期でさらに2コミットを取得し、
+`codex/survival-construction`の
+`30afe28534e8b611ad5da8b77d8c20ecab35b861`までdevelopへ追加統合した。
+実装commitは`bc2c13cb6a6927992049cfe0812b248dafcba285`、
+後続commitはterminal live trialの保存記録である。
+
+`SurvivalMovementPreview::terminal_clearance`で静止終点の支持と水平1/16blockの
+marginを評価する。壁に接したまま停止する計画は最初の送信前に拒否し、
+退避をclientが自動で追加しない。完全送信・静止予測を持つ失敗runには、
+明示的な`prepare_survival_motion_recheck` / `observe_survival_motion_recheck`を追加した。
+元のobserver instanceの新しい位置受信と現在のgeometryを確認する読出しAPIであり、
+中断・補正を取り消したり、controlを再送したりするAPIではない。
+
+追加2件は壁接触終点の送信前拒否、明示した退避計画、再観測の新しさ・run／token所有、
+残存する形状障害、中断・補正後の拒否、再観測による無送信を確認する。
+全targetは332件成功、5件スキップ、全exampleをコンパイルした。
+スキップの構成は上記と同じで、実サーバー試行はこの環境で再実行していない。
+
+元ブランチの[終点試行](evidence/survival-terminal-live-20261002.json)では、
+歩行・配置、ジャンプ・配置、接触終点の送信前拒否、宣言した壁接触・退避・配置が成功した。
+旧試行の失敗を置き換えず、別の実行commitとtraceを保存する。
+旧試行の在庫増加は[拾得診断](evidence/survival-motion-pickup-diagnosis-20261002.json)へ分離した。
+保存traceのsequence 247の拾得通知と248のslot更新が診断記録と一致することを確認した。
+拾ったitemの生成・drop元の証明や、client側のentity物理を追加したとは扱わない。
+新しいterminal traceとserver logは圧縮・展開後のSHA-256が保存manifestと一致した。
+
+ログは`.local/integration-validation/survival-terminal-merge/`へ保存し、
+残りのRustチェック・package・隔離DustRoute確認の結果は統合PRへ記録する。
+最終の採用検証対象はこの追加を含む新しい固定commitへ更新する。
+途中の`e4648be`も最終候補の検証済みcommitとして数えない。

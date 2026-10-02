@@ -60,7 +60,8 @@ async fn main() -> Result<()> {
 > [静止した通常立位の接地判定と自身の受信状態](docs/survival-standing-context.md)も提供します。
 > さらに限定的な[通常採掘](docs/survival-mining.md)、[配置](docs/survival-placement.md)、
 > [歩行・ジャンプ制御](docs/survival-motion-controls.md)があります。
-> 移動後の立位は予測と別接続の観測を区別し、壁際停止の実試行は失敗を保持しています。
+> 移動後の立位は予測と別接続の観測を区別し、壁に接したまま止まる入力列は送信前に拒否します。
+> 元の失敗記録と、退避を含む入力列で配置まで成功した試行記録を保持しています。
 > 汎用地形の移動・採掘、汎用container操作、両版のMicrosoft認証・online-mode暗号化は未対応です。
 > 対応範囲と失敗した試行は[バージョン別の検証記録](docs/version-adapter-validation.md)を参照してください。
 

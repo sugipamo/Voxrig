@@ -32,6 +32,11 @@ since been added with separate admission/result contracts; see
 [motion controls](survival-motion-controls.md). Mining air does not reopen the
 original sender. Motion distinguishes prediction from independent position
 receipts; the retained wall-contact live run failed with `RequiresInspection`.
+Terminal clearance now rejects wall-touch endpoints before input dispatch;
+callers must declare retreat in their input plan. A later pinned trial passed
+wall-contact/retreat/placement. Explicit observation-only rechecks can reassess
+eligible fully dispatched failed runs without replaying controls; interrupted or
+corrected runs remain refused. The old failure stays in its historical record.
 Readiness now also requires current-world loading notification dispatch, and
 interrupted live frames close the session with inspectable operation history.
 

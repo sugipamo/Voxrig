@@ -9,8 +9,8 @@ mod placement;
 mod retirement;
 mod survival;
 pub use movement::{
-    PredictedMotionFrame, StandingPositionBasis, SurvivalInput, SurvivalMotionRecord,
-    SurvivalMotionStatus, SurvivalMovementPreview,
+    PredictedMotionFrame, StandingPositionBasis, SurvivalInput, SurvivalMotionRecheck,
+    SurvivalMotionRecord, SurvivalMotionStatus, SurvivalMovementPreview, TerminalClearance,
 };
 #[cfg(test)]
 mod tests;

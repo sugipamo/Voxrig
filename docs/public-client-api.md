@@ -89,6 +89,12 @@ survivalのraw `use_on_block`は拒否し、この確認付き経路を使う。
 観測の量子化誤差を含めてgeometryを再確認し、元の受信速度を予測値やゼロで上書きしない。
 取消・補正・形状変化・結果欠測は履歴を保持して止め、自動でreplayや再接続しない。
 元ブランチの壁際停止試行は`RequiresInspection`で失敗した記録を保持する。
+追加の`TerminalClearance`で終点の静止・支持と1/16blockの水平marginを検査し、
+壁に接したままの終点は送信前に拒否する。clientが退避を勝手に入力列へ追加しない。
+完全に送信済みの静止予測を持つ失敗runは、明示的な`prepare_survival_motion_recheck` /
+`observe_survival_motion_recheck`で新しい観測と現在のgeometryを再確認できる。
+これは読出しだけの再評価で、元の失敗履歴を残す。中断・補正済みrunの復旧、移動や自動再送は行わない。
+終点拒否と利用側が宣言した壁接触・退避・配置の成功試行は元の失敗とは別の実行commitで保持する。
 対応範囲と検証条件は[採掘](survival-mining.md)、[配置](survival-placement.md)、
 [移動制御](survival-motion-controls.md)を参照する。
 

@@ -19,7 +19,8 @@
 自身の受信状態と静止した通常立位の接地判定を提供します。
 通常のサバイバル採掘・配置と、乾いたfull cubeに限定した歩行・ジャンプ制御も追加されています。
 移動後の接地は予測と独立接続の観測を照合する契約であり、serverの停止ackではありません。
-壁際停止の実試行は失敗を保持しています。一般地形の移動や完全な建築executorは提供しません。
+壁際停止は送信前のclearance確認で拒否し、利用側が退避を入力列へ明示します。
+元の失敗と退避後の配置成功の試行記録を保持しています。一般地形の移動や完全な建築executorは提供しません。
 詳細は[1.21.11操作](java-1.21.11-operations.md)、[在庫交換](survival-inventory.md)、
 [静止・接地判定](survival-standing-context.md)、[採掘](survival-mining.md)、
 [配置](survival-placement.md)、[移動制御と失敗記録](survival-motion-controls.md)と

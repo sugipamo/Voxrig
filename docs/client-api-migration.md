@@ -110,6 +110,10 @@ survivalのraw `use_on_block`は拒否します。`place_survival_cube`で意図
 新しいUUID削除受信を確認してからfresh recoveryを行います。
 移動は有限の`SurvivalInput`列と別接続のobserverを渡し、予測・観測・誤差を区別します。
 壁際停止の失敗は`RequiresInspection`として保持され、自動再開しません。
+`SurvivalMovementPreview`に`terminal_clearance`、`SurvivalMotionRecord`に`recheck`も追加されます。
+`TerminalClearance::RequiresReplan`の入力列は送信できないため、退避を含めて利用側で計画し直します。
+完全送信・静止予測を持つ失敗runの明示的な再観測は`prepare_survival_motion_recheck` /
+`observe_survival_motion_recheck`へ分離されます。中断や補正を観測だけで取り消すAPIではありません。
 詳細は[採掘](survival-mining.md)、[retirement](survival-mining-retirement.md)、
 [配置](survival-placement.md)、[移動制御](survival-motion-controls.md)を参照してください。
 
