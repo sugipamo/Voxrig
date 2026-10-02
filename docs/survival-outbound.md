@@ -21,7 +21,7 @@ cancellation there drops the unpublished transport instead of reusing it.
 
 `operations.operation_history().await` works after closure. Its connection ID,
 last receive sequence, interrupted packet ID, receive failure and pending
-inventory records are **historical diagnostics**, not a current observation or
+inventory/mining records are **historical diagnostics**, not a current observation or
 action capability. Ordinary state/world queries and all sends refuse a closed
 connection. Keep the handle until unresolved intent has been saved by the
 controller. A fresh connection cannot import those records as permission to act.

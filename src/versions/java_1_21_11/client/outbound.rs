@@ -34,6 +34,7 @@ impl Session {
     }
 
     pub(super) fn check_outbound(&self) -> Result<()> {
+        let closed = self.stopped.load(Ordering::Acquire);
         let packet = self.interrupted_packet.load(Ordering::Acquire);
         if packet >= 0 {
             return Err(Error::new(
@@ -43,7 +44,7 @@ impl Session {
                 ),
             ));
         }
-        if self.stopped.load(Ordering::Acquire) {
+        if closed {
             return Err(Error::new(
                 ErrorKind::Disconnected,
                 anyhow::anyhow!("connection closed"),

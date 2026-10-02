@@ -105,6 +105,7 @@ impl TraceCapture {
 }
 
 struct State {
+    mining: Option<operations::MiningRecord>,
     recording: Option<recording::Capture>,
     recording_ordinal: u64,
     operations: operations::OperationState,
@@ -124,6 +125,7 @@ struct State {
 impl Default for State {
     fn default() -> Self {
         Self {
+            mining: None,
             recording: None,
             recording_ordinal: 0,
             operations: operations::OperationState::default(),
@@ -505,13 +507,17 @@ impl Bot {
 
 impl Session {
     fn check(&self, state: &State) -> Result<()> {
-        if self.interrupted_packet.load(Ordering::Acquire) >= 0 {
-            self.check_outbound()?;
+        let outbound = self.check_outbound();
+        if outbound
+            .as_ref()
+            .is_err_and(|e| e.kind() == ErrorKind::UncertainDispatch)
+        {
+            return outbound;
         }
         if let Some(error) = &state.failure {
             return Err(Error::new(error.kind(), anyhow::anyhow!("{error}")));
         }
-        self.check_outbound()
+        outbound
     }
     async fn run_receiver(&self, reader: OwnedReadHalf) {
         let result = self.receive_loop(reader).await;
@@ -685,6 +691,7 @@ fn spawn_info(state: &mut State, r: &mut Reader<'_>) -> anyhow::Result<()> {
         .get(id)
         .context("unknown dimension registry ID")?;
     state.world.select_dimension(name, dimension);
+    operations::mining_world_changed(state, "world login/respawn changed mining context");
     if let Some(capture) = &mut state.recording {
         capture.invalidate(recording::RecordingIssue::WorldChanged);
     }
@@ -801,6 +808,7 @@ fn apply_play(
         input::MAP_CHUNK => {
             let chunk = [r.i32()?, r.i32()?];
             let pistons = state.world.load(payload, max_chunks)?;
+            operations::mining_chunk_changed(state, chunk);
             if let Some(capture) = &mut state.recording {
                 capture.chunk_changed(chunk);
             }
@@ -814,6 +822,7 @@ fn apply_play(
                 capture.received(&changes, state.sequence, state.reconstruction.tick)?;
             }
             state.reconstruction.received(&changes);
+            operations::mining_received(state, &changes)?;
         }
         input::MULTI_BLOCK_CHANGE => {
             let changes = state.world.section_changes(payload)?;
@@ -821,6 +830,7 @@ fn apply_play(
                 capture.received(&changes, state.sequence, state.reconstruction.tick)?;
             }
             state.reconstruction.received(&changes);
+            operations::mining_received(state, &changes)?;
         }
         input::UNLOAD_CHUNK => {
             let z = r.i32()?;
@@ -830,6 +840,7 @@ fn apply_play(
                 capture.chunk_changed([x, z]);
             }
             state.reconstruction.chunk_replaced([x, z]);
+            operations::mining_chunk_changed(state, [x, z]);
         }
         input::BLOCK_ACTION => {
             let p = super::wire::unpack_position(r.u64()?);
@@ -876,6 +887,7 @@ fn apply_play(
         }
         input::START_CONFIGURATION => {
             r.end()?;
+            operations::mining_world_changed(state, "configuration changed mining context");
             state.phase = Phase::Configuration;
             state.ready = false;
             state.position = None;
