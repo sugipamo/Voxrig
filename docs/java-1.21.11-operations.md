@@ -13,7 +13,7 @@ A block interaction acknowledgement is not proof that the requested block was
 placed or removed: callers must observe the resulting world state.
 
 Movement updates the local position with `position_from_server=false` until a
-server position packet replaces it. Walking collision/pathfinding and survival
+server position packet replaces it. General pathfinding and arbitrary-terrain
 movement/mining remain unimplemented. Flight requires a received
 permission and explicit request; creative inventory/digging requires a received
 creative game mode. Position, hit, slot, stack and sequence bounds are checked.
@@ -26,7 +26,14 @@ geometry refuses before any packet or rotation change. Creative look retains its
 existing behavior. See [standing context](survival-standing-context.md) for the
 admission scope and [inventory swaps](survival-inventory.md) for ordinary survival
 inventory operations. Neither derived contact nor a submitted look is server
-acceptance, and this addition does not implement walking or timed mining.
+acceptance. Bounded survival mining, placement and walking/jump controls have
+since been added with separate admission/result contracts; see
+[mining](survival-mining.md), [placement](survival-placement.md) and
+[motion controls](survival-motion-controls.md). Mining air does not reopen the
+original sender. Motion distinguishes prediction from independent position
+receipts; the retained wall-contact live run failed with `RequiresInspection`.
+Readiness now also requires current-world loading notification dispatch, and
+interrupted live frames close the session with inspectable operation history.
 
 The generated item registry is pinned beside the block registry. Creative writes
 use default items without added/removed components. Received complex components

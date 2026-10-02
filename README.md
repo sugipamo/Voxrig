@@ -58,7 +58,10 @@ async fn main() -> Result<()> {
 > 1.21.11では受信した単純スタックの観測に加え、survivalでの
 > [メイン所持品・ホットバー間の確認付き交換](docs/survival-inventory.md)に限定して対応します。
 > [静止した通常立位の接地判定と自身の受信状態](docs/survival-standing-context.md)も提供します。
-> 1.21.11のサバイバル歩行・採掘・汎用container操作、両版のMicrosoft認証・online-mode暗号化は未対応です。
+> さらに限定的な[通常採掘](docs/survival-mining.md)、[配置](docs/survival-placement.md)、
+> [歩行・ジャンプ制御](docs/survival-motion-controls.md)があります。
+> 移動後の立位は予測と別接続の観測を区別し、壁際停止の実試行は失敗を保持しています。
+> 汎用地形の移動・採掘、汎用container操作、両版のMicrosoft認証・online-mode暗号化は未対応です。
 > 対応範囲と失敗した試行は[バージョン別の検証記録](docs/version-adapter-validation.md)を参照してください。
 
 ## 開発時の確認

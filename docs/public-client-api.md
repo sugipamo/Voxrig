@@ -63,8 +63,34 @@ staleなscreen revisionでもserverはクリックを実行し得るため、自
 `standing_context()`は同じsession lock内で自身の状態と限定的な静止geometryを照合する。
 接地はclientの導出結果でありserverのackではない。サバイバルの`look()`は送信直前に
 この判定を再実行し、速度・姿勢・周囲のgeometryが不明または未対応なら送信前に拒否する。
-観測を保存して後の操作許可として再利用せず、歩行・落下・採掘の実装として扱わない。
+観測を保存して後の操作許可として再利用しない。
 対応条件は[静止・接地判定](survival-standing-context.md)に記録する。
+
+1.21.11の`wait_until_ready()`は位置と受信terrainに基づく、そのworldの
+`PLAYER_LOADED`通知の完全送信まで待つ。`InteractionLoading`はこの履歴を保持するが、
+操作のackではない。送信frameの途中で取消・書込失敗が起きた場合は接続を閉じ、
+`UncertainDispatch`と`operation_history()`で不確実な試行を保持する。自動再送しない。
+
+`start_survival_mining`/`finish_survival_mining`/`abort_survival_mining`は、限定的な
+素手のdirt・stone採掘の各送信を記録する。`wait_survival_mining`等の読出しは対象blockの
+新しい受信を照合する。airやABORTを根拠に元接続の次のmutationを許可しない。
+継続が必要なら、明示的なretirement・別接続による同一UUIDの新しい削除受信・
+新接続の基準観測を確認する`reconnect_survival_mining`を用いる。利用側が新しい計画を作る。
+
+`place_survival_cube`は受信した単純スタックと支持block・空きcellを確認して送信する。
+`wait_survival_placement`等は対象block、1個の材料消費、処理sequenceの受信を照合する。
+未解決・競合・timeoutは成功やrollbackへ読み替えず、同じ操作を繰り返さない。
+survivalのraw `use_on_block`は拒否し、この確認付き経路を使う。
+
+`preview_survival_motion`は有限の入力列を予測する読出し、`start_survival_motion`は
+1～120tickの入力と位置送信を所有する有限taskである。経路選択は利用側に残る。
+`OwnMotion`で自身の受信と送信を分け、移動後の`StandingPositionBasis::PredictedAndObserved`
+はmodelの静止予測と別接続の同一player instanceの新しい位置観測を区別して保持する。
+観測の量子化誤差を含めてgeometryを再確認し、元の受信速度を予測値やゼロで上書きしない。
+取消・補正・形状変化・結果欠測は履歴を保持して止め、自動でreplayや再接続しない。
+元ブランチの壁際停止試行は`RequiresInspection`で失敗した記録を保持する。
+対応範囲と検証条件は[採掘](survival-mining.md)、[配置](survival-placement.md)、
+[移動制御](survival-motion-controls.md)を参照する。
 
 装備操作、block properties、衝突geometry、採掘条件、entity寸法、item上限はclientの事実を返す。
 資源検索は`BlockQuery`/`query_loaded_blocks`へ、移動用の観測は`MovementSnapshot`、

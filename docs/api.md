@@ -10,6 +10,13 @@ rootの互換importと`versions::java_1_16_1`は同じ型です。
 1.21.11の対応操作は[版別操作API](java-1.21.11-operations.md)を参照してください。
 サバイバルでの単純スタック交換は[在庫交換API](survival-inventory.md)の
 `swap_player_hotbar` / `wait_inventory_swap`を使います。
+1.21.11の`wait_until_ready()`はworldごとのloading通知完了も待ちます。
+限定的なサバイバル操作は`start_survival_mining` / `wait_survival_mining`、
+`place_survival_cube` / `wait_survival_placement`、`preview_survival_motion` /
+`start_survival_motion`から利用します。操作後の観測と次のmutationの許可を区別してください。
+[採掘と継続境界](survival-mining.md)、[配置](survival-placement.md)、
+[移動制御の条件と失敗記録](survival-motion-controls.md)が各公開契約です。
+`operation_history()`は切断後も読める診断履歴であり、再送や操作再開の許可には使いません。
 
 ## Import
 

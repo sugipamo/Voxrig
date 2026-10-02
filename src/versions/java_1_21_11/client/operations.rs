@@ -1,13 +1,36 @@
 //! Version-specific player construction controls. Sending is not server acceptance.
-//! Stationary standing contact is bounded to supported static geometry.
-//! Walking collision/pathfinding, survival mining and complex item components
-//! are deliberately not inferred from this API.
+//! Static dry-cube standing and bounded survival controls have explicit admission.
+//! General locomotion/pathfinding and complex item components are not inferred.
+//! Mining removal alone does not authorize further mutations on that connection.
 mod inventory;
+mod mining;
+mod movement;
+mod placement;
+mod retirement;
 mod survival;
+pub use movement::{
+    PredictedMotionFrame, StandingPositionBasis, SurvivalInput, SurvivalMotionRecord,
+    SurvivalMotionStatus, SurvivalMovementPreview,
+};
 #[cfg(test)]
 mod tests;
+pub use super::loading::{InteractionLoading, LoadingAttempt};
+pub use super::motion::{OwnMotion, PositionBasis, PositionSubmission, ReceivedPose};
 use super::*;
 pub use inventory::{InventorySwap, InventorySwapObservation};
+pub use mining::{
+    MiningIntent, MiningRecord, MiningRemoval, MiningSend, MiningStatus, MiningTargetReceipt,
+};
+pub(super) use mining::{mining_chunk_changed, mining_received, mining_world_changed};
+pub use placement::{PlacementIntent, PlacementObservation, PlacementRecord, PlacementStatus};
+pub(super) use placement::{
+    placement_chunk_changed, placement_context_received, placement_received,
+};
+pub(super) use retirement::retirement_received;
+pub use retirement::{
+    MiningRecovery, MiningRecoveryEvidence, MiningRetirementRecord, MiningRetirementStatus,
+    MiningRetirementWatch,
+};
 use serde::Serialize;
 pub use survival::{
     AttributeValue, LocalPlayerState, MotionInterruption, PlayerHealth, ReceivedEffect,
@@ -103,6 +126,18 @@ pub struct Inventory {
     #[serde(skip)]
     slot_sequences: Vec<Option<u64>>,
 }
+/// Selected main-hand hotbar slot with explicit receive/submission provenance.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct HotbarSelection {
+    /// Native hotbar index 0..8.
+    pub slot: u8,
+    /// Receive boundary before the ordered selection send, or the selection packet.
+    pub sequence: u64,
+    /// False for an interrupted local selection attempt.
+    pub dispatched: bool,
+    /// True for a server-supplied selection; a local send is not an acknowledgement.
+    pub from_server: bool,
+}
 impl Default for Inventory {
     fn default() -> Self {
         Self {
@@ -121,6 +156,8 @@ impl Default for Inventory {
 /// A session-bound player/inventory observation; position may include submitted movement.
 #[derive(Clone, Debug, Serialize)]
 pub struct PlayerState {
+    /// Native loading stage; complete dispatch is not an operation acknowledgement.
+    pub interaction_loading: InteractionLoading,
     /// Session identity, not reusable across connections.
     pub connection_id: u64,
     /// Last applied receive sequence.
@@ -131,6 +168,8 @@ pub struct PlayerState {
     pub position: Option<[f64; 3]>,
     /// False after local movement until a server position packet replaces it.
     pub position_from_server: bool,
+    /// Separate position receipts and local submissions, with retained provenance.
+    pub motion: OwnMotion,
     /// Yaw and pitch in native degrees.
     pub rotation: [f32; 2],
     /// Latest received game mode.
@@ -143,12 +182,48 @@ pub struct PlayerState {
     pub acknowledged_interaction: Option<i32>,
     /// Inventory as received, never filled from submitted creative packets.
     pub inventory: Inventory,
+    /// Main-hand selection, absent until explicitly sent or received.
+    pub selected_hotbar: Option<HotbarSelection>,
     /// Own-player defaults and received updates, with explicit provenance.
     pub local_player: LocalPlayerState,
     /// Configuration flags actually received, absent until observed.
     pub enabled_features: Option<Vec<String>>,
     /// Last periodic server-time sample; never a current-tick fence.
     pub server_time: Option<ServerTime>,
+}
+/// Diagnostic history, available even after closure. These records are not a
+/// current player/world observation or permission to replay an action.
+#[derive(Clone, Debug, Serialize)]
+pub struct OperationHistory {
+    /// Owning connection; never reusable on a replacement connection.
+    pub connection_id: u64,
+    /// Last applied receive ordinal, not a fresh observation fence.
+    pub last_receive_sequence: u64,
+    /// True when the connection can no longer be used for operations.
+    pub connection_closed: bool,
+    /// First attempted packet whose frame completion became uncertain.
+    /// Does not prove how many bytes or which server effects occurred.
+    pub interrupted_packet_id: Option<i32>,
+    /// Most recent protocol/receive failure, if retained.
+    pub receive_failure: Option<String>,
+    /// An unresolved ordinary inventory swap; do not replay from this history.
+    pub pending_inventory_swap: Option<InventorySwap>,
+    /// Creative slots awaiting a received result, including interrupted sends.
+    pub pending_creative_slots: Vec<u8>,
+    /// Last mining intent/result, pending or observed. Never replay from history.
+    pub mining: Option<MiningRecord>,
+    /// Last ordinary placement, including unresolved sends and observed consumption.
+    pub placement: Option<PlacementRecord>,
+    /// Last independent retirement watch; history does not authorize recovery.
+    pub mining_retirement: Option<MiningRetirementRecord>,
+    /// Native loading attempts survive failure and remain available as history.
+    pub interaction_loading: InteractionLoading,
+    /// Last main-hand selection evidence, including incomplete send attempts.
+    pub selected_hotbar: Option<HotbarSelection>,
+    /// Position receipt/submission history; never replayable authority.
+    pub motion: OwnMotion,
+    /// Bounded survival control intent and observations; never replayable authority.
+    pub survival_motion: Option<SurvivalMotionRecord>,
 }
 /// A periodic native time packet bound to its receive sequence.
 #[derive(Clone, Debug, Serialize)]
@@ -195,9 +270,9 @@ pub(super) struct OperationState {
     game_mode: Option<GameMode>,
     abilities: Option<u8>,
     requested_flying: bool,
-    pub position_from_server: bool,
     ack: Option<i32>,
     inventory: Inventory,
+    selected_hotbar: Option<HotbarSelection>,
     pub(super) local_player: LocalPlayerState,
 }
 impl OperationState {
@@ -230,6 +305,29 @@ pub struct Operations {
     pub(super) bot: Bot,
 }
 impl Operations {
+    /// Inspect unresolved operation history without sending, reconnecting or
+    /// checking for a live connection. Never turns stale data into action authority.
+    pub async fn operation_history(&self) -> OperationHistory {
+        let state = self.bot.session.state.lock().await;
+        let closed = self.bot.session.stopped.load(Ordering::Acquire);
+        let interrupted = self.bot.session.interrupted_packet.load(Ordering::Acquire);
+        OperationHistory {
+            motion: state.motion.clone(),
+            survival_motion: state.survival_motion.clone(),
+            connection_id: self.bot.session.id,
+            last_receive_sequence: state.sequence,
+            connection_closed: closed || interrupted >= 0,
+            interrupted_packet_id: (interrupted >= 0).then_some(interrupted),
+            receive_failure: state.failure.as_ref().map(ToString::to_string),
+            pending_inventory_swap: state.operations.inventory.pending_swap.clone(),
+            pending_creative_slots: state.operations.inventory.pending_creative.clone(),
+            mining: state.mining.clone(),
+            placement: state.placement.clone(),
+            mining_retirement: state.retirement.clone(),
+            interaction_loading: state.loading.clone(),
+            selected_hotbar: state.operations.selected_hotbar.clone(),
+        }
+    }
     /// Observe other spawned players, without entity physics or render interpolation.
     pub async fn visible_players(&self) -> Result<super::players::PlayerObservations> {
         let state = self.bot.session.state.lock().await;
@@ -252,17 +350,22 @@ impl Operations {
         let state = self.bot.session.state.lock().await;
         self.bot.session.check(&state)?;
         Ok(PlayerState {
+            interaction_loading: state.loading.clone(),
             connection_id: self.bot.session.id,
             receive_sequence: state.sequence,
             dimension: state.world.dimension.as_ref().map(|d| d.0.clone()),
             position: state.position,
-            position_from_server: state.operations.position_from_server,
+            position_from_server: state
+                .motion
+                .received_position(state.loading.generation, state.position),
+            motion: state.motion.clone(),
             rotation: state.rotation,
             game_mode: state.operations.game_mode,
             may_fly: state.operations.abilities.is_some_and(|a| a & 4 != 0),
             requested_flying: state.operations.requested_flying,
             acknowledged_interaction: state.operations.ack,
             inventory: state.operations.inventory.clone(),
+            selected_hotbar: state.operations.selected_hotbar.clone(),
             local_player: state.operations.local_player.clone(),
             enabled_features: state.operations.features.clone(),
             server_time: state.operations.server_time.clone(),
@@ -298,7 +401,7 @@ impl Operations {
             return Err(invalid("invalid command text"));
         }
         let state = self.bot.session.state.lock().await;
-        self.ready(&state)?;
+        self.mutable(&state)?;
         let mut payload = Vec::new();
         put_string(&mut payload, command);
         self.bot
@@ -310,7 +413,7 @@ impl Operations {
     /// Request flight only when the server advertises the ability.
     pub async fn set_flying(&self, flying: bool) -> Result<()> {
         let mut state = self.bot.session.state.lock().await;
-        self.ready(&state)?;
+        self.mutable(&state)?;
         if flying && !state.operations.abilities.is_some_and(|a| a & 4 != 0) {
             return Err(invalid("server has not granted flight"));
         }
@@ -329,7 +432,7 @@ impl Operations {
     pub async fn move_flying(&self, position: [f64; 3], rotation: [f32; 2]) -> Result<()> {
         validate_pose(position, rotation)?;
         let mut state = self.bot.session.state.lock().await;
-        self.ready(&state)?;
+        self.mutable(&state)?;
         if !state.operations.requested_flying
             || !state.operations.abilities.is_some_and(|a| a & 4 != 0)
         {
@@ -353,13 +456,18 @@ impl Operations {
             payload.extend(v.to_be_bytes());
         }
         payload.push(0);
+        let generation = state.loading.generation;
+        let sequence = state.sequence;
+        state
+            .motion
+            .begin(generation, sequence, position, rotation)?;
         self.bot
             .session
             .send(ids::play_serverbound::POSITION_LOOK, &payload)
             .await?;
         state.position = Some(position);
         state.rotation = rotation;
-        state.operations.position_from_server = false;
+        state.motion.dispatched();
         Ok(())
     }
     /// Submit a view direction in native degrees, without changing position.
@@ -368,7 +476,7 @@ impl Operations {
     pub async fn look(&self, rotation: [f32; 2]) -> Result<()> {
         validate_pose([0.0; 3], rotation)?;
         let mut state = self.bot.session.state.lock().await;
-        self.ready(&state)?;
+        self.mutable(&state)?;
         let mut payload = Vec::new();
         for v in rotation {
             payload.extend(v.to_be_bytes());
@@ -400,14 +508,14 @@ impl Operations {
         }
         let mut state = self.bot.session.state.lock().await;
         self.creative(&state)?;
-        self.bot
-            .session
-            .send(ids::play_serverbound::SET_CREATIVE_SLOT, &payload)
-            .await?;
         state.operations.inventory.slots[36 + usize::from(slot)] = InventorySlot::Unavailable;
         if !state.operations.inventory.pending_creative.contains(&slot) {
             state.operations.inventory.pending_creative.push(slot);
         }
+        self.bot
+            .session
+            .send(ids::play_serverbound::SET_CREATIVE_SLOT, &payload)
+            .await?;
         Ok(())
     }
     /// Submit held hotbar selection. The server still decides which item is present.
@@ -415,14 +523,20 @@ impl Operations {
         if slot > 8 {
             return Err(invalid("hotbar slot must be 0..8"));
         }
-        let state = self.bot.session.state.lock().await;
-        self.ready(&state)?;
+        let mut state = self.bot.session.state.lock().await;
+        self.mutable(&state)?;
         if state.operations.inventory.pending_swap.is_some() {
             return Err(Error::new(
                 ErrorKind::State,
                 anyhow::anyhow!("inventory swap needs inspection"),
             ));
         }
+        state.operations.selected_hotbar = Some(HotbarSelection {
+            slot,
+            sequence: state.sequence,
+            dispatched: false,
+            from_server: false,
+        });
         self.bot
             .session
             .send(
@@ -430,6 +544,12 @@ impl Operations {
                 &i16::from(slot).to_be_bytes(),
             )
             .await?;
+        state
+            .operations
+            .selected_hotbar
+            .as_mut()
+            .expect("selection attempt")
+            .dispatched = true;
         Ok(())
     }
     /// Start an ordinary creative block break. Returned sequence identifies submission only.
@@ -463,11 +583,16 @@ impl Operations {
             return Err(invalid("invalid block hit"));
         }
         let state = self.bot.session.state.lock().await;
-        self.ready(&state)?;
+        self.mutable(&state)?;
         if state.operations.inventory.pending_swap.is_some() {
             return Err(Error::new(
                 ErrorKind::State,
                 anyhow::anyhow!("inventory swap needs inspection"),
+            ));
+        }
+        if state.operations.game_mode == Some(GameMode::Survival) {
+            return Err(invalid(
+                "survival placement requires place_survival_cube and received material accounting",
             ));
         }
         check_reach(&state, position)?;
@@ -493,8 +618,55 @@ impl Operations {
         }
         Ok(())
     }
-    fn creative(&self, state: &State) -> Result<()> {
+    pub(super) fn mutable(&self, state: &State) -> Result<()> {
         self.ready(state)?;
+        if !state.loading.notification_dispatched() {
+            return Err(Error::new(
+                ErrorKind::State,
+                anyhow::anyhow!(
+                    "native interaction loading pending; await readiness or inspect retained loading attempt"
+                ),
+            ));
+        }
+        if state
+            .survival_motion
+            .as_ref()
+            .is_some_and(|r| r.status != SurvivalMotionStatus::Observed)
+        {
+            return Err(invalid(
+                "survival motion unresolved; inspect retained run before another mutation",
+            ));
+        }
+        if state.motion.position_basis == PositionBasis::PendingSubmission {
+            return Err(Error::new(
+                ErrorKind::State,
+                anyhow::anyhow!("position submission unresolved; inspect motion history"),
+            ));
+        }
+        if state
+            .placement
+            .as_ref()
+            .is_some_and(|p| p.observation.is_none())
+        {
+            return Err(Error::new(
+                ErrorKind::State,
+                anyhow::anyhow!(
+                    "survival placement needs target and material observations; inspect the retained intent"
+                ),
+            ));
+        }
+        if state.mining.is_some() {
+            return Err(Error::new(
+                ErrorKind::State,
+                anyhow::anyhow!(
+                    "survival mining continuation needs inspection; observing removal alone does not authorize another mutation"
+                ),
+            ));
+        }
+        Ok(())
+    }
+    fn creative(&self, state: &State) -> Result<()> {
+        self.mutable(state)?;
         if state.operations.inventory.pending_swap.is_some() {
             return Err(Error::new(
                 ErrorKind::State,
@@ -599,6 +771,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
     if !matches!(
         id,
         input::ABILITIES
+            | input::HELD_ITEM_SLOT
             | input::GAME_STATE_CHANGE
             | input::ACKNOWLEDGE_PLAYER_DIGGING
             | input::WINDOW_ITEMS
@@ -615,6 +788,19 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
     let mut next = state.operations.clone();
     let mut r = Reader::new(payload);
     match id {
+        input::HELD_ITEM_SLOT => {
+            let slot = r.varint()?;
+            r.end()?;
+            if !(0..=8).contains(&slot) {
+                bail!("invalid received hotbar selection");
+            }
+            next.selected_hotbar = Some(HotbarSelection {
+                slot: slot as u8,
+                sequence: state.sequence,
+                dispatched: true,
+                from_server: true,
+            });
+        }
         input::SYSTEM_CHAT => {
             // Validate framing even when presentation exceeds our projection budget.
             r.skip_nbt()?;
@@ -666,6 +852,12 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             let reason = r.u8()?;
             let value = r.f32()?;
             r.end()?;
+            if reason == 13 {
+                state
+                    .loading
+                    .initial_chunks_sequence
+                    .get_or_insert(state.sequence);
+            }
             if reason == 3 {
                 if !(0.0..=3.0).contains(&value) || value.fract() != 0.0 {
                     bail!("invalid game mode");

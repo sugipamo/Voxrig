@@ -72,7 +72,7 @@ Window Itemsで確定したplayer slot offsetを保持し、部分更新でinven
 
 ## DustRouteから
 
-`Client`、`ConnectionConfig`、`MinecraftVersion`、既存の1.21.11操作メソッドは維持します。
+`Client`、`ConnectionConfig`、`MinecraftVersion`、既存の1.21.11操作メソッド名は維持します。
 vendorの内容をdevelopの固定commitで置き換えるか、同じcommitをGit dependencyの`rev`へ指定します。
 Cargo.lockも更新し、`voxrig` feature付きのbridge・operation・recording試験を行います。
 
@@ -92,6 +92,26 @@ Cargo.lockも更新し、`voxrig` feature付きのbridge・operation・recording
 `look()`も送信前にこの条件を確認します。未ロード、姿勢・速度の欠測、液体等の未対応
 geometryではエラーを利用側へ返し、送信成功や通常歩行の保証へ読み替えないでください。
 クリエイティブの視点変更は既存の経路を維持します。
+
+1.21.11の追加統合では`PlayerState`に`interaction_loading`、`motion`、`selected_hotbar`、
+`ObservedPlayer`に`motion`、`StandingContext`に`position_basis`も追加されています。
+直接構築するfixtureはこれらを指定してください。`LocalPlayerState`の移動属性の追加は
+`..Default::default()`を使うfixtureでは省略できますが、操作の許可には実際の基準観測が必要です。
+`position_from_server`は`OwnMotion`から導出する互換fieldであり、予測位置を受信値へ変えません。
+
+1.21.11の`wait_until_ready()`はworldごとのloading通知完了も待ちます。
+位置だけをseedしたTCP fixtureでmutationを試す場合は、実際のINITIAL_CHUNKS_COMING・
+chunk・位置受信の経路も用意してください。取消・write失敗の後は`UncertainDispatch`を扱い、
+閉じた接続から`operation_history()`で診断情報を読んでください。履歴から操作を再送しません。
+
+survivalのraw `use_on_block`は拒否します。`place_survival_cube`で意図を登録し、
+対象block・材料消費・処理sequenceを読出し待機で確認してください。
+採掘ではair受信後も元接続のmutationは保留され、明示的なretirementと別接続の
+新しいUUID削除受信を確認してからfresh recoveryを行います。
+移動は有限の`SurvivalInput`列と別接続のobserverを渡し、予測・観測・誤差を区別します。
+壁際停止の失敗は`RequiresInspection`として保持され、自動再開しません。
+詳細は[採掘](survival-mining.md)、[retirement](survival-mining-retirement.md)、
+[配置](survival-placement.md)、[移動制御](survival-motion-controls.md)を参照してください。
 
 ## 採用検証
 

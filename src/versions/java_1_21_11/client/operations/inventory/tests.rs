@@ -37,6 +37,7 @@ fn baseline() -> State {
     let mut state = State {
         sequence: 10,
         ready: true,
+        loading: loading::InteractionLoading::completed_fixture(),
         ..State::default()
     };
     state.operations.game_mode = Some(GameMode::Survival);
@@ -256,6 +257,7 @@ async fn ordinary_click_uses_real_transport_and_timeout_never_resubmits() {
         changed: Notify::new(),
         cancel: Notify::new(),
         stopped: AtomicBool::new(false),
+        interrupted_packet: AtomicI32::new(-1),
         limits: crate::ConnectionOptions::default(),
         interaction_sequence: AtomicI32::new(0),
     });

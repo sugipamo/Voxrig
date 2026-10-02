@@ -10,7 +10,10 @@
 //! Java 1.21.11 (774) adapter for native block observations, packet traces,
 //! outline targeting, creative inventory and block operations, direct movement,
 //! received-result-checked survival inventory swaps, and bounded stationary
-//! standing contact with own-player state observations.
+//! standing contact with own-player state observations. Bounded survival mining,
+//! material-accounted placement and dry-cube walking/jump controls use separate
+//! intent, dispatch, prediction and result evidence. Mining removal alone does
+//! not authorize another mutation, and motion is not server-confirmed rest.
 //! [`Client::observe_client_region`] additionally
 //! reconstructs a bounded set of piston and neighbor effects, including independent
 //! moving carriers, while preserving the unchanged received-state view.

@@ -30,6 +30,14 @@ using the same remap/access-only development oracle; no game method bodies are
 copied. Source/output hashes and validation scope are recorded in the manifest
 and `docs/survival-standing-context.md`.
 
+`docs/evidence/survival-mining-*20261002*` contains locally recorded packet,
+block/player observations and console diagnostics from an isolated official
+Java 1.21.11 server. The driver is original test-private code and invokes native
+player action packets; no Minecraft binary or decompiled code is redistributed.
+The manifests record raw data hashes, transformation, failed attempt and scope,
+including the separate native intent/result API comparison and its unvalidated
+continuation boundary.
+
 `docs/evidence/client-motion-*-20260929.json.gz` and their replay fixtures were
 recorded by this repository's `packet_trace_probe` against an isolated official
 Minecraft Java 1.21.11 server. The accompanying manifest identifies originals,
@@ -192,3 +200,9 @@ breakable. Silk Touch, block-state conditions and special destruction behavior
 remain separate. Descriptor revision 3 distinguishes these effective definitions
 from the original registry. Upstream PR #407 is background evidence of the
 netherite additions, not the authority used to infer corrected tool membership.
+
+The native correction and dry-movement method/codec observations in
+`data/java_1_21_11/position_corrections.json` and `dry_movement.json` use original
+Java callers of unchanged target-version method bodies. Their source hashes,
+mappings and scope are recorded in `dry_movement_source.json`. No Minecraft
+class files or method bodies are distributed. See `docs/survival-motion-controls.md`.

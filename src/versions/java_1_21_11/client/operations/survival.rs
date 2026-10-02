@@ -1,4 +1,6 @@
 //! Own-player observation and a deliberately bounded stationary standing model.
+mod attributes;
+use super::super::super::wire::velocity;
 use super::*;
 use crate::versions::java_1_21_11::client::players::{self, PlayerPose};
 use std::collections::BTreeMap;
@@ -85,6 +87,22 @@ pub struct LocalPlayerState {
     pub mining_efficiency: Option<AttributeValue>,
     /// Native submerged-mining-speed attribute, not evidence of submersion.
     pub submerged_mining_speed: Option<AttributeValue>,
+    /// Native movement-speed attribute, including received modifiers.
+    pub movement_speed: Option<AttributeValue>,
+    /// Native gravity; negative values are preserved, not silently made normal.
+    pub gravity: Option<AttributeValue>,
+    /// Native jump-strength attribute; not an assertion that jumping is allowed.
+    pub jump_strength: Option<AttributeValue>,
+    /// Maximum native stepping height, before geometric checks.
+    pub step_height: Option<AttributeValue>,
+    /// Native movement-efficiency attribute.
+    pub movement_efficiency: Option<AttributeValue>,
+    /// Native sneaking-speed attribute.
+    pub sneaking_speed: Option<AttributeValue>,
+    /// Native safe-fall distance; does not establish a safe path.
+    pub safe_fall_distance: Option<AttributeValue>,
+    /// Native fall-damage multiplier; no damage prediction is implied.
+    pub fall_damage_multiplier: Option<AttributeValue>,
     /// Last resolved velocity; None for unsupported rotated relative updates.
     pub velocity: Option<VelocitySample>,
     /// Unsupported impulse/vehicle context; requires a fresh world baseline.
@@ -99,7 +117,7 @@ pub struct LocalPlayerState {
 }
 
 // Audited against the game's native registry/default attribute container.
-const DRY_CUBES: &[&str] = &[
+pub(super) const DRY_CUBES: &[&str] = &[
     "minecraft:stone",
     "minecraft:dirt",
     "minecraft:grass_block",
@@ -113,67 +131,19 @@ const DRY_CUBES: &[&str] = &[
     "minecraft:andesite",
     "minecraft:granite",
 ];
-const ATTRIBUTES: [(i32, f64, f64, f64); 4] = [
-    (ids::SCALE_ATTRIBUTE, 1.0, 0.0625, 16.0),
-    (5, 1.0, 0.0, 1024.0),
-    (20, 0.0, 0.0, 1024.0),
-    (29, 0.2, 0.0, 20.0),
-];
 impl LocalPlayerState {
     pub(in crate::versions::java_1_21_11::client) fn spawned(entity_id: i32) -> Self {
-        let value = |index: usize| {
-            Some(AttributeValue {
-                value: ATTRIBUTES[index].1,
-                basis: ValueBasis::NativeReset,
-            })
-        };
-        Self {
+        let mut player = Self {
             entity_id: Some(entity_id),
             pose: Some(PlayerPose::Standing),
             pose_basis: Some(ValueBasis::NativeReset),
-            scale: value(0),
-            block_break_speed: value(1),
-            mining_efficiency: value(2),
-            submerged_mining_speed: value(3),
             ..Self::default()
-        }
+        };
+        attributes::initialize(&mut player);
+        player
     }
     pub(super) fn reset_world(&self) -> Self {
         self.entity_id.map(Self::spawned).unwrap_or_default()
-    }
-    pub(in crate::versions::java_1_21_11::client) fn correct_velocity(
-        &mut self,
-        delta: [f64; 3],
-        flags: u32,
-        sequence: u64,
-    ) -> anyhow::Result<()> {
-        if delta.iter().any(|v| !v.is_finite()) {
-            bail!("non-finite correction velocity");
-        }
-        let relative = flags & 224;
-        let previous = self.velocity.map(|v| v.value);
-        // ROTATE_DELTA requires native angle-table rotation of prior velocity.
-        // Retain explicit uncertainty instead of applying an approximate rotation.
-        let rotated_unknown = flags & 256 != 0 && relative != 0 && previous != Some([0.0; 3]);
-        let value = if rotated_unknown || (relative != 0 && previous.is_none()) {
-            None
-        } else {
-            let mut velocity = delta;
-            for (axis, value) in velocity.iter_mut().enumerate() {
-                if flags & (32 << axis) != 0 {
-                    *value += previous.expect("checked baseline")[axis];
-                }
-            }
-            if velocity.iter().any(|v| !v.is_finite()) {
-                bail!("non-finite resolved velocity");
-            }
-            Some(VelocitySample {
-                value: velocity,
-                receive_sequence: sequence,
-            })
-        };
-        self.velocity = value;
-        Ok(())
     }
 }
 
@@ -257,21 +227,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         }
         input::ENTITY_UPDATE_ATTRIBUTES => {
             let values = players::read_attributes(&mut r)?;
-            for (index, (key, _, min, max)) in ATTRIBUTES.iter().enumerate() {
-                if let Some(value) = values.get(key) {
-                    let sample = Some(AttributeValue {
-                        value: value.clamp(*min, *max),
-                        basis: ValueBasis::Received { sequence },
-                    });
-                    match index {
-                        0 => next.scale = sample,
-                        1 => next.block_break_speed = sample,
-                        2 => next.mining_efficiency = sample,
-                        3 => next.submerged_mining_speed = sample,
-                        _ => unreachable!(),
-                    }
-                }
-            }
+            attributes::received(&mut next, &values, sequence);
         }
         input::ENTITY_EFFECT | input::REMOVE_ENTITY_EFFECT => {
             let effect_id = r.varint()?;
@@ -311,29 +267,14 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
 }
 
 fn interrupt(state: &mut State, packet_id: i32) {
+    state
+        .motion
+        .invalidate(state.sequence, "unmodeled player motion");
     state.operations.local_player.velocity = None;
     state.operations.local_player.motion_interruption = Some(MotionInterruption {
         packet_id,
         receive_sequence: state.sequence,
     });
-}
-
-// Native packed vector codec. No old 1.16.1 i16 velocity interpretation.
-fn velocity(r: &mut Reader<'_>) -> anyhow::Result<[f64; 3]> {
-    let first = r.u8()?;
-    if first == 0 {
-        return Ok([0.0; 3]);
-    }
-    let second = r.u8()?;
-    let packed = (u64::from(r.u32()?) << 16) | (u64::from(second) << 8) | u64::from(first);
-    let mut scale = u64::from(first & 3);
-    if first & 4 != 0 {
-        scale |= u64::from(r.varint()? as u32) << 2;
-    }
-    Ok(std::array::from_fn(|axis| {
-        let bits = ((packed >> (3 + axis * 15)) & 32767).min(32766);
-        (bits as f64 * 2.0 / 32766.0 - 1.0) * scale as f64
-    }))
 }
 
 /// A derived stationary standing context; never a server ground acknowledgement.
@@ -349,7 +290,9 @@ pub struct StandingContext {
     pub world_revision: u64,
     /// Current dimension.
     pub dimension: String,
-    /// Latest received feet position. Locally submitted flight is refused.
+    /// Explicit received or predicted-and-observed basis. Neither proves server rest.
+    pub position_basis: StandingPositionBasis,
+    /// Feet position with the basis above. Locally submitted flight is refused.
     pub position: [f64; 3],
     /// Native standing eye position, using float dimensions.
     pub eye_position: [f64; 3],
@@ -387,7 +330,64 @@ pub(super) fn look_flags(state: &mut State, tick: u64) -> Result<u8> {
 fn unavailable(message: impl std::fmt::Display) -> Error {
     Error::new(ErrorKind::State, anyhow::anyhow!("{message}"))
 }
-fn context(state: &mut State, connection_id: u64, tick: u64) -> Result<StandingContext> {
+struct StandingRegion {
+    bounds: [f64; 6],
+    min: [i32; 3],
+    max: [i32; 3],
+}
+fn standing_region(position: [f64; 3]) -> StandingRegion {
+    let half = f64::from(0.6f32) / 2.0;
+    let bounds = [
+        position[0] - half,
+        position[1],
+        position[2] - half,
+        position[0] + half,
+        position[1] + f64::from(1.8f32),
+        position[2] + half,
+    ];
+    // One-cell halo also refuses unsupported protruding/context-dependent neighbors.
+    let min = [
+        bounds[0].floor() as i32 - 1,
+        bounds[1].floor() as i32 - 1,
+        bounds[2].floor() as i32 - 1,
+    ];
+    let max = [
+        bounds[3].floor() as i32 + 1,
+        bounds[4].floor() as i32 + 1,
+        bounds[5].floor() as i32 + 1,
+    ];
+    StandingRegion { bounds, min, max }
+}
+
+#[cfg(test)]
+pub(super) fn standing_intersects(position: [f64; 3], cell: [i32; 3]) -> bool {
+    let bounds = standing_region(position).bounds;
+    (0..3).all(|i| bounds[i] < f64::from(cell[i] + 1) && bounds[i + 3] > f64::from(cell[i]))
+}
+
+// Readiness covers every cell that context() will inspect, including neighbor
+// chunks at chunk edges. Unknown cells wait; unsupported received cells still
+// fail the subsequent context validation. No timeout infers missing geometry.
+pub(super) fn standing_baselines_received(state: &State) -> Result<bool> {
+    let Some(position) = state.position else {
+        return Ok(false);
+    };
+    validate_pose(position, state.rotation)?;
+    let Some((_, height)) = &state.world.dimension else {
+        return Ok(false);
+    };
+    let StandingRegion { min, max, .. } = standing_region(position);
+    if min[1] < height.min_y || max[1] >= height.min_y + height.height {
+        return Err(unavailable(
+            "standing context crosses the observed dimension bounds",
+        ));
+    }
+    Ok((min[0]..=max[0]).all(|x| {
+        (min[1]..=max[1]).all(|y| (min[2]..=max[2]).all(|z| state.world.block([x, y, z]).is_some()))
+    }))
+}
+
+pub(super) fn context(state: &mut State, connection_id: u64, tick: u64) -> Result<StandingContext> {
     let player = &state.operations.local_player;
     if let Some(interruption) = &player.motion_interruption {
         return Err(unavailable(format!(
@@ -406,12 +406,7 @@ fn context(state: &mut State, connection_id: u64, tick: u64) -> Result<StandingC
     if state.operations.requested_flying || state.operations.abilities.is_some_and(|a| a & 2 != 0) {
         return Err(unavailable("stationary context refuses active flight"));
     }
-    if !state.operations.position_from_server || player.velocity.map(|v| v.value) != Some([0.0; 3])
-    {
-        return Err(unavailable(
-            "stationary context requires a received position and zero resolved velocity",
-        ));
-    }
+    let position_basis = super::movement::standing_basis(state)?;
     if player.health.as_ref().is_some_and(|h| h.health <= 0.0) {
         return Err(unavailable("player is dead"));
     }
@@ -428,27 +423,17 @@ fn context(state: &mut State, connection_id: u64, tick: u64) -> Result<StandingC
         .dimension
         .as_ref()
         .ok_or_else(|| unavailable("dimension unavailable"))?;
-    let half = f64::from(0.6f32) / 2.0;
-    let bounds = [
-        position[0] - half,
-        position[1],
-        position[2] - half,
-        position[0] + half,
-        position[1] + f64::from(1.8f32),
-        position[2] + half,
-    ];
+    let StandingRegion {
+        mut bounds,
+        min,
+        max,
+    } = standing_region(position);
+    let error = position_basis.horizontal_error();
+    for axis in [0, 2] {
+        bounds[axis] -= error[axis];
+        bounds[axis + 3] += error[axis];
+    }
     let mut support = Vec::new();
-    // One-cell halo also refuses unsupported protruding/context-dependent neighbors.
-    let min = [
-        bounds[0].floor() as i32 - 1,
-        bounds[1].floor() as i32 - 1,
-        bounds[2].floor() as i32 - 1,
-    ];
-    let max = [
-        bounds[3].floor() as i32 + 1,
-        bounds[4].floor() as i32 + 1,
-        bounds[5].floor() as i32 + 1,
-    ];
     for x in min[0]..=max[0] {
         for y in min[1]..=max[1] {
             for z in min[2]..=max[2] {
@@ -491,7 +476,14 @@ fn context(state: &mut State, connection_id: u64, tick: u64) -> Result<StandingC
                             && bounds[3] - 1e-7 > cube[0]
                             && bounds[2] + 1e-7 < cube[5]
                             && bounds[5] - 1e-7 > cube[2];
-                        if probe_horizontal && (0.0..1e-7).contains(&gap) {
+                        if probe_horizontal
+                            && (0.0..1e-7).contains(&gap)
+                            && (error == [0.0; 3]
+                                || (bounds[0] + 2.0 * error[0] + 1e-7 < cube[3]
+                                    && bounds[3] - 2.0 * error[0] - 1e-7 > cube[0]
+                                    && bounds[2] + 2.0 * error[2] + 1e-7 < cube[5]
+                                    && bounds[5] - 2.0 * error[2] - 1e-7 > cube[2]))
+                        {
                             support.push(p);
                         }
                     }
@@ -515,6 +507,7 @@ fn context(state: &mut State, connection_id: u64, tick: u64) -> Result<StandingC
         world_revision: state.world.revision,
         dimension: dimension.clone(),
         position,
+        position_basis,
         eye_position: [position[0], position[1] + f64::from(1.62f32), position[2]],
         bounds,
         on_ground: !support.is_empty(),
@@ -522,4 +515,69 @@ fn context(state: &mut State, connection_id: u64, tick: u64) -> Result<StandingC
         submerged: false,
         player: player.clone(),
     })
+}
+
+// Conservative post-motion reach/occlusion check. For admitted full cubes the
+// swept ray is contained in this axis-aligned corridor. Refusing any intervening
+// solid in the corridor deliberately avoids treating corner samples as proof
+// that the continuum between them is unobstructed.
+pub(super) fn uncertain_target(
+    state: &State,
+    standing: &StandingContext,
+    hit: &super::super::raycast::BlockHit,
+) -> Result<()> {
+    let error = standing.position_basis.horizontal_error();
+    if error == [0.0; 3] {
+        return Ok(());
+    }
+    let cursor = super::super::raycast::stationary_hit_cursor(state, standing.eye_position, hit);
+    let endpoint: [f64; 3] =
+        std::array::from_fn(|i| f64::from(hit.position[i]) + f64::from(cursor[i]));
+    let min: [i32; 3] = std::array::from_fn(|i| {
+        (standing.eye_position[i].min(endpoint[i]) - error[i]).floor() as i32
+    });
+    let max: [i32; 3] = std::array::from_fn(|i| {
+        (standing.eye_position[i].max(endpoint[i]) + error[i]).floor() as i32
+    });
+    for x in min[0]..=max[0] {
+        for y in min[1]..=max[1] {
+            for z in min[2]..=max[2] {
+                let p = [x, y, z];
+                if p == hit.position {
+                    continue;
+                }
+                let cell = state.reconstruction.cell(&state.world, p);
+                if cell.moving.is_some()
+                    || !cell.state.is_some_and(|s| {
+                        matches!(
+                            s.name.as_str(),
+                            "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air"
+                        )
+                    })
+                {
+                    return Err(unavailable(
+                        "uncertain eye corridor is not clear; use a less ambiguous standing/target geometry",
+                    ));
+                }
+            }
+        }
+    }
+    for dx in [-error[0], error[0]] {
+        for dz in [-error[2], error[2]] {
+            let eye = [
+                standing.eye_position[0] + dx,
+                standing.eye_position[1],
+                standing.eye_position[2] + dz,
+            ];
+            let observed = super::super::raycast::stationary_outline_hit(state, eye, 4.5)?;
+            if observed.is_none_or(|h| {
+                h.position != hit.position || h.face != hit.face || h.state != hit.state
+            }) {
+                return Err(unavailable(
+                    "target face/reach differs across observed position uncertainty",
+                ));
+            }
+        }
+    }
+    Ok(())
 }

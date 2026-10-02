@@ -17,8 +17,12 @@
 1.21.11ではnative block観測、piston再構成、記録、照準、remote player観測と
 限定的なクリエイティブ操作、サバイバルでのメイン所持品・ホットバー間の単純スタック交換、
 自身の受信状態と静止した通常立位の接地判定を提供します。
+通常のサバイバル採掘・配置と、乾いたfull cubeに限定した歩行・ジャンプ制御も追加されています。
+移動後の接地は予測と独立接続の観測を照合する契約であり、serverの停止ackではありません。
+壁際停止の実試行は失敗を保持しています。一般地形の移動や完全な建築executorは提供しません。
 詳細は[1.21.11操作](java-1.21.11-operations.md)、[在庫交換](survival-inventory.md)、
-[静止・接地判定](survival-standing-context.md)と
+[静止・接地判定](survival-standing-context.md)、[採掘](survival-mining.md)、
+[配置](survival-placement.md)、[移動制御と失敗記録](survival-motion-controls.md)と
 [版別検証](version-adapter-validation.md)を参照してください。
 
 ## 実装済み

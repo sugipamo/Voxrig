@@ -140,3 +140,46 @@ package検証と隔離コピーのDustRoute互換性確認の結果は統合PR�
 採用検証の対象はこの追加を含むdevelopの新しい固定commitへ更新する。
 旧`44efce7`の結果だけでは今回の候補を検証済みとは扱わず、
 各利用プロジェクトの同一commitでの結果が揃ってからmainへ統合する。
+
+## 衝突誤差修正と限定サバイバル操作の追加統合
+
+2026-10-02（JST）。新しいpushを同期し、以下を順にdevelopへ統合した。
+
+| 取込元 | commit | 変更 |
+| --- | --- | --- |
+| `golemkit/collision-epsilon` | `45dfdad41f41f8ee145e39fa818342a84bd1970d` | 1.16.1の衝突clipで微小な浮動小数点誤差を接触として扱う |
+| `codex/survival-construction` | `7915c253ea075926b1576274881e5b426e85c088` | 1.21.11のguard付き送信、loading、採掘・retirement、材料確認付き配置、位置の由来、限定的な歩行・ジャンプ制御と証跡 |
+
+1.16.1の修正は8件のphysics試験で確認してから統合した。
+1.21.11側の競合はoperation moduleの説明とthird-party noticesで発生し、
+両版の説明・noticeを保持して解消した。package/crateは`voxrig` 0.2.0を維持する。
+新コードの3か所のlet chainを同じ条件の`Option::filter`へ置き換え、Rust 1.85対応を維持した。
+
+loading・未解決操作・不確実なframe送信を共通の境界で扱う。
+採掘のair受信だけでは元接続の次のmutationを許可せず、明示的な退出確認とfresh recoveryを用いる。
+配置は対象block・材料消費・処理sequenceを照合する。survivalのraw `use_on_block`は拒否する。
+移動は最大120tickの入力列を利用側が選び、予測と独立接続の同一instanceの新しい位置受信を
+区別する。経路探索、汎用地形の物理や完全な建築executorは提供しない。
+公開API・移行表・対応一覧へ追加fieldと動作条件を記録した。
+
+| 確認 | 結果 |
+| --- | --- |
+| 全target、Rust 1.97.1、`-j1 -- --test-threads=1`、MSRV修正後 | 330件成功、5件スキップ、全exampleをコンパイル |
+| docテスト、Rust 1.97.1 | 1件成功 |
+| fmt | 成功 |
+| 全target Clippy、Rust 1.99.0、`-D warnings`、MSRV修正後 | 成功 |
+| MSRV、Rust 1.85.0、全target | 成功 |
+| rustdoc、Rust 1.97.1、`-D warnings` | 成功 |
+| fixture・生成ツール・保存証跡のSHA-256 | 29件の参照がmanifestと一致。motion traceは展開後のhash・sizeも一致 |
+
+スキップは専用Minecraft環境を必要とする4試験と任意の観測性能比較1試験。
+Java native oracleとMinecraft実サーバーの試行はこの統合環境で再実行していない。
+元ブランチの採掘・退出／再接続・配置の成功記録と、motionの部分成功・壁際停止の失敗記録を
+その実行commit付きで保持した。wall-contact試行は全体成功とは扱わず、
+後から受信した在庫数の増加も未診断として保持し、最終的な材料の純消費は断定しない。
+詳細は[移動制御の実試行](survival-motion-controls.md)と付属の証跡を参照する。
+
+ログは`.local/integration-validation/survival-controls-merge/`へ保存する。
+package検証と隔離コピーのDustRoute互換性確認の結果は統合PRへ記録する。
+採用検証はこの追加を含むdevelopの新しい固定commitで揃える。
+旧`78dfc8c`の結果だけでmainへの統合条件を満たしたとは扱わない。

@@ -1,6 +1,11 @@
 //! Received remote-player tracking, without entity physics or render interpolation.
+use super::super::wire::velocity;
+use super::operations::VelocitySample;
 use super::{Reader, ids};
+mod motion;
 use anyhow::{Context, bail};
+pub(super) use motion::evaluate as evaluate_motion;
+pub use motion::{PlayerMotionStatus, PlayerMotionWatch};
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -41,6 +46,37 @@ pub struct ObservedPlayer {
     pub eye_position: Option<[f64; 3]>,
     /// Last packet affecting this entity's spatial observation.
     pub receive_sequence: u64,
+    /// Position-specific and ground/velocity evidence, separate from viewpoint freshness.
+    pub motion: PlayerMotion,
+}
+
+/// A received ground flag, independent of position freshness or local contact tests.
+#[derive(Clone, Copy, Debug, Serialize)]
+pub struct GroundReceipt {
+    /// Native flag; the server can retain the moving client's reported ground
+    /// bit. It is not independent collision validation or a stop acknowledgement.
+    pub on_ground: bool,
+    /// Packet which actually supplied this flag.
+    pub receive_sequence: u64,
+}
+/// Distinct motion evidence attached to a remote player's current viewpoint.
+#[derive(Clone, Debug, Serialize)]
+pub struct PlayerMotion {
+    /// Spawn receipt distinguishes repeated entity IDs and reappearance of a UUID.
+    pub spawn_receive_sequence: u64,
+    /// Most recent packet containing position fields; rotation/metadata cannot advance it.
+    pub position_receive_sequence: u64,
+    /// Conservative per-axis native relative quantization bounds, in blocks.
+    /// Zero means an absolute-position packet. Even zero relative deltas
+    /// can hide motion inside a native quantization bin.
+    pub position_error: [f64; 3],
+    /// Last ground bit, absent at spawn and never inferred from position.
+    pub ground: Option<GroundReceipt>,
+    /// Last supplied velocity. Its own receipt may precede the position receipt;
+    /// it does not mean the entity is currently stopped.
+    /// A relative correction clears this if the native interpolated baseline
+    /// is unknown. It is never filled from a historical sample as current motion.
+    pub velocity: Option<VelocitySample>,
 }
 
 /// Native poses relevant to a player's viewpoint.
@@ -91,10 +127,14 @@ impl PlayerPose {
 struct Entity {
     uuid: [u8; 16],
     position: [f64; 3],
+    // Native TrackedPosition delta base is not reset by EntityPositionS2CPacket.
+    relative_base: [f64; 3],
+    body_rotation: [f32; 2],
     rotation: [f32; 2],
     pose: Option<PlayerPose>,
     scale: f32,
     sequence: u64,
+    motion: PlayerMotion,
 }
 
 #[derive(Default)]
@@ -103,6 +143,9 @@ pub(super) struct PlayerTracker {
     entities: BTreeMap<i32, Entity>,
 }
 impl PlayerTracker {
+    pub(super) fn profile_name(&self, uuid: &[u8; 16]) -> Option<&str> {
+        self.profiles.get(uuid).map(String::as_str)
+    }
     pub fn reset_world(&mut self) {
         // Player-info entries survive dimension changes; world entities do not.
         self.entities.clear();
@@ -127,6 +170,7 @@ impl PlayerTracker {
                     scale: entity.scale,
                     eye_position,
                     receive_sequence: entity.sequence,
+                    motion: entity.motion.clone(),
                 })
             })
             .collect()
@@ -208,15 +252,9 @@ impl PlayerTracker {
                     return Ok(true);
                 }
                 let position = position(&mut r)?;
-                let velocity = r.u8()?;
-                if velocity != 0 {
-                    r.take(5)?;
-                    if velocity & 4 != 0 {
-                        r.varint()?;
-                    }
-                }
+                let motion_velocity = velocity(&mut r)?;
                 let pitch = angle(&mut r)?;
-                angle(&mut r)?; // Body yaw; gaze uses head yaw.
+                let body_yaw = angle(&mut r)?;
                 let yaw = angle(&mut r)?;
                 r.varint()?;
                 r.end()?;
@@ -228,10 +266,22 @@ impl PlayerTracker {
                     Entity {
                         uuid,
                         position,
+                        relative_base: position,
+                        body_rotation: [body_yaw, pitch],
                         rotation: [yaw, pitch],
                         pose: Some(PlayerPose::Standing),
                         scale: 1.0,
                         sequence,
+                        motion: PlayerMotion {
+                            spawn_receive_sequence: sequence,
+                            position_receive_sequence: sequence,
+                            position_error: [0.0; 3],
+                            ground: None,
+                            velocity: Some(VelocitySample {
+                                value: motion_velocity,
+                                receive_sequence: sequence,
+                            }),
+                        },
                     },
                 );
             }
@@ -252,7 +302,8 @@ impl PlayerTracker {
             | p::SYNC_ENTITY_POSITION
             | p::ENTITY_HEAD_ROTATION
             | p::ENTITY_METADATA
-            | p::ENTITY_UPDATE_ATTRIBUTES => {
+            | p::ENTITY_UPDATE_ATTRIBUTES
+            | p::ENTITY_VELOCITY => {
                 let entity_id = r.varint()?;
                 let Some(previous) = self.entities.get(&entity_id) else {
                     return Ok(true);
@@ -262,7 +313,12 @@ impl PlayerTracker {
                 match id {
                     p::REL_ENTITY_MOVE | p::ENTITY_MOVE_LOOK | p::ENTITY_LOOK => {
                         if id != p::ENTITY_LOOK {
-                            for coordinate in &mut entity.position {
+                            entity.motion.position_receive_sequence = sequence;
+                            // Even zero encoded deltas can hide motion inside a
+                            // quantization bin. The decoder retaining a previous
+                            // coordinate does not make that coordinate exact.
+                            entity.motion.position_error = [1.0 / 4096.0; 3];
+                            for coordinate in &mut entity.relative_base {
                                 let delta = i16::from_be_bytes(r.take(2)?.try_into()?);
                                 if delta != 0 {
                                     // TrackedPosition.pack uses Java Math.round, including negative ties.
@@ -272,23 +328,64 @@ impl PlayerTracker {
                                 }
                             }
                         }
-                        if id != p::REL_ENTITY_MOVE {
-                            entity.rotation = [angle(&mut r)?, angle(&mut r)?];
+                        if id != p::ENTITY_LOOK {
+                            entity.position = entity.relative_base;
                         }
-                        r.bool()?;
+                        if id != p::REL_ENTITY_MOVE {
+                            entity.body_rotation = [angle(&mut r)?, angle(&mut r)?];
+                            entity.rotation[1] = entity.body_rotation[1];
+                        }
+                        entity.motion.ground = Some(GroundReceipt {
+                            on_ground: r.bool()?,
+                            receive_sequence: sequence,
+                        });
                     }
                     p::ENTITY_TELEPORT => {
-                        entity.position = position(&mut r)?;
-                        entity.rotation = [angle(&mut r)?, angle(&mut r)?];
-                        r.bool()?;
+                        let change = super::correction::Correction::read(&mut r)?;
+                        let on_ground = r.bool()?;
+                        // Native remote players interpolate velocity separately.
+                        // A retained packet sample is not that current baseline.
+                        let resolved =
+                            change.resolve(Some(entity.position), entity.body_rotation, None)?;
+                        entity.position = resolved.position;
+                        entity.body_rotation = resolved.rotation;
+                        entity.rotation[1] = resolved.rotation[1];
+                        entity.motion.position_receive_sequence = sequence;
+                        for axis in 0..3 {
+                            if change.flags & (1 << axis) == 0 {
+                                entity.motion.position_error[axis] = 0.0;
+                            }
+                        }
+                        entity.motion.velocity = resolved.velocity.map(|value| VelocitySample {
+                            value,
+                            receive_sequence: sequence,
+                        });
+                        entity.motion.ground = Some(GroundReceipt {
+                            on_ground,
+                            receive_sequence: sequence,
+                        });
                     }
                     p::SYNC_ENTITY_POSITION => {
                         entity.position = position(&mut r)?;
-                        for _ in 0..3 {
-                            r.f64()?;
-                        }
-                        entity.rotation = [r.f32()?, r.f32()?];
-                        r.bool()?;
+                        entity.relative_base = entity.position;
+                        entity.motion.position_receive_sequence = sequence;
+                        entity.motion.position_error = [0.0; 3];
+                        entity.motion.velocity = Some(VelocitySample {
+                            value: [r.f64()?, r.f64()?, r.f64()?],
+                            receive_sequence: sequence,
+                        });
+                        entity.body_rotation = [r.f32()?, r.f32()?];
+                        entity.rotation[1] = entity.body_rotation[1];
+                        entity.motion.ground = Some(GroundReceipt {
+                            on_ground: r.bool()?,
+                            receive_sequence: sequence,
+                        });
+                    }
+                    p::ENTITY_VELOCITY => {
+                        entity.motion.velocity = Some(VelocitySample {
+                            value: velocity(&mut r)?,
+                            receive_sequence: sequence,
+                        });
                     }
                     p::ENTITY_HEAD_ROTATION => {
                         entity.rotation[0] = angle(&mut r)?;

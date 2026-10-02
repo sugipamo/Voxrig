@@ -1,7 +1,11 @@
 //! Ordered 1.21.11 receive loop. Local state is committed under one session lock.
+mod correction;
+mod loading;
+mod motion;
 mod observations;
 /// Explicit Java 1.21.11 operation API and received player state.
 pub mod operations;
+mod outbound;
 pub mod players;
 pub mod raycast;
 pub mod recording;
@@ -104,6 +108,13 @@ impl TraceCapture {
 }
 
 struct State {
+    loading: loading::InteractionLoading,
+    motion: motion::OwnMotion,
+    identity: Option<LoginIdentity>,
+    retirement: Option<operations::MiningRetirementRecord>,
+    mining: Option<operations::MiningRecord>,
+    placement: Option<operations::PlacementRecord>,
+    survival_motion: Option<operations::SurvivalMotionRecord>,
     recording: Option<recording::Capture>,
     recording_ordinal: u64,
     operations: operations::OperationState,
@@ -123,6 +134,13 @@ struct State {
 impl Default for State {
     fn default() -> Self {
         Self {
+            loading: loading::InteractionLoading::default(),
+            motion: motion::OwnMotion::default(),
+            identity: None,
+            retirement: None,
+            mining: None,
+            placement: None,
+            survival_motion: None,
             recording: None,
             recording_ordinal: 0,
             operations: operations::OperationState::default(),
@@ -161,6 +179,9 @@ impl State {
             Phase::Configuration => apply_configuration(self, id, payload),
             Phase::Play => apply_play(self, id, payload, max_chunks),
         };
+        if result.is_ok() {
+            operations::placement_context_received(self);
+        }
         if let Err(error) = &result {
             self.failure = Some(Error::new(
                 ErrorKind::Protocol,
@@ -175,6 +196,12 @@ struct Writer {
     stream: OwnedWriteHalf,
     compression: Option<i32>,
 }
+#[derive(Clone)]
+struct LoginIdentity {
+    uuid: [u8; 16],
+    name: String,
+    server: crate::Server,
+}
 struct Session {
     id: u64,
     started: Instant,
@@ -183,6 +210,7 @@ struct Session {
     changed: Notify,
     cancel: Notify,
     stopped: AtomicBool,
+    interrupted_packet: AtomicI32,
     limits: crate::ConnectionOptions,
     interaction_sequence: AtomicI32,
 }
@@ -190,9 +218,7 @@ struct Lease(Weak<Session>);
 impl Drop for Lease {
     fn drop(&mut self) {
         if let Some(session) = self.0.upgrade() {
-            session.stopped.store(true, Ordering::Release);
-            session.cancel.notify_one();
-            session.changed.notify_waiters();
+            session.stop();
         }
     }
 }
@@ -290,7 +316,7 @@ impl Bot {
         )
         .await?;
         let mut compression = None;
-        loop {
+        let identity = loop {
             let (id, payload) = timeout(
                 config.limits.login_packet_timeout,
                 read_packet(&mut reader, compression),
@@ -300,7 +326,7 @@ impl Bot {
             let mut r = Reader::new(&payload);
             match id {
                 ids::login_clientbound::SUCCESS => {
-                    r.take(16)?;
+                    let uuid = r.take(16)?.try_into().context("login UUID length")?;
                     let received = r.string()?;
                     if received != config.username {
                         return Err(Error::new(
@@ -323,7 +349,11 @@ impl Bot {
                         &[],
                     )
                     .await?;
-                    break;
+                    break LoginIdentity {
+                        uuid,
+                        name: received,
+                        server: config.server.clone(),
+                    };
                 }
                 ids::login_clientbound::COMPRESS => {
                     let threshold = r.varint()?;
@@ -382,7 +412,7 @@ impl Bot {
                     ));
                 }
             }
-        }
+        };
         let session = Arc::new(Session {
             id: crate::connection::next_connection_id(),
             started: Instant::now(),
@@ -390,10 +420,14 @@ impl Bot {
                 stream: writer,
                 compression,
             }),
-            state: Mutex::new(State::default()),
+            state: Mutex::new(State {
+                identity: Some(identity),
+                ..State::default()
+            }),
             changed: Notify::new(),
             cancel: Notify::new(),
             stopped: AtomicBool::new(false),
+            interrupted_packet: AtomicI32::new(-1),
             limits: config.limits,
             interaction_sequence: AtomicI32::new(0),
         });
@@ -405,16 +439,7 @@ impl Bot {
             session: session.clone(),
         };
         tokio::spawn(async move {
-            let result = session.receive_loop(reader).await;
-            if let Err(error) = result {
-                let mut state = session.state.lock().await;
-                if state.failure.is_none() {
-                    state.failure = Some(Error::from(error));
-                }
-            }
-            session.stopped.store(true, Ordering::Release);
-            session.changed.notify_waiters();
-            let _ = session.writer.lock().await.stream.shutdown().await;
+            session.run_receiver(reader).await;
         });
         Ok(bot)
     }
@@ -423,10 +448,12 @@ impl Bot {
         timeout(self.session.limits.ready_timeout, async {
             loop {
                 let notified = self.session.changed.notified();
+                tokio::pin!(notified);
+                notified.as_mut().enable();
                 {
                     let state = self.session.state.lock().await;
                     self.session.check(&state)?;
-                    if state.ready {
+                    if state.ready && state.loading.notification_dispatched() {
                         return Ok(());
                     }
                 }
@@ -505,9 +532,7 @@ impl Bot {
     }
 
     pub async fn disconnect(&self) -> Result<()> {
-        self.session.stopped.store(true, Ordering::Release);
-        self.session.cancel.notify_one();
-        self.session.changed.notify_waiters();
+        self.session.stop();
         self.session.writer.lock().await.stream.shutdown().await?;
         Ok(())
     }
@@ -515,21 +540,28 @@ impl Bot {
 
 impl Session {
     fn check(&self, state: &State) -> Result<()> {
+        let outbound = self.check_outbound();
+        if outbound
+            .as_ref()
+            .is_err_and(|e| e.kind() == ErrorKind::UncertainDispatch)
+        {
+            return outbound;
+        }
         if let Some(error) = &state.failure {
             return Err(Error::new(error.kind(), anyhow::anyhow!("{error}")));
         }
-        if self.stopped.load(Ordering::Acquire) {
-            return Err(Error::new(
-                ErrorKind::Disconnected,
-                anyhow::anyhow!("connection closed"),
-            ));
-        }
-        Ok(())
+        outbound
     }
-    async fn send(&self, id: i32, payload: &[u8]) -> anyhow::Result<()> {
-        let mut writer = self.writer.lock().await;
-        let compression = writer.compression;
-        write_packet(&mut writer.stream, compression, id, payload).await
+    async fn run_receiver(&self, reader: OwnedReadHalf) {
+        let result = self.receive_loop(reader).await;
+        self.stop();
+        if let Err(error) = result {
+            let mut state = self.state.lock().await;
+            if state.failure.is_none() {
+                state.failure = Some(Error::from(error));
+            }
+        }
+        let _ = self.writer.lock().await.stream.shutdown().await;
     }
     async fn receive_loop(&self, mut reader: OwnedReadHalf) -> anyhow::Result<()> {
         let compression = self.writer.lock().await.compression;
@@ -541,6 +573,9 @@ impl Session {
             };
             let responses = {
                 let mut state = self.state.lock().await;
+                if self.stopped.load(Ordering::Acquire) {
+                    return Ok(());
+                }
                 let target = self.started.elapsed().as_millis() as u64 / 50;
                 let State {
                     world,
@@ -552,6 +587,10 @@ impl Session {
             };
             for (id, payload) in responses {
                 self.send(id, &payload).await?;
+            }
+            {
+                let mut state = self.state.lock().await;
+                self.complete_loading(&mut state).await?;
             }
             self.changed.notify_waiters();
         }
@@ -689,6 +728,11 @@ fn spawn_info(state: &mut State, r: &mut Reader<'_>) -> anyhow::Result<()> {
         .get(id)
         .context("unknown dimension registry ID")?;
     state.world.select_dimension(name, dimension);
+    state.loading.reset(state.sequence);
+    state
+        .motion
+        .invalidate(state.sequence, "world generation changed");
+    operations::mining_world_changed(state, "world login/respawn changed mining context");
     if let Some(capture) = &mut state.recording {
         capture.invalidate(recording::RecordingIssue::WorldChanged);
     }
@@ -713,6 +757,7 @@ fn apply_play(
         return Ok(responses);
     }
     if state.players.receive(id, payload, state.sequence)? {
+        operations::retirement_received(state, id, payload)?;
         return Ok(responses);
     }
     match id {
@@ -753,40 +798,35 @@ fn apply_play(
         }
         input::POSITION => {
             let teleport = r.varint()?;
-            let mut position = [r.f64()?, r.f64()?, r.f64()?];
-            let delta = [r.f64()?, r.f64()?, r.f64()?];
-            let mut rotation = [r.f32()?, r.f32()?];
-            let flags = r.u32()?;
+            let correction = correction::Correction::read(&mut r)?;
             r.end()?;
-            if flags & !511 != 0 {
-                bail!("unknown position flags");
+            let resolved = correction.resolve(
+                state.position,
+                state.rotation,
+                if state.motion.position_basis == motion::PositionBasis::Received {
+                    state.operations.local_player.velocity.map(|v| v.value)
+                } else {
+                    None
+                },
+            )?;
+            let position = resolved.position;
+            let rotation = resolved.rotation;
+            if position.iter().any(|v| v.abs() > 30_000_000.0) {
+                bail!("position outside world bounds");
             }
-            for (axis, value) in position.iter_mut().enumerate() {
-                if flags & (1 << axis) != 0 {
-                    *value += state
-                        .position
-                        .context("relative position without baseline")?[axis];
-                }
-                if !value.is_finite() || value.abs() > 30_000_000.0 {
-                    bail!("position outside world bounds");
-                }
-            }
-            if flags & 8 != 0 {
-                rotation[0] += state.rotation[0];
-            }
-            if flags & 16 != 0 {
-                rotation[1] += state.rotation[1];
-            }
-            if rotation.iter().any(|v| !v.is_finite()) {
-                bail!("non-finite relative rotation");
-            }
-            rotation[1] = rotation[1].clamp(-90.0, 90.0);
-            state
-                .operations
-                .local_player
-                .correct_velocity(delta, flags, state.sequence)?;
+            state.operations.local_player.velocity =
+                resolved.velocity.map(|value| operations::VelocitySample {
+                    value,
+                    receive_sequence: state.sequence,
+                });
             state.position = Some(position);
-            state.operations.position_from_server = true;
+            state.motion.receive(motion::ReceivedPose {
+                generation: state.loading.generation,
+                receive_sequence: state.sequence,
+                position,
+                rotation,
+                velocity: state.operations.local_player.velocity.map(|v| v.value),
+            });
             state.rotation = rotation;
             state.ready = true;
             let mut confirm = Vec::new();
@@ -805,6 +845,8 @@ fn apply_play(
         input::MAP_CHUNK => {
             let chunk = [r.i32()?, r.i32()?];
             let pistons = state.world.load(payload, max_chunks)?;
+            operations::mining_chunk_changed(state, chunk);
+            operations::placement_chunk_changed(state, chunk);
             if let Some(capture) = &mut state.recording {
                 capture.chunk_changed(chunk);
             }
@@ -818,6 +860,8 @@ fn apply_play(
                 capture.received(&changes, state.sequence, state.reconstruction.tick)?;
             }
             state.reconstruction.received(&changes);
+            operations::mining_received(state, &changes)?;
+            operations::placement_received(state, &changes)?;
         }
         input::MULTI_BLOCK_CHANGE => {
             let changes = state.world.section_changes(payload)?;
@@ -825,6 +869,8 @@ fn apply_play(
                 capture.received(&changes, state.sequence, state.reconstruction.tick)?;
             }
             state.reconstruction.received(&changes);
+            operations::mining_received(state, &changes)?;
+            operations::placement_received(state, &changes)?;
         }
         input::UNLOAD_CHUNK => {
             let z = r.i32()?;
@@ -834,6 +880,8 @@ fn apply_play(
                 capture.chunk_changed([x, z]);
             }
             state.reconstruction.chunk_replaced([x, z]);
+            operations::mining_chunk_changed(state, [x, z]);
+            operations::placement_chunk_changed(state, [x, z]);
         }
         input::BLOCK_ACTION => {
             let p = super::wire::unpack_position(r.u64()?);
@@ -880,6 +928,11 @@ fn apply_play(
         }
         input::START_CONFIGURATION => {
             r.end()?;
+            state.loading.reset(state.sequence);
+            state
+                .motion
+                .invalidate(state.sequence, "world generation changed");
+            operations::mining_world_changed(state, "configuration changed mining context");
             state.phase = Phase::Configuration;
             state.ready = false;
             state.position = None;
@@ -912,5 +965,11 @@ fn apply_play(
     Ok(responses)
 }
 
+#[cfg(test)]
+mod mining_native_trials;
+#[cfg(test)]
+mod movement_native_trials;
+#[cfg(test)]
+mod placement_native_trials;
 #[cfg(test)]
 mod tests;

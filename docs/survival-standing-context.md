@@ -15,11 +15,12 @@ posture. Supported attribute/pose parsing is shared with remote-player tracking.
 Native modifier order is additions, factors of the adjusted base, then factors
 of the running total, followed by the attribute's native bounds.
 
-New-world standing posture and the four supported attribute defaults explicitly
+New-world standing posture and the supported attribute defaults explicitly
 carry `NativeReset`; received updates carry their packet sequence. They are
 native client initial values, **not received proof of server defaults**. Supported
-attributes are scale, block break speed, mining efficiency and submerged mining
-speed. The pinned data package's attribute mapper is inaccurate for several of
+attributes include scale, block break speed, mining efficiency and submerged mining
+speed, plus the eight [movement attributes](survival-movement-foundation.md).
+The pinned data package's attribute mapper is inaccurate for several of
 these IDs, so the native registry/default container is the comparison authority.
 Health, velocity and effect updates are cleared on a world reset; reconfiguration
 also clears the entity identity.
@@ -33,22 +34,26 @@ restore authority even if malformed. Other players' passenger lists do not
 invalidate the bot. This is a refusal boundary, not support for riding or combat.
 
 The new packed native velocity format is decoded, including extended scale.
-Absolute position corrections retain velocity; ordinary relative velocity axes
-require an existing baseline. Rotated relative updates with nonzero/unknown prior
-velocity deliberately make velocity unavailable: native angle-table rotation
-needs a separate implementation/comparison. They never retain a stale zero.
+Absolute correction velocity replaces its baseline; relative velocity axes
+require an existing resolved baseline. Own and remote corrections now share the
+native flag/rotation resolver, compared with all 1,024 retained oracle cases.
+Unknown relative velocity remains unavailable rather than retaining a stale zero.
 Native correction pitch is clamped to -90..90.
 
 Effects retain native ID, amplifier, flags, duration **at receipt**, and sequence.
 No expiration or complete-list fence is inferred. `effects_complete` remains
-false; an empty update map is not proof of absence. These records do not yet
-authorize a mining duration. Tools, effects and changing conditions still need
-the later timed-mining admission and progress/result reconciliation.
+false; an empty update map is not proof of absence. The bounded
+[mining API](survival-mining.md) uses estimates and actual target receipts;
+tools, arbitrary effects and changing conditions are outside its admission.
 
 ## Derived ground and posture
 
-`standing_context()` requires known standing posture, scale 1, a received feet
-position and a resolved zero velocity, with no active flight. It rejects a known
+`standing_context()` requires known standing posture and scale 1, with no active
+flight. `position_basis` distinguishes an own received position with resolved
+zero velocity from a settled dry-cube prediction corroborated by a fresh
+same-instance observer position. The latter keeps quantization uncertainty and
+does not overwrite received packet velocity. See [motion controls](survival-motion-controls.md).
+It rejects a known
 dead player. It reads reconstructed blocks and checks the native standing body
 (float width 0.6, height 1.8, eye height 1.62), clearance, and a downward contact
 probe. Missing chunks, moving carriers, incomplete reconstruction and dimension

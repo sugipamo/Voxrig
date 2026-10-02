@@ -10,17 +10,24 @@ fn fixture() -> serde_json::Value {
 fn state() -> State {
     let mut s = State {
         ready: true,
+        loading: loading::InteractionLoading::completed_fixture(),
         position: Some([0.5, 1.0, 0.5]),
         sequence: 10,
         ..State::default()
     };
     s.operations.reset_world(0).unwrap();
     s.operations.local_player = LocalPlayerState::spawned(42);
-    s.operations
-        .local_player
-        .correct_velocity([0.0; 3], 0, 10)
-        .unwrap();
-    s.operations.position_from_server = true;
+    s.operations.local_player.velocity = Some(VelocitySample {
+        value: [0.0; 3],
+        receive_sequence: 10,
+    });
+    s.motion.receive(ReceivedPose {
+        generation: s.loading.generation,
+        receive_sequence: s.sequence,
+        position: s.position.unwrap(),
+        rotation: s.rotation,
+        velocity: Some([0.0; 3]),
+    });
     s.world.select_dimension(
         "minecraft:overworld".into(),
         Dimension::new(-64, 384).unwrap(),
@@ -51,18 +58,7 @@ fn native_attribute_ids_defaults_and_packed_velocities_match_game_oracle() {
         oracle["dry_cubes"],
         serde_json::to_value(DRY_CUBES).unwrap()
     );
-    let mut local = LocalPlayerState::spawned(42);
-    for (expected, actual) in oracle["attributes"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .zip(ATTRIBUTES)
-    {
-        assert_eq!(expected["id"].as_i64().unwrap(), i64::from(actual.0));
-        assert_eq!(expected["default"].as_f64().unwrap(), actual.1);
-        assert_eq!(expected["min"].as_f64().unwrap(), actual.2);
-        assert_eq!(expected["max"].as_f64().unwrap(), actual.3);
-    }
+    let local = LocalPlayerState::spawned(42);
     assert_eq!(local.scale.unwrap().basis, ValueBasis::NativeReset);
     assert!(local.health.is_none());
     assert!(local.velocity.is_none());
@@ -79,19 +75,6 @@ fn native_attribute_ids_defaults_and_packed_velocities_match_game_oracle() {
             assert!(velocity(&mut Reader::new(&bytes[..end])).is_err());
         }
     }
-    local.correct_velocity([0.1, 0.2, 0.3], 0, 10).unwrap();
-    local
-        .correct_velocity([1.0, 2.0, 3.0], 32 | 128, 11)
-        .unwrap();
-    assert_eq!(local.velocity.unwrap().value, [1.1, 2.0, 3.3]);
-    local.correct_velocity([0.0; 3], 256 | 32, 12).unwrap();
-    assert!(local.velocity.is_none()); // Never approximate native float angle-table rotation.
-    local.correct_velocity([0.0; 3], 0, 13).unwrap();
-    local.correct_velocity([0.0; 3], 256 | 224, 14).unwrap();
-    assert_eq!(local.velocity.unwrap().value, [0.0; 3]);
-    let before = local.clone();
-    assert!(local.correct_velocity([f64::NAN, 0.0, 0.0], 0, 15).is_err());
-    assert_eq!(local, before);
 }
 
 #[test]
@@ -217,6 +200,13 @@ fn standing_body_contacts_match_native_and_support_is_rechecked_after_world_edit
         s.position = Some(std::array::from_fn(|axis| {
             case["position"][axis].as_f64().unwrap()
         }));
+        s.motion.receive(ReceivedPose {
+            generation: s.loading.generation,
+            receive_sequence: s.sequence,
+            position: s.position.unwrap(),
+            rotation: s.rotation,
+            velocity: Some([0.0; 3]),
+        });
         let observed = context(&mut s, 77, 0);
         if case["clear"].as_bool().unwrap() {
             let observed = observed.unwrap();
@@ -242,9 +232,23 @@ fn standing_body_contacts_match_native_and_support_is_rechecked_after_world_edit
     assert_eq!(after.world_revision, s.world.revision);
     // Negative positions and chunk boundaries must not read the wrong section.
     s.position = Some([-0.5, 1.0, -0.5]);
+    s.motion.receive(ReceivedPose {
+        generation: s.loading.generation,
+        receive_sequence: s.sequence,
+        position: s.position.unwrap(),
+        rotation: s.rotation,
+        velocity: Some([0.0; 3]),
+    });
     s.world.seed_replay_cell([-1, 0, -1], 1);
     assert!(context(&mut s, 77, 0).unwrap().on_ground);
     s.position = Some([16.0, 1.0, 0.5]);
+    s.motion.receive(ReceivedPose {
+        generation: s.loading.generation,
+        receive_sequence: s.sequence,
+        position: s.position.unwrap(),
+        rotation: s.rotation,
+        velocity: Some([0.0; 3]),
+    });
     assert!(context(&mut s, 77, 0).is_err()); // Adjacent chunk is not loaded.
 }
 
@@ -258,13 +262,19 @@ fn unsupported_posture_motion_fluid_and_reconstruction_never_become_ground_evide
     assert!(context(&mut s, 1, 0).is_err());
     s.operations.local_player.velocity = None;
     assert!(context(&mut s, 1, 0).is_err());
-    s.operations
-        .local_player
-        .correct_velocity([0.0; 3], 0, 11)
-        .unwrap();
-    s.operations.position_from_server = false;
+    s.operations.local_player.velocity = Some(VelocitySample {
+        value: [0.0; 3],
+        receive_sequence: 11,
+    });
+    s.motion.invalidate(s.sequence, "test local movement");
     assert!(context(&mut s, 1, 0).is_err());
-    s.operations.position_from_server = true;
+    s.motion.receive(ReceivedPose {
+        generation: s.loading.generation,
+        receive_sequence: s.sequence,
+        position: s.position.unwrap(),
+        rotation: s.rotation,
+        velocity: Some([0.0; 3]),
+    });
     s.operations.requested_flying = true;
     assert!(context(&mut s, 1, 0).is_err());
     s.operations.requested_flying = false;
@@ -303,6 +313,7 @@ async fn survival_look_sends_native_ground_bit_and_refusal_sends_nothing() {
         changed: Notify::new(),
         cancel: Notify::new(),
         stopped: AtomicBool::new(false),
+        interrupted_packet: AtomicI32::new(-1),
         limits: crate::ConnectionOptions::default(),
         interaction_sequence: AtomicI32::new(0),
     });
@@ -364,18 +375,24 @@ fn unsupported_impulses_and_own_vehicle_cannot_leave_stale_stationary_authority(
     apply(&mut s, p::SET_PASSENGERS, &[10, 1, 42]);
     assert!(context(&mut s, 1, 0).is_err());
     assert!(s.operations.local_player.velocity.is_none());
-    s.operations
-        .local_player
-        .correct_velocity([0.0; 3], 0, 13)
-        .unwrap();
+    s.operations.local_player.velocity = Some(VelocitySample {
+        value: [0.0; 3],
+        receive_sequence: 13,
+    });
     assert!(context(&mut s, 1, 0).is_err()); // Zero velocity alone cannot prove dismount.
     for id in [p::EXPLOSION, p::VEHICLE_MOVE] {
         s.operations.reset_world(0).unwrap();
-        s.operations
-            .local_player
-            .correct_velocity([0.0; 3], 0, 14)
-            .unwrap();
-        s.operations.position_from_server = true;
+        s.operations.local_player.velocity = Some(VelocitySample {
+            value: [0.0; 3],
+            receive_sequence: 14,
+        });
+        s.motion.receive(ReceivedPose {
+            generation: s.loading.generation,
+            receive_sequence: s.sequence,
+            position: s.position.unwrap(),
+            rotation: s.rotation,
+            velocity: Some([0.0; 3]),
+        });
         assert!(context(&mut s, 1, 0).unwrap().on_ground);
         apply(&mut s, id, &[]); // Even undecoded/malformed unsupported payload cannot grant permission.
         let issue = s
@@ -387,5 +404,128 @@ fn unsupported_impulses_and_own_vehicle_cannot_leave_stale_stationary_authority(
         assert_eq!(issue.packet_id, id);
         assert_eq!(issue.receive_sequence, s.sequence);
         assert!(context(&mut s, 1, 0).is_err());
+    }
+}
+
+#[test]
+fn recovery_waits_for_standing_halo_across_chunk_edges() {
+    let mut s = state();
+    assert!(standing_baselines_received(&s).unwrap());
+    s.position = Some([15.5, 1.0, 0.5]);
+    assert!(s.world.block([15, 1, 0]).is_some());
+    assert!(!standing_baselines_received(&s).unwrap());
+    s.world.seed_replay_cell([16, 0, 0], 1);
+    assert!(!standing_baselines_received(&s).unwrap()); // Negative-z neighbor still missing.
+    s.world.seed_replay_cell([16, 0, -1], 1);
+    assert!(standing_baselines_received(&s).unwrap());
+    s.position = Some([15.5, -64.0, 0.5]);
+    assert!(standing_baselines_received(&s).is_err()); // Never wait for impossible terrain.
+}
+
+#[test]
+fn movement_attributes_are_received_for_own_player_with_native_limits_and_reset_basis() {
+    let mut s = state();
+    let mut packet = vec![42, 8];
+    for (id, base) in [
+        (22, 0.25f64),
+        (14, -2.0),
+        (15, 99.0),
+        (28, 0.75),
+        (21, 0.4),
+        (26, 0.6),
+        (24, -5.0),
+        (11, 2.0),
+    ] {
+        put_varint(&mut packet, id);
+        packet.extend(base.to_be_bytes());
+        packet.push(0);
+    }
+    apply(
+        &mut s,
+        ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+        &packet,
+    );
+    let p = &s.operations.local_player;
+    for (v, expected) in [
+        (p.movement_speed, 0.25),
+        (p.gravity, -1.0),
+        (p.jump_strength, 32.0),
+        (p.step_height, 0.75),
+        (p.movement_efficiency, 0.4),
+        (p.sneaking_speed, 0.6),
+        (p.safe_fall_distance, -5.0),
+        (p.fall_damage_multiplier, 2.0),
+    ] {
+        let v = v.unwrap();
+        assert_eq!(v.value, expected);
+        assert_eq!(
+            v.basis,
+            ValueBasis::Received {
+                sequence: s.sequence
+            }
+        );
+    }
+    assert_eq!(p.scale.unwrap().value, 1.0);
+    let retained = p.clone();
+    packet[0] = 43;
+    assert!(
+        !receive(
+            &mut s,
+            ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+            &packet
+        )
+        .unwrap()
+    );
+    assert_eq!(s.operations.local_player, retained);
+    packet[0] = 42;
+    for end in 0..packet.len() {
+        assert!(
+            receive(
+                &mut s,
+                ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+                &packet[..end]
+            )
+            .is_err()
+        );
+        assert_eq!(
+            s.operations.local_player, retained,
+            "truncated batch applied partial attributes"
+        );
+    }
+    s.operations.reset_world(0).unwrap();
+    let p = &s.operations.local_player;
+    assert_eq!(p.movement_speed.unwrap().value, f64::from(0.1f32));
+    assert_eq!(p.jump_strength.unwrap().value, f64::from(0.42f32));
+    assert_eq!(p.gravity.unwrap().value, 0.08);
+    assert_eq!(p.gravity.unwrap().basis, ValueBasis::NativeReset);
+    s.operations.reset_configuration(200);
+    assert_eq!(s.operations.local_player, LocalPlayerState::default());
+}
+
+#[test]
+fn movement_attribute_modifiers_do_not_get_applied_twice_or_to_other_fields() {
+    let mut s = state();
+    let mut packet = vec![42, 1, 22];
+    packet.extend(0.1f64.to_be_bytes());
+    packet.push(3);
+    for (name, amount, op) in [
+        ("minecraft:add", 0.1f64, 0),
+        ("minecraft:base", 0.5, 1),
+        ("minecraft:total", 1.0, 2),
+    ] {
+        put_string(&mut packet, name);
+        packet.extend(amount.to_be_bytes());
+        packet.push(op);
+    }
+    for _ in 0..2 {
+        apply(
+            &mut s,
+            ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
+            &packet,
+        );
+        let p = &s.operations.local_player;
+        assert!((p.movement_speed.unwrap().value - 0.6).abs() < 1e-15);
+        assert_eq!(p.gravity.unwrap().value, 0.08);
+        assert_eq!(p.step_height.unwrap().value, 0.6);
     }
 }
