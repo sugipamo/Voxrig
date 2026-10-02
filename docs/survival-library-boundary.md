@@ -56,3 +56,27 @@ three active ticks stopped at x=1.02826, while four failed terminal clearance.
 No inventory, movement or placement action began. A diagnostic repeat retained
 all rejected candidates. The next fixture starts at x=0.6 on the same support;
 this changes only fixture geometry, not predictor admission or aiming limits.
+
+## Consolidated boundary checkpoint
+
+The aiming correction passed 185 native tests. The adjusted non-OP edge trial
+passed with independent endpoint and placement observations, exact hypothetical
+frames/cursor/target, one dirt consumed and an exact final region. See
+[evidence and all attempts](evidence/survival-edge-20261002-source.json).
+
+`Client::survival()` now selects the checked contract; `checked_survival`
+provides its public data and operation surface. The existing legacy `survival`
+module and 1.16.1 API remain intact. Capability discovery is static and explicitly
+refuses that adapter's use of the new contract. The new `MiningRetirement` handle
+binds source, observer and watch, with explicit close, resumable read-only waits,
+original history and a once-only fresh reconnect. See [API ownership](survival-api.md).
+No route selection, Blueprint, access layout, permission, material reservation
+or durable job has moved into this library.
+
+Native all-target tests: 185 passed, six live tests ignored. Four documentation
+tests (including compile-fail boundary checks), all-target Clippy with warnings
+as errors, formatting and whitespace checks passed. Exact retirement receipts,
+local closure, rejoin conflicts and cancellation during a real loopback TCP login
+are exercised through the new façade; native lifecycle guards remain shared.
+The earlier successful edge run used the native public API before façade import;
+its source revision is retained rather than relabeled as a façade live run.

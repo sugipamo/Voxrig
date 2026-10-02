@@ -31,7 +31,9 @@ fn controls(yaw: f32, active: usize) -> Vec<SurvivalControl> {
         })
         .collect()
 }
-async fn finish(api: &operations::Operations) -> Result<operations::SurvivalMotionRecord> {
+async fn finish(
+    api: &crate::checked_survival::Operations,
+) -> Result<operations::SurvivalMotionRecord> {
     timeout(Duration::from_secs(40), async {
         loop {
             let run = api
@@ -77,7 +79,7 @@ async fn native_edge_move_place_and_retreat() {
     .unwrap()
     .unwrap()
     .unwrap();
-    let api = bot.java_1_21_11_operations().unwrap();
+    let api = bot.survival().unwrap();
     timeout(Duration::from_secs(5), async {
         loop {
             let p = api.player_state().await.unwrap();
@@ -117,8 +119,8 @@ async fn exercise(
     viewer: &crate::Client,
     events: &mut Vec<Value>,
 ) -> Result<()> {
-    let api = bot.java_1_21_11_operations()?;
-    let observer = viewer.java_1_21_11_operations()?;
+    let api = bot.survival()?;
+    let observer = viewer.survival()?;
     let scene = api
         .capture_survival_scene(Region {
             min: [-4, -62, -4],

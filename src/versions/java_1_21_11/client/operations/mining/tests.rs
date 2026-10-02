@@ -552,26 +552,29 @@ async fn retirement_requires_exact_post_watch_receipt_and_local_closure() {
     let mut miner = Fixture::new().await;
     let intent = miner.start().await;
     let mut observer = Fixture::new_id(43).await;
+    let source = crate::Client::from_java_1_21_11(miner.api.bot.clone())
+        .survival()
+        .unwrap();
+    let independent = crate::Client::from_java_1_21_11(observer.api.bot.clone())
+        .survival()
+        .unwrap();
     assert!(
-        miner
-            .api
-            .prepare_survival_mining_retirement(&intent, &miner.api)
+        source
+            .prepare_mining_retirement(&intent, &source)
             .await
             .is_err()
     );
     assert!(
-        miner
-            .api
-            .prepare_survival_mining_retirement(&intent, &observer.api)
+        source
+            .prepare_mining_retirement(&intent, &independent)
             .await
             .is_err()
     );
     // Old receipt plus subsequent profile baseline cannot substitute for a new removal.
     observer.remove_profile(42).await;
     observer.profile(42).await;
-    let watch = miner
-        .api
-        .prepare_survival_mining_retirement(&intent, &observer.api)
+    let retirement = source
+        .prepare_mining_retirement(&intent, &independent)
         .await
         .unwrap();
     observer.remove_profile(99).await;
@@ -579,11 +582,7 @@ async fn retirement_requires_exact_post_watch_receipt_and_local_closure() {
         .receive(ids::play_clientbound::ENTITY_DESTROY, &[1, 42])
         .await;
     assert!(matches!(
-        miner
-            .api
-            .wait_survival_mining_retirement(&watch, &observer.api, Duration::from_millis(10))
-            .await
-            .unwrap(),
+        retirement.wait(Duration::from_millis(10)).await.unwrap(),
         MiningRetirementStatus::Pending {
             source_closed: false,
             ..
@@ -591,31 +590,21 @@ async fn retirement_requires_exact_post_watch_receipt_and_local_closure() {
     ));
     observer.remove_profile(42).await;
     assert!(matches!(
-        miner
-            .api
-            .observe_survival_mining_retirement(&watch, &observer.api)
-            .await
-            .unwrap(),
+        retirement.observe().await.unwrap(),
         MiningRetirementStatus::Pending {
             source_closed: false,
             ..
         }
     ));
-    assert!(miner.api.select_hotbar(1).await.is_err());
-    miner.api.bot.disconnect().await.unwrap();
-    let retired = miner
-        .api
-        .wait_survival_mining_retirement(&watch, &observer.api, Duration::from_millis(10))
-        .await
-        .unwrap();
+    assert!(source.select_hotbar(1).await.is_err());
+    retirement.close_source().await.unwrap();
+    assert!(retirement.source_history().await.connection_closed);
+    let retired = retirement.wait(Duration::from_millis(10)).await.unwrap();
     assert!(matches!(retired, MiningRetirementStatus::Retired { .. }));
-    assert!(miner.api.select_hotbar(1).await.is_err());
+    assert!(source.select_hotbar(1).await.is_err());
     assert!(
-        miner
-            .api
-            .reconnect_survival_mining(
-                &watch,
-                &observer.api,
+        retirement
+            .reconnect(
                 ConnectionConfig::offline(
                     crate::Server::new("127.0.0.1", 1),
                     "Miner42",
@@ -629,20 +618,12 @@ async fn retirement_requires_exact_post_watch_receipt_and_local_closure() {
     // Observer is also tied to its live context; a rejoin invalidates old authority.
     observer.profile(42).await;
     assert!(matches!(
-        miner
-            .api
-            .observe_survival_mining_retirement(&watch, &observer.api)
-            .await
-            .unwrap(),
+        retirement.observe().await.unwrap(),
         MiningRetirementStatus::RequiresInspection { .. }
     ));
     observer.remove_profile(42).await;
     assert!(matches!(
-        miner
-            .api
-            .observe_survival_mining_retirement(&watch, &observer.api)
-            .await
-            .unwrap(),
+        retirement.observe().await.unwrap(),
         MiningRetirementStatus::RequiresInspection { .. }
     ));
     miner.stop().await;
@@ -730,20 +711,20 @@ async fn cancelled_recovery_login_retains_attempt_and_refuses_another_connection
     }
     let intent = miner.start().await;
     observer.profile(42).await;
-    let watch = miner
-        .api
-        .prepare_survival_mining_retirement(&intent, &observer.api)
+    let source = crate::Client::from_java_1_21_11(miner.api.bot.clone())
+        .survival()
+        .unwrap();
+    let independent = crate::Client::from_java_1_21_11(observer.api.bot.clone())
+        .survival()
+        .unwrap();
+    let retirement = source
+        .prepare_mining_retirement(&intent, &independent)
         .await
         .unwrap();
-    miner.api.bot.disconnect().await.unwrap();
+    retirement.close_source().await.unwrap();
     observer.remove_profile(42).await;
     let config = ConnectionConfig::offline(endpoint, "Miner42", MinecraftVersion::Java1_21_11);
-    let mut recovery = Box::pin(miner.api.reconnect_survival_mining(
-        &watch,
-        &observer.api,
-        config.clone(),
-        native("stone"),
-    ));
+    let mut recovery = Box::pin(retirement.reconnect(config.clone(), native("stone")));
     let (mut login, _) = timeout(Duration::from_secs(1), async {
         tokio::select! {
             accepted = listener.accept() => accepted.unwrap(),
@@ -773,9 +754,9 @@ async fn cancelled_recovery_login_retains_attempt_and_refuses_another_connection
             .recovery_started
     );
     assert_eq!(
-        miner
-            .api
-            .reconnect_survival_mining(&watch, &observer.api, config, native("stone"))
+        retirement
+            .clone()
+            .reconnect(config, native("stone"))
             .await
             .err()
             .unwrap()
