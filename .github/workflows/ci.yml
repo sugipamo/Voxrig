@@ -2,39 +2,50 @@ name: CI
 
 on:
   push:
+    branches: [main, develop]
   pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_BUILD_JOBS: '1'
+  RUST_TEST_THREADS: '1'
 
 permissions:
   contents: read
 
 jobs:
   test:
+    needs: msrv
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all -- --check
-      - run: cargo test --all-targets
-      - run: cargo test --doc
-      - run: cargo clippy --all-targets -- -D warnings
-      - run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps
+      - run: cargo test --locked --all-targets -j1 -- --test-threads=1
+      - run: cargo test --locked --doc -j1
+      - run: cargo clippy --locked --all-targets -j1 -- -D warnings
+      - run: RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps -j1
       - name: Verify package allowlist
         run: |
-          cargo package --allow-dirty --list > package-files.txt
+          cargo package --locked --allow-dirty --list > package-files.txt
           if grep -E '^(reference|tools|reports|test-server)/' package-files.txt; then
             echo "development-only files leaked into the crate package"
             exit 1
           fi
       - name: Build the packaged crate
-        run: cargo package --locked --allow-dirty
+        run: cargo package --locked --allow-dirty -j1
 
   audit:
+    needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: rustsec/audit-check@v2.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -42,7 +53,7 @@ jobs:
   msrv:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.85.0
       - uses: Swatinem/rust-cache@v2
-      - run: cargo check --all-targets --locked
+      - run: cargo check --locked --all-targets -j1

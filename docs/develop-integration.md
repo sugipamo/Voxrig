@@ -257,3 +257,25 @@ x=0.6へfixtureを変更した後の移動・side配置・退避の成功を別�
 rustdoc・固定commitのpackage・隔離DustRoute互換性・GitHub CIの結果は統合PRへ記録する。
 利用側の移行・実採用検証は今回を含む新しい固定commitで揃える。
 旧`467ca6c`の確認だけでmainへの統合条件を満たしたとは扱わない。
+
+## 製作時の収納整理とCIの追加統合
+
+2026-10-02（UTC）。PR #2、`codex/crafting-storage-recovery`の
+`1a3b93d395c0fd028f2809ec83c08e9f18df428b`を基に、1.16.1の製作・cursor回収・
+通常収納のstack整理を統合する。材料のitem/NBTとstack上限を照合し、
+製作結果の取得前に通常収納の容量を確認する。装備slotを収納先に使わず、
+拒否・変化したクリック結果で停止する。`compact_player_inventory`の
+offhand回収も含め、利用側に見える挙動は移行表に記録した。
+
+元PRのMSRV失敗はoffhand回収のlet chainによるものだった。
+条件を同じ順序の入れ子へ変更し、Rust 1.85で全targetのコンパイルを確認した。
+CIはMSRV→test→auditへ順序付け、Cargo 1ジョブ・テスト1スレッドとlockfile固定を指定する。
+feature branchはPRで検証し、同一refの古い実行は新しい実行で取り消す。
+`main`と`develop`のpush検証も維持する。
+
+ローカル検証ログは`.local/integration-validation/crafting-storage-merge/`へ保存し、
+最終の全target・package・CI結果はPR #2と統合PRへ記録する。
+全targetは345件成功・6件スキップ、docテスト4件成功。
+fmt・全target Clippy・MSRV 1.85・警告をエラーにしたrustdocも成功した。
+各利用側の移行・実採用検証はこの修正を含む新しいdevelop commitで揃える。
+Golemkitの実サーバー検証をこの統合環境で行ったとは扱わない。

@@ -117,6 +117,17 @@ survivalのraw `use_on_block`は拒否します。`place_survival_cube`で意図
 詳細は[採掘](survival-mining.md)、[retirement](survival-mining-retirement.md)、
 [配置](survival-placement.md)、[移動制御](survival-motion-controls.md)を参照してください。
 
+## 1.16.1の製作・収納の追加修正
+
+`Bot::compact_player_inventory(window_id)`はcursorを通常収納へ戻し、同じitem・NBTの
+stackを上限までまとめます。player windowでは収納可能なoffhandも通常収納へ戻すため、
+装備を維持したい利用側はこの操作による変化を考慮してください。装備slotを退避先には使いません。
+`craft_once`は製作前にこの整理を実行し、残ったgrid材料を戻してから新しいrecipeを置きます。
+製作結果は取得前に収納容量を確認し、空きslotだけでなく互換stackの残容量も使います。
+拒否・不一致では停止します。一部クリック後の失敗はrollbackや再試行許可ではなく、
+新しい観測で残ったcursor・grid・収納を確認してください。protocol確認後のcache予測を含む
+1.16.1の在庫契約は維持し、独立したゲーム内成功の証拠とは扱いません。
+
 ## 検査付きサバイバル入口と追加の互換性変更
 
 版固有の1.21.11操作APIは共存します。対応するサバイバル操作は
