@@ -4060,9 +4060,10 @@ impl Bot {
                 .get(&0)
                 .and_then(|s| s.get(45))
                 .and_then(Option::as_ref)
-                && storage_capacity(&inventory, 0, item)? >= i16::from(item.count)
             {
-                self.return_slot_to_storage(0, 45).await?;
+                if storage_capacity(&inventory, 0, item)? >= i16::from(item.count) {
+                    self.return_slot_to_storage(0, 45).await?;
+                }
             }
         }
         Ok(())

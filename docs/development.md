@@ -31,6 +31,11 @@ cargo package --allow-dirty
 上記の制限を使う場合はpackage検証にも`-j1`を指定します。
 統合検証のログはGit管理外の`.local/integration-validation/`へ保存します。
 
+GitHub ActionsもMSRV（Rust 1.85）→test（fmt・全target・doc・Clippy・rustdoc・package）
+→auditの順に実行します。Cargoは1ジョブ、テストは1スレッド、依存はlockfileへ固定します。
+feature branchはPRで、`main`と`develop`はpushとPRで確認します。
+同じrefの新しい実行が始まると古い実行を取り消します。
+
 ## Testの種類
 
 - Unit test：protocol値、registry、NBT、metadata、transaction、physics
