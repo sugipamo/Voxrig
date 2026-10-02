@@ -122,3 +122,13 @@ refusal, then explicitly declares contact -> released ticks -> backward input ->
 rest, and places a third block after the resulting standing admission. This
 section describes implementation; the separately pinned trial record establishes
 whether execution passed.
+
+The [terminal-clearance live result](evidence/survival-terminal-live-20261002.json)
+pins `bc2c13cb6a6927992049cfe0812b248dafcba285`: walk/place, jump/place,
+wall-touch preflight refusal, and planned wall-contact/retreat/place all passed.
+Three independently observed dirt placements consumed the supplied stack 3 -> 2
+-> 1 -> empty. The dedicated server shut down normally. Observation-only recovery
+has TCP fixture coverage (including interruption/correction refusal); no separate
+live recovery scenario is claimed. Route search and complete Blueprint building
+remain separate roadmap work. The prior inventory increase is explained by the
+[retained pickup receipts](evidence/survival-motion-pickup-diagnosis-20261002.json).
