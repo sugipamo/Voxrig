@@ -227,6 +227,92 @@ async fn hypothetical_native_place_step_and_removal_require_safe_standing() {
 }
 
 const TARGET: [i32; 3] = [2, 2, 0];
+
+// Characterizes a planning limitation, not live bridging acceptance. Keep the
+// standing margin intact; any later fix must distinguish it from aim uncertainty.
+#[tokio::test]
+async fn hypothetical_edge_placement_exposes_post_motion_aim_margin() {
+    use super::super::geometry::GeometryView;
+    let mut f = Fixture::new().await;
+    let position = [1.2, 1.0, 0.5];
+    let rotation = [
+        90.0,
+        (f64::from(1.62f32) + 0.5).atan2(0.2).to_degrees() as f32,
+    ];
+    {
+        let mut s = f.session.state.lock().await;
+        s.position = Some(position);
+        s.rotation = rotation;
+        let generation = s.loading.generation;
+        let receive_sequence = s.sequence;
+        s.motion.receive(ReceivedPose {
+            generation,
+            receive_sequence,
+            position,
+            rotation,
+            velocity: Some([0.0; 3]),
+        });
+        s.world.seed_replay_cell([1, 0, 0], 0);
+    }
+    let scene = f
+        .api
+        .capture_survival_scene(crate::Region {
+            min: [-2, -1, -2],
+            max: [4, 5, 2],
+        })
+        .await
+        .unwrap();
+    let origin = scene.scenario();
+    let placement = origin
+        .preview_cube_placement([0, 0, 0], crate::BlockFace::East, rotation, "dirt")
+        .unwrap();
+    assert_eq!(placement.edit.position, [1, 0, 0]);
+    let idle = [SurvivalControl {
+        yaw: 90.0,
+        input: Default::default(),
+    }; 3];
+    let after = origin.after_path(&idle).unwrap();
+    assert_eq!(after.position(), origin.position());
+    let refusal = after
+        .preview_cube_placement([0, 0, 0], crate::BlockFace::East, rotation, "dirt")
+        .unwrap_err();
+    assert!(
+        refusal.to_string().contains("target face/reach differs"),
+        "{refusal}"
+    );
+    {
+        let s = f.session.state.lock().await;
+        let eye = [position[0], position[1] + f64::from(1.62f32), position[2]];
+        let hit = super::super::super::raycast::outline_hit_in(eye, rotation, 4.5, |p| {
+            s.block(p).map_err(anyhow::Error::from)
+        })
+        .unwrap()
+        .unwrap();
+        // Endpoint admission bounds each packet error by 1/4096 and each
+        // model/observer discrepancy by that error plus 1e-9. This is a bound,
+        // not fabricated observation provenance or permission to move.
+        let admitted_bound = 2.0 / 4096.0 + 1e-9;
+        super::super::survival::uncertain_target_in(
+            &*s,
+            eye,
+            [admitted_bound, 0.0, admitted_bound],
+            rotation,
+            &hit,
+        )
+        .unwrap();
+        println!(
+            "edge placement: position={position:?}; rotation={rotation:?}; received capture passes; same-position after_path refuses: {refusal}; admitted observer aim bound={admitted_bound}"
+        );
+    }
+    f.api.validate_survival_scene(&scene).await.unwrap();
+    assert!(
+        tokio::time::timeout(Duration::from_millis(30), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.stop().await;
+}
+
 fn native(name: &str) -> crate::NativeBlockState {
     crate::NativeBlockState {
         name: format!("minecraft:{name}"),
