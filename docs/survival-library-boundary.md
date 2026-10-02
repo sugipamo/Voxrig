@@ -35,7 +35,7 @@ Dedicated direct vanilla 1.21.11 on localhost:25572, survival, empty operator
 list and the two existing whitelisted fixture profiles. A fresh flat fixture
 world avoids older dropped-item interference. The console sets a stone floor at
 y=-61, a single stone cube at `[0,-60,0]`, air above, the builder at
-`[0.5,-59,0.5]`, an independent viewer at `[0.5,-60,4.5]`, and one dirt in the
+`[0.6,-59,0.5]`, an independent viewer at `[0.5,-60,4.5]`, and one dirt in the
 builder's main inventory before the exercise. No later fixture world edits.
 
 Before inventory/motion mutation, the driver captures native geometry and tries
@@ -50,3 +50,9 @@ received one-item consumption, processed interaction sequence and independent
 block readback. The final small region must contain only the declared stone,
 one new dirt and exact air. Traces and failures are retained; no ambiguous action
 is retried. This is edge-operation acceptance, not full construction or cleanup.
+
+The initial x=0.5 fixture had no candidate in the declared integer-tick family:
+three active ticks stopped at x=1.02826, while four failed terminal clearance.
+No inventory, movement or placement action began. A diagnostic repeat retained
+all rejected candidates. The next fixture starts at x=0.6 on the same support;
+this changes only fixture geometry, not predictor admission or aiming limits.

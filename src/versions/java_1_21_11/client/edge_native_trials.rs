@@ -63,7 +63,7 @@ async fn native_edge_move_place_and_retreat() {
     let bot = connect("NatMineBot").await;
     let viewer = connect("NatMineView").await;
     println!(
-        "FIXTURE edge: fresh isolated world; stone floor y=-61 x/z=-5..6; air y=-60..-54; stone 0 -60 0; bot 0.5 -59 0.5; viewer 0.5 -60 4.5; clear bot; inventory.0 dirt 1; enter"
+        "FIXTURE edge: fresh isolated world; stone floor y=-61 x/z=-5..6; air y=-60..-54; stone 0 -60 0; bot 0.6 -59 0.5; viewer 0.5 -60 4.5; clear bot; inventory.0 dirt 1; enter"
     );
     std::io::stdout().flush().unwrap();
     timeout(
@@ -89,7 +89,7 @@ async fn native_edge_move_place_and_retreat() {
                 && api
                     .standing_context()
                     .await
-                    .is_ok_and(|s| s.position == [0.5, -59.0, 0.5])
+                    .is_ok_and(|s| s.position == [0.6, -59.0, 0.5])
             {
                 break;
             }
@@ -129,28 +129,45 @@ async fn exercise(
     let mut candidate = None;
     for active in 1..=8 {
         let out = controls(-90.0, active);
-        let Ok(edge) = initial.after_path(&out) else {
-            continue;
+        let edge = match initial.after_path(&out) {
+            Ok(edge) => edge,
+            Err(error) => {
+                events.push(json!({"phase":"candidate_rejected","active":active,"stage":"outbound","error":error.to_string()}));
+                continue;
+            }
         };
         let p = edge.position();
         if !(1.08..=1.23).contains(&p[0]) || p[1] != -59.0 || p[2] != 0.5 {
+            events.push(json!({"phase":"candidate_rejected","active":active,"stage":"edge_position","position":p}));
             continue;
         }
         let rotation = [
             90.0,
             (f64::from(1.62f32) + 0.5).atan2(p[0] - 1.0).to_degrees() as f32,
         ];
-        let Ok(place) =
-            edge.preview_cube_placement([0, -60, 0], crate::BlockFace::East, rotation, "dirt")
-        else {
-            continue;
+        let place = match edge.preview_cube_placement(
+            [0, -60, 0],
+            crate::BlockFace::East,
+            rotation,
+            "dirt",
+        ) {
+            Ok(place) => place,
+            Err(error) => {
+                events.push(json!({"phase":"candidate_rejected","active":active,"stage":"placement","position":p,"error":error.to_string()}));
+                continue;
+            }
         };
         let placed = edge.after_edits(std::slice::from_ref(&place.edit))?;
         let back = controls(90.0, active);
-        let Ok(returned) = placed.after_path(&back) else {
-            continue;
+        let returned = match placed.after_path(&back) {
+            Ok(returned) => returned,
+            Err(error) => {
+                events.push(json!({"phase":"candidate_rejected","active":active,"stage":"retreat","error":error.to_string()}));
+                continue;
+            }
         };
-        if (returned.position()[0] - 0.5).abs() > 0.25 || returned.position()[1] != -59.0 {
+        if (returned.position()[0] - 0.6).abs() > 0.25 || returned.position()[1] != -59.0 {
+            events.push(json!({"phase":"candidate_rejected","active":active,"stage":"retreat_position","position":returned.position()}));
             continue;
         }
         candidate = Some((out, back, place, placed));
