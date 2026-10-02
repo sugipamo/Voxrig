@@ -228,10 +228,10 @@ async fn hypothetical_native_place_step_and_removal_require_safe_standing() {
 
 const TARGET: [i32; 3] = [2, 2, 0];
 
-// Characterizes a planning limitation, not live bridging acceptance. Keep the
-// standing margin intact; any later fix must distinguish it from aim uncertainty.
+// Shared native geometry regression, not live bridging acceptance.
+// Conservative standing clearance remains independent of aiming uncertainty.
 #[tokio::test]
-async fn hypothetical_edge_placement_exposes_post_motion_aim_margin() {
+async fn hypothetical_edge_placement_separates_aim_from_clearance() {
     use super::super::geometry::GeometryView;
     let mut f = Fixture::new().await;
     let position = [1.2, 1.0, 0.5];
@@ -273,13 +273,26 @@ async fn hypothetical_edge_placement_exposes_post_motion_aim_margin() {
     }; 3];
     let after = origin.after_path(&idle).unwrap();
     assert_eq!(after.position(), origin.position());
-    let refusal = after
+    let future = after
         .preview_cube_placement([0, 0, 0], crate::BlockFace::East, rotation, "dirt")
-        .unwrap_err();
-    assert!(
-        refusal.to_string().contains("target face/reach differs"),
-        "{refusal}"
-    );
+        .unwrap();
+    assert_eq!(future.edit.position, placement.edit.position);
+    assert_eq!(future.cursor, placement.cursor);
+    assert!(matches!(
+        placement.aim_requirement,
+        HypotheticalAimRequirement::CapturedPosition { .. }
+    ));
+    assert!(matches!(
+        future.aim_requirement,
+        HypotheticalAimRequirement::IndependentlyObservedEndpoint { .. }
+    ));
+    assert_eq!(future.aim_requirement, after.aim_requirement());
+    let preview = after.preview_path(&idle).unwrap();
+    assert_eq!(preview.initial_aim_requirement, after.aim_requirement());
+    let changed = after
+        .after_edits(std::slice::from_ref(&future.edit))
+        .unwrap();
+    assert_eq!(changed.aim_requirement(), after.aim_requirement());
     {
         let s = f.session.state.lock().await;
         let eye = [position[0], position[1] + f64::from(1.62f32), position[2]];
@@ -300,9 +313,15 @@ async fn hypothetical_edge_placement_exposes_post_motion_aim_margin() {
             &hit,
         )
         .unwrap();
-        println!(
-            "edge placement: position={position:?}; rotation={rotation:?}; received capture passes; same-position after_path refuses: {refusal}; admitted observer aim bound={admitted_bound}"
-        );
+        let ambiguous = super::super::survival::uncertain_target_in(
+            &*s,
+            eye,
+            [0.0625, 0.0, 0.0625],
+            rotation,
+            &hit,
+        )
+        .unwrap_err();
+        assert!(ambiguous.to_string().contains("target face/reach differs"));
     }
     f.api.validate_survival_scene(&scene).await.unwrap();
     assert!(
@@ -310,6 +329,23 @@ async fn hypothetical_edge_placement_exposes_post_motion_aim_margin() {
             .await
             .is_err()
     );
+    // A more extreme overhang still cannot become a future stopping position.
+    {
+        let mut s = f.session.state.lock().await;
+        let position = [1.27, 1.0, 0.5];
+        s.position = Some(position);
+        let generation = s.loading.generation;
+        let receive_sequence = s.sequence;
+        s.motion.receive(ReceivedPose {
+            generation,
+            receive_sequence,
+            position,
+            rotation,
+            velocity: Some([0.0; 3]),
+        });
+    }
+    let unsafe_scene = f.api.capture_survival_scene(scene.region()).await.unwrap();
+    assert!(unsafe_scene.scenario().after_path(&idle).is_err());
     f.stop().await;
 }
 
