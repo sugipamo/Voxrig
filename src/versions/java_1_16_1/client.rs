@@ -64,6 +64,45 @@ fn slot_matches(item: &ItemStack, expected: &SlotExpectation) -> bool {
         && expected.metadata == 0
 }
 
+fn storage_range(window: i8, len: usize) -> Result<std::ops::Range<usize>> {
+    if window == 0 {
+        check_inventory(len >= 45, "player storage has not arrived")?;
+        Ok(9..45)
+    } else {
+        check_inventory(len >= 36, "window storage has not arrived")?;
+        Ok(len - 36..len)
+    }
+}
+
+fn check_inventory(condition: bool, message: &str) -> Result<()> {
+    if !condition {
+        return Err(anyhow::anyhow!("{message}").into());
+    }
+    Ok(())
+}
+
+fn merge_room(destination: Option<&ItemStack>, item: &ItemStack) -> i16 {
+    let max = crate::versions::java_1_16_1::registry::item_max_stack_size(item.item_id)
+        .map_or(0, i16::from);
+    match destination {
+        None => max,
+        Some(other) if other.item_id == item.item_id && other.nbt == item.nbt => {
+            (max - i16::from(other.count)).max(0)
+        }
+        Some(_) => 0,
+    }
+}
+
+fn storage_capacity(inventory: &InventoryState, window: i8, item: &ItemStack) -> Result<i16> {
+    let slots = inventory
+        .windows
+        .get(&window)
+        .context("window storage unavailable")?;
+    Ok(storage_range(window, slots.len())?
+        .map(|i| merge_room(slots[i].as_ref(), item))
+        .sum())
+}
+
 fn optional_slot_matches(item: Option<&ItemStack>, expected: Option<&SlotExpectation>) -> bool {
     match (item, expected) {
         (None, None) => true,
@@ -3800,6 +3839,12 @@ impl Bot {
             bail!("ingredient grid length does not match dimensions");
         }
         let grid_end = 1 + ingredients.len();
+        self.compact_player_inventory(window_id).await?;
+        // A previous attempt can leave ingredients in the grid. Return them before
+        // placing a fresh recipe; never consume a partially reconciled recipe twice.
+        for slot in 1..grid_end {
+            self.return_slot_to_storage(window_id, slot).await?;
+        }
         let source_start = if window_id == 0 { 9 } else { grid_end };
         for (grid_index, ingredient) in ingredients.iter().enumerate() {
             let Some(item_id) = ingredient else {
@@ -3815,6 +3860,7 @@ impl Bot {
                         .iter()
                         .enumerate()
                         .skip(source_start)
+                        .take(36)
                         .find(|(_, item)| {
                             item.as_ref().is_some_and(|item| item.item_id == *item_id)
                         })
@@ -3856,7 +3902,18 @@ impl Bot {
     }
     /// Performs the `take_crafting_result` operation.
     pub async fn take_crafting_result(&self, window_id: i8, grid_slots: usize) -> Result<()> {
-        let source_start = if window_id == 0 { 9 } else { 1 + grid_slots };
+        let inventory = self.inventory().await;
+        check_inventory(inventory.cursor.is_none(), "crafting cursor is occupied")?;
+        let result = inventory
+            .windows
+            .get(&window_id)
+            .and_then(|s| s.first())
+            .and_then(Option::as_ref)
+            .context("crafting result is unavailable")?;
+        check_inventory(
+            storage_capacity(&inventory, window_id, result)? >= i16::from(result.count),
+            "insufficient compatible player storage for crafting result; result not taken",
+        )?;
         self.click_slot_and_wait(window_id, 0, 0, ClickMode::Normal)
             .await
             .context("collect crafting result")?;
@@ -3878,23 +3935,136 @@ impl Bot {
             }
             sync_player_inventory_from_window(&mut inventory, window_id);
         }
-        let destination = self
-            .inventory()
-            .await
-            .windows
-            .get(&window_id)
-            .and_then(|slots| {
-                slots
-                    .iter()
-                    .enumerate()
-                    .skip(source_start)
-                    .find(|(_, item)| item.is_none())
-                    .map(|(slot, _)| slot as i16)
-            })
-            .context("no empty inventory slot for crafting result")?;
-        self.click_slot_and_wait(window_id, destination, 0, ClickMode::Normal)
+        self.store_cursor(window_id)
             .await
             .context("store crafting result")?;
+        Ok(())
+    }
+
+    async fn store_cursor(&self, window: i8) -> Result<()> {
+        // Each successful click fills a destination or empties the cursor.
+        for _ in 0..=36 {
+            let inventory = self.inventory().await;
+            let Some(cursor) = inventory.cursor.as_ref() else {
+                return Ok(());
+            };
+            check_inventory(
+                storage_capacity(&inventory, window, cursor)? >= i16::from(cursor.count),
+                "insufficient compatible storage for cursor; no items discarded",
+            )?;
+            let slots = &inventory.windows[&window];
+            let range = storage_range(window, slots.len())?;
+            let destination = range
+                .clone()
+                .find(|i| slots[*i].is_some() && merge_room(slots[*i].as_ref(), cursor) > 0)
+                .or_else(|| range.clone().find(|i| slots[*i].is_none()))
+                .context("no cursor destination")?;
+            let moved =
+                merge_room(slots[destination].as_ref(), cursor).min(i16::from(cursor.count));
+            let mut expected_slot = cursor.clone();
+            expected_slot.count =
+                (i16::from(slots[destination].as_ref().map_or(0, |s| s.count)) + moved) as i8;
+            let mut expected_cursor = cursor.clone();
+            expected_cursor.count -= moved as i8;
+            self.click_slot_and_wait(window, destination as i16, 0, ClickMode::Normal)
+                .await?;
+            let after = self.inventory().await;
+            check_inventory(
+                after.windows.get(&window).and_then(|s| s.get(destination))
+                    == Some(&Some(expected_slot))
+                    && after.cursor == (expected_cursor.count > 0).then_some(expected_cursor),
+                "cursor transfer outcome changed; refusing further clicks",
+            )?;
+        }
+        bail!("cursor reconciliation budget exhausted")
+    }
+
+    async fn return_slot_to_storage(&self, window: i8, source: usize) -> Result<()> {
+        let inventory = self.inventory().await;
+        check_inventory(
+            inventory.cursor.is_none(),
+            "cursor must be reconciled first",
+        )?;
+        let Some(item) = inventory
+            .windows
+            .get(&window)
+            .and_then(|s| s.get(source))
+            .and_then(Option::as_ref)
+        else {
+            return Ok(());
+        };
+        check_inventory(
+            storage_capacity(&inventory, window, item)? >= i16::from(item.count),
+            &format!("insufficient compatible storage to return slot {source}"),
+        )?;
+        self.click_slot_and_wait(window, source as i16, 0, ClickMode::Normal)
+            .await?;
+        let after = self.inventory().await;
+        check_inventory(
+            after.cursor.as_ref() == Some(item)
+                && after
+                    .windows
+                    .get(&window)
+                    .and_then(|s| s.get(source))
+                    .is_some_and(Option::is_none),
+            "source pickup outcome changed; refusing further clicks",
+        )?;
+        self.store_cursor(window).await
+    }
+
+    /// Reconcile the cursor and merge compatible ordinary-storage stacks.
+    /// Never drops items, uses equipment as spare storage, or merges different NBT.
+    /// Rejected/ambiguous clicks stop the operation; callers must not replay blindly.
+    pub async fn compact_player_inventory(&self, window: i8) -> Result<()> {
+        self.store_cursor(window).await?;
+        let inventory = self.inventory().await;
+        let range = storage_range(
+            window,
+            inventory
+                .windows
+                .get(&window)
+                .context("window unavailable")?
+                .len(),
+        )?;
+        for source in range.clone().rev() {
+            let inventory = self.inventory().await;
+            let slots = inventory
+                .windows
+                .get(&window)
+                .context("window changed during compaction")?;
+            let Some(item) = slots.get(source).and_then(Option::as_ref) else {
+                continue;
+            };
+            if (range.start..source)
+                .any(|i| slots[i].is_some() && merge_room(slots[i].as_ref(), item) > 0)
+            {
+                self.click_slot_and_wait(window, source as i16, 0, ClickMode::Normal)
+                    .await?;
+                let after = self.inventory().await;
+                check_inventory(
+                    after.cursor.as_ref() == Some(item)
+                        && after
+                            .windows
+                            .get(&window)
+                            .and_then(|s| s.get(source))
+                            .is_some_and(Option::is_none),
+                    "compaction pickup outcome changed; refusing further clicks",
+                )?;
+                self.store_cursor(window).await?;
+            }
+        }
+        if window == 0 {
+            let inventory = self.inventory().await;
+            if let Some(item) = inventory
+                .windows
+                .get(&0)
+                .and_then(|s| s.get(45))
+                .and_then(Option::as_ref)
+                && storage_capacity(&inventory, 0, item)? >= i16::from(item.count)
+            {
+                self.return_slot_to_storage(0, 45).await?;
+            }
+        }
         Ok(())
     }
     /// Dispatches recipe placement without waiting for inventory synchronization.
@@ -6486,6 +6656,7 @@ mod tests {
     };
 
     include!("client/packet_deadline_tests.rs");
+    include!("client/storage_tests.rs");
 
     struct CountingRead<R> {
         inner: R,
