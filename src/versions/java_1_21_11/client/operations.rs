@@ -197,6 +197,9 @@ pub struct OperationHistory {
     pub mining: Option<MiningRecord>,
     /// Last independent retirement watch; history does not authorize recovery.
     pub mining_retirement: Option<MiningRetirementRecord>,
+    /// Fresh mining recovery has observations, but native loading is unvalidated.
+    /// All user mutations stay blocked; history/read-only diagnostics remain usable.
+    pub recovery_loading_pending: bool,
     /// Last main-hand selection evidence, including incomplete send attempts.
     pub selected_hotbar: Option<HotbarSelection>,
 }
@@ -297,6 +300,7 @@ impl Operations {
             pending_creative_slots: state.operations.inventory.pending_creative.clone(),
             mining: state.mining.clone(),
             mining_retirement: state.retirement.clone(),
+            recovery_loading_pending: state.recovery_loading_pending,
             selected_hotbar: state.operations.selected_hotbar.clone(),
         }
     }
@@ -576,6 +580,14 @@ impl Operations {
     }
     pub(super) fn mutable(&self, state: &State) -> Result<()> {
         self.ready(state)?;
+        if state.recovery_loading_pending {
+            return Err(Error::new(
+                ErrorKind::State,
+                anyhow::anyhow!(
+                    "fresh mining recovery requires validated survival interaction loading before any mutation"
+                ),
+            ));
+        }
         if state.mining.is_some() {
             return Err(Error::new(
                 ErrorKind::State,

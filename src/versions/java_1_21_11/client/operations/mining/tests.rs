@@ -364,6 +364,134 @@ async fn retirement_closure_alone_and_changed_observer_context_never_authorize_r
 }
 
 #[tokio::test]
+async fn cancelled_recovery_login_retains_attempt_and_refuses_another_connection() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let endpoint = crate::Server::new("127.0.0.1", listener.local_addr().unwrap().port());
+    let mut miner = Fixture::new().await;
+    let mut observer = Fixture::new_id(43).await;
+    for f in [&miner, &observer] {
+        f.session
+            .state
+            .lock()
+            .await
+            .identity
+            .as_mut()
+            .unwrap()
+            .server = endpoint.clone();
+    }
+    let intent = miner.start().await;
+    observer.profile(42).await;
+    let watch = miner
+        .api
+        .prepare_survival_mining_retirement(&intent, &observer.api)
+        .await
+        .unwrap();
+    miner.api.bot.disconnect().await.unwrap();
+    observer.remove_profile(42).await;
+    let config = ConnectionConfig::offline(endpoint, "Miner42", MinecraftVersion::Java1_21_11);
+    let mut recovery = Box::pin(miner.api.reconnect_survival_mining(
+        &watch,
+        &observer.api,
+        config.clone(),
+        native("stone"),
+    ));
+    let (mut login, _) = timeout(Duration::from_secs(1), async {
+        tokio::select! {
+            accepted = listener.accept() => accepted.unwrap(),
+            _ = &mut recovery => panic!("recovery returned before login fixture accepted"),
+        }
+    })
+    .await
+    .unwrap();
+    let handshake = timeout(Duration::from_secs(1), async {
+        tokio::select! {
+            packet = read_packet(&mut login, None) => packet.unwrap(),
+            _ = &mut recovery => panic!("recovery returned before login handshake"),
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(handshake.0, 0);
+    // Cancel an actual in-progress TCP login, not a pre-I/O argument check.
+    drop(recovery);
+    assert!(
+        observer
+            .api
+            .operation_history()
+            .await
+            .mining_retirement
+            .unwrap()
+            .recovery_started
+    );
+    assert_eq!(
+        miner
+            .api
+            .reconnect_survival_mining(&watch, &observer.api, config, native("stone"))
+            .await
+            .err()
+            .unwrap()
+            .kind(),
+        ErrorKind::State
+    );
+    assert!(
+        timeout(Duration::from_millis(10), listener.accept())
+            .await
+            .is_err()
+    );
+    assert!(miner.api.operation_history().await.connection_closed);
+    miner.stop().await;
+    observer.stop().await;
+}
+
+#[tokio::test]
+async fn fresh_recovery_observations_do_not_authorize_actions_before_native_loading() {
+    let mut fixture = Fixture::new().await;
+    fixture.session.state.lock().await.recovery_loading_pending = true;
+    assert!(fixture.api.player_state().await.is_ok());
+    assert!(fixture.api.standing_context().await.is_ok());
+    assert!(
+        fixture
+            .api
+            .operation_history()
+            .await
+            .recovery_loading_pending
+    );
+    assert!(fixture.api.select_hotbar(1).await.is_err());
+    assert!(fixture.api.look([-90.0, 3.0]).await.is_err());
+    assert!(fixture.api.swap_player_hotbar(9, 1).await.is_err());
+    assert!(
+        fixture
+            .api
+            .start_survival_mining(TARGET, crate::BlockFace::West)
+            .await
+            .is_err()
+    );
+    assert!(
+        fixture
+            .api
+            .use_on_block(TARGET, crate::BlockFace::West, [0.5; 3])
+            .await
+            .is_err()
+    );
+    assert!(
+        fixture
+            .api
+            .send_command("say should_not_send")
+            .await
+            .is_err()
+    );
+    assert!(
+        timeout(
+            Duration::from_millis(10),
+            read_packet(&mut fixture.peer, None)
+        )
+        .await
+        .is_err()
+    );
+    fixture.stop().await;
+}
+
+#[tokio::test]
 async fn pending_abort_ack_and_timeout_refuse_every_following_mutation_until_fresh_removal() {
     let mut f = Fixture::new().await;
     let intent = f.start().await;

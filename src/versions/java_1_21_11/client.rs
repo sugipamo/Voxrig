@@ -105,6 +105,7 @@ impl TraceCapture {
 }
 
 struct State {
+    recovery_loading_pending: bool,
     identity: Option<LoginIdentity>,
     retirement: Option<operations::MiningRetirementRecord>,
     mining: Option<operations::MiningRecord>,
@@ -127,6 +128,7 @@ struct State {
 impl Default for State {
     fn default() -> Self {
         Self {
+            recovery_loading_pending: false,
             identity: None,
             retirement: None,
             mining: None,

@@ -78,7 +78,7 @@ pub struct MiningRecord {
     /// Latched context/conflict reason. Later air cannot silently clear it.
     pub requires_inspection: Option<String>,
     /// Result established by a read-only observation. Even Some does not currently
-    /// authorize continuation; the separate release boundary remains unimplemented.
+    /// authorize in-session continuation; that release remains unimplemented.
     pub removal: Option<MiningRemoval>,
 }
 /// Explicit result states; a pending timeout is never a safe cancellation.

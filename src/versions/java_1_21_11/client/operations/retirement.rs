@@ -22,6 +22,8 @@ pub struct MiningRetirementRecord {
     pub removal_receive_sequence: Option<u64>,
     /// Latched observer context/rejoin conflict; a later removal cannot clear it.
     pub requires_inspection: Option<String>,
+    /// An explicit reconnect has begun. Retained before I/O; never auto-retried.
+    pub recovery_started: bool,
 }
 /// Retirement is separate from the target's removal result.
 #[derive(Clone, Debug, Serialize)]
@@ -49,6 +51,9 @@ pub enum MiningRetirementStatus {
 /// Fresh connection and stationary target observation after validated retirement.
 #[derive(Clone, Debug, Serialize)]
 pub struct MiningRecoveryEvidence {
+    /// False until the separate native player-loading transition is implemented
+    /// and compared. Fresh observations do not authorize another game action.
+    pub interaction_ready: bool,
     /// Old mining state is retained; it is never imported into the new session.
     pub old_history: OperationHistory,
     /// Independent retirement receipt checked immediately before connecting.
@@ -64,7 +69,8 @@ pub struct MiningRecoveryEvidence {
 }
 /// Explicit recovery result. The original connection remains closed and blocked.
 pub struct MiningRecovery {
-    /// Operations on the validated fresh connection.
+    /// Read-only operations on the fresh connection. User mutations remain
+    /// blocked while native interaction loading is unvalidated.
     pub operations: Operations,
     /// Evidence for diagnosis and a new plan; not permission to replay an old job.
     pub evidence: MiningRecoveryEvidence,
@@ -171,6 +177,7 @@ impl Operations {
             watch: watch.clone(),
             removal_receive_sequence: None,
             requires_inspection: None,
+            recovery_started: false,
         });
         Ok(watch)
     }
@@ -249,7 +256,8 @@ impl Operations {
     /// Explicit fresh-connection recovery, never an automatic retry. Requires
     /// validated retirement and the same endpoint/name/version. The caller must
     /// declare expected target contents and build a new permission-checked plan.
-    /// New player/site observations are validated before exposing any operations.
+    /// New player/site observations are validated before exposing read-only
+    /// operations. Native interaction loading remains unvalidated and blocked.
     pub async fn reconnect_survival_mining(
         &self,
         watch: &MiningRetirementWatch,
@@ -290,6 +298,24 @@ impl Operations {
                 "recovery requires air or the original supported target baseline",
             ));
         }
+        // Consume the reconnect stage under the observer lock. Parallel or
+        // cancelled callers cannot start a second login from the same receipt.
+        let retirement = {
+            let mut state = observer.bot.session.state.lock().await;
+            observer.ready(&state)?;
+            let current = watched(&state, watch)?;
+            if current.requires_inspection.is_some() || current.recovery_started {
+                return Err(unavailable(
+                    "retirement recovery already attempted or needs inspection",
+                ));
+            }
+            if current.removal_receive_sequence != retirement.removal_receive_sequence {
+                return Err(unavailable("retirement receipt changed before recovery"));
+            }
+            let current = state.retirement.as_mut().expect("watch checked");
+            current.recovery_started = true;
+            current.clone()
+        };
         let old_history = self.operation_history().await;
         let bot = Bot::connect(config).await?;
         bot.wait_until_ready().await?;
@@ -360,6 +386,7 @@ impl Operations {
             ));
         }
         let evidence = MiningRecoveryEvidence {
+            interaction_ready: false,
             old_history,
             retirement,
             connection_id: bot.session.id,
@@ -367,7 +394,15 @@ impl Operations {
             target: expected_target,
             receive_sequence: state.sequence,
         };
+        state.recovery_loading_pending = true;
         drop(state);
+        {
+            let state = observer.bot.session.state.lock().await;
+            observer.ready(&state)?;
+            if watched(&state, watch)?.requires_inspection.is_some() {
+                return Err(unavailable("observer context changed during recovery"));
+            }
+        }
         Ok(MiningRecovery {
             operations,
             evidence,
@@ -396,6 +431,7 @@ pub(in crate::versions::java_1_21_11::client) fn retirement_received(
         reader.end()?;
     } else if id == ids::play_clientbound::PLAYER_INFO
         && record.removal_receive_sequence.is_some()
+        && !record.recovery_started
         && state
             .players
             .profile_name(&record.watch.miner_uuid)

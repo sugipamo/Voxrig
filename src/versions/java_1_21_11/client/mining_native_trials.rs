@@ -269,7 +269,6 @@ async fn comparison(native_api: bool) {
         } else {
             Some(bot.stop_packet_trace().await.unwrap())
         };
-        let viewer_trace = viewer.stop_packet_trace().await.unwrap();
         let players = viewer.operations().visible_players().await.unwrap();
         if disconnect {
             assert!(!players.players.iter().any(|p| p.name == "NatMineBot"));
@@ -317,18 +316,51 @@ async fn comparison(native_api: bool) {
                 recovered.evidence.connection_id,
                 recovered.evidence.old_history.connection_id
             );
-            recovered.operations.select_hotbar(0).await.unwrap();
-            let evidence = json!({"retired":retired,"recovery":recovered.evidence,"new_mutation":"ordinary select_hotbar(0) permitted only on fresh validated session"});
+            if recovered.evidence.interaction_ready {
+                recovered.operations.select_hotbar(0).await.unwrap();
+            } else {
+                assert!(recovered.operations.select_hotbar(0).await.is_err());
+            }
+            assert!(
+                bot.operations()
+                    .reconnect_survival_mining(
+                        watch,
+                        &viewer.operations(),
+                        ConnectionConfig::offline(
+                            crate::Server::new("127.0.0.1", port),
+                            "NatMineBot",
+                            MinecraftVersion::Java1_21_11
+                        ),
+                        recovered.evidence.target.clone()
+                    )
+                    .await
+                    .is_err(),
+                "same retirement receipt authorized a second recovery login"
+            );
+            let evidence = json!({"retired":retired,"recovery":recovered.evidence,"new_mutation":"refused until native interaction loading is validated"});
             bot = recovered.operations.bot.clone();
             Some(evidence)
         } else {
             None
         };
+        let viewer_trace = viewer.stop_packet_trace().await.unwrap();
         cases.push(json!({"name":name,"ground":ground,"before":before,"inputs":inputs,"immediately":immediately,"observations":observations,"miner_trace":bot_trace,"viewer_trace":viewer_trace,"visible_players_after":players,"pending_api_result":pending_api_result,"after_api_result":after_api_result,"external_input":external_input,"recovery":recovery}));
+        if native_api
+            && bot
+                .operations()
+                .operation_history()
+                .await
+                .recovery_loading_pending
+        {
+            println!(
+                "CONTINUATION_BLOCKED: native interaction loading unvalidated; remaining cases not executed"
+            );
+            break;
+        }
     }
     if native_api {
         bot.disconnect().await.unwrap();
     }
     viewer.disconnect().await.unwrap();
-    serde_json::to_writer(file,&json!({"minecraft_version":"Java 1.21.11","scope":if native_api {"isolated non-OP survival; public intent/result mining API; console fixture setup only"} else {"isolated non-OP survival; test-private native action packets; console fixture setup only"},"cases":cases})).unwrap();
+    serde_json::to_writer(file,&json!({"minecraft_version":"Java 1.21.11","scope":if native_api {"isolated non-OP survival; public intent/result mining API; console fixture setup only"} else {"isolated non-OP survival; test-private native action packets; console fixture setup only"},"all_cases_executed":cases.len()==if native_api {4} else {3},"cases":cases})).unwrap();
 }
