@@ -479,6 +479,11 @@ pub(in crate::versions::java_1_21_11::client) fn mining_world_changed(
     state: &mut State,
     reason: &str,
 ) {
+    if let Some(watch) = &mut state.retirement {
+        watch
+            .requires_inspection
+            .get_or_insert_with(|| reason.into());
+    }
     if let Some(record) = &mut state.mining
         && record.removal.is_none()
     {

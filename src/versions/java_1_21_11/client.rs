@@ -105,6 +105,8 @@ impl TraceCapture {
 }
 
 struct State {
+    identity: Option<LoginIdentity>,
+    retirement: Option<operations::MiningRetirementRecord>,
     mining: Option<operations::MiningRecord>,
     recording: Option<recording::Capture>,
     recording_ordinal: u64,
@@ -125,6 +127,8 @@ struct State {
 impl Default for State {
     fn default() -> Self {
         Self {
+            identity: None,
+            retirement: None,
             mining: None,
             recording: None,
             recording_ordinal: 0,
@@ -177,6 +181,12 @@ impl State {
 struct Writer {
     stream: OwnedWriteHalf,
     compression: Option<i32>,
+}
+#[derive(Clone)]
+struct LoginIdentity {
+    uuid: [u8; 16],
+    name: String,
+    server: crate::Server,
 }
 struct Session {
     id: u64,
@@ -292,7 +302,7 @@ impl Bot {
         )
         .await?;
         let mut compression = None;
-        loop {
+        let identity = loop {
             let (id, payload) = timeout(
                 config.limits.login_packet_timeout,
                 read_packet(&mut reader, compression),
@@ -302,7 +312,7 @@ impl Bot {
             let mut r = Reader::new(&payload);
             match id {
                 ids::login_clientbound::SUCCESS => {
-                    r.take(16)?;
+                    let uuid = r.take(16)?.try_into().context("login UUID length")?;
                     let received = r.string()?;
                     if received != config.username {
                         return Err(Error::new(
@@ -325,7 +335,11 @@ impl Bot {
                         &[],
                     )
                     .await?;
-                    break;
+                    break LoginIdentity {
+                        uuid,
+                        name: received,
+                        server: config.server.clone(),
+                    };
                 }
                 ids::login_clientbound::COMPRESS => {
                     let threshold = r.varint()?;
@@ -384,7 +398,7 @@ impl Bot {
                     ));
                 }
             }
-        }
+        };
         let session = Arc::new(Session {
             id: crate::connection::next_connection_id(),
             started: Instant::now(),
@@ -392,7 +406,10 @@ impl Bot {
                 stream: writer,
                 compression,
             }),
-            state: Mutex::new(State::default()),
+            state: Mutex::new(State {
+                identity: Some(identity),
+                ..State::default()
+            }),
             changed: Notify::new(),
             cancel: Notify::new(),
             stopped: AtomicBool::new(false),
@@ -716,6 +733,7 @@ fn apply_play(
         return Ok(responses);
     }
     if state.players.receive(id, payload, state.sequence)? {
+        operations::retirement_received(state, id, payload)?;
         return Ok(responses);
     }
     match id {
