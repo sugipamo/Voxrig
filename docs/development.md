@@ -35,6 +35,7 @@ GitHub ActionsもMSRV（Rust 1.85）→test（fmt・全target・doc・Clippy・r
 →auditの順に実行します。Cargoは1ジョブ、テストは1スレッド、依存はlockfileへ固定します。
 feature branchはPRで、`main`と`develop`はpushとPRで確認します。
 同じrefの新しい実行が始まると古い実行を取り消します。
+checkoutはNode 24対応の`actions/checkout@v7`を使用します。
 
 ## Testの種類
 
