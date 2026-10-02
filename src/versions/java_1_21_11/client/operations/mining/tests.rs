@@ -5,9 +5,9 @@ use tokio::{
     task::JoinHandle,
 };
 
-// Characterize the existing conservative guard; no behavior change and no I/O.
+// Regression from a detached roof preflight; no network or world edits.
 #[test]
-fn roof_diagonal_view_is_refused_by_off_ray_foot_support() {
+fn roof_diagonal_view_allows_off_ray_foot_support_but_refuses_occlusion() {
     use super::super::geometry::GeometryView;
     struct RoofView {
         foot_support: bool,
@@ -74,19 +74,18 @@ fn roof_diagonal_view_is_refused_by_off_ray_foot_support() {
     )
     .unwrap();
     assert_eq!(exact.target, [0, -60, 4]);
-    let error = super::super::survival::uncertain_target_in(
+    let uncertain = super::super::placement::placement_geometry(
         &view,
-        eye,
+        position,
+        bounds,
         [margin, 0.0, margin],
         rotation,
-        &hit,
+        [0, -61, 4],
+        crate::BlockFace::Up as u8,
     )
-    .unwrap_err();
-    assert!(
-        error
-            .to_string()
-            .contains("uncertain eye corridor is not clear")
-    );
+    .unwrap();
+    assert_eq!(uncertain.target, exact.target);
+    assert_eq!(uncertain.cursor, exact.cursor);
     // Counterfactual visibility only: removing a foot support is not a safe
     // construction action, nor a replacement standing context.
     let without_support = RoofView {
@@ -107,6 +106,18 @@ fn roof_diagonal_view_is_refused_by_off_ray_foot_support() {
         obstacle: true,
     };
     assert_eq!(ray(&obstructed, eye).position, [1, -59, 5]);
+    assert!(
+        super::super::survival::uncertain_target_in(
+            &obstructed,
+            eye,
+            [margin, 0.0, margin],
+            rotation,
+            &hit,
+        )
+        .unwrap_err()
+        .to_string()
+        .contains("corridor is not clear")
+    );
 }
 
 #[tokio::test]
