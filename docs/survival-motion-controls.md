@@ -70,3 +70,26 @@ The ignored `native_survival_walk_jump_collision_and_place` test requires the
 explicit dedicated non-OP fixture. Its source is a driver, not proof that a live
 trial passed. A live result must be linked separately with its tested commit,
 operator fixture log and received traces before claiming verified operation.
+
+## Recorded live checkpoint (2026-10-02 UTC)
+
+The [trial record](evidence/survival-motion-live-20261002.json) pins source
+`f204cd2879030648c355ba73619453faf9014c0c` and retains received traces and the
+operator/server log. Walk -> rest -> place and jump -> land -> place succeeded
+with independent block observations and per-operation material decrements.
+
+The third run reached the predicted wall contact, but conservative standing
+admission refused it: the player center was predicted at X=3.699999988079071,
+native half-width makes its right face exactly X=4, and the observer's relative
+coordinate error expands that face into the wall. The final run is retained as
+`RequiresInspection`. The overall live test exited 101, not a complete pass.
+Under the user's concern stop condition no further implementation or movement
+was performed. The dedicated server shut down normally.
+
+Recommended next change for review: preflight the terminal standing clearance
+before sending and select a resting endpoint with space from walls, using the
+existing bounded input model. A collision test can touch the wall then retreat
+before its terminal rest; this must be declared in the plan and observed, not
+silently appended after failure. Define separate explicit recovery for an already
+failed contact run before allowing further inputs. Do not label quantized
+position as exact or relax the existing clearance check merely to pass the test.
