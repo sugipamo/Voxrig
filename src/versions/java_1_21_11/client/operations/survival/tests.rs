@@ -10,6 +10,7 @@ fn fixture() -> serde_json::Value {
 fn state() -> State {
     let mut s = State {
         ready: true,
+        loading: loading::InteractionLoading::completed_fixture(),
         position: Some([0.5, 1.0, 0.5]),
         sequence: 10,
         ..State::default()

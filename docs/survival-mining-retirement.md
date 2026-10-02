@@ -1,5 +1,11 @@
 # Java 1.21.11 mining retirement and fresh recovery
 
+The loading proposal has since been approved and implemented in the
+[common interaction-loading layer](survival-interaction-loading.md). Fresh
+recovery now requires its notification plus new site/player/inventory conditions.
+The stop-boundary sections below retain the previous checkpoint's evidence and
+limitations; they do not describe the current loading gate as permanently closed.
+
 Air is a result observation, not authority to reuse a delayed miner. All user
 mutations on the original mining connection remain blocked. This slice instead
 provides an explicit retirement/reconnect path for **direct, unmodified vanilla

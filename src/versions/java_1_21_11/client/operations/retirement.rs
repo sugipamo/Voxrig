@@ -51,8 +51,8 @@ pub enum MiningRetirementStatus {
 /// Fresh connection and stationary target observation after validated retirement.
 #[derive(Clone, Debug, Serialize)]
 pub struct MiningRecoveryEvidence {
-    /// False until the separate native player-loading transition is implemented
-    /// and compared. Fresh observations do not authorize another game action.
+    /// Current-generation PLAYER_LOADED dispatched before exposing new operations.
+    /// This is not server acceptance of a subsequent game action.
     pub interaction_ready: bool,
     /// Old mining state is retained; it is never imported into the new session.
     pub old_history: OperationHistory,
@@ -69,8 +69,8 @@ pub struct MiningRecoveryEvidence {
 }
 /// Explicit recovery result. The original connection remains closed and blocked.
 pub struct MiningRecovery {
-    /// Read-only operations on the fresh connection. User mutations remain
-    /// blocked while native interaction loading is unvalidated.
+    /// Operations on the fresh connection after loading notification and new
+    /// site/player validation. Original mining authority is never imported.
     pub operations: Operations,
     /// Evidence for diagnosis and a new plan; not permission to replay an old job.
     pub evidence: MiningRecoveryEvidence,
@@ -256,8 +256,8 @@ impl Operations {
     /// Explicit fresh-connection recovery, never an automatic retry. Requires
     /// validated retirement and the same endpoint/name/version. The caller must
     /// declare expected target contents and build a new permission-checked plan.
-    /// New player/site observations are validated before exposing read-only
-    /// operations. Native interaction loading remains unvalidated and blocked.
+    /// Native loading notification and new player/site observations are required
+    /// before exposing operations; every subsequent action needs its own result.
     pub async fn reconnect_survival_mining(
         &self,
         watch: &MiningRetirementWatch,
@@ -347,6 +347,7 @@ impl Operations {
         .context("fresh recovery baselines timed out")??;
         let mut state = bot.session.state.lock().await;
         operations.ready(&state)?;
+        operations.mutable(&state)?;
         if identity(&state)?.uuid != watch.miner_uuid
             || state.operations.game_mode != Some(GameMode::Survival)
             || state.world.dimension.as_ref().map(|d| &d.0) != Some(&watch.intent.dimension)
@@ -386,7 +387,7 @@ impl Operations {
             ));
         }
         let evidence = MiningRecoveryEvidence {
-            interaction_ready: false,
+            interaction_ready: state.loading.notification_dispatched(),
             old_history,
             retirement,
             connection_id: bot.session.id,
@@ -394,7 +395,6 @@ impl Operations {
             target: expected_target,
             receive_sequence: state.sequence,
         };
-        state.recovery_loading_pending = true;
         drop(state);
         {
             let state = observer.bot.session.state.lock().await;
