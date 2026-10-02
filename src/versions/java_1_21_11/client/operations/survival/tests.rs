@@ -391,3 +391,18 @@ fn unsupported_impulses_and_own_vehicle_cannot_leave_stale_stationary_authority(
         assert!(context(&mut s, 1, 0).is_err());
     }
 }
+
+#[test]
+fn recovery_waits_for_standing_halo_across_chunk_edges() {
+    let mut s = state();
+    assert!(standing_baselines_received(&s).unwrap());
+    s.position = Some([15.5, 1.0, 0.5]);
+    assert!(s.world.block([15, 1, 0]).is_some());
+    assert!(!standing_baselines_received(&s).unwrap());
+    s.world.seed_replay_cell([16, 0, 0], 1);
+    assert!(!standing_baselines_received(&s).unwrap()); // Negative-z neighbor still missing.
+    s.world.seed_replay_cell([16, 0, -1], 1);
+    assert!(standing_baselines_received(&s).unwrap());
+    s.position = Some([15.5, -64.0, 0.5]);
+    assert!(standing_baselines_received(&s).is_err()); // Never wait for impossible terrain.
+}

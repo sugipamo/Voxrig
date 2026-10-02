@@ -47,3 +47,9 @@ missing new initial-chunks receipt, and notification cancellation before writer
 acquisition with retained history and no replay. The existing mutation-refusal
 test now exercises this common stage. Native comparisons use no private
 PLAYER_LOADED send and require an actual new mining result after recovery.
+
+Recovery also waits for every native cell inspected by stationary geometry,
+including the one-cell halo across chunk edges. Own-chunk readiness alone does
+not establish this larger site baseline. The same region calculation serves
+readiness and validation; missing neighbors wait, invalid dimension bounds refuse,
+and unsupported received geometry is not converted to an empty cell.

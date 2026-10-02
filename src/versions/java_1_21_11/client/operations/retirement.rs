@@ -320,7 +320,7 @@ impl Operations {
         let bot = Bot::connect(config).await?;
         bot.wait_until_ready().await?;
         let operations = bot.operations();
-        // Readiness means play/position, not complete inventory/health/chunks.
+        // Common loading covers the own chunk, not all inventory/health/site cells.
         // Wait for those received baselines; the timeout never certifies them.
         timeout(bot.session.limits.ready_timeout, async {
             loop {
@@ -336,6 +336,7 @@ impl Operations {
                         .slots
                         .contains(&InventorySlot::Unavailable)
                     && state.world.block(watch.intent.target).is_some()
+                    && survival::standing_baselines_received(&state)?
                 {
                     return Ok::<(), Error>(());
                 }
