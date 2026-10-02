@@ -26,6 +26,8 @@ use crate::{
 };
 use std::time::Duration;
 
+pub use crate::versions::java_1_21_11::players::PlayerObservations;
+
 pub use native::{
     CapturedSurvivalScene, HypotheticalAimRequirement, HypotheticalBlockEdit,
     HypotheticalMovementPreview, HypotheticalPlacement, InventorySlot, InventorySwap,
@@ -92,6 +94,11 @@ impl Client {
     }
 }
 impl Operations {
+    /// Received player identities and poses for observer setup; missing entries
+    /// are not evidence of retirement or absence from the server.
+    pub async fn visible_players(&self) -> Result<PlayerObservations> {
+        self.native.visible_players().await
+    }
     /// Contract and version of this handle; not permission to perform an action.
     pub fn capabilities(&self) -> SurvivalCapabilities {
         self.client.survival_capabilities()
