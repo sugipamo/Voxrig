@@ -2,6 +2,7 @@
 mod observations;
 /// Explicit Java 1.21.11 operation API and received player state.
 pub mod operations;
+mod outbound;
 pub mod players;
 pub mod raycast;
 pub mod recording;
@@ -183,6 +184,7 @@ struct Session {
     changed: Notify,
     cancel: Notify,
     stopped: AtomicBool,
+    interrupted_packet: AtomicI32,
     limits: crate::ConnectionOptions,
     interaction_sequence: AtomicI32,
 }
@@ -190,9 +192,7 @@ struct Lease(Weak<Session>);
 impl Drop for Lease {
     fn drop(&mut self) {
         if let Some(session) = self.0.upgrade() {
-            session.stopped.store(true, Ordering::Release);
-            session.cancel.notify_one();
-            session.changed.notify_waiters();
+            session.stop();
         }
     }
 }
@@ -394,6 +394,7 @@ impl Bot {
             changed: Notify::new(),
             cancel: Notify::new(),
             stopped: AtomicBool::new(false),
+            interrupted_packet: AtomicI32::new(-1),
             limits: config.limits,
             interaction_sequence: AtomicI32::new(0),
         });
@@ -405,16 +406,7 @@ impl Bot {
             session: session.clone(),
         };
         tokio::spawn(async move {
-            let result = session.receive_loop(reader).await;
-            if let Err(error) = result {
-                let mut state = session.state.lock().await;
-                if state.failure.is_none() {
-                    state.failure = Some(Error::from(error));
-                }
-            }
-            session.stopped.store(true, Ordering::Release);
-            session.changed.notify_waiters();
-            let _ = session.writer.lock().await.stream.shutdown().await;
+            session.run_receiver(reader).await;
         });
         Ok(bot)
     }
@@ -505,9 +497,7 @@ impl Bot {
     }
 
     pub async fn disconnect(&self) -> Result<()> {
-        self.session.stopped.store(true, Ordering::Release);
-        self.session.cancel.notify_one();
-        self.session.changed.notify_waiters();
+        self.session.stop();
         self.session.writer.lock().await.stream.shutdown().await?;
         Ok(())
     }
@@ -515,21 +505,24 @@ impl Bot {
 
 impl Session {
     fn check(&self, state: &State) -> Result<()> {
+        if self.interrupted_packet.load(Ordering::Acquire) >= 0 {
+            self.check_outbound()?;
+        }
         if let Some(error) = &state.failure {
             return Err(Error::new(error.kind(), anyhow::anyhow!("{error}")));
         }
-        if self.stopped.load(Ordering::Acquire) {
-            return Err(Error::new(
-                ErrorKind::Disconnected,
-                anyhow::anyhow!("connection closed"),
-            ));
-        }
-        Ok(())
+        self.check_outbound()
     }
-    async fn send(&self, id: i32, payload: &[u8]) -> anyhow::Result<()> {
-        let mut writer = self.writer.lock().await;
-        let compression = writer.compression;
-        write_packet(&mut writer.stream, compression, id, payload).await
+    async fn run_receiver(&self, reader: OwnedReadHalf) {
+        let result = self.receive_loop(reader).await;
+        self.stop();
+        if let Err(error) = result {
+            let mut state = self.state.lock().await;
+            if state.failure.is_none() {
+                state.failure = Some(Error::from(error));
+            }
+        }
+        let _ = self.writer.lock().await.stream.shutdown().await;
     }
     async fn receive_loop(&self, mut reader: OwnedReadHalf) -> anyhow::Result<()> {
         let compression = self.writer.lock().await.compression;
@@ -541,6 +534,9 @@ impl Session {
             };
             let responses = {
                 let mut state = self.state.lock().await;
+                if self.stopped.load(Ordering::Acquire) {
+                    return Ok(());
+                }
                 let target = self.started.elapsed().as_millis() as u64 / 50;
                 let State {
                     world,

@@ -149,6 +149,26 @@ pub struct PlayerState {
     /// Last periodic server-time sample; never a current-tick fence.
     pub server_time: Option<ServerTime>,
 }
+/// Diagnostic history, available even after closure. These records are not a
+/// current player/world observation or permission to replay an action.
+#[derive(Clone, Debug, Serialize)]
+pub struct OperationHistory {
+    /// Owning connection; never reusable on a replacement connection.
+    pub connection_id: u64,
+    /// Last applied receive ordinal, not a fresh observation fence.
+    pub last_receive_sequence: u64,
+    /// True when the connection can no longer be used for operations.
+    pub connection_closed: bool,
+    /// First attempted packet whose frame completion became uncertain.
+    /// Does not prove how many bytes or which server effects occurred.
+    pub interrupted_packet_id: Option<i32>,
+    /// Most recent protocol/receive failure, if retained.
+    pub receive_failure: Option<String>,
+    /// An unresolved ordinary inventory swap; do not replay from this history.
+    pub pending_inventory_swap: Option<InventorySwap>,
+    /// Creative slots awaiting a received result, including interrupted sends.
+    pub pending_creative_slots: Vec<u8>,
+}
 /// A periodic native time packet bound to its receive sequence.
 #[derive(Clone, Debug, Serialize)]
 pub struct ServerTime {
@@ -229,6 +249,21 @@ pub struct Operations {
     pub(super) bot: Bot,
 }
 impl Operations {
+    /// Inspect unresolved operation history without sending, reconnecting or
+    /// checking for a live connection. Never turns stale data into action authority.
+    pub async fn operation_history(&self) -> OperationHistory {
+        let state = self.bot.session.state.lock().await;
+        let interrupted = self.bot.session.interrupted_packet.load(Ordering::Acquire);
+        OperationHistory {
+            connection_id: self.bot.session.id,
+            last_receive_sequence: state.sequence,
+            connection_closed: self.bot.session.stopped.load(Ordering::Acquire),
+            interrupted_packet_id: (interrupted >= 0).then_some(interrupted),
+            receive_failure: state.failure.as_ref().map(ToString::to_string),
+            pending_inventory_swap: state.operations.inventory.pending_swap.clone(),
+            pending_creative_slots: state.operations.inventory.pending_creative.clone(),
+        }
+    }
     /// Observe other spawned players, without entity physics or render interpolation.
     pub async fn visible_players(&self) -> Result<super::players::PlayerObservations> {
         let state = self.bot.session.state.lock().await;
@@ -397,14 +432,14 @@ impl Operations {
         }
         let mut state = self.bot.session.state.lock().await;
         self.creative(&state)?;
-        self.bot
-            .session
-            .send(ids::play_serverbound::SET_CREATIVE_SLOT, &payload)
-            .await?;
         state.operations.inventory.slots[36 + usize::from(slot)] = InventorySlot::Unavailable;
         if !state.operations.inventory.pending_creative.contains(&slot) {
             state.operations.inventory.pending_creative.push(slot);
         }
+        self.bot
+            .session
+            .send(ids::play_serverbound::SET_CREATIVE_SLOT, &payload)
+            .await?;
         Ok(())
     }
     /// Submit held hotbar selection. The server still decides which item is present.
