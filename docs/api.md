@@ -5,9 +5,14 @@
 ## ゲーム版と操作の入口
 
 `Client` / `ConnectionConfig` / `MinecraftVersion`で接続版を明示します。
+`Client::survival_capabilities()`は静的な対応契約を返し、`Client::survival()`は
+セッションに結び付いた検査付きサバイバル操作を選びます。型は`voxrig::checked_survival`から
+参照でき、[操作・明示的復旧契約](survival-api.md)を共有します。現在は1.21.11のみ対応し、
+1.16.1はI/O前に`Unsupported`を返します。対応情報は現在の操作許可ではありません。
+
 以下の`Bot`、inventory、physicsとcoherent observationは1.16.1専用です。
-rootの互換importと`versions::java_1_16_1`は同じ型です。
-1.21.11の対応操作は[版別操作API](java-1.21.11-operations.md)を参照してください。
+rootの互換importと`versions::java_1_16_1`は同じ型で、`voxrig::survival::SurvivalState`も維持します。
+1.21.11の版固有操作は[版別操作API](java-1.21.11-operations.md)を参照してください。
 サバイバルでの単純スタック交換は[在庫交換API](survival-inventory.md)の
 `swap_player_hotbar` / `wait_inventory_swap`を使います。
 1.21.11の`wait_until_ready()`はworldごとのloading通知完了も待ちます。

@@ -19,6 +19,11 @@ package名は`voxrig`、Rust crate名も`voxrig`とする。公開APIを再設�
 - `versions::java_1_16_1`と`versions::java_1_21_11`は版別の型・registry・操作・保証。
   1.21.11は1.16.1の全機能を持つとは扱わない。版依存のIDやinventory形式を共通型へ丸めない。
 - `Bot`/`BotManager`とrootの互換importは1.16.1へ固定する。
+- `Client::survival_capabilities()`と`checked_survival::SurvivalCapabilities::for_version()`は
+  接続前にも確認できる静的な対応契約。`Client::survival()`はセッションに結び付いた検査付き操作を返す。
+  現在は1.21.11の`ObservedDryCubeV1`のみで、1.16.1はI/O前に`Unsupported`を返す。
+  対応情報は現在の操作許可ではない。`checked_survival`の型は現在のnative 1.21.11表現を共有し、
+  他版で同じ意味を持つとは約束しない。従来の`survival::SurvivalState`は1.16.1用として維持する。
 - 1.16.1の`lifecycle`、`observation`、`operation`は汎用controllerのための公開API。
   同じ名前の型が存在しても、1.21.11の接続に同じ保証があるとは推論しない。
 - `unstable`は既存のraw protocol操作の境界として維持する。
@@ -77,6 +82,15 @@ staleなscreen revisionでもserverはクリックを実行し得るため、自
 継続が必要なら、明示的なretirement・別接続による同一UUIDの新しい削除受信・
 新接続の基準観測を確認する`reconnect_survival_mining`を用いる。利用側が新しい計画を作る。
 
+検査付き入口では`prepare_mining_retirement`が元接続・独立observer・watchを結び付けた
+`MiningRetirement`を返す。`close_source`、`observe`/`wait`、`reconnect`は利用側が明示的に呼ぶ。
+取消後も同じhandleで読出しを再開でき、clone間でも一度だけの再接続guardを共有する。
+`RecoveredSurvivalClient`の`client`・`operations`・`evidence`は同じ検証済み新接続を表す。
+接続を返すことは計画・権限・予約・永続jobを引き継ぐことではない。
+採掘中の手・選択・screen・cursor・在庫の不整合は受信時に`MiningRecord::inventory_change`へ
+最初の原因とsequenceを保持する。手が後で空になっても消さず、別の既知の競合があれば
+`sole_cause`をfalseにする。typed inspectionは診断であり、自動回復やitemの由来の証明ではない。
+
 `place_survival_cube`は受信した単純スタックと支持block・空きcellを確認して送信する。
 `wait_survival_placement`等は対象block、1個の材料消費、処理sequenceの受信を照合する。
 未解決・競合・timeoutは成功やrollbackへ読み替えず、同じ操作を繰り返さない。
@@ -95,8 +109,19 @@ survivalのraw `use_on_block`は拒否し、この確認付き経路を使う。
 `observe_survival_motion_recheck`で新しい観測と現在のgeometryを再確認できる。
 これは読出しだけの再評価で、元の失敗履歴を残す。中断・補正済みrunの復旧、移動や自動再送は行わない。
 終点拒否と利用側が宣言した壁接触・退避・配置の成功試行は元の失敗とは別の実行commitで保持する。
+途中で向きを変える操作は`SurvivalControl`列を`preview_survival_path` / `start_survival_path`へ渡す。
+`start_previewed_survival_motion`は送信intent lock内で現在の世代・状態・予測を再計算し、
+現在の基準状態・予測と一致しないpreviewをI/O前に拒否する。保存previewは操作許可にならない。
+
+`capture_survival_scene`は完全な限定領域と立位条件を同じlock内で取得し、
+`SurvivalScenario`は受信と同じnative geometry/modelで仮想の移動・編集・照準を予測する。
+候補の選択は利用側が行う。仮想previewは別型で実移動へ渡せず、未取得セルをairにしない。
+`HypotheticalAimRequirement`は将来必要な独立終点観測を示す条件であり、
+現在の`StandingPositionBasis`や実行結果ではない。`validate_survival_scene`も読出しだけで、
+各実操作には現在の検査と受信結果が必要となる。
 対応範囲と検証条件は[採掘](survival-mining.md)、[配置](survival-placement.md)、
-[移動制御](survival-motion-controls.md)を参照する。
+[移動制御](survival-motion-controls.md)、[仮想場面](survival-hypothetical-scenes.md)、
+[検査付きAPIの責務](survival-api.md)を参照する。
 
 装備操作、block properties、衝突geometry、採掘条件、entity寸法、item上限はclientの事実を返す。
 資源検索は`BlockQuery`/`query_loaded_blocks`へ、移動用の観測は`MovementSnapshot`、

@@ -1,14 +1,21 @@
 //! Bounded dry-cube prediction and separately observed native controls.
 mod control;
+mod endpoint;
+mod scenario;
+use super::geometry::GeometryView;
 use super::*;
 use crate::versions::java_1_21_11::math::trig;
 pub(super) use control::standing_basis;
 pub use control::{
     StandingPositionBasis, SurvivalMotionRecheck, SurvivalMotionRecord, SurvivalMotionStatus,
 };
+pub use scenario::{
+    CapturedSurvivalScene, HypotheticalAimRequirement, HypotheticalBlockEdit,
+    HypotheticalMovementPreview, HypotheticalPlacement, SurvivalScenario,
+};
 
 /// Digital walking input for one predicted native game tick, without sprint/sneak.
-#[derive(Clone, Copy, Debug, Default, Serialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize)]
 pub struct SurvivalInput {
     /// -1 backwards, 0 released, 1 forwards.
     pub forward: i8,
@@ -17,8 +24,27 @@ pub struct SurvivalInput {
     /// Jump key state, including native repeat cooldown.
     pub jump: bool,
 }
+/// One native tick's heading and digital input. Route selection belongs to the caller.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+pub struct SurvivalControl {
+    /// Native body yaw in degrees.
+    pub yaw: f32,
+    /// No sprint/sneak or implicit controls.
+    pub input: SurvivalInput,
+}
+/// Bound on a single finite connection-owned control run.
+pub const MAX_SURVIVAL_CONTROL_TICKS: usize = 120;
+fn fixed_controls(yaw: f32, inputs: &[SurvivalInput]) -> Result<Vec<SurvivalControl>> {
+    if inputs.is_empty() || inputs.len() > MAX_SURVIVAL_CONTROL_TICKS {
+        return Err(invalid("motion requires 1..120 bounded digital inputs"));
+    }
+    Ok(inputs
+        .iter()
+        .map(|input| SurvivalControl { yaw, input: *input })
+        .collect())
+}
 /// A simulated player frame, never a received pose or permission to build.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct PredictedMotionFrame {
     /// Tick count from the preview's initial context, not server time.
     pub tick: u16,
@@ -38,8 +64,10 @@ pub struct PredictedMotionFrame {
 pub struct SurvivalMovementPreview {
     /// Received starting posture, attributes and world revision.
     pub initial: StandingContext,
-    /// Body yaw used for input; no look packet was sent.
-    pub yaw: f32,
+    /// World generation of the starting context.
+    pub generation: u64,
+    /// Exact per-tick heading and input; no packets were sent.
+    pub controls: Vec<SurvivalControl>,
     /// Predicted frames. The world itself is not advanced into the future.
     pub frames: Vec<PredictedMotionFrame>,
     /// Prospective terminal clearance; does not authorize later sends.
@@ -61,7 +89,7 @@ pub enum TerminalClearance {
     },
 }
 const TERMINAL_MARGIN: f64 = 1.0 / 16.0;
-fn terminal_clearance(state: &State, frame: &PredictedMotionFrame) -> Result<()> {
+fn terminal_clearance(state: &impl GeometryView, frame: &PredictedMotionFrame) -> Result<()> {
     if !frame.resting {
         return Err(invalid("terminal motion must be released and resting"));
     }
@@ -85,14 +113,22 @@ impl Operations {
         yaw: f32,
         inputs: &[SurvivalInput],
     ) -> Result<SurvivalMovementPreview> {
+        self.preview_survival_path(&fixed_controls(yaw, inputs)?)
+            .await
+    }
+    /// Predict a bounded multi-heading path from the current standing context.
+    /// Pure observation: no packet, position assignment or reusable authority.
+    pub async fn preview_survival_path(
+        &self,
+        controls: &[SurvivalControl],
+    ) -> Result<SurvivalMovementPreview> {
         let mut state = self.bot.session.state.lock().await;
         self.ready(&state)?;
         preview(
             &mut state,
             self.bot.session.id,
             self.bot.session.started.elapsed().as_millis() as u64 / 50,
-            yaw,
-            inputs,
+            controls,
         )
     }
 }
@@ -100,22 +136,25 @@ fn preview(
     state: &mut State,
     connection_id: u64,
     tick: u64,
-    yaw: f32,
-    inputs: &[SurvivalInput],
+    controls: &[SurvivalControl],
 ) -> Result<SurvivalMovementPreview> {
-    validate_pose([0.0; 3], [yaw, 0.0])?;
-    if inputs.is_empty()
-        || inputs.len() > 120
-        || inputs
-            .iter()
-            .any(|i| !(-1..=1).contains(&i.forward) || !(-1..=1).contains(&i.strafe))
-    {
-        return Err(invalid("motion requires 1..120 bounded digital inputs"));
-    }
     if state.operations.game_mode != Some(GameMode::Survival) {
         return Err(invalid("survival mode required"));
     }
     let initial = survival::context(state, connection_id, tick)?;
+    validate_initial(&initial)?;
+    let mut model = Model::from_context(&initial);
+    let frames = predict(state, &mut model, controls)?;
+    let terminal_clearance = clearance(state, frames.last().unwrap());
+    Ok(SurvivalMovementPreview {
+        terminal_clearance,
+        initial,
+        generation: state.loading.generation,
+        controls: controls.to_vec(),
+        frames,
+    })
+}
+fn validate_initial(initial: &StandingContext) -> Result<()> {
     let p = &initial.player;
     if !initial.on_ground
         || !p.effect_updates.is_empty()
@@ -128,34 +167,50 @@ fn preview(
             "dry motion preview requires grounded native default movement attributes and no received effects",
         ));
     }
-    let mut model = Model::from_context(&initial);
-    let mut frames = Vec::with_capacity(inputs.len());
-    for input in inputs {
-        let proposed = model.intent(*input, yaw);
+    Ok(())
+}
+fn predict(
+    state: &impl GeometryView,
+    model: &mut Model,
+    controls: &[SurvivalControl],
+) -> Result<Vec<PredictedMotionFrame>> {
+    if controls.is_empty()
+        || controls.len() > MAX_SURVIVAL_CONTROL_TICKS
+        || controls.iter().any(|c| {
+            !c.yaw.is_finite()
+                || !(-1..=1).contains(&c.input.forward)
+                || !(-1..=1).contains(&c.input.strafe)
+        })
+    {
+        return Err(invalid("motion requires 1..120 bounded digital inputs"));
+    }
+    let origin_y = model.frame.position[1];
+    model.frame.tick = 0;
+    let mut frames = Vec::with_capacity(controls.len());
+    for control in controls {
+        let input = control.input;
+        let proposed = model.intent(input, control.yaw);
         if proposed.iter().any(|v| v.abs() > 1.0) {
             return Err(invalid("motion exceeds bounded dry preview step"));
         }
         let geometry = geometry(state, model.frame.position, proposed)?;
-        model.advance(*input, proposed, &geometry);
-        if model.frame.position[1] < initial.position[1] - 3.0 {
+        model.advance(input, proposed, &geometry);
+        if model.frame.position[1] < origin_y - 3.0 {
             return Err(invalid("preview falls outside bounded construction height"));
         }
         frames.push(model.frame.clone());
     }
-    let terminal_clearance = match terminal_clearance(state, frames.last().unwrap()) {
+    Ok(frames)
+}
+fn clearance(state: &impl GeometryView, frame: &PredictedMotionFrame) -> TerminalClearance {
+    match terminal_clearance(state, frame) {
         Ok(()) => TerminalClearance::Admitted {
             horizontal_margin: TERMINAL_MARGIN,
         },
         Err(error) => TerminalClearance::RequiresReplan {
             reason: error.to_string(),
         },
-    };
-    Ok(SurvivalMovementPreview {
-        terminal_clearance,
-        initial,
-        yaw,
-        frames,
-    })
+    }
 }
 
 fn body(p: [f64; 3]) -> [f64; 6] {
@@ -169,29 +224,17 @@ fn body(p: [f64; 3]) -> [f64; 6] {
         p[2] + half,
     ]
 }
-fn geometry(state: &State, p: [f64; 3], motion: [f64; 3]) -> Result<Vec<[f64; 6]>> {
+fn geometry(state: &impl GeometryView, p: [f64; 3], motion: [f64; 3]) -> Result<Vec<[f64; 6]>> {
     let a = body(p);
     let b = body(std::array::from_fn(|i| p[i] + motion[i]));
     let min: [i32; 3] = std::array::from_fn(|i| a[i].min(b[i]).floor() as i32 - 1);
     let max: [i32; 3] = std::array::from_fn(|i| a[i + 3].max(b[i + 3]).floor() as i32 + 1);
     let mut boxes = Vec::new();
-    let (_, height) = state
-        .world
-        .dimension
-        .as_ref()
-        .context("dimension unavailable")?;
     for x in min[0]..=max[0] {
         for y in min[1]..=max[1] {
             for z in min[2]..=max[2] {
-                if y < height.min_y || y >= height.min_y + height.height {
-                    return Err(invalid("motion leaves observed dimension"));
-                }
                 let p = [x, y, z];
-                let cell = state.reconstruction.cell(&state.world, p);
-                if cell.moving.is_some() {
-                    return Err(invalid("moving geometry in preview sweep"));
-                }
-                let block = cell.state.context("motion geometry unavailable")?;
+                let block = state.block(p)?;
                 match block.name.as_str() {
                     "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air" => {}
                     name if survival::DRY_CUBES.contains(&name) => boxes.push([
@@ -326,6 +369,7 @@ fn collide_with_step(
     adjusted
 }
 
+#[derive(Clone, Debug)]
 struct Model {
     frame: PredictedMotionFrame,
     jump_cooldown: u8,

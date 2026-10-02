@@ -4,6 +4,14 @@
 The existing Java 1.16.1 Bot API remains available. No protocol IDs or item IDs
 are shared implicitly across versions.
 
+For checked survival operations, `Client::survival()` provides the common
+entry point and `checked_survival` exposes the current native contract types.
+Static capability discovery does not grant current action admission. The checked
+handle shares the native guards/history and offers no creative commands or raw
+packet sending. Explicit mining retirement returns a resumable in-process handle
+and exposes the fresh validated client for observation and closure. See
+[ownership and lifecycle](survival-api.md). Legacy 1.16.1 controls remain separate.
+
 Implemented controls: short creative flight steps, rotation, flight requests,
 creative default-item hotbar writes, hotbar selection, precise use-on-block,
 creative digging, and unsigned commands on the offline connection. Player game

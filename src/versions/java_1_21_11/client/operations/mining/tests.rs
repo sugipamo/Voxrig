@@ -5,7 +5,350 @@ use tokio::{
     task::JoinHandle,
 };
 
+#[tokio::test]
+async fn hypothetical_scene_shares_native_prediction_and_never_changes_live_state() {
+    let mut f = Fixture::new().await;
+    f.session
+        .state
+        .lock()
+        .await
+        .world
+        .seed_replay_cell(TARGET, 0);
+    let scene = f
+        .api
+        .capture_survival_scene(crate::Region {
+            min: [-2, -1, -2],
+            max: [6, 7, 4],
+        })
+        .await
+        .unwrap();
+    let controls: Vec<_> = (0..16)
+        .map(|tick| SurvivalControl {
+            yaw: 0.0,
+            input: SurvivalInput {
+                forward: i8::from(tick < 4),
+                ..Default::default()
+            },
+        })
+        .collect();
+    let live = f.api.preview_survival_path(&controls).await.unwrap();
+    let scenario = scene.scenario();
+    let predicted = scenario.preview_path(&controls).unwrap();
+    assert_eq!(live.frames, predicted.frames);
+    assert_eq!(
+        serde_json::to_value(&live.terminal_clearance).unwrap(),
+        serde_json::to_value(&predicted.terminal_clearance).unwrap()
+    );
+    let edit = HypotheticalBlockEdit {
+        position: [1, 1, 0],
+        before: native("air"),
+        after: native("dirt"),
+    };
+    let next = scenario.after_edits(std::slice::from_ref(&edit)).unwrap();
+    assert_eq!(next.block(edit.position).unwrap(), native("dirt"));
+    assert_eq!(scenario.block(edit.position).unwrap(), native("air"));
+    {
+        let state = f.session.state.lock().await;
+        assert_eq!(
+            state.reconstruction.cell(&state.world, edit.position).state,
+            Some(native("air"))
+        );
+    }
+    f.api.validate_survival_scene(&scene).await.unwrap();
+    f.session.state.lock().await.operations.game_mode = Some(GameMode::Creative);
+    assert!(f.api.validate_survival_scene(&scene).await.is_err());
+    f.session.state.lock().await.operations.game_mode = Some(GameMode::Survival);
+    assert!(scenario.matches_preview(&predicted));
+    assert!(!next.matches_preview(&predicted));
+    assert!(
+        scenario
+            .preview_path(&vec![
+                SurvivalControl {
+                    yaw: 0.0,
+                    input: Default::default()
+                };
+                121
+            ])
+            .is_err()
+    );
+    assert!(
+        f.api
+            .capture_survival_scene(crate::Region {
+                min: [0, 0, 0],
+                max: [65, 1, 1]
+            })
+            .await
+            .is_err()
+    );
+    assert!(
+        scenario
+            .after_edits(&[HypotheticalBlockEdit {
+                position: [0, 0, 0],
+                before: native("stone"),
+                after: native("air")
+            }])
+            .is_err()
+    );
+    assert!(next.after_edits(std::slice::from_ref(&edit)).is_err());
+    assert!(scenario.after_edits(&[edit.clone(), edit.clone()]).is_err());
+    assert!(
+        scenario
+            .after_edits(&[HypotheticalBlockEdit {
+                position: [30, 1, 0],
+                ..edit.clone()
+            }])
+            .is_err()
+    );
+    assert!(
+        scenario
+            .after_edits(&[HypotheticalBlockEdit {
+                after: native("water"),
+                ..edit
+            }])
+            .is_err()
+    );
+    f.session
+        .state
+        .lock()
+        .await
+        .world
+        .seed_replay_cell([1, 1, 0], 1);
+    assert!(f.api.validate_survival_scene(&scene).await.is_err());
+    assert_eq!(scenario.block([1, 1, 0]).unwrap(), native("air"));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(30), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn hypothetical_native_place_step_and_removal_require_safe_standing() {
+    let f = Fixture::new().await;
+    f.session
+        .state
+        .lock()
+        .await
+        .world
+        .seed_replay_cell(TARGET, 0);
+    let scene = f
+        .api
+        .capture_survival_scene(crate::Region {
+            min: [-2, -1, -2],
+            max: [6, 7, 4],
+        })
+        .await
+        .unwrap();
+    let scenario = scene.scenario();
+    let delta = [1.0f64, -f64::from(1.62f32), 0.0];
+    let rotation = [-90.0, (-delta[1]).atan2(delta[0]).to_degrees() as f32];
+    let placement = scenario
+        .preview_cube_placement([1, 0, 0], crate::BlockFace::Up, rotation, "dirt")
+        .unwrap();
+    assert_eq!(placement.edit.position, [1, 1, 0]);
+    assert!(
+        scenario
+            .preview_cube_placement([1, 0, 0], crate::BlockFace::Down, rotation, "dirt")
+            .is_err()
+    );
+    let mut edits = vec![placement.edit];
+    for x in 2..=3 {
+        edits.push(HypotheticalBlockEdit {
+            position: [x, 1, 0],
+            before: native("air"),
+            after: native("dirt"),
+        });
+    }
+    let platform = scenario.after_edits(&edits).unwrap();
+    let controls: Vec<_> = (0..28)
+        .map(|tick| SurvivalControl {
+            yaw: -90.0,
+            input: SurvivalInput {
+                forward: i8::from(tick < 8),
+                jump: tick == 0,
+                strafe: 0,
+            },
+        })
+        .collect();
+    let arrived = platform.after_path(&controls).unwrap();
+    assert_eq!(arrived.position()[1], 2.0);
+    let foot = [arrived.position()[0].floor() as i32, 1, 0];
+    assert!(
+        arrived
+            .after_edits(&[HypotheticalBlockEdit {
+                position: foot,
+                before: native("dirt"),
+                after: native("air")
+            }])
+            .is_err()
+    );
+    let return_controls: Vec<_> = (0..28)
+        .map(|tick| SurvivalControl {
+            yaw: 90.0,
+            input: SurvivalInput {
+                forward: i8::from(tick < 8),
+                ..Default::default()
+            },
+        })
+        .collect();
+    let returned = arrived.after_path(&return_controls).unwrap();
+    assert_eq!(returned.position()[1], 1.0);
+    let eye = [
+        returned.position()[0],
+        returned.position()[1] + f64::from(1.62f32),
+        returned.position()[2],
+    ];
+    let delta = [1.0 - eye[0], 1.5 - eye[1], 0.5 - eye[2]];
+    let rotation = [
+        (-delta[0]).atan2(delta[2]).to_degrees() as f32,
+        (-delta[1]).atan2(delta[0].hypot(delta[2])).to_degrees() as f32,
+    ];
+    let first_removal = returned
+        .preview_cube_removal([1, 1, 0], crate::BlockFace::West, rotation)
+        .unwrap();
+    assert_eq!(first_removal.before, native("dirt"));
+    assert!(
+        returned
+            .preview_cube_removal([1, 1, 0], crate::BlockFace::East, rotation)
+            .is_err()
+    );
+    let removals: Vec<_> = edits
+        .iter()
+        .map(|e| HypotheticalBlockEdit {
+            position: e.position,
+            before: e.after.clone(),
+            after: e.before.clone(),
+        })
+        .collect();
+    let cleared = returned.after_edits(&removals).unwrap();
+    assert_eq!(cleared.block([1, 1, 0]).unwrap(), native("air"));
+    f.stop().await;
+}
+
 const TARGET: [i32; 3] = [2, 2, 0];
+
+// Shared native geometry regression, not live bridging acceptance.
+// Conservative standing clearance remains independent of aiming uncertainty.
+#[tokio::test]
+async fn hypothetical_edge_placement_separates_aim_from_clearance() {
+    use super::super::geometry::GeometryView;
+    let mut f = Fixture::new().await;
+    let position = [1.2, 1.0, 0.5];
+    let rotation = [
+        90.0,
+        (f64::from(1.62f32) + 0.5).atan2(0.2).to_degrees() as f32,
+    ];
+    {
+        let mut s = f.session.state.lock().await;
+        s.position = Some(position);
+        s.rotation = rotation;
+        let generation = s.loading.generation;
+        let receive_sequence = s.sequence;
+        s.motion.receive(ReceivedPose {
+            generation,
+            receive_sequence,
+            position,
+            rotation,
+            velocity: Some([0.0; 3]),
+        });
+        s.world.seed_replay_cell([1, 0, 0], 0);
+    }
+    let scene = f
+        .api
+        .capture_survival_scene(crate::Region {
+            min: [-2, -1, -2],
+            max: [4, 5, 2],
+        })
+        .await
+        .unwrap();
+    let origin = scene.scenario();
+    let placement = origin
+        .preview_cube_placement([0, 0, 0], crate::BlockFace::East, rotation, "dirt")
+        .unwrap();
+    assert_eq!(placement.edit.position, [1, 0, 0]);
+    let idle = [SurvivalControl {
+        yaw: 90.0,
+        input: Default::default(),
+    }; 3];
+    let after = origin.after_path(&idle).unwrap();
+    assert_eq!(after.position(), origin.position());
+    let future = after
+        .preview_cube_placement([0, 0, 0], crate::BlockFace::East, rotation, "dirt")
+        .unwrap();
+    assert_eq!(future.edit.position, placement.edit.position);
+    assert_eq!(future.cursor, placement.cursor);
+    assert!(matches!(
+        placement.aim_requirement,
+        HypotheticalAimRequirement::CapturedPosition { .. }
+    ));
+    assert!(matches!(
+        future.aim_requirement,
+        HypotheticalAimRequirement::IndependentlyObservedEndpoint { .. }
+    ));
+    assert_eq!(future.aim_requirement, after.aim_requirement());
+    let preview = after.preview_path(&idle).unwrap();
+    assert_eq!(preview.initial_aim_requirement, after.aim_requirement());
+    let changed = after
+        .after_edits(std::slice::from_ref(&future.edit))
+        .unwrap();
+    assert_eq!(changed.aim_requirement(), after.aim_requirement());
+    {
+        let s = f.session.state.lock().await;
+        let eye = [position[0], position[1] + f64::from(1.62f32), position[2]];
+        let hit = super::super::super::raycast::outline_hit_in(eye, rotation, 4.5, |p| {
+            s.block(p).map_err(anyhow::Error::from)
+        })
+        .unwrap()
+        .unwrap();
+        // Endpoint admission bounds each packet error by 1/4096 and each
+        // model/observer discrepancy by that error plus 1e-9. This is a bound,
+        // not fabricated observation provenance or permission to move.
+        let admitted_bound = 2.0 / 4096.0 + 1e-9;
+        super::super::survival::uncertain_target_in(
+            &*s,
+            eye,
+            [admitted_bound, 0.0, admitted_bound],
+            rotation,
+            &hit,
+        )
+        .unwrap();
+        let ambiguous = super::super::survival::uncertain_target_in(
+            &*s,
+            eye,
+            [0.0625, 0.0, 0.0625],
+            rotation,
+            &hit,
+        )
+        .unwrap_err();
+        assert!(ambiguous.to_string().contains("target face/reach differs"));
+    }
+    f.api.validate_survival_scene(&scene).await.unwrap();
+    assert!(
+        tokio::time::timeout(Duration::from_millis(30), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    // A more extreme overhang still cannot become a future stopping position.
+    {
+        let mut s = f.session.state.lock().await;
+        let position = [1.27, 1.0, 0.5];
+        s.position = Some(position);
+        let generation = s.loading.generation;
+        let receive_sequence = s.sequence;
+        s.motion.receive(ReceivedPose {
+            generation,
+            receive_sequence,
+            position,
+            rotation,
+            velocity: Some([0.0; 3]),
+        });
+    }
+    let unsafe_scene = f.api.capture_survival_scene(scene.region()).await.unwrap();
+    assert!(unsafe_scene.scenario().after_path(&idle).is_err());
+    f.stop().await;
+}
+
 fn native(name: &str) -> crate::NativeBlockState {
     crate::NativeBlockState {
         name: format!("minecraft:{name}"),
@@ -209,26 +552,29 @@ async fn retirement_requires_exact_post_watch_receipt_and_local_closure() {
     let mut miner = Fixture::new().await;
     let intent = miner.start().await;
     let mut observer = Fixture::new_id(43).await;
+    let source = crate::Client::from_java_1_21_11(miner.api.bot.clone())
+        .survival()
+        .unwrap();
+    let independent = crate::Client::from_java_1_21_11(observer.api.bot.clone())
+        .survival()
+        .unwrap();
     assert!(
-        miner
-            .api
-            .prepare_survival_mining_retirement(&intent, &miner.api)
+        source
+            .prepare_mining_retirement(&intent, &source)
             .await
             .is_err()
     );
     assert!(
-        miner
-            .api
-            .prepare_survival_mining_retirement(&intent, &observer.api)
+        source
+            .prepare_mining_retirement(&intent, &independent)
             .await
             .is_err()
     );
     // Old receipt plus subsequent profile baseline cannot substitute for a new removal.
     observer.remove_profile(42).await;
     observer.profile(42).await;
-    let watch = miner
-        .api
-        .prepare_survival_mining_retirement(&intent, &observer.api)
+    let retirement = source
+        .prepare_mining_retirement(&intent, &independent)
         .await
         .unwrap();
     observer.remove_profile(99).await;
@@ -236,11 +582,7 @@ async fn retirement_requires_exact_post_watch_receipt_and_local_closure() {
         .receive(ids::play_clientbound::ENTITY_DESTROY, &[1, 42])
         .await;
     assert!(matches!(
-        miner
-            .api
-            .wait_survival_mining_retirement(&watch, &observer.api, Duration::from_millis(10))
-            .await
-            .unwrap(),
+        retirement.wait(Duration::from_millis(10)).await.unwrap(),
         MiningRetirementStatus::Pending {
             source_closed: false,
             ..
@@ -248,31 +590,21 @@ async fn retirement_requires_exact_post_watch_receipt_and_local_closure() {
     ));
     observer.remove_profile(42).await;
     assert!(matches!(
-        miner
-            .api
-            .observe_survival_mining_retirement(&watch, &observer.api)
-            .await
-            .unwrap(),
+        retirement.observe().await.unwrap(),
         MiningRetirementStatus::Pending {
             source_closed: false,
             ..
         }
     ));
-    assert!(miner.api.select_hotbar(1).await.is_err());
-    miner.api.bot.disconnect().await.unwrap();
-    let retired = miner
-        .api
-        .wait_survival_mining_retirement(&watch, &observer.api, Duration::from_millis(10))
-        .await
-        .unwrap();
+    assert!(source.select_hotbar(1).await.is_err());
+    retirement.close_source().await.unwrap();
+    assert!(retirement.source_history().await.connection_closed);
+    let retired = retirement.wait(Duration::from_millis(10)).await.unwrap();
     assert!(matches!(retired, MiningRetirementStatus::Retired { .. }));
-    assert!(miner.api.select_hotbar(1).await.is_err());
+    assert!(source.select_hotbar(1).await.is_err());
     assert!(
-        miner
-            .api
-            .reconnect_survival_mining(
-                &watch,
-                &observer.api,
+        retirement
+            .reconnect(
                 ConnectionConfig::offline(
                     crate::Server::new("127.0.0.1", 1),
                     "Miner42",
@@ -286,20 +618,12 @@ async fn retirement_requires_exact_post_watch_receipt_and_local_closure() {
     // Observer is also tied to its live context; a rejoin invalidates old authority.
     observer.profile(42).await;
     assert!(matches!(
-        miner
-            .api
-            .observe_survival_mining_retirement(&watch, &observer.api)
-            .await
-            .unwrap(),
+        retirement.observe().await.unwrap(),
         MiningRetirementStatus::RequiresInspection { .. }
     ));
     observer.remove_profile(42).await;
     assert!(matches!(
-        miner
-            .api
-            .observe_survival_mining_retirement(&watch, &observer.api)
-            .await
-            .unwrap(),
+        retirement.observe().await.unwrap(),
         MiningRetirementStatus::RequiresInspection { .. }
     ));
     miner.stop().await;
@@ -387,20 +711,20 @@ async fn cancelled_recovery_login_retains_attempt_and_refuses_another_connection
     }
     let intent = miner.start().await;
     observer.profile(42).await;
-    let watch = miner
-        .api
-        .prepare_survival_mining_retirement(&intent, &observer.api)
+    let source = crate::Client::from_java_1_21_11(miner.api.bot.clone())
+        .survival()
+        .unwrap();
+    let independent = crate::Client::from_java_1_21_11(observer.api.bot.clone())
+        .survival()
+        .unwrap();
+    let retirement = source
+        .prepare_mining_retirement(&intent, &independent)
         .await
         .unwrap();
-    miner.api.bot.disconnect().await.unwrap();
+    retirement.close_source().await.unwrap();
     observer.remove_profile(42).await;
     let config = ConnectionConfig::offline(endpoint, "Miner42", MinecraftVersion::Java1_21_11);
-    let mut recovery = Box::pin(miner.api.reconnect_survival_mining(
-        &watch,
-        &observer.api,
-        config.clone(),
-        native("stone"),
-    ));
+    let mut recovery = Box::pin(retirement.reconnect(config.clone(), native("stone")));
     let (mut login, _) = timeout(Duration::from_secs(1), async {
         tokio::select! {
             accepted = listener.accept() => accepted.unwrap(),
@@ -430,9 +754,9 @@ async fn cancelled_recovery_login_retains_attempt_and_refuses_another_connection
             .recovery_started
     );
     assert_eq!(
-        miner
-            .api
-            .reconnect_survival_mining(&watch, &observer.api, config, native("stone"))
+        retirement
+            .clone()
+            .reconnect(config, native("stone"))
             .await
             .err()
             .unwrap()
@@ -1243,3 +1567,96 @@ async fn terminal_recheck_requires_new_receipt_current_geometry_and_exact_run_wi
     observer.stop().await;
     mover.stop().await;
 }
+
+#[tokio::test]
+async fn planned_multi_heading_path_preserves_turns_and_refuses_stale_preview_before_io() {
+    let mut mover = Fixture::new().await;
+    let mut observer = Fixture::new_id(43).await;
+    observer.observe_mover().await;
+    let mut controls = Vec::new();
+    for yaw in [0.0, -90.0] {
+        for tick in 0..20 {
+            controls.push(SurvivalControl {
+                yaw,
+                input: SurvivalInput {
+                    forward: if tick < 8 { 1 } else { 0 },
+                    ..Default::default()
+                },
+            });
+        }
+    }
+    let preview = mover.api.preview_survival_path(&controls).await.unwrap();
+    let end = preview.frames.last().unwrap().position;
+    assert!(end[0] > 2.0 && end[2] > 2.0);
+    assert!(matches!(
+        preview.terminal_clearance,
+        TerminalClearance::Admitted { .. }
+    ));
+    let mut stale = preview.clone();
+    stale.generation += 1;
+    assert!(
+        mover
+            .api
+            .start_previewed_survival_motion(&stale, &observer.api)
+            .await
+            .is_err()
+    );
+    let mut stale = preview.clone();
+    stale.initial.world_revision += 1;
+    assert!(
+        mover
+            .api
+            .start_previewed_survival_motion(&stale, &observer.api)
+            .await
+            .is_err()
+    );
+    assert!(mover.api.survival_motion().await.is_none());
+    assert!(
+        timeout(
+            Duration::from_millis(20),
+            read_packet(&mut mover.peer, None)
+        )
+        .await
+        .is_err()
+    );
+    mover
+        .api
+        .start_previewed_survival_motion(&preview, &observer.api)
+        .await
+        .unwrap();
+    for c in controls {
+        assert_eq!(
+            read_packet(&mut mover.peer, None).await.unwrap().0,
+            ids::play_serverbound::PLAYER_INPUT
+        );
+        let (id, payload) = read_packet(&mut mover.peer, None).await.unwrap();
+        assert_eq!(id, ids::play_serverbound::POSITION_LOOK);
+        assert_eq!(
+            f32::from_be_bytes(payload[24..28].try_into().unwrap()),
+            c.yaw
+        );
+    }
+    timeout(Duration::from_secs(1), async {
+        while mover.api.survival_motion().await.unwrap().status
+            != SurvivalMotionStatus::AwaitingObservation
+        {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    observer.mover_position(end).await;
+    timeout(Duration::from_secs(1), async {
+        while mover.api.survival_motion().await.unwrap().status != SurvivalMotionStatus::Observed {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(mover.api.standing_context().await.unwrap().position, end);
+    observer.stop().await;
+    mover.stop().await;
+}
+
+#[path = "inventory_tests.rs"]
+mod inventory_tests;

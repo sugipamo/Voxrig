@@ -27,8 +27,6 @@ pub struct SurvivalMotionRecord {
     pub connection_id: u64,
     /// Owning native world generation.
     pub generation: u64,
-    /// Original bounded inputs, including release/settle ticks.
-    pub inputs: Vec<SurvivalInput>,
     /// Prediction made before starting the run, against the then-received geometry.
     pub preview: SurvivalMovementPreview,
     /// Last tick whose input and position frames were fully dispatched.
@@ -229,6 +227,34 @@ impl Operations {
         inputs: &[SurvivalInput],
         observer: &Operations,
     ) -> Result<SurvivalMotionRecord> {
+        self.start_control_path(&fixed_controls(yaw, inputs)?, observer, None)
+            .await
+    }
+    /// Start a caller-selected multi-heading path, revalidating current geometry.
+    pub async fn start_survival_path(
+        &self,
+        controls: &[SurvivalControl],
+        observer: &Operations,
+    ) -> Result<SurvivalMotionRecord> {
+        self.start_control_path(controls, observer, None).await
+    }
+    /// Recompute an earlier preview under the send-intent lock. Changed initial
+    /// context, generation, world revision or predicted frames refuse before I/O.
+    /// A supplied preview is a constraint, never imported action authority.
+    pub async fn start_previewed_survival_motion(
+        &self,
+        expected: &SurvivalMovementPreview,
+        observer: &Operations,
+    ) -> Result<SurvivalMotionRecord> {
+        self.start_control_path(&expected.controls, observer, Some(expected))
+            .await
+    }
+    async fn start_control_path(
+        &self,
+        controls: &[SurvivalControl],
+        observer: &Operations,
+        expected: Option<&SurvivalMovementPreview>,
+    ) -> Result<SurvivalMotionRecord> {
         if self.bot.session.id == observer.bot.session.id {
             return Err(invalid("motion requires an independent observer"));
         }
@@ -269,14 +295,28 @@ impl Operations {
             return Err(invalid("inventory swap unresolved"));
         }
         let tick = self.bot.session.started.elapsed().as_millis() as u64 / 50;
-        let preview = preview(&mut state, self.bot.session.id, tick, yaw, inputs)?;
+        let preview = preview(&mut state, self.bot.session.id, tick, controls)?;
+        if let Some(expected) = expected {
+            if expected.generation != preview.generation
+                || expected.initial.connection_id != preview.initial.connection_id
+                || expected.initial.world_revision != preview.initial.world_revision
+                || expected.initial.dimension != preview.initial.dimension
+                || expected.initial.position != preview.initial.position
+                || expected.initial.player != preview.initial.player
+                || expected.frames != preview.frames
+            {
+                return Err(invalid(
+                    "motion preview changed; replan before submitting controls",
+                ));
+            }
+        }
         if preview.initial.dimension != observer_dimension {
             return Err(invalid("observer dimension differs"));
         }
         if !preview.frames.last().is_some_and(|f| f.resting) {
             return Err(invalid("motion inputs must end in predicted released rest"));
         }
-        terminal_clearance(&state, preview.frames.last().unwrap())?;
+        terminal_clearance(&*state, preview.frames.last().unwrap())?;
         let run_id = state
             .survival_motion
             .as_ref()
@@ -286,7 +326,6 @@ impl Operations {
             run_id,
             connection_id: self.bot.session.id,
             generation: state.loading.generation,
-            inputs: inputs.to_vec(),
             preview,
             dispatched_ticks: 0,
             attempted_tick: 0,
@@ -343,7 +382,8 @@ impl Operations {
         let mut model = Model::from_context(&run.preview.initial);
         let mut interval = tokio::time::interval(Duration::from_millis(50));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-        for (input, expected) in run.inputs.iter().zip(&run.preview.frames) {
+        for (control, expected) in run.preview.controls.iter().zip(&run.preview.frames) {
+            let input = control.input;
             interval.tick().await;
             // Observer lifetime is checked before each send, without two locks.
             if let PlayerMotionStatus::RequiresInspection { reason } =
@@ -373,9 +413,9 @@ impl Operations {
             {
                 return Err(invalid("motion reconstruction incomplete"));
             }
-            let proposed = model.intent(*input, run.preview.yaw);
-            let boxes = geometry(&state, model.frame.position, proposed)?;
-            model.advance(*input, proposed, &boxes);
+            let proposed = model.intent(input, control.yaw);
+            let boxes = geometry(&*state, model.frame.position, proposed)?;
+            model.advance(input, proposed, &boxes);
             if model.frame.position != expected.position
                 || model.frame.velocity != expected.velocity
                 || model.frame.on_ground != expected.on_ground
@@ -384,7 +424,7 @@ impl Operations {
                     "motion geometry changed the predicted path; replan before further input",
                 ));
             }
-            let rotation = [run.preview.yaw, 0.0];
+            let rotation = [control.yaw, 0.0];
             let sequence = state.sequence;
             state
                 .motion
@@ -392,7 +432,7 @@ impl Operations {
             state.survival_motion.as_mut().unwrap().attempted_tick = expected.tick;
             self.bot
                 .session
-                .send(ids::play_serverbound::PLAYER_INPUT, &[input_bits(*input)])
+                .send(ids::play_serverbound::PLAYER_INPUT, &[input_bits(input)])
                 .await?;
             let payload = position_packet(expected, rotation);
             self.bot
@@ -463,9 +503,11 @@ fn matches_endpoint(run: &SurvivalMotionRecord, player: &ObservedPlayer) -> bool
     player.pose == Some(super::super::super::players::PlayerPose::Standing)
         && player.scale == 1.0
         && (0..3).all(|i| {
-            player.motion.position_error[i] <= 1.0 / 4096.0
-                && (end.position[i] - player.position[i]).abs()
-                    <= player.motion.position_error[i] + 1e-9
+            endpoint::axis_matches(
+                end.position[i],
+                player.position[i],
+                player.motion.position_error[i],
+            )
         })
 }
 fn input_bits(input: SurvivalInput) -> u8 {

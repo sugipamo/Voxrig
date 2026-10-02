@@ -2,6 +2,7 @@
 //! Static dry-cube standing and bounded survival controls have explicit admission.
 //! General locomotion/pathfinding and complex item components are not inferred.
 //! Mining removal alone does not authorize further mutations on that connection.
+mod geometry;
 mod inventory;
 mod mining;
 mod movement;
@@ -9,8 +10,11 @@ mod placement;
 mod retirement;
 mod survival;
 pub use movement::{
-    PredictedMotionFrame, StandingPositionBasis, SurvivalInput, SurvivalMotionRecheck,
-    SurvivalMotionRecord, SurvivalMotionStatus, SurvivalMovementPreview, TerminalClearance,
+    CapturedSurvivalScene, HypotheticalAimRequirement, HypotheticalBlockEdit,
+    HypotheticalMovementPreview, HypotheticalPlacement, MAX_SURVIVAL_CONTROL_TICKS,
+    PredictedMotionFrame, StandingPositionBasis, SurvivalControl, SurvivalInput,
+    SurvivalMotionRecheck, SurvivalMotionRecord, SurvivalMotionStatus, SurvivalMovementPreview,
+    SurvivalScenario, TerminalClearance,
 };
 #[cfg(test)]
 mod tests;
@@ -19,7 +23,8 @@ pub use super::motion::{OwnMotion, PositionBasis, PositionSubmission, ReceivedPo
 use super::*;
 pub use inventory::{InventorySwap, InventorySwapObservation};
 pub use mining::{
-    MiningIntent, MiningRecord, MiningRemoval, MiningSend, MiningStatus, MiningTargetReceipt,
+    MiningIntent, MiningInventoryChange, MiningInventoryChangeKind, MiningRecord, MiningRemoval,
+    MiningSend, MiningStatus, MiningTargetReceipt,
 };
 pub(super) use mining::{mining_chunk_changed, mining_received, mining_world_changed};
 pub use placement::{PlacementIntent, PlacementObservation, PlacementRecord, PlacementStatus};
@@ -884,5 +889,6 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         _ => return Ok(false),
     }
     state.operations = next;
+    mining::mining_inventory_received(state);
     Ok(true)
 }

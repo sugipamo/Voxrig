@@ -216,3 +216,44 @@ marginを評価する。壁に接したまま停止する計画は最初の送�
 残りのRustチェック・package・隔離DustRoute確認の結果は統合PRへ記録する。
 最終の採用検証対象はこの追加を含む新しい固定commitへ更新する。
 途中の`e4648be`も最終候補の検証済みcommitとして数えない。
+
+## 検査付きclient入口・仮想場面・採掘中断の追加統合
+
+2026-10-02（UTC）。再同期でさらに6件のpushを取得し、確認済みの3件と合わせて9コミット、
+`codex/survival-construction`の`1a8f258eeda876b0e3837f8a246b990c3cffb052`まで統合した。
+
+`Client::survival()`と静的なcapability discoveryを追加し、限定サバイバル操作を
+`checked_survival`から利用できるようにした。現契約は1.21.11のみで、1.16.1の
+従来API・`survival`モジュールを維持する。経路・建築計画・権限・材料予約・永続jobは利用側に残る。
+明示的な採掘retirement handleは取消後の読出し再開と一度だけのfresh reconnectをまとめ、
+検証済み新sessionの汎用Clientも返す。自動再送・自動reconnectは追加しない。
+
+各tickのheadingを含む`SurvivalControl`と、現在のstateからpreviewを再計算する実行入口を追加した。
+完全な限定領域のcaptureと仮想sceneはnative geometry/modelを共有するが、
+予測を実操作の受信証拠や許可へ変えない。仮想の照準条件と静止終点の保守的clearanceを分ける。
+採掘中の受信inventory変更は最初の原因・sequenceを保持し、手が再び空になっても消さない。
+FINISH直前の前提変更もtyped inspectionで返し、transport failureや別の競合を隠さない。
+公開設計・移行表に入口とstruct field変更を記録した。
+
+README、API・architecture、crate・operationの説明、採掘の競合を解消した。
+既存のRust 1.85対応を保持し、追加されたFINISH前のlet chainも同じ条件の入れ子へ変更した。
+
+| 確認 | 結果 |
+| --- | --- |
+| 全target / 全example、Rust 1.97.1、`-j1 -- --test-threads=1` | 342件成功、6件スキップ |
+| docテスト、Rust 1.97.1 | 4件成功（うちcompile-failの型境界2件） |
+| fmt / 全target Clippy、Rust 1.99.0、`-D warnings` | 成功 |
+| MSRV 1.85.0、全target | 成功 |
+| 追加edge trace / server log | 5ファイルのSHA-256がmanifestと一致、展開可能 |
+
+スキップは専用Minecraft環境を必要とする5試験と任意の性能比較1試験。
+実Minecraft・Java oracleはこの統合環境で再実行していない。
+元ブランチのedge試行では初期位置x=0.5で候補がなく送信しなかった記録と、
+x=0.6へfixtureを変更した後の移動・side配置・退避の成功を別々に保持する。
+成功は`f53aef9`の版固有APIでの試行であり、後から追加した共通入口のlive検証へ読み替えない。
+材料1個の消費と最終領域の記録は限定edge操作の証跡で、完全な建築・片付けの成功ではない。
+
+ログは`.local/integration-validation/survival-client-merge/`へ保存する。
+rustdoc・固定commitのpackage・隔離DustRoute互換性・GitHub CIの結果は統合PRへ記録する。
+利用側の移行・実採用検証は今回を含む新しい固定commitで揃える。
+旧`467ca6c`の確認だけでmainへの統合条件を満たしたとは扱わない。

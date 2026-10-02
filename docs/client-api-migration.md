@@ -117,6 +117,30 @@ survivalのraw `use_on_block`は拒否します。`place_survival_cube`で意図
 詳細は[採掘](survival-mining.md)、[retirement](survival-mining-retirement.md)、
 [配置](survival-placement.md)、[移動制御](survival-motion-controls.md)を参照してください。
 
+## 検査付きサバイバル入口と追加の互換性変更
+
+版固有の1.21.11操作APIは共存します。対応するサバイバル操作は
+`Client::survival()`から取得し、型を`voxrig::checked_survival`からimportできます。
+`survival_capabilities()`は静的な対応情報で、実行時の状態・権限確認は各呼出しに残ります。
+1.16.1にはこの契約を適用できず、従来の`Bot`と`survival`モジュールを使います。
+
+| 型・入口 | 今回の変更と利用側の対応 |
+| --- | --- |
+| `SurvivalMovementPreview` | `yaw`を削除し、`generation`と`controls: Vec<SurvivalControl>`へ変更。headingは各controlの`yaw`から参照する |
+| `SurvivalMotionRecord` | `inputs`を削除。`preview.controls`の各tickの`input`と`yaw`を参照する |
+| 固定headingの`preview_survival_motion` / `start_survival_motion` | 引数は維持。可変headingは`preview_survival_path` / `start_survival_path`を使う |
+| `start_previewed_survival_motion` | previewを現在のstateから再計算して照合する。古いpreviewやhypothetical previewは実行許可にならない |
+| `MiningRecord` | `inventory_change: Option<MiningInventoryChange>`を追加。直接構築するfixtureとserialized historyの利用側を更新する |
+| `dig_survival_cube` | FINISH前に受信した前提変更をtyped `RequiresInspection`として返す。transport failureは引き続きerrorで、再送しない |
+| `MiningRetirement` | 元接続・observer・watchをまとめた非永続handle。明示的なclose、read-only wait、once-only reconnectに分ける |
+| `RecoveredSurvivalClient` | 同じ新sessionの汎用`client`、検査付き`operations`、診断`evidence`を返す。利用側で新しい計画を作る |
+
+仮想場面は`capture_survival_scene`から枝を作り、共有native modelで予測します。
+仮想block編集は受信・在庫・権限・結果ではありません。`HypotheticalAimRequirement`を
+将来の観測条件として保持し、実行時の立位・対象・材料・結果観測へ置き換えないでください。
+詳細は[API契約](survival-api.md)、[仮想場面](survival-hypothetical-scenes.md)、
+[受信中の採掘前提変更](survival-inventory-interruption.md)を参照してください。
+
 ## 採用検証
 
 Voxrig commit、利用側commit、ゲーム版、Rust toolchain、実行コマンドと結果を記録します。
