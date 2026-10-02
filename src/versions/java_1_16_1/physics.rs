@@ -77,6 +77,9 @@ pub struct Aabb {
     pub max_z: f64,
 }
 
+/// Distance below which two collision faces are considered touching (vanilla uses `1.0E-7`).
+const COLLISION_EPSILON: f64 = 1.0e-7;
+
 impl Aabb {
     /// Performs the `player` operation.
     pub fn player(x: f64, y: f64, z: f64) -> Self {
@@ -122,46 +125,70 @@ impl Aabb {
             max_z: self.max_z + movement.z,
         }
     }
-    pub(crate) fn clip_y(self, obstacle: Self, mut dy: f64) -> f64 {
-        if obstacle.max_x > self.min_x
-            && obstacle.min_x < self.max_x
-            && obstacle.max_z > self.min_z
-            && obstacle.min_z < self.max_z
+    /// Whether two ranges overlap by more than the collision epsilon.
+    ///
+    /// Faces that touch, or overlap only by floating-point noise, do not count.
+    fn overlaps(a_min: f64, a_max: f64, b_min: f64, b_max: f64) -> bool {
+        b_max > a_min + COLLISION_EPSILON && b_min < a_max - COLLISION_EPSILON
+    }
+
+    /// Clips `delta` against an obstacle on one axis.
+    ///
+    /// Like vanilla, a box that is already within `COLLISION_EPSILON` of the
+    /// obstacle face is treated as touching it. Without this tolerance a player
+    /// whose edge was `31.999999999999996` slid into the block at `x = 31`,
+    /// and the server answered every such move with a position correction.
+    fn clip_axis(
+        self_min: f64,
+        self_max: f64,
+        obstacle_min: f64,
+        obstacle_max: f64,
+        mut delta: f64,
+    ) -> f64 {
+        if delta > 0.0 && self_max <= obstacle_min + COLLISION_EPSILON {
+            let gap = obstacle_min - self_max;
+            delta = delta.min(if gap.abs() < COLLISION_EPSILON {
+                0.0
+            } else {
+                gap
+            });
+        } else if delta < 0.0 && self_min >= obstacle_max - COLLISION_EPSILON {
+            let gap = obstacle_max - self_min;
+            delta = delta.max(if gap.abs() < COLLISION_EPSILON {
+                0.0
+            } else {
+                gap
+            });
+        }
+        delta
+    }
+
+    pub(crate) fn clip_y(self, obstacle: Self, dy: f64) -> f64 {
+        if Self::overlaps(self.min_x, self.max_x, obstacle.min_x, obstacle.max_x)
+            && Self::overlaps(self.min_z, self.max_z, obstacle.min_z, obstacle.max_z)
         {
-            if dy > 0.0 && self.max_y <= obstacle.min_y {
-                dy = dy.min(obstacle.min_y - self.max_y);
-            } else if dy < 0.0 && self.min_y >= obstacle.max_y {
+            if dy < 0.0 && self.min_y >= obstacle.max_y - COLLISION_EPSILON {
+                // Landing keeps the historical 1e-4 snap so the player rests exactly on the face.
                 let gap = obstacle.max_y - self.min_y;
-                dy = dy.max(if gap.abs() < 1.0e-4 { 0.0 } else { gap });
+                return dy.max(if gap.abs() < 1.0e-4 { 0.0 } else { gap });
             }
+            return Self::clip_axis(self.min_y, self.max_y, obstacle.min_y, obstacle.max_y, dy);
         }
         dy
     }
-    pub(crate) fn clip_x(self, obstacle: Self, mut dx: f64) -> f64 {
-        if obstacle.max_y > self.min_y
-            && obstacle.min_y < self.max_y
-            && obstacle.max_z > self.min_z
-            && obstacle.min_z < self.max_z
+    pub(crate) fn clip_x(self, obstacle: Self, dx: f64) -> f64 {
+        if Self::overlaps(self.min_y, self.max_y, obstacle.min_y, obstacle.max_y)
+            && Self::overlaps(self.min_z, self.max_z, obstacle.min_z, obstacle.max_z)
         {
-            if dx > 0.0 && self.max_x <= obstacle.min_x {
-                dx = dx.min(obstacle.min_x - self.max_x);
-            } else if dx < 0.0 && self.min_x >= obstacle.max_x {
-                dx = dx.max(obstacle.max_x - self.min_x);
-            }
+            return Self::clip_axis(self.min_x, self.max_x, obstacle.min_x, obstacle.max_x, dx);
         }
         dx
     }
-    pub(crate) fn clip_z(self, obstacle: Self, mut dz: f64) -> f64 {
-        if obstacle.max_x > self.min_x
-            && obstacle.min_x < self.max_x
-            && obstacle.max_y > self.min_y
-            && obstacle.min_y < self.max_y
+    pub(crate) fn clip_z(self, obstacle: Self, dz: f64) -> f64 {
+        if Self::overlaps(self.min_x, self.max_x, obstacle.min_x, obstacle.max_x)
+            && Self::overlaps(self.min_y, self.max_y, obstacle.min_y, obstacle.max_y)
         {
-            if dz > 0.0 && self.max_z <= obstacle.min_z {
-                dz = dz.min(obstacle.min_z - self.max_z);
-            } else if dz < 0.0 && self.min_z >= obstacle.max_z {
-                dz = dz.max(obstacle.max_z - self.min_z);
-            }
+            return Self::clip_axis(self.min_z, self.max_z, obstacle.min_z, obstacle.max_z, dz);
         }
         dz
     }
@@ -433,6 +460,20 @@ impl PhysicsTracker {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn edge_touching_a_block_through_float_noise_cannot_slide_into_it() {
+        // x = 32.3 gives min_x = 31.999999999999996, overlapping the block at x = 31 by 4e-15.
+        let player = Aabb::player(32.3, 64.0, 18.5);
+        assert!(player.min_x < 32.0);
+        let wall = Aabb::block(31, 64, 18);
+        assert_eq!(player.clip_x(wall, -0.098), 0.0);
+        // Moving away is unaffected.
+        assert_eq!(player.clip_x(wall, 0.098), 0.098);
+        // A block that only touches the side face does not stop vertical movement.
+        let beside = Aabb::block(31, 63, 18);
+        assert_eq!(player.clip_y(beside, -0.5), -0.5);
+    }
+
     use super::*;
     use serde::Deserialize;
 
