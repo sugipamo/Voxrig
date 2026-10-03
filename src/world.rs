@@ -607,6 +607,53 @@ impl World {
         found
     }
 
+    /// Vanilla's fluid wall exit impulse, after movement and fluid drag.
+    /// Unknown, solid, or still submerged escape space cannot authorize it.
+    pub(crate) fn fluid_exit_boost(
+        &self,
+        moved: Aabb,
+        velocity: Vec3,
+        vertical_displacement: f64,
+        fluid: Option<Fluid>,
+        collided_horizontal: bool,
+    ) -> Option<f64> {
+        if fluid.is_none() || !collided_horizontal {
+            return None;
+        }
+        let escape = moved.offset(Vec3 {
+            x: velocity.x,
+            y: velocity.y + 0.6 - vertical_displacement,
+            z: velocity.z,
+        });
+        for y in (escape.min_y.floor() as i32 - 1)..escape.max_y.ceil() as i32 {
+            for z in escape.min_z.floor() as i32..escape.max_z.ceil() as i32 {
+                for x in escape.min_x.floor() as i32..escape.max_x.ceil() as i32 {
+                    let state = self.block(x, y, z)?;
+                    // Entity.isFree uses containsAnyLiquid: even the empty
+                    // upper portion of a flowing-fluid cell blocks the probe.
+                    if y >= escape.min_y.floor() as i32
+                        && matches!(block_name(state), Some("water" | "lava" | "bubble_column"))
+                    {
+                        return None;
+                    }
+                    for shape in shapes_for(state) {
+                        let b = shape.at(x, y, z);
+                        if escape.min_x < b.max_x
+                            && escape.max_x > b.min_x
+                            && escape.min_y < b.max_y
+                            && escape.max_y > b.min_y
+                            && escape.min_z < b.max_z
+                            && escape.max_z > b.min_z
+                        {
+                            return None;
+                        }
+                    }
+                }
+            }
+        }
+        Some(0.3)
+    }
+
     pub(crate) fn fluid_flow(&self, aabb: Aabb, fluid: Fluid) -> Vec3 {
         let x = ((aabb.min_x + aabb.max_x) * 0.5).floor() as i32;
         let y = aabb.min_y.floor() as i32;
@@ -1625,6 +1672,60 @@ mod tests {
         );
         world.set_block(0, 1, 0, 41);
         assert_eq!(world.fluid_intersecting(Aabb::player(0.5, 1.3, 0.5)), None);
+    }
+
+    #[test]
+    fn fluid_wall_exit_requires_known_dry_collision_free_headroom() {
+        let mut world = World::default();
+        world.chunks.insert((0, 0), Chunk::default());
+        world.set_block(0, 1, 0, 39); // shallow flowing water
+        world.set_block(1, 1, 0, 1); // lip
+        let pose = Aabb::player(0.7, 1.5, 0.5);
+        let velocity = Vec3 {
+            x: 0.0,
+            y: 0.01,
+            z: 0.0,
+        };
+        assert_eq!(
+            world.fluid_exit_boost(pose, velocity, 0.04, Some(Fluid::Water), true),
+            Some(0.3)
+        );
+        assert_eq!(
+            world.fluid_exit_boost(pose, velocity, 0.04, None, true),
+            None
+        );
+        assert_eq!(
+            world.fluid_exit_boost(pose, velocity, 0.04, Some(Fluid::Water), false),
+            None
+        );
+        // A low ceiling and deep water must not create an upward impulse.
+        world.set_block(0, 3, 0, 1);
+        assert_eq!(
+            world.fluid_exit_boost(pose, velocity, 0.04, Some(Fluid::Water), true),
+            None
+        );
+        world.set_block(0, 3, 0, 0);
+        world.set_block(0, 2, 0, 34);
+        assert_eq!(
+            world.fluid_exit_boost(pose, velocity, 0.04, Some(Fluid::Water), true),
+            None
+        );
+        world.set_block(0, 2, 0, 0);
+        assert_eq!(
+            world.fluid_exit_boost(
+                Aabb::player(0.7, 1.4, 0.5),
+                velocity,
+                0.04,
+                Some(Fluid::Water),
+                true
+            ),
+            None
+        );
+        let border = Aabb::player(15.9, 1.4, 0.5);
+        assert_eq!(
+            world.fluid_exit_boost(border, velocity, 0.04, Some(Fluid::Water), true),
+            None
+        );
     }
 
     #[test]

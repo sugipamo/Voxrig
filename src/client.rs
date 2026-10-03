@@ -2685,7 +2685,6 @@ impl Bot {
             return Ok(());
         };
         let landed_on = world.block_below_name(moved);
-        drop(world);
         let collided_x = (requested.x - actual.x).abs() > 1.0e-9;
         let collided_y = (requested.y - actual.y).abs() > 1.0e-9;
         let collided_z = (requested.z - actual.z).abs() > 1.0e-9;
@@ -2735,6 +2734,16 @@ impl Bot {
                 motion.velocity.z *= horizontal_drag;
             }
         }
+        if let Some(up) = world.fluid_exit_boost(
+            moved,
+            motion.velocity,
+            actual.y,
+            fluid,
+            motion.collided_horizontal,
+        ) {
+            motion.velocity.y = up;
+        }
+        drop(world);
         if player.on_ground && matches!(landed_on, Some("soul_sand" | "honey_block")) {
             motion.velocity.x *= 0.4;
             motion.velocity.z *= 0.4;
