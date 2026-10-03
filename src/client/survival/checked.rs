@@ -20,6 +20,10 @@
 //! Route selection, building designs, resource reservations and durable jobs
 //! belong to the caller. This surface exposes no commands or creative controls.
 
+pub use super::{
+    MAX_SURVIVAL_CONTROL_TICKS, PredictedMotionFrame, SurvivalControl, SurvivalInput,
+    TerminalClearance,
+};
 use crate::versions::java_1_21_11::operations as native;
 use crate::{
     BlockFace, Client, ConnectionConfig, MinecraftVersion, NativeBlockState, Region, Result,
@@ -31,14 +35,13 @@ pub use crate::versions::java_1_21_11::players::PlayerObservations;
 pub use native::{
     CapturedSurvivalScene, HypotheticalAimRequirement, HypotheticalBlockEdit,
     HypotheticalMovementPreview, HypotheticalPlacement, HypotheticalReconnectBoundary,
-    InventorySlot, InventorySwap, InventorySwapObservation, LocalPlayerState,
-    MAX_SURVIVAL_CONTROL_TICKS, MiningIntent, MiningInventoryChange, MiningInventoryChangeKind,
-    MiningRecord, MiningRecoveryAttempt, MiningRecoveryBoundary, MiningRecoveryEvidence,
-    MiningRecoveryMethod, MiningRecoveryTarget, MiningRetirementStatus, MiningStatus,
-    OperationHistory, PlacementIntent, PlacementStatus, PlayerState, PredictedMotionFrame,
-    StandingContext, StandingPositionBasis, SurvivalControl, SurvivalInput, SurvivalMotionContract,
+    InventorySlot, InventorySwap, InventorySwapObservation, LocalPlayerState, MiningIntent,
+    MiningInventoryChange, MiningInventoryChangeKind, MiningRecord, MiningRecoveryAttempt,
+    MiningRecoveryBoundary, MiningRecoveryEvidence, MiningRecoveryMethod, MiningRecoveryTarget,
+    MiningRetirementStatus, MiningStatus, OperationHistory, PlacementIntent, PlacementStatus,
+    PlayerState, StandingContext, StandingPositionBasis, SurvivalMotionContract,
     SurvivalMotionRecheck, SurvivalMotionRecord, SurvivalMotionStatus, SurvivalMovementPreview,
-    SurvivalScenario, TerminalClearance,
+    SurvivalScenario,
 };
 
 /// Versioned semantics, separate from a wire protocol number.

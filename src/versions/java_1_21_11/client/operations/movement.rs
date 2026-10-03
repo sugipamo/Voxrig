@@ -16,26 +16,10 @@ pub use scenario::{
     SurvivalScenario,
 };
 
-/// Digital walking input for one predicted native game tick, without sprint/sneak.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize)]
-pub struct SurvivalInput {
-    /// -1 backwards, 0 released, 1 forwards.
-    pub forward: i8,
-    /// -1 right, 0 released, 1 left.
-    pub strafe: i8,
-    /// Jump key state, including native repeat cooldown.
-    pub jump: bool,
-}
-/// One native tick's heading and digital input. Route selection belongs to the caller.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
-pub struct SurvivalControl {
-    /// Native body yaw in degrees.
-    pub yaw: f32,
-    /// No sprint/sneak or implicit controls.
-    pub input: SurvivalInput,
-}
-/// Bound on a single finite connection-owned control run.
-pub const MAX_SURVIVAL_CONTROL_TICKS: usize = 120;
+pub use crate::client::survival::{
+    MAX_SURVIVAL_CONTROL_TICKS, PredictedMotionFrame, SurvivalControl, SurvivalInput,
+    TerminalClearance,
+};
 fn fixed_controls(yaw: f32, inputs: &[SurvivalInput]) -> Result<Vec<SurvivalControl>> {
     if inputs.is_empty() || inputs.len() > MAX_SURVIVAL_CONTROL_TICKS {
         return Err(invalid("motion requires 1..120 bounded digital inputs"));
@@ -44,22 +28,6 @@ fn fixed_controls(yaw: f32, inputs: &[SurvivalInput]) -> Result<Vec<SurvivalCont
         .iter()
         .map(|input| SurvivalControl { yaw, input: *input })
         .collect())
-}
-/// A simulated player frame, never a received pose or permission to build.
-#[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct PredictedMotionFrame {
-    /// Tick count from the preview's initial context, not server time.
-    pub tick: u16,
-    /// Predicted feet position.
-    pub position: [f64; 3],
-    /// Simulated next-tick velocity, including gravity while resting on a floor.
-    pub velocity: [f64; 3],
-    /// Predicted downward collision.
-    pub on_ground: bool,
-    /// Predicted X/Z obstruction.
-    pub horizontal_collision: bool,
-    /// No displacement with released controls and predicted floor contact.
-    pub resting: bool,
 }
 /// Read-only simulation against one received world snapshot. Not a reusable plan.
 #[derive(Clone, Debug, Serialize)]
@@ -76,21 +44,6 @@ pub struct SurvivalMovementPreview {
     pub frames: Vec<PredictedMotionFrame>,
     /// Prospective terminal clearance; does not authorize later sends.
     pub terminal_clearance: TerminalClearance,
-}
-/// Why a predicted endpoint can or cannot be used as a construction stop.
-#[derive(Clone, Debug, Serialize)]
-#[serde(tag = "status", rename_all = "snake_case")]
-pub enum TerminalClearance {
-    /// Resting with conservative support and a margin from solid walls.
-    Admitted {
-        /// Per-axis model-space planning reserve. Not a physical error bound for predicted continuation.
-        horizontal_margin: f64,
-    },
-    /// Input planning must change before any movement packet is sent.
-    RequiresReplan {
-        /// Specific rest/support/geometry issue.
-        reason: String,
-    },
 }
 const TERMINAL_MARGIN: f64 = 1.0 / 16.0;
 fn terminal_clearance(state: &impl GeometryView, frame: &PredictedMotionFrame) -> Result<()> {

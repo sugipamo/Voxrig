@@ -1,0 +1,356 @@
+{
+  "schema": 1,
+  "library_baseline_commit": "dfe8c435d17e3497cc7e8838671e8098a58eac42",
+  "scenario_sources_sha256": {
+    "examples/common_native_probe.rs": "0fa8bcb914882efa77f1d4a708b24f0a7525bb69d6369aa3412e87a16b72c96f",
+    "scripts/run_common_native.py": "97a6a822ea1ec3079a7614af1a5f37426eea73e196405756a24f9b8572172c66"
+  },
+  "scope": "Common Client creative operations and live-mode rejection only; not full survival/container/recovery parity",
+  "result_authority": "Vanilla server RCON, separately from Voxrig received projection",
+  "servers_run_sequentially": true,
+  "java": "OpenJDK 21.0.12.1",
+  "runs": [
+    {
+      "version": "1.16.1",
+      "run_id": "trial-1.16.1-8f3286a4",
+      "source": {
+        "version": "1.16.1",
+        "metadata_url": "https://piston-meta.mojang.com/v1/packages/54fa3af57d041d2771e66d390197b2c0288e697c/1.16.1.json",
+        "metadata_sha1": "54fa3af57d041d2771e66d390197b2c0288e697c",
+        "server": {
+          "sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+          "size": 37968964,
+          "url": "https://piston-data.mojang.com/v1/objects/a412fd69db1f81db3f511c1463fd304675244077/server.jar"
+        }
+      },
+      "server_memory_limit": "1024M",
+      "sync_chunk_writes": false,
+      "result": "passed",
+      "scenario_result": "passed",
+      "native_results": {
+        "inventory": "UnifiedProbe has the following entity data: [{Slot: 1b, id: \"minecraft:stone\", Count: 3b}]",
+        "selected_slot": "UnifiedProbe has the following entity data: 1",
+        "flight": "UnifiedProbe has the following entity data: [0.5d, 66.0d, 0.5d]",
+        "break": "Test passed",
+        "place": "Test passed",
+        "survival_guard": "UnifiedProbe has the following entity data: [{Slot: 1b, id: \"minecraft:stone\", Count: 3b}]"
+      },
+      "fixture_responses": {
+        "gamerule spawnRadius 0": "Gamerule spawnRadius is now set to: 0",
+        "gamerule doMobSpawning false": "Gamerule doMobSpawning is now set to: false",
+        "gamerule doDaylightCycle false": "Gamerule doDaylightCycle is now set to: false",
+        "weather clear": "Set the weather to clear",
+        "fill -8 64 -8 8 64 8 minecraft:stone": "Successfully filled 288 blocks",
+        "fill -8 65 -8 8 69 8 minecraft:air": "No blocks were filled",
+        "setblock 0 65 1 minecraft:stone": "Changed the block at 0, 65, 1",
+        "setworldspawn 0 65 0": "Set the world spawn point to 0, 65, 0"
+      },
+      "fixture_verification": {
+        "execute if block 0 65 1 minecraft:stone": "Test passed",
+        "execute if block 1 65 0 minecraft:air": "Test passed"
+      },
+      "server_exit_code": 0,
+      "raw_report_sha256": "5a25fb7445085e762e40c774fb6602bb7dbf7314408b80fc3159b45034507101",
+      "client_records_excerpt": [
+        {
+          "stage": "ready",
+          "value": {
+            "game_mode": "creative",
+            "receive_sequence": 30,
+            "received_pose": {
+              "position": [
+                0.5,
+                4.0,
+                0.5
+              ],
+              "receive_sequence": 11,
+              "rotation": [
+                0.0,
+                0.0
+              ]
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "pending_dispatch": false
+          }
+        },
+        {
+          "stage": "baseline",
+          "value": {
+            "game_mode": "creative",
+            "receive_sequence": 44,
+            "received_pose": {
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "receive_sequence": 44,
+              "rotation": [
+                0.0,
+                0.0
+              ]
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "pending_dispatch": false
+          }
+        },
+        {
+          "stage": "inventory",
+          "value": {
+            "item_dispatch": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_16_1"
+            },
+            "selection_dispatch": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_16_1"
+            }
+          }
+        },
+        {
+          "stage": "flight",
+          "value": {
+            "permission_dispatch": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_16_1"
+            },
+            "position_dispatch": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_16_1"
+            }
+          }
+        },
+        {
+          "stage": "break",
+          "value": {
+            "connection_id": 1,
+            "interaction_sequence": null,
+            "version": "Java1_16_1"
+          }
+        },
+        {
+          "stage": "place",
+          "value": {
+            "connection_id": 1,
+            "interaction_sequence": null,
+            "version": "Java1_16_1"
+          }
+        },
+        {
+          "stage": "survival_guard",
+          "value": {
+            "game_mode": "survival",
+            "receive_sequence": 89,
+            "received_pose": {
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "receive_sequence": 44,
+              "rotation": [
+                0.0,
+                0.0
+              ]
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "pending_dispatch": false
+          }
+        },
+        {
+          "stage": "disconnected",
+          "value": {
+            "version": "Java1_16_1"
+          }
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "run_id": "trial-1.21.11-754b3fd4",
+      "source": {
+        "version": "1.21.11",
+        "metadata_url": "https://piston-meta.mojang.com/v1/packages/4f6bd9388f12e9d7adc2ded64acba66212d60521/1.21.11.json",
+        "metadata_sha1": "4f6bd9388f12e9d7adc2ded64acba66212d60521",
+        "server": {
+          "sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+          "size": 56327581,
+          "url": "https://piston-data.mojang.com/v1/objects/64bb6d763bed0a9f1d632ec347938594144943ed/server.jar"
+        }
+      },
+      "server_memory_limit": "1024M",
+      "sync_chunk_writes": false,
+      "result": "passed",
+      "scenario_result": "passed",
+      "native_results": {
+        "inventory": "UnifiedProbe has the following entity data: [{count: 3, Slot: 1b, id: \"minecraft:stone\"}]",
+        "selected_slot": "UnifiedProbe has the following entity data: 1",
+        "flight": "UnifiedProbe has the following entity data: [0.5d, 66.0d, 0.5d]",
+        "break": "Test passed",
+        "place": "Test passed",
+        "survival_guard": "UnifiedProbe has the following entity data: [{count: 3, Slot: 1b, id: \"minecraft:stone\"}]"
+      },
+      "fixture_responses": {
+        "gamerule minecraft:respawn_radius 0": "Gamerule respawn_radius is now set to: 0",
+        "gamerule minecraft:spawn_mobs false": "Gamerule spawn_mobs is now set to: false",
+        "gamerule minecraft:advance_time false": "Gamerule advance_time is now set to: false",
+        "weather clear": "Set the weather to clear",
+        "fill -8 64 -8 8 64 8 minecraft:stone": "Successfully filled 288 block(s)",
+        "fill -8 65 -8 8 69 8 minecraft:air": "No blocks were filled",
+        "setblock 0 65 1 minecraft:stone": "Changed the block at 0, 65, 1",
+        "setworldspawn 0 65 0": "Set the world spawn point to 0, 65, 0 [0.0, 0.0] in minecraft:overworld"
+      },
+      "fixture_verification": {
+        "execute if block 0 65 1 minecraft:stone": "Test passed",
+        "execute if block 1 65 0 minecraft:air": "Test passed"
+      },
+      "server_exit_code": 0,
+      "raw_report_sha256": "84b617f102ab13e62867213d08496f38c84d941003cad760d8c843a215858868",
+      "client_records_excerpt": [
+        {
+          "stage": "ready",
+          "value": {
+            "game_mode": "creative",
+            "receive_sequence": 67,
+            "received_pose": {
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "receive_sequence": 38,
+              "rotation": [
+                0.0,
+                0.0
+              ]
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "pending_dispatch": false
+          }
+        },
+        {
+          "stage": "baseline",
+          "value": {
+            "game_mode": "creative",
+            "receive_sequence": 68,
+            "received_pose": {
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "receive_sequence": 68,
+              "rotation": [
+                0.0,
+                0.0
+              ]
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "pending_dispatch": false
+          }
+        },
+        {
+          "stage": "inventory",
+          "value": {
+            "item_dispatch": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_21_11"
+            },
+            "selection_dispatch": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_21_11"
+            }
+          }
+        },
+        {
+          "stage": "flight",
+          "value": {
+            "permission_dispatch": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_21_11"
+            },
+            "position_dispatch": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_21_11"
+            }
+          }
+        },
+        {
+          "stage": "break",
+          "value": {
+            "connection_id": 1,
+            "interaction_sequence": 1,
+            "version": "Java1_21_11"
+          }
+        },
+        {
+          "stage": "place",
+          "value": {
+            "connection_id": 1,
+            "interaction_sequence": 2,
+            "version": "Java1_21_11"
+          }
+        },
+        {
+          "stage": "survival_guard",
+          "value": {
+            "game_mode": "survival",
+            "receive_sequence": 149,
+            "received_pose": {
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "receive_sequence": 68,
+              "rotation": [
+                0.0,
+                0.0
+              ]
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "pending_dispatch": true
+          }
+        },
+        {
+          "stage": "disconnected",
+          "value": {
+            "version": "Java1_21_11"
+          }
+        }
+      ]
+    }
+  ]
+}

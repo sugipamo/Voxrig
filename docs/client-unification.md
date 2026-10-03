@@ -71,7 +71,7 @@ modernの既存intent・session guardも維持する。保存したreceiptは次
 | --- | --- | --- |
 | 1. 設定・基本型・対応情報・registry | 共通fixture・静的検証済み | 両版で同じ共通型。未知版/ID、誤ったnamespaceを拒否。設定を黙って無視しない |
 | 2. player/world/inventory共通観測 | 基本capture共通fixture・静的検証済み | 同じcapture境界、受信/予測/欠測を保持。NBTは保持、未対応componentsは欠測として保持 |
-| 3. 視点・選択・移動・採掘・設置 | 視点/選択とcreative操作を実装。survival移動/採掘/設置は残る | 共通request/resultと両版実装、native結果と物理の検証。片版Unsupportedだけでは完了しない |
+| 3. 視点・選択・移動・採掘・設置 | creative基本操作は両版native検証済み。移動入力型を共通側へ移管。survival移動/採掘/設置は残る | 共通request/resultと両版実装、native結果と物理の検証。片版Unsupportedだけでは完了しない |
 | 4. container/item data/製作/装備/entity | 残る | modern側に受信/クリック/一般item操作を実装。同じ代表workflowと結果検証 |
 | 5. context/記録/再構成/scene/復旧 | 残る | 共通型を所有し、legacy側にも版別規則・lifecycleの監査済み実装 |
 | 6. UI/特殊window/vehicle/manager | 残る | 各機能の共通操作/観測と両版実装。raw操作自体の版依存は明示的な拡張へ残す |
@@ -81,6 +81,9 @@ loaded/reachable targetへのcreative break/use-on-blockを実装する。衝突
 Survivalの追加検査契約は`Client::survival().checked()?`または`Client::checked_survival()`で明示的に選ぶ。
 canonical moduleは`client::survival::checked`、旧`checked_survival`は互換alias。
 この拡張は現時点で1.21.11専用で、基本共通handleと機能parityを混同しない。
+`client::survival::{SurvivalInput, SurvivalControl, PredictedMotionFrame, TerminalClearance}`は
+共通側が所有する。従来のmodern/checked importは同じ型をre-exportする。
+入力や予測frameの型が共通であることと、各版の実行契約が実装済みであることは別である。
 
 `Client::capabilities()` / `Capabilities::for_version`は共通面の実装状況を返す。
 NotImplementedはVoxrig側の不足であって、ゲームに存在しないという意味ではない。
@@ -113,5 +116,8 @@ mode変更、建築、採掘等を勝手に実行するexampleにはしない。
 main `af91cad`を基準に、共通基盤・capture・mode handle・creative基本操作を追加した。
 全targetのunit/fixture試験は370件成功、専用native環境7件と性能1件はignored。
 doc test 5件、fmt、警告をerrorにするClippy/Rustdoc、Rust 1.85の全target check、
-344ファイルのpackage buildが成功。実ゲームの新API試験はこれから行う。
+native検証スクリプト・共通移動型を含めた349ファイルのpackage buildが成功。
+続いて同じ共通API consumerを公式vanilla両版で実行し、creativeの在庫・選択・flight・除去・設置・
+survival切替後のcreative write拒否をサーバーRCONで確認した。両サーバーも正常終了した。
+再実行方法・証拠・範囲は[共通Clientのnative検証](common-client-native-validation.md)に記録する。
 これは全段階の機能parity完了の記録ではない。
