@@ -27,6 +27,8 @@ pub enum Feature {
     PlayerObservation,
     /// Mode-checked look and hotbar selection.
     BasicControls,
+    /// First static block outline from a coherent dry-standing capture.
+    SurvivalTargeting,
     /// Read-only bounded walking/jump model preview under dry standing defaults.
     SurvivalPreview,
     /// Connection-owned finite dry walking/jump dispatch under prediction contract.
@@ -64,6 +66,9 @@ impl Capabilities {
             | Feature::BasicControls => Support::Available,
             Feature::CreativeControls => Support::Restricted(
                 "default items; permitted flight steps <=4 blocks; loaded reachable targets",
+            ),
+            Feature::SurvivalTargeting => Support::Restricted(
+                "dry stationary normal survival posture; default reach <=4.5; known static outlines; legacy audited passive full cubes",
             ),
             Feature::SurvivalPreview => Support::Restricted(
                 "read-only 1..120 walking/jump inputs; healthy stationary normal survival posture; native defaults; loaded dry full cubes",

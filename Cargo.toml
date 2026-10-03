@@ -27,6 +27,7 @@ include = [
     "/scripts/VerifyPositionCorrection.java",
     "/scripts/VerifyDryMovement.java",
     "/scripts/VerifyLegacyDryMovement.java",
+    "/scripts/VerifyLegacyTargeting.java",
     "/README.md",
     "/LICENSE",
     "/THIRD_PARTY_NOTICES.md",

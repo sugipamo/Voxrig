@@ -2,7 +2,10 @@
 
 Client共通化ブランチでは`Client::survival()` / `Client::creative()`を両版の共通入口とします。
 共通型・受信/予測を区別したcapture・版別registryと移行変更は
-[Client共通化](client-unification.md)を参照してください。下記の追加検査契約は
+[Client共通化](client-unification.md)を参照してください。
+共通の`Survival::target_block`は限定dry standingから最初のstatic outlineとcaptureを読出します。
+queryを採掘/設置の実行許可にしません。[狙い判定の範囲・検証](common-survival-targeting.md)を参照してください。
+下記の追加検査契約は
 `Client::checked_survival()`または`Client::survival().checked()?`で明示的に選ぶ1.21.11用の拡張です。
 
 

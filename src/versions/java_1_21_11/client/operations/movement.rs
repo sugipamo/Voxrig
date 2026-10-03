@@ -60,6 +60,51 @@ fn terminal_clearance(state: &impl GeometryView, frame: &PredictedMotionFrame) -
     Ok(())
 }
 impl Operations {
+    pub(crate) async fn common_target_block(
+        &self,
+        distance: f64,
+    ) -> Result<crate::client::survival::BlockTargetObservation> {
+        use crate::client::survival::target;
+        target::validate_reach(distance)?;
+        let mut state = self.bot.session.state.lock().await;
+        self.ready(&state)?;
+        let native = preview(
+            &mut state,
+            self.bot.session.id,
+            self.bot.session.started.elapsed().as_millis() as u64 / 50,
+            &[SurvivalControl {
+                yaw: 0.0,
+                input: Default::default(),
+            }],
+        )?;
+        let initial = self.common_player_unlocked(&state)?;
+        target::validate_rotation(initial.rotation)?;
+        let eye = native.initial.eye_position;
+        let hit = super::super::raycast::stationary_outline_hit(&state, eye, distance)?;
+        let vector = target::direction(crate::MinecraftVersion::Java1_21_11, initial.rotation);
+        let length = vector.iter().map(|v| v * v).sum::<f64>().sqrt();
+        let hit = hit.map(|hit| crate::client::survival::BlockTargetHit {
+            position: hit.position,
+            state: hit.state,
+            distance: hit.distance,
+            face: [
+                crate::BlockFace::Down,
+                crate::BlockFace::Up,
+                crate::BlockFace::North,
+                crate::BlockFace::South,
+                crate::BlockFace::West,
+                crate::BlockFace::East,
+            ][hit.face.expect("outline entry face") as usize],
+            point: std::array::from_fn(|i| eye[i] + vector[i] * (hit.distance / length)),
+        });
+        Ok(crate::client::survival::BlockTargetObservation {
+            initial,
+            world_revision: state.world.revision,
+            eye,
+            maximum_distance: distance,
+            hit,
+        })
+    }
     pub(crate) async fn common_preview_path(
         &self,
         controls: &[SurvivalControl],

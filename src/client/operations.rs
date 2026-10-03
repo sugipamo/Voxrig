@@ -41,6 +41,16 @@ pub(crate) enum Action<'a> {
     UseOnBlock([i32; 3], BlockFace, [f32; 3]),
 }
 impl Survival {
+    /// Query the first static outline from a coherent dry-standing capture.
+    /// Known version shapes and native view-vector math are used. Unavailable or
+    /// unsupported geometry errors; the result never grants mining permission.
+    pub async fn target_block(
+        &self,
+        maximum_distance: f64,
+    ) -> Result<super::survival::BlockTargetObservation> {
+        super::survival::target::validate_reach(maximum_distance)?;
+        self.client.survival_block_target(maximum_distance).await
+    }
     /// Forecast bounded walking/jump controls against one captured dry-cube world.
     /// Uses version-specific native defaults and current stationary admission.
     /// This is read-only; returned frames are predictions, never action authority.

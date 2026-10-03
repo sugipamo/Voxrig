@@ -212,3 +212,20 @@ The native correction and dry-movement method/codec observations in
 Java callers of unchanged target-version method bodies. Their source hashes,
 mappings and scope are recorded in `dry_movement_source.json`. No Minecraft
 class files or method bodies are distributed. See `docs/survival-motion-controls.md`.
+
+## Common-client native Java diagnostics
+
+`data/client_api/java_1_16_1_dry_movement.json` and
+`data/client_api/legacy_targeting_oracle.json` contain factual numeric observations
+from the unmodified official Java 1.16.1 server JAR. Original Java callers invoke
+native movement, view-vector, outline and clipping methods. The targeting probe
+initializes only native ClipContext data fields for an empty collision context;
+it does not replace native traversal or clipping method bodies. Official server
+mapping names identify the inspected methods. Source/verifier/output hashes and
+scope are retained in their adjacent source records and the common-survival docs.
+No game JAR, mappings or decompiled source is redistributed.
+
+`data/client_api/common_native_evidence.json` contains local common-Client and
+independent server RCON observations from sequential official vanilla 1.16.1 and
+1.21.11 trials. Original Rust/Python test tooling and source hashes document the
+limited scenarios. These observations do not relicense Minecraft.

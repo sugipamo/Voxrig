@@ -42,7 +42,7 @@ pub(crate) fn predict(
     }
     Ok(frames)
 }
-fn trig(version: MinecraftVersion, angle: f32, cosine: bool) -> f32 {
+pub(crate) fn trig(version: MinecraftVersion, angle: f32, cosine: bool) -> f32 {
     let index = match version {
         MinecraftVersion::Java1_16_1 => {
             ((angle * 10430.378f32 + if cosine { 16384.0f32 } else { 0.0f32 }) as i32) & 65535

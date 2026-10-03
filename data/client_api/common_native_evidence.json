@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "library_baseline_commit": "a5c20d18586b3a6e31c34e07b1392f7453bb58a8",
+  "library_baseline_commit": "36cdfd5e7d4d2f777967839744d87b0d6a2b9000",
   "scenario_sources_sha256": {
-    "examples/common_native_probe.rs": "c9738ca777110e50733189afcaaa8d29c90f65ca18609938c5f22594df02fea2",
-    "scripts/run_common_native.py": "feaf91cf5d82157da50d50fe87bb43765f0741cae491347aee1985ba180dad8d"
+    "examples/common_native_probe.rs": "370a53d34238fca05462f8a1aad7822fb03c9dab06a2b7d5a53da3eca65bd0c4",
+    "scripts/run_common_native.py": "a0e4b0cc00421d3db6adf4f2e7a5f3a7d5dace5e9d983b07d7eae6e265234bfc"
   },
-  "scope": "Common creative operations/live-mode rejection; read-only preview and finite dry walking/jump dispatch with predicted released-rest endpoint. Not broader movement conditions, common observer contract or container/recovery parity.",
-  "result_authority": "Vanilla server RCON for creative outcomes, unchanged preview position and actual movement samples/endpoint. Client frames and Predicted status are not received or independently observed position authority.",
+  "scope": "Common creative operations/live-mode rejection; read-only preview and first static-outline targeting; finite dry walking/jump dispatch with predicted released-rest endpoint. Not general shapes/movement, common mining/placement mutations, observer contract or container/recovery parity.",
+  "result_authority": "Vanilla server RCON for creative outcomes, unchanged preview/targeting position, selected block state and actual movement samples/endpoint. Target face/point math is separately checked against native JAR methods. Client targets/frames and Predicted status are not server targeting or independently observed position authority.",
   "servers_run_sequentially": true,
   "java": "OpenJDK 21.0.12.1",
   "runs": [
     {
       "version": "1.16.1",
-      "run_id": "trial-1.16.1-1a365390",
+      "run_id": "trial-1.16.1-d9c64b30",
       "source": {
         "version": "1.16.1",
         "metadata_url": "https://piston-meta.mojang.com/v1/packages/54fa3af57d041d2771e66d390197b2c0288e697c/1.16.1.json",
@@ -36,6 +36,26 @@
         "survival_guard": "UnifiedProbe has the following entity data: [{Slot: 1b, id: \"minecraft:stone\", Count: 3b}]",
         "preview_position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
         "preview_position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+        "survival_target": {
+          "position": [
+            1,
+            65,
+            0
+          ],
+          "state": {
+            "name": "minecraft:stone",
+            "properties": {}
+          },
+          "face": "Up",
+          "point": [
+            1.0536536541537873,
+            66.0,
+            0.5000000000000001
+          ],
+          "native_block": "Test passed",
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        },
         "survival_motion": {
           "samples": [
             {
@@ -56,11 +76,11 @@
             },
             {
               "position": [
-                0.4004712382245058,
-                65.7531999805212,
-                0.639183249344125
+                0.3503728126546795,
+                66.00133597911214,
+                0.7092420095803049
               ],
-              "response": "UnifiedProbe has the following entity data: [0.4004712382245058d, 65.7531999805212d, 0.639183249344125d]"
+              "response": "UnifiedProbe has the following entity data: [0.3503728126546795d, 66.00133597911214d, 0.7092420095803049d]"
             },
             {
               "position": [
@@ -72,11 +92,11 @@
             },
             {
               "position": [
-                0.17255207391670527,
-                66.25220334025373,
-                0.9579105128030367
+                0.1201648196480398,
+                66.17675927506424,
+                1.0311700223483975
               ],
-              "response": "UnifiedProbe has the following entity data: [0.17255207391670527d, 66.25220334025373d, 0.9579105128030367d]"
+              "response": "UnifiedProbe has the following entity data: [0.1201648196480398d, 66.17675927506424d, 1.0311700223483975d]"
             },
             {
               "position": [
@@ -104,19 +124,19 @@
             },
             {
               "position": [
-                -0.13384369338970264,
+                -0.12497500385141869,
                 65.0,
-                1.3863812153240473
+                1.3739790412655881
               ],
-              "response": "UnifiedProbe has the following entity data: [-0.13384369338970264d, 65.0d, 1.3863812153240473d]"
+              "response": "UnifiedProbe has the following entity data: [-0.12497500385141869d, 65.0d, 1.3739790412655881d]"
             },
             {
               "position": [
                 -0.13868599844005214,
                 65.0,
-                1.3968500905270147
+                1.393152803146504
               ],
-              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.3968500905270147d]"
+              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.393152803146504d]"
             },
             {
               "position": [
@@ -203,6 +223,8 @@
           ]
         }
       },
+      "server_exit_code": 0,
+      "raw_report_sha256": "ba71f2c95edb9df21ece30ce0c09d5f64fa89d0ecd69ef382d8f42254384bce5",
       "fixture_responses": {
         "gamerule spawnRadius 0": "Gamerule spawnRadius is now set to: 0",
         "gamerule doMobSpawning false": "Gamerule doMobSpawning is now set to: false",
@@ -217,8 +239,6 @@
         "execute if block 0 65 1 minecraft:stone": "Test passed",
         "execute if block 1 65 0 minecraft:air": "Test passed"
       },
-      "server_exit_code": 0,
-      "raw_report_sha256": "5cb4ada7e1939d8c90915b3650cbed8479e348f557c661ebbf5d80a9c338f202",
       "client_records_excerpt": [
         {
           "stage": "ready",
@@ -253,21 +273,25 @@
                 4.0,
                 0.5
               ]
-            }
+            },
+            "rotation": [
+              0.0,
+              0.0
+            ]
           }
         },
         {
           "stage": "baseline",
           "value": {
             "game_mode": "creative",
-            "receive_sequence": 41,
+            "receive_sequence": 43,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 41,
+              "receive_sequence": 43,
               "rotation": [
                 0.0,
                 0.0
@@ -282,14 +306,18 @@
             "position": {
               "source": {
                 "kind": "received",
-                "sequence": 41
+                "sequence": 43
               },
               "value": [
                 0.5,
                 65.0,
                 0.5
               ]
-            }
+            },
+            "rotation": [
+              0.0,
+              0.0
+            ]
           }
         },
         {
@@ -342,14 +370,14 @@
           "stage": "survival_guard",
           "value": {
             "game_mode": "survival",
-            "receive_sequence": 86,
+            "receive_sequence": 88,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 41,
+              "receive_sequence": 43,
               "rotation": [
                 0.0,
                 0.0
@@ -370,7 +398,11 @@
                 66.0,
                 0.5
               ]
-            }
+            },
+            "rotation": [
+              -90.0,
+              69.0
+            ]
           }
         },
         {
@@ -378,14 +410,14 @@
           "value": {
             "initial": {
               "game_mode": "survival",
-              "receive_sequence": 108,
+              "receive_sequence": 100,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 87,
+                "receive_sequence": 89,
                 "rotation": [
                   0.0,
                   0.0
@@ -406,9 +438,13 @@
                   65.0,
                   0.5
                 ]
-              }
+              },
+              "rotation": [
+                0.0,
+                0.0
+              ]
             },
-            "world_revision": 55,
+            "world_revision": 47,
             "initial_frame": {
               "horizontal_collision": false,
               "on_ground": true,
@@ -450,29 +486,87 @@
           }
         },
         {
+          "stage": "survival_target",
+          "value": {
+            "eye": [
+              0.5,
+              66.62000000476837,
+              0.5
+            ],
+            "hit": {
+              "distance": 0.8312234204295631,
+              "face": "Up",
+              "point": [
+                1.0536536541537873,
+                66.0,
+                0.5000000000000001
+              ],
+              "position": [
+                1,
+                65,
+                0
+              ],
+              "state": {
+                "name": "minecraft:stone",
+                "properties": {}
+              }
+            },
+            "initial": {
+              "game_mode": "survival",
+              "receive_sequence": 100,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 89,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              },
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "rotation": [
+                -90.0,
+                48.2400016784668
+              ]
+            },
+            "maximum_distance": 4.5,
+            "world_revision": 47
+          }
+        },
+        {
           "stage": "motion_started",
           "value": {
-            "session": {
-              "connection_id": 1,
-              "version": "Java1_16_1",
-              "world_generation": 1
-            },
-            "run_id": 1,
-            "status": "running",
             "attempted_tick": 0,
             "dispatched_ticks": 0,
-            "problem": null,
             "preview": {
               "initial": {
                 "game_mode": "survival",
-                "receive_sequence": 108,
+                "receive_sequence": 100,
                 "received_pose": {
                   "position": [
                     0.5,
                     65.0,
                     0.5
                   ],
-                  "receive_sequence": 87,
+                  "receive_sequence": 89,
                   "rotation": [
                     0.0,
                     0.0
@@ -493,9 +587,13 @@
                     65.0,
                     0.5
                   ]
-                }
+                },
+                "rotation": [
+                  -90.0,
+                  48.2400016784668
+                ]
               },
-              "world_revision": 55,
+              "world_revision": 47,
               "initial_frame": {
                 "horizontal_collision": false,
                 "on_ground": true,
@@ -534,33 +632,33 @@
                 "horizontal_margin": 0.0625,
                 "status": "admitted"
               }
-            }
+            },
+            "problem": null,
+            "run_id": 1,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "status": "running"
           }
         },
         {
           "stage": "survival_motion",
           "value": {
-            "session": {
-              "connection_id": 1,
-              "version": "Java1_16_1",
-              "world_generation": 1
-            },
-            "run_id": 1,
-            "status": "predicted",
             "attempted_tick": 35,
             "dispatched_ticks": 35,
-            "problem": null,
             "preview": {
               "initial": {
                 "game_mode": "survival",
-                "receive_sequence": 108,
+                "receive_sequence": 100,
                 "received_pose": {
                   "position": [
                     0.5,
                     65.0,
                     0.5
                   ],
-                  "receive_sequence": 87,
+                  "receive_sequence": 89,
                   "rotation": [
                     0.0,
                     0.0
@@ -581,9 +679,13 @@
                     65.0,
                     0.5
                   ]
-                }
+                },
+                "rotation": [
+                  -90.0,
+                  48.2400016784668
+                ]
               },
-              "world_revision": 55,
+              "world_revision": 47,
               "initial_frame": {
                 "horizontal_collision": false,
                 "on_ground": true,
@@ -622,7 +724,15 @@
                 "horizontal_margin": 0.0625,
                 "status": "admitted"
               }
-            }
+            },
+            "problem": null,
+            "run_id": 1,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "status": "predicted"
           }
         },
         {
@@ -635,7 +745,7 @@
     },
     {
       "version": "1.21.11",
-      "run_id": "trial-1.21.11-f25334f9",
+      "run_id": "trial-1.21.11-ce6f083d",
       "source": {
         "version": "1.21.11",
         "metadata_url": "https://piston-meta.mojang.com/v1/packages/4f6bd9388f12e9d7adc2ded64acba66212d60521/1.21.11.json",
@@ -659,6 +769,26 @@
         "survival_guard": "UnifiedProbe has the following entity data: [{count: 3, Slot: 1b, id: \"minecraft:stone\"}]",
         "preview_position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
         "preview_position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+        "survival_target": {
+          "position": [
+            1,
+            65,
+            0
+          ],
+          "state": {
+            "name": "minecraft:stone",
+            "properties": {}
+          },
+          "face": "Up",
+          "point": [
+            1.0536536541537873,
+            66.0,
+            0.5000000000000001
+          ],
+          "native_block": "Test passed",
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        },
         "survival_motion": {
           "samples": [
             {
@@ -687,27 +817,27 @@
             },
             {
               "position": [
-                0.3503728126546795,
-                66.00133597911214,
-                0.7092420095803049
+                0.29338247031769243,
+                66.16610926093821,
+                0.7889385805633566
               ],
-              "response": "UnifiedProbe has the following entity data: [0.3503728126546795d, 66.00133597911214d, 0.7092420095803049d]"
+              "response": "UnifiedProbe has the following entity data: [0.29338247031769243d, 66.16610926093821d, 0.7889385805633566d]"
             },
             {
               "position": [
-                0.17255207391670527,
-                66.25220334025373,
-                0.9579105128030367
+                0.1201648196480398,
+                66.17675927506424,
+                1.0311700223483975
               ],
-              "response": "UnifiedProbe has the following entity data: [0.17255207391670527d, 66.25220334025373d, 0.9579105128030367d]"
+              "response": "UnifiedProbe has the following entity data: [0.1201648196480398d, 66.17675927506424d, 1.0311700223483975d]"
             },
             {
               "position": [
-                0.07249241688964378,
-                66.02442408821369,
-                1.0978361779559829
+                0.029110529129244896,
+                65.79673560066871,
+                1.158502381307275
               ],
-              "response": "UnifiedProbe has the following entity data: [0.07249241688964378d, 66.02442408821369d, 1.0978361779559829d]"
+              "response": "UnifiedProbe has the following entity data: [0.029110529129244896d, 65.79673560066871d, 1.158502381307275d]"
             },
             {
               "position": [
@@ -727,19 +857,11 @@
             },
             {
               "position": [
-                -0.12497500385141869,
+                -0.13384369338970264,
                 65.0,
-                1.3739790412655881
+                1.3863812153240473
               ],
-              "response": "UnifiedProbe has the following entity data: [-0.12497500385141869d, 65.0d, 1.3739790412655881d]"
-            },
-            {
-              "position": [
-                -0.13868599844005214,
-                65.0,
-                1.393152803146504
-              ],
-              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.393152803146504d]"
+              "response": "UnifiedProbe has the following entity data: [-0.13384369338970264d, 65.0d, 1.3863812153240473d]"
             },
             {
               "position": [
@@ -834,6 +956,8 @@
           ]
         }
       },
+      "server_exit_code": 0,
+      "raw_report_sha256": "cf56e372a36680419c326e20fff88169ae19c30b6578666aadfac62b175b712f",
       "fixture_responses": {
         "gamerule minecraft:respawn_radius 0": "Gamerule respawn_radius is now set to: 0",
         "gamerule minecraft:spawn_mobs false": "Gamerule spawn_mobs is now set to: false",
@@ -848,14 +972,12 @@
         "execute if block 0 65 1 minecraft:stone": "Test passed",
         "execute if block 1 65 0 minecraft:air": "Test passed"
       },
-      "server_exit_code": 0,
-      "raw_report_sha256": "1c63d661641bcb0cfd284437d93fa59298db6ca232064f7974549dceacd2f2c1",
       "client_records_excerpt": [
         {
           "stage": "ready",
           "value": {
             "game_mode": "creative",
-            "receive_sequence": 66,
+            "receive_sequence": 67,
             "received_pose": {
               "position": [
                 0.5,
@@ -884,21 +1006,25 @@
                 65.0,
                 0.5
               ]
-            }
+            },
+            "rotation": [
+              0.0,
+              0.0
+            ]
           }
         },
         {
           "stage": "baseline",
           "value": {
             "game_mode": "creative",
-            "receive_sequence": 88,
+            "receive_sequence": 68,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 78,
+              "receive_sequence": 68,
               "rotation": [
                 0.0,
                 0.0
@@ -913,14 +1039,18 @@
             "position": {
               "source": {
                 "kind": "received",
-                "sequence": 78
+                "sequence": 68
               },
               "value": [
                 0.5,
                 65.0,
                 0.5
               ]
-            }
+            },
+            "rotation": [
+              0.0,
+              0.0
+            ]
           }
         },
         {
@@ -980,7 +1110,7 @@
                 65.0,
                 0.5
               ],
-              "receive_sequence": 78,
+              "receive_sequence": 68,
               "rotation": [
                 0.0,
                 0.0
@@ -1001,7 +1131,11 @@
                 66.0,
                 0.5
               ]
-            }
+            },
+            "rotation": [
+              -90.0,
+              69.0
+            ]
           }
         },
         {
@@ -1038,7 +1172,11 @@
                   65.0,
                   0.5
                 ]
-              }
+              },
+              "rotation": [
+                0.0,
+                0.0
+              ]
             },
             "world_revision": 54,
             "initial_frame": {
@@ -1082,18 +1220,77 @@
           }
         },
         {
+          "stage": "survival_target",
+          "value": {
+            "eye": [
+              0.5,
+              66.62000000476837,
+              0.5
+            ],
+            "hit": {
+              "distance": 0.8312234204295631,
+              "face": "Up",
+              "point": [
+                1.0536536541537873,
+                66.0,
+                0.5000000000000001
+              ],
+              "position": [
+                1,
+                65,
+                0
+              ],
+              "state": {
+                "name": "minecraft:stone",
+                "properties": {}
+              }
+            },
+            "initial": {
+              "game_mode": "survival",
+              "receive_sequence": 147,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 147,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              },
+              "pending_dispatch": true,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 147
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "rotation": [
+                -90.0,
+                48.2400016784668
+              ]
+            },
+            "maximum_distance": 4.5,
+            "world_revision": 54
+          }
+        },
+        {
           "stage": "motion_started",
           "value": {
-            "session": {
-              "connection_id": 1,
-              "version": "Java1_21_11",
-              "world_generation": 29
-            },
-            "run_id": 1,
-            "status": "running",
             "attempted_tick": 0,
             "dispatched_ticks": 0,
-            "problem": null,
             "preview": {
               "initial": {
                 "game_mode": "survival",
@@ -1126,7 +1323,11 @@
                     65.0,
                     0.5
                   ]
-                }
+                },
+                "rotation": [
+                  -90.0,
+                  48.2400016784668
+                ]
               },
               "world_revision": 54,
               "initial_frame": {
@@ -1167,22 +1368,22 @@
                 "horizontal_margin": 0.0625,
                 "status": "admitted"
               }
-            }
+            },
+            "problem": null,
+            "run_id": 1,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "status": "running"
           }
         },
         {
           "stage": "survival_motion",
           "value": {
-            "session": {
-              "connection_id": 1,
-              "version": "Java1_21_11",
-              "world_generation": 29
-            },
-            "run_id": 1,
-            "status": "predicted",
             "attempted_tick": 35,
             "dispatched_ticks": 35,
-            "problem": null,
             "preview": {
               "initial": {
                 "game_mode": "survival",
@@ -1215,7 +1416,11 @@
                     65.0,
                     0.5
                   ]
-                }
+                },
+                "rotation": [
+                  -90.0,
+                  48.2400016784668
+                ]
               },
               "world_revision": 54,
               "initial_frame": {
@@ -1256,7 +1461,15 @@
                 "horizontal_margin": 0.0625,
                 "status": "admitted"
               }
-            }
+            },
+            "problem": null,
+            "run_id": 1,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "status": "predicted"
           }
         },
         {
@@ -1269,13 +1482,35 @@
     }
   ],
   "motion_implementation_sha256": {
-    "src/client/survival/model.rs": "aa5c1bf77c3120575f58df1a04565c389a80988d159cb28bee166f22bf3953bc",
+    "src/client/survival/model.rs": "5142678df9a4936000f5c83c1864b7fd00bd63d1be7fc553a1673baee6ca1592",
     "src/client/survival/motion.rs": "edee38d19269693f7a7ca194a980b61a92aaa4ab24914c5500b5be88c1dd022a",
-    "src/versions/java_1_16_1/client/common_motion.rs": "e296a28c9feee55d09f096ecede851c874b2fadd21cf3b6c92cc507dd258c62e",
+    "src/versions/java_1_16_1/client/common_motion.rs": "12a75d6098fcdc3286f85759918ead4954927b65f1b4d85908c4cbfb80f11e55",
     "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "8e93b246dfa2d69fab358cdaa0902f367bf4dba8ffe4aa97787e7fced5381dce",
     "src/versions/java_1_21_11/client/operations/movement/control.rs": "5827110068926d9c17fc40e41f8dadbcee6ccf9738f865d05ceb8e33d0f0a228",
     "src/versions/java_1_16_1/client.rs": "d4ef78d72f1a262275c1d8729cea63293e6b1c5517ada7fd0bb207f4a4521a10",
     "src/versions/java_1_16_1/lifecycle.rs": "adf20c55235e54ab97fda3b36ad9d89bfb953e98a4228ebf9af2aceb59572b39",
     "src/versions/java_1_21_11/client.rs": "84247e19923bb3073f87dcabad266ec92ebc4b6535d403ee346544a618d6146a"
+  },
+  "targeting_implementation_sha256": {
+    "src/client/survival/target.rs": "cf0a0be4a204b7fc78895c9bcd3ddfbcdc52cfe683b7bf12c632d5cc2349d816",
+    "src/client/operations.rs": "d70b63edd714876eb59121be7296ee3426133df8f7bd2462b21da76697d58224",
+    "src/connection.rs": "54a004cb38420c477194102b9185559fe24e25deba964b76cf11f7b1f8bdfc1e",
+    "src/versions/java_1_16_1/client/common_motion.rs": "12a75d6098fcdc3286f85759918ead4954927b65f1b4d85908c4cbfb80f11e55",
+    "src/versions/java_1_21_11/client/operations/movement.rs": "3c868b56bdba5f1f9206ccf4a23fe7773b316e7fbceacdfa281bd285e7e1d3db",
+    "src/versions/java_1_21_11/client/raycast.rs": "97e95b79b4e0a26a0e442cb60ea81eaa97ebb66adf45ef3dc50e9e4d4440c7c6",
+    "src/versions/java_1_21_11/client/raycast/outline.rs": "5db754a463fe6e484594b5b8e2daf6ecca69da22459093086118b07b336fc17d"
+  },
+  "targeting_native_method_oracles": {
+    "1.16.1": {
+      "source": "data/client_api/legacy_targeting_source.json",
+      "rotation_cases": 72,
+      "outline_state_cases": 13,
+      "ray_cases": 585
+    },
+    "1.21.11": {
+      "source": "data/java_1_21_11/outline_source.json",
+      "rotation_cases": 2304,
+      "ray_cases": 25394
+    }
   }
 }

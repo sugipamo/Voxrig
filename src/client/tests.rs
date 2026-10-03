@@ -1,5 +1,58 @@
 use super::*;
 
+// Same consumer and fixtures on both adapters: dry floor at y=64, no other blocks.
+// Only look sends a packet; the outline reads must leave the capture unchanged.
+pub(crate) async fn common_target_scenario(client: &Client) {
+    assert!(
+        client
+            .survival()
+            .target_block(4.5)
+            .await
+            .unwrap()
+            .hit
+            .is_none()
+    );
+    client.survival().look([0.0, 90.0]).await.unwrap();
+    let before = client.player_state().await.unwrap();
+    let query = client.survival().target_block(4.5).await.unwrap();
+    assert_eq!(query.initial.session, before.session);
+    assert_eq!(query.initial.position, before.position);
+    assert_eq!(query.initial.received_pose, before.received_pose);
+    assert_eq!(query.eye, [8.5, 65.0 + f64::from(1.62f32), 8.5]);
+    let hit = query.hit.unwrap();
+    assert_eq!(hit.position, [8, 64, 8]);
+    assert_eq!(hit.state.name, "minecraft:stone");
+    assert_eq!(hit.face, BlockFace::Up);
+    assert!((hit.point[1] - 65.0).abs() < 1e-12);
+    assert!((hit.distance - f64::from(1.62f32)).abs() < 1e-12);
+    assert!(
+        client
+            .survival()
+            .target_block(1.0)
+            .await
+            .unwrap()
+            .hit
+            .is_none()
+    );
+    for reach in [0.0, -1.0, f64::NAN, f64::INFINITY, 4.5001] {
+        assert_eq!(
+            client
+                .survival()
+                .target_block(reach)
+                .await
+                .unwrap_err()
+                .kind(),
+            crate::ErrorKind::InvalidInput
+        );
+    }
+    let after = client.player_state().await.unwrap();
+    assert_eq!(before.position, after.position);
+    assert_eq!(before.received_pose, after.received_pose);
+    assert_eq!(before.rotation, after.rotation);
+    assert_eq!(before.receive_sequence, after.receive_sequence);
+    assert_eq!(before.pending_dispatch, after.pending_dispatch);
+}
+
 pub(crate) async fn common_motion_preview_scenario(client: &Client) {
     use super::survival::{SurvivalControl, SurvivalInput, TerminalClearance};
     let before = client.player_state().await.unwrap();

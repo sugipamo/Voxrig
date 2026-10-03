@@ -186,6 +186,38 @@ async fn main() -> anyhow::Result<()> {
                 );
                 emit("survival_preview", preview)?;
             }
+            "survival_target" => {
+                let ops = client.survival();
+                // Aim at the creative fixture's stone; same consumer math on both versions.
+                ops.look([-90.0, 48.24]).await?;
+                let before = client.player_state().await?;
+                let query = ops.target_block(4.5).await?;
+                let hit = query
+                    .hit
+                    .as_ref()
+                    .context("native fixture target missing")?;
+                anyhow::ensure!(hit.position == [1, 65, 0], "wrong first target");
+                anyhow::ensure!(
+                    hit.state.name == "minecraft:stone",
+                    "wrong received target state"
+                );
+                anyhow::ensure!(hit.face == BlockFace::Up, "wrong entry face");
+                anyhow::ensure!(
+                    (hit.point[1] - 66.0).abs() < 1e-10,
+                    "hit off native top face"
+                );
+                let after = client.player_state().await?;
+                anyhow::ensure!(
+                    before.position == after.position,
+                    "target query changed position"
+                );
+                anyhow::ensure!(
+                    before.received_pose == after.received_pose,
+                    "target query rewrote receipt"
+                );
+                anyhow::ensure!(ops.target_block(4.501).await.is_err(), "overreach admitted");
+                emit("survival_target", query)?;
+            }
             "survival_motion" => {
                 let controls: Vec<_> = (0..35)
                     .map(|tick| SurvivalControl {

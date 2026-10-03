@@ -8,6 +8,66 @@ use crate::client::{
 };
 
 impl Bot {
+    pub(crate) async fn common_target_block(
+        &self,
+        distance: f64,
+    ) -> Result<crate::client::survival::BlockTargetObservation> {
+        use crate::client::survival::target;
+        target::validate_reach(distance)?;
+        let _gate = self.coherent_state_gate.lock().await;
+        self.common_motion_admission().await?;
+        let preview = self
+            .common_preview_unlocked(&[SurvivalControl {
+                yaw: 0.0,
+                input: Default::default(),
+            }])
+            .await?;
+        let mut eye = preview.initial_frame.position;
+        target::validate_rotation(preview.initial.rotation)?;
+        eye[1] += f64::from(1.62f32);
+        let direction = target::direction(
+            crate::MinecraftVersion::Java1_16_1,
+            preview.initial.rotation,
+        );
+        let end = std::array::from_fn(|i| eye[i] + direction[i] * distance);
+        let world = self.world.lock().await;
+        let hit = target::cast(
+            eye,
+            end,
+            |p| legacy_motion_block(&world, p).map_err(anyhow::Error::from),
+            |state| {
+                const EMPTY: &[[f64; 6]] = &[];
+                const CUBE: &[[f64; 6]] = &[[0.0, 0.0, 0.0, 1.0, 1.0, 1.0]];
+                if matches!(
+                    state.name.as_str(),
+                    "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air"
+                ) {
+                    Ok((EMPTY, EMPTY))
+                } else if model::DRY_CUBES.contains(&state.name.as_str()) {
+                    Ok((CUBE, EMPTY))
+                } else {
+                    Err(crate::Error::new(
+                        crate::ErrorKind::Unsupported,
+                        anyhow::anyhow!("legacy outline shape not audited: {}", state.name),
+                    )
+                    .into())
+                }
+            },
+        )
+        .map_err(|e| {
+            let kind = e
+                .downcast_ref::<crate::Error>()
+                .map_or(crate::ErrorKind::State, crate::Error::kind);
+            crate::Error::new(kind, e)
+        })?;
+        Ok(crate::client::survival::BlockTargetObservation {
+            initial: preview.initial,
+            world_revision: world.revision(),
+            eye,
+            maximum_distance: distance,
+            hit,
+        })
+    }
     pub(crate) async fn common_preview_path(
         &self,
         controls: &[SurvivalControl],
@@ -544,12 +604,93 @@ mod tests {
         }
     }
     #[tokio::test]
+    async fn common_target_never_treats_unsupported_or_unloaded_geometry_as_air() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_motion(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let unsupported = crate::versions::java_1_16_1::state_id(&crate::NativeBlockState {
+            name: "minecraft:diamond_block".into(),
+            properties: Default::default(),
+        })
+        .unwrap();
+        bot.world
+            .lock()
+            .await
+            .set_block_for_test(BlockPos { x: 8, y: 66, z: 11 }, unsupported);
+        assert_eq!(
+            client
+                .survival()
+                .target_block(4.5)
+                .await
+                .unwrap_err()
+                .kind(),
+            crate::ErrorKind::Unsupported
+        );
+        bot.world
+            .lock()
+            .await
+            .set_block_for_test(BlockPos { x: 8, y: 66, z: 11 }, 0);
+        {
+            let mut player = bot.player.lock().await;
+            player.x = 14.5;
+            player.yaw = -90.0;
+        }
+        assert_eq!(
+            client
+                .survival()
+                .target_block(4.5)
+                .await
+                .unwrap_err()
+                .kind(),
+            crate::ErrorKind::State
+        );
+        {
+            let mut player = bot.player.lock().await;
+            player.x = 8.5;
+            player.yaw = f32::NAN;
+        }
+        assert_eq!(
+            client
+                .survival()
+                .target_block(4.5)
+                .await
+                .unwrap_err()
+                .kind(),
+            crate::ErrorKind::State
+        );
+        bot.player.lock().await.yaw = 0.0;
+        bot.survival.write().await.game_mode = Some(1);
+        assert!(client.survival().target_block(4.5).await.is_err());
+        assert!(
+            timeout(Duration::from_millis(30), packets.recv())
+                .await
+                .is_err()
+        );
+        drop(release);
+        drop(client);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+    #[tokio::test]
     async fn common_motion_uses_legacy_rules_and_retained_connection_owned_dispatch() {
         let (bot, mut packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
         seed_motion(&bot).await;
         let client = crate::Client::from_java_1_16_1(bot.clone());
         crate::client::tests::common_motion_preview_scenario(&client).await;
+        crate::client::tests::common_target_scenario(&client).await;
+        let (id, bytes) = packets.recv().await.unwrap();
+        assert_eq!(id, 0x13);
+        assert_eq!(bytes.len(), 33);
+        assert!(
+            timeout(Duration::from_millis(30), packets.recv())
+                .await
+                .is_err()
+        );
         crate::client::tests::common_motion_dispatch_scenario(&client).await;
         for _ in 0..37 {
             let (id, bytes) = timeout(Duration::from_secs(1), packets.recv())

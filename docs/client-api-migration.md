@@ -241,3 +241,11 @@ common inventoryの受信slotを従来のcache予測で補完しない。Noneを
 
 MinecraftVersionと拡張予定の共通enumはnon_exhaustiveです。利用側でmatchする場合はwildcardを設け、
 通常操作にversion分岐を置かない構成へ移行してください。新規adapter追加で通常のconsumerコードを変更しないための境界です。
+
+## 共通Survivalの狙い判定
+
+版専用のown-player raycastを呼ぶ利用側は、限定dry standingであれば
+`client.survival().target_block(4.5)`から共通の`BlockTargetObservation`を取得できる。
+`initial`の観測根拠と`hit`のmodel計算を分けて扱う。queryは採掘/設置許可やserver受理の証拠ではない。
+1.16.1は現在の12素材のoutline、1.21.11は既存のstatic outlineが対象。
+任意のentity/fluid/shapeを既知のcubeへ置き換えない。詳細は[共通狙い判定](common-survival-targeting.md)を参照。

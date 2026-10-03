@@ -22,7 +22,8 @@ pub use operations::{Creative, DispatchReceipt, Survival};
 /// Imports for consumers selecting their Minecraft version at setup.
 pub mod prelude {
     pub use super::survival::{
-        MotionPreview, MotionRecord, MotionStatus, SurvivalControl, SurvivalInput,
+        BlockTargetHit, BlockTargetObservation, MotionPreview, MotionRecord, MotionStatus,
+        SurvivalControl, SurvivalInput,
     };
     pub use super::{
         Client, ClientLimits, ConnectionConfig, Creative, Feature, GameMode, PlayerObservation,

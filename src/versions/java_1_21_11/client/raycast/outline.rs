@@ -2,20 +2,13 @@
 //! Data and independent native oracle: scripts/ExportOutlineShapes.java.
 pub(super) mod uncertainty;
 use super::{BlockHit, NativeBlockState};
-use crate::versions::java_1_21_11::math::trig;
 use crate::versions::java_1_21_11::{reconstruction::Direction, state_id};
 use serde::Deserialize;
 use std::sync::OnceLock;
 
-/// Entity.getRotationVector uses float angles and MathHelper's indexed sine table.
-pub(super) fn direction([yaw, pitch]: [f32; 2]) -> [f64; 3] {
-    let pitch = pitch * (std::f32::consts::PI / 180.0);
-    let yaw = -yaw * (std::f32::consts::PI / 180.0);
-    [
-        f64::from(trig(yaw, false) * trig(pitch, true)),
-        f64::from(-trig(pitch, false)),
-        f64::from(trig(yaw, true) * trig(pitch, true)),
-    ]
+/// Native version math is selected explicitly by the shared targeting model.
+pub(super) fn direction(rotation: [f32; 2]) -> [f64; 3] {
+    crate::client::survival::target::direction(crate::MinecraftVersion::Java1_21_11, rotation)
 }
 
 #[derive(Deserialize)]
@@ -35,158 +28,26 @@ fn shapes() -> &'static Shapes {
     })
 }
 
-/// Native DDA visits cells in order and returns the first cell's hit. Neighboring
-/// protrusions are not added to this traversal (unlike the collision query).
+/// Native shapes remain selected by this adapter; only traversal is shared.
 pub(super) fn cast(
     start: [f64; 3],
     end: [f64; 3],
-    mut read: impl FnMut([i32; 3]) -> anyhow::Result<NativeBlockState>,
+    read: impl FnMut([i32; 3]) -> anyhow::Result<NativeBlockState>,
 ) -> anyhow::Result<Option<BlockHit>> {
-    if start == end {
-        return Ok(None);
-    }
-    let from: [f64; 3] = std::array::from_fn(|i| start[i] - 1e-7 * (end[i] - start[i]));
-    let to: [f64; 3] = std::array::from_fn(|i| end[i] - 1e-7 * (start[i] - end[i]));
-    let delta: [f64; 3] = std::array::from_fn(|i| to[i] - from[i]);
-    let step = delta.map(|d| {
-        if d > 0.0 {
-            1
-        } else if d < 0.0 {
-            -1
-        } else {
-            0
-        }
-    });
-    let mut cell = from.map(|v| v.floor() as i32);
-    let interval: [f64; 3] = std::array::from_fn(|i| {
-        if step[i] == 0 {
-            f64::MAX
-        } else {
-            f64::from(step[i]) / delta[i]
-        }
-    });
-    let mut boundary: [f64; 3] = std::array::from_fn(|i| {
-        let fraction = from[i] - from[i].floor();
-        interval[i]
-            * if step[i] > 0 {
-                1.0 - fraction
-            } else {
-                fraction
-            }
-    });
-    for _ in 0..512 {
-        let state = read(cell)?;
+    crate::client::survival::target::cast(start, end, read, |state| {
         let data = shapes();
-        let pair = data.state_shapes[state_id(&state)? as usize].ok_or_else(|| {
-            anyhow::anyhow!("outline geometry unsupported at {cell:?}: {}", state.name)
-        })?;
-        if let Some((fraction, mut face)) = intersect(start, end, cell, &data.shapes[pair[0]]) {
-            // The auxiliary shape may override the face, never the hit position.
-            if let Some((nearer, side)) = intersect(start, end, cell, &data.shapes[pair[1]]) {
-                if nearer < fraction {
-                    face = side;
-                }
-            }
-            let distance = start
-                .into_iter()
-                .zip(end)
-                .map(|(a, b)| (b - a).powi(2))
-                .sum::<f64>()
-                .sqrt()
-                * fraction;
-            return Ok(Some(BlockHit {
-                position: cell,
-                state,
-                distance,
-                face: Some(face),
-            }));
-        }
-        if boundary.iter().all(|&t| t > 1.0) {
-            return Ok(None);
-        }
-        // Equal crossing times choose Z, then Y, then X, as in BlockView.
-        let axis = if boundary[0] < boundary[1] {
-            if boundary[0] < boundary[2] { 0 } else { 2 }
-        } else if boundary[1] < boundary[2] {
-            1
-        } else {
-            2
-        };
-        cell[axis] += step[axis];
-        boundary[axis] += interval[axis];
-    }
-    anyhow::bail!("outline ray traversal limit exceeded")
-}
-
-fn intersect(
-    start: [f64; 3],
-    end: [f64; 3],
-    cell: [i32; 3],
-    boxes: &[[f64; 6]],
-) -> Option<(f64, Direction)> {
-    use Direction::*;
-    let delta: [f64; 3] = std::array::from_fn(|i| end[i] - start[i]);
-    if delta.iter().map(|d| d * d).sum::<f64>() < 1e-7 || boxes.is_empty() {
-        return None;
-    }
-    let inside: [f64; 3] =
-        std::array::from_fn(|i| start[i] + delta[i] * 0.001 - f64::from(cell[i]));
-    if boxes
-        .iter()
-        .any(|b| (0..3).all(|i| inside[i] >= b[i] && inside[i] < b[i + 3]))
-    {
-        // getFacing converts to float and uses enum order for equal dot products.
-        let d = delta.map(|v| v as f32);
-        let mut best = f32::from_bits(1);
-        let mut face = South;
-        for (dot, opposite) in [
-            (-d[1], Up),
-            (d[1], Down),
-            (-d[2], South),
-            (d[2], North),
-            (-d[0], East),
-            (d[0], West),
-        ] {
-            if dot > best {
-                best = dot;
-                face = opposite;
-            }
-        }
-        return Some((0.001, face));
-    }
-    let mut best = 1.0;
-    let mut face = None;
-    for bounds in boxes {
-        // Native Box.offset precedes ray intersection. Applying epsilon in local
-        // coordinates changes edge inclusion after world-coordinate rounding.
-        let bounds: [f64; 6] = std::array::from_fn(|i| bounds[i] + f64::from(cell[i % 3]));
-        for axis in 0..3 {
-            if delta[axis].abs() <= 1e-7 {
-                continue;
-            }
-            let near = if delta[axis] > 0.0 {
-                bounds[axis]
-            } else {
-                bounds[axis + 3]
-            };
-            let t = (near - start[axis]) / delta[axis];
-            if t > 0.0
-                && t < best
-                && (0..3).filter(|&i| i != axis).all(|i| {
-                    let v = start[i] + t * delta[i];
-                    bounds[i] - 1e-7 < v && v < bounds[i + 3] + 1e-7
-                })
-            {
-                best = t;
-                face = Some(if delta[axis] > 0.0 {
-                    [West, Down, North][axis]
-                } else {
-                    [East, Up, South][axis]
-                });
-            }
-        }
-    }
-    face.map(|f| (best, f))
+        let pair = data.state_shapes[state_id(state)? as usize]
+            .ok_or_else(|| anyhow::anyhow!("outline geometry unsupported: {}", state.name))?;
+        Ok((&data.shapes[pair[0]], &data.shapes[pair[1]]))
+    })
+    .map(|hit| {
+        hit.map(|hit| BlockHit {
+            position: hit.position,
+            state: hit.state,
+            distance: hit.distance,
+            face: Some(Direction::from_id(hit.face as u8).expect("native face mapping")),
+        })
+    })
 }
 
 #[cfg(test)]

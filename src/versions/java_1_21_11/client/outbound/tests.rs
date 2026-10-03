@@ -470,6 +470,10 @@ async fn common_motion_uses_modern_rules_and_retained_connection_owned_dispatch(
     }
     let client = crate::Client::from_java_1_21_11(api.bot.clone());
     crate::client::tests::common_motion_preview_scenario(&client).await;
+    crate::client::tests::common_target_scenario(&client).await;
+    let (id, bytes) = read_packet(&mut peer, None).await.unwrap();
+    assert_eq!(id, ids::play_serverbound::LOOK);
+    assert_eq!(bytes.len(), 9);
     assert!(
         timeout(Duration::from_millis(30), read_packet(&mut peer, None))
             .await

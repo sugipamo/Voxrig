@@ -264,6 +264,20 @@ network-compression-threshold=256
             raise RuntimeError("read-only preview changed the native stationary position")
         report["native_results"]["preview_position_before"] = stationary
         report["native_results"]["preview_position_after"] = after_preview
+        target = stage(probe, messages, "survival_target", report["client_records"])["value"]
+        target_position = target["hit"]["position"]
+        if target_position != [1, 65, 0]:
+            raise RuntimeError("outline selected unexpected native fixture target")
+        target_check = until(lambda: matched(rcon.command("execute if block 1 65 0 minecraft:stone"), "Test passed"))
+        after_target = rcon.command("data get entity UnifiedProbe Pos")
+        if after_target != stationary:
+            raise RuntimeError("read-only targeting changed native stationary position")
+        report["native_results"]["survival_target"] = {
+            "position": target_position, "state": target["hit"]["state"],
+            "face": target["hit"]["face"], "point": target["hit"]["point"],
+            "native_block": target_check, "position_before": stationary,
+            "position_after": after_target,
+        }
         positions = []
         def sample_motion():
             raw = rcon.command("data get entity UnifiedProbe Pos")

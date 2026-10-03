@@ -24,6 +24,7 @@ Python 3.8以上、Java 21、Cargoとネットワーク接続が必要。
 | creative use-on-block | 隣接対象`[1,65,0]`がstone |
 | survivalへ変更した後のcreative write拒否 | Clientが拒否し、RCONのInventoryにもdiamondが出現しない |
 | survivalの35tick read-only preview | fresh teleport後に同じ型の予測を取得し、前後のRCON Posが`[0.5,65.0,0.5]`のまま |
+| survivalのread-only first outline | 選択cellが実際のstoneで、query前後のRCON Posが同じ。面/交点は別のnative-method oracleと照合 |
 | survivalの有限jump/歩行 | RCONで途中の高さ・水平移動を取得し、実終点が予測終点に一致 |
 
 共通Clientは実際の受信mode・teleport・対象blockを待ってから操作する。
@@ -55,7 +56,7 @@ run全体はfailedとする。次版は前版のprocessを回収してから起�
 
 コミットされた[結果の抜粋](../data/client_api/common_native_evidence.json)にはJARの出所、
 検証コードのhash、独立確認の結果と終了codeを記録する。
-これは上記基本操作と有限dry移動の検証であり、さらに広い移動条件、survival採掘・設置、container、crafting、
+これは上記基本操作・有限dry移動・限定read-only狙い判定の検証であり、さらに広い移動条件、survival採掘・設置、container、crafting、
 複雑なitem data、entity、復旧などの残作業を完了扱いにするものではない。
 previewの取得は実際のsurvival移動を検証するものではない。
 
@@ -64,3 +65,7 @@ previewの取得は実際のsurvival移動を検証するものではない。
 controllerは途中のPosをRCONで複数回取得し、1block以上の上昇、水平移動、予測終点と実際の終点の
 各軸1e-7以内の一致を確認する。サーバー受理のscenario検証であり、すべての物理条件やfresh observer契約の保証ではない。
 各runのraw reportにはnative position samplesを保存する。
+
+read-only狙い判定も同じconsumerで実行し、creativeで設置したstoneの最初のoutlineを取得する。
+RCONでは対象stoneとPos不変を確認する。面/交点が正しいことは別の[公式JARのnative-method oracle](common-survival-targeting.md)で検査し、
+このRCON確認をserver自身のtarget receiptと扱わない。survival採掘・設置のmutation/receiptは後続段階に残る。
