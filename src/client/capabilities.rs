@@ -29,6 +29,8 @@ pub enum Feature {
     BasicControls,
     /// Read-only bounded walking/jump model preview under dry standing defaults.
     SurvivalPreview,
+    /// Connection-owned finite dry walking/jump dispatch under prediction contract.
+    SurvivalMovement,
     /// Creative flight, default-stack writes and block interactions.
     CreativeControls,
     /// Extra audited dry-cube survival contract.
@@ -65,6 +67,9 @@ impl Capabilities {
             ),
             Feature::SurvivalPreview => Support::Restricted(
                 "read-only 1..120 walking/jump inputs; healthy stationary normal survival posture; native defaults; loaded dry full cubes",
+            ),
+            Feature::SurvivalMovement => Support::Restricted(
+                "1..120 dry walking/jump ticks with released-rest endpoint; retained intent/failure; predicted completion is not received acceptance",
             ),
             Feature::CheckedSurvival => match self.version {
                 MinecraftVersion::Java1_16_1 => Support::NotImplemented,

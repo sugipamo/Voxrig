@@ -4,6 +4,6 @@ pub mod checked;
 pub(crate) mod model;
 mod motion;
 pub use motion::{
-    MAX_SURVIVAL_CONTROL_TICKS, MotionPreview, PredictedMotionFrame, SurvivalControl,
-    SurvivalInput, TerminalClearance,
+    MAX_SURVIVAL_CONTROL_TICKS, MotionPreview, MotionRecord, MotionStatus, PredictedMotionFrame,
+    SurvivalControl, SurvivalInput, TerminalClearance,
 };

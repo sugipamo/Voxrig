@@ -218,6 +218,25 @@ impl Client {
             Adapter::Java1_21_11(bot) => bot.operations().common_preview_path(controls).await,
         }
     }
+    pub(crate) async fn start_predicted_survival_path(
+        &self,
+        controls: &[crate::client::survival::SurvivalControl],
+    ) -> Result<crate::client::survival::MotionRecord> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_start_predicted_path(controls).await,
+            Adapter::Java1_21_11(bot) => {
+                bot.operations().common_start_predicted_path(controls).await
+            }
+        }
+    }
+    pub(crate) async fn survival_motion_record(
+        &self,
+    ) -> Result<Option<crate::client::survival::MotionRecord>> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_motion_record().await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_motion_record().await,
+        }
+    }
     pub(crate) async fn execute(
         &self,
         mode: crate::client::GameMode,

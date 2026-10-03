@@ -17,28 +17,7 @@ pub enum SurvivalMotionContract {
     Predicted,
 }
 
-/// No phase means server-confirmed stopped motion.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SurvivalMotionStatus {
-    /// The bounded input sequence is being dispatched at native tick spacing.
-    Running,
-    /// Locally settled; awaiting a same-instance position observation.
-    AwaitingObservation,
-    /// Prediction and observation agree, subject to fresh standing geometry checks.
-    Observed,
-    /// Fully dispatched and locally settled under the explicit prediction contract.
-    /// Fresh native standing/geometry checks are still required before interaction.
-    Predicted,
-    /// Failure, correction, changed context or missing observation. Never auto-replay.
-    RequiresInspection,
-}
-impl SurvivalMotionStatus {
-    /// A candidate for fresh standing admission, not authority by itself.
-    pub fn is_continuation_candidate(self) -> bool {
-        matches!(self, Self::Observed | Self::Predicted)
-    }
-}
+pub use crate::client::survival::MotionStatus as SurvivalMotionStatus;
 /// Diagnostic control record retained before the first packet; cannot be imported.
 #[derive(Clone, Debug, Serialize)]
 pub struct SurvivalMotionRecord {
@@ -70,6 +49,8 @@ pub struct SurvivalMotionRecord {
     pub problem: Option<String>,
     /// Latest explicit observation-only reassessment; original problem is retained.
     pub recheck: Option<SurvivalMotionRecheck>,
+    #[serde(skip)]
+    common_initial: Option<crate::client::PlayerObservation>,
     // Live in-process guards; diagnostic JSON can never restore these.
     #[serde(skip)]
     received_pose_sequence: u64,
@@ -301,7 +282,7 @@ impl Operations {
         inputs: &[SurvivalInput],
         observer: &Operations,
     ) -> Result<SurvivalMotionRecord> {
-        self.start_control_path(&fixed_controls(yaw, inputs)?, Some(observer), None)
+        self.start_control_path(&fixed_controls(yaw, inputs)?, Some(observer), None, false)
             .await
     }
     /// Start a caller-selected multi-heading path, revalidating current geometry.
@@ -310,7 +291,7 @@ impl Operations {
         controls: &[SurvivalControl],
         observer: &Operations,
     ) -> Result<SurvivalMotionRecord> {
-        self.start_control_path(controls, Some(observer), None)
+        self.start_control_path(controls, Some(observer), None, false)
             .await
     }
     /// Recompute an earlier preview under the send-intent lock. Changed initial
@@ -321,7 +302,7 @@ impl Operations {
         expected: &SurvivalMovementPreview,
         observer: &Operations,
     ) -> Result<SurvivalMotionRecord> {
-        self.start_control_path(&expected.controls, Some(observer), Some(expected))
+        self.start_control_path(&expected.controls, Some(observer), Some(expected), false)
             .await
     }
     /// Explicit model-based continuation. No observer, receipt or error bound is
@@ -330,21 +311,43 @@ impl Operations {
         &self,
         controls: &[SurvivalControl],
     ) -> Result<SurvivalMotionRecord> {
-        self.start_control_path(controls, None, None).await
+        self.start_control_path(controls, None, None, false).await
     }
     /// Revalidate a preview and dispatch under the prediction-only contract.
     pub async fn start_previewed_predicted_survival_motion(
         &self,
         expected: &SurvivalMovementPreview,
     ) -> Result<SurvivalMotionRecord> {
-        self.start_control_path(&expected.controls, None, Some(expected))
+        self.start_control_path(&expected.controls, None, Some(expected), false)
             .await
+    }
+    pub(crate) async fn common_start_predicted_path(
+        &self,
+        controls: &[SurvivalControl],
+    ) -> Result<crate::client::survival::MotionRecord> {
+        common_record(self.start_control_path(controls, None, None, true).await?)
+    }
+    pub(crate) async fn common_motion_record(
+        &self,
+    ) -> Result<Option<crate::client::survival::MotionRecord>> {
+        let mut state = self.bot.session.state.lock().await;
+        inspect_motion(&mut state);
+        if let Some(record) = state
+            .survival_motion
+            .as_ref()
+            .filter(|record| record.common_initial.is_some())
+        {
+            common_record(record.clone()).map(Some)
+        } else {
+            Ok(state.retired_common_motion.clone())
+        }
     }
     async fn start_control_path(
         &self,
         controls: &[SurvivalControl],
         observer: Option<&Operations>,
         expected: Option<&SurvivalMovementPreview>,
+        capture_common: bool,
     ) -> Result<SurvivalMotionRecord> {
         if observer.is_some_and(|o| self.bot.session.id == o.bot.session.id) {
             return Err(invalid("motion requires an independent observer"));
@@ -423,6 +426,9 @@ impl Operations {
             .as_ref()
             .map_or(Some(1), |r| r.run_id.checked_add(1))
             .ok_or_else(|| invalid("motion run IDs exhausted"))?;
+        let common_initial = capture_common
+            .then(|| self.common_player_unlocked(&state))
+            .transpose()?;
         let record = SurvivalMotionRecord {
             run_id,
             connection_id: self.bot.session.id,
@@ -442,6 +448,7 @@ impl Operations {
             observed: None,
             problem: None,
             recheck: None,
+            common_initial,
             observer_session: observer.map(|o| Arc::downgrade(&o.bot.session)),
             received_pose_sequence: state
                 .motion
@@ -450,6 +457,20 @@ impl Operations {
                 .unwrap()
                 .receive_sequence,
         };
+        if !capture_common {
+            if let Some(previous) = state
+                .survival_motion
+                .as_ref()
+                .filter(|r| r.common_initial.is_some())
+            {
+                let mut retired = common_record(previous.clone())?;
+                retired.status = SurvivalMotionStatus::RequiresInspection;
+                retired.problem.get_or_insert_with(|| {
+                    "common motion superseded by native-only motion owner".to_string()
+                });
+                state.retired_common_motion = Some(retired);
+            }
+        }
         state.survival_motion = Some(record.clone());
         let owner = self.clone();
         let observer = observer.cloned();
@@ -478,16 +499,7 @@ impl Operations {
     /// returned diagnostic record cannot be imported to authorize another client.
     pub async fn survival_motion(&self) -> Option<SurvivalMotionRecord> {
         let mut state = self.bot.session.state.lock().await;
-        let problem = state
-            .survival_motion
-            .as_ref()
-            .filter(|r| r.status.is_continuation_candidate())
-            .and_then(|r| dispatched_rest(&state, r).err());
-        if let Some(problem) = problem {
-            let r = state.survival_motion.as_mut().unwrap();
-            r.status = SurvivalMotionStatus::RequiresInspection;
-            r.problem.get_or_insert_with(|| problem.to_string());
-        }
+        inspect_motion(&mut state);
         state.survival_motion.clone()
     }
     async fn run_survival_motion(
@@ -807,5 +819,40 @@ impl Operations {
         r.observed = Some((**observed).clone());
         r.status = SurvivalMotionStatus::Observed;
         Ok(context)
+    }
+}
+
+fn common_record(record: SurvivalMotionRecord) -> Result<crate::client::survival::MotionRecord> {
+    let initial = record
+        .common_initial
+        .ok_or_else(|| invalid("native run was not started through common Client"))?;
+    Ok(crate::client::survival::MotionRecord {
+        session: initial.session,
+        run_id: record.run_id,
+        preview: crate::client::survival::MotionPreview {
+            initial,
+            world_revision: record.preview.initial.world_revision,
+            initial_frame: record.preview.initial_frame,
+            controls: record.preview.controls,
+            frames: record.preview.frames,
+            terminal_clearance: record.preview.terminal_clearance,
+        },
+        attempted_tick: record.attempted_tick,
+        dispatched_ticks: record.dispatched_ticks,
+        status: record.status,
+        problem: record.problem,
+    })
+}
+
+fn inspect_motion(state: &mut State) {
+    let problem = state
+        .survival_motion
+        .as_ref()
+        .filter(|r| r.status.is_continuation_candidate())
+        .and_then(|r| dispatched_rest(state, r).err());
+    if let Some(problem) = problem {
+        let r = state.survival_motion.as_mut().unwrap();
+        r.status = SurvivalMotionStatus::RequiresInspection;
+        r.problem.get_or_insert_with(|| problem.to_string());
     }
 }

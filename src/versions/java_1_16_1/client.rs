@@ -1025,6 +1025,7 @@ pub struct Bot {
     block_geometry_revision: Arc<AtomicU64>,
     inventory: Arc<RwLock<Versioned<InventoryState>>>,
     common_receipts: Arc<Mutex<crate::client::LegacyReceipts>>,
+    common_motion: Arc<Mutex<Option<common_motion::NativeMotionRun>>>,
     exact_window_barriers: Arc<Mutex<HashMap<(i8, i16), ExactWindowBarrier>>>,
     furnace_window_position: Arc<Mutex<Option<(i8, BlockPos)>>>,
     click_lock: Arc<Mutex<()>>,
@@ -1117,6 +1118,7 @@ impl Bot {
             block_geometry_revision: self.block_geometry_revision.clone(),
             inventory: self.inventory.clone(),
             common_receipts: self.common_receipts.clone(),
+            common_motion: self.common_motion.clone(),
             exact_window_barriers: self.exact_window_barriers.clone(),
             furnace_window_position: self.furnace_window_position.clone(),
             click_lock: self.click_lock.clone(),
@@ -1259,6 +1261,7 @@ impl Bot {
                 connected_at,
             ))),
             common_receipts: Arc::new(Mutex::new(crate::client::LegacyReceipts::default())),
+            common_motion: Arc::new(Mutex::new(None)),
             exact_window_barriers: Arc::new(Mutex::new(HashMap::new())),
             furnace_window_position: Arc::new(Mutex::new(None)),
             click_lock: Arc::new(Mutex::new(())),
@@ -4212,6 +4215,9 @@ impl Bot {
         let mut sneaking = false;
         while !self.stopped.load(Ordering::Acquire) {
             let scheduled = ticker.tick().await;
+            if self.common_motion_pauses_physics().await {
+                continue;
+            }
             let lag = tokio::time::Instant::now().saturating_duration_since(scheduled);
             if self
                 .teleport_barrier_ticks
@@ -4233,6 +4239,12 @@ impl Bot {
                     .await
                     .is_err()
                 {
+                    // A finite owner may acquire actor admission after this
+                    // loop sampled released controls. Keep the loop alive;
+                    // retry posture reconciliation only after the run settles.
+                    if self.common_motion_pauses_physics().await {
+                        continue;
+                    }
                     break;
                 }
                 sprinting = control.sprint;
@@ -4243,6 +4255,12 @@ impl Bot {
                     .await
                     .is_err()
                 {
+                    // A finite owner may acquire actor admission after this
+                    // loop sampled released controls. Keep the loop alive;
+                    // retry posture reconciliation only after the run settles.
+                    if self.common_motion_pauses_physics().await {
+                        continue;
+                    }
                     break;
                 }
                 sneaking = control.sneak;
@@ -4277,6 +4295,9 @@ impl Bot {
         movement_fraction: f64,
     ) -> Result<()> {
         let _coherent_state = self.coherent_state_gate.lock().await;
+        if self.common_motion_pauses_physics().await {
+            return Ok(());
+        }
         let survival = self.survival.read().await;
         if survival.game_mode == Some(1)
             && survival.flying_allowed
@@ -4843,6 +4864,8 @@ impl Bot {
                 motion.velocity.y += explosion.player_motion.y;
                 motion.velocity.z += explosion.player_motion.z;
                 drop(motion);
+                self.interrupt_common_motion("native explosion interrupted finite motion")
+                    .await;
                 self.emit(Event::Explosion(explosion));
             }
             0x1d => {
@@ -4866,6 +4889,12 @@ impl Bot {
                     _ => {}
                 }
                 drop(state);
+                if change.reason == 3 {
+                    self.interrupt_common_motion(
+                        "native game mode changed after finite motion started",
+                    )
+                    .await;
+                }
                 self.emit(Event::GameStateChange(change));
             }
             0x1f => {
@@ -5291,6 +5320,12 @@ impl Bot {
                 if Some(entity_id) == self.player.lock().await.entity_id {
                     if let Some(MetadataValue::VarInt(pose)) = metadata.get(&6) {
                         *self.local_pose.lock().await = Some(*pose);
+                        if *pose != 0 {
+                            self.interrupt_common_motion(
+                                "native posture changed during finite motion",
+                            )
+                            .await;
+                        }
                     }
                     if let Some(MetadataValue::VarInt(air_ticks)) = metadata.get(&1) {
                         *self.oxygen_level.lock().await = oxygen_level_from_air_ticks(*air_ticks);
@@ -5325,6 +5360,10 @@ impl Bot {
                 };
                 if Some(entity_id) == self.player.lock().await.entity_id {
                     self.motion.lock().await.velocity = velocity;
+                    self.interrupt_common_motion(
+                        "native own-player velocity interrupted finite motion",
+                    )
+                    .await;
                 }
                 if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
                     entity.velocity = velocity;
@@ -5503,6 +5542,8 @@ impl Bot {
             0x59 => {
                 let (entity_id, effect) = parse_effect(&p)?;
                 if Some(entity_id) == self.player.lock().await.entity_id {
+                    self.interrupt_common_motion("native effect interrupted finite motion")
+                        .await;
                     self.survival
                         .write()
                         .await
@@ -5916,6 +5957,8 @@ impl Bot {
             Some(crate::client::ValueSource::Received {
                 sequence: self.protocol_packet_sequence.load(Ordering::Acquire),
             });
+        self.interrupt_common_motion("native own-pose correction interrupted finite motion")
+            .await;
         self.common_receipts.lock().await.pose = Some(crate::client::ReceivedPose {
             position: [next_x, next_y, next_z],
             rotation: [next_yaw, next_pitch],

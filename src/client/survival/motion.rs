@@ -73,3 +73,46 @@ pub enum TerminalClearance {
         reason: String,
     },
 }
+
+/// No phase means server-confirmed stopped motion.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MotionStatus {
+    /// The bounded input sequence is being dispatched at native tick spacing.
+    Running,
+    /// Locally settled; awaiting a same-instance position observation.
+    AwaitingObservation,
+    /// Prediction and observation agree, subject to fresh standing geometry checks.
+    Observed,
+    /// Fully dispatched and locally settled under the explicit prediction contract.
+    /// Fresh native standing/geometry checks are still required before interaction.
+    Predicted,
+    /// Failure, correction, changed context or missing observation. Never auto-replay.
+    RequiresInspection,
+}
+impl MotionStatus {
+    /// A candidate for fresh standing admission, not authority by itself.
+    pub fn is_continuation_candidate(self) -> bool {
+        matches!(self, Self::Observed | Self::Predicted)
+    }
+}
+
+/// Retained diagnostic of a finite prediction-based path, never reusable authority.
+/// Elapsed time or complete dispatch is not a received/server-confirmed endpoint.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct MotionRecord {
+    /// Owning connection/world and native registry version.
+    pub session: crate::client::SessionStamp,
+    /// Connection-local monotonically increasing identity.
+    pub run_id: u64,
+    /// Coherent initial capture and native-model forecast made before any send.
+    pub preview: MotionPreview,
+    /// Before-I/O intent for the latest native tick.
+    pub attempted_tick: u16,
+    /// Latest fully dispatched native tick, without implied acceptance.
+    pub dispatched_ticks: u16,
+    /// Retained phase; failure never automatically replays controls.
+    pub status: MotionStatus,
+    /// First retained interruption/failure, including after transport closure.
+    pub problem: Option<String>,
+}

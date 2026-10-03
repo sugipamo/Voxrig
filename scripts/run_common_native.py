@@ -124,16 +124,18 @@ def matched(response, pattern):
     return response if re.search(pattern, response) else None
 
 
-def stage(probe, messages, name, records, timeout=30):
+def stage(probe, messages, name, records, timeout=30, poll=None):
     if name != "ready":
         probe.stdin.write(name + "\n")
         probe.stdin.flush()
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
+        if poll:
+            poll()
         if probe.poll() is not None and messages.empty():
             raise RuntimeError("probe stopped before " + name)
         try:
-            line = messages.get(timeout=0.25)
+            line = messages.get(timeout=0.1 if poll else 0.25)
         except queue.Empty:
             continue
         record = json.loads(line)
@@ -262,6 +264,24 @@ network-compression-threshold=256
             raise RuntimeError("read-only preview changed the native stationary position")
         report["native_results"]["preview_position_before"] = stationary
         report["native_results"]["preview_position_after"] = after_preview
+        positions = []
+        def sample_motion():
+            raw = rcon.command("data get entity UnifiedProbe Pos")
+            numbers = re.findall(r"(-?\d+(?:\.\d+)?(?:[Ee][+-]?\d+)?)d", raw)
+            if len(numbers) != 3:
+                raise RuntimeError("native motion position could not be parsed: " + raw)
+            positions.append({"position": [float(value) for value in numbers], "response": raw})
+        completed = stage(probe, messages, "survival_motion", report["client_records"], poll=sample_motion)["value"]
+        sample_motion()
+        expected = completed["preview"]["frames"][-1]["position"]
+        actual = positions[-1]["position"]
+        if not all(abs(a-b) < 1e-7 for a,b in zip(actual, expected)):
+            raise RuntimeError(f"native endpoint disagrees with dispatch: {actual} != {expected}")
+        if max(sample["position"][1] for sample in positions) < 66.0:
+            raise RuntimeError("native jump trajectory was not observed")
+        if all(abs(actual[axis] - 0.5) < 0.1 for axis in (0,2)):
+            raise RuntimeError("native horizontal walking displacement was not observed")
+        report["native_results"]["survival_motion"] = {"samples": positions, "predicted_endpoint": expected, "native_endpoint": actual}
         stage(probe, messages, "disconnect", report["client_records"])
         probe.wait(timeout=10)
         if probe.returncode != 0:

@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "library_baseline_commit": "360e48c8a068e1ebf26930f226bf6b3472b5fd4b",
+  "library_baseline_commit": "a5c20d18586b3a6e31c34e07b1392f7453bb58a8",
   "scenario_sources_sha256": {
-    "examples/common_native_probe.rs": "47c7ed8d907e5b80c8ed491312818ef2940c36ee235b0663967de1abc64c8f4d",
-    "scripts/run_common_native.py": "f58679604739e17dc25dd82f1af21b702ef95faf9c045a8366f6962a1e01b542"
+    "examples/common_native_probe.rs": "c9738ca777110e50733189afcaaa8d29c90f65ca18609938c5f22594df02fea2",
+    "scripts/run_common_native.py": "feaf91cf5d82157da50d50fe87bb43765f0741cae491347aee1985ba180dad8d"
   },
-  "scope": "Common Client creative operations, live-mode rejection and read-only survival dry-cube preview; not survival motion dispatch or full container/recovery parity",
-  "result_authority": "Vanilla server RCON for creative outcomes and unchanged preview position; preview frames are client predictions, not server results",
+  "scope": "Common creative operations/live-mode rejection; read-only preview and finite dry walking/jump dispatch with predicted released-rest endpoint. Not broader movement conditions, common observer contract or container/recovery parity.",
+  "result_authority": "Vanilla server RCON for creative outcomes, unchanged preview position and actual movement samples/endpoint. Client frames and Predicted status are not received or independently observed position authority.",
   "servers_run_sequentially": true,
   "java": "OpenJDK 21.0.12.1",
   "runs": [
     {
       "version": "1.16.1",
-      "run_id": "trial-1.16.1-680a92ac",
+      "run_id": "trial-1.16.1-1a365390",
       "source": {
         "version": "1.16.1",
         "metadata_url": "https://piston-meta.mojang.com/v1/packages/54fa3af57d041d2771e66d390197b2c0288e697c/1.16.1.json",
@@ -35,7 +35,173 @@
         "place": "Test passed",
         "survival_guard": "UnifiedProbe has the following entity data: [{Slot: 1b, id: \"minecraft:stone\", Count: 3b}]",
         "preview_position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
-        "preview_position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        "preview_position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+        "survival_motion": {
+          "samples": [
+            {
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "response": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+            },
+            {
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "response": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+            },
+            {
+              "position": [
+                0.4004712382245058,
+                65.7531999805212,
+                0.639183249344125
+              ],
+              "response": "UnifiedProbe has the following entity data: [0.4004712382245058d, 65.7531999805212d, 0.639183249344125d]"
+            },
+            {
+              "position": [
+                0.29338247031769243,
+                66.16610926093821,
+                0.7889385805633566
+              ],
+              "response": "UnifiedProbe has the following entity data: [0.29338247031769243d, 66.16610926093821d, 0.7889385805633566d]"
+            },
+            {
+              "position": [
+                0.17255207391670527,
+                66.25220334025373,
+                0.9579105128030367
+              ],
+              "response": "UnifiedProbe has the following entity data: [0.17255207391670527d, 66.25220334025373d, 0.9579105128030367d]"
+            },
+            {
+              "position": [
+                0.029110529129244896,
+                65.79673560066871,
+                1.158502381307275
+              ],
+              "response": "UnifiedProbe has the following entity data: [0.029110529129244896d, 65.79673560066871d, 1.158502381307275d]"
+            },
+            {
+              "position": [
+                -0.010366989870453376,
+                65.49520087700593,
+                1.2137086279479854
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.010366989870453376d, 65.49520087700593d, 1.2137086279479854d]"
+            },
+            {
+              "position": [
+                -0.10873198460570008,
+                65.0,
+                1.3512644394012765
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.10873198460570008d, 65.0d, 1.3512644394012765d]"
+            },
+            {
+              "position": [
+                -0.13384369338970264,
+                65.0,
+                1.3863812153240473
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.13384369338970264d, 65.0d, 1.3863812153240473d]"
+            },
+            {
+              "position": [
+                -0.13868599844005214,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.3968500905270147d]"
+            },
+            {
+              "position": [
+                -0.13868599844005214,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.3968500905270147d]"
+            },
+            {
+              "position": [
+                -0.13868599844005214,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.3968500905270147d]"
+            },
+            {
+              "position": [
+                -0.13868599844005214,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.3968500905270147d]"
+            },
+            {
+              "position": [
+                -0.13868599844005214,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.3968500905270147d]"
+            },
+            {
+              "position": [
+                -0.13868599844005214,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.3968500905270147d]"
+            },
+            {
+              "position": [
+                -0.13868599844005214,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.3968500905270147d]"
+            },
+            {
+              "position": [
+                -0.13868599844005214,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.3968500905270147d]"
+            },
+            {
+              "position": [
+                -0.13868599844005214,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.3968500905270147d]"
+            },
+            {
+              "position": [
+                -0.13868599844005214,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.3968500905270147d]"
+            }
+          ],
+          "predicted_endpoint": [
+            -0.13868599844005214,
+            65.0,
+            1.3968500905270147
+          ],
+          "native_endpoint": [
+            -0.13868599844005214,
+            65.0,
+            1.3968500905270147
+          ]
+        }
       },
       "fixture_responses": {
         "gamerule spawnRadius 0": "Gamerule spawnRadius is now set to: 0",
@@ -52,7 +218,7 @@
         "execute if block 1 65 0 minecraft:air": "Test passed"
       },
       "server_exit_code": 0,
-      "raw_report_sha256": "3625a7271e439dc503e664e3755a877b9eab23b95daae9630c0c9b57316ba476",
+      "raw_report_sha256": "5cb4ada7e1939d8c90915b3650cbed8479e348f557c661ebbf5d80a9c338f202",
       "client_records_excerpt": [
         {
           "stage": "ready",
@@ -76,14 +242,25 @@
               "version": "Java1_16_1",
               "world_generation": 1
             },
-            "pending_dispatch": false
+            "pending_dispatch": false,
+            "position": {
+              "source": {
+                "kind": "received",
+                "sequence": 11
+              },
+              "value": [
+                0.5,
+                4.0,
+                0.5
+              ]
+            }
           }
         },
         {
           "stage": "baseline",
           "value": {
             "game_mode": "creative",
-            "receive_sequence": 42,
+            "receive_sequence": 41,
             "received_pose": {
               "position": [
                 0.5,
@@ -101,7 +278,18 @@
               "version": "Java1_16_1",
               "world_generation": 1
             },
-            "pending_dispatch": false
+            "pending_dispatch": false,
+            "position": {
+              "source": {
+                "kind": "received",
+                "sequence": 41
+              },
+              "value": [
+                0.5,
+                65.0,
+                0.5
+              ]
+            }
           }
         },
         {
@@ -154,7 +342,7 @@
           "stage": "survival_guard",
           "value": {
             "game_mode": "survival",
-            "receive_sequence": 91,
+            "receive_sequence": 86,
             "received_pose": {
               "position": [
                 0.5,
@@ -172,7 +360,17 @@
               "version": "Java1_16_1",
               "world_generation": 1
             },
-            "pending_dispatch": false
+            "pending_dispatch": false,
+            "position": {
+              "source": {
+                "kind": "submitted"
+              },
+              "value": [
+                0.5,
+                66.0,
+                0.5
+              ]
+            }
           }
         },
         {
@@ -180,14 +378,14 @@
           "value": {
             "initial": {
               "game_mode": "survival",
-              "receive_sequence": 107,
+              "receive_sequence": 108,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 92,
+                "receive_sequence": 87,
                 "rotation": [
                   0.0,
                   0.0
@@ -198,6 +396,7 @@
                 "version": "Java1_16_1",
                 "world_generation": 1
               },
+              "pending_dispatch": false,
               "position": {
                 "source": {
                   "kind": "predicted"
@@ -209,7 +408,7 @@
                 ]
               }
             },
-            "world_revision": 53,
+            "world_revision": 55,
             "initial_frame": {
               "horizontal_collision": false,
               "on_ground": true,
@@ -251,6 +450,182 @@
           }
         },
         {
+          "stage": "motion_started",
+          "value": {
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "run_id": 1,
+            "status": "running",
+            "attempted_tick": 0,
+            "dispatched_ticks": 0,
+            "problem": null,
+            "preview": {
+              "initial": {
+                "game_mode": "survival",
+                "receive_sequence": 108,
+                "received_pose": {
+                  "position": [
+                    0.5,
+                    65.0,
+                    0.5
+                  ],
+                  "receive_sequence": 87,
+                  "rotation": [
+                    0.0,
+                    0.0
+                  ]
+                },
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                },
+                "pending_dispatch": false,
+                "position": {
+                  "source": {
+                    "kind": "predicted"
+                  },
+                  "value": [
+                    0.5,
+                    65.0,
+                    0.5
+                  ]
+                }
+              },
+              "world_revision": 55,
+              "initial_frame": {
+                "horizontal_collision": false,
+                "on_ground": true,
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "resting": true,
+                "tick": 0,
+                "velocity": [
+                  0.0,
+                  -0.0784,
+                  0.0
+                ]
+              },
+              "frame_count": 35,
+              "terminal_frame": {
+                "horizontal_collision": false,
+                "on_ground": true,
+                "position": [
+                  -0.13868599844005214,
+                  65.0,
+                  1.3968500905270147
+                ],
+                "resting": true,
+                "tick": 35,
+                "velocity": [
+                  0.0,
+                  -0.0784000015258789,
+                  0.0
+                ]
+              },
+              "maximum_predicted_y": 66.25220334025373,
+              "terminal_clearance": {
+                "horizontal_margin": 0.0625,
+                "status": "admitted"
+              }
+            }
+          }
+        },
+        {
+          "stage": "survival_motion",
+          "value": {
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "run_id": 1,
+            "status": "predicted",
+            "attempted_tick": 35,
+            "dispatched_ticks": 35,
+            "problem": null,
+            "preview": {
+              "initial": {
+                "game_mode": "survival",
+                "receive_sequence": 108,
+                "received_pose": {
+                  "position": [
+                    0.5,
+                    65.0,
+                    0.5
+                  ],
+                  "receive_sequence": 87,
+                  "rotation": [
+                    0.0,
+                    0.0
+                  ]
+                },
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                },
+                "pending_dispatch": false,
+                "position": {
+                  "source": {
+                    "kind": "predicted"
+                  },
+                  "value": [
+                    0.5,
+                    65.0,
+                    0.5
+                  ]
+                }
+              },
+              "world_revision": 55,
+              "initial_frame": {
+                "horizontal_collision": false,
+                "on_ground": true,
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "resting": true,
+                "tick": 0,
+                "velocity": [
+                  0.0,
+                  -0.0784,
+                  0.0
+                ]
+              },
+              "frame_count": 35,
+              "terminal_frame": {
+                "horizontal_collision": false,
+                "on_ground": true,
+                "position": [
+                  -0.13868599844005214,
+                  65.0,
+                  1.3968500905270147
+                ],
+                "resting": true,
+                "tick": 35,
+                "velocity": [
+                  0.0,
+                  -0.0784000015258789,
+                  0.0
+                ]
+              },
+              "maximum_predicted_y": 66.25220334025373,
+              "terminal_clearance": {
+                "horizontal_margin": 0.0625,
+                "status": "admitted"
+              }
+            }
+          }
+        },
+        {
           "stage": "disconnected",
           "value": {
             "version": "Java1_16_1"
@@ -260,7 +635,7 @@
     },
     {
       "version": "1.21.11",
-      "run_id": "trial-1.21.11-65f46ac4",
+      "run_id": "trial-1.21.11-f25334f9",
       "source": {
         "version": "1.21.11",
         "metadata_url": "https://piston-meta.mojang.com/v1/packages/4f6bd9388f12e9d7adc2ded64acba66212d60521/1.21.11.json",
@@ -283,7 +658,181 @@
         "place": "Test passed",
         "survival_guard": "UnifiedProbe has the following entity data: [{count: 3, Slot: 1b, id: \"minecraft:stone\"}]",
         "preview_position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
-        "preview_position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        "preview_position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+        "survival_motion": {
+          "samples": [
+            {
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "response": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+            },
+            {
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "response": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+            },
+            {
+              "position": [
+                0.4004712382245058,
+                65.7531999805212,
+                0.639183249344125
+              ],
+              "response": "UnifiedProbe has the following entity data: [0.4004712382245058d, 65.7531999805212d, 0.639183249344125d]"
+            },
+            {
+              "position": [
+                0.3503728126546795,
+                66.00133597911214,
+                0.7092420095803049
+              ],
+              "response": "UnifiedProbe has the following entity data: [0.3503728126546795d, 66.00133597911214d, 0.7092420095803049d]"
+            },
+            {
+              "position": [
+                0.17255207391670527,
+                66.25220334025373,
+                0.9579105128030367
+              ],
+              "response": "UnifiedProbe has the following entity data: [0.17255207391670527d, 66.25220334025373d, 0.9579105128030367d]"
+            },
+            {
+              "position": [
+                0.07249241688964378,
+                66.02442408821369,
+                1.0978361779559829
+              ],
+              "response": "UnifiedProbe has the following entity data: [0.07249241688964378d, 66.02442408821369d, 1.0978361779559829d]"
+            },
+            {
+              "position": [
+                -0.010366989870453376,
+                65.49520087700593,
+                1.2137086279479854
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.010366989870453376d, 65.49520087700593d, 1.2137086279479854d]"
+            },
+            {
+              "position": [
+                -0.07898286856348535,
+                65.0,
+                1.309662609317117
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.07898286856348535d, 65.0d, 1.309662609317117d]"
+            },
+            {
+              "position": [
+                -0.12497500385141869,
+                65.0,
+                1.3739790412655881
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.12497500385141869d, 65.0d, 1.3739790412655881d]"
+            },
+            {
+              "position": [
+                -0.13868599844005214,
+                65.0,
+                1.393152803146504
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.393152803146504d]"
+            },
+            {
+              "position": [
+                -0.14132989730463877,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.14132989730463877d, 65.0d, 1.3968500905270147d]"
+            },
+            {
+              "position": [
+                -0.14132989730463877,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.14132989730463877d, 65.0d, 1.3968500905270147d]"
+            },
+            {
+              "position": [
+                -0.14132989730463877,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.14132989730463877d, 65.0d, 1.3968500905270147d]"
+            },
+            {
+              "position": [
+                -0.14132989730463877,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.14132989730463877d, 65.0d, 1.3968500905270147d]"
+            },
+            {
+              "position": [
+                -0.14132989730463877,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.14132989730463877d, 65.0d, 1.3968500905270147d]"
+            },
+            {
+              "position": [
+                -0.14132989730463877,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.14132989730463877d, 65.0d, 1.3968500905270147d]"
+            },
+            {
+              "position": [
+                -0.14132989730463877,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.14132989730463877d, 65.0d, 1.3968500905270147d]"
+            },
+            {
+              "position": [
+                -0.14132989730463877,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.14132989730463877d, 65.0d, 1.3968500905270147d]"
+            },
+            {
+              "position": [
+                -0.14132989730463877,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.14132989730463877d, 65.0d, 1.3968500905270147d]"
+            },
+            {
+              "position": [
+                -0.14132989730463877,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.14132989730463877d, 65.0d, 1.3968500905270147d]"
+            }
+          ],
+          "predicted_endpoint": [
+            -0.14132989730463877,
+            65.0,
+            1.3968500905270147
+          ],
+          "native_endpoint": [
+            -0.14132989730463877,
+            65.0,
+            1.3968500905270147
+          ]
+        }
       },
       "fixture_responses": {
         "gamerule minecraft:respawn_radius 0": "Gamerule respawn_radius is now set to: 0",
@@ -300,13 +849,13 @@
         "execute if block 1 65 0 minecraft:air": "Test passed"
       },
       "server_exit_code": 0,
-      "raw_report_sha256": "ad92ec466124111519ddcd67a2a6efa0b7e204df02e0ae29f253b6e9edff7356",
+      "raw_report_sha256": "1c63d661641bcb0cfd284437d93fa59298db6ca232064f7974549dceacd2f2c1",
       "client_records_excerpt": [
         {
           "stage": "ready",
           "value": {
             "game_mode": "creative",
-            "receive_sequence": 67,
+            "receive_sequence": 66,
             "received_pose": {
               "position": [
                 0.5,
@@ -324,21 +873,32 @@
               "version": "Java1_21_11",
               "world_generation": 29
             },
-            "pending_dispatch": false
+            "pending_dispatch": false,
+            "position": {
+              "source": {
+                "kind": "received",
+                "sequence": 38
+              },
+              "value": [
+                0.5,
+                65.0,
+                0.5
+              ]
+            }
           }
         },
         {
           "stage": "baseline",
           "value": {
             "game_mode": "creative",
-            "receive_sequence": 68,
+            "receive_sequence": 88,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 68,
+              "receive_sequence": 78,
               "rotation": [
                 0.0,
                 0.0
@@ -349,7 +909,18 @@
               "version": "Java1_21_11",
               "world_generation": 29
             },
-            "pending_dispatch": false
+            "pending_dispatch": false,
+            "position": {
+              "source": {
+                "kind": "received",
+                "sequence": 78
+              },
+              "value": [
+                0.5,
+                65.0,
+                0.5
+              ]
+            }
           }
         },
         {
@@ -402,14 +973,14 @@
           "stage": "survival_guard",
           "value": {
             "game_mode": "survival",
-            "receive_sequence": 144,
+            "receive_sequence": 146,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 68,
+              "receive_sequence": 78,
               "rotation": [
                 0.0,
                 0.0
@@ -420,7 +991,17 @@
               "version": "Java1_21_11",
               "world_generation": 29
             },
-            "pending_dispatch": true
+            "pending_dispatch": true,
+            "position": {
+              "source": {
+                "kind": "submitted"
+              },
+              "value": [
+                0.5,
+                66.0,
+                0.5
+              ]
+            }
           }
         },
         {
@@ -428,14 +1009,14 @@
           "value": {
             "initial": {
               "game_mode": "survival",
-              "receive_sequence": 145,
+              "receive_sequence": 147,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 145,
+                "receive_sequence": 147,
                 "rotation": [
                   0.0,
                   0.0
@@ -446,10 +1027,11 @@
                 "version": "Java1_21_11",
                 "world_generation": 29
               },
+              "pending_dispatch": true,
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 145
+                  "sequence": 147
                 },
                 "value": [
                   0.5,
@@ -500,6 +1082,184 @@
           }
         },
         {
+          "stage": "motion_started",
+          "value": {
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "run_id": 1,
+            "status": "running",
+            "attempted_tick": 0,
+            "dispatched_ticks": 0,
+            "problem": null,
+            "preview": {
+              "initial": {
+                "game_mode": "survival",
+                "receive_sequence": 147,
+                "received_pose": {
+                  "position": [
+                    0.5,
+                    65.0,
+                    0.5
+                  ],
+                  "receive_sequence": 147,
+                  "rotation": [
+                    0.0,
+                    0.0
+                  ]
+                },
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                },
+                "pending_dispatch": true,
+                "position": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 147
+                  },
+                  "value": [
+                    0.5,
+                    65.0,
+                    0.5
+                  ]
+                }
+              },
+              "world_revision": 54,
+              "initial_frame": {
+                "horizontal_collision": false,
+                "on_ground": true,
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "resting": true,
+                "tick": 0,
+                "velocity": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              },
+              "frame_count": 35,
+              "terminal_frame": {
+                "horizontal_collision": false,
+                "on_ground": true,
+                "position": [
+                  -0.14132989730463877,
+                  65.0,
+                  1.3968500905270147
+                ],
+                "resting": true,
+                "tick": 35,
+                "velocity": [
+                  0.0,
+                  -0.0784000015258789,
+                  0.0
+                ]
+              },
+              "maximum_predicted_y": 66.25220334025373,
+              "terminal_clearance": {
+                "horizontal_margin": 0.0625,
+                "status": "admitted"
+              }
+            }
+          }
+        },
+        {
+          "stage": "survival_motion",
+          "value": {
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "run_id": 1,
+            "status": "predicted",
+            "attempted_tick": 35,
+            "dispatched_ticks": 35,
+            "problem": null,
+            "preview": {
+              "initial": {
+                "game_mode": "survival",
+                "receive_sequence": 147,
+                "received_pose": {
+                  "position": [
+                    0.5,
+                    65.0,
+                    0.5
+                  ],
+                  "receive_sequence": 147,
+                  "rotation": [
+                    0.0,
+                    0.0
+                  ]
+                },
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                },
+                "pending_dispatch": true,
+                "position": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 147
+                  },
+                  "value": [
+                    0.5,
+                    65.0,
+                    0.5
+                  ]
+                }
+              },
+              "world_revision": 54,
+              "initial_frame": {
+                "horizontal_collision": false,
+                "on_ground": true,
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "resting": true,
+                "tick": 0,
+                "velocity": [
+                  0.0,
+                  0.0,
+                  0.0
+                ]
+              },
+              "frame_count": 35,
+              "terminal_frame": {
+                "horizontal_collision": false,
+                "on_ground": true,
+                "position": [
+                  -0.14132989730463877,
+                  65.0,
+                  1.3968500905270147
+                ],
+                "resting": true,
+                "tick": 35,
+                "velocity": [
+                  0.0,
+                  -0.0784000015258789,
+                  0.0
+                ]
+              },
+              "maximum_predicted_y": 66.25220334025373,
+              "terminal_clearance": {
+                "horizontal_margin": 0.0625,
+                "status": "admitted"
+              }
+            }
+          }
+        },
+        {
           "stage": "disconnected",
           "value": {
             "version": "Java1_21_11"
@@ -507,5 +1267,15 @@
         }
       ]
     }
-  ]
+  ],
+  "motion_implementation_sha256": {
+    "src/client/survival/model.rs": "aa5c1bf77c3120575f58df1a04565c389a80988d159cb28bee166f22bf3953bc",
+    "src/client/survival/motion.rs": "edee38d19269693f7a7ca194a980b61a92aaa4ab24914c5500b5be88c1dd022a",
+    "src/versions/java_1_16_1/client/common_motion.rs": "e296a28c9feee55d09f096ecede851c874b2fadd21cf3b6c92cc507dd258c62e",
+    "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "8e93b246dfa2d69fab358cdaa0902f367bf4dba8ffe4aa97787e7fced5381dce",
+    "src/versions/java_1_21_11/client/operations/movement/control.rs": "5827110068926d9c17fc40e41f8dadbcee6ccf9738f865d05ceb8e33d0f0a228",
+    "src/versions/java_1_16_1/client.rs": "d4ef78d72f1a262275c1d8729cea63293e6b1c5517ada7fd0bb207f4a4521a10",
+    "src/versions/java_1_16_1/lifecycle.rs": "adf20c55235e54ab97fda3b36ad9d89bfb953e98a4228ebf9af2aceb59572b39",
+    "src/versions/java_1_21_11/client.rs": "84247e19923bb3073f87dcabad266ec92ebc4b6535d403ee346544a618d6146a"
+  }
 }

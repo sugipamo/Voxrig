@@ -51,6 +51,22 @@ impl Survival {
         super::survival::model::validate_controls(controls)?;
         self.client.preview_survival_path(controls).await
     }
+    /// Retain and start a finite path under the explicit prediction contract.
+    /// The connection owns dispatch after this call returns or its future drops.
+    /// Requires a freshly validated, released-rest endpoint. Never auto-replays.
+    /// Predicted completion is not an independent position observation.
+    pub async fn start_predicted_path(
+        &self,
+        controls: &[super::survival::SurvivalControl],
+    ) -> Result<super::survival::MotionRecord> {
+        super::survival::model::validate_controls(controls)?;
+        self.client.start_predicted_survival_path(controls).await
+    }
+    /// Read the latest retained common run, including failure after closure.
+    /// Pure inspection; never resumes, cancels or replays input.
+    pub async fn motion_record(&self) -> Result<Option<super::survival::MotionRecord>> {
+        self.client.survival_motion_record().await
+    }
     /// Capture player/inventory without inventing mode, item or position facts.
     pub async fn player_state(&self) -> Result<PlayerObservation> {
         self.client.player_state().await

@@ -419,11 +419,16 @@ async fn position_attempt_retains_receipt_and_cancelled_dispatch_blocks_next_mut
 }
 
 #[tokio::test]
-async fn common_preview_uses_modern_rules_without_dispatch_or_pose_prediction() {
+async fn common_motion_uses_modern_rules_and_retained_connection_owned_dispatch() {
     let (session, _, mut peer) = fixture().await;
     let api = operations(&session);
     {
         let mut state = session.state.lock().await;
+        state.identity = Some(LoginIdentity {
+            uuid: [1; 16],
+            name: "CommonProbe".into(),
+            server: crate::Server::default(),
+        });
         state.phase = Phase::Play;
         state.sequence = 10;
         state.ready = true;
@@ -470,6 +475,36 @@ async fn common_preview_uses_modern_rules_without_dispatch_or_pose_prediction() 
             .await
             .is_err()
     );
+    crate::client::tests::common_motion_dispatch_scenario(&client).await;
+    for _ in 0..37 {
+        let (input_id, input) = read_packet(&mut peer, None).await.unwrap();
+        assert_eq!(input_id, ids::play_serverbound::PLAYER_INPUT);
+        assert_eq!(input.len(), 1);
+        let (pose_id, pose) = read_packet(&mut peer, None).await.unwrap();
+        assert_eq!(pose_id, ids::play_serverbound::POSITION_LOOK);
+        assert_eq!(pose.len(), 33);
+    }
+    let prior = client.survival().motion_record().await.unwrap().unwrap();
+    api.start_predicted_survival_path(
+        &[crate::client::survival::SurvivalControl {
+            yaw: 0.0,
+            input: Default::default(),
+        }; 2],
+    )
+    .await
+    .unwrap();
+    let retired = client.survival().motion_record().await.unwrap().unwrap();
+    assert_eq!(retired.run_id, prior.run_id);
+    assert_eq!(retired.dispatched_ticks, prior.dispatched_ticks);
+    assert_eq!(
+        retired.status,
+        crate::client::survival::MotionStatus::RequiresInspection
+    );
+    assert!(retired.problem.unwrap().contains("superseded"));
+    for _ in 0..2 {
+        read_packet(&mut peer, None).await.unwrap();
+        read_packet(&mut peer, None).await.unwrap();
+    }
     {
         let mut state = session.state.lock().await;
         let mut mode = vec![3];
@@ -486,6 +521,16 @@ async fn common_preview_uses_modern_rules_without_dispatch_or_pose_prediction() 
             }])
             .await
             .is_err()
+    );
+    assert_eq!(
+        client
+            .survival()
+            .motion_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        crate::client::survival::MotionStatus::RequiresInspection
     );
 }
 

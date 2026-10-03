@@ -4,6 +4,9 @@
 //! normal or cleanup operations. Packet/cache ownership moves behind the same
 //! actor boundary in the coherent-observation phase.
 
+mod bounded_motion;
+use bounded_motion::MotionGate;
+
 use std::{
     collections::{HashMap, HashSet},
     fmt::{Display, Formatter},
@@ -111,6 +114,8 @@ pub enum OperationClass {
 /// Typed rejection from the connection actor before packet write.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OperationAdmissionError {
+    /// A finite common motion run exclusively owns normal gameplay dispatch.
+    BoundedMotionInProgress,
     /// The operation belongs to a previous or different connection.
     StaleGeneration,
     /// The connection has not reached its initial ready boundary.
@@ -130,6 +135,7 @@ pub enum OperationAdmissionError {
 impl Display for OperationAdmissionError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         let name = match self {
+            Self::BoundedMotionInProgress => "finite common motion owns gameplay dispatch",
             Self::StaleGeneration => "stale connection generation",
             Self::Connecting => "connection is not ready",
             Self::Disconnecting => "connection is disconnecting",
@@ -215,6 +221,7 @@ pub(crate) enum TerminalClassification {
 }
 
 enum Command {
+    Motion(bounded_motion::MotionCommand),
     RecordObservation {
         sequence: u64,
         reply: oneshot::Sender<Result<(), OperationAdmissionError>>,
@@ -399,8 +406,34 @@ impl ConnectionActor {
             let mut furnace_interaction_ambiguous = false;
             let mut latest_observation_sequence = None;
             let mut active_output_sequence = None;
+            let mut motion_gate = MotionGate::default();
             while let Some(command) = receiver.recv().await {
                 match command {
+                    Command::Motion(command) => {
+                        if motion_gate
+                            .process(
+                                command,
+                                state,
+                                &writer,
+                                &actor_control,
+                                !pending_transactions.is_empty()
+                                    || pending_furnace_interaction
+                                        .is_some_and(|p| p.expires_at > Instant::now()),
+                            )
+                            .await
+                        {
+                            emit_connection_diagnostic(
+                                generation,
+                                state,
+                                "unknown_transition",
+                                "bounded_motion_write_failed",
+                                || "bounded position write failed".to_string(),
+                            );
+                            state = ConnectionState::ConnectionStateUnknown;
+                            lifecycle_tx.send_replace(state);
+                            break;
+                        }
+                    }
                     Command::RecordObservation { sequence, reply } => {
                         let result = if state != ConnectionState::Ready || sequence == 0 {
                             Err(admit_lifecycle(state, OperationClass::Normal)
@@ -447,14 +480,16 @@ impl ConnectionActor {
                         class,
                         reply,
                     } => {
-                        let result = activate_output(
-                            generation,
-                            state,
-                            latest_observation_sequence,
-                            &mut active_output_sequence,
-                            context,
-                            class,
-                        );
+                        let result = motion_gate.normal_admission(class).and_then(|()| {
+                            activate_output(
+                                generation,
+                                state,
+                                latest_observation_sequence,
+                                &mut active_output_sequence,
+                                context,
+                                class,
+                            )
+                        });
                         let _ = reply.send(result);
                     }
                     Command::ConsumeControl { tick, reply } => {
@@ -489,8 +524,13 @@ impl ConnectionActor {
                         control: replacement,
                         reply,
                     } => {
-                        let result =
-                            admit(generation, state, active_output_sequence, context, class);
+                        let result = motion_gate.admit(
+                            generation,
+                            state,
+                            active_output_sequence,
+                            context,
+                            class,
+                        );
                         if result.is_ok() {
                             **actor_control.write().await = replacement;
                         }
@@ -503,8 +543,13 @@ impl ConnectionActor {
                         payload,
                         reply,
                     } => {
-                        let admission =
-                            admit(generation, state, active_output_sequence, context, class);
+                        let admission = motion_gate.admit(
+                            generation,
+                            state,
+                            active_output_sequence,
+                            context,
+                            class,
+                        );
                         let result = match admission {
                             Ok(()) => {
                                 let mut writer = writer.lock().await;
@@ -554,8 +599,13 @@ impl ConnectionActor {
                         dig_diagnostic,
                         reply,
                     } => {
-                        let admission =
-                            admit(generation, state, active_output_sequence, context, class);
+                        let admission = motion_gate.admit(
+                            generation,
+                            state,
+                            active_output_sequence,
+                            context,
+                            class,
+                        );
                         let result = match admission {
                             Ok(()) => {
                                 let write_result = {
@@ -669,8 +719,13 @@ impl ConnectionActor {
                         packets,
                         reply,
                     } => {
-                        let admission =
-                            admit(generation, state, active_output_sequence, context, class);
+                        let admission = motion_gate.admit(
+                            generation,
+                            state,
+                            active_output_sequence,
+                            context,
+                            class,
+                        );
                         match admission {
                             Err(error) => {
                                 let _ = reply.send(Err(error));
@@ -737,8 +792,13 @@ impl ConnectionActor {
                         diagnostic_correlation,
                         reply,
                     } => {
-                        let admission =
-                            admit(generation, state, active_output_sequence, context, class);
+                        let admission = motion_gate.admit(
+                            generation,
+                            state,
+                            active_output_sequence,
+                            context,
+                            class,
+                        );
                         if let Err(error) = admission {
                             let _ = reply.send(Err(error));
                             continue;
@@ -1657,6 +1717,8 @@ mod tests {
             writer,
         )
     }
+
+    include!("lifecycle/bounded_motion_tests.rs");
 
     async fn no_packet<R: AsyncRead + Unpin>(reader: &mut R) {
         match timeout(Duration::from_millis(50), read_packet(reader, None)).await {

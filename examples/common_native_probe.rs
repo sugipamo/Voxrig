@@ -186,6 +186,63 @@ async fn main() -> anyhow::Result<()> {
                 );
                 emit("survival_preview", preview)?;
             }
+            "survival_motion" => {
+                let controls: Vec<_> = (0..35)
+                    .map(|tick| SurvivalControl {
+                        yaw: 35.57,
+                        input: SurvivalInput {
+                            forward: i8::from(tick < 5),
+                            jump: tick == 0,
+                            ..Default::default()
+                        },
+                    })
+                    .collect();
+                let ops = client.survival();
+                let started = ops.start_predicted_path(&controls).await?;
+                emit("motion_started", &started)?;
+                anyhow::ensure!(
+                    ops.select_hotbar(1).await.is_err(),
+                    "competing action admitted during motion"
+                );
+                anyhow::ensure!(
+                    ops.start_predicted_path(&controls).await.is_err(),
+                    "duplicate motion admitted"
+                );
+                let completed = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let record = ops
+                            .motion_record()
+                            .await?
+                            .context("finite motion record missing")?;
+                        if record.status != MotionStatus::Running {
+                            return Ok::<_, anyhow::Error>(record);
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await
+                .context("finite motion deadline")??;
+                anyhow::ensure!(
+                    completed.status == MotionStatus::Predicted,
+                    "finite motion interrupted: {:?}",
+                    completed.problem
+                );
+                anyhow::ensure!(
+                    completed.dispatched_ticks == 35 && completed.attempted_tick == 35,
+                    "motion not fully dispatched"
+                );
+                let after = client.player_state().await?;
+                anyhow::ensure!(
+                    after.received_pose == completed.preview.initial.received_pose,
+                    "received pose replaced prediction"
+                );
+                anyhow::ensure!(
+                    after.position.as_ref().map(|p| p.value)
+                        == completed.preview.frames.last().map(|f| f.position),
+                    "local endpoint mismatch"
+                );
+                emit("survival_motion", completed)?;
+            }
             "disconnect" => {
                 client.disconnect().await?;
                 emit(

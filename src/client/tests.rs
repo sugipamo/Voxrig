@@ -145,3 +145,95 @@ fn setup_only_accepts_exact_implemented_versions() {
         );
     }
 }
+
+pub(crate) async fn common_motion_dispatch_scenario(client: &Client) {
+    use super::survival::{MotionStatus, SurvivalControl, SurvivalInput};
+    let controls: Vec<_> = (0..35)
+        .map(|tick| SurvivalControl {
+            yaw: 35.57,
+            input: SurvivalInput {
+                forward: i8::from(tick < 5),
+                jump: tick == 0,
+                ..Default::default()
+            },
+        })
+        .collect();
+    let before = client.player_state().await.unwrap();
+    let ops = client.survival();
+    let started = ops.start_predicted_path(&controls).await.unwrap();
+    assert_eq!(started.status, MotionStatus::Running);
+    assert_eq!(started.dispatched_ticks, 0);
+    assert_eq!(started.attempted_tick, 0);
+    assert_eq!(started.preview.initial.received_pose, before.received_pose);
+    assert_eq!(started.session, before.session);
+    assert!(ops.select_hotbar(0).await.is_err());
+    assert!(ops.start_predicted_path(&controls).await.is_err());
+    // Abort only a caller's observation wait. The finite owner must still dispatch.
+    let waiting_ops = ops.clone();
+    let waiting = tokio::spawn(async move {
+        loop {
+            let _ = waiting_ops.motion_record().await;
+            tokio::task::yield_now().await;
+        }
+    });
+    waiting.abort();
+    let finished = tokio::time::timeout(std::time::Duration::from_secs(6), async {
+        loop {
+            let run = ops.motion_record().await.unwrap().unwrap();
+            assert_eq!(run.run_id, started.run_id);
+            if run.status != MotionStatus::Running {
+                break run;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        finished.status,
+        MotionStatus::Predicted,
+        "{:?}",
+        finished.problem
+    );
+    assert_eq!(finished.attempted_tick, 35);
+    assert_eq!(finished.dispatched_ticks, 35);
+    assert!(finished.problem.is_none());
+    let after = client.player_state().await.unwrap();
+    assert_eq!(after.received_pose, before.received_pose);
+    assert_eq!(
+        after.position.as_ref().unwrap().value,
+        finished.preview.frames.last().unwrap().position
+    );
+    assert!(matches!(
+        after.position.as_ref().unwrap().source,
+        ValueSource::Submitted | ValueSource::Predicted
+    ));
+    assert!(!after.pending_dispatch);
+    // Fresh endpoint admission allows a second common run; diagnostics don't authorize it.
+    let next = ops
+        .start_predicted_path(
+            &[SurvivalControl {
+                yaw: 0.0,
+                input: Default::default(),
+            }; 2],
+        )
+        .await
+        .unwrap();
+    assert_eq!(next.run_id, started.run_id + 1);
+    assert_eq!(
+        next.preview.initial_frame.position,
+        after.position.unwrap().value
+    );
+    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        loop {
+            let run = ops.motion_record().await.unwrap().unwrap();
+            if run.status != MotionStatus::Running {
+                assert_eq!(run.status, MotionStatus::Predicted, "{:?}", run.problem);
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+}

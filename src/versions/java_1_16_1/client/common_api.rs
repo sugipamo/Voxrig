@@ -35,7 +35,8 @@ impl Bot {
                 world_generation: receipts.generation,
             },
             receive_sequence: self.protocol_packet_sequence.load(Ordering::Acquire),
-            pending_dispatch: receipts.pending_dispatch,
+            pending_dispatch: receipts.pending_dispatch
+                || self.common_motion_pauses_physics().await,
             dimension: survival.dimension.as_ref().map(|name| api::Dimension {
                 name: name.clone(),
                 min_y: 0,
@@ -101,6 +102,7 @@ impl Bot {
         action: Action<'_>,
     ) -> Result<Option<i32>> {
         let _gate = self.coherent_state_gate.lock().await;
+        self.common_motion_admission().await?;
         if self.connection_state() != ConnectionState::Ready {
             return Err(common_state("connection not ready"));
         }
