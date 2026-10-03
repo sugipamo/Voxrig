@@ -53,6 +53,7 @@
 pub mod block_state;
 pub mod checked_survival;
 pub mod connection;
+mod diagnostic_projection;
 mod error;
 mod protocol;
 pub mod snapshot;
