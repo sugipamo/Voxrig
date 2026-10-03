@@ -33,11 +33,12 @@ pub use native::{
     HypotheticalMovementPreview, HypotheticalPlacement, HypotheticalReconnectBoundary,
     InventorySlot, InventorySwap, InventorySwapObservation, LocalPlayerState,
     MAX_SURVIVAL_CONTROL_TICKS, MiningIntent, MiningInventoryChange, MiningInventoryChangeKind,
-    MiningRecord, MiningRecoveryEvidence, MiningRetirementStatus, MiningStatus, OperationHistory,
-    PlacementIntent, PlacementStatus, PlayerState, PredictedMotionFrame, StandingContext,
-    StandingPositionBasis, SurvivalControl, SurvivalInput, SurvivalMotionRecheck,
-    SurvivalMotionRecord, SurvivalMotionStatus, SurvivalMovementPreview, SurvivalScenario,
-    TerminalClearance,
+    MiningRecord, MiningRecoveryAttempt, MiningRecoveryBoundary, MiningRecoveryEvidence,
+    MiningRecoveryMethod, MiningRecoveryTarget, MiningRetirementStatus, MiningStatus,
+    OperationHistory, PlacementIntent, PlacementStatus, PlayerState, PredictedMotionFrame,
+    StandingContext, StandingPositionBasis, SurvivalControl, SurvivalInput, SurvivalMotionContract,
+    SurvivalMotionRecheck, SurvivalMotionRecord, SurvivalMotionStatus, SurvivalMovementPreview,
+    SurvivalScenario, TerminalClearance,
 };
 
 /// Versioned semantics, separate from a wire protocol number.
@@ -49,6 +50,11 @@ pub enum SurvivalContract {
     /// dirt/stone mining with explicit vanilla retirement and fresh recovery.
     /// No entities, fluids, gathering, tools, sprinting or crouching.
     ObservedDryCubeV1,
+    /// Fully dispatched dry-cube model endpoints and fresh received geometry,
+    /// explicitly without independent spatial corroboration or a physical error
+    /// bound. Corrections/interruption invalidate continuation. Other supported
+    /// inventory, placement and mining/recovery restrictions remain unchanged.
+    PredictedDryCubeV1,
 }
 
 /// Static adapter support. A supported contract still checks each live action.
@@ -59,6 +65,11 @@ pub struct SurvivalCapabilities {
     /// None means this checked contract is unavailable, not that all legacy
     /// player controls are unavailable.
     pub checked_contract: Option<SurvivalContract>,
+    /// Audited direct vanilla same-profile fresh mining recovery. This does not
+    /// imply observer-free movement or permission to reuse the old connection.
+    pub same_profile_mining_recovery: bool,
+    /// Explicit observer-free model contract. None means unavailable for this version.
+    pub prediction_based_contract: Option<SurvivalContract>,
 }
 impl SurvivalCapabilities {
     /// Discover implementation support without opening a connection.
@@ -68,6 +79,11 @@ impl SurvivalCapabilities {
             checked_contract: match version {
                 MinecraftVersion::Java1_16_1 => None,
                 MinecraftVersion::Java1_21_11 => Some(SurvivalContract::ObservedDryCubeV1),
+            },
+            same_profile_mining_recovery: matches!(version, MinecraftVersion::Java1_21_11),
+            prediction_based_contract: match version {
+                MinecraftVersion::Java1_16_1 => None,
+                MinecraftVersion::Java1_21_11 => Some(SurvivalContract::PredictedDryCubeV1),
             },
         }
     }
@@ -256,6 +272,23 @@ impl Operations {
             .start_survival_path(controls, &observer.native)
             .await
     }
+    /// Revalidate and execute with model-based continuation, without an observer.
+    /// The endpoint is not a received pose or independently measured position.
+    pub async fn start_previewed_predicted_survival_motion(
+        &self,
+        expected: &SurvivalMovementPreview,
+    ) -> Result<SurvivalMotionRecord> {
+        self.native
+            .start_previewed_predicted_survival_motion(expected)
+            .await
+    }
+    /// Execute bounded controls under the explicit prediction-based contract.
+    pub async fn start_predicted_survival_path(
+        &self,
+        controls: &[SurvivalControl],
+    ) -> Result<SurvivalMotionRecord> {
+        self.native.start_predicted_survival_path(controls).await
+    }
     /// Execute one heading of bounded inputs with independent endpoint observation.
     pub async fn start_survival_motion(
         &self,
@@ -293,6 +326,59 @@ impl Operations {
             source: self.clone(),
             observer: observer.clone(),
             watch,
+        })
+    }
+    /// Explicit one-profile recovery for the audited direct vanilla endpoint.
+    /// No observer, world edits or reconnect are performed by preparation.
+    pub async fn prepare_mining_profile_recovery(
+        &self,
+        intent: &MiningIntent,
+    ) -> Result<MiningProfileRecovery> {
+        let watch = self
+            .native
+            .prepare_survival_mining_profile_recovery(intent)
+            .await?;
+        Ok(MiningProfileRecovery {
+            source: self.clone(),
+            watch,
+        })
+    }
+}
+
+/// Original native miner binding; history cannot reconstruct this coordinator.
+/// Clones and independent-retirement handles share one before-I/O login claim.
+#[derive(Clone)]
+pub struct MiningProfileRecovery {
+    source: Operations,
+    watch: native::MiningProfileRecoveryWatch,
+}
+impl MiningProfileRecovery {
+    /// Close before reconnecting. This call alone does not establish retirement.
+    pub async fn close_source(&self) -> Result<()> {
+        self.source.client.disconnect().await
+    }
+    /// Retained source history, including a cancelled or failed recovery claim.
+    pub async fn source_history(&self) -> OperationHistory {
+        self.source.operation_history().await
+    }
+    /// Explicit once-only login using the original endpoint/profile/version.
+    /// New same-profile login and fresh admission establish the recovery boundary.
+    /// No Blueprint, permission or old native operation is transferred.
+    pub async fn reconnect(
+        &self,
+        config: ConnectionConfig,
+        target: MiningRecoveryTarget,
+    ) -> Result<RecoveredSurvivalClient> {
+        let recovered = self
+            .source
+            .native
+            .reconnect_survival_mining_profile(&self.watch, config, target)
+            .await?;
+        let client = recovered.client();
+        Ok(RecoveredSurvivalClient {
+            operations: client.survival()?,
+            client,
+            evidence: recovered.evidence,
         })
     }
 }

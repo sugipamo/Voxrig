@@ -48,6 +48,14 @@ corrected runs remain refused. The old failure stays in its historical record.
 Readiness now also requires current-world loading notification dispatch, and
 interrupted live frames close the session with inspectable operation history.
 
+The adapter also advertises explicit [prediction-based continuation](survival-predicted-motion.md)
+and [same-profile fresh mining recovery](survival-single-profile-recovery.md). Existing
+independently observed motion remains available. Model reserve is not a physical
+error bound; same-profile recovery requires exclusive ownership on direct
+unmodified vanilla. Both recovery methods share a before-I/O once-only claim.
+Source live evidence is retained at its original commit and is not a new live
+acceptance run of this integrated develop candidate.
+
 The generated item registry is pinned beside the block registry. Creative writes
 use default items without added/removed components. Received complex components
 make the affected inventory baseline unavailable, never empty. Other container

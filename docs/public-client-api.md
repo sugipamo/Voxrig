@@ -1,6 +1,6 @@
 # Voxrigの公開client API
 
-2026-10-02。deepplanning、minetool、DustRouteの改良をVoxrigへ集約する際の設計正本。
+2026-10-03。deepplanning、minetool、DustRouteの改良をVoxrigへ集約する際の設計正本。
 各プロジェクトのロードマップや過去のcheckpointは実装経緯の記録であり、公開APIの仕様ではない。
 
 ## 責務
@@ -21,7 +21,8 @@ package名は`voxrig`、Rust crate名も`voxrig`とする。公開APIを再設�
 - `Bot`/`BotManager`とrootの互換importは1.16.1へ固定する。
 - `Client::survival_capabilities()`と`checked_survival::SurvivalCapabilities::for_version()`は
   接続前にも確認できる静的な対応契約。`Client::survival()`はセッションに結び付いた検査付き操作を返す。
-  現在は1.21.11の`ObservedDryCubeV1`のみで、1.16.1はI/O前に`Unsupported`を返す。
+  現在は1.21.11の`ObservedDryCubeV1`と明示的に選ぶ`PredictedDryCubeV1`で、
+  1.16.1はI/O前に`Unsupported`を返す。
   対応情報は現在の操作許可ではない。`checked_survival`の型は現在のnative 1.21.11表現を共有し、
   他版で同じ意味を持つとは約束しない。従来の`survival::SurvivalState`は1.16.1用として維持する。
 - 1.16.1の`lifecycle`、`observation`、`operation`は汎用controllerのための公開API。
@@ -79,8 +80,9 @@ staleなscreen revisionでもserverはクリックを実行し得るため、自
 `start_survival_mining`/`finish_survival_mining`/`abort_survival_mining`は、限定的な
 素手のdirt・stone採掘の各送信を記録する。`wait_survival_mining`等の読出しは対象blockの
 新しい受信を照合する。airやABORTを根拠に元接続の次のmutationを許可しない。
-継続が必要なら、明示的なretirement・別接続による同一UUIDの新しい削除受信・
-新接続の基準観測を確認する`reconnect_survival_mining`を用いる。利用側が新しい計画を作る。
+継続には明示的なfresh recoveryが必要。独立観測の経路では別接続による同一UUIDの
+新しい削除受信を確認してから`reconnect_survival_mining`を用いる。
+単一プロフィールの経路は以下の限定契約で別途選択する。利用側が新しい計画を作る。
 
 検査付き入口では`prepare_mining_retirement`が元接続・独立observer・watchを結び付けた
 `MiningRetirement`を返す。`close_source`、`observe`/`wait`、`reconnect`は利用側が明示的に呼ぶ。
@@ -121,7 +123,7 @@ survivalのraw `use_on_block`は拒否し、この確認付き経路を使う。
 `capture_survival_scene`は完全な限定領域と立位条件を同じlock内で取得し、
 `SurvivalScenario`は受信と同じnative geometry/modelで仮想の移動・編集・照準を予測する。
 候補の選択は利用側が行う。仮想previewは別型で実移動へ渡せず、未取得セルをairにしない。
-`HypotheticalAimRequirement`は将来必要な独立終点観測を示す条件であり、
+`HypotheticalAimRequirement`は選択した契約で将来必要な終点の根拠を示す条件であり、
 現在の`StandingPositionBasis`や実行結果ではない。`validate_survival_scene`も読出しだけで、
 各実操作には現在の検査と受信結果が必要となる。
 liveと仮想のpreviewはtick 0の`initial_frame`も保持し、移動後の静止と
@@ -133,6 +135,37 @@ captureの新しさは別途必要で、比較成功を操作許可や永続job�
 対応範囲と検証条件は[採掘](survival-mining.md)、[配置](survival-placement.md)、
 [移動制御](survival-motion-controls.md)、[仮想場面](survival-hypothetical-scenes.md)、
 [検査付きAPIの責務](survival-api.md)を参照する。
+
+### 単一クライアント向けの明示的な契約
+
+`PredictedDryCubeV1`は`start_predicted_survival_path` /
+`start_previewed_predicted_survival_motion`で選ぶ。既存の独立観測付き入口は
+`ObservedDryCubeV1`を維持し、observerがないことから自動で予測契約へ切り替えない。
+`SurvivalMotionStatus::Predicted`と`StandingPositionBasis::Predicted`は完全送信した
+有限入力とmodel終点を表す。serverが受理した位置や停止のackではない。
+水平1/16blockの`planning_reserve`はmodel内の配置方針であり、実際の位置誤差の上限ではない。
+次の操作では世代・dimension・送信・姿勢・属性・補正・現在の受信geometryを改めて検査し、
+中断・補正・未対応geometry等は拒否する。元の自身の位置受信を予測値で上書きしない。
+仮想計画の`scenario_with_motion_contract`と`PredictedEndpoint`もこの契約を明示する。
+予測終点は独立観測が必要な条件を満たさず、仮想条件の比較は操作許可にならない。
+
+`prepare_mining_profile_recovery`はI/Oなしで`MiningProfileRecovery`を用意する。
+利用側が`close_source`と一度だけの`reconnect(config, MiningRecoveryTarget)`を呼ぶ。
+直接接続した未改造vanilla 1.21.11とプロフィールの排他的所有に限定し、成功した同一
+プロフィールの新loginと新しい基準観測を境界にする。local closeだけでは退出を証明しない。
+`MiningRecoveryEvidence::boundary`は独立削除受信と同一プロフィールloginを区別する。
+両方式は元の`MiningRecord::recovery_attempt`を共有し、login I/O前にclaimを記録する。
+取消・失敗・clone・方式変更で二度目のloginを許可しない。元接続を再開せず、履歴や
+永続jobから操作権限を復元しない。`OriginalOrAir`は新しい受信対象の照合条件で、採掘や編集許可ではない。
+詳細と元commitでの限定実機記録は[予測移動](survival-predicted-motion.md)と
+[同一プロフィール復旧](survival-single-profile-recovery.md)を参照する。
+この統合環境では実サーバー試験を再実行しておらず、採用先の固定commit検証が必要となる。
+
+1.16.1の`Event::InventorySlotObserved(Snapshot<SlotUpdate>)`はserverのSet Slot受信を
+適用時のinventory revisionと共に保持する。queue内の古いイベントと現在のsnapshotを
+同一接続内で比較できる。`SlotUpdated`も引き続き発行する。inventory snapshotにはcache予測が
+含まれ得るため、このイベントと現在のcacheを混同しない。液体から壁を登るimpulseは
+観測済みの乾いた衝突のない脱出領域を要求し、浅い液体で接地している場合は通常jumpを使う。
 
 装備操作、block properties、衝突geometry、採掘条件、entity寸法、item上限はclientの事実を返す。
 資源検索は`BlockQuery`/`query_loaded_blocks`へ、移動用の観測は`MovementSnapshot`、

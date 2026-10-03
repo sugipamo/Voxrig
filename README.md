@@ -62,7 +62,10 @@ async fn main() -> Result<()> {
 > [歩行・ジャンプ制御](docs/survival-motion-controls.md)があります。
 > `Client::survival()`で検査付きの操作を選び、`survival_capabilities()`で版ごとの対応を確認できます。
 > [公開契約](docs/survival-api.md)は経路・権限・永続jobを利用側へ残します。
-> 移動後の立位は予測と別接続の観測を区別し、壁に接したまま止まる入力列は送信前に拒否します。
+> 移動後の立位は予測と別接続の観測を区別します。明示的な[予測契約](docs/survival-predicted-motion.md)では
+> observerなしでmodel終点を使えますが、実測位置や物理誤差の保証ではありません。
+> [同一プロフィールの採掘復旧](docs/survival-single-profile-recovery.md)は直接未改造vanillaの限定契約です。
+> 壁に接したまま止まる入力列は送信前に拒否します。
 > 元の失敗記録と、退避を含む入力列で配置まで成功した試行記録を保持しています。
 > 汎用地形の移動・採掘、汎用container操作、両版のMicrosoft認証・online-mode暗号化は未対応です。
 > 対応範囲と失敗した試行は[バージョン別の検証記録](docs/version-adapter-validation.md)を参照してください。

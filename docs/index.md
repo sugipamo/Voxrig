@@ -21,6 +21,8 @@
 - [Java 1.21.11の送信中断と切断後の履歴](survival-outbound.md)
 - [Java 1.21.11の限定サバイバル採掘と継続境界](survival-mining.md)
 - [Java 1.21.11の採掘接続の退出確認と再接続](survival-mining-retirement.md)
+- [Java 1.21.11の同一プロフィールでの採掘復旧](survival-single-profile-recovery.md)
+- [Java 1.21.11の明示的な予測移動契約](survival-predicted-motion.md)
 - [Java 1.21.11の共通ロード完了処理](survival-interaction-loading.md)
 - [Java 1.21.11の通常配置と材料の受信確認](survival-placement.md)
 - [Java 1.21.11の移動属性と位置の由来](survival-movement-foundation.md)

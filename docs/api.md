@@ -21,6 +21,10 @@ rootの互換importと`versions::java_1_16_1`は同じ型で、`voxrig::survival
 `start_survival_motion`から利用します。操作後の観測と次のmutationの許可を区別してください。
 [採掘と継続境界](survival-mining.md)、[配置](survival-placement.md)、
 [移動制御の条件と失敗記録](survival-motion-controls.md)が各公開契約です。
+`start_predicted_survival_path` / `start_previewed_predicted_survival_motion`は
+[明示的な予測契約](survival-predicted-motion.md)を選びます。実測位置の代用にはしません。
+`prepare_mining_profile_recovery`は[同一プロフィール復旧](survival-single-profile-recovery.md)の
+準備入口です。明示的なcloseと一度だけのreconnect、新しい受信基準の確認が必要です。
 `operation_history()`は切断後も読める診断履歴であり、再送や操作再開の許可には使いません。
 
 ## Import

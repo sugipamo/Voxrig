@@ -106,9 +106,9 @@ chunk・位置受信の経路も用意してください。取消・write失敗�
 
 survivalのraw `use_on_block`は拒否します。`place_survival_cube`で意図を登録し、
 対象block・材料消費・処理sequenceを読出し待機で確認してください。
-採掘ではair受信後も元接続のmutationは保留され、明示的なretirementと別接続の
-新しいUUID削除受信を確認してからfresh recoveryを行います。
-移動は有限の`SurvivalInput`列と別接続のobserverを渡し、予測・観測・誤差を区別します。
+採掘ではair受信後も元接続のmutationは保留され、明示的なfresh recoveryを行います。
+独立観測方式では別接続の新しいUUID削除受信が必要です。単一プロフィール方式は以下を参照。
+既存の移動入口は有限の`SurvivalInput`列と別接続のobserverを渡し、予測・観測・誤差を区別します。
 壁際停止の失敗は`RequiresInspection`として保持され、自動再開しません。
 `SurvivalMovementPreview`に`terminal_clearance`、`SurvivalMotionRecord`に`recheck`も追加されます。
 `TerminalClearance::RequiresReplan`の入力列は送信できないため、退避を含めて利用側で計画し直します。
@@ -170,6 +170,37 @@ stackを上限までまとめます。player windowでは収納可能なoffhand�
 同じ接続・異なるdimensionや足位置・受信由来でない立位を拒否する比較であり、
 retirementの証明、world内容とcaptureの新しさは利用側が別途確認します。
 この呼出しは切断・再接続・送信を行わず、実操作の現在の検査を置き換えません。
+
+## 単一クライアントの復旧・予測契約と1.16.1追加イベント
+
+| 型・入口 | 変更と利用側の対応 |
+| --- | --- |
+| `SurvivalCapabilities` | `same_profile_mining_recovery`、`prediction_based_contract`を追加。struct literalと保存schemaを更新。1.16.1ではfalse / None |
+| `SurvivalContract` | `PredictedDryCubeV1`を追加。既存の`checked_contract`は`ObservedDryCubeV1`。網羅的なmatchを更新 |
+| `SurvivalMotionRecord` | `contract`を追加。`observer_connection_id`と`initial_watch`はOptionへ変更。予測契約ではNoneで、観測を補完しない |
+| `SurvivalMotionStatus` / `StandingPositionBasis` | `Predicted`を追加。実測やserverの停止確認として扱わない |
+| `MiningRecord` | `recovery_attempt: Option<MiningRecoveryAttempt>`を追加。取消・失敗後も履歴に残る |
+| `MiningRecoveryEvidence` | `retirement`を削除し、`boundary: MiningRecoveryBoundary`へ変更。独立方式は`IndependentRemoval { receipt }`、同一プロフィールは`SameProfileLogin { uuid, name }`として処理する |
+| `MiningProfileRecovery` | `prepare_mining_profile_recovery`で準備し、明示的なcloseと一度だけのreconnectを行う。独立方式と再接続guardを共有 |
+| `MiningRecoveryTarget` | 同一プロフィール方式のreconnectへ`Exact(original_or_air_state)`または`OriginalOrAir`を渡す。対象の照合条件であり編集・再採掘の許可ではない |
+| `HypotheticalAimRequirement` | `PredictedEndpoint { planning_reserve }`を追加。独立観測条件を予測だけで満たさない。`validate_standing`の比較は操作許可ではない |
+| `HypotheticalMovementPreview` | `endpoint_contract`を追加。仮想計画では`scenario_with_motion_contract`で将来の根拠を選択する |
+| 1.16.1 `Event` | `InventorySlotObserved(Snapshot<SlotUpdate>)`を追加。網羅的なmatchを更新。既存`SlotUpdated`との二重通知を二重操作へ変換しない |
+
+observerなしの移動は`start_predicted_survival_path`または
+`start_previewed_predicted_survival_motion`で明示します。水平1/16blockのreserveは
+model内の方針であり物理誤差の保証ではありません。補正・中断・geometry変更時の拒否と、
+次の操作ごとの新しい検査・配置結果の受信確認は必要です。
+同一プロフィール復旧は直接接続した未改造vanilla 1.21.11とプロフィールの排他的所有が前提です。
+両復旧方式ともlogin I/O前にclaimを保持し、取消・失敗後のcloneや方式変更でも再試行しません。
+元接続は閉じたままで、利用側の計画や永続jobを引き継ぎません。
+[予測契約](survival-predicted-motion.md)と[同一プロフィール復旧](survival-single-profile-recovery.md)を参照してください。
+
+1.16.1の新イベントは適用時点のrevisionとSet Slot受信内容を保持します。
+同一接続の現在のinventory snapshotとの比較に使い、queueから読んだ時点のrevisionを
+受信時点のものとして補完しないでください。クリック拒否のerror文字列にはwindow・slot・
+button・modeが追加されます。文字列に依存する診断は更新してください。
+液体の壁脱出・浅い液体でのjumpを使う採用先は実サーバーでも確認してください。
 
 ## 採用検証
 

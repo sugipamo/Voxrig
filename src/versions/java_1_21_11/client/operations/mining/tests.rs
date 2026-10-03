@@ -4,6 +4,8 @@ use tokio::{
     net::{TcpListener, TcpStream},
     task::JoinHandle,
 };
+#[path = "prediction_tests.rs"]
+mod prediction_tests;
 
 // Regression from a detached roof preflight; no network or world edits.
 #[test]
@@ -1881,3 +1883,6 @@ async fn planned_multi_heading_path_preserves_turns_and_refuses_stale_preview_be
 
 #[path = "inventory_tests.rs"]
 mod inventory_tests;
+
+#[path = "profile_tests.rs"]
+mod profile_tests;

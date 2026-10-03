@@ -4,7 +4,8 @@
 `checked_survival::SurvivalCapabilities::for_version(version)` describe static
 adapter support. `Client::survival()` returns a session-bound checked handle, or
 `Unsupported` before I/O for Java 1.16.1. Its legacy `Bot` and `survival` module
-remain unchanged. Java 1.21.11 currently implements `ObservedDryCubeV1`.
+remain unchanged. Java 1.21.11 implements `ObservedDryCubeV1` and the separately advertised
+`PredictedDryCubeV1`; existing observed entry points keep their contract.
 
 Support is not readiness or permission. Each call still validates native state,
 identity, generation, geometry, inventory and unresolved intents. The façade
@@ -51,3 +52,23 @@ These are direct, unmodified vanilla 1.21.11 retirement semantics. The façade d
 not expand support to proxies/plugins or infer retirement from missing entities,
 wall time, target air, ABORT or local closure alone. Existing low-level methods
 coexist for callers that explicitly manage the same lifecycle themselves.
+
+## Explicit single-client choices
+
+`start_predicted_survival_path` and `start_previewed_predicted_survival_motion`
+select prediction-based continuation without observer watches. A `Predicted`
+record retains a fully dispatched model endpoint, not a measured server pose or
+stop acknowledgement. Its 1/16-block `planning_reserve` is a model-space policy,
+not a physical error bound. Fresh native standing, generation, loading, posture,
+correction and geometry checks remain mandatory. Hypothetical plans declare the
+same contract, and prediction cannot satisfy an independent observation obligation.
+See [prediction contract and source evidence](survival-predicted-motion.md).
+
+`prepare_mining_profile_recovery` prepares a `MiningProfileRecovery` without I/O.
+Explicitly close the source, then call its once-only `reconnect(config, target)`.
+This requires exclusive profile ownership and direct unmodified vanilla 1.21.11.
+Successful same-profile login and fresh admission establish the boundary; local
+closure alone does not. `MiningRecoveryEvidence.boundary` preserves the distinction
+between independent removal receipts and same-profile login. Both methods share
+the original before-I/O claim, including cancellation and failure. Neither restores
+old operation authority or a durable job. See [same-profile recovery](survival-single-profile-recovery.md).

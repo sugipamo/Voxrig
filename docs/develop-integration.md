@@ -304,3 +304,35 @@ fmt・MSRV 1.85の全target・Clippy・警告をエラーにしたrustdocも成�
 package等の結果と新しい固定commitは統合PRへ記録する。
 屋根作業で得た姿勢・入力の回帰fixtureを含むが、完全な屋根施工や実サーバーの採用検証を
 この統合環境で実行したとは扱わない。利用側の検証は新しいdevelop commitで揃える。
+
+
+## 液体移動と単一クライアント契約の追加統合
+
+2026-10-03（JST）。以下の2ブランチ、計7コミットをdevelopへ順番に取り込んだ。
+
+| 取込元 | 先端commit | 内容 |
+| --- | --- | --- |
+| `codex/fluid-wall-exit` | `677c66baa8499f5289a4318c7ed35ba23967612d` | 1.16.1の適用revision付きSet Slotイベント、液体の壁脱出、浅い液体での接地jump、クリック拒否の詳細 |
+| `codex/survival-single-client` | `5bace7be7cd941e1340ad94052e922db23c4f892` | 1.21.11の同一プロフィール採掘fresh recovery、明示的な予測移動契約、仮想条件の由来、元commitの限定実機証跡 |
+
+液体修正は版別分離前の`src/client.rs`を変更していた。削除との競合を解決し、
+差分だけを現在の`versions::java_1_16_1`へ移した。context付き操作・window barrier・
+packet sequence・製作収納修正を維持し、古いroot実装を復元していない。
+受信snapshotはinventory lock内の適用直後に作り、queueでの遅延後も元revisionを保持する。
+先に1.16.1の207件が成功してから次のブランチを取り込んだ。
+
+単一クライアント側は競合なく統合し、共有recoveryのlet chainを同じ条件の入れ子へ
+変えてMSRV 1.85を維持した。公開設計・対応表・移行案内を更新し、
+`ObservedDryCubeV1`と`PredictedDryCubeV1`、独立退出観測と同一プロフィールloginを
+別々の根拠として記録する。予測reserveは物理誤差の保証ではない。
+両復旧方式の一度だけのlogin guard、元接続の閉鎖、次の操作の新しい検査を維持する。
+
+`.local/integration-validation/single-client-fluid-merge/`に検証を記録した。
+Cargoは1ジョブ、テストは1スレッド、コマンドは順次実行した。
+全targetとexamplesは361件成功・8件スキップ、docテストは4件成功。
+fmt・MSRV 1.85の全target・Clippy（警告エラー）・rustdoc（警告エラー）も成功した。
+8件のスキップは専用Minecraft環境の7試験と任意の性能比較1試験。
+追加2manifestの圧縮証跡10ファイルは圧縮／展開後のhash・size、JSON／Python構文を確認した。
+元実機の採掘復旧は`bed0465`、予測移動・配置は`c491f6a`の限定記録を保持する。
+元server／Java oracleや統合後のlive試験はこの環境では再実行していない。
+新しいdevelop固定commitで各採用先の検証を揃えるまでmainは統合しない。

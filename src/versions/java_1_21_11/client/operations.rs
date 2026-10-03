@@ -7,14 +7,16 @@ mod inventory;
 mod mining;
 mod movement;
 mod placement;
+mod profile_recovery;
+mod recovery;
 mod retirement;
 mod survival;
 pub use movement::{
     CapturedSurvivalScene, HypotheticalAimRequirement, HypotheticalBlockEdit,
     HypotheticalMovementPreview, HypotheticalPlacement, HypotheticalReconnectBoundary,
     MAX_SURVIVAL_CONTROL_TICKS, PredictedMotionFrame, StandingPositionBasis, SurvivalControl,
-    SurvivalInput, SurvivalMotionRecheck, SurvivalMotionRecord, SurvivalMotionStatus,
-    SurvivalMovementPreview, SurvivalScenario, TerminalClearance,
+    SurvivalInput, SurvivalMotionContract, SurvivalMotionRecheck, SurvivalMotionRecord,
+    SurvivalMotionStatus, SurvivalMovementPreview, SurvivalScenario, TerminalClearance,
 };
 #[cfg(test)]
 mod tests;
@@ -31,11 +33,13 @@ pub use placement::{PlacementIntent, PlacementObservation, PlacementRecord, Plac
 pub(super) use placement::{
     placement_chunk_changed, placement_context_received, placement_received,
 };
-pub(super) use retirement::retirement_received;
-pub use retirement::{
-    MiningRecovery, MiningRecoveryEvidence, MiningRetirementRecord, MiningRetirementStatus,
-    MiningRetirementWatch,
+pub use profile_recovery::MiningProfileRecoveryWatch;
+pub use recovery::{
+    MiningRecovery, MiningRecoveryAttempt, MiningRecoveryBoundary, MiningRecoveryEvidence,
+    MiningRecoveryMethod, MiningRecoveryTarget,
 };
+pub(super) use retirement::retirement_received;
+pub use retirement::{MiningRetirementRecord, MiningRetirementStatus, MiningRetirementWatch};
 use serde::Serialize;
 pub use survival::{
     AttributeValue, LocalPlayerState, MotionInterruption, PlayerHealth, ReceivedEffect,
@@ -636,11 +640,14 @@ impl Operations {
         if state
             .survival_motion
             .as_ref()
-            .is_some_and(|r| r.status != SurvivalMotionStatus::Observed)
+            .is_some_and(|r| !r.status.is_continuation_candidate())
         {
             return Err(invalid(
                 "survival motion unresolved; inspect retained run before another mutation",
             ));
+        }
+        if state.survival_motion.is_some() {
+            movement::standing_basis(state)?;
         }
         if state.motion.position_basis == PositionBasis::PendingSubmission {
             return Err(Error::new(
