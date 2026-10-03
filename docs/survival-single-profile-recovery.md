@@ -96,3 +96,20 @@ the immutable source and full case results before acceptance is claimed.
 
 There is no route, Blueprint, scaffold ownership, material reservation, job
 continuation or observer-free standing policy in this native lifecycle API.
+
+## Accepted native comparison (2026-10-03 UTC)
+
+All three cases passed on immutable implementation
+`bed0465a5e3294862511e49d9d2fe57768c7201f`, with an empty operator list and the
+ordinary common loading stage. See [results, provenance and artifacts](evidence/survival-single-profile-live-20261003.json).
+The early case closed at 51 ms and admitted the new connection at 342 ms; the
+external-input case closed at 203 ms and admitted it at 478 ms. Neither waited
+for an independent retirement receipt. Each retained stone comparison and each
+replacement comparison has 174 samples over approximately nine seconds.
+Both retained-stone cases then successfully mined through fresh public operations,
+recovered again and placed the supplied cobblestone at the original target.
+The test exited zero, and the isolated server saved and stopped normally.
+
+This accepts the declared native recovery slice, not an observer-free build or
+safe continuous reuse. Movement still uses `PredictedAndObserved`. DustRoute's
+production vendor pin and observer requirement have not been switched here.
