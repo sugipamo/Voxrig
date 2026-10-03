@@ -122,15 +122,16 @@ impl Aabb {
             max_z: self.max_z + movement.z,
         }
     }
+    // Treat boundary rounding within 1e-7 as contact, across all axes.
     pub(crate) fn clip_y(self, obstacle: Self, mut dy: f64) -> f64 {
-        if obstacle.max_x > self.min_x
-            && obstacle.min_x < self.max_x
-            && obstacle.max_z > self.min_z
-            && obstacle.min_z < self.max_z
+        if obstacle.max_x > self.min_x + 1.0e-7
+            && obstacle.min_x < self.max_x - 1.0e-7
+            && obstacle.max_z > self.min_z + 1.0e-7
+            && obstacle.min_z < self.max_z - 1.0e-7
         {
-            if dy > 0.0 && self.max_y <= obstacle.min_y {
-                dy = dy.min(obstacle.min_y - self.max_y);
-            } else if dy < 0.0 && self.min_y >= obstacle.max_y {
+            if dy > 0.0 && self.max_y <= obstacle.min_y + 1.0e-7 {
+                dy = dy.min((obstacle.min_y - self.max_y).max(0.0));
+            } else if dy < 0.0 && self.min_y >= obstacle.max_y - 1.0e-7 {
                 let gap = obstacle.max_y - self.min_y;
                 dy = dy.max(if gap.abs() < 1.0e-4 { 0.0 } else { gap });
             }
@@ -138,29 +139,29 @@ impl Aabb {
         dy
     }
     pub(crate) fn clip_x(self, obstacle: Self, mut dx: f64) -> f64 {
-        if obstacle.max_y > self.min_y
-            && obstacle.min_y < self.max_y
-            && obstacle.max_z > self.min_z
-            && obstacle.min_z < self.max_z
+        if obstacle.max_y > self.min_y + 1.0e-7
+            && obstacle.min_y < self.max_y - 1.0e-7
+            && obstacle.max_z > self.min_z + 1.0e-7
+            && obstacle.min_z < self.max_z - 1.0e-7
         {
-            if dx > 0.0 && self.max_x <= obstacle.min_x {
-                dx = dx.min(obstacle.min_x - self.max_x);
-            } else if dx < 0.0 && self.min_x >= obstacle.max_x {
-                dx = dx.max(obstacle.max_x - self.min_x);
+            if dx > 0.0 && self.max_x <= obstacle.min_x + 1.0e-7 {
+                dx = dx.min((obstacle.min_x - self.max_x).max(0.0));
+            } else if dx < 0.0 && self.min_x >= obstacle.max_x - 1.0e-7 {
+                dx = dx.max((obstacle.max_x - self.min_x).min(0.0));
             }
         }
         dx
     }
     pub(crate) fn clip_z(self, obstacle: Self, mut dz: f64) -> f64 {
-        if obstacle.max_x > self.min_x
-            && obstacle.min_x < self.max_x
-            && obstacle.max_y > self.min_y
-            && obstacle.min_y < self.max_y
+        if obstacle.max_x > self.min_x + 1.0e-7
+            && obstacle.min_x < self.max_x - 1.0e-7
+            && obstacle.max_y > self.min_y + 1.0e-7
+            && obstacle.min_y < self.max_y - 1.0e-7
         {
-            if dz > 0.0 && self.max_z <= obstacle.min_z {
-                dz = dz.min(obstacle.min_z - self.max_z);
-            } else if dz < 0.0 && self.min_z >= obstacle.max_z {
-                dz = dz.max(obstacle.max_z - self.min_z);
+            if dz > 0.0 && self.max_z <= obstacle.min_z + 1.0e-7 {
+                dz = dz.min((obstacle.min_z - self.max_z).max(0.0));
+            } else if dz < 0.0 && self.min_z >= obstacle.max_z - 1.0e-7 {
+                dz = dz.max((obstacle.max_z - self.min_z).min(0.0));
             }
         }
         dz
@@ -331,6 +332,32 @@ fn push_bounded(samples: &mut VecDeque<u64>, value: u64) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn contact_rounding_cannot_slide_into_a_step_while_jumping() {
+        let player = Aabb::player(2.3, 66.0, -18.5);
+        let step = Aabb::block(1, 66, -19);
+        assert!((player.min_x - step.max_x).abs() < 1.0e-12);
+        let raised = player.offset(Vec3 {
+            x: 0.0,
+            y: 0.42,
+            z: 0.0,
+        });
+        assert_eq!(raised.clip_x(step, -0.1), 0.0);
+        assert_eq!(player.clip_y(step, -0.08), -0.08);
+        let cleared = player.offset(Vec3 {
+            x: 0.0,
+            y: 1.01,
+            z: 0.0,
+        });
+        assert_eq!(cleared.clip_x(step, -0.1), -0.1);
+        let rotated = Aabb::player(-18.5, 66.0, 2.3).offset(Vec3 {
+            x: 0.0,
+            y: 0.42,
+            z: 0.0,
+        });
+        assert_eq!(rotated.clip_z(Aabb::block(-19, 66, 1), -0.1), 0.0);
+    }
     use serde::Deserialize;
 
     #[derive(Deserialize)]
