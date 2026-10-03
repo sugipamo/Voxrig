@@ -49,33 +49,7 @@ pub struct VehiclePose {
     pub pitch: f32,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-/// State and protocol data represented by `Vec3`.
-pub struct Vec3 {
-    /// The `x` value.
-    pub x: f64,
-    /// The `y` value.
-    pub y: f64,
-    /// The `z` value.
-    pub z: f64,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-/// State and protocol data represented by `Aabb`.
-pub struct Aabb {
-    /// The `min_x` value.
-    pub min_x: f64,
-    /// The `min_y` value.
-    pub min_y: f64,
-    /// The `min_z` value.
-    pub min_z: f64,
-    /// The `max_x` value.
-    pub max_x: f64,
-    /// The `max_y` value.
-    pub max_y: f64,
-    /// The `max_z` value.
-    pub max_z: f64,
-}
+pub use crate::client::{Aabb, Vec3};
 
 /// Distance below which two collision faces are considered touching (vanilla uses `1.0E-7`).
 const COLLISION_EPSILON: f64 = 1.0e-7;

@@ -1,4 +1,4 @@
-//! Checked survival contract selected from the client's immutable version adapter.
+//! Additional bounded checked-survival contract selected from the client's immutable version adapter.
 //!
 //! Capability discovery describes implemented semantics, never current readiness,
 //! permission, observation freshness, or authority to replay a serialized plan.
@@ -12,7 +12,7 @@
 //! ```
 //! Creative/command shortcuts are not part of this surface:
 //! ```compile_fail
-//! async fn bypass(ops: &voxrig::checked_survival::Operations) {
+//! async fn bypass(ops: &voxrig::client::survival::checked::Operations) {
 //!     ops.send_command("setblock 0 0 0 stone").await.unwrap();
 //! }
 //! ```
@@ -103,7 +103,7 @@ impl Client {
     }
     /// Select checked survival semantics, refusing unsupported versions before I/O.
     /// The legacy version-specific API continues to coexist.
-    pub fn survival(&self) -> Result<Operations> {
+    pub fn checked_survival(&self) -> Result<Operations> {
         Ok(Operations {
             client: self.clone(),
             native: self.java_1_21_11_operations()?,
@@ -376,7 +376,7 @@ impl MiningProfileRecovery {
             .await?;
         let client = recovered.client();
         Ok(RecoveredSurvivalClient {
-            operations: client.survival()?,
+            operations: client.checked_survival()?,
             client,
             evidence: recovered.evidence,
         })
@@ -434,7 +434,7 @@ impl MiningRetirement {
             .reconnect_survival_mining(&self.watch, &self.observer.native, config, expected_target)
             .await?;
         let client = recovered.client();
-        let operations = client.survival()?;
+        let operations = client.checked_survival()?;
         Ok(RecoveredSurvivalClient {
             client,
             operations,

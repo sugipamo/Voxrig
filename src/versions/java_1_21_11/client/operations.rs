@@ -46,30 +46,7 @@ pub use survival::{
     StandingContext, ValueBasis, VelocitySample,
 };
 
-/// Game mode observed in a native login/respawn/change packet.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum GameMode {
-    /// Survival.
-    Survival,
-    /// Creative.
-    Creative,
-    /// Adventure.
-    Adventure,
-    /// Spectator.
-    Spectator,
-}
-impl GameMode {
-    fn decode(id: u8) -> anyhow::Result<Self> {
-        Ok(match id {
-            0 => Self::Survival,
-            1 => Self::Creative,
-            2 => Self::Adventure,
-            3 => Self::Spectator,
-            _ => bail!("invalid game mode"),
-        })
-    }
-}
+pub use crate::client::GameMode;
 
 /// A default item stack, without added or removed data components.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -134,6 +111,8 @@ pub struct Inventory {
     pub pending_swap: Option<InventorySwap>,
     #[serde(skip)]
     slot_sequences: Vec<Option<u64>>,
+    #[serde(skip)]
+    cursor_sequence: Option<u64>,
 }
 /// Selected main-hand hotbar slot with explicit receive/submission provenance.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -159,6 +138,7 @@ impl Default for Inventory {
             cursor: InventorySlot::Unavailable,
             pending_swap: None,
             slot_sequences: vec![None; 46],
+            cursor_sequence: None,
         }
     }
 }
@@ -421,8 +401,12 @@ impl Operations {
     }
     /// Request flight only when the server advertises the ability.
     pub async fn set_flying(&self, flying: bool) -> Result<()> {
+        self.set_flying_in_mode(None, flying).await
+    }
+    async fn set_flying_in_mode(&self, mode: Option<GameMode>, flying: bool) -> Result<()> {
         let mut state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
+        self.require_mode(&state, mode)?;
         if flying && !state.operations.abilities.is_some_and(|a| a & 4 != 0) {
             return Err(invalid("server has not granted flight"));
         }
@@ -439,9 +423,18 @@ impl Operations {
     /// Submit a short creative flight step, with rotation in degrees.
     /// This does not implement collision resolution or server-confirmed teleportation.
     pub async fn move_flying(&self, position: [f64; 3], rotation: [f32; 2]) -> Result<()> {
+        self.move_flying_in_mode(None, position, rotation).await
+    }
+    async fn move_flying_in_mode(
+        &self,
+        mode: Option<GameMode>,
+        position: [f64; 3],
+        rotation: [f32; 2],
+    ) -> Result<()> {
         validate_pose(position, rotation)?;
         let mut state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
+        self.require_mode(&state, mode)?;
         if !state.operations.requested_flying
             || !state.operations.abilities.is_some_and(|a| a & 4 != 0)
         {
@@ -483,9 +476,13 @@ impl Operations {
     /// Survival rechecks stationary standing geometry to derive the ground bit;
     /// unavailable or unsupported context refuses before sending or changing rotation.
     pub async fn look(&self, rotation: [f32; 2]) -> Result<()> {
+        self.look_in_mode(None, rotation).await
+    }
+    async fn look_in_mode(&self, mode: Option<GameMode>, rotation: [f32; 2]) -> Result<()> {
         validate_pose([0.0; 3], rotation)?;
         let mut state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
+        self.require_mode(&state, mode)?;
         let mut payload = Vec::new();
         for v in rotation {
             payload.extend(v.to_be_bytes());
@@ -529,11 +526,15 @@ impl Operations {
     }
     /// Submit held hotbar selection. The server still decides which item is present.
     pub async fn select_hotbar(&self, slot: u8) -> Result<()> {
+        self.select_hotbar_in_mode(None, slot).await
+    }
+    async fn select_hotbar_in_mode(&self, mode: Option<GameMode>, slot: u8) -> Result<()> {
         if slot > 8 {
             return Err(invalid("hotbar slot must be 0..8"));
         }
         let mut state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
+        self.require_mode(&state, mode)?;
         if state.operations.inventory.pending_swap.is_some() {
             return Err(Error::new(
                 ErrorKind::State,
@@ -677,6 +678,15 @@ impl Operations {
         }
         Ok(())
     }
+    fn require_mode(&self, state: &State, mode: Option<GameMode>) -> Result<()> {
+        if mode.is_some() && state.operations.game_mode != mode {
+            return Err(Error::new(
+                ErrorKind::State,
+                anyhow::anyhow!("operation requires matching received game mode"),
+            ));
+        }
+        Ok(())
+    }
     fn creative(&self, state: &State) -> Result<()> {
         self.mutable(state)?;
         if state.operations.inventory.pending_swap.is_some() {
@@ -748,6 +758,17 @@ fn items() -> &'static [ItemDefinition] {
         serde_json::from_str(include_str!("../../../../data/java_1_21_11/items.json"))
             .expect("valid pinned item registry")
     })
+}
+pub(crate) fn item_definition(id: i32) -> Result<(String, u32)> {
+    let item = items()
+        .iter()
+        .find(|item| item.id == id)
+        .ok_or_else(|| invalid("unknown native item ID"))?;
+    let size = u32::try_from(item.stack_size)
+        .ok()
+        .filter(|size| *size > 0)
+        .ok_or_else(|| invalid("invalid native item capacity"))?;
+    Ok((format!("minecraft:{}", item.name), size))
 }
 fn slot(r: &mut Reader<'_>) -> anyhow::Result<Option<InventorySlot>> {
     let count = r.varint()?;
@@ -898,4 +919,221 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
     state.operations = next;
     mining::mining_inventory_received(state);
     Ok(true)
+}
+
+impl Operations {
+    pub(crate) async fn execute_common(
+        &self,
+        mode: GameMode,
+        action: crate::client::operations::Action<'_>,
+    ) -> Result<Option<i32>> {
+        use crate::client::operations::Action;
+        match action {
+            Action::Look(rotation) => {
+                crate::client::operations::validate_rotation(rotation)?;
+                self.look_in_mode(Some(mode), rotation).await?;
+            }
+            Action::SelectHotbar(slot) => self.select_hotbar_in_mode(Some(mode), slot).await?,
+            Action::SetFlying(flying) => self.set_flying_in_mode(Some(mode), flying).await?,
+            Action::MoveFlying(position, rotation) => {
+                crate::client::operations::validate_rotation(rotation)?;
+                self.move_flying_in_mode(Some(mode), position, rotation)
+                    .await?;
+            }
+            Action::SetHotbar(slot, item) => {
+                if let Some((name, _)) = item {
+                    crate::client::registry::Registry::for_version(
+                        crate::MinecraftVersion::Java1_21_11,
+                    )
+                    .item(name)?;
+                }
+                self.set_creative_hotbar(slot, item).await?;
+            }
+            Action::Dig(position, face) => {
+                return self.dig_creative(position, face).await.map(Some);
+            }
+            Action::UseOnBlock(position, face, cursor) => {
+                return self.use_on_block(position, face, cursor).await.map(Some);
+            }
+        }
+        Ok(None)
+    }
+    pub(crate) async fn common_player_state(&self) -> Result<crate::client::PlayerObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.common_player_unlocked(&state)
+    }
+    pub(crate) async fn common_capture(
+        &self,
+        region: crate::Region,
+    ) -> Result<crate::client::Capture> {
+        let volume = region.volume()?;
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let dimension = &state
+            .world
+            .dimension
+            .as_ref()
+            .context("dimension unavailable")?
+            .1;
+        if region.min[1] < dimension.min_y || region.max[1] >= dimension.min_y + dimension.height {
+            return Err(invalid("region outside dimension height"));
+        }
+        let mut blocks = Vec::with_capacity(volume);
+        for y in region.min[1]..=region.max[1] {
+            for z in region.min[2]..=region.max[2] {
+                for x in region.min[0]..=region.max[0] {
+                    let position = [x, y, z];
+                    blocks.push(crate::ObservedBlock {
+                        position,
+                        state: state
+                            .world
+                            .block(position)
+                            .map(super::super::native_state)
+                            .transpose()?,
+                    });
+                }
+            }
+        }
+        Ok(crate::client::Capture {
+            world: crate::Observation {
+                version: crate::MinecraftVersion::Java1_21_11,
+                connection_id: self.bot.session.id,
+                revision: state.world.revision,
+                receive_sequence: Some(state.sequence),
+                captured_at: self.bot.session.started.elapsed(),
+                region,
+                blocks,
+            },
+            player,
+        })
+    }
+    fn common_player_unlocked(&self, state: &State) -> Result<crate::client::PlayerObservation> {
+        use crate::client as api;
+        self.bot.session.check(state)?;
+        let native = &state.operations;
+        let inventory = &native.inventory;
+        let slots = inventory
+            .slots
+            .iter()
+            .zip(&inventory.slot_sequences)
+            .map(|(slot, sequence)| {
+                if matches!(slot, InventorySlot::Unavailable) {
+                    return Ok(None);
+                }
+                sequence
+                    .map(|sequence| common_slot(slot).map(|value| api::received(value, sequence)))
+                    .transpose()
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let cursor = match inventory.cursor {
+            InventorySlot::Unavailable => None,
+            _ => inventory
+                .cursor_sequence
+                .map(|sequence| {
+                    common_slot(&inventory.cursor).map(|value| api::received(value, sequence))
+                })
+                .transpose()?,
+        };
+        let pose = state
+            .motion
+            .received_pose
+            .as_ref()
+            .filter(|pose| pose.generation == state.loading.generation)
+            .map(|pose| api::ReceivedPose {
+                position: pose.position,
+                rotation: pose.rotation,
+                receive_sequence: pose.receive_sequence,
+            });
+        let source = match state.motion.position_basis {
+            PositionBasis::Received => api::ValueSource::Received {
+                sequence: pose.as_ref().map_or(state.sequence, |p| p.receive_sequence),
+            },
+            PositionBasis::Submitted => api::ValueSource::Submitted,
+            _ => api::ValueSource::Predicted,
+        };
+        Ok(api::PlayerObservation {
+            session: api::SessionStamp {
+                version: crate::MinecraftVersion::Java1_21_11,
+                connection_id: self.bot.session.id,
+                world_generation: state.loading.generation,
+            },
+            receive_sequence: state.sequence,
+            pending_dispatch: self.bot.session.interrupted_packet.load(Ordering::Acquire) >= 0
+                || !inventory.pending_creative.is_empty()
+                || inventory.pending_swap.is_some(),
+            dimension: state
+                .world
+                .dimension
+                .as_ref()
+                .map(|(name, dimension)| api::Dimension {
+                    name: name.clone(),
+                    min_y: dimension.min_y,
+                    height: dimension.height,
+                }),
+            position: match state.motion.position_basis {
+                PositionBasis::Unavailable | PositionBasis::PendingSubmission => None,
+                _ => state
+                    .position
+                    .map(|value| api::ObservedValue { value, source }),
+            },
+            received_pose: pose,
+            rotation: state.rotation,
+            game_mode: native.game_mode,
+            may_fly: native.abilities.map(|flags| flags & 4 != 0),
+            health: native.local_player.health.as_ref().map(|health| {
+                api::received(
+                    api::Health {
+                        health: health.health,
+                        food: health.food,
+                        saturation: health.saturation,
+                    },
+                    health.receive_sequence,
+                )
+            }),
+            selected_hotbar: native
+                .selected_hotbar
+                .as_ref()
+                .map(|selection| api::ObservedValue {
+                    value: selection.slot,
+                    source: if selection.from_server {
+                        api::ValueSource::Received {
+                            sequence: selection.sequence,
+                        }
+                    } else {
+                        api::ValueSource::Submitted
+                    },
+                }),
+            inventory: api::InventoryObservation {
+                slots,
+                cursor,
+                window_id: inventory.window_id,
+                screen_revision: inventory.screen_revision,
+                local_cache: None,
+            },
+        })
+    }
+}
+fn common_slot(slot: &InventorySlot) -> Result<crate::client::SlotKnowledge> {
+    use crate::client as api;
+    Ok(match slot {
+        InventorySlot::Unavailable => api::SlotKnowledge::Unavailable,
+        InventorySlot::Empty => api::SlotKnowledge::Empty,
+        InventorySlot::Item { item } => {
+            let definition =
+                api::registry::Registry::for_version(crate::MinecraftVersion::Java1_21_11)
+                    .item_by_native_id(item.item_id)?;
+            let count = u32::try_from(item.count)
+                .ok()
+                .filter(|count| *count > 0)
+                .ok_or_else(|| invalid("invalid native item count"))?;
+            api::SlotKnowledge::Item {
+                item: api::ItemStack {
+                    id: definition.id,
+                    name: definition.name,
+                    count,
+                    data: api::ItemData::Default,
+                },
+            }
+        }
+    })
 }

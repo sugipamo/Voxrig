@@ -12,7 +12,7 @@
 //! received-result-checked survival inventory swaps, and bounded stationary
 //! standing contact with own-player state observations. Bounded survival mining,
 //! material-accounted placement and dry-cube walking/jump controls through
-//! [`Client::survival`] use separate intent, dispatch, prediction and result evidence.
+//! [`Client::checked_survival`] use separate intent, dispatch, prediction and result evidence.
 //! Mining removal alone does not authorize another mutation, and motion is not
 //! server-confirmed rest. [`Client::observe_client_region`] additionally
 //! reconstructs a bounded set of piston and neighbor effects, including independent
@@ -23,25 +23,21 @@
 //! # Quick start
 //!
 //! ```no_run
-//! use voxrig::prelude::*;
+//! use voxrig::client::prelude::*;
 //!
 //! # async fn run() -> anyhow::Result<()> {
-//! let manager = BotManager::new(Server::new("127.0.0.1", 25565));
-//! let bot = manager.connect(Player::offline("AgentOne")).await?;
-//! bot.wait_until_ready().await?;
-//!
-//! let player = bot.player().await;
-//! let nearby_blocks = bot.observe(4).await?;
-//! let nearby_entities = bot.observe_entities(16.0).await;
-//! println!("{player:?} {} {}", nearby_blocks.len(), nearby_entities.len());
-//!
-//! bot.set_control(ControlState {
-//!     forward: true,
-//!     ..ControlState::default()
-//! }).await;
-//! bot.jump().await?;
-//! bot.clear_control().await;
-//! bot.disconnect().await?;
+//! // Set VOXRIG_MINECRAFT_VERSION to an exact supported release, such as 1.16.1.
+//! let config = ConnectionConfig::offline_from_env(Server::default(), "AgentOne")?;
+//! let client = Client::connect(config).await?;
+//! client.wait_until_ready().await?;
+//! let player = client.player_state().await?;
+//! println!("{:?}", player.game_mode);
+//! if player.game_mode == Some(GameMode::Creative) {
+//!     client.creative().select_hotbar(0).await?;
+//! } else if player.game_mode == Some(GameMode::Survival) {
+//!     client.survival().select_hotbar(0).await?;
+//! }
+//! client.disconnect().await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -51,7 +47,9 @@
 #![warn(missing_docs)]
 
 pub mod block_state;
-pub mod checked_survival;
+/// Compatibility path for the restricted checked contract.
+pub use client::survival::checked as checked_survival;
+pub mod client;
 pub mod connection;
 mod error;
 mod protocol;
@@ -61,5 +59,6 @@ pub mod versions;
 // The established 1.16.1 API remains source-compatible and explicitly pinned.
 pub use block_state::NativeBlockState;
 pub use connection::{Client, ConnectionConfig, Observation, ObservedBlock, Region};
+pub use error::{Error, ErrorKind, Result};
 pub use versions::MinecraftVersion;
 pub use versions::java_1_16_1::*;

@@ -229,6 +229,7 @@ fn invalidate(inventory: &mut Inventory, window: Option<i32>) {
     inventory.window_id = window;
     inventory.screen_revision = None;
     inventory.cursor = InventorySlot::Unavailable;
+    inventory.cursor_sequence = None;
     inventory.slots.fill(InventorySlot::Unavailable);
     inventory.slot_sequences.fill(None);
 }
@@ -293,6 +294,7 @@ pub(super) fn receive(
                 inventory.window_id = Some(0);
                 inventory.screen_revision = Some(revision);
                 inventory.cursor = cursor;
+                inventory.cursor_sequence = Some(sequence);
             }
             inventory.pending_creative.clear();
             inventory.unsupported_components = false;
@@ -307,6 +309,8 @@ pub(super) fn receive(
                 inventory.unsupported_components = true;
                 InventorySlot::Unavailable
             };
+            inventory.cursor_sequence =
+                (!matches!(inventory.cursor, InventorySlot::Unavailable)).then_some(sequence);
             inventory.receive_sequence = Some(sequence);
         }
         input::SET_SLOT | input::SET_PLAYER_INVENTORY => {

@@ -131,7 +131,7 @@ stackを上限までまとめます。player windowでは収納可能なoffhand�
 ## 検査付きサバイバル入口と追加の互換性変更
 
 版固有の1.21.11操作APIは共存します。対応するサバイバル操作は
-`Client::survival()`から取得し、型を`voxrig::checked_survival`からimportできます。
+`Client::checked_survival()`から取得し、型を`voxrig::client::survival::checked`からimportできます。
 `survival_capabilities()`は静的な対応情報で、実行時の状態・権限確認は各呼出しに残ります。
 1.16.1にはこの契約を適用できず、従来の`Bot`と`survival`モジュールを使います。
 
@@ -210,3 +210,31 @@ minetool: イベント過多、閉じたwindowの遅延更新、作物掘削、�
 DustRoute: native observation、piston/recovery、照準、配置・除去・取消・recording。
 各環境の結果は使用した固定Voxrig commitと共に記録します。現在はmainを常設し、
 採用検証の未実施項目も別途保持します。mainへの統合を各利用環境での成功の証明にはしません。
+
+## Client共通化ブランチの移行
+
+専用ブランチ`codex/client-api-unification`の変更。全段階の統合はまだ完了していません。
+詳細と残作業は[Client共通化](client-unification.md)を参照してください。
+
+| 従来の入口 | 移行先 |
+| --- | --- |
+| 新しいconsumerの`voxrig::prelude::*` | `voxrig::client::prelude::*`。root preludeは従来Bot用のまま |
+| `voxrig::client::{Bot, Event, Player, ConnectionOptions}` | 版固有APIを使い続ける場合は`voxrig::versions::java_1_16_1::client`またはrootからimport |
+| `ConnectionConfig.limits: ConnectionOptions` | `ClientLimits`。共通の4 timeoutとmax_chunksのみ。版固有設定はBot APIに残る |
+| `client.survival()?`の検査付き操作 | `client.survival().checked()?`または`client.checked_survival()?`。既存の制約・証拠は維持 |
+| `voxrig::checked_survival` | canonicalは`voxrig::client::survival::checked`。旧pathはaliasとして維持 |
+| `client.java_1_21_11_operations()`でのcreative基本操作 | `client.creative()`。`set_creative_hotbar`→`set_hotbar`、`dig_creative`→`break_block`。戻り値はDispatchReceipt |
+| PlayerStateを共通playerとして使用 | `client.player_state()`のPlayerObservation。追加検査契約のnative PlayerStateとは区別 |
+| 版なしの`item_id`/`item_name`など | `client.registry()`。整数IDはversion/kind付きRegistryIdとして保持 |
+| 任意のshort item name | 共通APIでは`minecraft:stone`等のnamespaceを明示 |
+
+Client共通入口ではoffline名は3～16のASCII英数字/underscore。不正名・空host/port 0、
+ゼロtimeout/chunk上限は接続前に拒否する。既存直接Bot importの通常動作は維持する。
+Survival/Creative handle取得はResultを返さず、実際のmode・permissionはmutationの直前に検査する。
+「handleがあるからそのmodeになった」という判定へ移行しない。
+
+common inventoryの受信slotを従来のcache予測で補完しない。NoneをEmptyに変換しない。
+`DispatchReceipt`を成功した配置・移動・採掘の証拠として保存しない。
+
+MinecraftVersionと拡張予定の共通enumはnon_exhaustiveです。利用側でmatchする場合はwildcardを設け、
+通常操作にversion分岐を置かない構成へ移行してください。新規adapter追加で通常のconsumerコードを変更しないための境界です。

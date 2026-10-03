@@ -89,6 +89,12 @@ standalone license file. Its package metadata names
 license; the upstream README also states MIT and cautions that individual
 source data may require different terms.
 
+`data/client_api/java_1_16_1_wire.json` contains the selected serverbound packet
+IDs and schemas from upstream commit `886d159e4dc349d6b9204df2d17e1ea29e7b546e`.
+It records the exact source URL and SHA-256 of the complete input protocol file.
+This fixture is independently pinned for the common-client wire tests and is
+covered by the same upstream MIT notice below.
+
 MIT License
 
 Copyright (c) Romain Beaumont and minecraft-data contributors

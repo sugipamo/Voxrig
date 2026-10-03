@@ -13,35 +13,30 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 
 ```rust,no_run
-use voxrig::prelude::*;
+use voxrig::client::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let manager = BotManager::new(Server::new("127.0.0.1", 25565));
-    let bot = manager.connect(Player::offline("AgentOne")).await?;
-    bot.wait_until_ready().await?;
-
-    assert_eq!(Bot::protocol_info().protocol_version, 736);
-
-    let blocks = bot.observe_snapshot(4).await?;
-    let entities = bot.observe_entities(16.0).await;
-    println!(
-        "world revision={}, blocks={}, entities={}",
-        blocks.revision,
-        blocks.value.len(),
-        entities.len()
-    );
-
-    bot.set_control(ControlState {
-        forward: true,
-        ..Default::default()
-    }).await;
-    bot.jump().await?;
-    bot.clear_control().await;
-    bot.disconnect().await?;
+    // VOXRIG_MINECRAFT_VERSION=1.16.1 または 1.21.11
+    let config = ConnectionConfig::offline_from_env(Server::default(), "AgentOne")?;
+    let client = Client::connect(config).await?;
+    client.wait_until_ready().await?;
+    let player = client.player_state().await?;
+    match player.game_mode {
+        Some(GameMode::Creative) => { client.creative().select_hotbar(0).await?; }
+        Some(GameMode::Survival) => { client.survival().select_hotbar(0).await?; }
+        _ => {}
+    }
+    client.disconnect().await?;
     Ok(())
 }
 ```
+
+共通化は専用ブランチ上で段階的に進めています。
+`Client::survival()` / `Client::creative()`は両版のモード別入口で、取得してもサーバーのmodeを変更しません。
+操作時に受信mode・権限・未解決状態を確認します。対応範囲と残作業は
+[Client共通化の実装・検証計画](docs/client-unification.md)を参照してください。
+新しい版・ブロックへの対応にはVoxrig更新が必要です。`latest`や未知ブロックの推測互換はありません。
 
 公開APIの再設計と各派生版からの移行は[client API設計](docs/public-client-api.md)と
 [移行手順](docs/client-api-migration.md)を参照してください。
@@ -60,7 +55,7 @@ async fn main() -> Result<()> {
 > [静止した通常立位の接地判定と自身の受信状態](docs/survival-standing-context.md)も提供します。
 > さらに限定的な[通常採掘](docs/survival-mining.md)、[配置](docs/survival-placement.md)、
 > [歩行・ジャンプ制御](docs/survival-motion-controls.md)があります。
-> `Client::survival()`で検査付きの操作を選び、`survival_capabilities()`で版ごとの対応を確認できます。
+> `Client::checked_survival()`で検査付きの操作を選び、`survival_capabilities()`で版ごとの対応を確認できます。
 > [公開契約](docs/survival-api.md)は経路・権限・永続jobを利用側へ残します。
 > 移動後の立位は予測と別接続の観測を区別します。明示的な[予測契約](docs/survival-predicted-motion.md)では
 > observerなしでmodel終点を使えますが、実測位置や物理誤差の保証ではありません。

@@ -79,7 +79,7 @@ async fn native_edge_move_place_and_retreat() {
     .unwrap()
     .unwrap()
     .unwrap();
-    let api = bot.survival().unwrap();
+    let api = bot.checked_survival().unwrap();
     timeout(Duration::from_secs(5), async {
         loop {
             let p = api.player_state().await.unwrap();
@@ -119,8 +119,8 @@ async fn exercise(
     viewer: &crate::Client,
     events: &mut Vec<Value>,
 ) -> Result<()> {
-    let api = bot.survival()?;
-    let observer = viewer.survival()?;
+    let api = bot.checked_survival()?;
+    let observer = viewer.checked_survival()?;
     let scene = api
         .capture_survival_scene(Region {
             min: [-4, -62, -4],

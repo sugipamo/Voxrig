@@ -378,7 +378,7 @@ pub(crate) struct ConnectionActor {
 
 impl ConnectionActor {
     pub(crate) fn spawn(
-        writer: Arc<Mutex<crate::client::PacketWriter>>,
+        writer: Arc<Mutex<crate::versions::java_1_16_1::client::PacketWriter>>,
         acknowledgement_timeout: Duration,
         control: Arc<RwLock<crate::snapshot::Versioned<crate::ControlState>>>,
     ) -> Self {
@@ -1624,7 +1624,7 @@ mod tests {
     async fn actor_fixture_with_writer() -> (
         ConnectionActor,
         TcpStream,
-        Arc<Mutex<crate::client::PacketWriter>>,
+        Arc<Mutex<crate::versions::java_1_16_1::client::PacketWriter>>,
     ) {
         actor_fixture_with_ack_timeout(Duration::from_secs(5)).await
     }
@@ -1634,17 +1634,19 @@ mod tests {
     ) -> (
         ConnectionActor,
         TcpStream,
-        Arc<Mutex<crate::client::PacketWriter>>,
+        Arc<Mutex<crate::versions::java_1_16_1::client::PacketWriter>>,
     ) {
         let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
         let address = listener.local_addr().unwrap();
         let client = TcpStream::connect(address).await.unwrap();
         let (server, _) = listener.accept().await.unwrap();
         let (_, writer) = client.into_split();
-        let writer = Arc::new(Mutex::new(crate::client::PacketWriter {
-            inner: writer,
-            compression: None,
-        }));
+        let writer = Arc::new(Mutex::new(
+            crate::versions::java_1_16_1::client::PacketWriter {
+                inner: writer,
+                compression: None,
+            },
+        ));
         let control = Arc::new(RwLock::new(crate::snapshot::Versioned::new(
             crate::ControlState::default(),
             std::time::Instant::now(),

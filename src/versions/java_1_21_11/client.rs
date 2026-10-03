@@ -213,7 +213,7 @@ struct Session {
     cancel: Notify,
     stopped: AtomicBool,
     interrupted_packet: AtomicI32,
-    limits: crate::ConnectionOptions,
+    limits: crate::client::ClientLimits,
     interaction_sequence: AtomicI32,
 }
 struct Lease(Weak<Session>);
@@ -232,6 +232,9 @@ pub(crate) struct Bot {
 }
 
 impl Bot {
+    pub(crate) fn connection_id(&self) -> u64 {
+        self.session.id
+    }
     pub fn operations(&self) -> operations::Operations {
         operations::Operations { bot: self.clone() }
     }
@@ -281,16 +284,11 @@ impl Bot {
     }
 
     pub async fn connect(config: ConnectionConfig) -> Result<Self> {
-        if config.username.is_empty()
-            || config.username.len() > 16
-            || !config
-                .username
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || b == b'_')
-        {
+        config.validate()?;
+        if config.version != crate::MinecraftVersion::Java1_21_11 {
             return Err(Error::new(
                 ErrorKind::InvalidInput,
-                anyhow::anyhow!("invalid offline player name"),
+                anyhow::anyhow!("configuration belongs to another adapter"),
             ));
         }
         let stream = timeout(

@@ -26,7 +26,7 @@ async fn fixture() -> (Arc<Session>, OwnedReadHalf, TcpStream) {
         cancel: Notify::new(),
         stopped: AtomicBool::new(false),
         interrupted_packet: AtomicI32::new(-1),
-        limits: crate::ConnectionOptions::default(),
+        limits: crate::client::ClientLimits::default(),
         interaction_sequence: AtomicI32::new(0),
     });
     (session, reader, peer)
@@ -416,4 +416,108 @@ async fn position_attempt_retains_receipt_and_cancelled_dispatch_blocks_next_mut
     assert!(!reset.position_from_server);
     assert_eq!(reset.motion.received_pose.unwrap().receive_sequence, 9);
     assert_eq!(reset.motion.position_basis, PositionBasis::Unavailable);
+}
+
+#[tokio::test]
+async fn common_creative_contract_dispatches_modern_packets_without_inventory_echo() {
+    let (session, _, mut peer) = fixture().await;
+    let api = operations(&session);
+    {
+        let mut state = session.state.lock().await;
+        state.phase = Phase::Play;
+        state.ready = true;
+        state.loading = loading::InteractionLoading::completed_fixture();
+        state.operations.reset_world(1).unwrap();
+        state.world.select_dimension(
+            "minecraft:overworld".into(),
+            Dimension::new(-64, 384).unwrap(),
+        );
+        state.world.seed_replay_cell([0, 0, 1], 1);
+        state.position = Some([0.5, 1.0, 0.5]);
+        state.motion.receive(operations::ReceivedPose {
+            generation: 1,
+            receive_sequence: 1,
+            position: [0.5, 1.0, 0.5],
+            rotation: [0.0; 2],
+            velocity: Some([0.0; 3]),
+        });
+        let mut abilities = vec![4];
+        abilities.extend(0.05f32.to_be_bytes());
+        abilities.extend(0.1f32.to_be_bytes());
+        operations::receive(&mut state, ids::play_clientbound::ABILITIES, &abilities).unwrap();
+    }
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    crate::client::tests::common_creative_scenario(&client).await;
+    let mut emitted = Vec::new();
+    for _ in 0..7 {
+        emitted.push(
+            tokio::time::timeout(Duration::from_secs(1), read_packet(&mut peer, None))
+                .await
+                .unwrap()
+                .unwrap(),
+        );
+    }
+    assert_eq!(
+        emitted.iter().map(|p| p.0).collect::<Vec<_>>(),
+        [
+            ids::play_serverbound::SET_CREATIVE_SLOT,
+            ids::play_serverbound::LOOK,
+            ids::play_serverbound::HELD_ITEM_SLOT,
+            ids::play_serverbound::ABILITIES,
+            ids::play_serverbound::POSITION_LOOK,
+            ids::play_serverbound::BLOCK_DIG,
+            ids::play_serverbound::BLOCK_PLACE
+        ]
+    );
+    assert_eq!(&emitted[0].1[..2], &36i16.to_be_bytes());
+    assert_eq!(emitted[3].1, [2]);
+    let mut slot = vec![0, 1];
+    put_varint(
+        &mut slot,
+        operations::default_item("stone", 1).unwrap().item_id,
+    );
+    slot.extend([0, 0]);
+    {
+        let mut state = session.state.lock().await;
+        state.sequence = 8;
+        operations::receive(
+            &mut state,
+            ids::play_clientbound::SET_PLAYER_INVENTORY,
+            &slot,
+        )
+        .unwrap();
+    }
+    let state = client.player_state().await.unwrap();
+    assert!(
+        matches!(&state.inventory.slots[36], Some(value) if matches!(&value.value,
+        crate::client::SlotKnowledge::Item { item } if item.name == "minecraft:stone"))
+    );
+    assert!(!state.pending_dispatch);
+}
+
+#[tokio::test]
+async fn common_cursor_provenance_does_not_advance_on_unrelated_slot_packets() {
+    let (session, _, _) = fixture().await;
+    let api = operations(&session);
+    {
+        let mut state = session.state.lock().await;
+        state.sequence = 10;
+        operations::receive(&mut state, ids::play_clientbound::SET_CURSOR_ITEM, &[0]).unwrap();
+        state.sequence = 20;
+        operations::receive(
+            &mut state,
+            ids::play_clientbound::SET_PLAYER_INVENTORY,
+            &[0, 0],
+        )
+        .unwrap();
+    }
+    let state = api.common_player_state().await.unwrap();
+    assert_eq!(
+        state.inventory.cursor.unwrap().source,
+        crate::client::ValueSource::Received { sequence: 10 }
+    );
+    assert_eq!(
+        state.inventory.slots[36].as_ref().unwrap().source,
+        crate::client::ValueSource::Received { sequence: 20 }
+    );
 }

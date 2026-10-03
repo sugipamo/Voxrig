@@ -16,19 +16,61 @@ pub(crate) fn next_connection_id() -> u64 {
 #[derive(Clone, Debug)]
 pub struct ConnectionConfig {
     /// Server address; no automatic protocol downgrade is performed.
-    pub server: legacy::Server,
+    pub server: crate::client::Server,
     /// Offline player name.
     pub username: String,
     /// Version of both wire packets and native registry IDs.
     pub version: MinecraftVersion,
-    /// Existing resource and timeout limits.
-    pub limits: legacy::ConnectionOptions,
+    /// Resource and timeout limits implemented by every adapter.
+    pub limits: crate::client::ClientLimits,
 }
 
 impl ConnectionConfig {
+    /// Reads the exact supported version from `VOXRIG_MINECRAFT_VERSION`.
+    /// Missing, non-Unicode, and unsupported values fail before network I/O.
+    /// Supporting new releases/blocks requires an updated Voxrig build.
+    pub fn offline_from_env(
+        server: crate::client::Server,
+        username: impl Into<String>,
+    ) -> Result<Self> {
+        let value = std::env::var("VOXRIG_MINECRAFT_VERSION").map_err(|error| {
+            Error::new(
+                ErrorKind::InvalidInput,
+                anyhow::anyhow!("VOXRIG_MINECRAFT_VERSION: {error}"),
+            )
+        })?;
+        Ok(Self::offline(server, username, value.parse()?))
+    }
+
+    /// Validates common inputs without opening a connection.
+    pub fn validate(&self) -> Result<()> {
+        if !(3..=16).contains(&self.username.len())
+            || !self
+                .username
+                .bytes()
+                .all(|c| c.is_ascii_alphanumeric() || c == b'_')
+            || self.server.host.is_empty()
+            || self.server.port == 0
+            || self.limits.max_chunks == 0
+            || [
+                self.limits.connect_timeout,
+                self.limits.login_packet_timeout,
+                self.limits.play_packet_timeout,
+                self.limits.ready_timeout,
+            ]
+            .iter()
+            .any(Duration::is_zero)
+        {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                anyhow::anyhow!("invalid offline identity, server address, or client limits"),
+            ));
+        }
+        Ok(())
+    }
     /// Creates an explicit offline-mode connection configuration.
     pub fn offline(
-        server: legacy::Server,
+        server: crate::client::Server,
         username: impl Into<String>,
         version: MinecraftVersion,
     ) -> Self {
@@ -36,7 +78,7 @@ impl ConnectionConfig {
             server,
             username: username.into(),
             version,
-            limits: legacy::ConnectionOptions::default(),
+            limits: crate::client::ClientLimits::default(),
         }
     }
 }
@@ -113,7 +155,7 @@ pub struct Observation<B = Vec<ObservedBlock>> {
 }
 
 #[derive(Clone)]
-enum Adapter {
+pub(crate) enum Adapter {
     Java1_16_1(Box<legacy::Bot>),
     Java1_21_11(crate::versions::java_1_21_11::Bot),
 }
@@ -121,10 +163,72 @@ enum Adapter {
 /// A client whose protocol, registry and behavior belong to one version adapter.
 #[derive(Clone)]
 pub struct Client {
-    adapter: Adapter,
+    pub(crate) adapter: Adapter,
 }
 
 impl Client {
+    #[cfg(test)]
+    pub(crate) fn from_java_1_16_1(bot: legacy::Bot) -> Self {
+        Self {
+            adapter: Adapter::Java1_16_1(Box::new(bot)),
+        }
+    }
+    /// Common static implementation support, separate from live permissions.
+    pub fn capabilities(&self) -> crate::client::Capabilities {
+        crate::client::Capabilities::for_version(self.version())
+    }
+    /// Registry bound to this client's immutable selected version.
+    pub fn registry(&self) -> crate::client::registry::Registry {
+        crate::client::registry::Registry::for_version(self.version())
+    }
+    /// Survival-mode handle available on each adapter. Does not change game mode.
+    pub fn survival(&self) -> crate::client::Survival {
+        crate::client::Survival {
+            client: self.clone(),
+        }
+    }
+    /// Creative-mode handle available on each adapter. Does not grant creative permission.
+    pub fn creative(&self) -> crate::client::Creative {
+        crate::client::Creative {
+            client: self.clone(),
+        }
+    }
+    /// Common player and received inventory captured under one adapter lock boundary.
+    pub async fn player_state(&self) -> Result<crate::client::PlayerObservation> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_player_state().await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_player_state().await,
+        }
+    }
+    /// Capture player, inventory and a received region at one adapter boundary.
+    /// Missing data stays unavailable; neither local physics nor a capture is server confirmation.
+    pub async fn capture(&self, region: Region) -> Result<crate::client::Capture> {
+        region.volume()?;
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_capture(region).await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_capture(region).await,
+        }
+    }
+    pub(crate) async fn execute(
+        &self,
+        mode: crate::client::GameMode,
+        action: crate::client::operations::Action<'_>,
+    ) -> Result<crate::client::DispatchReceipt> {
+        let (connection_id, interaction_sequence) = match &self.adapter {
+            Adapter::Java1_16_1(bot) => {
+                (bot.connection_id(), bot.execute_common(mode, action).await?)
+            }
+            Adapter::Java1_21_11(bot) => (
+                bot.connection_id(),
+                bot.operations().execute_common(mode, action).await?,
+            ),
+        };
+        Ok(crate::client::DispatchReceipt {
+            version: self.version(),
+            connection_id,
+            interaction_sequence,
+        })
+    }
     pub(crate) fn from_java_1_21_11(bot: crate::versions::java_1_21_11::Bot) -> Self {
         Self {
             adapter: Adapter::Java1_21_11(bot),
@@ -219,13 +323,14 @@ impl Client {
 
     /// Connects using only the selected version. Unsupported adapters fail before I/O.
     pub async fn connect(config: ConnectionConfig) -> Result<Self> {
+        config.validate()?;
         match config.version {
             MinecraftVersion::Java1_16_1 => {
                 let bot = legacy::Bot::connect(
                     config.server,
                     legacy::Player::offline(config.username),
                     Arc::new(legacy::SharedChunkStorage::default()),
-                    config.limits,
+                    config.limits.legacy(),
                 )
                 .await?;
                 Ok(Self {
@@ -381,7 +486,7 @@ mod tests {
         };
         let one = Client::connect(config.clone()).await.unwrap();
         assert_eq!(one.survival_capabilities().checked_contract, None);
-        assert!(matches!(one.survival(), Err(e) if e.kind() == ErrorKind::Unsupported));
+        assert!(matches!(one.checked_survival(), Err(e) if e.kind() == ErrorKind::Unsupported));
         let first = one.observe_region(region).await.unwrap();
         assert_eq!(first.blocks.len(), 4);
         assert!(first.blocks.iter().all(|b| b.state.is_none()));

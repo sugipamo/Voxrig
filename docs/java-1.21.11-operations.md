@@ -4,7 +4,7 @@
 The existing Java 1.16.1 Bot API remains available. No protocol IDs or item IDs
 are shared implicitly across versions.
 
-For checked survival operations, `Client::survival()` provides the common
+For checked survival operations, `Client::checked_survival()` provides the common
 entry point and `checked_survival` exposes the current native contract types.
 Static capability discovery does not grant current action admission. The checked
 handle shares the native guards/history and offers no creative commands or raw

@@ -131,7 +131,7 @@ impl Fixture {
             cancel: Notify::new(),
             stopped: AtomicBool::new(false),
             interrupted_packet: AtomicI32::new(-1),
-            limits: crate::ConnectionOptions::default(),
+            limits: crate::client::ClientLimits::default(),
             interaction_sequence: AtomicI32::new(0),
         });
         let api = Operations {

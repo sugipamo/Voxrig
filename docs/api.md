@@ -1,12 +1,18 @@
 # 公開API
 
+Client共通化ブランチでは`Client::survival()` / `Client::creative()`を両版の共通入口とします。
+共通型・受信/予測を区別したcapture・版別registryと移行変更は
+[Client共通化](client-unification.md)を参照してください。下記の追加検査契約は
+`Client::checked_survival()`または`Client::survival().checked()?`で明示的に選ぶ1.21.11用の拡張です。
+
+
 この文書は、外部controllerが利用する公開面を用途別に示します。正確な引数型と戻り値は`cargo doc --open`で生成されるrustdocを正とします。
 
 ## ゲーム版と操作の入口
 
 `Client` / `ConnectionConfig` / `MinecraftVersion`で接続版を明示します。
-`Client::survival_capabilities()`は静的な対応契約を返し、`Client::survival()`は
-セッションに結び付いた検査付きサバイバル操作を選びます。型は`voxrig::checked_survival`から
+`Client::survival_capabilities()`は静的な対応契約を返し、`Client::checked_survival()`は
+セッションに結び付いた検査付きサバイバル操作を選びます。型は`voxrig::client::survival::checked`から
 参照でき、[操作・明示的復旧契約](survival-api.md)を共有します。現在は1.21.11のみ対応し、
 1.16.1はI/O前に`Unsupported`を返します。対応情報は現在の操作許可ではありません。
 
@@ -39,7 +45,7 @@ use voxrig::prelude::*;
 
 ```rust
 use voxrig::{
-    client::{Bot, Event},
+    versions::java_1_16_1::client::{Bot, Event},
     entity::EntityState,
     inventory::InventoryState,
     survival::SurvivalState,
@@ -52,7 +58,8 @@ crate rootのre-exportと用途別moduleは同一の型を参照します。
 
 | Module | 主な責務 |
 | --- | --- |
-| `client` | `Bot`、接続先、プレイヤー、イベント、sound event |
+| `client` | 共通Client、設定、版に束縛したregistry、観測、survival/creativeハンドル |
+| `versions::java_1_16_1::client` | 従来のBot、プレイヤー、イベント、sound event |
 | `manager` | 1プロセス内の複数Bot管理と集約イベント |
 | `physics` | 入力、座標、motion、collision、計測値 |
 | `world` | chunk cacheとblock観測 |

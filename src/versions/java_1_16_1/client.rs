@@ -1,5 +1,7 @@
 //! Connection lifecycle, protocol events, observations, and player operations.
 
+mod common_api;
+
 use crate::versions::java_1_16_1::Result;
 use crate::versions::java_1_16_1::{
     chat::{ChatMessage, PlayerList, apply_player_info, parse_chat},
@@ -349,28 +351,7 @@ fn encode_entity_action_packet(entity_id: i32, sneaking: bool) -> (i32, Vec<u8>)
     (0x1c, payload)
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-/// State and protocol data represented by `Server`.
-pub struct Server {
-    /// The `host` value.
-    pub host: String,
-    /// The `port` value.
-    pub port: u16,
-}
-impl Server {
-    /// Performs the `new` operation.
-    pub fn new(host: impl Into<String>, port: u16) -> Self {
-        Self {
-            host: host.into(),
-            port,
-        }
-    }
-}
-impl Default for Server {
-    fn default() -> Self {
-        Self::new("127.0.0.1", 25565)
-    }
-}
+pub use crate::client::Server;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -1042,6 +1023,7 @@ pub struct Bot {
     protocol_packet_sequence: Arc<AtomicU64>,
     block_geometry_revision: Arc<AtomicU64>,
     inventory: Arc<RwLock<Versioned<InventoryState>>>,
+    common_receipts: Arc<Mutex<crate::client::LegacyReceipts>>,
     exact_window_barriers: Arc<Mutex<HashMap<(i8, i16), ExactWindowBarrier>>>,
     furnace_window_position: Arc<Mutex<Option<(i8, BlockPos)>>>,
     click_lock: Arc<Mutex<()>>,
@@ -1133,6 +1115,7 @@ impl Bot {
             protocol_packet_sequence: self.protocol_packet_sequence.clone(),
             block_geometry_revision: self.block_geometry_revision.clone(),
             inventory: self.inventory.clone(),
+            common_receipts: self.common_receipts.clone(),
             exact_window_barriers: self.exact_window_barriers.clone(),
             furnace_window_position: self.furnace_window_position.clone(),
             click_lock: self.click_lock.clone(),
@@ -1274,6 +1257,7 @@ impl Bot {
                 InventoryState::default(),
                 connected_at,
             ))),
+            common_receipts: Arc::new(Mutex::new(crate::client::LegacyReceipts::default())),
             exact_window_barriers: Arc::new(Mutex::new(HashMap::new())),
             furnace_window_position: Arc::new(Mutex::new(None)),
             click_lock: Arc::new(Mutex::new(())),
@@ -4293,6 +4277,12 @@ impl Bot {
     ) -> Result<()> {
         let _coherent_state = self.coherent_state_gate.lock().await;
         let survival = self.survival.read().await;
+        if survival.game_mode == Some(1)
+            && survival.flying_allowed
+            && self.common_receipts.lock().await.requested_flying
+        {
+            return Ok(());
+        }
         let movement_attribute = survival
             .attributes
             .get("minecraft:generic.movement_speed")
@@ -4406,6 +4396,8 @@ impl Bot {
         let collided_x = (requested.x - actual.x).abs() > 1.0e-9;
         let collided_y = (requested.y - actual.y).abs() > 1.0e-9;
         let collided_z = (requested.z - actual.z).abs() > 1.0e-9;
+        self.common_receipts.lock().await.position_source =
+            Some(crate::client::ValueSource::Predicted);
         player.x = (moved.min_x + moved.max_x) * 0.5;
         player.y = moved.min_y;
         player.z = (moved.min_z + moved.max_z) * 0.5;
@@ -4728,6 +4720,7 @@ impl Bot {
                 let window_id = *p.first().context("missing closed window ID")? as i8;
                 let mut inventory = self.inventory.write().await;
                 inventory.open_window = None;
+                self.common_receipts.lock().await.inventory.window_id = Some(0);
                 inventory.last_transaction = None;
                 inventory.merchant_offers = None;
                 inventory.windows.remove(&window_id);
@@ -4746,6 +4739,11 @@ impl Bot {
             0x14 => {
                 let (window_id, slots) = parse_window_items(&p)?;
                 let mut inventory = self.inventory.write().await;
+                self.common_receipts.lock().await.window_items(
+                    window_id,
+                    &slots,
+                    packet_sequence,
+                )?;
                 apply_window_items(&mut inventory, window_id, slots);
                 drop(inventory);
                 self.commit_satisfied_window_barriers().await;
@@ -4773,6 +4771,7 @@ impl Bot {
                 update.packet_sequence = packet_sequence;
                 let mut inventory = self.inventory.write().await;
                 apply_slot(&mut inventory, &update)?;
+                self.common_receipts.lock().await.slot(&update)?;
                 let observed = inventory.map_snapshot(|_| update.clone());
                 drop(inventory);
                 self.emit(Event::InventorySlotObserved(observed));
@@ -4888,6 +4887,9 @@ impl Bot {
                     inventory.window_player_starts.remove(&window.id);
                     inventory.windows.remove(&window.id);
                     inventory.open_window = Some(window.clone());
+                    let mut receipts = self.common_receipts.lock().await;
+                    receipts.inventory.window_id = Some(i32::from(window.id));
+                    receipts.player_starts.remove(&window.id);
                 }
                 *self.furnace_window_position.lock().await = None;
                 self.emit(Event::WindowOpened(window));
@@ -4928,6 +4930,7 @@ impl Bot {
             },
             0x25 => {
                 let join = parse_join(&p)?;
+                self.common_receipts.lock().await.generation = packet_sequence;
                 let mut player = self.player.lock().await;
                 player.entity_id = Some(join.entity_id);
                 player.spawned = true;
@@ -5046,6 +5049,9 @@ impl Bot {
                     inventory.window_player_starts.remove(&window.id);
                     inventory.windows.remove(&window.id);
                     inventory.open_window = Some(window.clone());
+                    let mut receipts = self.common_receipts.lock().await;
+                    receipts.inventory.window_id = Some(i32::from(window.id));
+                    receipts.player_starts.remove(&window.id);
                 }
                 let furnace_position = self
                     .connection
@@ -5079,6 +5085,12 @@ impl Bot {
                 state.invulnerable = flags & 0x01 != 0;
                 state.flying = flags & 0x02 != 0;
                 state.flying_allowed = flags & 0x04 != 0;
+                let mut receipts = self.common_receipts.lock().await;
+                receipts.may_fly = Some(state.flying_allowed);
+                if !state.flying_allowed {
+                    receipts.requested_flying = false;
+                }
+                drop(receipts);
                 state.creative_mode = flags & 0x08 != 0;
                 state.flying_speed = c.read_f32::<BigEndian>()?;
                 state.walking_speed = c.read_f32::<BigEndian>()?;
@@ -5159,6 +5171,20 @@ impl Bot {
             }
             0x3a => {
                 let respawn = parse_respawn(&p)?;
+                {
+                    let mut receipts = self.common_receipts.lock().await;
+                    receipts.generation = packet_sequence;
+                    receipts.pose = None;
+                    receipts.position_source = None;
+                    receipts.health = None;
+                    receipts.may_fly = None;
+                    receipts.requested_flying = false;
+                    if !respawn.copy_metadata {
+                        receipts.inventory = Default::default();
+                        receipts.selected_hotbar = None;
+                        receipts.player_starts.clear();
+                    }
+                }
                 if !respawn.copy_metadata {
                     *self.local_pose.lock().await = Some(0);
                 }
@@ -5225,6 +5251,8 @@ impl Bot {
                     bail!("invalid held item slot {raw}");
                 }
                 self.inventory.write().await.selected_hotbar = raw;
+                self.common_receipts.lock().await.selected_hotbar =
+                    Some(crate::client::received(raw, packet_sequence));
                 self.emit(Event::HeldItemChanged { slot: raw });
             }
             0x40 => {
@@ -5330,6 +5358,14 @@ impl Bot {
             0x49 => {
                 let vitals = parse_vitals(&p)?;
                 self.survival.write().await.vitals = Some(vitals);
+                self.common_receipts.lock().await.health = Some(crate::client::received(
+                    crate::client::Health {
+                        health: vitals.health,
+                        food: vitals.food,
+                        saturation: vitals.saturation,
+                    },
+                    packet_sequence,
+                ));
                 self.emit(Event::Vitals(vitals));
             }
             0x4a => {
@@ -5875,6 +5911,15 @@ impl Bot {
         s.pitch = next_pitch;
         let snapshot = s.clone();
         drop(s);
+        self.common_receipts.lock().await.position_source =
+            Some(crate::client::ValueSource::Received {
+                sequence: self.protocol_packet_sequence.load(Ordering::Acquire),
+            });
+        self.common_receipts.lock().await.pose = Some(crate::client::ReceivedPose {
+            position: [next_x, next_y, next_z],
+            rotation: [next_yaw, next_pitch],
+            receive_sequence: self.protocol_packet_sequence.load(Ordering::Acquire),
+        });
         let mut positioned = self.positioned.lock().await;
         let was_positioned = *positioned;
         *positioned = true;
@@ -6732,7 +6777,7 @@ mod tests {
         (bot, server, release_tx)
     }
 
-    async fn ready_test_bot(
+    pub(super) async fn ready_test_bot(
         connection_options: ConnectionOptions,
     ) -> (Bot, tokio::task::JoinHandle<()>, oneshot::Sender<()>) {
         let (bot, server, release) = connected_test_bot(connection_options, Vec::new()).await;
@@ -9049,7 +9094,7 @@ mod tests {
             attached_to: None,
         }
     }
-    async fn operation_test_bot(
+    pub(super) async fn operation_test_bot(
         outbound_id: i32,
         response_id: i32,
         response: Vec<u8>,

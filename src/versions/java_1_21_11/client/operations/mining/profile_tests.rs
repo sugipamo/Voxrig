@@ -17,7 +17,7 @@ async fn profile_recovery_requires_original_closed_source_before_any_login() {
         .server = endpoint.clone();
     let intent = miner.start().await;
     let source = crate::Client::from_java_1_21_11(miner.api.bot.clone())
-        .survival()
+        .checked_survival()
         .unwrap();
     let recovery = source
         .prepare_mining_profile_recovery(&intent)
@@ -104,10 +104,10 @@ async fn profile_recovery_cancelled_login_blocks_clones_and_independent_method()
     let intent = miner.start().await;
     observer.profile(42).await;
     let source = crate::Client::from_java_1_21_11(miner.api.bot.clone())
-        .survival()
+        .checked_survival()
         .unwrap();
     let independent = crate::Client::from_java_1_21_11(observer.api.bot.clone())
-        .survival()
+        .checked_survival()
         .unwrap();
     let observed_recovery = source
         .prepare_mining_retirement(&intent, &independent)
@@ -179,7 +179,7 @@ async fn profile_recovery_cannot_retry_an_independent_login_attempt() {
     let mut miner = Fixture::new().await;
     let intent = miner.start().await;
     let source = crate::Client::from_java_1_21_11(miner.api.bot.clone())
-        .survival()
+        .checked_survival()
         .unwrap();
     let recovery = source
         .prepare_mining_profile_recovery(&intent)

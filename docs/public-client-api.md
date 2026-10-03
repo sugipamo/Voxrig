@@ -1,5 +1,11 @@
 # Voxrigの公開client API
 
+Client共通化ブランチでは`Client::survival()` / `Client::creative()`を両版の共通入口とします。
+共通型・受信/予測を区別したcapture・版別registryと移行変更は
+[Client共通化](client-unification.md)を参照してください。下記の追加検査契約は
+`Client::checked_survival()`または`Client::survival().checked()?`で明示的に選ぶ1.21.11用の拡張です。
+
+
 2026-10-03。deepplanning、minetool、DustRouteの改良をVoxrigへ集約する際の設計正本。
 各プロジェクトのロードマップや過去のcheckpointは実装経緯の記録であり、公開APIの仕様ではない。
 
@@ -20,7 +26,7 @@ package名は`voxrig`、Rust crate名も`voxrig`とする。公開APIを再設�
   1.21.11は1.16.1の全機能を持つとは扱わない。版依存のIDやinventory形式を共通型へ丸めない。
 - `Bot`/`BotManager`とrootの互換importは1.16.1へ固定する。
 - `Client::survival_capabilities()`と`checked_survival::SurvivalCapabilities::for_version()`は
-  接続前にも確認できる静的な対応契約。`Client::survival()`はセッションに結び付いた検査付き操作を返す。
+  接続前にも確認できる静的な対応契約。`Client::checked_survival()`はセッションに結び付いた検査付き操作を返す。
   現在は1.21.11の`ObservedDryCubeV1`と明示的に選ぶ`PredictedDryCubeV1`で、
   1.16.1はI/O前に`Unsupported`を返す。
   対応情報は現在の操作許可ではない。`checked_survival`の型は現在のnative 1.21.11表現を共有し、

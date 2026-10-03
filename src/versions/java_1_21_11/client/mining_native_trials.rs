@@ -117,7 +117,7 @@ async fn native_survival_same_profile_mining_recovery() {
         // Fixture writes precede the case, not a production readiness/retirement fence.
         tokio::time::sleep(Duration::from_millis(500)).await;
         let source = crate::Client::from_java_1_21_11(bot.clone())
-            .survival()
+            .checked_survival()
             .unwrap();
         source.select_hotbar(1).await.unwrap();
         source.look([-90.0, 3.0]).await.unwrap();
