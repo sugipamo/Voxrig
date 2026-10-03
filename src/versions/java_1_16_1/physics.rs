@@ -147,17 +147,19 @@ impl Aabb {
     ) -> f64 {
         if delta > 0.0 && self_max <= obstacle_min + COLLISION_EPSILON {
             let gap = obstacle_min - self_max;
+            // Rounded face comparisons can accept a gap whose magnitude is
+            // just over epsilon. Contact must never reverse the requested move.
             delta = delta.min(if gap.abs() < COLLISION_EPSILON {
                 0.0
             } else {
-                gap
+                gap.max(0.0)
             });
         } else if delta < 0.0 && self_min >= obstacle_max - COLLISION_EPSILON {
             let gap = obstacle_max - self_min;
             delta = delta.max(if gap.abs() < COLLISION_EPSILON {
                 0.0
             } else {
-                gap
+                gap.min(0.0)
             });
         }
         delta
@@ -460,6 +462,95 @@ impl PhysicsTracker {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn contact_rounding_cannot_slide_into_a_step_while_jumping() {
+        let player = Aabb::player(2.3, 66.0, -18.5);
+        let step = Aabb::block(1, 66, -19);
+        assert!((player.min_x - step.max_x).abs() < 1.0e-12);
+        let raised = player.offset(Vec3 {
+            x: 0.0,
+            y: 0.42,
+            z: 0.0,
+        });
+        assert_eq!(raised.clip_x(step, -0.1), 0.0);
+        assert_eq!(player.clip_y(step, -0.08), -0.08);
+        let cleared = player.offset(Vec3 {
+            x: 0.0,
+            y: 1.01,
+            z: 0.0,
+        });
+        assert_eq!(cleared.clip_x(step, -0.1), -0.1);
+        let rotated = Aabb::player(-18.5, 66.0, 2.3).offset(Vec3 {
+            x: 0.0,
+            y: 0.42,
+            z: 0.0,
+        });
+        assert_eq!(rotated.clip_z(Aabb::block(-19, 66, 1), -0.1), 0.0);
+    }
+
+    #[test]
+    fn contact_epsilon_boundary_never_reverses_requested_motion() {
+        let unit = Aabb::block(0, 0, 0);
+        let positive = 1.0 + COLLISION_EPSILON;
+        let negative = 2.0 - COLLISION_EPSILON;
+        // These rounded face coordinates pass the contact comparison even
+        // when their computed gap has magnitude slightly larger than epsilon.
+        assert_eq!(
+            Aabb {
+                max_x: positive,
+                ..unit
+            }
+            .clip_x(Aabb::block(1, 0, 0), 0.1),
+            0.0
+        );
+        assert_eq!(
+            Aabb {
+                min_x: negative,
+                max_x: 3.0,
+                ..unit
+            }
+            .clip_x(Aabb::block(1, 0, 0), -0.1),
+            0.0
+        );
+        assert_eq!(
+            Aabb {
+                max_y: positive,
+                ..unit
+            }
+            .clip_y(Aabb::block(0, 1, 0), 0.1),
+            0.0
+        );
+        assert_eq!(
+            Aabb {
+                min_y: negative,
+                max_y: 3.0,
+                ..unit
+            }
+            .clip_y(Aabb::block(0, 1, 0), -0.1),
+            0.0
+        );
+        assert_eq!(
+            Aabb {
+                max_z: positive,
+                ..unit
+            }
+            .clip_z(Aabb::block(0, 0, 1), 0.1),
+            0.0
+        );
+        assert_eq!(
+            Aabb {
+                min_z: negative,
+                max_z: 3.0,
+                ..unit
+            }
+            .clip_z(Aabb::block(0, 0, 1), -0.1),
+            0.0
+        );
+        assert_eq!(unit.clip_x(Aabb::block(1, 0, 0), -0.1), -0.1);
+        assert_eq!(unit.clip_y(Aabb::block(0, 1, 0), -0.1), -0.1);
+        assert_eq!(unit.clip_z(Aabb::block(0, 0, 1), -0.1), -0.1);
+    }
+
     #[test]
     fn edge_touching_a_block_through_float_noise_cannot_slide_into_it() {
         // x = 32.3 gives min_x = 31.999999999999996, overlapping the block at x = 31 by 4e-15.
