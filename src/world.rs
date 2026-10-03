@@ -586,15 +586,7 @@ impl World {
                         Some("lava") => Fluid::Lava,
                         _ => continue,
                     };
-                    let level = match fluid {
-                        Fluid::Water => state - 34,
-                        Fluid::Lava => state - 50,
-                    };
-                    let height = if level >= 8 {
-                        1.0
-                    } else {
-                        1.0 - f64::from(level) / 9.0
-                    };
+                    let height = self.fluid_surface_height(x, y, z, fluid)?;
                     if aabb.min_y < f64::from(y) + height {
                         if fluid == Fluid::Lava {
                             return Some(Fluid::Lava);
@@ -605,6 +597,40 @@ impl World {
             }
         }
         found
+    }
+
+    /// Maximum observed fluid depth above the player's feet. Vanilla uses
+    /// this to distinguish a grounded jump in shallow water from swimming.
+    pub(crate) fn fluid_depth(&self, aabb: Aabb, fluid: Fluid) -> Option<f64> {
+        let mut depth: f64 = 0.0;
+        for y in aabb.min_y.floor() as i32..aabb.max_y.ceil() as i32 {
+            for z in aabb.min_z.floor() as i32..aabb.max_z.ceil() as i32 {
+                for x in aabb.min_x.floor() as i32..aabb.max_x.ceil() as i32 {
+                    self.block(x, y, z)?;
+                    if let Some(height) = self.fluid_surface_height(x, y, z, fluid) {
+                        let surface = y as f64 + height;
+                        depth = depth.max(surface - aabb.min_y);
+                    }
+                }
+            }
+        }
+        Some(depth)
+    }
+
+    pub(crate) fn swimming_jump(&self, aabb: Aabb, fluid: Fluid, grounded: bool) -> bool {
+        !grounded
+            || self
+                .fluid_depth(aabb, fluid)
+                .is_none_or(|depth| depth > 0.4)
+    }
+
+    fn fluid_surface_height(&self, x: i32, y: i32, z: i32, fluid: Fluid) -> Option<f64> {
+        let level = self.fluid_level(x, y, z, fluid)?;
+        Some(if self.fluid_level(x, y + 1, z, fluid).is_some() {
+            1.0
+        } else {
+            (8.0 - level) / 9.0
+        })
     }
 
     /// Vanilla's fluid wall exit impulse, after movement and fluid drag.
@@ -1672,6 +1698,24 @@ mod tests {
         );
         world.set_block(0, 1, 0, 41);
         assert_eq!(world.fluid_intersecting(Aabb::player(0.5, 1.3, 0.5)), None);
+    }
+
+    #[test]
+    fn grounded_shallow_water_jumps_instead_of_swimming() {
+        let mut world = World::default();
+        world.chunks.insert((0, 0), Chunk::default());
+        let player = Aabb::player(0.5, 1.0, 0.5);
+        world.set_block(0, 1, 0, 40); // level 6, historical trapped stance
+        assert!(!world.swimming_jump(player, Fluid::Water, true));
+        assert!(world.swimming_jump(player, Fluid::Water, false));
+        world.set_block(0, 1, 0, 34);
+        assert!(world.swimming_jump(player, Fluid::Water, true));
+        world.set_block(0, 1, 0, 39); // level 5 is still shallower than 0.4
+        assert!(!world.swimming_jump(player, Fluid::Water, true));
+        world.set_block(0, 2, 0, 34);
+        assert!(world.swimming_jump(player, Fluid::Water, true));
+        let unknown = Aabb::player(16.5, 1.0, 0.5);
+        assert!(world.swimming_jump(unknown, Fluid::Water, true));
     }
 
     #[test]

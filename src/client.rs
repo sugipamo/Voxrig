@@ -2289,7 +2289,7 @@ impl Bot {
                         if transaction.accepted {
                             return Ok::<(), anyhow::Error>(());
                         }
-                        bail!("server rejected window action {action}");
+                        bail!("server rejected window action {action} (window {window_id}, slot {slot}, button {button}, mode {mode:?})");
                     }
                 }
             }
@@ -2632,7 +2632,8 @@ impl Bot {
             motion.velocity.x += flow.x * 0.014;
             motion.velocity.z += flow.z * 0.014;
         }
-        if control.jump && fluid.is_some() {
+        if control.jump && fluid.is_some_and(|kind| world.swimming_jump(aabb, kind, was_on_ground))
+        {
             motion.velocity.y += 0.04;
         } else if jump && was_on_ground {
             motion.velocity.y = if below == Some("honey_block") {
