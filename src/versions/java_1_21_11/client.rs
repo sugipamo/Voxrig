@@ -115,6 +115,7 @@ struct State {
     identity: Option<LoginIdentity>,
     retirement: Option<operations::MiningRetirementRecord>,
     mining: Option<operations::MiningRecord>,
+    common_mining: Option<operations::mining::CommonMiningCapture>,
     placement: Option<operations::PlacementRecord>,
     survival_motion: Option<operations::SurvivalMotionRecord>,
     retired_common_motion: Option<crate::client::survival::MotionRecord>,
@@ -142,6 +143,7 @@ impl Default for State {
             identity: None,
             retirement: None,
             mining: None,
+            common_mining: None,
             placement: None,
             survival_motion: None,
             retired_common_motion: None,
@@ -185,6 +187,7 @@ impl State {
         };
         if result.is_ok() {
             operations::placement_context_received(self);
+            operations::mining::common_mining_context_received(self);
         }
         if let Err(error) = &result {
             self.failure = Some(Error::new(

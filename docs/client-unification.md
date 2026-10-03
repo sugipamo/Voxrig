@@ -71,7 +71,7 @@ modernの既存intent・session guardも維持する。保存したreceiptは次
 | --- | --- | --- |
 | 1. 設定・基本型・対応情報・registry | 共通fixture・静的検証済み | 両版で同じ共通型。未知版/ID、誤ったnamespaceを拒否。設定を黙って無視しない |
 | 2. player/world/inventory共通観測 | 基本capture共通fixture・静的検証済み | 同じcapture境界、受信/予測/欠測を保持。NBTは保持、未対応componentsは欠測として保持 |
-| 3. 視点・選択・移動・採掘・設置 | creative基本操作・survival preview/有限dry移動・read-only狙い判定は両版native検証済み。広い移動条件とsurvival採掘/設置は残る | 共通request/resultと両版実装、native結果と物理の検証。片版Unsupportedだけでは完了しない |
+| 3. 視点・選択・移動・採掘・設置 | creative基本操作・survival preview/有限dry移動・read-only狙い判定は両版native検証済み。限定survival採掘も両版で実装。広い移動条件とsurvival設置は残る | 共通request/resultと両版実装、native結果と物理の検証。片版Unsupportedだけでは完了しない |
 | 4. container/item data/製作/装備/entity | 残る | modern側に受信/クリック/一般item操作を実装。同じ代表workflowと結果検証 |
 | 5. context/記録/再構成/scene/復旧 | 残る | 共通型を所有し、legacy側にも版別規則・lifecycleの監査済み実装 |
 | 6. UI/特殊window/vehicle/manager | 残る | 各機能の共通操作/観測と両版実装。raw操作自体の版依存は明示的な拡張へ残す |
@@ -93,6 +93,11 @@ canonical moduleは`client::survival::checked`、旧`checked_survival`は互換a
 `Survival::target_block`は同じ境界のcaptureと最初のstatic outlineを両版で返す。
 視線/traversal kernelを共有し、shapeは各版で検証したデータから選ぶ。採掘・設置の実行許可ではない。
 範囲と独立native oracleは[共通Survivalのブロック狙い判定](common-survival-targeting.md)を参照する。
+
+`Survival::start_mining` / `finish_mining` / `abort_mining` / `mining_record`も両版に実装する。
+受信済み空手でのdirt/stoneに限定し、before-I/O intent、native protocolの違い、fresh target receipt、
+取消/競合の履歴を保持する。airやABORTで元接続のmutationを解放しない。
+詳細は[共通Survivalの採掘](common-survival-mining.md)を参照する。
 
 `Client::capabilities()` / `Capabilities::for_version`は共通面の実装状況を返す。
 NotImplementedはVoxrig側の不足であって、ゲームに存在しないという意味ではない。
@@ -123,9 +128,9 @@ mode変更、建築、採掘等を勝手に実行するexampleにはしない。
 ## この段階の検証結果
 
 main `af91cad`を基準に、共通基盤・capture・mode handle・creative基本操作を追加した。
-共通read-only preview・狙い判定と版別native model照合を追加し、全targetのunit/fixture試験は383件成功、専用native環境7件と性能1件はignored。
+共通read-only preview・狙い判定・限定採掘と版別native model照合を追加し、全targetのunit/fixture試験は396件成功、専用native環境7件と性能1件はignored。
 doc test 5件、fmt、警告をerrorにするClippy/Rustdoc、Rust 1.85の全target check、
-native検証スクリプト・共通移動/狙い判定modelを含めた362ファイルのpackage buildが成功。
+native検証スクリプト・共通移動/狙い判定modelを含めた365ファイルのpackage buildが成功。
 続いて同じ共通API consumerを公式vanilla両版で実行し、creativeの在庫・選択・flight・除去・設置・
 survival切替後のcreative write拒否をサーバーRCONで確認した。
 両版で同じ35tickのjump/歩行previewも取得し、preview前後で実際の位置が変わらないことをRCONで確認した。
@@ -133,6 +138,6 @@ survival切替後のcreative write拒否をサーバーRCONで確認した。
 競合操作、I/O前のintent、待機取消、地形変更・impulse・送信失敗、native-onlyへの切替後の診断保持も検査した。
 狙い判定も共通consumerで実行し、選んだstoneの実際のstateとquery前後の位置不変をRCONで確認した。
 公式JARのlegacy 72 rotation/585 ray/13 outline状態と、modernの2,304 rotation/25,394 rayも共有kernelへ照合した。
-両サーバーも正常終了した。survival採掘/設置と後続の機能統合は残る。
+両サーバーも正常終了した。限定survival採掘も新しい接続で実行し、START/FINISHの実送信・fresh air受信とRCONの対象air・位置不変を検証した。survival設置と後続の機能統合は残る。
 再実行方法・証拠・範囲は[共通Clientのnative検証](common-client-native-validation.md)に記録する。
 これは全段階の機能parity完了の記録ではない。

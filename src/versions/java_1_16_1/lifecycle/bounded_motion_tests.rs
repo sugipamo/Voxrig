@@ -59,3 +59,64 @@ async fn bounded_motion_failed_write_terminates_actor_without_replay() {
     assert_eq!(actor.wait_for_terminal().await,ConnectionState::ConnectionStateUnknown);
     assert!(actor.bounded_position(1,vec![0;33]).await.is_err());
 }
+
+#[tokio::test]
+async fn bounded_mining_owns_exact_target_and_native_stages_without_motion_aliases() {
+    use crate::client::survival::MiningAction::{Start,Finish,Abort};
+    let (actor,mut peer)=actor_fixture().await;
+    actor.mark_ready().await;
+    let target=crate::BlockPos {x:8,y:66,z:11};
+    actor.begin_bounded_mining(1,actor.motion_admission_revision().await.unwrap(),target,2).await.unwrap();
+    let context=OperationContext {generation:actor.generation(),source_observation_sequence:0};
+    assert_eq!(actor.replace_control(context,OperationClass::Normal,crate::ControlState::default()).await,Err(OperationAdmissionError::BoundedMiningInProgress));
+    assert!(actor.bounded_position(1,vec![0;33]).await.is_err());
+    assert!(actor.finish_bounded_motion(1).await.is_err());
+    assert!(actor.bounded_mining(1,Finish).await.is_err());
+    assert!(actor.bounded_mining(2,Start).await.is_err());
+    no_packet(&mut peer).await;
+    for action in [Start,Finish,Abort] {
+        actor.bounded_mining(1,action).await.unwrap();
+        let (id,bytes)=read_packet(&mut peer,None).await.unwrap();
+        assert_eq!(id,0x1b);
+        let mut expected=vec![action as u8];
+        expected.extend(target.packed().to_be_bytes()); expected.push(2);
+        assert_eq!(bytes,expected); assert_eq!(bytes.len(),10);
+        assert!(actor.bounded_mining(1,action).await.is_err());
+        no_packet(&mut peer).await;
+    }
+    assert_eq!(actor.dispatch_operation(context,OperationClass::Normal,0x24,&[0;2]).await,Err(OperationAdmissionError::BoundedMiningInProgress));
+    assert!(actor.finish_bounded_motion(1).await.is_err());
+    actor.dispatch_protocol(0x10,&[9]).await.unwrap();
+    assert_eq!(read_packet(&mut peer,None).await.unwrap(),(0x10,vec![9]));
+    actor.begin_disconnect().await.unwrap();
+    assert!(actor.bounded_mining(1,Abort).await.is_err());
+    actor.dispatch(context,OperationClass::Cleanup,0x1b,&[1]).await.unwrap();
+    assert_eq!(read_packet(&mut peer,None).await.unwrap(),(0x1b,vec![1]));
+}
+#[tokio::test]
+async fn bounded_mining_cancelled_waiter_cannot_repeat_start_or_release_owner() {
+    use crate::client::survival::MiningAction::Start;
+    let (actor,mut peer,writer)=actor_fixture_with_writer().await;
+    actor.mark_ready().await;
+    actor.begin_bounded_mining(1,actor.motion_admission_revision().await.unwrap(),crate::BlockPos{x:8,y:66,z:11},2).await.unwrap();
+    let guard=writer.lock().await;
+    let mut send=Box::pin(actor.bounded_mining(1,Start));
+    std::future::poll_fn(|cx|{assert!(send.as_mut().poll(cx).is_pending());std::task::Poll::Ready(())}).await;
+    drop(send);drop(guard);
+    let (id,bytes)=timeout(Duration::from_secs(1),read_packet(&mut peer,None)).await.unwrap().unwrap();
+    assert_eq!(id,0x1b);assert_eq!(bytes.len(),10);assert_eq!(bytes[0],0);
+    assert!(actor.bounded_mining(1,Start).await.is_err());
+    no_packet(&mut peer).await;
+    assert_eq!(actor.motion_admission_revision().await,Err(OperationAdmissionError::BoundedMiningInProgress));
+}
+#[tokio::test]
+async fn bounded_mining_failed_write_ends_actor_and_cannot_replay() {
+    use crate::client::survival::MiningAction::Start;
+    let (actor,_peer)=actor_fixture().await;
+    actor.mark_ready().await;
+    actor.begin_bounded_mining(1,actor.motion_admission_revision().await.unwrap(),crate::BlockPos{x:8,y:66,z:11},2).await.unwrap();
+    actor.shutdown_writer().await.unwrap();
+    assert!(actor.bounded_mining(1,Start).await.is_err());
+    assert_eq!(actor.wait_for_terminal().await,ConnectionState::ConnectionStateUnknown);
+    assert!(actor.bounded_mining(1,Start).await.is_err());
+}

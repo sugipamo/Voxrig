@@ -195,3 +195,12 @@ deepplanning・minetool・DustRouteの実環境検証は利用側で引き続き
 未実施・不合格・基準版との差はそのまま記録し、main統合を実採用成功の証明にしない。
 Voxrig側のunit/mock/fixture成功も実環境の検証を代替しない。
 過去の1.16.1同地点2 Bot移動試験の不合格は、上流baseline比較を含めて引き続き確認対象とする。
+
+## 共通の限定採掘
+
+通常のClient handleは`Survival::start_mining` / `finish_mining` / `abort_mining` /
+`mining_record`を両版で提供する。共通側が`MiningId`・record/stage・send・target/protocol・
+inventory interruptionの型を所有する。modernの既存native intent/recovery APIは維持する。
+同じrecordでもlegacy action応答とmodern interaction ACKの意味は区別する。
+受信済み空手のdirt/stoneに限定し、除去観測では元接続の次のmutationを許可しない。
+[共通Survivalの採掘](common-survival-mining.md)に条件と検証を記録する。

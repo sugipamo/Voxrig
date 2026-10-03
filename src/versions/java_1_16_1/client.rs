@@ -1,6 +1,7 @@
 //! Connection lifecycle, protocol events, observations, and player operations.
 
 mod common_api;
+mod common_mining;
 mod common_motion;
 
 use crate::versions::java_1_16_1::Result;
@@ -1026,6 +1027,7 @@ pub struct Bot {
     inventory: Arc<RwLock<Versioned<InventoryState>>>,
     common_receipts: Arc<Mutex<crate::client::LegacyReceipts>>,
     common_motion: Arc<Mutex<Option<common_motion::NativeMotionRun>>>,
+    common_mining: Arc<Mutex<Option<common_mining::NativeMiningRun>>>,
     exact_window_barriers: Arc<Mutex<HashMap<(i8, i16), ExactWindowBarrier>>>,
     furnace_window_position: Arc<Mutex<Option<(i8, BlockPos)>>>,
     click_lock: Arc<Mutex<()>>,
@@ -1119,6 +1121,7 @@ impl Bot {
             inventory: self.inventory.clone(),
             common_receipts: self.common_receipts.clone(),
             common_motion: self.common_motion.clone(),
+            common_mining: self.common_mining.clone(),
             exact_window_barriers: self.exact_window_barriers.clone(),
             furnace_window_position: self.furnace_window_position.clone(),
             click_lock: self.click_lock.clone(),
@@ -1262,6 +1265,7 @@ impl Bot {
             ))),
             common_receipts: Arc::new(Mutex::new(crate::client::LegacyReceipts::default())),
             common_motion: Arc::new(Mutex::new(None)),
+            common_mining: Arc::new(Mutex::new(None)),
             exact_window_barriers: Arc::new(Mutex::new(HashMap::new())),
             furnace_window_position: Arc::new(Mutex::new(None)),
             click_lock: Arc::new(Mutex::new(())),
@@ -4610,6 +4614,17 @@ impl Bot {
                         })
                     });
                 }
+                self.common_mining_target_received(
+                    [
+                        acknowledgement.position.x,
+                        acknowledgement.position.y,
+                        acknowledgement.position.z,
+                    ],
+                    acknowledgement.block_state_id,
+                    packet_sequence,
+                    Some((acknowledgement.status, acknowledgement.successful)),
+                )
+                .await?;
                 self.emit(Event::DiggingAcknowledged(acknowledgement));
             }
             0x08 => self.emit(Event::BlockBreakProgress(parse_break_progress(&p)?)),
@@ -4635,6 +4650,8 @@ impl Bot {
                 let (x, y, z, state_id) = self.world.lock().await.apply_block_change(&p)?;
                 self.advance_block_geometry_revision();
                 self.world_updated.notify_waiters();
+                self.common_mining_target_received([x, y, z], state_id, packet_sequence, None)
+                    .await?;
                 self.emit(Event::BlockChanged { x, y, z, state_id });
             }
             0x0c => {
@@ -4651,7 +4668,21 @@ impl Bot {
             }
             0x0e => self.emit(Event::Chat(parse_chat(&p)?)),
             0x0f => {
-                let count = self.world.lock().await.apply_multi_block_change(&p)?;
+                let changes = self
+                    .world
+                    .lock()
+                    .await
+                    .apply_multi_block_change_with_changes(&p)?;
+                let count = changes.len();
+                for (position, state_id) in changes {
+                    self.common_mining_target_received(
+                        [position.x, position.y, position.z],
+                        state_id,
+                        packet_sequence,
+                        None,
+                    )
+                    .await?;
+                }
                 self.advance_block_geometry_revision();
                 self.world_updated.notify_waiters();
                 self.emit(Event::MultiBlockChanged { count });
@@ -4871,6 +4902,7 @@ impl Bot {
             0x1d => {
                 let (x, z) = self.world.lock().await.unload_chunk(&p)?;
                 self.advance_block_geometry_revision();
+                self.common_mining_chunk_changed([x, z]).await;
                 self.emit(Event::ChunkUnloaded { x, z });
             }
             0x1e => {
@@ -4934,6 +4966,7 @@ impl Bot {
                 Ok((x, z)) => {
                     self.advance_block_geometry_revision();
                     self.world_updated.notify_waiters();
+                    self.common_mining_chunk_changed([x, z]).await;
                     self.emit(Event::ChunkLoaded { x, z });
                 }
                 Err(e) => self.emit(Event::Error {
@@ -5562,6 +5595,7 @@ impl Bot {
             }
             _ => {}
         }
+        self.common_mining_context_received().await?;
         self.enforce_session_limits().await?;
         Ok(true)
     }

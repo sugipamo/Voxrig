@@ -16,11 +16,22 @@ impl Bot {
         target::validate_reach(distance)?;
         let _gate = self.coherent_state_gate.lock().await;
         self.common_motion_admission().await?;
+        self.common_target_unlocked(distance, None).await
+    }
+    pub(super) async fn common_target_unlocked(
+        &self,
+        distance: f64,
+        mining_owner: Option<crate::client::survival::MiningId>,
+    ) -> Result<crate::client::survival::BlockTargetObservation> {
+        use crate::client::survival::target;
         let preview = self
-            .common_preview_unlocked(&[SurvivalControl {
-                yaw: 0.0,
-                input: Default::default(),
-            }])
+            .common_preview_core(
+                &[SurvivalControl {
+                    yaw: 0.0,
+                    input: Default::default(),
+                }],
+                mining_owner,
+            )
             .await?;
         let mut eye = preview.initial_frame.position;
         target::validate_rotation(preview.initial.rotation)?;
@@ -78,11 +89,32 @@ impl Bot {
         self.common_preview_unlocked(controls).await
     }
     async fn common_preview_unlocked(&self, controls: &[SurvivalControl]) -> Result<MotionPreview> {
+        self.common_preview_core(controls, None).await
+    }
+    pub(super) async fn common_preview_core(
+        &self,
+        controls: &[SurvivalControl],
+        mining_owner: Option<crate::client::survival::MiningId>,
+    ) -> Result<MotionPreview> {
         if self.connection_state() != ConnectionState::Ready {
             return Err(motion_state("connection not ready"));
         }
         let initial = self.common_player_unlocked().await?;
-        if initial.pending_dispatch {
+        let owns_mining = mining_owner.is_some_and(|id| id.session() == initial.session)
+            && self
+                .common_mining
+                .lock()
+                .await
+                .as_ref()
+                .is_some_and(|m| Some(m.record.id) == mining_owner)
+            && !self.common_receipts.lock().await.pending_dispatch
+            && self
+                .common_motion
+                .lock()
+                .await
+                .as_ref()
+                .is_none_or(|m| m.record.status.is_continuation_candidate());
+        if initial.pending_dispatch && !owns_mining {
             return Err(motion_state("prior common dispatch unresolved"));
         }
         if initial.game_mode != Some(GameMode::Survival)
@@ -174,6 +206,9 @@ pub(super) struct NativeMotionRun {
 }
 impl Bot {
     pub(super) async fn common_motion_pauses_physics(&self) -> bool {
+        if self.common_mining.lock().await.is_some() {
+            return true;
+        }
         self.common_motion
             .lock()
             .await
@@ -181,6 +216,7 @@ impl Bot {
             .is_some_and(|run| !run.record.status.is_continuation_candidate())
     }
     pub(super) async fn interrupt_common_motion(&self, problem: &str) {
+        self.interrupt_common_mining(problem).await;
         if let Some(run) = self.common_motion.lock().await.as_mut() {
             run.record.status = MotionStatus::RequiresInspection;
             run.record
@@ -189,6 +225,11 @@ impl Bot {
         }
     }
     pub(super) async fn common_motion_admission(&self) -> Result<()> {
+        if self.common_mining.lock().await.is_some() {
+            return Err(motion_state(
+                "common mining retained; inspect and use explicit fresh recovery before continuation",
+            ));
+        }
         let run = self.common_motion.lock().await.clone();
         if let Some(run) = run {
             if run.record.status != MotionStatus::Predicted {
@@ -509,7 +550,7 @@ impl Bot {
         Ok(())
     }
 }
-fn legacy_movement_attribute(survival: &SurvivalState) -> Option<&Attribute> {
+pub(super) fn legacy_movement_attribute(survival: &SurvivalState) -> Option<&Attribute> {
     survival
         .attributes
         .get("minecraft:generic.movement_speed")
@@ -571,9 +612,9 @@ fn motion_state(message: &str) -> crate::Error {
 }
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use super::*;
-    async fn seed_motion(bot: &Bot) {
+    pub(in crate::versions::java_1_16_1::client) async fn seed_motion(bot: &Bot) {
         bot.teleport_barrier_ticks.store(u8::MAX, Ordering::Release);
         bot.survival.write().await.game_mode = Some(0);
         *bot.local_pose.lock().await = Some(0);

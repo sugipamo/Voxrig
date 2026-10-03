@@ -10,6 +10,13 @@ python3 scripts/run_common_native.py --all --accept-eula
 
 Python 3.8以上、Java 21、Cargoとネットワーク接続が必要。
 `--accept-eula`は起動する公式サーバーのEULAへ同意している場合に指定する。
+`--runtime-dir /dev/shm`を指定すると、使い捨てruntime/worldをメモリ上で動かせる。
+この環境の最終試験はこの設定を使用した。runtimeは両版とも100MiB未満で、JVMは同時起動しない。
+JVMを回収してから`.local/native-client-unification/`へ記録とworldをコピーし、一時領域を削除する。
+ディスク上では切断確認のRCONがtimeoutし、終了時のdumpに保存I/O待ちが残った試行もある。
+その試行は強制終了した失敗としてhashと理由を保存し、成功したrunへ上書きしない。
+この設定の成功はディスク永続化や終了保存の耐障害性の検証ではない。
+
 単独版の実行は`--version 1.16.1`または`--version 1.21.11`を使う。
 `--all`は1.16.1の終了後に1.21.11を起動する。ビルドもサーバー起動前に`-j1`で完了させる。
 同時に別のビルド・検証サーバーを起動しない。
@@ -25,6 +32,7 @@ Python 3.8以上、Java 21、Cargoとネットワーク接続が必要。
 | survivalへ変更した後のcreative write拒否 | Clientが拒否し、RCONのInventoryにもdiamondが出現しない |
 | survivalの35tick read-only preview | fresh teleport後に同じ型の予測を取得し、前後のRCON Posが`[0.5,65.0,0.5]`のまま |
 | survivalのread-only first outline | 選択cellが実際のstoneで、query前後のRCON Posが同じ。面/交点は別のnative-method oracleと照合 |
+| survivalのstone START/FINISH | 新しい接続でfresh target airを受信し、RCONでもair・位置不変を確認 |
 | survivalの有限jump/歩行 | RCONで途中の高さ・水平移動を取得し、実終点が予測終点に一致 |
 
 共通Clientは実際の受信mode・teleport・対象blockを待ってから操作する。
@@ -56,7 +64,7 @@ run全体はfailedとする。次版は前版のprocessを回収してから起�
 
 コミットされた[結果の抜粋](../data/client_api/common_native_evidence.json)にはJARの出所、
 検証コードのhash、独立確認の結果と終了codeを記録する。
-これは上記基本操作・有限dry移動・限定read-only狙い判定の検証であり、さらに広い移動条件、survival採掘・設置、container、crafting、
+これは上記基本操作・有限dry移動・限定read-only狙い判定の検証であり、さらに広い移動条件、広い採掘条件・survival設置、container、crafting、
 複雑なitem data、entity、復旧などの残作業を完了扱いにするものではない。
 previewの取得は実際のsurvival移動を検証するものではない。
 
@@ -68,4 +76,15 @@ controllerは途中のPosをRCONで複数回取得し、1block以上の上昇、
 
 read-only狙い判定も同じconsumerで実行し、creativeで設置したstoneの最初のoutlineを取得する。
 RCONでは対象stoneとPos不変を確認する。面/交点が正しいことは別の[公式JARのnative-method oracle](common-survival-targeting.md)で検査し、
-このRCON確認をserver自身のtarget receiptと扱わない。survival採掘・設置のmutation/receiptは後続段階に残る。
+このRCON確認をserver自身のtarget receiptと扱わない。続いて別の新しい接続でsurvival採掘を行う。保持した有限移動runから暗黙に復旧しない。
+creative writeが送信者へ返送されない場合もあるため、移動試験前の`clear`は実際の在庫更新を受信させるfixture操作である。
+Clientの未解決在庫markerをRCON確認で消したり、previewのguardを回避したりしない。
+
+採掘は新しい接続の受信mode・own pose・空のcursor/selected slot・target stoneを待ち、
+明示的なSTARTとFINISHを行う。estimated waitはローカルの待機目安だけとし、
+結果はClientのexact target air受信と独立したRCONの対象airで確認する。
+重複FINISH、競合look、air確認後の操作継続も拒否される。元の受信poseと閉じた接続の履歴を保持する。
+survival設置と共通fresh recoveryは後続段階に残る。
+
+メモリ上の速いfixtureでも、teleportのown-pose受信とlocal grounded geometryの成立は別である。
+採掘前のread-only target queryで条件が整うまで待ち、stand guardを回避しない。

@@ -209,6 +209,34 @@ impl Client {
             Adapter::Java1_21_11(bot) => bot.operations().common_capture(region).await,
         }
     }
+    pub(crate) async fn start_common_mining(
+        &self,
+        target: [i32; 3],
+        face: crate::BlockFace,
+    ) -> Result<crate::client::survival::MiningRecord> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_start_mining(target, face).await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_start_mining(target, face).await,
+        }
+    }
+    pub(crate) async fn send_common_mining(
+        &self,
+        id: crate::client::survival::MiningId,
+        action: crate::client::survival::MiningAction,
+    ) -> Result<crate::client::survival::MiningRecord> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_mining_send(id, action).await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_mining_send(id, action).await,
+        }
+    }
+    pub(crate) async fn common_mining_record(
+        &self,
+    ) -> Result<Option<crate::client::survival::MiningRecord>> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_mining_record().await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_mining_record().await,
+        }
+    }
     pub(crate) async fn survival_block_target(
         &self,
         distance: f64,

@@ -249,3 +249,17 @@ MinecraftVersionと拡張予定の共通enumはnon_exhaustiveです。利用側�
 `initial`の観測根拠と`hit`のmodel計算を分けて扱う。queryは採掘/設置許可やserver受理の証拠ではない。
 1.16.1は現在の12素材のoutline、1.21.11は既存のstatic outlineが対象。
 任意のentity/fluid/shapeを既知のcubeへ置き換えない。詳細は[共通狙い判定](common-survival-targeting.md)を参照。
+
+## 共通Clientの採掘へ移行
+
+通常の利用側は`client.survival().start_mining(target, face)`と返された`MiningId`を使用し、
+`finish_mining(id)` / `abort_mining(id)`を明示的に呼ぶ。診断は`mining_record()`から取得する。
+legacyの時間指定`dig_block`をそのままtimeout/retryのループへ移植せず、I/O前に保持される
+共通attemptを扱う。modernのnative `MiningIntent`と共通`MiningId`は別の公開契約で混ぜない。
+`MiningInventoryChangeKind`は共通側が所有し、modernの旧importは同じ型のre-exportとなる。
+
+Clientの`pending_dispatch`は在庫/位置に加え、保持中の採掘、未解決の設置/有限移動も含む。
+common preview/target queryは未解決dispatchがあれば拒否する。creative writeに対する
+RCON確認をClientのslot受信として扱わず、実際のinventory updateを待つ。
+採掘airやABORTを次の操作許可とせず、共通fresh recoveryは後続段階として扱う。
+前提・stage・取消の扱いは[共通Survivalの採掘](common-survival-mining.md)を参照。

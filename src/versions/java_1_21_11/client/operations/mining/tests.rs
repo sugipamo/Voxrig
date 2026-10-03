@@ -1886,3 +1886,208 @@ mod inventory_tests;
 
 #[path = "profile_tests.rs"]
 mod profile_tests;
+
+#[tokio::test]
+async fn common_mining_runs_identical_consumer_and_preserves_native_stage_guards() {
+    let mut f = Fixture::new().await;
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    let record =
+        crate::client::tests::common_mining_start_scenario(&client, TARGET, crate::BlockFace::West)
+            .await;
+    assert!(record.start.interaction_sequence.is_some());
+    let (id, p) = read_packet(&mut f.peer, None).await.unwrap();
+    assert_eq!(id, ids::play_serverbound::BLOCK_DIG);
+    assert_eq!(p[0], 0);
+    crate::client::tests::common_mining_finish_scenario(&client, record.id).await;
+    for action in [2, 1] {
+        let (id, p) = read_packet(&mut f.peer, None).await.unwrap();
+        assert_eq!(id, ids::play_serverbound::BLOCK_DIG);
+        assert_eq!(p[0], action);
+    }
+    f.change([4, 2, 0], &native("air")).await;
+    assert!(
+        client
+            .survival()
+            .mining_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .target_receipt
+            .is_none()
+    );
+    f.change(TARGET, &native("air")).await;
+    crate::client::tests::common_mining_removal_scenario(&client, record.id).await;
+    f.change(TARGET, &native("stone")).await;
+    assert_eq!(
+        client
+            .survival()
+            .mining_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        crate::client::survival::MiningStage::ObservedRemoved
+    );
+    assert_eq!(
+        client
+            .capture(crate::Region {
+                min: TARGET,
+                max: TARGET
+            })
+            .await
+            .unwrap()
+            .world
+            .blocks[0]
+            .state
+            .as_ref()
+            .unwrap()
+            .name,
+        "minecraft:stone"
+    );
+    f.stop().await;
+}
+#[tokio::test]
+async fn cancelled_common_start_without_io_cannot_become_removed_from_later_air() {
+    let mut f = Fixture::new().await;
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    let writer = f.session.writer.lock().await;
+    let ops = client.survival();
+    let mut start = Box::pin(ops.start_mining(TARGET, crate::BlockFace::West));
+    std::future::poll_fn(|cx| {
+        assert!(start.as_mut().poll(cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+    drop(start);
+    drop(writer);
+    let retained = client.survival().mining_record().await.unwrap().unwrap();
+    assert!(!retained.start.dispatched);
+    assert_eq!(retained.stage, crate::client::survival::MiningStage::Mining);
+    f.change(TARGET, &native("air")).await;
+    let changed = client.survival().mining_record().await.unwrap().unwrap();
+    assert_eq!(changed.id, retained.id);
+    assert_eq!(
+        changed.stage,
+        crate::client::survival::MiningStage::RequiresInspection
+    );
+    assert!(
+        changed
+            .requires_inspection
+            .unwrap()
+            .contains("without a complete")
+    );
+    assert!(client.survival().finish_mining(retained.id).await.is_err());
+    assert!(
+        timeout(Duration::from_millis(30), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.stop().await;
+}
+#[tokio::test]
+async fn common_mining_refuses_inferred_empty_cursor_without_start_io_or_intent() {
+    let mut f = Fixture::new().await;
+    f.session
+        .state
+        .lock()
+        .await
+        .operations
+        .inventory
+        .cursor_sequence = None;
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    assert!(
+        client
+            .player_state()
+            .await
+            .unwrap()
+            .inventory
+            .cursor
+            .is_none()
+    );
+    assert!(
+        client
+            .survival()
+            .start_mining(TARGET, crate::BlockFace::West)
+            .await
+            .is_err()
+    );
+    assert!(client.survival().mining_record().await.unwrap().is_none());
+    assert!(f.session.state.lock().await.mining.is_none());
+    assert!(
+        timeout(Duration::from_millis(30), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.stop().await;
+}
+#[tokio::test]
+async fn common_mining_latches_transient_support_loss_before_restoration_and_target_air() {
+    let mut f = Fixture::new().await;
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    let record = client
+        .survival()
+        .start_mining(TARGET, crate::BlockFace::West)
+        .await
+        .unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    f.change([0, 0, 0], &native("air")).await;
+    f.change([0, 0, 0], &native("stone")).await;
+    f.change(TARGET, &native("air")).await;
+    let current = client.survival().mining_record().await.unwrap().unwrap();
+    assert_eq!(current.id, record.id);
+    assert_eq!(
+        current.stage,
+        crate::client::survival::MiningStage::RequiresInspection
+    );
+    assert!(
+        current
+            .requires_inspection
+            .unwrap()
+            .contains("standing prerequisites")
+    );
+    assert!(client.survival().finish_mining(record.id).await.is_err());
+    assert!(
+        timeout(Duration::from_millis(30), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.stop().await;
+}
+#[tokio::test]
+async fn common_mining_retains_before_io_capture_and_cancelled_modern_finish_after_closure() {
+    let mut f = Fixture::new().await;
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    let record = client
+        .survival()
+        .start_mining(TARGET, crate::BlockFace::West)
+        .await
+        .unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    let guard = f.session.writer.lock().await;
+    let ops = client.survival();
+    let mut finish = Box::pin(ops.finish_mining(record.id));
+    std::future::poll_fn(|cx| {
+        assert!(finish.as_mut().poll(cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+    drop(finish);
+    drop(guard);
+    let current = client.survival().mining_record().await.unwrap().unwrap();
+    assert_eq!(current.id, record.id);
+    assert_eq!(current.initial.received_pose, record.initial.received_pose);
+    assert_eq!(current.initial.position, record.initial.position);
+    assert_eq!(
+        current.stage,
+        crate::client::survival::MiningStage::PendingAfterFinish
+    );
+    assert!(!current.finish.unwrap().dispatched);
+    assert!(client.survival().finish_mining(record.id).await.is_err());
+    f.stop().await;
+    let closed = client.survival().mining_record().await.unwrap().unwrap();
+    assert_eq!(
+        closed.stage,
+        crate::client::survival::MiningStage::RequiresInspection
+    );
+    assert_eq!(closed.id, record.id);
+}

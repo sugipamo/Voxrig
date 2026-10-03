@@ -2,7 +2,8 @@
 """Run a fixed common-Client scenario against isolated, sequential vanilla servers.
 
 Results come from native server RCON independently of Voxrig's received cache.
-Only disposable files under .local/native-client-unification are modified.
+Only disposable run files are modified. An optional runtime parent can isolate
+disk I/O; diagnostics are retained under .local/native-client-unification.
 """
 import argparse
 import hashlib
@@ -11,6 +12,7 @@ import os
 from pathlib import Path
 import queue
 import re
+import shutil
 import secrets
 import signal
 import socket
@@ -125,7 +127,7 @@ def matched(response, pattern):
 
 
 def stage(probe, messages, name, records, timeout=30, poll=None):
-    if name != "ready":
+    if name not in ("ready", "mining_ready"):
         probe.stdin.write(name + "\n")
         probe.stdin.flush()
     deadline = time.monotonic() + timeout
@@ -140,17 +142,20 @@ def stage(probe, messages, name, records, timeout=30, poll=None):
             continue
         record = json.loads(line)
         records.append(record)
-        if record["stage"] == name or (name == "disconnect" and record["stage"] == "disconnected"):
+        aliases = {"disconnect": "disconnected", "mining_disconnect": "mining_disconnected"}
+        if record["stage"] == name or record["stage"] == aliases.get(name):
             print("native", name, "received", flush=True)
             return record
     raise TimeoutError("probe stage timed out: " + name)
 
 
-def run(version, accept_eula):
+def run(version, accept_eula, runtime_root=None):
     if not accept_eula:
         raise RuntimeError("pass --accept-eula when authorized to run the official server")
     jar, source = download(version)
-    folder = ROOT / ("trial-" + version + "-" + uuid.uuid4().hex[:8])
+    run_id = "trial-" + version + "-" + uuid.uuid4().hex[:8]
+    retained = ROOT / run_id
+    folder = (runtime_root or ROOT) / run_id
     folder.mkdir(parents=True)
     port, rcon_port = free_port(), free_port()
     while port == rcon_port:
@@ -196,6 +201,7 @@ network-compression-threshold=256
     server = subprocess.Popen(["java", "-XX:ActiveProcessorCount=1", "-Xms256M", "-Xmx1024M", "-jar", str(jar), "nogui"], cwd=folder, stdin=subprocess.PIPE, stdout=server_log, stderr=subprocess.STDOUT, text=True)
     probe, rcon = None, None
     report = {"version":version, "run_id":folder.name, "source":source, "server_memory_limit":"1024M", "sync_chunk_writes":False, "result":"running", "scenario_result":"running", "native_results":{}, "client_records":[]}
+    report["runtime_parent"] = str(folder.parent)
     (folder / "process.json").write_text(json.dumps({"server_pid":server.pid, "version":version, "started":time.time()}) + "\n")
     print(version, "server", server.pid, "log", folder, flush=True)
     try:
@@ -256,6 +262,10 @@ network-compression-threshold=256
         if 'id: "minecraft:diamond"' in forbidden:
             raise RuntimeError("forbidden creative write affected server inventory")
         report["native_results"]["survival_guard"] = forbidden
+        # Creative writes need not echo to their sender. Force a real inventory
+        # update before requiring a settled survival capture; RCON verification
+        # above never substitutes for a received slot in the Client.
+        report["preview_inventory_reset"] = rcon.command("clear UnifiedProbe")
         report["preview_teleport"] = rcon.command("tp UnifiedProbe 0.5 65 0.5 0 0")
         stationary = until(lambda: matched(rcon.command("data get entity UnifiedProbe Pos"), r"\[0\.5d, 65\.0d, 0\.5d\]"))
         stage(probe, messages, "survival_preview", report["client_records"])
@@ -300,6 +310,44 @@ network-compression-threshold=256
         probe.wait(timeout=10)
         if probe.returncode != 0:
             raise RuntimeError("probe failed after disconnect")
+        thread.join(timeout=2)
+        if thread.is_alive():
+            raise RuntimeError("first probe reader did not finish")
+        # Mining retains an unresolved source; run it on a new connection after
+        # the motion client has ended. The Rust consumer has no version branches.
+        until(lambda: matched(rcon.command("execute unless entity @a[name=UnifiedProbe]"), "Test passed"))
+        mining_fixture = rcon.command("setblock 0 65 3 minecraft:stone")
+        if "Changed the block" not in mining_fixture:
+            raise RuntimeError("native mining fixture rejected: " + mining_fixture)
+        report["mining_fixture"] = mining_fixture
+        report["mining_records"] = []
+        mining_env = dict(env, VOXRIG_NATIVE_SCENARIO="mining")
+        probe = subprocess.Popen([str(REPO / "target/debug/examples/common_native_probe")], cwd=REPO, env=mining_env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+        messages = queue.Queue()
+        thread = threading.Thread(target=pump, args=(probe.stdout, messages, probe_log), daemon=True)
+        thread.start()
+        stage(probe, messages, "mining_ready", report["mining_records"])
+        report["mining_mode_change"] = rcon.command("gamemode survival UnifiedProbe")
+        report["mining_teleport"] = rcon.command("tp UnifiedProbe 0.5 65 0.5 0 0")
+        report["mining_clear_inventory"] = rcon.command("clear UnifiedProbe")
+        stage(probe, messages, "mining_baseline", report["mining_records"])
+        mining_position = rcon.command("data get entity UnifiedProbe Pos")
+        started = stage(probe, messages, "mining_start", report["mining_records"])["value"]
+        time.sleep(started["estimated_wait_ms"] / 1000.0 + 0.2)
+        completed = stage(probe, messages, "mining_finish", report["mining_records"])["value"]
+        native_air = until(lambda: matched(rcon.command("execute if block 0 65 3 minecraft:air"), "Test passed"))
+        after_mining = rcon.command("data get entity UnifiedProbe Pos")
+        if after_mining != mining_position:
+            raise RuntimeError("stationary mining changed native position")
+        report["native_results"]["survival_mining"] = {
+            "native_target": native_air, "position_before": mining_position,
+            "position_after": after_mining, "stage": completed["stage"],
+            "continuation_validated": completed["continuation_validated"],
+        }
+        stage(probe, messages, "mining_disconnect", report["mining_records"])
+        probe.wait(timeout=10)
+        if probe.returncode != 0:
+            raise RuntimeError("mining probe failed after disconnect")
         report["scenario_result"] = "passed"
         print(version, "native scenario verified; waiting for clean shutdown", flush=True)
     except BaseException as error:
@@ -350,6 +398,11 @@ network-compression-threshold=256
         (folder / "report.json").write_text(json.dumps(report, indent=2) + "\n")
         for handle in (server_log, stderr_log, probe_log):
             handle.close()
+        if folder != retained:
+            # Export only after the JVM is reaped. No server I/O or gameplay is
+            # running while copying the disposable runtime back to diagnostics.
+            shutil.copytree(folder, retained)
+            shutil.rmtree(folder)
         print(version, "stopped", server.returncode, flush=True)
     if report["result"] != "passed":
         raise RuntimeError(report["error"])
@@ -362,12 +415,13 @@ def main():
     parser.add_argument("--version", choices=VERSIONS)
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--accept-eula", action="store_true")
+    parser.add_argument("--runtime-dir", type=Path, help="Optional disposable runtime parent, e.g. /dev/shm for isolating disk I/O; reports are exported to .local after JVM exit")
     args = parser.parse_args()
     if bool(args.version) == args.all:
         parser.error("select exactly one of --version / --all")
     subprocess.run(["cargo", "build", "--locked", "-j1", "--example", "common_native_probe"], cwd=REPO, env=dict(os.environ, CARGO_BUILD_JOBS="1"), check=True)
     for version in VERSIONS if args.all else [args.version]:
-        run(version, args.accept_eula)
+        run(version, args.accept_eula, args.runtime_dir.resolve() if args.runtime_dir else None)
 
 
 if __name__ == "__main__":

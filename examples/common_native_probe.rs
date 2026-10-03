@@ -3,7 +3,10 @@
 use anyhow::Context;
 use std::{io::Write, time::Duration};
 use tokio::io::{AsyncBufReadExt, BufReader};
-use voxrig::{BlockFace, Region, client::prelude::*};
+use voxrig::{
+    BlockFace, Region,
+    client::{SlotKnowledge, prelude::*},
+};
 
 fn emit(stage: &str, value: impl serde::Serialize) -> anyhow::Result<()> {
     println!("{}", serde_json::json!({"stage":stage,"value":value}));
@@ -47,6 +50,156 @@ async fn wait_block(client: &Client, position: [i32; 3], name: &str) -> anyhow::
     })
     .await?
 }
+// A fresh connection isolates mining's unresolved continuation boundary from
+// the earlier motion scenario. Both versions execute this exact consumer.
+async fn mining_probe(client: &Client) -> anyhow::Result<()> {
+    let ready = client.player_state().await?;
+    let initial_sequence = ready.receive_sequence;
+    emit("mining_ready", ready)?;
+    let mut commands = BufReader::new(tokio::io::stdin()).lines();
+    while let Some(command) = commands.next_line().await? {
+        match command.as_str() {
+            "mining_baseline" => {
+                let player = wait_player(client, |p| {
+                    p.game_mode == Some(GameMode::Survival)
+                        && p.received_pose.as_ref().is_some_and(|pose| {
+                            pose.receive_sequence > initial_sequence
+                                && pose.position == [0.5, 65.0, 0.5]
+                        })
+                        && p.inventory.window_id == Some(0)
+                        && p.inventory
+                            .cursor
+                            .as_ref()
+                            .is_some_and(|c| c.value == SlotKnowledge::Empty)
+                        && p.inventory.slots[36]
+                            .as_ref()
+                            .is_some_and(|c| c.value == SlotKnowledge::Empty)
+                        && p.health.as_ref().is_some_and(|h| h.value.health > 0.0)
+                })
+                .await?;
+                wait_block(client, [0, 65, 3], "minecraft:stone").await?;
+                emit("mining_baseline", player)?;
+            }
+            "mining_start" => {
+                let ops = client.survival();
+                ops.select_hotbar(0).await?;
+                tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        match ops.look([0.0, 20.48]).await {
+                            Ok(_) => return Ok::<_, anyhow::Error>(()),
+                            Err(e) => {
+                                eprintln!("mining awaiting stationary native context: {e}");
+                                tokio::time::sleep(Duration::from_millis(50)).await;
+                            }
+                        }
+                    }
+                })
+                .await??;
+                let target = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        match ops.target_block(4.5).await {
+                            Ok(target) => return Ok::<_, anyhow::Error>(target),
+                            Err(error) => {
+                                eprintln!(
+                                    "mining awaiting received dry standing geometry: {error}"
+                                );
+                                tokio::time::sleep(Duration::from_millis(50)).await;
+                            }
+                        }
+                    }
+                })
+                .await??;
+                let hit = target.hit.context("mining first outline missing")?;
+                anyhow::ensure!(
+                    hit.position == [0, 65, 3] && hit.face == BlockFace::North,
+                    "unexpected mining first hit"
+                );
+                let started = ops.start_mining(hit.position, hit.face).await?;
+                anyhow::ensure!(started.start.dispatched, "incomplete START");
+                anyhow::ensure!(
+                    ops.select_hotbar(1).await.is_err(),
+                    "competing mining action admitted"
+                );
+                anyhow::ensure!(
+                    ops.start_mining(hit.position, hit.face).await.is_err(),
+                    "duplicate mining admitted"
+                );
+                emit("mining_start", started)?;
+            }
+            "mining_finish" => {
+                let ops = client.survival();
+                let current = ops
+                    .mining_record()
+                    .await?
+                    .context("retained mining missing")?;
+                anyhow::ensure!(
+                    current.stage == MiningStage::Mining,
+                    "mining interrupted before FINISH: {:?}",
+                    current.requires_inspection
+                );
+                let sent = ops.finish_mining(current.id).await?;
+                anyhow::ensure!(
+                    sent.finish.as_ref().is_some_and(|f| f.dispatched),
+                    "incomplete FINISH"
+                );
+                anyhow::ensure!(
+                    ops.finish_mining(current.id).await.is_err(),
+                    "FINISH replay admitted"
+                );
+                let removed = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let record = ops
+                            .mining_record()
+                            .await?
+                            .context("retained mining missing")?;
+                        match record.stage {
+                            MiningStage::ObservedRemoved => return Ok::<_, anyhow::Error>(record),
+                            MiningStage::RequiresInspection => anyhow::bail!(
+                                "native mining interrupted: {:?}",
+                                record.requires_inspection
+                            ),
+                            _ => tokio::time::sleep(Duration::from_millis(25)).await,
+                        }
+                    }
+                })
+                .await??;
+                anyhow::ensure!(
+                    !removed.continuation_validated,
+                    "air granted unsafe continuation"
+                );
+                anyhow::ensure!(
+                    removed
+                        .target_receipt
+                        .as_ref()
+                        .is_some_and(|r| r.state.name == "minecraft:air"
+                            && r.receive_sequence > removed.start.after_sequence),
+                    "missing fresh target air"
+                );
+                anyhow::ensure!(
+                    ops.look([0.0; 2]).await.is_err(),
+                    "mining removal released source"
+                );
+                anyhow::ensure!(
+                    ops.abort_mining(current.id).await.is_err(),
+                    "ABORT after removal admitted"
+                );
+                emit("mining_finish", removed)?;
+            }
+            "mining_disconnect" => {
+                client.disconnect().await?;
+                let record = client
+                    .survival()
+                    .mining_record()
+                    .await?
+                    .context("closed mining diagnostics missing")?;
+                emit("mining_disconnected", record)?;
+                return Ok(());
+            }
+            _ => anyhow::bail!("unexpected mining fixture command"),
+        }
+    }
+    anyhow::bail!("mining fixture ended without disconnect")
+}
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let port: u16 = std::env::var("VOXRIG_PORT")?.parse()?;
@@ -54,6 +207,9 @@ async fn main() -> anyhow::Result<()> {
         ConnectionConfig::offline_from_env(Server::new("127.0.0.1", port), "UnifiedProbe")?;
     let client = Client::connect(config).await?;
     client.wait_until_ready().await?;
+    if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("mining") {
+        return mining_probe(&client).await;
+    }
     let ready = client.player_state().await?;
     let initial_sequence = ready.receive_sequence;
     emit("ready", &ready)?;

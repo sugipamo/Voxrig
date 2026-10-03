@@ -4,7 +4,7 @@
 //! Mining removal alone does not authorize further mutations on that connection.
 mod geometry;
 mod inventory;
-mod mining;
+pub(super) mod mining;
 mod movement;
 mod placement;
 mod profile_recovery;
@@ -260,6 +260,7 @@ pub(super) struct OperationState {
     abilities: Option<u8>,
     requested_flying: bool,
     ack: Option<i32>,
+    ack_receive_sequence: Option<u64>,
     inventory: Inventory,
     selected_hotbar: Option<HotbarSelection>,
     pub(super) local_player: LocalPlayerState,
@@ -904,7 +905,10 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             if seq < 0 {
                 bail!("negative interaction acknowledgement");
             }
-            next.ack = Some(next.ack.unwrap_or(0).max(seq));
+            if next.ack.is_none_or(|old| seq >= old) {
+                next.ack = Some(seq);
+                next.ack_receive_sequence = Some(state.sequence);
+            }
         }
         input::WINDOW_ITEMS
         | input::SET_SLOT
@@ -1060,7 +1064,17 @@ impl Operations {
             receive_sequence: state.sequence,
             pending_dispatch: self.bot.session.interrupted_packet.load(Ordering::Acquire) >= 0
                 || !inventory.pending_creative.is_empty()
-                || inventory.pending_swap.is_some(),
+                || inventory.pending_swap.is_some()
+                || state.motion.position_basis == PositionBasis::PendingSubmission
+                || state.mining.is_some()
+                || state
+                    .placement
+                    .as_ref()
+                    .is_some_and(|p| p.observation.is_none())
+                || state
+                    .survival_motion
+                    .as_ref()
+                    .is_some_and(|m| !m.status.is_continuation_candidate()),
             dimension: state
                 .world
                 .dimension

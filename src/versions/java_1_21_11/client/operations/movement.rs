@@ -68,6 +68,11 @@ impl Operations {
         target::validate_reach(distance)?;
         let mut state = self.bot.session.state.lock().await;
         self.ready(&state)?;
+        if self.common_player_unlocked(&state)?.pending_dispatch {
+            return Err(invalid(
+                "prior dispatch unresolved; inspect retained record",
+            ));
+        }
         let native = preview(
             &mut state,
             self.bot.session.id,
@@ -111,6 +116,11 @@ impl Operations {
     ) -> Result<crate::client::survival::MotionPreview> {
         let mut state = self.bot.session.state.lock().await;
         self.ready(&state)?;
+        if self.common_player_unlocked(&state)?.pending_dispatch {
+            return Err(invalid(
+                "prior dispatch unresolved; inspect retained record",
+            ));
+        }
         let native = preview(
             &mut state,
             self.bot.session.id,

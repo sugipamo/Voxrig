@@ -290,3 +290,70 @@ pub(crate) async fn common_motion_dispatch_scenario(client: &Client) {
     .await
     .unwrap();
 }
+
+// Identical mining consumer calls run against both native adapters. Only fixture
+// construction and packet application live in version-specific test modules.
+pub(crate) async fn common_mining_start_scenario(
+    client: &Client,
+    target: [i32; 3],
+    face: BlockFace,
+) -> survival::MiningRecord {
+    let before = client.player_state().await.unwrap();
+    let record = client.survival().start_mining(target, face).await.unwrap();
+    assert_eq!(record.initial.session, before.session);
+    assert_eq!(record.initial.position, before.position);
+    assert_eq!(record.initial.received_pose, before.received_pose);
+    assert_eq!(record.initial.inventory.cursor, before.inventory.cursor);
+    assert_eq!(record.target, target);
+    assert_eq!(record.face, face);
+    assert!(record.start.dispatched);
+    assert!(!record.continuation_validated);
+    assert!(record.finish.is_none() && record.abort.is_none());
+    assert_eq!(record.stage, survival::MiningStage::Mining);
+    let current = client.survival().mining_record().await.unwrap().unwrap();
+    assert_eq!(current.id, record.id);
+    assert!(client.survival().select_hotbar(0).await.is_err());
+    assert!(client.survival().look([0.0; 2]).await.is_err());
+    assert!(client.survival().start_mining(target, face).await.is_err());
+    assert!(
+        client
+            .survival()
+            .preview_path(&[survival::SurvivalControl {
+                yaw: 0.0,
+                input: Default::default()
+            }])
+            .await
+            .is_err()
+    );
+    record
+}
+pub(crate) async fn common_mining_finish_scenario(client: &Client, id: survival::MiningId) {
+    let finish = client.survival().finish_mining(id).await.unwrap();
+    assert!(finish.finish.unwrap().dispatched);
+    assert_eq!(finish.stage, survival::MiningStage::PendingAfterFinish);
+    assert!(client.survival().finish_mining(id).await.is_err());
+    let abort = client.survival().abort_mining(id).await.unwrap();
+    assert!(abort.abort.unwrap().dispatched);
+    assert_eq!(abort.stage, survival::MiningStage::PendingAfterFinish);
+    assert!(client.survival().abort_mining(id).await.is_err());
+    assert!(client.survival().finish_mining(id).await.is_err());
+}
+pub(crate) async fn common_mining_removal_scenario(client: &Client, id: survival::MiningId) {
+    let result = client.survival().mining_record().await.unwrap().unwrap();
+    assert_eq!(result.id, id);
+    assert_eq!(result.stage, survival::MiningStage::ObservedRemoved);
+    assert!(!result.continuation_validated);
+    let target = result.target_receipt.unwrap();
+    assert!(target.receive_sequence > result.start.after_sequence);
+    assert_eq!(target.state.name, "minecraft:air");
+    assert!(client.survival().look([0.0; 2]).await.is_err());
+    assert!(client.survival().finish_mining(id).await.is_err());
+    assert!(client.survival().abort_mining(id).await.is_err());
+    assert!(
+        client
+            .survival()
+            .start_mining(result.target, result.face)
+            .await
+            .is_err()
+    );
+}

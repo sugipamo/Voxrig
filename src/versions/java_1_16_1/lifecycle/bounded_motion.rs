@@ -1,4 +1,4 @@
-//! Actor-owned exclusive normal-dispatch gate for finite common movement.
+//! Actor-owned exclusive normal-dispatch gate for bounded common movement/mining.
 use super::*;
 type Admission<T> = Result<T, OperationAdmissionError>;
 
@@ -16,21 +16,45 @@ pub(super) enum MotionCommand {
         payload: Vec<u8>,
         reply: oneshot::Sender<crate::Result<()>>,
     },
+    MiningBegin {
+        run_id: u64,
+        expected_revision: u64,
+        target: crate::BlockPos,
+        face: u8,
+        reply: oneshot::Sender<Admission<()>>,
+    },
+    MiningDig {
+        run_id: u64,
+        action: crate::client::survival::MiningAction,
+        reply: oneshot::Sender<crate::Result<()>>,
+    },
     Finish {
         run_id: u64,
         reply: oneshot::Sender<Admission<()>>,
     },
 }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Owner {
+    Motion(u64),
+    Mining {
+        run_id: u64,
+        target: crate::BlockPos,
+        face: u8,
+        started: bool,
+        finished: bool,
+        aborted: bool,
+    },
+}
 #[derive(Default)]
 pub(super) struct MotionGate {
-    owner: Option<u64>,
+    owner: Option<Owner>,
     normal_revision: u64,
 }
 impl MotionGate {
     pub(super) fn normal_admission(&mut self, class: OperationClass) -> Admission<()> {
         if class == OperationClass::Normal {
             if self.owner.is_some() {
-                return Err(OperationAdmissionError::BoundedMotionInProgress);
+                return Err(self.owner_error());
             }
             self.normal_revision = self
                 .normal_revision
@@ -79,7 +103,7 @@ impl MotionGate {
                         if run_id == 0 || expected_revision != self.normal_revision {
                             return Err(OperationAdmissionError::InvalidOperation);
                         }
-                        self.owner = Some(run_id);
+                        self.owner = Some(Owner::Motion(run_id));
                         Ok(())
                     });
                 let _ = reply.send(result);
@@ -90,7 +114,7 @@ impl MotionGate {
                 reply,
             } => {
                 let admission = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
-                    if self.owner != Some(run_id) || payload.len() != 33 {
+                    if self.owner != Some(Owner::Motion(run_id)) || payload.len() != 33 {
                         return Err(OperationAdmissionError::InvalidOperation);
                     }
                     Ok(())
@@ -117,9 +141,98 @@ impl MotionGate {
                 let _ = reply.send(result);
                 return failed_write;
             }
+            MotionCommand::MiningBegin {
+                run_id,
+                expected_revision,
+                target,
+                face,
+                reply,
+            } => {
+                let result = self
+                    .can_begin(state, control, pending)
+                    .await
+                    .and_then(|()| {
+                        if run_id == 0
+                            || expected_revision != self.normal_revision
+                            || face > 5
+                            || !(0..=255).contains(&target.y)
+                            || target.x.abs_diff(0) > 30_000_000
+                            || target.z.abs_diff(0) > 30_000_000
+                        {
+                            return Err(OperationAdmissionError::InvalidOperation);
+                        }
+                        self.owner = Some(Owner::Mining {
+                            run_id,
+                            target,
+                            face,
+                            started: false,
+                            finished: false,
+                            aborted: false,
+                        });
+                        Ok(())
+                    });
+                let _ = reply.send(result);
+            }
+            MotionCommand::MiningDig {
+                run_id,
+                action,
+                reply,
+            } => {
+                let payload = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
+                    let Some(Owner::Mining {
+                        run_id: id,
+                        target,
+                        face,
+                        started,
+                        finished,
+                        aborted,
+                    }) = self.owner.as_mut()
+                    else {
+                        return Err(OperationAdmissionError::InvalidOperation);
+                    };
+                    if *id != run_id {
+                        return Err(OperationAdmissionError::InvalidOperation);
+                    }
+                    use crate::client::survival::MiningAction::*;
+                    match action {
+                        Start if !*started && !*finished && !*aborted => *started = true,
+                        Finish if *started && !*finished && !*aborted => *finished = true,
+                        Abort if *started && !*aborted => *aborted = true,
+                        _ => return Err(OperationAdmissionError::InvalidOperation),
+                    }
+                    // Actor records the stage BEFORE writer acquisition. Waiter cancellation
+                    // cannot send it twice or release ownership. Legacy has no interaction seq.
+                    let mut payload = vec![action as u8];
+                    payload.extend(target.packed().to_be_bytes());
+                    payload.push(*face);
+                    Ok(payload)
+                });
+                let admitted = payload.is_ok();
+                let result = match payload {
+                    Err(e) => Err(crate::Error::new(
+                        crate::ErrorKind::State,
+                        anyhow::anyhow!("bounded mining rejected: {e:?}"),
+                    )),
+                    Ok(payload) => {
+                        let mut writer = writer.lock().await;
+                        let compression = writer.compression;
+                        crate::protocol::write_packet(
+                            &mut writer.inner,
+                            compression,
+                            0x1b,
+                            &payload,
+                        )
+                        .await
+                        .map_err(crate::Error::from)
+                    }
+                };
+                let failed_write = admitted && result.is_err();
+                let _ = reply.send(result);
+                return failed_write;
+            }
             MotionCommand::Finish { run_id, reply } => {
                 let result = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
-                    if self.owner != Some(run_id) {
+                    if self.owner != Some(Owner::Motion(run_id)) {
                         return Err(OperationAdmissionError::InvalidOperation);
                     }
                     self.owner = None;
@@ -130,6 +243,12 @@ impl MotionGate {
         }
         false
     }
+    fn owner_error(&self) -> OperationAdmissionError {
+        match self.owner {
+            Some(Owner::Mining { .. }) => OperationAdmissionError::BoundedMiningInProgress,
+            _ => OperationAdmissionError::BoundedMotionInProgress,
+        }
+    }
     async fn can_begin(
         &self,
         state: ConnectionState,
@@ -138,7 +257,7 @@ impl MotionGate {
     ) -> Admission<()> {
         admit_lifecycle(state, OperationClass::Normal)?;
         if self.owner.is_some() {
-            return Err(OperationAdmissionError::BoundedMotionInProgress);
+            return Err(self.owner_error());
         }
         if pending || **control.read().await != crate::ControlState::default() {
             return Err(OperationAdmissionError::TransactionInProgress);
@@ -173,6 +292,42 @@ impl ConnectionActor {
             reply,
         })
         .await
+    }
+    pub(crate) async fn begin_bounded_mining(
+        &self,
+        run_id: u64,
+        expected_revision: u64,
+        target: crate::BlockPos,
+        face: u8,
+    ) -> Admission<()> {
+        self.motion_admission(|reply| MotionCommand::MiningBegin {
+            run_id,
+            expected_revision,
+            target,
+            face,
+            reply,
+        })
+        .await
+    }
+    pub(crate) async fn bounded_mining(
+        &self,
+        run_id: u64,
+        action: crate::client::survival::MiningAction,
+    ) -> crate::Result<()> {
+        let (reply, result) = oneshot::channel();
+        self.commands
+            .send(Command::Motion(MotionCommand::MiningDig {
+                run_id,
+                action,
+                reply,
+            }))
+            .await
+            .map_err(|_| {
+                crate::client::survival::mining::unavailable("bounded mining actor unavailable")
+            })?;
+        result.await.map_err(|_| {
+            crate::client::survival::mining::unavailable("bounded mining actor result missing")
+        })?
     }
     pub(crate) async fn finish_bounded_motion(&self, run_id: u64) -> Admission<()> {
         self.motion_admission(|reply| MotionCommand::Finish { run_id, reply })

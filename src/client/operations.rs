@@ -41,6 +41,40 @@ pub(crate) enum Action<'a> {
     UseOnBlock([i32; 3], BlockFace, [f32; 3]),
 }
 impl Survival {
+    /// Begin one stationary, received-empty-hand dirt/stone attempt.
+    /// Retains coherent capture/intent before I/O. No timer or cancellation sends
+    /// FINISH/ABORT automatically, and observed air never permits continuation.
+    pub async fn start_mining(
+        &self,
+        target: [i32; 3],
+        face: BlockFace,
+    ) -> Result<super::survival::MiningRecord> {
+        self.client.start_common_mining(target, face).await
+    }
+    /// Attempt FINISH once for the owning retained attempt; never replay it.
+    /// Estimated duration and protocol acknowledgement are not removal authority.
+    pub async fn finish_mining(
+        &self,
+        id: super::survival::MiningId,
+    ) -> Result<super::survival::MiningRecord> {
+        self.client
+            .send_common_mining(id, super::survival::MiningAction::Finish)
+            .await
+    }
+    /// Attempt ABORT once. Delayed mining remains unresolved after dispatch.
+    pub async fn abort_mining(
+        &self,
+        id: super::survival::MiningId,
+    ) -> Result<super::survival::MiningRecord> {
+        self.client
+            .send_common_mining(id, super::survival::MiningAction::Abort)
+            .await
+    }
+    /// Reconcile/read the retained attempt, including diagnostics after closure.
+    /// No resends or implicit recovery. Target/inventory conflicts stay latched.
+    pub async fn mining_record(&self) -> Result<Option<super::survival::MiningRecord>> {
+        self.client.common_mining_record().await
+    }
     /// Query the first static outline from a coherent dry-standing capture.
     /// Known version shapes and native view-vector math are used. Unavailable or
     /// unsupported geometry errors; the result never grants mining permission.

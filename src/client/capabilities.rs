@@ -31,6 +31,8 @@ pub enum Feature {
     SurvivalTargeting,
     /// Read-only bounded walking/jump model preview under dry standing defaults.
     SurvivalPreview,
+    /// Retained empty-hand dirt/stone mining, with explicit FINISH/ABORT and target receipts.
+    SurvivalMining,
     /// Connection-owned finite dry walking/jump dispatch under prediction contract.
     SurvivalMovement,
     /// Creative flight, default-stack writes and block interactions.
@@ -72,6 +74,9 @@ impl Capabilities {
             ),
             Feature::SurvivalPreview => Support::Restricted(
                 "read-only 1..120 walking/jump inputs; healthy stationary normal survival posture; native defaults; loaded dry full cubes",
+            ),
+            Feature::SurvivalMining => Support::Restricted(
+                "healthy dry standing; received empty selected hand/cursor; dirt/stone first outline; retained explicit commands/target conflicts; removal does not permit continuation",
             ),
             Feature::SurvivalMovement => Support::Restricted(
                 "1..120 dry walking/jump ticks with released-rest endpoint; retained intent/failure; predicted completion is not received acceptance",
