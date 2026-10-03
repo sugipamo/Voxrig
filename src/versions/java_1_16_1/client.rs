@@ -1,6 +1,7 @@
 //! Connection lifecycle, protocol events, observations, and player operations.
 
 mod common_api;
+mod common_inventory;
 mod common_mining;
 mod common_motion;
 mod common_placement;
@@ -1030,6 +1031,7 @@ pub struct Bot {
     common_motion: Arc<Mutex<Option<common_motion::NativeMotionRun>>>,
     common_mining: Arc<Mutex<Option<common_mining::NativeMiningRun>>>,
     common_placement: Arc<Mutex<Option<common_placement::NativePlacementRun>>>,
+    common_inventory_swap: Arc<Mutex<Option<common_inventory::NativeInventorySwap>>>,
     exact_window_barriers: Arc<Mutex<HashMap<(i8, i16), ExactWindowBarrier>>>,
     furnace_window_position: Arc<Mutex<Option<(i8, BlockPos)>>>,
     click_lock: Arc<Mutex<()>>,
@@ -1125,6 +1127,7 @@ impl Bot {
             common_motion: self.common_motion.clone(),
             common_mining: self.common_mining.clone(),
             common_placement: self.common_placement.clone(),
+            common_inventory_swap: self.common_inventory_swap.clone(),
             exact_window_barriers: self.exact_window_barriers.clone(),
             furnace_window_position: self.furnace_window_position.clone(),
             click_lock: self.click_lock.clone(),
@@ -1270,6 +1273,7 @@ impl Bot {
             common_motion: Arc::new(Mutex::new(None)),
             common_mining: Arc::new(Mutex::new(None)),
             common_placement: Arc::new(Mutex::new(None)),
+            common_inventory_swap: Arc::new(Mutex::new(None)),
             exact_window_barriers: Arc::new(Mutex::new(HashMap::new())),
             furnace_window_position: Arc::new(Mutex::new(None)),
             click_lock: Arc::new(Mutex::new(())),
@@ -4779,6 +4783,7 @@ impl Bot {
                     payload.push(1);
                     self.send_protocol(0x07, &payload).await?;
                 }
+                self.common_inventory_reply_received(transaction).await;
                 self.emit(Event::WindowTransaction(transaction));
             }
             0x13 => {
@@ -5611,6 +5616,7 @@ impl Bot {
         }
         self.common_mining_context_received().await?;
         self.common_placement_context_received().await?;
+        self.common_inventory_context_received().await?;
         self.enforce_session_limits().await?;
         Ok(true)
     }

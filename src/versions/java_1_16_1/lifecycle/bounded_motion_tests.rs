@@ -1,3 +1,4 @@
+fn swap_comparison() -> crate::versions::java_1_16_1::ItemStack { crate::versions::java_1_16_1::ItemStack { item_id:1,count:3,nbt:None } }
 #[tokio::test]
 async fn bounded_motion_excludes_normal_dispatch_but_preserves_protocol_and_cleanup() {
     let (actor, mut peer) = actor_fixture().await;
@@ -23,6 +24,29 @@ async fn bounded_motion_excludes_normal_dispatch_but_preserves_protocol_and_clea
     assert!(actor.bounded_position(2,vec![0;33]).await.is_err());
     actor.dispatch(context,OperationClass::Cleanup,0x1b,&[1]).await.unwrap();
     assert_eq!(read_packet(&mut peer,None).await.unwrap(),(0x1b,vec![1]));
+}
+
+#[tokio::test]
+async fn inventory_swap_actor_owns_click_identity_and_exact_release_without_replay(){
+    let (actor,mut peer)=actor_fixture().await;actor.mark_ready().await;let revision=actor.motion_admission_revision().await.unwrap();
+    let action=actor.begin_inventory_swap(1,revision).await.unwrap();assert_eq!(action,1);
+    let context=OperationContext{generation:actor.generation(),source_observation_sequence:0};
+    assert_eq!(actor.replace_control(context,OperationClass::Normal,crate::ControlState::default()).await,Err(OperationAdmissionError::BoundedInventorySwapInProgress));
+    assert!(actor.finish_bounded_motion(1).await.is_err());assert!(actor.finish_bounded_placement(1).await.is_err());assert!(actor.finish_inventory_swap(1).await.is_err());assert!(actor.bounded_inventory_swap(2,9,0,swap_comparison()).await.is_err());no_packet(&mut peer).await;
+    actor.bounded_inventory_swap(1,9,0,swap_comparison()).await.unwrap();assert_eq!(read_packet(&mut peer,None).await.unwrap(),(0x09,vec![0,0,9,0,0,1,2,1,1,3,0]));
+    assert!(actor.bounded_inventory_swap(1,9,0,swap_comparison()).await.is_err());actor.finish_inventory_swap(1).await.unwrap();
+    let revision=actor.motion_admission_revision().await.unwrap();assert_eq!(actor.begin_inventory_swap(2,revision).await.unwrap(),2);
+    actor.bounded_inventory_swap(2,35,8,swap_comparison()).await.unwrap();assert_eq!(read_packet(&mut peer,None).await.unwrap(),(0x09,vec![0,0,35,8,0,2,2,1,1,3,0]));actor.finish_inventory_swap(2).await.unwrap();
+}
+#[tokio::test]
+async fn inventory_swap_actor_cancelled_waiter_does_not_cancel_owned_write(){
+    let (actor,mut peer,writer)=actor_fixture_with_writer().await;actor.mark_ready().await;actor.begin_inventory_swap(1,actor.motion_admission_revision().await.unwrap()).await.unwrap();
+    let guard=writer.lock().await;let mut send=Box::pin(actor.bounded_inventory_swap(1,9,0,swap_comparison()));std::future::poll_fn(|cx|{assert!(send.as_mut().poll(cx).is_pending());std::task::Poll::Ready(())}).await;drop(send);drop(guard);
+    assert_eq!(timeout(Duration::from_secs(1),read_packet(&mut peer,None)).await.unwrap().unwrap().0,0x09);assert!(actor.bounded_inventory_swap(1,9,0,swap_comparison()).await.is_err());actor.finish_inventory_swap(1).await.unwrap();
+}
+#[tokio::test]
+async fn inventory_swap_actor_write_failure_retains_terminal_uncertainty(){
+    let (actor,_peer)=actor_fixture().await;actor.mark_ready().await;actor.begin_inventory_swap(1,actor.motion_admission_revision().await.unwrap()).await.unwrap();actor.shutdown_writer().await.unwrap();assert!(actor.bounded_inventory_swap(1,9,0,swap_comparison()).await.is_err());assert_eq!(actor.wait_for_terminal().await,ConnectionState::ConnectionStateUnknown);assert!(actor.finish_inventory_swap(1).await.is_err());
 }
 #[tokio::test]
 async fn bounded_motion_rejects_intervening_native_gameplay_before_acquisition() {

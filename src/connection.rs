@@ -209,6 +209,29 @@ impl Client {
             Adapter::Java1_21_11(bot) => bot.operations().common_capture(region).await,
         }
     }
+    pub(crate) async fn common_swap_hotbar(
+        &self,
+        mode: crate::client::GameMode,
+        main: u8,
+        hotbar: u8,
+    ) -> Result<crate::client::inventory::InventorySwapRecord> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_swap_hotbar(mode, main, hotbar).await,
+            Adapter::Java1_21_11(bot) => {
+                bot.operations()
+                    .common_swap_hotbar(mode, main, hotbar)
+                    .await
+            }
+        }
+    }
+    pub(crate) async fn common_inventory_swap_record(
+        &self,
+    ) -> Result<Option<crate::client::inventory::InventorySwapRecord>> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_inventory_swap_record().await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_inventory_swap_record().await,
+        }
+    }
     pub(crate) async fn place_common_cube(
         &self,
         support: [i32; 3],

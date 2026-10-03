@@ -2,6 +2,7 @@
 mod capabilities;
 mod config;
 mod geometry;
+pub mod inventory;
 mod observation;
 pub(crate) mod operations;
 pub mod registry;
@@ -21,6 +22,7 @@ pub use operations::{Creative, DispatchReceipt, Survival};
 
 /// Imports for consumers selecting their Minecraft version at setup.
 pub mod prelude {
+    pub use super::inventory::{InventorySwapId, InventorySwapRecord, InventorySwapStage};
     pub use super::survival::{
         BlockTargetHit, BlockTargetObservation, MiningId, MiningRecord, MiningStage, MotionPreview,
         MotionRecord, MotionStatus, PlacementId, PlacementRecord, PlacementStage, SurvivalControl,

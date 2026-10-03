@@ -244,7 +244,13 @@ pub(super) struct NativeMotionRun {
 }
 impl Bot {
     pub(super) async fn common_motion_pauses_physics(&self) -> bool {
-        if self.common_mining.lock().await.is_some()
+        if self
+            .common_inventory_swap
+            .lock()
+            .await
+            .as_ref()
+            .is_some_and(|s| !s.released)
+            || self.common_mining.lock().await.is_some()
             || self
                 .common_placement
                 .lock()
@@ -263,6 +269,7 @@ impl Bot {
     pub(super) async fn interrupt_common_motion(&self, problem: &str) {
         self.interrupt_common_mining(problem).await;
         self.interrupt_common_placement(problem).await;
+        self.interrupt_common_inventory_swap(problem).await;
         if let Some(run) = self.common_motion.lock().await.as_mut() {
             run.record.status = MotionStatus::RequiresInspection;
             run.record
@@ -271,6 +278,17 @@ impl Bot {
         }
     }
     pub(super) async fn common_motion_admission(&self) -> Result<()> {
+        if self
+            .common_inventory_swap
+            .lock()
+            .await
+            .as_ref()
+            .is_some_and(|s| !s.released)
+        {
+            return Err(motion_state(
+                "common inventory swap unresolved; inspect without replay",
+            ));
+        }
         if self.common_mining.lock().await.is_some() {
             return Err(motion_state(
                 "common mining retained; inspect and use explicit fresh recovery before continuation",

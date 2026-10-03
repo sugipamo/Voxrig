@@ -120,6 +120,8 @@ pub enum OperationAdmissionError {
     BoundedMiningInProgress,
     /// Retained placement owns gameplay dispatch until received outcomes agree.
     BoundedPlacementInProgress,
+    /// A retained common inventory exchange owns ordinary gameplay dispatch.
+    BoundedInventorySwapInProgress,
     /// The operation belongs to a previous or different connection.
     StaleGeneration,
     /// The connection has not reached its initial ready boundary.
@@ -141,6 +143,9 @@ impl Display for OperationAdmissionError {
         let name = match self {
             Self::BoundedMotionInProgress => "finite common motion owns gameplay dispatch",
             Self::BoundedPlacementInProgress => "retained common placement owns gameplay dispatch",
+            Self::BoundedInventorySwapInProgress => {
+                "retained common inventory swap owns gameplay dispatch"
+            }
             Self::BoundedMiningInProgress => "retained common mining owns gameplay dispatch",
             Self::StaleGeneration => "stale connection generation",
             Self::Connecting => "connection is not ready",
@@ -228,6 +233,11 @@ pub(crate) enum TerminalClassification {
 
 enum Command {
     Motion(bounded_motion::MotionCommand),
+    BeginInventorySwap {
+        run_id: u64,
+        expected_revision: u64,
+        reply: oneshot::Sender<Result<i16, OperationAdmissionError>>,
+    },
     RecordObservation {
         sequence: u64,
         reply: oneshot::Sender<Result<(), OperationAdmissionError>>,
@@ -415,6 +425,25 @@ impl ConnectionActor {
             let mut motion_gate = MotionGate::default();
             while let Some(command) = receiver.recv().await {
                 match command {
+                    Command::BeginInventorySwap {
+                        run_id,
+                        expected_revision,
+                        reply,
+                    } => {
+                        let result = motion_gate
+                            .begin_inventory_swap(
+                                run_id,
+                                expected_revision,
+                                state,
+                                &actor_control,
+                                !pending_transactions.is_empty()
+                                    || pending_furnace_interaction
+                                        .is_some_and(|p| p.expires_at > Instant::now()),
+                                &mut next_actions,
+                            )
+                            .await;
+                        let _ = reply.send(result);
+                    }
                     Command::Motion(command) => {
                         if motion_gate
                             .process(

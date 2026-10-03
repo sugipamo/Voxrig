@@ -3,7 +3,7 @@
 //! General locomotion/pathfinding and complex item components are not inferred.
 //! Mining removal alone does not authorize further mutations on that connection.
 mod geometry;
-mod inventory;
+pub(super) mod inventory;
 pub(super) mod mining;
 mod movement;
 pub(super) mod placement;
@@ -631,6 +631,13 @@ impl Operations {
     }
     pub(super) fn mutable(&self, state: &State) -> Result<()> {
         self.ready(state)?;
+        if state.common_inventory_swap.as_ref().is_some_and(|s| {
+            s.record.stage != crate::client::inventory::InventorySwapStage::ObservedSwapped
+        }) {
+            return Err(crate::client::inventory::unavailable(
+                "common inventory swap unresolved; inspect retained record without replay",
+            ));
+        }
         if !state.loading.notification_dispatched() {
             return Err(Error::new(
                 ErrorKind::State,

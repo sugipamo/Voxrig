@@ -1,6 +1,7 @@
 //! Ordinary player-inventory swaps. Submitted clicks never predict received slots.
 use super::*;
 use std::time::Duration;
+pub(in crate::versions::java_1_21_11::client) mod common;
 
 /// One submitted SWAP click, tied to this connection and received baseline.
 /// It is not an acknowledgement and cannot be restored from serialized history.
@@ -196,6 +197,14 @@ impl Operations {
                 {
                     let mut state = self.bot.session.state.lock().await;
                     self.ready(&state)?;
+                    if state.common_inventory_swap.as_ref().is_some_and(|s| {
+                        s.record.stage
+                            != crate::client::inventory::InventorySwapStage::ObservedSwapped
+                    }) {
+                        return Err(unavailable(
+                            "common attempt owns this swap; use inventory_swap_record",
+                        ));
+                    }
                     if state.operations.game_mode != Some(GameMode::Survival)
                         || state.operations.inventory.pending_swap.as_ref() != Some(submission)
                     {

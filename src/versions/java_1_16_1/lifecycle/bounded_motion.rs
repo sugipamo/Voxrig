@@ -40,6 +40,17 @@ pub(super) enum MotionCommand {
         run_id: u64,
         reply: oneshot::Sender<Admission<()>>,
     },
+    InventorySwap {
+        run_id: u64,
+        main_slot: u8,
+        hotbar: u8,
+        comparison: crate::versions::java_1_16_1::ItemStack,
+        reply: oneshot::Sender<crate::Result<()>>,
+    },
+    FinishInventorySwap {
+        run_id: u64,
+        reply: oneshot::Sender<Admission<()>>,
+    },
     Finish {
         run_id: u64,
         reply: oneshot::Sender<Admission<()>>,
@@ -49,6 +60,11 @@ pub(super) enum MotionCommand {
 enum Owner {
     Motion(u64),
     Placement(u64),
+    InventorySwap {
+        run_id: u64,
+        action: i16,
+        sent: bool,
+    },
     Mining {
         run_id: u64,
         target: crate::BlockPos,
@@ -64,6 +80,33 @@ pub(super) struct MotionGate {
     normal_revision: u64,
 }
 impl MotionGate {
+    pub(super) async fn begin_inventory_swap(
+        &mut self,
+        run_id: u64,
+        expected_revision: u64,
+        state: ConnectionState,
+        control: &Arc<RwLock<crate::snapshot::Versioned<crate::ControlState>>>,
+        pending: bool,
+        next_actions: &mut HashMap<i8, i16>,
+    ) -> Admission<i16> {
+        self.can_begin(state, control, pending).await?;
+        if run_id == 0 || expected_revision != self.normal_revision {
+            return Err(OperationAdmissionError::InvalidOperation);
+        }
+        let next = next_actions.entry(0).or_insert(0);
+        // Never recycle a transaction number for common exchanges in this source.
+        let action = next
+            .checked_add(1)
+            .filter(|v| *v > 0)
+            .ok_or(OperationAdmissionError::InvalidOperation)?;
+        *next = action;
+        self.owner = Some(Owner::InventorySwap {
+            run_id,
+            action,
+            sent: false,
+        });
+        Ok(action)
+    }
     pub(super) fn normal_admission(&mut self, class: OperationClass) -> Admission<()> {
         if class == OperationClass::Normal {
             if self.owner.is_some() {
@@ -301,6 +344,76 @@ impl MotionGate {
                 let _ = reply.send(result);
                 return failed;
             }
+            MotionCommand::InventorySwap {
+                run_id,
+                main_slot,
+                hotbar,
+                comparison,
+                reply,
+            } => {
+                let payload = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
+                    let Some(Owner::InventorySwap {
+                        run_id: id,
+                        action,
+                        sent,
+                    }) = self.owner.as_mut()
+                    else {
+                        return Err(OperationAdmissionError::InvalidOperation);
+                    };
+                    if *id != run_id
+                        || *sent
+                        || !(9..=35).contains(&main_slot)
+                        || hotbar > 8
+                        || comparison.item_id < 0
+                        || comparison.count <= 0
+                        || comparison.nbt.is_some()
+                    {
+                        return Err(OperationAdmissionError::InvalidOperation);
+                    }
+                    *sent = true;
+                    let mut payload = vec![0];
+                    payload.extend(i16::from(main_slot).to_be_bytes());
+                    payload.push(hotbar);
+                    payload.extend(action.to_be_bytes());
+                    payload.push(2);
+                    // Native applies SWAP before comparing its empty returned
+                    // stack. A received nonempty predecessor requests full
+                    // native resync, rather than inventing predicted receipts.
+                    crate::versions::java_1_16_1::inventory::write_slot(
+                        &mut payload,
+                        Some(&comparison),
+                    );
+                    Ok(payload)
+                });
+                let admitted = payload.is_ok();
+                let result = match payload {
+                    Err(e) => Err(crate::client::inventory::unavailable(format!(
+                        "inventory swap actor rejected: {e:?}"
+                    ))),
+                    Ok(payload) => {
+                        let mut writer = writer.lock().await;
+                        let compression = writer.compression;
+                        crate::protocol::write_packet(
+                            &mut writer.inner,
+                            compression,
+                            0x09,
+                            &payload,
+                        )
+                        .await
+                        .map_err(crate::Error::from)
+                    }
+                };
+                let failed = admitted && result.is_err();
+                let _ = reply.send(result);
+                return failed;
+            }
+            MotionCommand::FinishInventorySwap { run_id, reply } => {
+                let result=admit_lifecycle(state,OperationClass::Normal).and_then(|()|{
+                    if !matches!(self.owner,Some(Owner::InventorySwap{run_id:id,sent:true,..}) if id==run_id){return Err(OperationAdmissionError::InvalidOperation)}
+                    self.owner=None;Ok(())
+                });
+                let _ = reply.send(result);
+            }
             MotionCommand::FinishPlacement { run_id, reply } => {
                 let result = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
                     if self.owner != Some(Owner::Placement(run_id)) {
@@ -326,6 +439,9 @@ impl MotionGate {
     }
     fn owner_error(&self) -> OperationAdmissionError {
         match self.owner {
+            Some(Owner::InventorySwap { .. }) => {
+                OperationAdmissionError::BoundedInventorySwapInProgress
+            }
             Some(Owner::Placement(_)) => OperationAdmissionError::BoundedPlacementInProgress,
             Some(Owner::Mining { .. }) => OperationAdmissionError::BoundedMiningInProgress,
             _ => OperationAdmissionError::BoundedMotionInProgress,
@@ -348,6 +464,48 @@ impl MotionGate {
     }
 }
 impl ConnectionActor {
+    pub(crate) async fn begin_inventory_swap(
+        &self,
+        run_id: u64,
+        expected_revision: u64,
+    ) -> Admission<i16> {
+        let (reply, result) = oneshot::channel();
+        self.commands
+            .send(Command::BeginInventorySwap {
+                run_id,
+                expected_revision,
+                reply,
+            })
+            .await
+            .map_err(|_| self.terminal_admission_error())?;
+        result.await.map_err(|_| self.terminal_admission_error())?
+    }
+    pub(crate) async fn bounded_inventory_swap(
+        &self,
+        run_id: u64,
+        main_slot: u8,
+        hotbar: u8,
+        comparison: crate::versions::java_1_16_1::ItemStack,
+    ) -> crate::Result<()> {
+        let (reply, result) = oneshot::channel();
+        self.commands
+            .send(Command::Motion(MotionCommand::InventorySwap {
+                run_id,
+                main_slot,
+                hotbar,
+                comparison,
+                reply,
+            }))
+            .await
+            .map_err(|_| crate::client::inventory::unavailable("inventory actor unavailable"))?;
+        result.await.map_err(|_| {
+            crate::client::inventory::unavailable("inventory actor result unavailable")
+        })?
+    }
+    pub(crate) async fn finish_inventory_swap(&self, run_id: u64) -> Admission<()> {
+        self.motion_admission(|reply| MotionCommand::FinishInventorySwap { run_id, reply })
+            .await
+    }
     async fn motion_admission<T>(
         &self,
         make: impl FnOnce(oneshot::Sender<Admission<T>>) -> MotionCommand,

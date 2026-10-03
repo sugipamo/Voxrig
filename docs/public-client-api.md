@@ -7,6 +7,8 @@ Client共通化ブランチでは`Client::survival()` / `Client::creative()`を�
 queryを採掘/設置の実行許可にしません。[狙い判定の範囲・検証](common-survival-targeting.md)を参照してください。
 共通の`Survival::place_cube`と`placement_record`はdefault cubeの一度の設置と、対象・材料の実受信を両版で保持します。
 native ACKの有無と取消後の未解決状態は[共通設置の契約](common-survival-placement.md)を参照してください。
+両modeの`swap_hotbar` / `inventory_swap_record`はdefault player stackの交換を両版に実装しています。
+一般containerとの違い、legacy応答とmodern revisionの扱いは[共通在庫交換](common-inventory-swaps.md)を参照してください。
 下記の追加検査契約は
 `Client::checked_survival()`または`Client::survival().checked()?`で明示的に選ぶ1.21.11用の拡張です。
 

@@ -27,6 +27,7 @@
 - [Java 1.21.11の共通ロード完了処理](survival-interaction-loading.md)
 - [Java 1.21.11の通常配置と材料の受信確認](survival-placement.md)
 - [共通Survivalの設置と材料の受信確認](common-survival-placement.md)
+- [共通Clientの在庫交換](common-inventory-swaps.md)
 - [Java 1.21.11の移動属性と位置の由来](survival-movement-foundation.md)
 - [Java 1.21.11の限定移動制御と実試行の制約](survival-motion-controls.md)
 - [検査付きサバイバルAPIと利用側の責務](survival-api.md)

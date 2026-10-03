@@ -227,6 +227,7 @@ DustRoute: native observation、piston/recovery、照準、配置・除去・取
 | finite `start_predicted_survival_path` / `survival_motion` | 共通は`client.survival().start_predicted_path` / `motion_record`。`MotionRecord`を保持し、prediction契約・取消後のowner・before-I/O intentを両版で維持 |
 | read-only `preview_survival_path` | 共通では`client.survival().preview_path`。両版で`MotionPreview`を返す。追加checked契約の戻り値とは区別 |
 | default cubeの`place_survival_cube` / legacyのraw block use | 共通は`client.survival().place_cube(support, face)`。`PlacementRecord`で対象・1個の材料消費・版固有processingを分けて保持 |
+| player main/hotbarの版専用SWAP | `client.survival().swap_hotbar(main, hotbar)`または`client.creative().swap_hotbar(...)`。`InventorySwapRecord`で実受信・legacy応答・未解決状態を保持 |
 | `client.java_1_21_11_operations()`でのcreative基本操作 | `client.creative()`。`set_creative_hotbar`→`set_hotbar`、`dig_creative`→`break_block`。戻り値はDispatchReceipt |
 | PlayerStateを共通playerとして使用 | `client.player_state()`のPlayerObservation。追加検査契約のnative PlayerStateとは区別 |
 | 版なしの`item_id`/`item_name`など | `client.registry()`。整数IDはversion/kind付きRegistryIdとして保持 |
@@ -276,3 +277,13 @@ modernは送信より新しい実ACKのordinalも要求する。timeoutや取消
 1.16.1のSet Slot window -2はraw Inventory番号を使うため、hotbar 0..8をplayer screen 36..44へ変換する。
 受信在庫と従来cacheの両方を修正し、特殊window -2を開いたcontainerやcrafting slotとして扱わない。
 cursorやactive windowを更新したことにもならない。詳細は[共通設置](common-survival-placement.md)を参照。
+
+## 共通Clientの在庫交換へ移行
+
+main screen slot 9..35とhotbar index 0..8の通常交換は、modeに合うhandleの`swap_hotbar`を一度だけ呼ぶ。
+結果はどちらのhandleからも`inventory_swap_record()`で読み出せる。`Pending`でも再送しない。
+共通`InventorySwapId`とmodern専用`InventorySwap`は別契約で、nativeのwait APIへ共通recordを渡さない。
+default stack・実受信empty cursor/両slot・player screenを要求し、legacyではmatching比較応答も照合する。実クリック後のnegative比較応答はnative resyncを表し、rollbackと扱わない。
+modernの画面revisionとlegacyのtransaction番号を共通の成功ACKとして扱わない。
+完了後の次操作は新しいbaselineから開始する。container/crafting/general item dataはこの操作だけで対応済みにはならない。
+前提・取消・履歴と検証は[共通在庫交換](common-inventory-swaps.md)を参照。

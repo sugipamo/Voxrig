@@ -34,6 +34,8 @@ JVMを回収してから`.local/native-client-unification/`へ記録とworldを�
 | survivalのread-only first outline | 選択cellが実際のstoneで、query前後のRCON Posが同じ。面/交点は別のnative-method oracleと照合 |
 | survivalのstone START/FINISH | 新しい接続でfresh target airを受信し、RCONでもair・位置不変を確認 |
 | survivalのdefault dirt設置 | さらに新しい接続でfresh target/materialを受信し、RCONでもdirt・材料3→2・位置不変を確認 |
+| survivalのoccupied player swap | main stone 3 / hotbar dirt 2を交換し、両slotのfresh受信とRCONのslot/item/countを照合 |
+| creativeのempty hotbar swap | 同じ接続で受信mode変更後にmain dirt 2を空hotbarへ交換し、両slotのfresh受信とRCONのslot/item/count、位置不変を照合 |
 | survivalの有限jump/歩行 | RCONで途中の高さ・水平移動を取得し、実終点が予測終点に一致 |
 
 共通Clientは実際の受信mode・teleport・対象blockを待ってから操作する。
@@ -65,7 +67,7 @@ run全体はfailedとする。次版は前版のprocessを回収してから起�
 
 コミットされた[結果の抜粋](../data/client_api/common_native_evidence.json)にはJARの出所、
 検証コードのhash、独立確認の結果と終了codeを記録する。
-これは上記基本操作・有限dry移動・限定read-only狙い判定・採掘/default cube設置の検証であり、さらに広い移動・採掘・設置条件、container、crafting、
+これは上記基本操作・有限dry移動・限定read-only狙い判定・採掘/default cube設置・default player stack交換の検証であり、さらに広い移動・採掘・設置条件、一般container、crafting、
 複雑なitem data、entity、復旧などの残作業を完了扱いにするものではない。
 previewの取得は実際のsurvival移動を検証するものではない。
 
@@ -96,3 +98,13 @@ legacyには存在しないprocessing sequenceを作らない。任意形状・�
 
 メモリ上の速いfixtureでも、teleportのown-pose受信とlocal grounded geometryの成立は別である。
 採掘前のread-only target queryで条件が整うまで待ち、stand guardを回避しない。
+
+在庫交換はさらに別の新しい接続で行う。版別のreplaceitem/item commandでfixtureを準備し、
+Clientの実受信とRCONの初期slot/item/countを両方確認する。survivalでoccupied pairを交換し、
+同じ接続で受信modeをcreativeへ変更してempty destinationとの交換を行う。
+結果は両slotのfresh received値と独立したRCON Inventory、位置不変で照合する。
+legacyはnonempty received predecessorをcomparisonとして送り、nativeのnegative比較応答・full resyncを受ける。
+false比較応答は交換を取り消した証明ではない。modernにはこのtransaction ACKを作らない。
+初回のlegacy fixture slot名誤りと、正しいEmpty returnによるslot更新抑止はfailed runとしてhash/理由を保持する。
+ライブラリのguardをRCON結果で解除したり、slot予測を受信値へ変換したりしない。
+詳細と公式codecの検証は[共通在庫交換](common-inventory-swaps.md)を参照する。

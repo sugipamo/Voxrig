@@ -41,6 +41,25 @@ pub(crate) enum Action<'a> {
     UseOnBlock([i32; 3], BlockFace, [f32; 3]),
 }
 impl Survival {
+    /// Exchange main screen slot 9..35 and hotbar index 0..8 once.
+    /// Uses complete received default stacks/cursor; retains intent before I/O.
+    pub async fn swap_hotbar(
+        &self,
+        main_slot: u8,
+        hotbar: u8,
+    ) -> Result<super::inventory::InventorySwapRecord> {
+        super::inventory::validate_slots(main_slot, hotbar)?;
+        self.client
+            .common_swap_hotbar(GameMode::Survival, main_slot, hotbar)
+            .await
+    }
+    /// Reconcile/read the latest common swap without sending another click.
+    /// Partial results, conflicts and closure retain the original attempt.
+    pub async fn inventory_swap_record(
+        &self,
+    ) -> Result<Option<super::inventory::InventorySwapRecord>> {
+        self.client.common_inventory_swap_record().await
+    }
     /// Submit one stationary default passive-cube placement into received air.
     /// Derives the native first-outline cursor and retains the attempt before I/O.
     /// No prediction, retry, mode change or edit permission is supplied.
@@ -150,6 +169,24 @@ impl Survival {
     }
 }
 impl Creative {
+    /// Exchange complete received default player stacks once in creative mode.
+    /// This ordinary inventory click does not create items or change mode.
+    pub async fn swap_hotbar(
+        &self,
+        main_slot: u8,
+        hotbar: u8,
+    ) -> Result<super::inventory::InventorySwapRecord> {
+        super::inventory::validate_slots(main_slot, hotbar)?;
+        self.client
+            .common_swap_hotbar(GameMode::Creative, main_slot, hotbar)
+            .await
+    }
+    /// Reconcile/read the retained common inventory exchange, including closure.
+    pub async fn inventory_swap_record(
+        &self,
+    ) -> Result<Option<super::inventory::InventorySwapRecord>> {
+        self.client.common_inventory_swap_record().await
+    }
     /// Capture player/inventory. Holding this handle does not imply creative permission.
     pub async fn player_state(&self) -> Result<PlayerObservation> {
         self.client.player_state().await

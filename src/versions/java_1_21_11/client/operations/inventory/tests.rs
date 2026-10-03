@@ -57,6 +57,351 @@ fn baseline() -> State {
     state
 }
 
+struct CommonFixture {
+    api: Operations,
+    peer: tokio::net::TcpStream,
+    receiver: tokio::task::JoinHandle<()>,
+}
+impl CommonFixture {
+    async fn new() -> Self {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let stream = tokio::net::TcpStream::connect(listener.local_addr().unwrap())
+            .await
+            .unwrap();
+        let (peer, _) = listener.accept().await.unwrap();
+        let (reader, writer) = stream.into_split();
+        let mut state = baseline();
+        state.phase = Phase::Play;
+        let session = Arc::new(Session {
+            id: 42,
+            started: Instant::now(),
+            writer: Mutex::new(Writer {
+                stream: writer,
+                compression: None,
+            }),
+            state: Mutex::new(state),
+            changed: Notify::new(),
+            cancel: Notify::new(),
+            stopped: AtomicBool::new(false),
+            interrupted_packet: AtomicI32::new(-1),
+            limits: crate::client::ClientLimits::default(),
+            interaction_sequence: AtomicI32::new(0),
+        });
+        let api = Operations {
+            bot: Bot {
+                session: session.clone(),
+                _lease: Arc::new(Lease(Arc::downgrade(&session))),
+            },
+        };
+        let receiver = tokio::spawn(async move {
+            session.run_receiver(reader).await;
+        });
+        Self {
+            api,
+            peer,
+            receiver,
+        }
+    }
+    fn client(&self) -> crate::Client {
+        crate::Client::from_java_1_21_11(self.api.bot.clone())
+    }
+    async fn receive(&mut self, id: i32, payload: &[u8]) {
+        let before = self.api.bot.session.state.lock().await.sequence;
+        write_packet(&mut self.peer, None, id, payload)
+            .await
+            .unwrap();
+        timeout(Duration::from_secs(1), async {
+            while self.api.bot.session.state.lock().await.sequence == before {
+                tokio::task::yield_now().await
+            }
+        })
+        .await
+        .unwrap();
+    }
+    async fn slot(&mut self, index: u16, value: InventorySlot) {
+        self.receive(
+            ids::play_clientbound::SET_SLOT,
+            &slot_update(index, &value, 130),
+        )
+        .await;
+    }
+    async fn stop(self) {
+        self.api.bot.disconnect().await.unwrap();
+        self.receiver.await.unwrap();
+    }
+}
+#[tokio::test]
+async fn common_swap_same_consumer_receives_both_destinations_then_next_creative_empty_swap() {
+    use crate::client::{GameMode as Mode, inventory::InventorySwapStage};
+    let mut f = CommonFixture::new().await;
+    let client = f.client();
+    let record =
+        crate::client::tests::common_swap_start_scenario(&client, Mode::Survival, 9, 0).await;
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap(),
+        (
+            ids::play_serverbound::WINDOW_CLICK,
+            vec![0, 128, 1, 0, 9, 0, 2, 0, 0]
+        )
+    );
+    assert!(record.send.legacy_action.is_none() && record.legacy_reply.is_none());
+    assert_eq!(record.send.screen_revision, Some(128));
+    let submission = f
+        .api
+        .bot
+        .session
+        .state
+        .lock()
+        .await
+        .operations
+        .inventory
+        .pending_swap
+        .clone()
+        .unwrap();
+    assert!(
+        f.api
+            .wait_inventory_swap(&submission, Duration::from_millis(1))
+            .await
+            .is_err()
+    );
+    f.slot(9, submission.hotbar_before.clone()).await;
+    crate::client::tests::common_swap_pending_scenario(&client).await;
+    // Direct raw-player hotbar update maps to canonical player-screen slot 36.
+    let mut raw = vec![0];
+    put_slot(&mut raw, &submission.main_before);
+    f.receive(ids::play_clientbound::SET_PLAYER_INVENTORY, &raw)
+        .await;
+    let complete = crate::client::tests::common_swap_completed_scenario(&client, record.id).await;
+    assert!(complete.legacy_reply.is_none());
+    f.slot(9, InventorySlot::Empty).await;
+    assert_eq!(
+        client
+            .survival()
+            .inventory_swap_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        InventorySwapStage::ObservedSwapped
+    );
+    let mut mode = vec![3];
+    mode.extend(1f32.to_be_bytes());
+    f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &mode)
+        .await;
+    let next =
+        crate::client::tests::common_swap_start_scenario(&client, Mode::Creative, 9, 0).await;
+    assert_ne!(next.id, record.id);
+    read_packet(&mut f.peer, None).await.unwrap();
+    let next_submission = f
+        .api
+        .bot
+        .session
+        .state
+        .lock()
+        .await
+        .operations
+        .inventory
+        .pending_swap
+        .clone()
+        .unwrap();
+    f.slot(9, next_submission.hotbar_before).await;
+    f.slot(36, next_submission.main_before).await;
+    crate::client::tests::common_swap_completed_scenario(&client, next.id).await;
+    f.api.bot.disconnect().await.unwrap();
+    assert_eq!(
+        client
+            .creative()
+            .inventory_swap_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        InventorySwapStage::ObservedSwapped
+    );
+    f.receiver.await.unwrap();
+}
+#[tokio::test]
+async fn common_swap_transient_destination_and_screen_conflicts_stay_latched() {
+    use crate::client::inventory::InventorySwapStage;
+    let mut f = CommonFixture::new().await;
+    let client = f.client();
+    client.survival().swap_hotbar(9, 0).await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    let submission = f
+        .api
+        .bot
+        .session
+        .state
+        .lock()
+        .await
+        .operations
+        .inventory
+        .pending_swap
+        .clone()
+        .unwrap();
+    f.slot(9, submission.hotbar_before.clone()).await;
+    f.slot(9, submission.main_before.clone()).await;
+    f.slot(9, submission.hotbar_before.clone()).await;
+    f.slot(36, submission.main_before.clone()).await;
+    let result = client
+        .survival()
+        .inventory_swap_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(result.stage, InventorySwapStage::RequiresInspection);
+    assert!(
+        result
+            .requires_inspection
+            .unwrap()
+            .contains("changed again")
+    );
+    assert!(
+        f.api
+            .wait_inventory_swap(&submission, Duration::from_millis(1))
+            .await
+            .is_err()
+    );
+    assert!(f.api.select_hotbar(0).await.is_err());
+    f.stop().await;
+}
+#[tokio::test]
+async fn common_swap_cancelled_before_writer_cannot_confirm_from_other_actor_updates() {
+    use crate::client::inventory::InventorySwapStage;
+    let mut f = CommonFixture::new().await;
+    let client = f.client();
+    let session = f.api.bot.session.clone();
+    let writer = session.writer.lock().await;
+    let ops = client.survival();
+    let waiter = tokio::spawn(async move { ops.swap_hotbar(9, 0).await });
+    timeout(Duration::from_secs(1), async {
+        while session.state.try_lock().is_ok() {
+            tokio::task::yield_now().await
+        }
+    })
+    .await
+    .unwrap();
+    waiter.abort();
+    assert!(waiter.await.unwrap_err().is_cancelled());
+    drop(writer);
+    let submission = session
+        .state
+        .lock()
+        .await
+        .operations
+        .inventory
+        .pending_swap
+        .clone()
+        .unwrap();
+    assert!(
+        !session
+            .state
+            .lock()
+            .await
+            .common_inventory_swap
+            .as_ref()
+            .unwrap()
+            .record
+            .send
+            .dispatched
+    );
+    f.slot(9, submission.hotbar_before).await;
+    f.slot(36, submission.main_before).await;
+    let result = client
+        .survival()
+        .inventory_swap_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(result.stage, InventorySwapStage::Pending);
+    assert!(!result.send.dispatched);
+    assert!(
+        timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    assert!(client.survival().swap_hotbar(9, 0).await.is_err());
+    f.api.bot.disconnect().await.unwrap();
+    assert_eq!(
+        client
+            .survival()
+            .inventory_swap_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        InventorySwapStage::RequiresInspection
+    );
+    f.receiver.await.unwrap();
+}
+#[tokio::test]
+async fn common_swap_requires_actual_empty_cursor_and_latches_transient_mode_change() {
+    use crate::client::inventory::InventorySwapStage;
+    let mut f = CommonFixture::new().await;
+    let client = f.client();
+    f.api
+        .bot
+        .session
+        .state
+        .lock()
+        .await
+        .operations
+        .inventory
+        .cursor_sequence = None;
+    assert!(client.survival().swap_hotbar(9, 0).await.is_err());
+    assert!(
+        f.api
+            .bot
+            .session
+            .state
+            .lock()
+            .await
+            .common_inventory_swap
+            .is_none()
+    );
+    assert!(
+        timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &[0])
+        .await;
+    client.survival().swap_hotbar(9, 0).await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    let mut mode = vec![3];
+    mode.extend(1f32.to_be_bytes());
+    f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &mode)
+        .await;
+    mode[1..].copy_from_slice(&0f32.to_be_bytes());
+    f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &mode)
+        .await;
+    let submission = f
+        .api
+        .bot
+        .session
+        .state
+        .lock()
+        .await
+        .operations
+        .inventory
+        .pending_swap
+        .clone()
+        .unwrap();
+    f.slot(9, submission.hotbar_before).await;
+    f.slot(36, submission.main_before).await;
+    assert_eq!(
+        client
+            .survival()
+            .inventory_swap_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        InventorySwapStage::RequiresInspection
+    );
+    f.stop().await;
+}
+
 #[test]
 fn player_cursor_revision_and_slot_updates_preserve_atomic_receive() {
     let mut state = baseline();

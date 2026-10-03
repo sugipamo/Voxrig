@@ -325,6 +325,123 @@ async fn placement_probe(client: &Client) -> anyhow::Result<()> {
     }
     anyhow::bail!("placement fixture ended without disconnect")
 }
+async fn wait_swap(
+    client: &Client,
+) -> anyhow::Result<voxrig::client::inventory::InventorySwapRecord> {
+    let record = tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            let record = client
+                .survival()
+                .inventory_swap_record()
+                .await?
+                .context("inventory record missing")?;
+            match record.stage {
+                InventorySwapStage::ObservedSwapped => return Ok::<_, anyhow::Error>(record),
+                InventorySwapStage::RequiresInspection => {
+                    anyhow::bail!("inventory interrupted: {:?}", record.requires_inspection)
+                }
+                _ => tokio::time::sleep(Duration::from_millis(25)).await,
+            }
+        }
+    })
+    .await??;
+    anyhow::ensure!(record.send.dispatched, "swap not dispatched");
+    anyhow::ensure!(
+        record
+            .main_receipt
+            .as_ref()
+            .is_some_and(|r| r.value == record.hotbar_before.value)
+            && record
+                .hotbar_receipt
+                .as_ref()
+                .is_some_and(|r| r.value == record.main_before.value),
+        "wrong swap destinations"
+    );
+    for receipt in [&record.main_receipt, &record.hotbar_receipt] {
+        anyhow::ensure!(
+            matches!(receipt.as_ref().unwrap().source,voxrig::client::ValueSource::Received{sequence} if sequence>record.send.after_sequence),
+            "stale swap receipt"
+        );
+    }
+    if let Some(action) = record.send.legacy_action {
+        anyhow::ensure!(
+            record.legacy_reply.as_ref().is_some_and(
+                |r| r.action == action && r.receive_sequence > record.send.after_sequence
+            ),
+            "missing fresh native transaction response"
+        );
+    } else {
+        anyhow::ensure!(
+            record.legacy_reply.is_none(),
+            "invented modern legacy transaction"
+        );
+    }
+    Ok(record)
+}
+async fn inventory_probe(client: &Client) -> anyhow::Result<()> {
+    let ready = client.player_state().await?;
+    let initial_sequence = ready.receive_sequence;
+    emit("swap_ready", ready)?;
+    let mut commands = BufReader::new(tokio::io::stdin()).lines();
+    while let Some(command) = commands.next_line().await? {
+        match command.as_str() {
+            "swap_baseline" => {
+                let player=wait_player(client,|p|p.game_mode==Some(GameMode::Survival)&&p.received_pose.as_ref().is_some_and(|pose|pose.receive_sequence>initial_sequence&&pose.position==[0.5,65.0,0.5])
+                &&p.inventory.window_id==Some(0)&&p.inventory.cursor.as_ref().is_some_and(|c|c.value==SlotKnowledge::Empty)
+                &&p.inventory.slots[9].as_ref().is_some_and(|s|matches!(&s.value,SlotKnowledge::Item{item} if item.name=="minecraft:stone"&&item.count==3))
+                &&p.inventory.slots[36].as_ref().is_some_and(|s|matches!(&s.value,SlotKnowledge::Item{item} if item.name=="minecraft:dirt"&&item.count==2))
+                &&p.inventory.slots[37].as_ref().is_some_and(|s|s.value==SlotKnowledge::Empty)).await?;
+                emit("swap_baseline", player)?;
+            }
+            "swap_start" => {
+                let record = client.survival().swap_hotbar(9, 0).await?;
+                anyhow::ensure!(record.send.dispatched, "swap incomplete");
+                anyhow::ensure!(
+                    client.survival().swap_hotbar(9, 0).await.is_err(),
+                    "swap replay allowed"
+                );
+                emit("swap_start", record)?;
+            }
+            "swap_observed" => {
+                emit("swap_observed", wait_swap(client).await?)?;
+            }
+            "swap_creative" => {
+                wait_player(client, |p| p.game_mode == Some(GameMode::Creative)).await?;
+                let before = client
+                    .creative()
+                    .inventory_swap_record()
+                    .await?
+                    .context("first swap lost")?;
+                let record = client.creative().swap_hotbar(9, 1).await?;
+                anyhow::ensure!(
+                    record.id != before.id && record.hotbar_before.value == SlotKnowledge::Empty,
+                    "new empty destination missing"
+                );
+                anyhow::ensure!(record.send.dispatched, "creative ordinary click incomplete");
+                emit("swap_creative", record)?;
+            }
+            "swap_empty_observed" => {
+                emit("swap_empty_observed", wait_swap(client).await?)?;
+            }
+            "swap_disconnect" => {
+                client.disconnect().await?;
+                let record = client
+                    .creative()
+                    .inventory_swap_record()
+                    .await?
+                    .context("closed swap history lost")?;
+                anyhow::ensure!(
+                    record.stage == InventorySwapStage::ObservedSwapped,
+                    "closed completed history changed"
+                );
+                emit("swap_disconnected", record)?;
+                return Ok(());
+            }
+            _ => anyhow::bail!("unexpected inventory fixture command"),
+        }
+    }
+    anyhow::bail!("inventory fixture ended without disconnect")
+}
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let port: u16 = std::env::var("VOXRIG_PORT")?.parse()?;
@@ -332,6 +449,9 @@ async fn main() -> anyhow::Result<()> {
         ConnectionConfig::offline_from_env(Server::new("127.0.0.1", port), "UnifiedProbe")?;
     let client = Client::connect(config).await?;
     client.wait_until_ready().await?;
+    if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("inventory") {
+        return inventory_probe(&client).await;
+    }
     if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("placement") {
         return placement_probe(&client).await;
     }

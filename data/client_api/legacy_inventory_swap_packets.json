@@ -1,0 +1,5 @@
+[
+  {"main_slot": 9, "hotbar": 0, "action": 1, "comparison_item_id": 1, "comparison_count": 3, "payload_hex": "0000090000010201010300"},
+  {"main_slot": 35, "hotbar": 8, "action": 128, "comparison_item_id": 1, "comparison_count": 3, "payload_hex": "0000230800800201010300"},
+  {"main_slot": 10, "hotbar": 1, "action": 32767, "comparison_item_id": 1, "comparison_count": 3, "payload_hex": "00000a017fff0201010300"}
+]

@@ -72,7 +72,7 @@ modernの既存intent・session guardも維持する。保存したreceiptは次
 | 1. 設定・基本型・対応情報・registry | 共通fixture・静的検証済み | 両版で同じ共通型。未知版/ID、誤ったnamespaceを拒否。設定を黙って無視しない |
 | 2. player/world/inventory共通観測 | 基本capture共通fixture・静的検証済み | 同じcapture境界、受信/予測/欠測を保持。NBTは保持、未対応componentsは欠測として保持 |
 | 3. 視点・選択・移動・採掘・設置 | creative基本操作・survival preview/有限dry移動・read-only狙い判定・限定採掘/default cube設置は両版native検証済み。広い移動/採掘/設置条件は残る | 共通request/resultと両版実装、native結果と物理の検証。片版Unsupportedだけでは完了しない |
-| 4. container/item data/製作/装備/entity | 残る | modern側に受信/クリック/一般item操作を実装。同じ代表workflowと結果検証 |
+| 4. container/item data/製作/装備/entity | default player main/hotbar交換は両mode・両版で実装。一般container/複雑なitem data/製作/装備/entityは残る | modern側に受信/クリック/一般item操作を実装。同じ代表workflowと結果検証 |
 | 5. context/記録/再構成/scene/復旧 | 残る | 共通型を所有し、legacy側にも版別規則・lifecycleの監査済み実装 |
 | 6. UI/特殊window/vehicle/manager | 残る | 各機能の共通操作/観測と両版実装。raw操作自体の版依存は明示的な拡張へ残す |
 
@@ -106,6 +106,12 @@ canonical moduleは`client::survival::checked`、旧`checked_survival`は互換a
 legacyの特殊なraw inventory更新も公式実装へ照合し、hotbar/armor/offhandの画面番号へ正しく変換する。
 詳細は[共通Survivalの設置](common-survival-placement.md)を参照する。
 
+両modeの`swap_hotbar`と`inventory_swap_record`はdefault player stackを共通のopaque attempt/recordで交換する。
+元の両slotの実受信をI/O前に保持し、両方の新しいdestination、legacyの比較応答、modernの画面revisionを区別する。
+legacyはnativeの更新抑止を避けるfull resyncを一度のクリックで要求し、negative比較応答をrollbackへ読み替えない。
+取消・途中の競合・閉じた接続の診断を保持する。一般containerの実装完了にはしない。
+詳細は[共通在庫交換](common-inventory-swaps.md)を参照する。
+
 `Client::capabilities()` / `Capabilities::for_version`は共通面の実装状況を返す。
 NotImplementedはVoxrig側の不足であって、ゲームに存在しないという意味ではない。
 既存Botにあるcontainer等も共通入口が未実装なら共通capabilityではNotImplementedになる。
@@ -135,9 +141,9 @@ mode変更、建築、採掘等を勝手に実行するexampleにはしない。
 ## この段階の検証結果
 
 main `af91cad`を基準に、共通基盤・capture・mode handle・creative基本操作を追加した。
-共通read-only preview・狙い判定・限定採掘/設置と版別native model照合を追加し、全targetのunit/fixture試験は409件成功、専用native環境7件と性能1件はignored。
+共通read-only preview・狙い判定・限定採掘/設置・在庫交換と版別native model照合を追加し、全targetのunit/fixture試験は420件成功、専用native環境7件と性能1件はignored。
 doc test 5件、fmt、警告をerrorにするClippy/Rustdoc、Rust 1.85の全target check、
-native検証スクリプト・共通移動/狙い判定/設置modelを含めた368ファイルのpackage buildが成功。
+native検証スクリプト・共通移動/狙い判定/設置/在庫交換を含めた374ファイルのpackage buildが成功。
 続いて同じ共通API consumerを公式vanilla両版で実行し、creativeの在庫・選択・flight・除去・設置・
 survival切替後のcreative write拒否をサーバーRCONで確認した。
 両版で同じ35tickのjump/歩行previewも取得し、preview前後で実際の位置が変わらないことをRCONで確認した。
@@ -147,6 +153,8 @@ survival切替後のcreative write拒否をサーバーRCONで確認した。
 公式JARのlegacy 72 rotation/585 ray/13 outline状態と、modernの2,304 rotation/25,394 rayも共有kernelへ照合した。
 両サーバーも正常終了した。限定survival採掘も新しい接続で実行し、START/FINISHの実送信・fresh air受信とRCONの対象air・位置不変を検証した。
 続く新しい接続でdefault dirtを設置し、fresh target/material受信とRCONのdirt・材料3→2・位置不変を照合した。
+さらに新しい接続でsurvivalのoccupied player swapとcreativeのempty-destination swapを実行し、
+両slotの実受信とRCONのslot/item/count、位置不変を照合した。legacyのnative codecでも3fixtureを確認した。
 限定範囲外の条件と後続の機能統合は残る。
 再実行方法・証拠・範囲は[共通Clientのnative検証](common-client-native-validation.md)に記録する。
 これは全段階の機能parity完了の記録ではない。

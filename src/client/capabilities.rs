@@ -43,6 +43,8 @@ pub enum Feature {
     CheckedSurvival,
     /// Common container click operations.
     Containers,
+    /// Received whole-default-stack player main/hotbar exchange.
+    InventorySwap,
     /// Common crafting operations.
     Crafting,
     /// Common general-entity interaction.
@@ -82,6 +84,9 @@ impl Capabilities {
             ),
             Feature::SurvivalPlacement => Support::Restricted(
                 "healthy dry standing; default passive cubes; first-outline support/face; fresh target and one-material receipts; modern processing ACK also required",
+            ),
+            Feature::InventorySwap => Support::Restricted(
+                "player screen main slots 9..35 and hotbar 0..8; default stacks; received empty cursor; two fresh destinations; native legacy resync/comparison response",
             ),
             Feature::SurvivalMovement => Support::Restricted(
                 "1..120 dry walking/jump ticks with released-rest endpoint; retained intent/failure; predicted completion is not received acceptance",

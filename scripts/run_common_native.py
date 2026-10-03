@@ -127,7 +127,7 @@ def matched(response, pattern):
 
 
 def stage(probe, messages, name, records, timeout=30, poll=None):
-    if name not in ("ready", "mining_ready", "placement_ready"):
+    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready"):
         probe.stdin.write(name + "\n")
         probe.stdin.flush()
     deadline = time.monotonic() + timeout
@@ -142,7 +142,7 @@ def stage(probe, messages, name, records, timeout=30, poll=None):
             continue
         record = json.loads(line)
         records.append(record)
-        aliases = {"disconnect": "disconnected", "mining_disconnect": "mining_disconnected", "placement_disconnect": "placement_disconnected"}
+        aliases = {"disconnect": "disconnected", "mining_disconnect": "mining_disconnected", "placement_disconnect": "placement_disconnected", "swap_disconnect": "swap_disconnected"}
         if record["stage"] == name or record["stage"] == aliases.get(name):
             print("native", name, "received", flush=True)
             return record
@@ -378,6 +378,43 @@ network-compression-threshold=256
         probe.wait(timeout=10)
         if probe.returncode != 0:
             raise RuntimeError("placement probe failed after disconnect")
+        until(lambda: matched(rcon.command("execute unless entity @a[name=UnifiedProbe]"), "Test passed"))
+        report["inventory_records"] = []
+        probe = subprocess.Popen([str(REPO / "target/debug/examples/common_native_probe")], cwd=REPO, env=dict(env, VOXRIG_NATIVE_SCENARIO="inventory"), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+        messages = queue.Queue()
+        thread = threading.Thread(target=pump, args=(probe.stdout, messages, probe_log), daemon=True)
+        thread.start()
+        stage(probe, messages, "swap_ready", report["inventory_records"])
+        main_command = ("replaceitem entity UnifiedProbe inventory.0 minecraft:stone 3" if version == "1.16.1" else "item replace entity UnifiedProbe inventory.0 with minecraft:stone 3")
+        hand_command = ("replaceitem entity UnifiedProbe hotbar.0 minecraft:dirt 2" if version == "1.16.1" else "item replace entity UnifiedProbe hotbar.0 with minecraft:dirt 2")
+        report["inventory_setup"] = {command: rcon.command(command) for command in ["gamemode survival UnifiedProbe", "tp UnifiedProbe 0.5 65 0.5 0 0", "clear UnifiedProbe", main_command, hand_command]}
+        def inventory_matches(expected):
+            response = rcon.command("data get entity UnifiedProbe Inventory")
+            stacks = re.findall(r"\{[^{}]*\}", response)
+            if len(stacks) != len(expected):
+                return None
+            for slot, (item, count) in expected.items():
+                if not any(re.search(rf"Slot: {slot}b(?:,|\s|}})", stack) and f'id: "{item}"' in stack and re.search(rf"(?:Count|count): {count}(?:b)?(?:,|\s|}})", stack) for stack in stacks):
+                    return None
+            return response
+        report["inventory_fixture_native"] = until(lambda: inventory_matches({9: ("minecraft:stone", 3), 0: ("minecraft:dirt", 2)}))
+        stage(probe, messages, "swap_baseline", report["inventory_records"])
+        swap_position = rcon.command("data get entity UnifiedProbe Pos")
+        stage(probe, messages, "swap_start", report["inventory_records"])
+        stage(probe, messages, "swap_observed", report["inventory_records"])
+        first_inventory = until(lambda: inventory_matches({9: ("minecraft:dirt", 2), 0: ("minecraft:stone", 3)}))
+        report["inventory_creative_mode"] = rcon.command("gamemode creative UnifiedProbe")
+        stage(probe, messages, "swap_creative", report["inventory_records"])
+        stage(probe, messages, "swap_empty_observed", report["inventory_records"])
+        second_inventory = until(lambda: inventory_matches({1: ("minecraft:dirt", 2), 0: ("minecraft:stone", 3)}))
+        after_swap = rcon.command("data get entity UnifiedProbe Pos")
+        if after_swap != swap_position:
+            raise RuntimeError("ordinary inventory exchanges changed native position")
+        report["native_results"]["inventory_swaps"] = {"survival_occupied_swap": first_inventory, "creative_empty_swap": second_inventory, "position_before": swap_position, "position_after": after_swap}
+        stage(probe, messages, "swap_disconnect", report["inventory_records"])
+        probe.wait(timeout=10)
+        if probe.returncode != 0:
+            raise RuntimeError("inventory probe failed after disconnect")
         report["scenario_result"] = "passed"
         print(version, "native scenario verified; waiting for clean shutdown", flush=True)
     except BaseException as error:
