@@ -27,6 +27,8 @@ pub enum Feature {
     PlayerObservation,
     /// Mode-checked look and hotbar selection.
     BasicControls,
+    /// Read-only bounded walking/jump model preview under dry standing defaults.
+    SurvivalPreview,
     /// Creative flight, default-stack writes and block interactions.
     CreativeControls,
     /// Extra audited dry-cube survival contract.
@@ -60,6 +62,9 @@ impl Capabilities {
             | Feature::BasicControls => Support::Available,
             Feature::CreativeControls => Support::Restricted(
                 "default items; permitted flight steps <=4 blocks; loaded reachable targets",
+            ),
+            Feature::SurvivalPreview => Support::Restricted(
+                "read-only 1..120 walking/jump inputs; healthy stationary normal survival posture; native defaults; loaded dry full cubes",
             ),
             Feature::CheckedSurvival => match self.version {
                 MinecraftVersion::Java1_16_1 => Support::NotImplemented,

@@ -139,6 +139,53 @@ async fn main() -> anyhow::Result<()> {
                 client.survival().select_hotbar(1).await?;
                 emit("survival_guard", player)?;
             }
+            "survival_preview" => {
+                let controls: Vec<_> = (0..35)
+                    .map(|tick| SurvivalControl {
+                        yaw: 35.57,
+                        input: SurvivalInput {
+                            forward: i8::from(tick < 5),
+                            jump: tick == 0,
+                            ..Default::default()
+                        },
+                    })
+                    .collect();
+                let preview = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        match client.survival().preview_path(&controls).await {
+                            Ok(preview) => return Ok::<_, anyhow::Error>(preview),
+                            Err(error) => {
+                                eprintln!("preview awaiting stationary native context: {error}");
+                                tokio::time::sleep(Duration::from_millis(50)).await;
+                            }
+                        }
+                    }
+                })
+                .await
+                .context("native stationary preview deadline")??;
+                anyhow::ensure!(
+                    preview.initial.game_mode == Some(GameMode::Survival),
+                    "mode mismatch"
+                );
+                anyhow::ensure!(preview.frames.len() == controls.len(), "truncated preview");
+                anyhow::ensure!(
+                    preview.frames.last().is_some_and(|frame| frame.resting),
+                    "unsettled preview"
+                );
+                anyhow::ensure!(
+                    preview.frames.iter().any(|frame| frame.position[1] > 66.2),
+                    "jump not modelled"
+                );
+                anyhow::ensure!(
+                    preview.initial_frame.position == [0.5, 65.0, 0.5],
+                    "unexpected native preview origin"
+                );
+                anyhow::ensure!(
+                    client.survival().preview_path(&[]).await.is_err(),
+                    "empty path admitted"
+                );
+                emit("survival_preview", preview)?;
+            }
             "disconnect" => {
                 client.disconnect().await?;
                 emit(

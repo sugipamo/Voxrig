@@ -209,6 +209,15 @@ impl Client {
             Adapter::Java1_21_11(bot) => bot.operations().common_capture(region).await,
         }
     }
+    pub(crate) async fn preview_survival_path(
+        &self,
+        controls: &[crate::client::survival::SurvivalControl],
+    ) -> Result<crate::client::survival::MotionPreview> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_preview_path(controls).await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_preview_path(controls).await,
+        }
+    }
     pub(crate) async fn execute(
         &self,
         mode: crate::client::GameMode,

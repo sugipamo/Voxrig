@@ -41,6 +41,16 @@ pub(crate) enum Action<'a> {
     UseOnBlock([i32; 3], BlockFace, [f32; 3]),
 }
 impl Survival {
+    /// Forecast bounded walking/jump controls against one captured dry-cube world.
+    /// Uses version-specific native defaults and current stationary admission.
+    /// This is read-only; returned frames are predictions, never action authority.
+    pub async fn preview_path(
+        &self,
+        controls: &[super::survival::SurvivalControl],
+    ) -> Result<super::survival::MotionPreview> {
+        super::survival::model::validate_controls(controls)?;
+        self.client.preview_survival_path(controls).await
+    }
     /// Capture player/inventory without inventing mode, item or position facts.
     pub async fn player_state(&self) -> Result<PlayerObservation> {
         self.client.player_state().await

@@ -684,7 +684,8 @@ mod tests {
             );
         }
         for c in fixture["position_packets"].as_array().unwrap() {
-            let mut frame = Model::new([0.5, 64.0, -2.5]).frame;
+            let mut frame =
+                Model::new(crate::MinecraftVersion::Java1_21_11, [0.5, 64.0, -2.5]).frame;
             frame.on_ground = c["ground"].as_bool().unwrap();
             frame.horizontal_collision = c["collision"].as_bool().unwrap();
             assert_eq!(

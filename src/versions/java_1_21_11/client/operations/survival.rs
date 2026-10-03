@@ -118,20 +118,7 @@ pub struct LocalPlayerState {
 }
 
 // Audited against the game's native registry/default attribute container.
-pub(super) const DRY_CUBES: &[&str] = &[
-    "minecraft:stone",
-    "minecraft:dirt",
-    "minecraft:grass_block",
-    "minecraft:cobblestone",
-    "minecraft:oak_planks",
-    "minecraft:spruce_planks",
-    "minecraft:quartz_block",
-    "minecraft:smooth_quartz",
-    "minecraft:white_concrete",
-    "minecraft:glass",
-    "minecraft:andesite",
-    "minecraft:granite",
-];
+pub(super) use crate::client::survival::model::DRY_CUBES;
 impl LocalPlayerState {
     pub(in crate::versions::java_1_21_11::client) fn spawned(entity_id: i32) -> Self {
         let mut player = Self {

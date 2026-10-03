@@ -515,7 +515,7 @@ impl SurvivalScenario {
             dimension: self.scene.initial.dimension.clone(),
         };
         let next = Self {
-            model: Model::new(self.position()),
+            model: Model::new(crate::MinecraftVersion::Java1_21_11, self.position()),
             origin: Arc::new(()),
             aim_requirement: HypotheticalAimRequirement::ReceivedAfterReconnect,
             // A future exact receipt is not permission to shrink standing margins.

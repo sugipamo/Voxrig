@@ -1,6 +1,7 @@
 //! Connection lifecycle, protocol events, observations, and player operations.
 
 mod common_api;
+mod common_motion;
 
 use crate::versions::java_1_16_1::Result;
 use crate::versions::java_1_16_1::{

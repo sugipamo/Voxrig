@@ -254,6 +254,14 @@ network-compression-threshold=256
         if 'id: "minecraft:diamond"' in forbidden:
             raise RuntimeError("forbidden creative write affected server inventory")
         report["native_results"]["survival_guard"] = forbidden
+        report["preview_teleport"] = rcon.command("tp UnifiedProbe 0.5 65 0.5 0 0")
+        stationary = until(lambda: matched(rcon.command("data get entity UnifiedProbe Pos"), r"\[0\.5d, 65\.0d, 0\.5d\]"))
+        stage(probe, messages, "survival_preview", report["client_records"])
+        after_preview = rcon.command("data get entity UnifiedProbe Pos")
+        if after_preview != stationary:
+            raise RuntimeError("read-only preview changed the native stationary position")
+        report["native_results"]["preview_position_before"] = stationary
+        report["native_results"]["preview_position_after"] = after_preview
         stage(probe, messages, "disconnect", report["client_records"])
         probe.wait(timeout=10)
         if probe.returncode != 0:

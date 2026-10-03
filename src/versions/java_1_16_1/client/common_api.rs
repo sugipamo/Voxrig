@@ -7,7 +7,7 @@ impl Bot {
         let _gate = self.coherent_state_gate.lock().await;
         self.common_player_unlocked().await
     }
-    async fn common_player_unlocked(&self) -> Result<api::PlayerObservation> {
+    pub(super) async fn common_player_unlocked(&self) -> Result<api::PlayerObservation> {
         if self.is_stopped() {
             return Err(crate::Error::new(
                 crate::ErrorKind::State,

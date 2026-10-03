@@ -419,6 +419,77 @@ async fn position_attempt_retains_receipt_and_cancelled_dispatch_blocks_next_mut
 }
 
 #[tokio::test]
+async fn common_preview_uses_modern_rules_without_dispatch_or_pose_prediction() {
+    let (session, _, mut peer) = fixture().await;
+    let api = operations(&session);
+    {
+        let mut state = session.state.lock().await;
+        state.phase = Phase::Play;
+        state.sequence = 10;
+        state.ready = true;
+        state.loading = loading::InteractionLoading::completed_fixture();
+        state.operations.reset_world(0).unwrap();
+        state.operations.local_player = operations::LocalPlayerState::spawned(42);
+        state.operations.local_player.velocity = Some(operations::VelocitySample {
+            value: [0.0; 3],
+            receive_sequence: 10,
+        });
+        state.operations.local_player.health = Some(operations::PlayerHealth {
+            health: 20.0,
+            food: 20,
+            saturation: 5.0,
+            receive_sequence: 10,
+        });
+        state.world.select_dimension(
+            "minecraft:overworld".into(),
+            Dimension::new(-64, 384).unwrap(),
+        );
+        state.position = Some([8.5, 65.0, 8.5]);
+        let generation = state.loading.generation;
+        state.motion.receive(operations::ReceivedPose {
+            generation,
+            receive_sequence: 10,
+            position: [8.5, 65.0, 8.5],
+            rotation: [0.0; 2],
+            velocity: Some([0.0; 3]),
+        });
+        for x in 0..16 {
+            for y in 63..72 {
+                for z in 0..16 {
+                    state
+                        .world
+                        .seed_replay_cell([x, y, z], if y == 64 { 1 } else { 0 });
+                }
+            }
+        }
+    }
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    crate::client::tests::common_motion_preview_scenario(&client).await;
+    assert!(
+        timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+    {
+        let mut state = session.state.lock().await;
+        let mut mode = vec![3];
+        mode.extend(1.0f32.to_be_bytes());
+        state.sequence += 1;
+        operations::receive(&mut state, ids::play_clientbound::GAME_STATE_CHANGE, &mode).unwrap();
+    }
+    assert!(
+        client
+            .survival()
+            .preview_path(&[crate::client::survival::SurvivalControl {
+                yaw: 0.0,
+                input: Default::default(),
+            }])
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
 async fn common_creative_contract_dispatches_modern_packets_without_inventory_echo() {
     let (session, _, mut peer) = fixture().await;
     let api = operations(&session);

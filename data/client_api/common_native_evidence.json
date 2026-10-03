@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "library_baseline_commit": "dfe8c435d17e3497cc7e8838671e8098a58eac42",
+  "library_baseline_commit": "360e48c8a068e1ebf26930f226bf6b3472b5fd4b",
   "scenario_sources_sha256": {
-    "examples/common_native_probe.rs": "0fa8bcb914882efa77f1d4a708b24f0a7525bb69d6369aa3412e87a16b72c96f",
-    "scripts/run_common_native.py": "97a6a822ea1ec3079a7614af1a5f37426eea73e196405756a24f9b8572172c66"
+    "examples/common_native_probe.rs": "47c7ed8d907e5b80c8ed491312818ef2940c36ee235b0663967de1abc64c8f4d",
+    "scripts/run_common_native.py": "f58679604739e17dc25dd82f1af21b702ef95faf9c045a8366f6962a1e01b542"
   },
-  "scope": "Common Client creative operations and live-mode rejection only; not full survival/container/recovery parity",
-  "result_authority": "Vanilla server RCON, separately from Voxrig received projection",
+  "scope": "Common Client creative operations, live-mode rejection and read-only survival dry-cube preview; not survival motion dispatch or full container/recovery parity",
+  "result_authority": "Vanilla server RCON for creative outcomes and unchanged preview position; preview frames are client predictions, not server results",
   "servers_run_sequentially": true,
   "java": "OpenJDK 21.0.12.1",
   "runs": [
     {
       "version": "1.16.1",
-      "run_id": "trial-1.16.1-8f3286a4",
+      "run_id": "trial-1.16.1-680a92ac",
       "source": {
         "version": "1.16.1",
         "metadata_url": "https://piston-meta.mojang.com/v1/packages/54fa3af57d041d2771e66d390197b2c0288e697c/1.16.1.json",
@@ -33,7 +33,9 @@
         "flight": "UnifiedProbe has the following entity data: [0.5d, 66.0d, 0.5d]",
         "break": "Test passed",
         "place": "Test passed",
-        "survival_guard": "UnifiedProbe has the following entity data: [{Slot: 1b, id: \"minecraft:stone\", Count: 3b}]"
+        "survival_guard": "UnifiedProbe has the following entity data: [{Slot: 1b, id: \"minecraft:stone\", Count: 3b}]",
+        "preview_position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+        "preview_position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
       },
       "fixture_responses": {
         "gamerule spawnRadius 0": "Gamerule spawnRadius is now set to: 0",
@@ -50,7 +52,7 @@
         "execute if block 1 65 0 minecraft:air": "Test passed"
       },
       "server_exit_code": 0,
-      "raw_report_sha256": "5a25fb7445085e762e40c774fb6602bb7dbf7314408b80fc3159b45034507101",
+      "raw_report_sha256": "3625a7271e439dc503e664e3755a877b9eab23b95daae9630c0c9b57316ba476",
       "client_records_excerpt": [
         {
           "stage": "ready",
@@ -81,14 +83,14 @@
           "stage": "baseline",
           "value": {
             "game_mode": "creative",
-            "receive_sequence": 44,
+            "receive_sequence": 42,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 44,
+              "receive_sequence": 41,
               "rotation": [
                 0.0,
                 0.0
@@ -152,14 +154,14 @@
           "stage": "survival_guard",
           "value": {
             "game_mode": "survival",
-            "receive_sequence": 89,
+            "receive_sequence": 91,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 44,
+              "receive_sequence": 41,
               "rotation": [
                 0.0,
                 0.0
@@ -174,6 +176,81 @@
           }
         },
         {
+          "stage": "survival_preview",
+          "value": {
+            "initial": {
+              "game_mode": "survival",
+              "receive_sequence": 107,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 92,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              },
+              "position": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              }
+            },
+            "world_revision": 53,
+            "initial_frame": {
+              "horizontal_collision": false,
+              "on_ground": true,
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "resting": true,
+              "tick": 0,
+              "velocity": [
+                0.0,
+                -0.0784,
+                0.0
+              ]
+            },
+            "frame_count": 35,
+            "terminal_frame": {
+              "horizontal_collision": false,
+              "on_ground": true,
+              "position": [
+                -0.13868599844005214,
+                65.0,
+                1.3968500905270147
+              ],
+              "resting": true,
+              "tick": 35,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "maximum_predicted_y": 66.25220334025373,
+            "terminal_clearance": {
+              "horizontal_margin": 0.0625,
+              "status": "admitted"
+            }
+          }
+        },
+        {
           "stage": "disconnected",
           "value": {
             "version": "Java1_16_1"
@@ -183,7 +260,7 @@
     },
     {
       "version": "1.21.11",
-      "run_id": "trial-1.21.11-754b3fd4",
+      "run_id": "trial-1.21.11-65f46ac4",
       "source": {
         "version": "1.21.11",
         "metadata_url": "https://piston-meta.mojang.com/v1/packages/4f6bd9388f12e9d7adc2ded64acba66212d60521/1.21.11.json",
@@ -204,7 +281,9 @@
         "flight": "UnifiedProbe has the following entity data: [0.5d, 66.0d, 0.5d]",
         "break": "Test passed",
         "place": "Test passed",
-        "survival_guard": "UnifiedProbe has the following entity data: [{count: 3, Slot: 1b, id: \"minecraft:stone\"}]"
+        "survival_guard": "UnifiedProbe has the following entity data: [{count: 3, Slot: 1b, id: \"minecraft:stone\"}]",
+        "preview_position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+        "preview_position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
       },
       "fixture_responses": {
         "gamerule minecraft:respawn_radius 0": "Gamerule respawn_radius is now set to: 0",
@@ -221,7 +300,7 @@
         "execute if block 1 65 0 minecraft:air": "Test passed"
       },
       "server_exit_code": 0,
-      "raw_report_sha256": "84b617f102ab13e62867213d08496f38c84d941003cad760d8c843a215858868",
+      "raw_report_sha256": "ad92ec466124111519ddcd67a2a6efa0b7e204df02e0ae29f253b6e9edff7356",
       "client_records_excerpt": [
         {
           "stage": "ready",
@@ -323,7 +402,7 @@
           "stage": "survival_guard",
           "value": {
             "game_mode": "survival",
-            "receive_sequence": 149,
+            "receive_sequence": 144,
             "received_pose": {
               "position": [
                 0.5,
@@ -342,6 +421,82 @@
               "world_generation": 29
             },
             "pending_dispatch": true
+          }
+        },
+        {
+          "stage": "survival_preview",
+          "value": {
+            "initial": {
+              "game_mode": "survival",
+              "receive_sequence": 145,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 145,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              },
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 145
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              }
+            },
+            "world_revision": 54,
+            "initial_frame": {
+              "horizontal_collision": false,
+              "on_ground": true,
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "resting": true,
+              "tick": 0,
+              "velocity": [
+                0.0,
+                0.0,
+                0.0
+              ]
+            },
+            "frame_count": 35,
+            "terminal_frame": {
+              "horizontal_collision": false,
+              "on_ground": true,
+              "position": [
+                -0.14132989730463877,
+                65.0,
+                1.3968500905270147
+              ],
+              "resting": true,
+              "tick": 35,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "maximum_predicted_y": 66.25220334025373,
+            "terminal_clearance": {
+              "horizontal_margin": 0.0625,
+              "status": "admitted"
+            }
           }
         },
         {

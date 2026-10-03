@@ -23,6 +23,7 @@ Python 3.8以上、Java 21、Cargoとネットワーク接続が必要。
 | creative break | 対象`[0,65,1]`がair |
 | creative use-on-block | 隣接対象`[1,65,0]`がstone |
 | survivalへ変更した後のcreative write拒否 | Clientが拒否し、RCONのInventoryにもdiamondが出現しない |
+| survivalの35tick read-only preview | fresh teleport後に同じ型の予測を取得し、前後のRCON Posが`[0.5,65.0,0.5]`のまま |
 
 共通Clientは実際の受信mode・teleport・対象blockを待ってから操作する。
 pitch範囲外、4blockを超えるflight、creative modeでのSurvival handleのmutationも拒否を確認する。
@@ -55,3 +56,4 @@ run全体はfailedとする。次版は前版のprocessを回収してから起�
 検証コードのhash、独立確認の結果と終了codeを記録する。
 これは上記基本操作の検証であり、survival移動・採掘・設置、container、crafting、
 複雑なitem data、entity、復旧などの残作業を完了扱いにするものではない。
+previewの取得は実際のsurvival移動を検証するものではない。

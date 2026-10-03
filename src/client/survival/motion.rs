@@ -24,6 +24,24 @@ pub struct SurvivalControl {
 }
 /// Bound on a single finite connection-owned control run.
 pub const MAX_SURVIVAL_CONTROL_TICKS: usize = 120;
+/// Read-only dry full-cube forecast under the selected adapter's native defaults.
+/// All initial values share one capture boundary. No packet is sent and no
+/// reusable action authority, server tick or physical error bound is created.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct MotionPreview {
+    /// Initial player/inventory capture, preserving received and local origins.
+    pub initial: crate::client::PlayerObservation,
+    /// Received world cache revision at that same adapter boundary.
+    pub world_revision: u64,
+    /// Model seed, separate from the received pose retained by initial.
+    pub initial_frame: PredictedMotionFrame,
+    /// Caller-supplied finite headings and digital controls.
+    pub controls: Vec<SurvivalControl>,
+    /// Per-control model frames; never received positions.
+    pub frames: Vec<PredictedMotionFrame>,
+    /// Model assessment for released rest on known dry support.
+    pub terminal_clearance: TerminalClearance,
+}
 /// A simulated player frame, never a received pose or permission to build.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct PredictedMotionFrame {

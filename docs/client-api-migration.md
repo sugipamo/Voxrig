@@ -224,6 +224,7 @@ DustRoute: native observation、piston/recovery、照準、配置・除去・取
 | `client.survival()?`の検査付き操作 | `client.survival().checked()?`または`client.checked_survival()?`。既存の制約・証拠は維持 |
 | `voxrig::checked_survival` | canonicalは`voxrig::client::survival::checked`。旧pathはaliasとして維持 |
 | modern/checkedの`SurvivalInput` / `SurvivalControl` / `PredictedMotionFrame` / `TerminalClearance` | canonicalは`voxrig::client::survival`。従来importも同じ型をre-exportする |
+| read-only `preview_survival_path` | 共通では`client.survival().preview_path`。両版で`MotionPreview`を返す。追加checked契約の戻り値とは区別 |
 | `client.java_1_21_11_operations()`でのcreative基本操作 | `client.creative()`。`set_creative_hotbar`→`set_hotbar`、`dig_creative`→`break_block`。戻り値はDispatchReceipt |
 | PlayerStateを共通playerとして使用 | `client.player_state()`のPlayerObservation。追加検査契約のnative PlayerStateとは区別 |
 | 版なしの`item_id`/`item_name`など | `client.registry()`。整数IDはversion/kind付きRegistryIdとして保持 |
