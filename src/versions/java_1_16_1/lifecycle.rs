@@ -118,6 +118,8 @@ pub enum OperationAdmissionError {
     BoundedMotionInProgress,
     /// A retained common mining attempt owns normal dispatch until fresh recovery.
     BoundedMiningInProgress,
+    /// Retained placement owns gameplay dispatch until received outcomes agree.
+    BoundedPlacementInProgress,
     /// The operation belongs to a previous or different connection.
     StaleGeneration,
     /// The connection has not reached its initial ready boundary.
@@ -138,6 +140,7 @@ impl Display for OperationAdmissionError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         let name = match self {
             Self::BoundedMotionInProgress => "finite common motion owns gameplay dispatch",
+            Self::BoundedPlacementInProgress => "retained common placement owns gameplay dispatch",
             Self::BoundedMiningInProgress => "retained common mining owns gameplay dispatch",
             Self::StaleGeneration => "stale connection generation",
             Self::Connecting => "connection is not ready",

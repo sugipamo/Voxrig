@@ -41,6 +41,22 @@ pub(crate) enum Action<'a> {
     UseOnBlock([i32; 3], BlockFace, [f32; 3]),
 }
 impl Survival {
+    /// Submit one stationary default passive-cube placement into received air.
+    /// Derives the native first-outline cursor and retains the attempt before I/O.
+    /// No prediction, retry, mode change or edit permission is supplied.
+    pub async fn place_cube(
+        &self,
+        support: [i32; 3],
+        face: BlockFace,
+    ) -> Result<super::survival::PlacementRecord> {
+        self.client.place_common_cube(support, face).await
+    }
+    /// Reconcile/read the latest retained placement, including closure diagnostics.
+    /// Target, material and native protocol processing are separate receipts.
+    pub async fn placement_record(&self) -> Result<Option<super::survival::PlacementRecord>> {
+        self.client.common_placement_record().await
+    }
+
     /// Begin one stationary, received-empty-hand dirt/stone attempt.
     /// Retains coherent capture/intent before I/O. No timer or cancellation sends
     /// FINISH/ABORT automatically, and observed air never permits continuation.

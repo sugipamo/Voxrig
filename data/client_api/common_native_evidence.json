@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "library_baseline_commit": "8fadd002e44079851cfa1aea67a7995be21fd0c2",
+  "library_baseline_commit": "c7bb9f10a13fd12c4e01899a8aa976d124ba39c5",
   "scenario_sources_sha256": {
-    "examples/common_native_probe.rs": "15c083e6be958a0d44a1bcaeb0b0823ed6e633c91025f4adfc46ffeb00f6d2e5",
-    "scripts/run_common_native.py": "06ea3794abc32d074a2582a9cf4384abf2f84bb4f28dac7ffaf357b6c017cd2a"
+    "examples/common_native_probe.rs": "83de0edfe460a9020ce76bb710e352d968db49b70c77e298c36efc1828b610bf",
+    "scripts/run_common_native.py": "be89dd41207da80af99addf9961d24edac8b0b28e93823b2e730b0bb3eb4d553"
   },
-  "scope": "Common creative operations/live-mode rejection; read-only preview/static-outline targeting; finite dry walk/jump with predicted released-rest endpoint; a fresh connection explicitly starts/finishes empty-hand stone mining and receives exact-target air. Not tools/general mining, placement, observer continuation, containers or common recovery parity.",
-  "result_authority": "Vanilla server RCON for creative outcomes, unchanged preview/targeting/mining position, target stone/air and actual movement samples/endpoint. Target face/point math separately checked against native JAR methods. Client target receipts/frames and Predicted status are not independent server authority or mutation continuation.",
+  "scope": "Common creative operations/live-mode rejection; read-only preview/static-outline targeting; finite dry walk/jump with predicted released-rest endpoint; a fresh connection explicitly starts/finishes empty-hand stone mining and receives exact-target air. A third fresh connection places default dirt and receives exact-target dirt and one-material consumption; modern additionally receives a fresh processing ACK. Not tools/general mining, arbitrary placement, observer continuation, containers or common recovery parity.",
+  "result_authority": "Vanilla server RCON for creative outcomes, unchanged preview/targeting/mining/placement position, target stone/air/dirt and exact dirt inventory count and actual movement samples/endpoint. Target face/point math separately checked against native JAR methods. Client target receipts/frames and Predicted status are not independent server authority or mutation continuation.",
   "servers_run_sequentially": true,
   "java": "OpenJDK 21.0.12.1",
   "runs": [
     {
       "version": "1.16.1",
-      "run_id": "trial-1.16.1-d105a869",
+      "run_id": "trial-1.16.1-51e85cec",
       "source": {
         "version": "1.16.1",
         "metadata_url": "https://piston-meta.mojang.com/v1/packages/54fa3af57d041d2771e66d390197b2c0288e697c/1.16.1.json",
@@ -52,8 +52,18 @@
       "mining_mode_change": "Set UnifiedProbe's game mode to Survival Mode",
       "mining_teleport": "Teleported UnifiedProbe to 0.5, 65.0, 0.5",
       "mining_clear_inventory": "No items were found on player UnifiedProbe",
+      "placement_fixture": {
+        "setblock 2 65 0 minecraft:stone": "Changed the block at 2, 65, 0",
+        "setblock 1 65 0 minecraft:air": "Changed the block at 1, 65, 0"
+      },
+      "placement_setup": {
+        "gamemode survival UnifiedProbe": "Set UnifiedProbe's game mode to Survival Mode",
+        "tp UnifiedProbe 0.5 65 0.5 0 0": "Teleported UnifiedProbe to 0.5, 65.0, 0.5",
+        "clear UnifiedProbe": "No items were found on player UnifiedProbe",
+        "give UnifiedProbe minecraft:dirt 3": "Gave 3 [Dirt] to UnifiedProbe"
+      },
       "server_exit_code": 0,
-      "raw_report_sha256": "58ae43ad9d5c1dc28687aa1139eef7f3f9335f9381478ebf67d3db22a3f06ae9",
+      "raw_report_sha256": "84b5f09f47ed4128cd2edeea106aa5cea4caec94234c3a3d4e1a176bab4521f6",
       "native_results": {
         "inventory": "UnifiedProbe has the following entity data: [{Slot: 1b, id: \"minecraft:stone\", Count: 3b}]",
         "selected_slot": "UnifiedProbe has the following entity data: 1",
@@ -111,27 +121,27 @@
             },
             {
               "position": [
-                0.29338247031769243,
-                66.16610926093821,
-                0.7889385805633566
+                0.23012048354184136,
+                66.24918707874468,
+                0.8774055595788233
               ],
-              "response": "UnifiedProbe has the following entity data: [0.29338247031769243d, 66.16610926093821d, 0.7889385805633566d]"
+              "response": "UnifiedProbe has the following entity data: [0.23012048354184136d, 66.24918707874468d, 0.8774055595788233d]"
             },
             {
               "position": [
-                0.17255207391670527,
-                66.25220334025373,
-                0.9579105128030367
+                0.1201648196480398,
+                66.17675927506424,
+                1.0311700223483975
               ],
-              "response": "UnifiedProbe has the following entity data: [0.17255207391670527d, 66.25220334025373d, 0.9579105128030367d]"
+              "response": "UnifiedProbe has the following entity data: [0.1201648196480398d, 66.17675927506424d, 1.0311700223483975d]"
             },
             {
               "position": [
-                0.07249241688964378,
-                66.02442408821369,
-                1.0978361779559829
+                0.029110529129244896,
+                65.79673560066871,
+                1.158502381307275
               ],
-              "response": "UnifiedProbe has the following entity data: [0.07249241688964378d, 66.02442408821369d, 1.0978361779559829d]"
+              "response": "UnifiedProbe has the following entity data: [0.029110529129244896d, 65.79673560066871d, 1.158502381307275d]"
             },
             {
               "position": [
@@ -143,27 +153,27 @@
             },
             {
               "position": [
-                -0.10873198460570008,
+                -0.07898286856348535,
                 65.0,
-                1.3512644394012765
+                1.309662609317117
               ],
-              "response": "UnifiedProbe has the following entity data: [-0.10873198460570008d, 65.0d, 1.3512644394012765d]"
+              "response": "UnifiedProbe has the following entity data: [-0.07898286856348535d, 65.0d, 1.309662609317117d]"
             },
             {
               "position": [
-                -0.13384369338970264,
+                -0.12497500385141869,
                 65.0,
-                1.3863812153240473
+                1.3739790412655881
               ],
-              "response": "UnifiedProbe has the following entity data: [-0.13384369338970264d, 65.0d, 1.3863812153240473d]"
+              "response": "UnifiedProbe has the following entity data: [-0.12497500385141869d, 65.0d, 1.3739790412655881d]"
             },
             {
               "position": [
                 -0.13868599844005214,
                 65.0,
-                1.393152803146504
+                1.3968500905270147
               ],
-              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.393152803146504d]"
+              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.3968500905270147d]"
             },
             {
               "position": [
@@ -255,6 +265,12 @@
           "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "stage": "observed_removed",
           "continuation_validated": false
+        },
+        "survival_placement": {
+          "native_target": "Test passed",
+          "native_material": "UnifiedProbe has the following entity data: [{Slot: 0b, id: \"minecraft:dirt\", Count: 2b}]",
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
         }
       },
       "client_records_excerpt": [
@@ -281,7 +297,7 @@
                 0.5
               ]
             },
-            "receive_sequence": 15,
+            "receive_sequence": 26,
             "received_pose": {
               "position": [
                 0.5,
@@ -344,7 +360,7 @@
             "position": {
               "source": {
                 "kind": "received",
-                "sequence": 79
+                "sequence": 43
               },
               "value": [
                 0.5,
@@ -352,14 +368,14 @@
                 0.5
               ]
             },
-            "receive_sequence": 79,
+            "receive_sequence": 44,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 79,
+              "receive_sequence": 43,
               "rotation": [
                 0.0,
                 0.0
@@ -442,7 +458,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 79
+                  "sequence": 43
                 },
                 "value": [
                   0.5,
@@ -450,14 +466,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 79,
+              "receive_sequence": 61,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 79,
+                "receive_sequence": 43,
                 "rotation": [
                   0.0,
                   0.0
@@ -539,14 +555,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 97,
+              "receive_sequence": 84,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 79,
+                "receive_sequence": 43,
                 "rotation": [
                   0.0,
                   0.0
@@ -583,7 +599,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 95
+                    "sequence": 80
                   },
                   "value": {
                     "item": {
@@ -645,7 +661,7 @@
             "pending_dispatch": false,
             "position": {
               "source": {
-                "kind": "submitted"
+                "kind": "predicted"
               },
               "value": [
                 0.5,
@@ -653,14 +669,14 @@
                 0.5
               ]
             },
-            "receive_sequence": 109,
+            "receive_sequence": 93,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 79,
+              "receive_sequence": 43,
               "rotation": [
                 0.0,
                 0.0
@@ -697,7 +713,7 @@
               "selected_slot_value": {
                 "source": {
                   "kind": "received",
-                  "sequence": 95
+                  "sequence": 80
                 },
                 "value": {
                   "item": {
@@ -751,14 +767,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 136,
+              "receive_sequence": 109,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 113,
+                "receive_sequence": 98,
                 "rotation": [
                   0.0,
                   0.0
@@ -784,7 +800,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 112
+                    "sequence": 97
                   },
                   "value": {
                     "kind": "empty"
@@ -795,7 +811,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 110
+                    "sequence": 95
                   },
                   "value": {
                     "kind": "empty"
@@ -823,7 +839,7 @@
               "horizontal_margin": 0.0625,
               "status": "admitted"
             },
-            "world_revision": 79,
+            "world_revision": 53,
             "frames_summary": {
               "count": 35,
               "first": {
@@ -937,14 +953,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 136,
+              "receive_sequence": 109,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 113,
+                "receive_sequence": 98,
                 "rotation": [
                   0.0,
                   0.0
@@ -970,7 +986,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 112
+                    "sequence": 97
                   },
                   "value": {
                     "kind": "empty"
@@ -981,7 +997,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 110
+                    "sequence": 95
                   },
                   "value": {
                     "kind": "empty"
@@ -990,7 +1006,7 @@
               }
             },
             "maximum_distance": 4.5,
-            "world_revision": 79
+            "world_revision": 53
           }
         },
         {
@@ -1029,14 +1045,14 @@
                     0.5
                   ]
                 },
-                "receive_sequence": 136,
+                "receive_sequence": 110,
                 "received_pose": {
                   "position": [
                     0.5,
                     65.0,
                     0.5
                   ],
-                  "receive_sequence": 113,
+                  "receive_sequence": 98,
                   "rotation": [
                     0.0,
                     0.0
@@ -1062,7 +1078,7 @@
                   "cursor": {
                     "source": {
                       "kind": "received",
-                      "sequence": 112
+                      "sequence": 97
                     },
                     "value": {
                       "kind": "empty"
@@ -1073,7 +1089,7 @@
                   "selected_slot_value": {
                     "source": {
                       "kind": "received",
-                      "sequence": 110
+                      "sequence": 95
                     },
                     "value": {
                       "kind": "empty"
@@ -1101,7 +1117,7 @@
                 "horizontal_margin": 0.0625,
                 "status": "admitted"
               },
-              "world_revision": 79,
+              "world_revision": 53,
               "frames_summary": {
                 "count": 35,
                 "first": {
@@ -1204,14 +1220,14 @@
                     0.5
                   ]
                 },
-                "receive_sequence": 136,
+                "receive_sequence": 110,
                 "received_pose": {
                   "position": [
                     0.5,
                     65.0,
                     0.5
                   ],
-                  "receive_sequence": 113,
+                  "receive_sequence": 98,
                   "rotation": [
                     0.0,
                     0.0
@@ -1237,7 +1253,7 @@
                   "cursor": {
                     "source": {
                       "kind": "received",
-                      "sequence": 112
+                      "sequence": 97
                     },
                     "value": {
                       "kind": "empty"
@@ -1248,7 +1264,7 @@
                   "selected_slot_value": {
                     "source": {
                       "kind": "received",
-                      "sequence": 110
+                      "sequence": 95
                     },
                     "value": {
                       "kind": "empty"
@@ -1276,7 +1292,7 @@
                 "horizontal_margin": 0.0625,
                 "status": "admitted"
               },
-              "world_revision": 79,
+              "world_revision": 53,
               "frames_summary": {
                 "count": 35,
                 "first": {
@@ -1374,7 +1390,7 @@
                 1.3968500905270147
               ]
             },
-            "receive_sequence": 28,
+            "receive_sequence": 26,
             "received_pose": {
               "position": [
                 -0.13868599844005214,
@@ -1424,7 +1440,7 @@
             "health": {
               "source": {
                 "kind": "received",
-                "sequence": 106
+                "sequence": 90
               },
               "value": {
                 "food": 20,
@@ -1437,7 +1453,7 @@
             "position": {
               "source": {
                 "kind": "received",
-                "sequence": 131
+                "sequence": 103
               },
               "value": [
                 0.5,
@@ -1445,14 +1461,14 @@
                 0.5
               ]
             },
-            "receive_sequence": 144,
+            "receive_sequence": 123,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 131,
+              "receive_sequence": 103,
               "rotation": [
                 0.0,
                 0.0
@@ -1479,7 +1495,7 @@
               "cursor": {
                 "source": {
                   "kind": "received",
-                  "sequence": 133
+                  "sequence": 105
                 },
                 "value": {
                   "kind": "empty"
@@ -1490,7 +1506,7 @@
               "selected_slot_value": {
                 "source": {
                   "kind": "received",
-                  "sequence": 104
+                  "sequence": 88
                 },
                 "value": {
                   "kind": "empty"
@@ -1529,7 +1545,7 @@
               "health": {
                 "source": {
                   "kind": "received",
-                  "sequence": 106
+                  "sequence": 90
                 },
                 "value": {
                   "food": 20,
@@ -1541,7 +1557,8 @@
               "pending_dispatch": false,
               "position": {
                 "source": {
-                  "kind": "predicted"
+                  "kind": "received",
+                  "sequence": 103
                 },
                 "value": [
                   0.5,
@@ -1549,14 +1566,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 156,
+              "receive_sequence": 131,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 131,
+                "receive_sequence": 103,
                 "rotation": [
                   0.0,
                   0.0
@@ -1582,7 +1599,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 133
+                    "sequence": 105
                   },
                   "value": {
                     "kind": "empty"
@@ -1593,7 +1610,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 104
+                    "sequence": 88
                   },
                   "value": {
                     "kind": "empty"
@@ -1606,7 +1623,7 @@
             "requires_inspection": null,
             "stage": "mining",
             "start": {
-              "after_sequence": 156,
+              "after_sequence": 131,
               "dispatched": true,
               "interaction_sequence": null
             },
@@ -1630,7 +1647,7 @@
             "estimated_wait_ms": 8500,
             "face": "North",
             "finish": {
-              "after_sequence": 166,
+              "after_sequence": 153,
               "dispatched": true,
               "interaction_sequence": null
             },
@@ -1652,7 +1669,7 @@
               "health": {
                 "source": {
                   "kind": "received",
-                  "sequence": 106
+                  "sequence": 90
                 },
                 "value": {
                   "food": 20,
@@ -1664,7 +1681,8 @@
               "pending_dispatch": false,
               "position": {
                 "source": {
-                  "kind": "predicted"
+                  "kind": "received",
+                  "sequence": 103
                 },
                 "value": [
                   0.5,
@@ -1672,14 +1690,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 156,
+              "receive_sequence": 131,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 131,
+                "receive_sequence": 103,
                 "rotation": [
                   0.0,
                   0.0
@@ -1705,7 +1723,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 133
+                    "sequence": 105
                   },
                   "value": {
                     "kind": "empty"
@@ -1716,7 +1734,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 104
+                    "sequence": 88
                   },
                   "value": {
                     "kind": "empty"
@@ -1729,7 +1747,7 @@
               "accepted": true,
               "action": 2,
               "kind": "legacy_reply",
-              "receive_sequence": 167,
+              "receive_sequence": 154,
               "state": {
                 "name": "minecraft:air",
                 "properties": {}
@@ -1738,7 +1756,7 @@
             "requires_inspection": null,
             "stage": "observed_removed",
             "start": {
-              "after_sequence": 156,
+              "after_sequence": 131,
               "dispatched": true,
               "interaction_sequence": null
             },
@@ -1748,7 +1766,7 @@
               3
             ],
             "target_receipt": {
-              "receive_sequence": 167,
+              "receive_sequence": 154,
               "state": {
                 "name": "minecraft:air",
                 "properties": {}
@@ -1768,7 +1786,7 @@
             "estimated_wait_ms": 8500,
             "face": "North",
             "finish": {
-              "after_sequence": 166,
+              "after_sequence": 153,
               "dispatched": true,
               "interaction_sequence": null
             },
@@ -1790,7 +1808,7 @@
               "health": {
                 "source": {
                   "kind": "received",
-                  "sequence": 106
+                  "sequence": 90
                 },
                 "value": {
                   "food": 20,
@@ -1802,7 +1820,8 @@
               "pending_dispatch": false,
               "position": {
                 "source": {
-                  "kind": "predicted"
+                  "kind": "received",
+                  "sequence": 103
                 },
                 "value": [
                   0.5,
@@ -1810,14 +1829,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 156,
+              "receive_sequence": 131,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 131,
+                "receive_sequence": 103,
                 "rotation": [
                   0.0,
                   0.0
@@ -1843,7 +1862,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 133
+                    "sequence": 105
                   },
                   "value": {
                     "kind": "empty"
@@ -1854,7 +1873,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 104
+                    "sequence": 88
                   },
                   "value": {
                     "kind": "empty"
@@ -1867,7 +1886,7 @@
               "accepted": true,
               "action": 2,
               "kind": "legacy_reply",
-              "receive_sequence": 167,
+              "receive_sequence": 154,
               "state": {
                 "name": "minecraft:air",
                 "properties": {}
@@ -1876,7 +1895,7 @@
             "requires_inspection": null,
             "stage": "observed_removed",
             "start": {
-              "after_sequence": 156,
+              "after_sequence": 131,
               "dispatched": true,
               "interaction_sequence": null
             },
@@ -1886,9 +1905,706 @@
               3
             ],
             "target_receipt": {
-              "receive_sequence": 167,
+              "receive_sequence": 154,
               "state": {
                 "name": "minecraft:air",
+                "properties": {}
+              }
+            }
+          }
+        }
+      ],
+      "placement_records_excerpt": [
+        {
+          "stage": "placement_ready",
+          "value": {
+            "dimension": {
+              "height": 256,
+              "min_y": 0,
+              "name": "minecraft:overworld"
+            },
+            "game_mode": "creative",
+            "health": null,
+            "may_fly": true,
+            "pending_dispatch": false,
+            "position": {
+              "source": {
+                "kind": "received",
+                "sequence": 11
+              },
+              "value": [
+                0.5,
+                65.0,
+                0.5
+              ]
+            },
+            "receive_sequence": 26,
+            "received_pose": {
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "receive_sequence": 11,
+              "rotation": [
+                0.0,
+                20.479999542236328
+              ]
+            },
+            "rotation": [
+              0.0,
+              20.479999542236328
+            ],
+            "selected_hotbar": {
+              "source": {
+                "kind": "received",
+                "sequence": 5
+              },
+              "value": 0
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "inventory_excerpt": {
+              "window_id": null,
+              "cursor": null,
+              "screen_revision": null,
+              "selected_slot": 36,
+              "selected_slot_value": null
+            }
+          }
+        },
+        {
+          "stage": "placement_baseline",
+          "value": {
+            "dimension": {
+              "height": 256,
+              "min_y": 0,
+              "name": "minecraft:overworld"
+            },
+            "game_mode": "survival",
+            "health": {
+              "source": {
+                "kind": "received",
+                "sequence": 118
+              },
+              "value": {
+                "food": 20,
+                "health": 20.0,
+                "saturation": 5.0
+              }
+            },
+            "may_fly": false,
+            "pending_dispatch": false,
+            "position": {
+              "source": {
+                "kind": "received",
+                "sequence": 130
+              },
+              "value": [
+                0.5,
+                65.0,
+                0.5
+              ]
+            },
+            "receive_sequence": 138,
+            "received_pose": {
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "receive_sequence": 130,
+              "rotation": [
+                0.0,
+                0.0
+              ]
+            },
+            "rotation": [
+              0.0,
+              0.0
+            ],
+            "selected_hotbar": {
+              "source": {
+                "kind": "received",
+                "sequence": 5
+              },
+              "value": 0
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "inventory_excerpt": {
+              "window_id": 0,
+              "cursor": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 132
+                },
+                "value": {
+                  "kind": "empty"
+                }
+              },
+              "screen_revision": null,
+              "selected_slot": 36,
+              "selected_slot_value": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 137
+                },
+                "value": {
+                  "item": {
+                    "count": 3,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 9,
+                      "version": "Java1_16_1"
+                    },
+                    "name": "minecraft:dirt"
+                  },
+                  "kind": "item"
+                }
+              }
+            }
+          }
+        },
+        {
+          "stage": "placement_start",
+          "value": {
+            "before": {
+              "name": "minecraft:air",
+              "properties": {}
+            },
+            "cursor": [
+              0.0,
+              0.36154115200042725,
+              0.5
+            ],
+            "expected": {
+              "name": "minecraft:dirt",
+              "properties": {}
+            },
+            "face": "West",
+            "held_before": {
+              "count": 3,
+              "data": {
+                "kind": "default"
+              },
+              "id": {
+                "kind": "Item",
+                "value": 9,
+                "version": "Java1_16_1"
+              },
+              "name": "minecraft:dirt"
+            },
+            "held_receive_sequence": 137,
+            "id": {
+              "attempt": 1,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              }
+            },
+            "initial": {
+              "dimension": {
+                "height": 256,
+                "min_y": 0,
+                "name": "minecraft:overworld"
+              },
+              "game_mode": "survival",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 118
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "may_fly": false,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 130
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 138,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 130,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                -90.0,
+                40.0
+              ],
+              "selected_hotbar": {
+                "source": {
+                  "kind": "submitted"
+                },
+                "value": 0
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              },
+              "inventory_excerpt": {
+                "window_id": 0,
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 132
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                "screen_revision": null,
+                "selected_slot": 36,
+                "selected_slot_value": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 137
+                  },
+                  "value": {
+                    "item": {
+                      "count": 3,
+                      "data": {
+                        "kind": "default"
+                      },
+                      "id": {
+                        "kind": "Item",
+                        "value": 9,
+                        "version": "Java1_16_1"
+                      },
+                      "name": "minecraft:dirt"
+                    },
+                    "kind": "item"
+                  }
+                }
+              }
+            },
+            "material_receipt": null,
+            "processing": null,
+            "requires_inspection": null,
+            "send": {
+              "after_sequence": 138,
+              "dispatched": true,
+              "interaction_sequence": null
+            },
+            "stage": "pending",
+            "support": [
+              2,
+              65,
+              0
+            ],
+            "support_state": {
+              "name": "minecraft:stone",
+              "properties": {}
+            },
+            "target": [
+              1,
+              65,
+              0
+            ],
+            "target_receipt": null
+          }
+        },
+        {
+          "stage": "placement_observed",
+          "value": {
+            "before": {
+              "name": "minecraft:air",
+              "properties": {}
+            },
+            "cursor": [
+              0.0,
+              0.36154115200042725,
+              0.5
+            ],
+            "expected": {
+              "name": "minecraft:dirt",
+              "properties": {}
+            },
+            "face": "West",
+            "held_before": {
+              "count": 3,
+              "data": {
+                "kind": "default"
+              },
+              "id": {
+                "kind": "Item",
+                "value": 9,
+                "version": "Java1_16_1"
+              },
+              "name": "minecraft:dirt"
+            },
+            "held_receive_sequence": 137,
+            "id": {
+              "attempt": 1,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              }
+            },
+            "initial": {
+              "dimension": {
+                "height": 256,
+                "min_y": 0,
+                "name": "minecraft:overworld"
+              },
+              "game_mode": "survival",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 118
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "may_fly": false,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 130
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 138,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 130,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                -90.0,
+                40.0
+              ],
+              "selected_hotbar": {
+                "source": {
+                  "kind": "submitted"
+                },
+                "value": 0
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              },
+              "inventory_excerpt": {
+                "window_id": 0,
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 132
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                "screen_revision": null,
+                "selected_slot": 36,
+                "selected_slot_value": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 137
+                  },
+                  "value": {
+                    "item": {
+                      "count": 3,
+                      "data": {
+                        "kind": "default"
+                      },
+                      "id": {
+                        "kind": "Item",
+                        "value": 9,
+                        "version": "Java1_16_1"
+                      },
+                      "name": "minecraft:dirt"
+                    },
+                    "kind": "item"
+                  }
+                }
+              }
+            },
+            "material_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 142
+              },
+              "value": {
+                "item": {
+                  "count": 2,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 9,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "processing": null,
+            "requires_inspection": null,
+            "send": {
+              "after_sequence": 138,
+              "dispatched": true,
+              "interaction_sequence": null
+            },
+            "stage": "observed_placed",
+            "support": [
+              2,
+              65,
+              0
+            ],
+            "support_state": {
+              "name": "minecraft:stone",
+              "properties": {}
+            },
+            "target": [
+              1,
+              65,
+              0
+            ],
+            "target_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 140
+              },
+              "value": {
+                "name": "minecraft:dirt",
+                "properties": {}
+              }
+            }
+          }
+        },
+        {
+          "stage": "placement_disconnected",
+          "value": {
+            "before": {
+              "name": "minecraft:air",
+              "properties": {}
+            },
+            "cursor": [
+              0.0,
+              0.36154115200042725,
+              0.5
+            ],
+            "expected": {
+              "name": "minecraft:dirt",
+              "properties": {}
+            },
+            "face": "West",
+            "held_before": {
+              "count": 3,
+              "data": {
+                "kind": "default"
+              },
+              "id": {
+                "kind": "Item",
+                "value": 9,
+                "version": "Java1_16_1"
+              },
+              "name": "minecraft:dirt"
+            },
+            "held_receive_sequence": 137,
+            "id": {
+              "attempt": 1,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              }
+            },
+            "initial": {
+              "dimension": {
+                "height": 256,
+                "min_y": 0,
+                "name": "minecraft:overworld"
+              },
+              "game_mode": "survival",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 118
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "may_fly": false,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 130
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 138,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 130,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                -90.0,
+                40.0
+              ],
+              "selected_hotbar": {
+                "source": {
+                  "kind": "submitted"
+                },
+                "value": 0
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              },
+              "inventory_excerpt": {
+                "window_id": 0,
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 132
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                "screen_revision": null,
+                "selected_slot": 36,
+                "selected_slot_value": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 137
+                  },
+                  "value": {
+                    "item": {
+                      "count": 3,
+                      "data": {
+                        "kind": "default"
+                      },
+                      "id": {
+                        "kind": "Item",
+                        "value": 9,
+                        "version": "Java1_16_1"
+                      },
+                      "name": "minecraft:dirt"
+                    },
+                    "kind": "item"
+                  }
+                }
+              }
+            },
+            "material_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 142
+              },
+              "value": {
+                "item": {
+                  "count": 2,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 9,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "processing": null,
+            "requires_inspection": null,
+            "send": {
+              "after_sequence": 138,
+              "dispatched": true,
+              "interaction_sequence": null
+            },
+            "stage": "observed_placed",
+            "support": [
+              2,
+              65,
+              0
+            ],
+            "support_state": {
+              "name": "minecraft:stone",
+              "properties": {}
+            },
+            "target": [
+              1,
+              65,
+              0
+            ],
+            "target_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 140
+              },
+              "value": {
+                "name": "minecraft:dirt",
                 "properties": {}
               }
             }
@@ -1898,7 +2614,7 @@
     },
     {
       "version": "1.21.11",
-      "run_id": "trial-1.21.11-74b59808",
+      "run_id": "trial-1.21.11-ac779f63",
       "source": {
         "version": "1.21.11",
         "metadata_url": "https://piston-meta.mojang.com/v1/packages/4f6bd9388f12e9d7adc2ded64acba66212d60521/1.21.11.json",
@@ -1938,8 +2654,18 @@
       "mining_mode_change": "Set UnifiedProbe's game mode to Survival Mode",
       "mining_teleport": "Teleported UnifiedProbe to 0.500000, 65.000000, 0.500000",
       "mining_clear_inventory": "No items were found on player UnifiedProbe",
+      "placement_fixture": {
+        "setblock 2 65 0 minecraft:stone": "Changed the block at 2, 65, 0",
+        "setblock 1 65 0 minecraft:air": "Changed the block at 1, 65, 0"
+      },
+      "placement_setup": {
+        "gamemode survival UnifiedProbe": "Set UnifiedProbe's game mode to Survival Mode",
+        "tp UnifiedProbe 0.5 65 0.5 0 0": "Teleported UnifiedProbe to 0.500000, 65.000000, 0.500000",
+        "clear UnifiedProbe": "No items were found on player UnifiedProbe",
+        "give UnifiedProbe minecraft:dirt 3": "Gave 3 [Dirt] to UnifiedProbe"
+      },
       "server_exit_code": 0,
-      "raw_report_sha256": "84052a25f63eeb58a08f0efec1838b35831fa52e016d6ca9dbc747b6d798cf90",
+      "raw_report_sha256": "2f0237b5f6b64d17e7dc901ca593edff1a16ac48ebd12c4da624d4611ef667a7",
       "native_results": {
         "inventory": "UnifiedProbe has the following entity data: [{count: 3, Slot: 1b, id: \"minecraft:stone\"}]",
         "selected_slot": "UnifiedProbe has the following entity data: 1",
@@ -2037,19 +2763,19 @@
             },
             {
               "position": [
-                -0.10873198460570008,
+                -0.13384369338970264,
                 65.0,
-                1.3512644394012765
+                1.3863812153240473
               ],
-              "response": "UnifiedProbe has the following entity data: [-0.10873198460570008d, 65.0d, 1.3512644394012765d]"
+              "response": "UnifiedProbe has the following entity data: [-0.13384369338970264d, 65.0d, 1.3863812153240473d]"
             },
             {
               "position": [
-                -0.13868599844005214,
+                -0.14132989730463877,
                 65.0,
-                1.393152803146504
+                1.3968500905270147
               ],
-              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.393152803146504d]"
+              "response": "UnifiedProbe has the following entity data: [-0.14132989730463877d, 65.0d, 1.3968500905270147d]"
             },
             {
               "position": [
@@ -2141,6 +2867,12 @@
           "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "stage": "observed_removed",
           "continuation_validated": false
+        },
+        "survival_placement": {
+          "native_target": "Test passed",
+          "native_material": "UnifiedProbe has the following entity data: [{count: 2, Slot: 0b, id: \"minecraft:dirt\"}]",
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
         }
       },
       "client_records_excerpt": [
@@ -2256,7 +2988,7 @@
             "position": {
               "source": {
                 "kind": "received",
-                "sequence": 67
+                "sequence": 77
               },
               "value": [
                 0.5,
@@ -2264,14 +2996,14 @@
                 0.5
               ]
             },
-            "receive_sequence": 67,
+            "receive_sequence": 93,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 67,
+              "receive_sequence": 77,
               "rotation": [
                 0.0,
                 0.0
@@ -2354,7 +3086,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 67
+                  "sequence": 77
                 },
                 "value": [
                   0.5,
@@ -2362,14 +3094,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 67,
+              "receive_sequence": 93,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 67,
+                "receive_sequence": 77,
                 "rotation": [
                   0.0,
                   0.0
@@ -2451,14 +3183,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 122,
+              "receive_sequence": 132,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 67,
+                "receive_sequence": 77,
                 "rotation": [
                   0.0,
                   0.0
@@ -2552,7 +3284,7 @@
                 65.0,
                 0.5
               ],
-              "receive_sequence": 67,
+              "receive_sequence": 77,
               "rotation": [
                 0.0,
                 0.0
@@ -3347,7 +4079,7 @@
                 0.5
               ]
             },
-            "receive_sequence": 74,
+            "receive_sequence": 95,
             "received_pose": {
               "position": [
                 0.5,
@@ -3452,7 +4184,7 @@
                   0.5
                 ]
               },
-              "receive_sequence": 74,
+              "receive_sequence": 95,
               "received_pose": {
                 "position": [
                   0.5,
@@ -3509,7 +4241,7 @@
             "requires_inspection": null,
             "stage": "mining",
             "start": {
-              "after_sequence": 74,
+              "after_sequence": 95,
               "dispatched": true,
               "interaction_sequence": 1
             },
@@ -3576,7 +4308,7 @@
                   0.5
                 ]
               },
-              "receive_sequence": 74,
+              "receive_sequence": 95,
               "received_pose": {
                 "position": [
                   0.5,
@@ -3637,7 +4369,7 @@
             "requires_inspection": null,
             "stage": "observed_removed",
             "start": {
-              "after_sequence": 74,
+              "after_sequence": 95,
               "dispatched": true,
               "interaction_sequence": 1
             },
@@ -3710,7 +4442,7 @@
                   0.5
                 ]
               },
-              "receive_sequence": 74,
+              "receive_sequence": 95,
               "received_pose": {
                 "position": [
                   0.5,
@@ -3771,7 +4503,7 @@
             "requires_inspection": null,
             "stage": "observed_removed",
             "start": {
-              "after_sequence": 74,
+              "after_sequence": 95,
               "dispatched": true,
               "interaction_sequence": 1
             },
@@ -3789,24 +4521,753 @@
             }
           }
         }
+      ],
+      "placement_records_excerpt": [
+        {
+          "stage": "placement_ready",
+          "value": {
+            "dimension": {
+              "height": 384,
+              "min_y": -64,
+              "name": "minecraft:overworld"
+            },
+            "game_mode": "creative",
+            "health": {
+              "source": {
+                "kind": "received",
+                "sequence": 53
+              },
+              "value": {
+                "food": 20,
+                "health": 20.0,
+                "saturation": 5.0
+              }
+            },
+            "may_fly": true,
+            "pending_dispatch": false,
+            "position": {
+              "source": {
+                "kind": "received",
+                "sequence": 38
+              },
+              "value": [
+                0.5,
+                65.0,
+                0.5
+              ]
+            },
+            "receive_sequence": 66,
+            "received_pose": {
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "receive_sequence": 38,
+              "rotation": [
+                0.0,
+                20.479999542236328
+              ]
+            },
+            "rotation": [
+              0.0,
+              20.479999542236328
+            ],
+            "selected_hotbar": {
+              "source": {
+                "kind": "received",
+                "sequence": 32
+              },
+              "value": 0
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "inventory_excerpt": {
+              "window_id": 0,
+              "cursor": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 49
+                },
+                "value": {
+                  "kind": "empty"
+                }
+              },
+              "screen_revision": 1,
+              "selected_slot": 36,
+              "selected_slot_value": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 49
+                },
+                "value": {
+                  "kind": "empty"
+                }
+              }
+            }
+          }
+        },
+        {
+          "stage": "placement_baseline",
+          "value": {
+            "dimension": {
+              "height": 384,
+              "min_y": -64,
+              "name": "minecraft:overworld"
+            },
+            "game_mode": "survival",
+            "health": {
+              "source": {
+                "kind": "received",
+                "sequence": 53
+              },
+              "value": {
+                "food": 20,
+                "health": 20.0,
+                "saturation": 5.0
+              }
+            },
+            "may_fly": false,
+            "pending_dispatch": false,
+            "position": {
+              "source": {
+                "kind": "received",
+                "sequence": 72
+              },
+              "value": [
+                0.5,
+                65.0,
+                0.5
+              ]
+            },
+            "receive_sequence": 79,
+            "received_pose": {
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "receive_sequence": 72,
+              "rotation": [
+                0.0,
+                0.0
+              ]
+            },
+            "rotation": [
+              0.0,
+              0.0
+            ],
+            "selected_hotbar": {
+              "source": {
+                "kind": "received",
+                "sequence": 32
+              },
+              "value": 0
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "inventory_excerpt": {
+              "window_id": 0,
+              "cursor": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 49
+                },
+                "value": {
+                  "kind": "empty"
+                }
+              },
+              "screen_revision": 3,
+              "selected_slot": 36,
+              "selected_slot_value": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 79
+                },
+                "value": {
+                  "item": {
+                    "count": 3,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 28,
+                      "version": "Java1_21_11"
+                    },
+                    "name": "minecraft:dirt"
+                  },
+                  "kind": "item"
+                }
+              }
+            }
+          }
+        },
+        {
+          "stage": "placement_start",
+          "value": {
+            "before": {
+              "name": "minecraft:air",
+              "properties": {}
+            },
+            "cursor": [
+              0.0,
+              0.36154115200042725,
+              0.5
+            ],
+            "expected": {
+              "name": "minecraft:dirt",
+              "properties": {}
+            },
+            "face": "West",
+            "held_before": {
+              "count": 3,
+              "data": {
+                "kind": "default"
+              },
+              "id": {
+                "kind": "Item",
+                "value": 28,
+                "version": "Java1_21_11"
+              },
+              "name": "minecraft:dirt"
+            },
+            "held_receive_sequence": 79,
+            "id": {
+              "attempt": 2,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              }
+            },
+            "initial": {
+              "dimension": {
+                "height": 384,
+                "min_y": -64,
+                "name": "minecraft:overworld"
+              },
+              "game_mode": "survival",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 53
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "may_fly": false,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 72
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 79,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 72,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                -90.0,
+                40.0
+              ],
+              "selected_hotbar": {
+                "source": {
+                  "kind": "submitted"
+                },
+                "value": 0
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              },
+              "inventory_excerpt": {
+                "window_id": 0,
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 49
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                "screen_revision": 3,
+                "selected_slot": 36,
+                "selected_slot_value": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 79
+                  },
+                  "value": {
+                    "item": {
+                      "count": 3,
+                      "data": {
+                        "kind": "default"
+                      },
+                      "id": {
+                        "kind": "Item",
+                        "value": 28,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:dirt"
+                    },
+                    "kind": "item"
+                  }
+                }
+              }
+            },
+            "material_receipt": null,
+            "processing": null,
+            "requires_inspection": null,
+            "send": {
+              "after_sequence": 79,
+              "dispatched": true,
+              "interaction_sequence": 1
+            },
+            "stage": "pending",
+            "support": [
+              2,
+              65,
+              0
+            ],
+            "support_state": {
+              "name": "minecraft:stone",
+              "properties": {}
+            },
+            "target": [
+              1,
+              65,
+              0
+            ],
+            "target_receipt": null
+          }
+        },
+        {
+          "stage": "placement_observed",
+          "value": {
+            "before": {
+              "name": "minecraft:air",
+              "properties": {}
+            },
+            "cursor": [
+              0.0,
+              0.36154115200042725,
+              0.5
+            ],
+            "expected": {
+              "name": "minecraft:dirt",
+              "properties": {}
+            },
+            "face": "West",
+            "held_before": {
+              "count": 3,
+              "data": {
+                "kind": "default"
+              },
+              "id": {
+                "kind": "Item",
+                "value": 28,
+                "version": "Java1_21_11"
+              },
+              "name": "minecraft:dirt"
+            },
+            "held_receive_sequence": 79,
+            "id": {
+              "attempt": 2,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              }
+            },
+            "initial": {
+              "dimension": {
+                "height": 384,
+                "min_y": -64,
+                "name": "minecraft:overworld"
+              },
+              "game_mode": "survival",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 53
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "may_fly": false,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 72
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 79,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 72,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                -90.0,
+                40.0
+              ],
+              "selected_hotbar": {
+                "source": {
+                  "kind": "submitted"
+                },
+                "value": 0
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              },
+              "inventory_excerpt": {
+                "window_id": 0,
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 49
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                "screen_revision": 3,
+                "selected_slot": 36,
+                "selected_slot_value": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 79
+                  },
+                  "value": {
+                    "item": {
+                      "count": 3,
+                      "data": {
+                        "kind": "default"
+                      },
+                      "id": {
+                        "kind": "Item",
+                        "value": 28,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:dirt"
+                    },
+                    "kind": "item"
+                  }
+                }
+              }
+            },
+            "material_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 97
+              },
+              "value": {
+                "item": {
+                  "count": 2,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 28,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "processing": {
+              "receive_sequence": 98,
+              "sequence": 1
+            },
+            "requires_inspection": null,
+            "send": {
+              "after_sequence": 79,
+              "dispatched": true,
+              "interaction_sequence": 1
+            },
+            "stage": "observed_placed",
+            "support": [
+              2,
+              65,
+              0
+            ],
+            "support_state": {
+              "name": "minecraft:stone",
+              "properties": {}
+            },
+            "target": [
+              1,
+              65,
+              0
+            ],
+            "target_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 95
+              },
+              "value": {
+                "name": "minecraft:dirt",
+                "properties": {}
+              }
+            }
+          }
+        },
+        {
+          "stage": "placement_disconnected",
+          "value": {
+            "before": {
+              "name": "minecraft:air",
+              "properties": {}
+            },
+            "cursor": [
+              0.0,
+              0.36154115200042725,
+              0.5
+            ],
+            "expected": {
+              "name": "minecraft:dirt",
+              "properties": {}
+            },
+            "face": "West",
+            "held_before": {
+              "count": 3,
+              "data": {
+                "kind": "default"
+              },
+              "id": {
+                "kind": "Item",
+                "value": 28,
+                "version": "Java1_21_11"
+              },
+              "name": "minecraft:dirt"
+            },
+            "held_receive_sequence": 79,
+            "id": {
+              "attempt": 2,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              }
+            },
+            "initial": {
+              "dimension": {
+                "height": 384,
+                "min_y": -64,
+                "name": "minecraft:overworld"
+              },
+              "game_mode": "survival",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 53
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "may_fly": false,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 72
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 79,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 72,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                -90.0,
+                40.0
+              ],
+              "selected_hotbar": {
+                "source": {
+                  "kind": "submitted"
+                },
+                "value": 0
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              },
+              "inventory_excerpt": {
+                "window_id": 0,
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 49
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                "screen_revision": 3,
+                "selected_slot": 36,
+                "selected_slot_value": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 79
+                  },
+                  "value": {
+                    "item": {
+                      "count": 3,
+                      "data": {
+                        "kind": "default"
+                      },
+                      "id": {
+                        "kind": "Item",
+                        "value": 28,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:dirt"
+                    },
+                    "kind": "item"
+                  }
+                }
+              }
+            },
+            "material_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 97
+              },
+              "value": {
+                "item": {
+                  "count": 2,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 28,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "processing": {
+              "receive_sequence": 98,
+              "sequence": 1
+            },
+            "requires_inspection": null,
+            "send": {
+              "after_sequence": 79,
+              "dispatched": true,
+              "interaction_sequence": 1
+            },
+            "stage": "observed_placed",
+            "support": [
+              2,
+              65,
+              0
+            ],
+            "support_state": {
+              "name": "minecraft:stone",
+              "properties": {}
+            },
+            "target": [
+              1,
+              65,
+              0
+            ],
+            "target_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 95
+              },
+              "value": {
+                "name": "minecraft:dirt",
+                "properties": {}
+              }
+            }
+          }
+        }
       ]
     }
   ],
   "motion_implementation_sha256": {
     "src/client/survival/model.rs": "5142678df9a4936000f5c83c1864b7fd00bd63d1be7fc553a1673baee6ca1592",
     "src/client/survival/motion.rs": "edee38d19269693f7a7ca194a980b61a92aaa4ab24914c5500b5be88c1dd022a",
-    "src/versions/java_1_16_1/client/common_motion.rs": "c1680d9554b68875710fbf27902806bb6b4df98393bdf0f5e29d2c2b39a1408f",
-    "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "2b1cd6707e1f744c30dde143f016e199a8cda80f98a929ebc7f28626c722383f",
+    "src/versions/java_1_16_1/client/common_motion.rs": "c545de7bf89dc42264807864bb0075eb2d020157d30421f34a65bdfe26cfd2a9",
+    "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "1865b4cb7379bf8008b4ddf899202ef531d68b30398b4cf7d3f35758eb82e14e",
     "src/versions/java_1_21_11/client/operations/movement/control.rs": "5827110068926d9c17fc40e41f8dadbcee6ccf9738f865d05ceb8e33d0f0a228",
-    "src/versions/java_1_16_1/client.rs": "f37dcae4d63e9fa28c25f34addbb6ad6da5900b3b04053175a07486b4a5e76a5",
-    "src/versions/java_1_16_1/lifecycle.rs": "02dc116a24d9153bb45bc3f350f05f38ce00b972e2729d9d6fdaccaca206730d",
-    "src/versions/java_1_21_11/client.rs": "1207f043e4f2485ae3f0b30357e912886308e0e80e5007010b028125effc61e6"
+    "src/versions/java_1_16_1/client.rs": "2a2cfdd278f2b040f4e4bd898242015a5c7fe06e85a3b51969f568ca2baeae6a",
+    "src/versions/java_1_16_1/lifecycle.rs": "1fcd1216707442396683eaf4f215f2ccdb6616cb31f49cbd8f5000bef5b5819b",
+    "src/versions/java_1_21_11/client.rs": "35b2309744e68129a5ca7488397d5fef864063c1600e8e67f1da49221532d3b4"
   },
   "targeting_implementation_sha256": {
     "src/client/survival/target.rs": "cf0a0be4a204b7fc78895c9bcd3ddfbcdc52cfe683b7bf12c632d5cc2349d816",
-    "src/client/operations.rs": "d0183b318018b7310364c3c22148c1a0a62e1285f9d1ee17b5765571dae3c4b2",
-    "src/connection.rs": "715284618d1e55f1e16c55de165667ec70abcc7502e2e7b1fd727c6a48552bf6",
-    "src/versions/java_1_16_1/client/common_motion.rs": "c1680d9554b68875710fbf27902806bb6b4df98393bdf0f5e29d2c2b39a1408f",
+    "src/client/operations.rs": "b387d7d73d2d9dc6617f3d5ce47d2aff2c79cedb63678a244defd1a3d257ca49",
+    "src/connection.rs": "5b0a8aedd34d726ab33817857b573f696b0062a63bf98799f208a77d586c8396",
+    "src/versions/java_1_16_1/client/common_motion.rs": "c545de7bf89dc42264807864bb0075eb2d020157d30421f34a65bdfe26cfd2a9",
     "src/versions/java_1_21_11/client/operations/movement.rs": "011c5867d0455f39f46982ea206d85df67f3b57d36a54fe4ef6ec6f15ba8a0eb",
     "src/versions/java_1_21_11/client/raycast.rs": "97e95b79b4e0a26a0e442cb60ea81eaa97ebb66adf45ef3dc50e9e4d4440c7c6",
     "src/versions/java_1_21_11/client/raycast/outline.rs": "5db754a463fe6e484594b5b8e2daf6ecca69da22459093086118b07b336fc17d"
@@ -3826,17 +5287,17 @@
   },
   "mining_implementation_sha256": {
     "src/client/survival/mining.rs": "96c2588f3e21f4e9cb86dab1aab9cf8662f9b986c5bd96aadcb1f83924291347",
-    "src/client/operations.rs": "d0183b318018b7310364c3c22148c1a0a62e1285f9d1ee17b5765571dae3c4b2",
-    "src/client/capabilities.rs": "b43108c0d239b8b51216affab8a780e8c6521a2f45baeaee1fa03fc86f0ab6e3",
-    "src/connection.rs": "715284618d1e55f1e16c55de165667ec70abcc7502e2e7b1fd727c6a48552bf6",
-    "src/versions/java_1_16_1/client.rs": "f37dcae4d63e9fa28c25f34addbb6ad6da5900b3b04053175a07486b4a5e76a5",
+    "src/client/operations.rs": "b387d7d73d2d9dc6617f3d5ce47d2aff2c79cedb63678a244defd1a3d257ca49",
+    "src/client/capabilities.rs": "f0d003938500bea76fdc9298117a26483942cd65865382bad3c3570a866bb085",
+    "src/connection.rs": "5b0a8aedd34d726ab33817857b573f696b0062a63bf98799f208a77d586c8396",
+    "src/versions/java_1_16_1/client.rs": "2a2cfdd278f2b040f4e4bd898242015a5c7fe06e85a3b51969f568ca2baeae6a",
     "src/versions/java_1_16_1/client/common_mining.rs": "ef4a1f26555a8040c58596191027157b96ac9244cdb731cfc6428e82aaf032e4",
-    "src/versions/java_1_16_1/client/common_motion.rs": "c1680d9554b68875710fbf27902806bb6b4df98393bdf0f5e29d2c2b39a1408f",
-    "src/versions/java_1_16_1/lifecycle.rs": "02dc116a24d9153bb45bc3f350f05f38ce00b972e2729d9d6fdaccaca206730d",
-    "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "2b1cd6707e1f744c30dde143f016e199a8cda80f98a929ebc7f28626c722383f",
+    "src/versions/java_1_16_1/client/common_motion.rs": "c545de7bf89dc42264807864bb0075eb2d020157d30421f34a65bdfe26cfd2a9",
+    "src/versions/java_1_16_1/lifecycle.rs": "1fcd1216707442396683eaf4f215f2ccdb6616cb31f49cbd8f5000bef5b5819b",
+    "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "1865b4cb7379bf8008b4ddf899202ef531d68b30398b4cf7d3f35758eb82e14e",
     "src/versions/java_1_16_1/world.rs": "d1451ea09a36c27df09b44861bd2ca715f6e61ec08726caa0ccd251f4072f3df",
-    "src/versions/java_1_21_11/client.rs": "1207f043e4f2485ae3f0b30357e912886308e0e80e5007010b028125effc61e6",
-    "src/versions/java_1_21_11/client/operations.rs": "dba4bc35cc4b0374c60e8b7978b2e19d23d1c94dadefa27fc6dc5637e417852d",
+    "src/versions/java_1_21_11/client.rs": "35b2309744e68129a5ca7488397d5fef864063c1600e8e67f1da49221532d3b4",
+    "src/versions/java_1_21_11/client/operations.rs": "7253a5fb3e3a98d836788b5da63858c724f72cb0d489b8dd03e4c634db8227c5",
     "src/versions/java_1_21_11/client/operations/mining.rs": "458c08568388035610223d21134e890152a98c6f9f0c7f9ed3250dfdff8a8339",
     "src/versions/java_1_21_11/client/operations/movement.rs": "011c5867d0455f39f46982ea206d85df67f3b57d36a54fe4ef6ec6f15ba8a0eb"
   },
@@ -3869,5 +5330,45 @@
       "server_exit_code": 0,
       "raw_report_sha256": "bb04b865b250ce65f6ef595c87bf3498a86ea3f0f9b95d318945c5ee38e34838"
     }
-  ]
+  ],
+  "placement_implementation_sha256": {
+    "src/client/survival/placement.rs": "615da875af2b620d08bc06b5c41683d9852b56f79f0b929e9b5ead8ef147b74a",
+    "src/client/observation.rs": "8d9496f075130b342b36a7ad74a6ead90a34bf245f04b8689a8fcc4ce4a9ecf0",
+    "src/client/operations.rs": "b387d7d73d2d9dc6617f3d5ce47d2aff2c79cedb63678a244defd1a3d257ca49",
+    "src/client/capabilities.rs": "f0d003938500bea76fdc9298117a26483942cd65865382bad3c3570a866bb085",
+    "src/client/mod.rs": "690d8f0cab4083ff263cb43a4ebf6cb7289124521fa007512293ef810ba25c96",
+    "src/client/survival.rs": "7be78a0216b2ecfa94e4816bdd49500f116f91538853a789dce1655ca5aeb4e5",
+    "src/connection.rs": "5b0a8aedd34d726ab33817857b573f696b0062a63bf98799f208a77d586c8396",
+    "src/versions/java_1_16_1/client.rs": "2a2cfdd278f2b040f4e4bd898242015a5c7fe06e85a3b51969f568ca2baeae6a",
+    "src/versions/java_1_16_1/client/common_placement.rs": "bc897ce7cda4fbd818d97c356eb1c4ac0dddf377c4a6a1fdf7d32547fa699e1a",
+    "src/versions/java_1_16_1/client/common_motion.rs": "c545de7bf89dc42264807864bb0075eb2d020157d30421f34a65bdfe26cfd2a9",
+    "src/versions/java_1_16_1/inventory.rs": "fc1abbb539ce5ebb66455a032702e50d074b8070308e2d52c1a48f362393aaf9",
+    "src/versions/java_1_16_1/lifecycle.rs": "1fcd1216707442396683eaf4f215f2ccdb6616cb31f49cbd8f5000bef5b5819b",
+    "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "1865b4cb7379bf8008b4ddf899202ef531d68b30398b4cf7d3f35758eb82e14e",
+    "src/versions/java_1_21_11/client.rs": "35b2309744e68129a5ca7488397d5fef864063c1600e8e67f1da49221532d3b4",
+    "src/versions/java_1_21_11/client/operations.rs": "7253a5fb3e3a98d836788b5da63858c724f72cb0d489b8dd03e4c634db8227c5",
+    "src/versions/java_1_21_11/client/operations/placement.rs": "31d44c3f0b87fb601ec8203209515e68ced3c8c7811f2e6ba3b15d7a7e0d6f39"
+  },
+  "legacy_raw_inventory_primary_check": {
+    "server_jar": {
+      "sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "size": 37968964,
+      "url": "https://piston-data.mojang.com/v1/objects/a412fd69db1f81db3f511c1463fd304675244077/server.jar"
+    },
+    "mapping_sha256": "9b19cc7d56e58258117e2fcc092f773b151682ecb2b1adb3de9832b3c450a30f",
+    "method": "Inventory.placeItemBackInInventory(Level, ItemStack)",
+    "native_inventory_class": "beb",
+    "native_player_menu_class": "bhf",
+    "verification": "Local javap of original official 1.16.1 JAR: sender passes window -2 with Inventory.getItem raw index; InventoryMenu constructor appends crafting 0..4, armor raw 39..36, main 9..35, hotbar 0..8 and offhand 40. Original test observations only; no JAR, mappings or bytecode copied into the package.",
+    "raw_to_player_screen": {
+      "0..8": "36..44",
+      "9..35": "9..35",
+      "36..39": "8..5",
+      "40": "45"
+    },
+    "tests": [
+      "raw_inventory_updates_preserve_screen_layout_and_open_container",
+      "legacy_raw_inventory_receipts_use_screen_slots_without_inventing_menu_or_cursor"
+    ]
+  }
 }

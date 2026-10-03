@@ -120,3 +120,36 @@ async fn bounded_mining_failed_write_ends_actor_and_cannot_replay() {
     assert_eq!(actor.wait_for_terminal().await,ConnectionState::ConnectionStateUnknown);
     assert!(actor.bounded_mining(1,Start).await.is_err());
 }
+
+#[tokio::test]
+async fn bounded_placement_excludes_other_owners_and_only_exact_completion_releases() {
+    let (actor,mut peer)=actor_fixture().await;actor.mark_ready().await;
+    let revision=actor.motion_admission_revision().await.unwrap();
+    actor.bounded_placement(1,revision,crate::BlockPos{x:10,y:66,z:8},4,[0.0,0.5,0.5]).await.unwrap();
+    let (id,p)=read_packet(&mut peer,None).await.unwrap();assert_eq!((id,p.len()),(0x2d,23));
+    let context=OperationContext{generation:actor.generation(),source_observation_sequence:0};
+    assert_eq!(actor.admit(context,OperationClass::Normal).await,Err(OperationAdmissionError::BoundedPlacementInProgress));
+    assert!(actor.bounded_mining(1,crate::client::survival::MiningAction::Finish).await.is_err());
+    assert!(actor.finish_bounded_motion(1).await.is_err());assert!(actor.finish_bounded_placement(2).await.is_err());
+    assert!(actor.bounded_placement(1,revision,crate::BlockPos{x:10,y:66,z:8},4,[0.0,0.5,0.5]).await.is_err());
+    actor.dispatch_protocol(0x10,&[9]).await.unwrap();assert_eq!(read_packet(&mut peer,None).await.unwrap(),(0x10,vec![9]));
+    actor.finish_bounded_placement(1).await.unwrap();actor.admit(context,OperationClass::Normal).await.unwrap();no_packet(&mut peer).await;
+}
+#[tokio::test]
+async fn bounded_placement_cancelled_waiter_cannot_replay_or_clear_owner() {
+    let (actor,mut peer,writer)=actor_fixture_with_writer().await;actor.mark_ready().await;
+    let revision=actor.motion_admission_revision().await.unwrap();let held=writer.lock().await;
+    let mut send=Box::pin(actor.bounded_placement(1,revision,crate::BlockPos{x:10,y:66,z:8},4,[0.0,0.5,0.5]));
+    std::future::poll_fn(|cx| {assert!(send.as_mut().poll(cx).is_pending());std::task::Poll::Ready(())}).await;drop(send);drop(held);
+    assert_eq!(timeout(Duration::from_secs(1),read_packet(&mut peer,None)).await.unwrap().unwrap().0,0x2d);
+    assert_eq!(actor.motion_admission_revision().await,Err(OperationAdmissionError::BoundedPlacementInProgress));
+    actor.finish_bounded_placement(1).await.unwrap();no_packet(&mut peer).await;
+}
+#[tokio::test]
+async fn bounded_placement_failed_write_terminates_without_retry() {
+    let (actor,_peer)=actor_fixture().await;actor.mark_ready().await;
+    let revision=actor.motion_admission_revision().await.unwrap();actor.shutdown_writer().await.unwrap();
+    assert!(actor.bounded_placement(1,revision,crate::BlockPos{x:10,y:66,z:8},4,[0.0,0.5,0.5]).await.is_err());
+    assert_eq!(actor.wait_for_terminal().await,ConnectionState::ConnectionStateUnknown);
+    assert!(actor.bounded_placement(1,revision,crate::BlockPos{x:10,y:66,z:8},4,[0.0,0.5,0.5]).await.is_err());
+}

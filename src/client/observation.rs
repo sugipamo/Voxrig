@@ -280,7 +280,9 @@ impl LegacyReceipts {
         let Ok(slot) = usize::try_from(update.slot) else {
             return Ok(());
         };
-        let index = if update.window_id == 0 || update.window_id == -2 {
+        let index = if update.window_id == -2 {
+            crate::versions::java_1_16_1::inventory::player_inventory_slot(update.slot)
+        } else if update.window_id == 0 {
             Some(slot)
         } else {
             self.player_starts

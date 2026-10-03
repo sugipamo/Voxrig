@@ -428,3 +428,215 @@ async fn chunk_world_and_restored_material_conflicts_remain_latched() {
         f.stop().await;
     }
 }
+
+#[tokio::test]
+async fn common_placement_same_consumer_requires_real_processing_and_retains_native_guards() {
+    let mut f = Fixture::new().await;
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    let record = crate::client::tests::common_placement_start_scenario(
+        &client,
+        SUPPORT,
+        crate::BlockFace::West,
+        TARGET,
+    )
+    .await;
+    assert!(record.send.interaction_sequence.is_some());
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap().0,
+        ids::play_serverbound::BLOCK_PLACE
+    );
+    f.block(TARGET, "dirt").await;
+    f.stack(4).await;
+    crate::client::tests::common_placement_pending_scenario(&client).await;
+    f.ack(record.send.interaction_sequence.unwrap()).await;
+    let completed =
+        crate::client::tests::common_placement_completed_scenario(&client, record.id).await;
+    read_packet(&mut f.peer, None).await.unwrap();
+    assert!(completed.processing.as_ref().unwrap().receive_sequence > record.send.after_sequence);
+    f.block(TARGET, "air").await;
+    assert_eq!(
+        client
+            .survival()
+            .placement_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        crate::client::survival::PlacementStage::ObservedPlaced
+    );
+    f.block([-2, 2, 0], "stone").await;
+    client.survival().look([90.0, 3.0]).await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    let next = client
+        .survival()
+        .place_cube([-2, 2, 0], crate::BlockFace::East)
+        .await
+        .unwrap();
+    assert_ne!(next.id, record.id);
+    assert_eq!(next.held_before.count, 4);
+    read_packet(&mut f.peer, None).await.unwrap();
+    f.stop().await;
+}
+#[tokio::test]
+async fn common_placement_cancelled_before_writer_retains_intent_without_inventing_dispatch_or_release()
+ {
+    let mut f = Fixture::new().await;
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    let guard = f.api.bot.session.writer.lock().await;
+    let ops = client.survival();
+    let mut submit = Box::pin(ops.place_cube(SUPPORT, crate::BlockFace::West));
+    std::future::poll_fn(|cx| {
+        assert!(submit.as_mut().poll(cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+    drop(submit);
+    drop(guard);
+    let record = client.survival().placement_record().await.unwrap().unwrap();
+    assert!(!record.send.dispatched);
+    assert_eq!(
+        record.stage,
+        crate::client::survival::PlacementStage::Pending
+    );
+    f.block(TARGET, "dirt").await;
+    f.stack(4).await;
+    f.ack(record.send.interaction_sequence.unwrap()).await;
+    assert_ne!(
+        client
+            .survival()
+            .placement_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        crate::client::survival::PlacementStage::ObservedPlaced
+    );
+    assert!(
+        client
+            .survival()
+            .place_cube(SUPPORT, crate::BlockFace::West)
+            .await
+            .is_err()
+    );
+    f.stop().await;
+    assert_eq!(
+        client
+            .survival()
+            .placement_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        crate::client::survival::PlacementStage::RequiresInspection
+    );
+}
+#[tokio::test]
+async fn common_placement_transient_support_loss_and_missing_cursor_cannot_be_erased() {
+    let mut f = Fixture::new().await;
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    f.api
+        .bot
+        .session
+        .state
+        .lock()
+        .await
+        .operations
+        .inventory
+        .cursor_sequence = None;
+    assert!(
+        client
+            .survival()
+            .place_cube(SUPPORT, crate::BlockFace::West)
+            .await
+            .is_err()
+    );
+    assert!(f.api.bot.session.state.lock().await.placement.is_none());
+    f.api
+        .bot
+        .session
+        .state
+        .lock()
+        .await
+        .operations
+        .inventory
+        .cursor_sequence = Some(10);
+    let record = client
+        .survival()
+        .place_cube(SUPPORT, crate::BlockFace::West)
+        .await
+        .unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    f.block([0, 0, 0], "air").await;
+    f.block([0, 0, 0], "stone").await;
+    f.block(TARGET, "dirt").await;
+    f.stack(4).await;
+    f.ack(record.send.interaction_sequence.unwrap()).await;
+    let conflict = client.survival().placement_record().await.unwrap().unwrap();
+    assert_eq!(
+        conflict.stage,
+        crate::client::survival::PlacementStage::RequiresInspection
+    );
+    assert!(
+        conflict
+            .requires_inspection
+            .unwrap()
+            .contains("standing prerequisites")
+    );
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn common_placement_requires_fresh_ack_and_preserves_completed_common_history_on_native_only_switch()
+ {
+    let mut f = Fixture::new().await;
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    {
+        let mut s = f.api.bot.session.state.lock().await;
+        s.operations.ack = Some(1);
+        s.operations.ack_receive_sequence = Some(1);
+    }
+    let record = client
+        .survival()
+        .place_cube(SUPPORT, crate::BlockFace::West)
+        .await
+        .unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    f.block(TARGET, "dirt").await;
+    f.stack(4).await;
+    crate::client::tests::common_placement_pending_scenario(&client).await;
+    assert!(
+        client
+            .survival()
+            .placement_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .processing
+            .is_none()
+    );
+    f.ack(record.send.interaction_sequence.unwrap()).await;
+    let completed =
+        crate::client::tests::common_placement_completed_scenario(&client, record.id).await;
+    read_packet(&mut f.peer, None).await.unwrap();
+    f.block([-2, 2, 0], "stone").await;
+    client.survival().look([90.0, 3.0]).await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    let native = f
+        .api
+        .place_survival_cube([-2, 2, 0], crate::BlockFace::East)
+        .await
+        .unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    assert_ne!(Some(native.sequence), completed.send.interaction_sequence);
+    let historical = client.survival().placement_record().await.unwrap().unwrap();
+    assert_eq!(historical.id, completed.id);
+    assert_eq!(
+        historical.stage,
+        crate::client::survival::PlacementStage::ObservedPlaced
+    );
+    assert_eq!(
+        historical.initial.received_pose,
+        completed.initial.received_pose
+    );
+    f.stop().await;
+}

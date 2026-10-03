@@ -33,6 +33,7 @@ JVMを回収してから`.local/native-client-unification/`へ記録とworldを�
 | survivalの35tick read-only preview | fresh teleport後に同じ型の予測を取得し、前後のRCON Posが`[0.5,65.0,0.5]`のまま |
 | survivalのread-only first outline | 選択cellが実際のstoneで、query前後のRCON Posが同じ。面/交点は別のnative-method oracleと照合 |
 | survivalのstone START/FINISH | 新しい接続でfresh target airを受信し、RCONでもair・位置不変を確認 |
+| survivalのdefault dirt設置 | さらに新しい接続でfresh target/materialを受信し、RCONでもdirt・材料3→2・位置不変を確認 |
 | survivalの有限jump/歩行 | RCONで途中の高さ・水平移動を取得し、実終点が予測終点に一致 |
 
 共通Clientは実際の受信mode・teleport・対象blockを待ってから操作する。
@@ -64,7 +65,7 @@ run全体はfailedとする。次版は前版のprocessを回収してから起�
 
 コミットされた[結果の抜粋](../data/client_api/common_native_evidence.json)にはJARの出所、
 検証コードのhash、独立確認の結果と終了codeを記録する。
-これは上記基本操作・有限dry移動・限定read-only狙い判定の検証であり、さらに広い移動条件、広い採掘条件・survival設置、container、crafting、
+これは上記基本操作・有限dry移動・限定read-only狙い判定・採掘/default cube設置の検証であり、さらに広い移動・採掘・設置条件、container、crafting、
 複雑なitem data、entity、復旧などの残作業を完了扱いにするものではない。
 previewの取得は実際のsurvival移動を検証するものではない。
 
@@ -84,7 +85,14 @@ Clientの未解決在庫markerをRCON確認で消したり、previewのguardを�
 明示的なSTARTとFINISHを行う。estimated waitはローカルの待機目安だけとし、
 結果はClientのexact target air受信と独立したRCONの対象airで確認する。
 重複FINISH、競合look、air確認後の操作継続も拒否される。元の受信poseと閉じた接続の履歴を保持する。
-survival設置と共通fresh recoveryは後続段階に残る。
+共通fresh recoveryは後続段階に残る。
+
+設置は採掘のsource切断後、さらに新しい接続から同じ`place_cube` / `placement_record`で実行する。
+受信済みのdirt 3個、空cursor、own pose、stone支持blockと隣接airを確認してから一度だけ送る。
+同じ場所への二重設置を拒否し、対象dirtと材料2個の実受信を待つ。modernでは実processing ACKも確認する。
+RCONで対象dirt・在庫2個・位置不変を別に照合し、切断後も完了した診断を読み出す。
+packet fixtureでは完了後の次の場所での設置、取消、transientな足場/材料競合、古いACKも検査する。
+legacyには存在しないprocessing sequenceを作らない。任意形状・複雑な材料dataの対応はこの検証に含めない。
 
 メモリ上の速いfixtureでも、teleportのown-pose受信とlocal grounded geometryの成立は別である。
 採掘前のread-only target queryで条件が整うまで待ち、stand guardを回避しない。

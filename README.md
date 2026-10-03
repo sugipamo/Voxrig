@@ -37,6 +37,7 @@ async fn main() -> Result<()> {
 操作時に受信mode・権限・未解決状態を確認します。対応範囲と残作業は
 [Client共通化の実装・検証計画](docs/client-unification.md)を参照してください。
 両版の限定的な素手dirt/stone採掘は[共通Survivalの採掘](docs/common-survival-mining.md)を参照してください。
+両版のdefault cube設置と材料の受信確認は[共通Survivalの設置](docs/common-survival-placement.md)を参照してください。
 新しい版・ブロックへの対応にはVoxrig更新が必要です。`latest`や未知ブロックの推測互換はありません。
 
 公開APIの再設計と各派生版からの移行は[client API設計](docs/public-client-api.md)と

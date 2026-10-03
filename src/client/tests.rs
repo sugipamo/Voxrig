@@ -1,5 +1,65 @@
 use super::*;
 
+#[test]
+fn legacy_raw_inventory_receipts_use_screen_slots_without_inventing_menu_or_cursor() {
+    use super::observation::LegacyReceipts;
+    use crate::versions::java_1_16_1::{ItemStack as NativeStack, SlotUpdate};
+    let mut receipts = LegacyReceipts::default();
+    receipts.inventory.window_id = Some(7);
+    let expected: Vec<usize> = (36..45)
+        .chain(9..36)
+        .chain((5..9).rev())
+        .chain([45])
+        .collect();
+    for (raw, screen) in expected.into_iter().enumerate() {
+        let sequence = raw as u64 + 10;
+        receipts
+            .slot(&SlotUpdate {
+                window_id: -2,
+                slot: raw as i16,
+                item: Some(NativeStack {
+                    item_id: 1,
+                    count: 1,
+                    nbt: None,
+                }),
+                packet_sequence: sequence,
+            })
+            .unwrap();
+        let slot = receipts.inventory.slots[screen].as_ref().unwrap();
+        assert!(matches!(slot.value, SlotKnowledge::Item { .. }));
+        assert_eq!(slot.source, ValueSource::Received { sequence });
+    }
+    assert_eq!(receipts.inventory.window_id, Some(7));
+    assert!(receipts.inventory.cursor.is_none());
+    assert!(receipts.inventory.slots[..5].iter().all(Option::is_none));
+    assert!(receipts.inventory.local_cache.is_none());
+    receipts
+        .slot(&SlotUpdate {
+            window_id: -2,
+            slot: 0,
+            item: None,
+            packet_sequence: 70,
+        })
+        .unwrap();
+    assert_eq!(
+        receipts.inventory.slots[36].as_ref().unwrap(),
+        &ObservedValue {
+            value: SlotKnowledge::Empty,
+            source: ValueSource::Received { sequence: 70 }
+        }
+    );
+    let before = serde_json::to_value(&receipts.inventory).unwrap();
+    receipts
+        .slot(&SlotUpdate {
+            window_id: -2,
+            slot: 41,
+            item: None,
+            packet_sequence: 71,
+        })
+        .unwrap();
+    assert_eq!(serde_json::to_value(&receipts.inventory).unwrap(), before);
+}
+
 // Same consumer and fixtures on both adapters: dry floor at y=64, no other blocks.
 // Only look sends a packet; the outline reads must leave the capture unchanged.
 pub(crate) async fn common_target_scenario(client: &Client) {
@@ -356,4 +416,63 @@ pub(crate) async fn common_mining_removal_scenario(client: &Client, id: survival
             .await
             .is_err()
     );
+}
+
+// The consumer never chooses a version-specific placement entry point.
+pub(crate) async fn common_placement_start_scenario(
+    client: &Client,
+    support: [i32; 3],
+    face: BlockFace,
+    target: [i32; 3],
+) -> survival::PlacementRecord {
+    let before = client.player_state().await.unwrap();
+    let record = client.survival().place_cube(support, face).await.unwrap();
+    assert_eq!(record.initial.session, before.session);
+    assert_eq!(record.initial.position, before.position);
+    assert_eq!(record.initial.received_pose, before.received_pose);
+    assert_eq!(record.initial.inventory.cursor, before.inventory.cursor);
+    assert_eq!(record.support, support);
+    assert_eq!(record.target, target);
+    assert_eq!(record.face, face);
+    assert_eq!(record.stage, survival::PlacementStage::Pending);
+    assert!(record.send.dispatched);
+    assert!(record.target_receipt.is_none() && record.material_receipt.is_none());
+    assert!(client.survival().place_cube(support, face).await.is_err());
+    assert!(client.survival().select_hotbar(0).await.is_err());
+    assert!(client.survival().target_block(4.5).await.is_err());
+    record
+}
+pub(crate) async fn common_placement_pending_scenario(client: &Client) {
+    let record = client.survival().placement_record().await.unwrap().unwrap();
+    assert_eq!(record.stage, survival::PlacementStage::Pending);
+    assert!(
+        client
+            .survival()
+            .look(record.initial.rotation)
+            .await
+            .is_err()
+    );
+}
+pub(crate) async fn common_placement_completed_scenario(
+    client: &Client,
+    id: survival::PlacementId,
+) -> survival::PlacementRecord {
+    let record = client.survival().placement_record().await.unwrap().unwrap();
+    assert_eq!(record.id, id);
+    assert_eq!(record.stage, survival::PlacementStage::ObservedPlaced);
+    let target = record.target_receipt.as_ref().unwrap();
+    assert_eq!(target.value, record.expected);
+    assert!(
+        matches!(target.source,ValueSource::Received{sequence} if sequence>record.send.after_sequence)
+    );
+    let material = record.material_receipt.as_ref().unwrap();
+    assert_eq!(
+        material.value,
+        survival::placement::remaining(&record.held_before)
+    );
+    assert!(
+        matches!(material.source,ValueSource::Received{sequence} if sequence>record.send.after_sequence)
+    );
+    client.survival().select_hotbar(0).await.unwrap();
+    record
 }

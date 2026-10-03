@@ -7,6 +7,19 @@ use crate::client::{
     },
 };
 
+#[derive(Clone, Copy)]
+pub(super) enum CommonOwner {
+    Mining(crate::client::survival::MiningId),
+    Placement(crate::client::survival::PlacementId),
+}
+impl CommonOwner {
+    fn session(self) -> crate::client::SessionStamp {
+        match self {
+            Self::Mining(id) => id.session(),
+            Self::Placement(id) => id.session(),
+        }
+    }
+}
 impl Bot {
     pub(crate) async fn common_target_block(
         &self,
@@ -23,14 +36,22 @@ impl Bot {
         distance: f64,
         mining_owner: Option<crate::client::survival::MiningId>,
     ) -> Result<crate::client::survival::BlockTargetObservation> {
+        self.common_target_with_owner(distance, mining_owner.map(CommonOwner::Mining))
+            .await
+    }
+    pub(super) async fn common_target_with_owner(
+        &self,
+        distance: f64,
+        owner: Option<CommonOwner>,
+    ) -> Result<crate::client::survival::BlockTargetObservation> {
         use crate::client::survival::target;
         let preview = self
-            .common_preview_core(
+            .common_preview_with_owner(
                 &[SurvivalControl {
                     yaw: 0.0,
                     input: Default::default(),
                 }],
-                mining_owner,
+                owner,
             )
             .await?;
         let mut eye = preview.initial_frame.position;
@@ -96,17 +117,34 @@ impl Bot {
         controls: &[SurvivalControl],
         mining_owner: Option<crate::client::survival::MiningId>,
     ) -> Result<MotionPreview> {
+        self.common_preview_with_owner(controls, mining_owner.map(CommonOwner::Mining))
+            .await
+    }
+    pub(super) async fn common_preview_with_owner(
+        &self,
+        controls: &[SurvivalControl],
+        owner: Option<CommonOwner>,
+    ) -> Result<MotionPreview> {
         if self.connection_state() != ConnectionState::Ready {
             return Err(motion_state("connection not ready"));
         }
         let initial = self.common_player_unlocked().await?;
-        let owns_mining = mining_owner.is_some_and(|id| id.session() == initial.session)
-            && self
-                .common_mining
-                .lock()
-                .await
-                .as_ref()
-                .is_some_and(|m| Some(m.record.id) == mining_owner)
+        let owns_operation = owner.is_some_and(|o| o.session() == initial.session)
+            && match owner {
+                Some(CommonOwner::Mining(id)) => self
+                    .common_mining
+                    .lock()
+                    .await
+                    .as_ref()
+                    .is_some_and(|m| m.record.id == id),
+                Some(CommonOwner::Placement(id)) => self
+                    .common_placement
+                    .lock()
+                    .await
+                    .as_ref()
+                    .is_some_and(|m| m.record.id == id && !m.released),
+                None => false,
+            }
             && !self.common_receipts.lock().await.pending_dispatch
             && self
                 .common_motion
@@ -114,7 +152,7 @@ impl Bot {
                 .await
                 .as_ref()
                 .is_none_or(|m| m.record.status.is_continuation_candidate());
-        if initial.pending_dispatch && !owns_mining {
+        if initial.pending_dispatch && !owns_operation {
             return Err(motion_state("prior common dispatch unresolved"));
         }
         if initial.game_mode != Some(GameMode::Survival)
@@ -206,7 +244,14 @@ pub(super) struct NativeMotionRun {
 }
 impl Bot {
     pub(super) async fn common_motion_pauses_physics(&self) -> bool {
-        if self.common_mining.lock().await.is_some() {
+        if self.common_mining.lock().await.is_some()
+            || self
+                .common_placement
+                .lock()
+                .await
+                .as_ref()
+                .is_some_and(|p| !p.released)
+        {
             return true;
         }
         self.common_motion
@@ -217,6 +262,7 @@ impl Bot {
     }
     pub(super) async fn interrupt_common_motion(&self, problem: &str) {
         self.interrupt_common_mining(problem).await;
+        self.interrupt_common_placement(problem).await;
         if let Some(run) = self.common_motion.lock().await.as_mut() {
             run.record.status = MotionStatus::RequiresInspection;
             run.record
@@ -228,6 +274,17 @@ impl Bot {
         if self.common_mining.lock().await.is_some() {
             return Err(motion_state(
                 "common mining retained; inspect and use explicit fresh recovery before continuation",
+            ));
+        }
+        if self
+            .common_placement
+            .lock()
+            .await
+            .as_ref()
+            .is_some_and(|p| !p.released)
+        {
+            return Err(motion_state(
+                "common placement unresolved; inspect target/material receipts without replay",
             ));
         }
         let run = self.common_motion.lock().await.clone();

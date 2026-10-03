@@ -3,6 +3,10 @@ pub use super::Survival;
 pub mod checked;
 pub(crate) mod mining;
 pub(crate) mod model;
+pub(crate) mod placement;
+pub use placement::{
+    PlacementId, PlacementProcessing, PlacementRecord, PlacementSend, PlacementStage,
+};
 mod motion;
 pub(crate) mod target;
 pub use mining::{

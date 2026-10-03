@@ -23,7 +23,8 @@ pub use operations::{Creative, DispatchReceipt, Survival};
 pub mod prelude {
     pub use super::survival::{
         BlockTargetHit, BlockTargetObservation, MiningId, MiningRecord, MiningStage, MotionPreview,
-        MotionRecord, MotionStatus, SurvivalControl, SurvivalInput,
+        MotionRecord, MotionStatus, PlacementId, PlacementRecord, PlacementStage, SurvivalControl,
+        SurvivalInput,
     };
     pub use super::{
         Client, ClientLimits, ConnectionConfig, Creative, Feature, GameMode, PlayerObservation,

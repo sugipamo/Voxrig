@@ -209,6 +209,24 @@ impl Client {
             Adapter::Java1_21_11(bot) => bot.operations().common_capture(region).await,
         }
     }
+    pub(crate) async fn place_common_cube(
+        &self,
+        support: [i32; 3],
+        face: crate::BlockFace,
+    ) -> Result<crate::client::survival::PlacementRecord> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_place_cube(support, face).await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_place_cube(support, face).await,
+        }
+    }
+    pub(crate) async fn common_placement_record(
+        &self,
+    ) -> Result<Option<crate::client::survival::PlacementRecord>> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_placement_record().await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_placement_record().await,
+        }
+    }
     pub(crate) async fn start_common_mining(
         &self,
         target: [i32; 3],

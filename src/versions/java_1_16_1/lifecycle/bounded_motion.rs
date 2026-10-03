@@ -28,6 +28,18 @@ pub(super) enum MotionCommand {
         action: crate::client::survival::MiningAction,
         reply: oneshot::Sender<crate::Result<()>>,
     },
+    Place {
+        run_id: u64,
+        expected_revision: u64,
+        support: crate::BlockPos,
+        face: u8,
+        cursor: [f32; 3],
+        reply: oneshot::Sender<crate::Result<()>>,
+    },
+    FinishPlacement {
+        run_id: u64,
+        reply: oneshot::Sender<Admission<()>>,
+    },
     Finish {
         run_id: u64,
         reply: oneshot::Sender<Admission<()>>,
@@ -36,6 +48,7 @@ pub(super) enum MotionCommand {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Owner {
     Motion(u64),
+    Placement(u64),
     Mining {
         run_id: u64,
         target: crate::BlockPos,
@@ -230,6 +243,74 @@ impl MotionGate {
                 let _ = reply.send(result);
                 return failed_write;
             }
+            MotionCommand::Place {
+                run_id,
+                expected_revision,
+                support,
+                face,
+                cursor,
+                reply,
+            } => {
+                let admission = self
+                    .can_begin(state, control, pending)
+                    .await
+                    .and_then(|()| {
+                        if run_id == 0
+                            || expected_revision != self.normal_revision
+                            || face > 5
+                            || !(0..=255).contains(&support.y)
+                            || support.x.abs_diff(0) > 30_000_000
+                            || support.z.abs_diff(0) > 30_000_000
+                            || cursor
+                                .iter()
+                                .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
+                        {
+                            return Err(OperationAdmissionError::InvalidOperation);
+                        }
+                        // Retain ownership before writer acquisition. No replay or alias release.
+                        self.owner = Some(Owner::Placement(run_id));
+                        Ok(())
+                    });
+                let admitted = admission.is_ok();
+                let result = match admission {
+                    Err(e) => Err(crate::Error::new(
+                        crate::ErrorKind::State,
+                        anyhow::anyhow!("bounded placement rejected: {e:?}"),
+                    )),
+                    Ok(()) => {
+                        let mut payload = vec![0];
+                        payload.extend(support.packed().to_be_bytes());
+                        payload.push(face);
+                        for v in cursor {
+                            payload.extend(v.to_be_bytes());
+                        }
+                        payload.push(0);
+                        let mut writer = writer.lock().await;
+                        let compression = writer.compression;
+                        crate::protocol::write_packet(
+                            &mut writer.inner,
+                            compression,
+                            0x2d,
+                            &payload,
+                        )
+                        .await
+                        .map_err(crate::Error::from)
+                    }
+                };
+                let failed = admitted && result.is_err();
+                let _ = reply.send(result);
+                return failed;
+            }
+            MotionCommand::FinishPlacement { run_id, reply } => {
+                let result = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
+                    if self.owner != Some(Owner::Placement(run_id)) {
+                        return Err(OperationAdmissionError::InvalidOperation);
+                    }
+                    self.owner = None;
+                    Ok(())
+                });
+                let _ = reply.send(result);
+            }
             MotionCommand::Finish { run_id, reply } => {
                 let result = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
                     if self.owner != Some(Owner::Motion(run_id)) {
@@ -245,6 +326,7 @@ impl MotionGate {
     }
     fn owner_error(&self) -> OperationAdmissionError {
         match self.owner {
+            Some(Owner::Placement(_)) => OperationAdmissionError::BoundedPlacementInProgress,
             Some(Owner::Mining { .. }) => OperationAdmissionError::BoundedMiningInProgress,
             _ => OperationAdmissionError::BoundedMotionInProgress,
         }
@@ -279,6 +361,36 @@ impl ConnectionActor {
     }
     pub(crate) async fn motion_admission_revision(&self) -> Admission<u64> {
         self.motion_admission(|reply| MotionCommand::Revision { reply })
+            .await
+    }
+    pub(crate) async fn bounded_placement(
+        &self,
+        run_id: u64,
+        expected_revision: u64,
+        support: crate::BlockPos,
+        face: u8,
+        cursor: [f32; 3],
+    ) -> crate::Result<()> {
+        let (reply, result) = oneshot::channel();
+        self.commands
+            .send(Command::Motion(MotionCommand::Place {
+                run_id,
+                expected_revision,
+                support,
+                face,
+                cursor,
+                reply,
+            }))
+            .await
+            .map_err(|_| {
+                crate::client::survival::placement::unavailable("placement actor unavailable")
+            })?;
+        result.await.map_err(|_| {
+            crate::client::survival::placement::unavailable("placement actor result missing")
+        })?
+    }
+    pub(crate) async fn finish_bounded_placement(&self, run_id: u64) -> Admission<()> {
+        self.motion_admission(|reply| MotionCommand::FinishPlacement { run_id, reply })
             .await
     }
     pub(crate) async fn begin_bounded_motion(

@@ -200,6 +200,131 @@ async fn mining_probe(client: &Client) -> anyhow::Result<()> {
     }
     anyhow::bail!("mining fixture ended without disconnect")
 }
+// Another fresh connection gives placement its own material and receipt baseline.
+async fn placement_probe(client: &Client) -> anyhow::Result<()> {
+    let ready = client.player_state().await?;
+    let initial_sequence = ready.receive_sequence;
+    emit("placement_ready", ready)?;
+    let mut commands = BufReader::new(tokio::io::stdin()).lines();
+    while let Some(command) = commands.next_line().await? {
+        match command.as_str() {
+            "placement_baseline" => {
+                let player=wait_player(client,|p|p.game_mode==Some(GameMode::Survival)
+                    && p.received_pose.as_ref().is_some_and(|pose|pose.receive_sequence>initial_sequence && pose.position==[0.5,65.0,0.5])
+                    && p.inventory.window_id==Some(0) && p.inventory.cursor.as_ref().is_some_and(|c|c.value==SlotKnowledge::Empty)
+                    && p.inventory.slots[36].as_ref().is_some_and(|s|matches!(&s.value,SlotKnowledge::Item{item} if item.name=="minecraft:dirt" && item.count==3))
+                ).await?;
+                wait_block(client, [2, 65, 0], "minecraft:stone").await?;
+                wait_block(client, [1, 65, 0], "minecraft:air").await?;
+                emit("placement_baseline", player)?;
+            }
+            "placement_start" => {
+                let ops = client.survival();
+                ops.select_hotbar(0).await?;
+                tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        if let Err(error) = ops.look([-90.0, 40.0]).await {
+                            eprintln!("placement awaiting standing look: {error}");
+                        } else {
+                            match ops.target_block(4.5).await {
+                                Ok(target) => {
+                                    let hit =
+                                        target.hit.context("placement first outline missing")?;
+                                    anyhow::ensure!(
+                                        hit.position == [2, 65, 0] && hit.face == BlockFace::West,
+                                        "unexpected placement first hit"
+                                    );
+                                    return Ok::<_, anyhow::Error>(());
+                                }
+                                Err(error) => {
+                                    eprintln!("placement awaiting dry standing geometry: {error}")
+                                }
+                            }
+                        }
+                        tokio::time::sleep(Duration::from_millis(50)).await;
+                    }
+                })
+                .await??;
+                let sent = ops.place_cube([2, 65, 0], BlockFace::West).await?;
+                anyhow::ensure!(
+                    sent.send.dispatched && sent.target == [1, 65, 0],
+                    "incomplete/wrong placement"
+                );
+                // Regardless of timing, the occupied original site cannot be blindly resent.
+                anyhow::ensure!(
+                    ops.place_cube([2, 65, 0], BlockFace::West).await.is_err(),
+                    "same-site placement replay admitted"
+                );
+                emit("placement_start", sent)?;
+            }
+            "placement_observed" => {
+                let ops = client.survival();
+                let placed = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let record = ops
+                            .placement_record()
+                            .await?
+                            .context("placement record missing")?;
+                        match record.stage {
+                            PlacementStage::ObservedPlaced => {
+                                return Ok::<_, anyhow::Error>(record);
+                            }
+                            PlacementStage::RequiresInspection => anyhow::bail!(
+                                "placement interrupted: {:?}",
+                                record.requires_inspection
+                            ),
+                            _ => tokio::time::sleep(Duration::from_millis(25)).await,
+                        }
+                    }
+                })
+                .await??;
+                anyhow::ensure!(
+                    placed
+                        .target_receipt
+                        .as_ref()
+                        .is_some_and(|r| r.value.name == "minecraft:dirt"),
+                    "missing target receipt"
+                );
+                anyhow::ensure!(placed.material_receipt.as_ref().is_some_and(|r|matches!(&r.value,SlotKnowledge::Item{item} if item.name=="minecraft:dirt" && item.count==2)),"missing exact one-material consumption");
+                for source in [
+                    placed.target_receipt.as_ref().unwrap().source,
+                    placed.material_receipt.as_ref().unwrap().source,
+                ] {
+                    anyhow::ensure!(
+                        matches!(source,voxrig::client::ValueSource::Received{sequence} if sequence>placed.send.after_sequence),
+                        "stale placement receipt"
+                    );
+                }
+                if let Some(sequence) = placed.send.interaction_sequence {
+                    anyhow::ensure!(
+                        placed
+                            .processing
+                            .as_ref()
+                            .is_some_and(|p| p.sequence >= sequence
+                                && p.receive_sequence > placed.send.after_sequence),
+                        "missing fresh native processing"
+                    );
+                }
+                ops.select_hotbar(0).await?;
+                emit("placement_observed", placed)?;
+            }
+            "placement_disconnect" => {
+                client.disconnect().await?;
+                emit(
+                    "placement_disconnected",
+                    client
+                        .survival()
+                        .placement_record()
+                        .await?
+                        .context("closed placement diagnostics missing")?,
+                )?;
+                return Ok(());
+            }
+            _ => anyhow::bail!("unexpected placement fixture command"),
+        }
+    }
+    anyhow::bail!("placement fixture ended without disconnect")
+}
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let port: u16 = std::env::var("VOXRIG_PORT")?.parse()?;
@@ -207,6 +332,9 @@ async fn main() -> anyhow::Result<()> {
         ConnectionConfig::offline_from_env(Server::new("127.0.0.1", port), "UnifiedProbe")?;
     let client = Client::connect(config).await?;
     client.wait_until_ready().await?;
+    if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("placement") {
+        return placement_probe(&client).await;
+    }
     if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("mining") {
         return mining_probe(&client).await;
     }

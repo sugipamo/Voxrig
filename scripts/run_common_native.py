@@ -127,7 +127,7 @@ def matched(response, pattern):
 
 
 def stage(probe, messages, name, records, timeout=30, poll=None):
-    if name not in ("ready", "mining_ready"):
+    if name not in ("ready", "mining_ready", "placement_ready"):
         probe.stdin.write(name + "\n")
         probe.stdin.flush()
     deadline = time.monotonic() + timeout
@@ -142,7 +142,7 @@ def stage(probe, messages, name, records, timeout=30, poll=None):
             continue
         record = json.loads(line)
         records.append(record)
-        aliases = {"disconnect": "disconnected", "mining_disconnect": "mining_disconnected"}
+        aliases = {"disconnect": "disconnected", "mining_disconnect": "mining_disconnected", "placement_disconnect": "placement_disconnected"}
         if record["stage"] == name or record["stage"] == aliases.get(name):
             print("native", name, "received", flush=True)
             return record
@@ -348,6 +348,36 @@ network-compression-threshold=256
         probe.wait(timeout=10)
         if probe.returncode != 0:
             raise RuntimeError("mining probe failed after disconnect")
+        until(lambda: matched(rcon.command("execute unless entity @a[name=UnifiedProbe]"), "Test passed"))
+        report["placement_fixture"] = {
+            command: rcon.command(command) for command in ["setblock 2 65 0 minecraft:stone", "setblock 1 65 0 minecraft:air"]
+        }
+        for position, block in [("2 65 0", "stone"), ("1 65 0", "air")]:
+            until(lambda: matched(rcon.command(f"execute if block {position} minecraft:{block}"), "Test passed"))
+        report["placement_records"] = []
+        probe = subprocess.Popen([str(REPO / "target/debug/examples/common_native_probe")], cwd=REPO, env=dict(env, VOXRIG_NATIVE_SCENARIO="placement"), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+        messages = queue.Queue()
+        thread = threading.Thread(target=pump, args=(probe.stdout, messages, probe_log), daemon=True)
+        thread.start()
+        stage(probe, messages, "placement_ready", report["placement_records"])
+        report["placement_setup"] = {command: rcon.command(command) for command in ["gamemode survival UnifiedProbe", "tp UnifiedProbe 0.5 65 0.5 0 0", "clear UnifiedProbe", "give UnifiedProbe minecraft:dirt 3"]}
+        stage(probe, messages, "placement_baseline", report["placement_records"])
+        placement_position = rcon.command("data get entity UnifiedProbe Pos")
+        stage(probe, messages, "placement_start", report["placement_records"])
+        stage(probe, messages, "placement_observed", report["placement_records"])
+        native_placed = until(lambda: matched(rcon.command("execute if block 1 65 0 minecraft:dirt"), "Test passed"))
+        def material_after():
+            response = rcon.command("data get entity UnifiedProbe Inventory")
+            return response if 'id: "minecraft:dirt"' in response and "Slot: 0b" in response and re.search(r"(?:Count|count): 2(?:b)?(?:,|\s|})", response) else None
+        native_material = until(material_after)
+        after_placement = rcon.command("data get entity UnifiedProbe Pos")
+        if after_placement != placement_position:
+            raise RuntimeError("stationary placement changed native position")
+        report["native_results"]["survival_placement"] = {"native_target": native_placed, "native_material": native_material, "position_before": placement_position, "position_after": after_placement}
+        stage(probe, messages, "placement_disconnect", report["placement_records"])
+        probe.wait(timeout=10)
+        if probe.returncode != 0:
+            raise RuntimeError("placement probe failed after disconnect")
         report["scenario_result"] = "passed"
         print(version, "native scenario verified; waiting for clean shutdown", flush=True)
     except BaseException as error:

@@ -6,7 +6,7 @@ mod geometry;
 mod inventory;
 pub(super) mod mining;
 mod movement;
-mod placement;
+pub(super) mod placement;
 mod profile_recovery;
 mod recovery;
 mod retirement;

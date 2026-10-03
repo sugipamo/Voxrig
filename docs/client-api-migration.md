@@ -226,6 +226,7 @@ DustRoute: native observation、piston/recovery、照準、配置・除去・取
 | modern/checkedの`SurvivalInput` / `SurvivalControl` / `PredictedMotionFrame` / `TerminalClearance` | canonicalは`voxrig::client::survival`。従来importも同じ型をre-exportする |
 | finite `start_predicted_survival_path` / `survival_motion` | 共通は`client.survival().start_predicted_path` / `motion_record`。`MotionRecord`を保持し、prediction契約・取消後のowner・before-I/O intentを両版で維持 |
 | read-only `preview_survival_path` | 共通では`client.survival().preview_path`。両版で`MotionPreview`を返す。追加checked契約の戻り値とは区別 |
+| default cubeの`place_survival_cube` / legacyのraw block use | 共通は`client.survival().place_cube(support, face)`。`PlacementRecord`で対象・1個の材料消費・版固有processingを分けて保持 |
 | `client.java_1_21_11_operations()`でのcreative基本操作 | `client.creative()`。`set_creative_hotbar`→`set_hotbar`、`dig_creative`→`break_block`。戻り値はDispatchReceipt |
 | PlayerStateを共通playerとして使用 | `client.player_state()`のPlayerObservation。追加検査契約のnative PlayerStateとは区別 |
 | 版なしの`item_id`/`item_name`など | `client.registry()`。整数IDはversion/kind付きRegistryIdとして保持 |
@@ -263,3 +264,15 @@ common preview/target queryは未解決dispatchがあれば拒否する。creati
 RCON確認をClientのslot受信として扱わず、実際のinventory updateを待つ。
 採掘airやABORTを次の操作許可とせず、共通fresh recoveryは後続段階として扱う。
 前提・stage・取消の扱いは[共通Survivalの採掘](common-survival-mining.md)を参照。
+
+## 共通Clientの設置へ移行
+
+通常のdefault cube設置は`place_cube(support, face)`を一度だけ呼び、結果は`placement_record()`で読む。
+`PlacementId`は診断用のopaqueなattempt識別子で、modernのnative `PlacementIntent`と混ぜない。
+送信済みでも対象と材料の実受信が揃うまで`Pending`。legacyの処理ACKは存在せず`None`、
+modernは送信より新しい実ACKのordinalも要求する。timeoutや取消で再送しない。
+完了後の次操作は新しい場所・材料・身体の条件を再検証する。
+
+1.16.1のSet Slot window -2はraw Inventory番号を使うため、hotbar 0..8をplayer screen 36..44へ変換する。
+受信在庫と従来cacheの両方を修正し、特殊window -2を開いたcontainerやcrafting slotとして扱わない。
+cursorやactive windowを更新したことにもならない。詳細は[共通設置](common-survival-placement.md)を参照。
