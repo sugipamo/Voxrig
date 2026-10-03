@@ -852,6 +852,9 @@ pub enum Event {
     },
     /// Documentation for this public variant.
     SlotUpdated(SlotUpdate),
+    /// An immutable server Set Slot packet paired with the inventory revision
+    /// at which it was applied. Queued events can be compared to snapshots.
+    InventorySlotObserved(Snapshot<SlotUpdate>),
     /// The `HeldItemChanged` variant.
     HeldItemChanged {
         /// The `slot` value carried by this variant.
@@ -3813,7 +3816,9 @@ impl Bot {
         match transaction.wait().await {
             crate::DispatchOutcome::Acknowledged => Ok(action),
             crate::DispatchOutcome::Rejected => {
-                bail!("server rejected window action {action}");
+                bail!(
+                    "server rejected window action {action} (window {window_id}, slot {slot}, button {button}, mode {mode:?})"
+                );
             }
             crate::DispatchOutcome::DeliveryUnknown => {
                 self.rollback_pending_click(window_id, action).await;
@@ -4344,7 +4349,8 @@ impl Bot {
             motion.velocity.x += flow.x * 0.014;
             motion.velocity.z += flow.z * 0.014;
         }
-        if control.jump && fluid.is_some() {
+        if control.jump && fluid.is_some_and(|kind| world.swimming_jump(aabb, kind, was_on_ground))
+        {
             motion.velocity.y += 0.04;
         } else if jump && was_on_ground {
             motion.velocity.y = if below == Some("honey_block") {
@@ -4397,7 +4403,6 @@ impl Bot {
             return Ok(());
         };
         let landed_on = world.block_below_name(moved);
-        drop(world);
         let collided_x = (requested.x - actual.x).abs() > 1.0e-9;
         let collided_y = (requested.y - actual.y).abs() > 1.0e-9;
         let collided_z = (requested.z - actual.z).abs() > 1.0e-9;
@@ -4447,6 +4452,16 @@ impl Bot {
                 motion.velocity.z *= horizontal_drag;
             }
         }
+        if let Some(up) = world.fluid_exit_boost(
+            moved,
+            motion.velocity,
+            actual.y,
+            fluid,
+            motion.collided_horizontal,
+        ) {
+            motion.velocity.y = up;
+        }
+        drop(world);
         if player.on_ground && matches!(landed_on, Some("soul_sand" | "honey_block")) {
             motion.velocity.x *= 0.4;
             motion.velocity.z *= 0.4;
@@ -4758,7 +4773,9 @@ impl Bot {
                 update.packet_sequence = packet_sequence;
                 let mut inventory = self.inventory.write().await;
                 apply_slot(&mut inventory, &update)?;
+                let observed = inventory.map_snapshot(|_| update.clone());
                 drop(inventory);
+                self.emit(Event::InventorySlotObserved(observed));
                 self.commit_satisfied_window_barriers().await;
                 self.emit(Event::SlotUpdated(update));
             }
@@ -9091,6 +9108,33 @@ mod tests {
         .await
         .unwrap();
         (bot, received, release, server)
+    }
+
+    #[tokio::test]
+    async fn server_slot_event_retains_the_revision_at_application() {
+        let (bot, _packets, release, server) =
+            operation_test_bot(0x2c, 0x16, vec![0, 0, 36, 0]).await;
+        let mut events = bot.subscribe();
+        let before = bot.inventory_snapshot().await;
+        bot.send(0x2c, &[0]).await.unwrap();
+        release.send(()).unwrap();
+        let packet = tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                if let Ok(Event::InventorySlotObserved(sample)) = events.recv().await {
+                    break sample;
+                }
+            }
+        })
+        .await
+        .unwrap();
+        assert!(packet.revision > before.revision);
+        assert_eq!(packet.revision, bot.inventory_snapshot().await.revision);
+        assert_eq!(packet.value.slot, 36);
+        assert_eq!(packet.value.item, None);
+        bot.inventory.write().await.windows.insert(9, vec![]);
+        assert!(bot.inventory_snapshot().await.revision > packet.revision);
+        bot.disconnect().await.unwrap();
+        server.abort();
     }
 
     #[tokio::test]
