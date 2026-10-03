@@ -50,6 +50,12 @@ contract agreement, preserved model gravity phase, correction/impulse/generation
 refusal, current support/body checks and interrupted dispatch. The whole native
 library passed 202 tests with seven opt-in tests ignored before adding the new
 opt-in live comparison driver; documentation checks and all-target Clippy passed.
-Live walk/jump/collision/placement comparison is separate acceptance work. Its
-observer must only compare results after native admission and placement, never
-provide the prediction operation's continuation gate.
+Live source `c491f6a34fd94bd43eae06e2aa6ac8112d05e5f1` passed walk,
+jump/landing and wall collision/retreat with three ordinary placements. The native
+run had no observer watches or observations. The comparison observer received
+the jump rise, matched each endpoint and independently confirmed all three
+placed cubes. Test and isolated non-OP server exited zero; total controller time
+was 38.52 seconds. This is bounded native acceptance, not integrated caller build,
+mining-after-walking or separate-process continuation acceptance. Hashed traces,
+controller and runtime metadata are retained in
+[the live evidence manifest](evidence/survival-predicted-motion-live-20261003.json).
