@@ -1,13 +1,18 @@
 use std::{error::Error as StdError, fmt};
 
-/// Stable, coarse category for failures returned by Voxrig's public API.
+/// Stable, coarse category for failures returned by voxrig's public API.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum ErrorKind {
+    /// This version adapter does not implement the requested capability.
+    Unsupported,
     /// A caller supplied an invalid value or requested an invalid operation.
     InvalidInput,
     /// Establishing or using the network connection failed.
     Connection,
+    /// A frame write was interrupted; the connection is closed and server effects
+    /// of the attempted packet are unknown. Never automatically retry a mutation.
+    UncertainDispatch,
     /// An operation did not complete before its configured deadline.
     Timeout,
     /// The peer closed the connection or sent a disconnect packet.
@@ -24,7 +29,7 @@ pub enum ErrorKind {
     Other,
 }
 
-/// Error returned by Voxrig's public fallible operations.
+/// Error returned by voxrig's public fallible operations.
 ///
 /// Match on [`Error::kind`] for control flow. Display text and the source chain
 /// are diagnostic details and are not a stable API contract.
@@ -133,7 +138,7 @@ impl StdError for Error {
     }
 }
 
-/// Result type used by Voxrig's public fallible API.
+/// Result type used by voxrig's public fallible API.
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[cfg(test)]

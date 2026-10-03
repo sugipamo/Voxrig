@@ -2,6 +2,31 @@
 
 この文書は、外部controllerが利用する公開面を用途別に示します。正確な引数型と戻り値は`cargo doc --open`で生成されるrustdocを正とします。
 
+## ゲーム版と操作の入口
+
+`Client` / `ConnectionConfig` / `MinecraftVersion`で接続版を明示します。
+`Client::survival_capabilities()`は静的な対応契約を返し、`Client::survival()`は
+セッションに結び付いた検査付きサバイバル操作を選びます。型は`voxrig::checked_survival`から
+参照でき、[操作・明示的復旧契約](survival-api.md)を共有します。現在は1.21.11のみ対応し、
+1.16.1はI/O前に`Unsupported`を返します。対応情報は現在の操作許可ではありません。
+
+以下の`Bot`、inventory、physicsとcoherent observationは1.16.1専用です。
+rootの互換importと`versions::java_1_16_1`は同じ型で、`voxrig::survival::SurvivalState`も維持します。
+1.21.11の版固有操作は[版別操作API](java-1.21.11-operations.md)を参照してください。
+サバイバルでの単純スタック交換は[在庫交換API](survival-inventory.md)の
+`swap_player_hotbar` / `wait_inventory_swap`を使います。
+1.21.11の`wait_until_ready()`はworldごとのloading通知完了も待ちます。
+限定的なサバイバル操作は`start_survival_mining` / `wait_survival_mining`、
+`place_survival_cube` / `wait_survival_placement`、`preview_survival_motion` /
+`start_survival_motion`から利用します。操作後の観測と次のmutationの許可を区別してください。
+[採掘と継続境界](survival-mining.md)、[配置](survival-placement.md)、
+[移動制御の条件と失敗記録](survival-motion-controls.md)が各公開契約です。
+`start_predicted_survival_path` / `start_previewed_predicted_survival_motion`は
+[明示的な予測契約](survival-predicted-motion.md)を選びます。実測位置の代用にはしません。
+`prepare_mining_profile_recovery`は[同一プロフィール復旧](survival-single-profile-recovery.md)の
+準備入口です。明示的なcloseと一度だけのreconnect、新しい受信基準の確認が必要です。
+`operation_history()`は切断後も読める診断履歴であり、再送や操作再開の許可には使いません。
+
 ## Import
 
 基本操作ではpreludeを利用できます。
@@ -54,6 +79,7 @@ crate rootのre-exportと用途別moduleは同一の型を参照します。
 - `get(username)`：usernameからBot handleを取得
 - `usernames()`：管理中のusername一覧
 - `physics_metrics()`：Botごとの物理計測値
+- `begin_measurement_epoch()`：R9等の外部計測境界で、物理状態を変えず診断累積器だけを基準化するtyped epochを開始
 - `chunk_storage_stats()`：Bot間で共有中のchunk section buffer数
 - `subscribe()`：`BotEvent { username, event }`を購読
 - `disconnect(username)`、`disconnect_all()`：切断
@@ -73,6 +99,27 @@ crate rootのre-exportと用途別moduleは同一の型を参照します。
 
 `Bot`はclone可能な共有handleです。状態getterはsnapshotを返すため、利用側が内部lockを保持することはありません。
 
+## 観測に結び付いた操作
+
+```rust,no_run
+use voxrig::{Bot, CoherentObservationRequest, Operation, OperationClass};
+
+async fn rotate(bot: &Bot) -> anyhow::Result<()> {
+    let observation = bot.capture_coherent_observation(CoherentObservationRequest::default()).await?;
+    let context = observation.operation_context();
+    bot.admit_operation(context, OperationClass::Normal).await?;
+    let outcome = bot.dispatch_operation(context, Operation::LookRotation {
+        yaw: 90.0, pitch: 0.0, on_ground: observation.player.on_ground,
+    }).await?;
+    println!("{outcome:?}");
+    Ok(())
+}
+```
+
+ウィンドウ操作は`dispatch_window_clicks(context, WindowClickSequence)`で指定します。
+製作・かまど・containerの手順選択は利用側が担当します。
+公開名と保証の正本は[client API設計](public-client-api.md)を参照してください。
+
 ## 状態の取得
 
 | API | 内容 |
@@ -81,7 +128,7 @@ crate rootのre-exportと用途別moduleは同一の型を参照します。
 | `motion()` | 速度と移動状態 |
 | `environment_state()` | fluid、眼の水没、climbable、特殊接触、足元block |
 | `survival_state()` | health、food、経験値、時間、天候、effect、attribute、dimension |
-| `inventory()` | player/window slot、cursor、property、pending transaction |
+| `inventory()` | player/window slot、cursor、property、click prediction metadata |
 | `open_window_state()` | 現在開いているwindow |
 | `block(x, y, z)` | 読み込み済み座標のblock state |
 | `observe(radius)` | プレイヤー周囲のblock cube |
@@ -91,6 +138,8 @@ crate rootのre-exportと用途別moduleは同一の型を参照します。
 | `wait_for_chunks(center, radius, timeout)` | 正方形範囲の全chunk受信待機 |
 | `query_blocks(region, state_ids, limit)` | 意味判断を含まないstate ID範囲検索 |
 | `raycast_blocks(direction, distance)` | 目の位置から実collision shapeへraycast |
+| `block_collision_shapes(state_id)` | 既知stateのraw collision boxを取得（経路選択なし） |
+| `capture_movement_snapshot(request)` | 外部controller向けのgeneration-bound・bounded raw movement snapshot |
 | `targeted_block(distance)` | 現在のyaw/pitchが指す最初のblock |
 | `raycast_entities(direction, distance)` | entity固有bounding boxへのraycast |
 | `targeted_entity(distance)` | block遮蔽を考慮したcrosshair上のentity |
@@ -111,6 +160,7 @@ crate rootのre-exportと用途別moduleは同一の型を参照します。
 | `command_tree_snapshot()`、`tags_snapshot()` | Brigadier command treeとserver registry tags |
 | `server_recipes_snapshot()` | server宣言recipeの材料候補、結果、調理情報 |
 | `physics_metrics()` | movement/server position packet、補正、tick、queue lag、切断の計測 |
+| `begin_measurement_epoch()` | client generationに束縛した診断計測epoch。player／motion／cache／`last_sent`は変更しない |
 
 大きな状態を別層へ転送する場合は、`player_snapshot()`、`survival_snapshot()`、`inventory_snapshot()`、`observe_snapshot()`などのrevision付きAPIを利用できます。revisionが変わっていない領域は再転送する必要がありません。所有権と比較規則は[API契約と所有権](api-contracts.md)を参照してください。
 
@@ -118,6 +168,16 @@ crate rootのre-exportと用途別moduleは同一の型を参照します。
 特定cellの値が変わることを待つ場合は`wait_for_block_change()`を使います。
 
 `block()`の`None`は「空気」ではなく、その座標がlocal chunk cacheで利用できないことを表します。
+
+`capture_movement_snapshot()`は、経路選択を行わないRust間の統合境界です。指定generationを
+再確認し、connection actorのcoherent state gate内でplayer、motion、survival（active effectsを含む）、
+window-0 inventory/NBT、entity、block state、exact collision shape、raw registry factsを同じturnから取得します。
+region、entity radius、entity数には上限があり、各blockは`Loaded`、`Unloaded`、`Unknown`を区別します。
+Loaded blockのregistry factには、所属するminecraft-data block typeのraw minimum state ID、material tool-speed map、および`empty`／`block`のraw bounding-box classificationも含まれます。entity factにはregistry width／heightが含まれます。未知またはregistry外の値は`None`であり、clientはphysical／safeを判定しません。
+どちらも解決不能な場合は明示的な`None`として返し、providerは安全側に停止します。
+`safe`、`liquid`、`replaceable`、`climbable`、landingなどの意味判断は返さず、Mineflayer互換の利用側の
+単一正本に残ります。このAPIはJSON wireや利用側の契約を追加せず、provider parityが完了するまでproduction
+providerには接続しません。
 
 ## 操作
 
@@ -151,7 +211,7 @@ serverからのvehicle poseは`vehicle_pose()`と`VehiclePosition` eventで取�
 - `select_enchantment(option)`、`rename_item(name)`、`set_beacon_effects(...)`
 - `update_sign(position, lines)`、`swap_hands()`
 
-`click_slot()`は送信したtransaction番号を返します。同じwindowでは未確認transactionを一つだけ許可し、採番・予測・送信を直列化します。承認または拒否まで待つ場合は`click_slot_and_wait()`を使います。
+`click_slot()`はactorが採番したtransaction番号を返します。同じwindowでは未確認transactionを一つだけ許可し、connection actorが採番・確認待ち・送信を直列化します。承認または拒否まで待つ場合は`click_slot_and_wait()`を使います。
 
 ### Blockとitem
 

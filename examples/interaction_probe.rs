@@ -5,7 +5,8 @@ use voxrig::{BlockFace, BlockPos, BotManager, Event, Hand, Player, Server};
 #[tokio::main]
 async fn main() -> Result<()> {
     let manager = BotManager::new(Server::new("127.0.0.1", 25566));
-    let bot = manager.connect(Player::offline("InteractProbe")).await?;
+    let username = std::env::var("BOT_USERNAME").unwrap_or_else(|_| "InteractProbe".to_owned());
+    let bot = manager.connect(Player::offline(username)).await?;
     bot.wait_until_ready().await?;
     let target = BlockPos { x: 2, y: 4, z: 0 };
     println!("READY_FOR_BLOCK");
@@ -50,12 +51,12 @@ async fn main() -> Result<()> {
             z: 0,
             state_id,
         } = event
-            && placed
-            && state_id != 0
         {
-            println!("PLACED state_id={state_id}");
-            manager.disconnect_all().await?;
-            return Ok(());
+            if placed && state_id != 0 {
+                println!("PLACED state_id={state_id}");
+                manager.disconnect_all().await?;
+                return Ok(());
+            }
         }
     }
     anyhow::bail!("place sequence timed out")

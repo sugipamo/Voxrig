@@ -1,13 +1,83 @@
 # Third-party notices
 
-Voxrig includes generated registry data and test fixtures derived from the
-following open-source projects. The Voxrig MIT license does not replace their
+zen-minecraft-client includes generated registry data and test fixtures derived from the
+following open-source projects. The zen-minecraft-client MIT license does not replace their
 notices. Exact npm versions and registry integrity digests are recorded in
 `reference/package-lock.json`.
+
+## Locally recorded Java 1.21.11 diagnostics
+
+`data/java_1_21_11/outline_*` contains factual shape coordinates, native state
+coverage and numeric raycast/rotation observations from a locally obtained Java
+1.21.11 game. Original Java/Python tooling invokes native APIs; it is not copied
+game source. Yarn 1.21.11+build.6 names identify the inspected methods. These data
+do not relicense Minecraft or Yarn; no game JAR, mapping or decompiled source is
+included. Exact source hashes, transformation and regeneration instructions are
+in `outline_source.json` and `docs/player-targeting.md`.
+
+`data/java_1_21_11/inventory_swap_packets.json` contains three factual native
+packet encodings checked by the original `scripts/VerifyInventoryClick.java`
+tool against `ClickSlotC2SPacket.CODEC`. The version is Java 1.21.11, with Yarn
+1.21.11+build.6 method names. The development oracle uses the same package remap
+and access-flag widening described by `outline_source.json`; native method bodies
+are unchanged. No Minecraft binary, mappings or decompiled source is included.
+The test source and validation scope are recorded in `docs/survival-inventory.md`.
+
+`data/java_1_21_11/survival_foundation*.json` contains factual native dimensions,
+attribute IDs/defaults/limits, cube admission, contact and packet observations.
+The original `scripts/VerifySurvivalFoundation.java` invokes Java 1.21.11 APIs
+using the same remap/access-only development oracle; no game method bodies are
+copied. Source/output hashes and validation scope are recorded in the manifest
+and `docs/survival-standing-context.md`.
+
+`docs/evidence/survival-mining-*20261002*` contains locally recorded packet,
+block/player observations and console diagnostics from an isolated official
+Java 1.21.11 server. The driver is original test-private code and invokes native
+player action packets; no Minecraft binary or decompiled code is redistributed.
+The manifests record raw data hashes, transformation, failed attempt and scope,
+including the separate native intent/result API comparison and its unvalidated
+continuation boundary.
+
+`docs/evidence/client-motion-*-20260929.json.gz` and their replay fixtures were
+recorded by this repository's `packet_trace_probe` against an isolated official
+Minecraft Java 1.21.11 server. The accompanying manifest identifies originals,
+transformations, checksums and failed trials. Native state names/properties use
+the pinned minecraft-data registry described below. These are local diagnostic
+observations and original test tooling, not imported DustRoute source or fixtures.
+The `client-players-*` records likewise come from two local clients on that
+isolated server and include the failed/corrected native attribute-ID trial.
+No Minecraft JAR or decompiled source is redistributed in this repository.
+The inspected version and mapping identification are recorded in
+`docs/client-piston-reconstruction.md`.
+
+## User-supplied reference door diagnostics
+
+`docs/evidence/client-reference-door-*-20260929*` records local observations of
+Bobiloosky's One-Wide 3x3 Piston Door:
+<https://www.planetminecraft.com/project/one-wide-3x3-piston-door-works-on-java-edition/>.
+The user supplied world ZIP (SHA-256 recorded in the evidence manifest) was
+previously inspected by DustRoute. Initial block coordinates/properties for
+these local tests were read from DustRoute's `reference-3x3-observed-a-v1.json`
+at commit `b1762b9`, translated by (-41900, 0, -900), and initialized on an
+isolated server. No DustRoute implementation source or Minecraft binary is
+included. These files are diagnostic records; Voxrig's MIT license does not
+claim ownership of the circuit design or relicense the supplied world. Review
+fixture redistribution attribution when preparing an upstream submission.
 
 ## minecraft-data 3.114.0
 
 Upstream: <https://github.com/PrismarineJS/minecraft-data>
+
+The Java 1.21.11 version adapter additionally uses `data/java_1_21_11/blocks.json`
+(name, state ranges and complete property definitions), generated packet-ID
+constants (including player registry IDs) in `src/versions/java_1_21_11/ids.rs`, and
+`data/java_1_21_11/items.json` (native item ID, name and default stack size)
+from the same exact package.
+`data/java_1_21_11/collision_shapes.json` projects that package's block collision
+shapes into native state IDs and AABBs. These are static collision shapes, not
+graphical selection outlines or entity-dependent collision decisions.
+`data/java_1_21_11/source.json` records the release, protocol, transformation and
+generated block-data digest. These data do not depend on a running JavaScript client.
 
 The files `data/blocks.json`, `data/items.json`, `data/materials.json`,
 `data/entities.json`, `data/recipes.json`, `data/sounds.json`,
@@ -47,7 +117,7 @@ Source: <https://github.com/PrismarineJS/prismarine-block/tree/1.23.0>
 
 `prismarine-block` was used by `reference/generate_fixtures.js` to construct
 blocks supplied to the reference physics implementation. No
-`prismarine-block` source code is embedded in Voxrig. The exact npm package
+`prismarine-block` source code is embedded in zen-minecraft-client. The exact npm package
 contains no standalone license file; its package metadata names
 `Romain Beaumont <romain.rom1@gmail.com>` as author and declares MIT.
 
@@ -103,3 +173,36 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+The minecraft-data notice above also covers data/enchantments.json.
+It uses the package dataPaths mapping for PC 1.16.1 to PC 1.13.2 shared
+definitions. Exact path, package integrity and file SHA256 are recorded
+in data/enchantments-source.json.
+
+## Java 1.16.1 mining tool gate corrections v1
+
+`data/harvest_gate_corrections.json` records name-based corrections to the
+upstream `harvestTools` gate. The original upstream JSON files remain unchanged.
+The manifest pins their SHA256 hashes and every corrected row's original names.
+The loader rejects different source data, version, names or preimages.
+
+Evidence: official Minecraft Java 1.16.1 server SHA1
+`a412fd69db1f81db3f511c1463fd304675244077`, with official server mappings SHA1
+`11120c39da4df293c4bd020896391fb9ddd6c2ba`.
+The verification probe enumerated registered block states and called
+`requiresCorrectToolForDrops` and `Item.isCorrectToolForDrops` directly.
+The probe and audit are retained in the consuming zen repository as
+`tools/C17HarvestOracle.java` and `docs/analysis/C17_HARVEST_LOOT_AUDIT.md`.
+
+These corrections describe only the mining tool gate. They do not guarantee a
+loot item, replace loot tables, change mining speed, or make unbreakable blocks
+breakable. Silk Touch, block-state conditions and special destruction behavior
+remain separate. Descriptor revision 3 distinguishes these effective definitions
+from the original registry. Upstream PR #407 is background evidence of the
+netherite additions, not the authority used to infer corrected tool membership.
+
+The native correction and dry-movement method/codec observations in
+`data/java_1_21_11/position_corrections.json` and `dry_movement.json` use original
+Java callers of unchanged target-version method bodies. Their source hashes,
+mappings and scope are recorded in `dry_movement_source.json`. No Minecraft
+class files or method bodies are distributed. See `docs/survival-motion-controls.md`.

@@ -71,6 +71,10 @@ impl<T> Versioned<T> {
             value: map(&self.value),
         }
     }
+
+    pub(crate) const fn revision(&self) -> u64 {
+        self.revision
+    }
 }
 
 impl<T> Deref for Versioned<T> {

@@ -1,0 +1,8 @@
+{
+  "package": "minecraft-data",
+  "version": "3.114.0",
+  "integrity": "sha512-7V3rl5XQTMa8D8nsVl3L/UYBB+2Kn9eFR8d1MKyge6ygjJC94RExq3anHdiGnrQ65SqtmpEc999SEihSU0drIA==",
+  "minecraft_version": "1.16.1",
+  "upstream_path": "pc/1.13.2/enchantments.json",
+  "sha256": "e6e19e5d3e09c5946d78ae94cb9751655f0090d460ceaf4d87f8f3cee87b0d77"
+}

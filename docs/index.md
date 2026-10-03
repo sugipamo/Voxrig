@@ -1,12 +1,35 @@
 # Voxrig ドキュメント
 
-`Voxrig`は、外部の頭脳から直接操作するMinecraft Java Edition 1.16.1向けheadless clientクレートです。
+`voxrig`は、外部の頭脳から直接操作するMinecraft Java Edition向けheadless clientクレートです。
+
+`Bot` の既存説明は1.16.1専用です。共存する1.21.11観測アダプタは
+[移行計画](dustroute-integration.md)、[対応範囲と検証](version-adapter-validation.md)、
+[ピストン通知と階段の未同期](piston-client-update-prerequisite.md)を参照してください。
+追加実装は[クライアント側ピストン処理](client-piston-reconstruction.md)、
+レビュー方針は[PR準備](pull-request-preparation.md)にまとめています。
 
 ## 利用者向け
 
+- [公開client APIの設計](public-client-api.md)
+- [0.2 client APIへの移行](client-api-migration.md)
 - [導入と最初の接続](getting-started.md)
 - [対応機能と制約](capabilities.md)
 - [公開API](api.md)
+- [Java 1.21.11のサバイバル所持品交換](survival-inventory.md)
+- [Java 1.21.11の静止・接地判定の基盤](survival-standing-context.md)
+- [Java 1.21.11の採掘完了・中断の実機比較](survival-mining-comparison.md)
+- [Java 1.21.11の送信中断と切断後の履歴](survival-outbound.md)
+- [Java 1.21.11の限定サバイバル採掘と継続境界](survival-mining.md)
+- [Java 1.21.11の採掘接続の退出確認と再接続](survival-mining-retirement.md)
+- [Java 1.21.11の同一プロフィールでの採掘復旧](survival-single-profile-recovery.md)
+- [Java 1.21.11の明示的な予測移動契約](survival-predicted-motion.md)
+- [Java 1.21.11の共通ロード完了処理](survival-interaction-loading.md)
+- [Java 1.21.11の通常配置と材料の受信確認](survival-placement.md)
+- [Java 1.21.11の移動属性と位置の由来](survival-movement-foundation.md)
+- [Java 1.21.11の限定移動制御と実試行の制約](survival-motion-controls.md)
+- [検査付きサバイバルAPIと利用側の責務](survival-api.md)
+- [取得場面と仮想の移動・編集・照準](survival-hypothetical-scenes.md)
+- [採掘中の受信inventory変化の診断](survival-inventory-interruption.md)
 - [Headless client API拡張ロードマップ](headless-api-roadmap.md)
 - [API契約と所有権](api-contracts.md)
 - [状態・イベントの扱い](state-and-events.md)
@@ -18,6 +41,7 @@
 ## 開発・検証
 
 - [開発とテスト](development.md)
+- [client統合・main移行の差分と検証記録](develop-integration.md)
 - [Server teleport後の位置補正調査](teleport-investigation.md)
 - 実サーバーの構築（repository版の`test-server/README.md`）
 - 耐久試験の結果（repository版の`reports/`）

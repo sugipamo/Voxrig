@@ -1,6 +1,6 @@
 # API契約と所有権
 
-この文書は、外部controllerが`Voxrig`の戻り値と完了をどう解釈するかを定義します。関数シグネチャの正本はrustdoc、用途別一覧は[公開API](api.md)です。
+この文書は、外部controllerが`voxrig`の戻り値と完了をどう解釈するかを定義します。関数シグネチャの正本はrustdoc、用途別一覧は[公開API](api.md)です。
 
 ## Stableとunstable
 
@@ -13,6 +13,33 @@ bot.unstable().move_relative(0.1, 0.0).await?;
 ```
 
 通常移動には`set_control()`、block破壊には`dig_block()`を使用してください。
+
+外部controller向けには、`OperationContext`を必須とする
+`Bot::dispatch_operation()`と`Bot::dispatch_cleanup()`を用意しています。
+前者は呼出側が選んだ単一の低レベル操作、後者はdisconnecting中にも有限に
+許可されるdig cancel、use stop、control clear、window closeだけを受理します。
+`DispatchOutcome::Dispatched`はwriterの事実であり、protocolの
+`Acknowledged`やfresh observation／semantic successを意味しません。
+write境界が不明な場合は`DeliveryUnknown`として扱います。`ControlClear`だけは
+packetを持たないため、`CleanupDispatchOutcome::AppliedLocally`で表します。
+
+`AcknowledgedOperation`（WindowClick、DigFinish）は、接続actorが
+connection-localなtransaction identity、pending queue、confirmation order、
+ack deadlineを一元所有するtyped APIです。`ProtocolTransaction::wait()`の
+`Acknowledged`／`Rejected`／`DeliveryUnknown`はprotocol事実であり、fresh
+observationやsemantic successではありません。Futureをdropしても、既に
+writeされたpacketやactorのpending transactionは取り消されません。未確認の
+pending transactionは接続actor内で最大1024件に制限され、上限時は新しい
+acknowledged dispatchを`TransactionInProgress`としてwrite前に拒否します。
+Digging Ackはpositionと要求status（Finished）で相関し、block-state IDは
+結果値として扱います。
+
+既存の`click_slot*`互換APIは同じactor queueを使うadapterです。
+`InventoryState::pending_clicks`は予測状態のrollback用metadataだけを保持し、
+transaction identity、ack期限、確認結果の正本ではありません。Window
+ConfirmationとDigging Ackはpacket applyからactorへroutingされ、既存eventの
+発火とtyped protocol outcomeを分離します。未対応のack protocolは二重queueを
+作らず、明示的な後続範囲として残します。
 
 ## 操作完了の段階
 
@@ -65,7 +92,7 @@ if snapshot.revision != previous_revision {
 | --- | --- |
 | `player`、`motion`、`control` | 小さいowned copy |
 | `survival_state` | mapを含むowned clone |
-| `inventory` | slot、NBT、pending transactionを含むowned clone |
+| `inventory` | slot、NBT、click prediction metadataを含むowned clone |
 | `player_list` | list全体のowned clone |
 | `observe_entities` | 対象entityのowned clone |
 | `observe` | 毎回新しい`Vec`を確保 |
