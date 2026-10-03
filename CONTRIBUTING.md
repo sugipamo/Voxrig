@@ -1,8 +1,12 @@
 # Contributing to voxrig
 
 Issueやpull requestを歓迎します。大きなAPI変更やprotocol version追加は、実装前にissueで
-責務境界と互換性を相談してください。zen-minecraft-clientは低レベルなheadless clientを担当し、pathfinding、
+責務境界と互換性を相談してください。Voxrigは低レベルなheadless clientを担当し、pathfinding、
 計画、AI runtimeは利用側の責務とします。
+
+常設ブランチは`main`のみです。変更は最新の`main`から短期の作業ブランチを作り、
+`main`向けのPRで差分と検証結果を確認して統合します。統合済みの作業ブランチは削除します。
+採用先は必要に応じて固定commitで移行・実環境検証を行い、その結果と未実施項目を別途記録します。
 
 変更前後に次を実行してください。
 

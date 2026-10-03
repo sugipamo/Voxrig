@@ -1,6 +1,6 @@
 # 0.2 client APIへの移行
 
-利用側のソース公開は不要です。各環境で以下の移行を行い、同じdevelop commitを固定して検証します。
+利用側のソース公開は不要です。各環境で以下の移行を行い、main上の固定commitまたはreleaseを基準に検証します。
 
 ## deepplanning派生版から
 
@@ -73,7 +73,7 @@ Window Itemsで確定したplayer slot offsetを保持し、部分更新でinven
 ## DustRouteから
 
 `Client`、`ConnectionConfig`、`MinecraftVersion`、既存の1.21.11操作メソッド名は維持します。
-vendorの内容をdevelopの固定commitで置き換えるか、同じcommitをGit dependencyの`rev`へ指定します。
+vendorの内容をmain上の固定commitで置き換えるか、同じcommitをGit dependencyの`rev`へ指定します。
 Cargo.lockも更新し、`voxrig` feature付きのbridge・operation・recording試験を行います。
 
 1.21.11の`Inventory`はscreen revision・cursor・pending swapを含むようになり、
@@ -208,4 +208,5 @@ Voxrig commit、利用側commit、ゲーム版、Rust toolchain、実行コマ�
 deepplanning: coherent observation、context付き操作、製作・かまど・採取、取消・切断。
 minetool: イベント過多、閉じたwindowの遅延更新、作物掘削、原木から石ツルハシ製作。
 DustRoute: native observation、piston/recovery、照準、配置・除去・取消・recording。
-各環境で成功した同じVoxrig commitをmainの統合候補とします。
+各環境の結果は使用した固定Voxrig commitと共に記録します。現在はmainを常設し、
+採用検証の未実施項目も別途保持します。mainへの統合を各利用環境での成功の証明にはしません。

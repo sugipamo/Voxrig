@@ -171,14 +171,18 @@ captureの新しさは別途必要で、比較成功を操作許可や永続job�
 資源検索は`BlockQuery`/`query_loaded_blocks`へ、移動用の観測は`MovementSnapshot`、
 geometryの取得は`GeometryQuery`へ名称を変更する。経路や採取対象を選ぶAPIではない。
 
-## 統合順序とmainへの条件
+## mainを常設する統合運用
 
-1. deepplanning snapshotのclient機能を整理し、名称・公開契約をVoxrigへ戻す。
-2. minetoolのイベント待機・在庫同期・作物の可視性の3修正を取り込む。
-3. DustRouteの版分離・1.21.11対応を取り込み、1.16.1機能との共存を検証する。
-4. Rustの全target、doc、fmt、Clippy、警告をエラーにするrustdoc、package、MSRVを確認する。
-5. developの固定commitでdeepplanning・minetool・DustRouteを各非公開環境で検証する。
-6. 3プロジェクトの採用検証が揃ったcommitだけをmainへ統合する。
+2026-10-03に、常設ブランチを`main`のみとする方針へ変更した。
+developへ集約したclient APIと既存PRを今回mainへ統合し、以後の修正は最新の
+mainから作る短期の作業ブランチで行う。PRの統合先はmainとし、統合後の作業ブランチは削除する。
 
-利用側の公開は不要。Voxrig側のunit/mock/fixture検証は各利用環境の検証を代替しない。
-DustRouteに記録された1.16.1の同地点2 Bot移動試験は上流baseline比較を含めて再確認する。
+変更に応じてRustの全target、doc、fmt、Clippy、警告をエラーにするrustdoc、package、
+MSRVとCIを確認し、公開APIの変更は移行表へ記録する。配布と利用側の更新は
+固定commitやreleaseを基準にする。採用先のソース公開は不要。
+
+deepplanning・minetool・DustRouteの実環境検証は利用側で引き続き行うが、
+3プロジェクトの同一commitの結果をmainへの統合待ち条件とする旧運用は終了した。
+未実施・不合格・基準版との差はそのまま記録し、main統合を実採用成功の証明にしない。
+Voxrig側のunit/mock/fixture成功も実環境の検証を代替しない。
+過去の1.16.1同地点2 Bot移動試験の不合格は、上流baseline比較を含めて引き続き確認対象とする。

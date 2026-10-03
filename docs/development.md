@@ -33,7 +33,8 @@ cargo package --allow-dirty
 
 GitHub ActionsもMSRV（Rust 1.85）→test（fmt・全target・doc・Clippy・rustdoc・package）
 →auditの順に実行します。Cargoは1ジョブ、テストは1スレッド、依存はlockfileへ固定します。
-feature branchはPRで、`main`と`develop`はpushとPRで確認します。
+常設ブランチは`main`のみです。短期の作業ブランチをmain向けPRで確認し、
+統合後に削除します。mainはpushでも検証します。
 同じrefの新しい実行が始まると古い実行を取り消します。
 checkoutはNode 24対応の`actions/checkout@v7`を使用します。
 

@@ -1,4 +1,8 @@
-# develop統合の検証記録
+# develop統合とmain移行の検証記録
+
+> 2026-10-03にmainのみを常設する運用へ変更した。以下の各節は当時の検証・統合条件の記録であり、
+> 以前の「3プロジェクトの確認までmainへ統合しない」は現行の条件ではない。
+> 現行方針は[公開client API](public-client-api.md)を参照する。
 
 2026-10-02（JST）。利用側のソース公開を要件にせず、Voxrigのclient機能を集約した。
 公開APIの設計は[公開client API](public-client-api.md)、変更名と利用側の確認項目は
@@ -336,3 +340,25 @@ fmt・MSRV 1.85の全target・Clippy（警告エラー）・rustdoc（警告エ�
 元実機の採掘復旧は`bed0465`、予測移動・配置は`c491f6a`の限定記録を保持する。
 元server／Java oracleや統合後のlive試験はこの環境では再実行していない。
 新しいdevelop固定commitで各採用先の検証を揃えるまでmainは統合しない。
+
+
+## PR #3の衝突修正とmainのみの運用への移行
+
+2026-10-03（JST）。管理負担を減らすため、mainだけを常設する方針へ変更した。
+PR #3（`267f4c96e11c350de4ea19cfd415017ea395c340`）を先にdevelopへ統合し、
+これまでの集約を含むPR #1をmainへ統合する。以後の作業ブランチはmainから作り、
+main向けPRで検証・統合し、統合後に削除する。CIのpush対象もmainだけとする。
+
+PR #3は1.16.1の浮動小数点の接触判定で、ごく小さい逆方向の変位が生じる問題を修正する。
+X/Y/Zの両方向・接触から離れる方向・minetoolのjump姿勢の回帰試験を追加した。
+`codex/fluid-wall-exit`へ追加された`6069ee88a8f758ca3fdaaa4eb7582af63b218d72`の
+方向clampとjump試験は、このPRと既存の接触修正に含まれる。元の旧ファイルとの競合は
+現在の版別実装を維持して解決した。実装・依存ファイルはCI成功済みのPR #3先端と同一。
+
+PR #3と従来PR #1のMSRV・test・auditはGitHubで成功済み。
+今回の統合では検証をCargo1ジョブ・テスト1スレッドで順次実行した。
+全targetは363件成功・8件スキップ、docテストは4件成功。fmt・MSRV 1.85の全target・
+Clippy・警告をエラーにするrustdocも成功。実装と依存はCI成功済みPR #3先端と同一である。
+ログは`.local/integration-validation/main-only-merge/`へ保存する。
+各採用先の実環境検証は別途継続し、未返却の結果を成功とは扱わない。
+旧「3プロジェクトの同一commitの結果をmain統合の前提にする」条件は、今回の運用変更で終了する。
