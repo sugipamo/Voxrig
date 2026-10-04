@@ -441,10 +441,21 @@ network-compression-threshold=256
         report["container_change"] = rcon.command(change_command)
         native_changed = until(lambda: chest_matches(7))
         stage(probe,messages,"container_changed",report["container_records"])
+        report["container_survival_mode"] = rcon.command("gamemode survival UnifiedProbe")
+        stage(probe,messages,"container_swap_survival",report["container_records"])
+        stage(probe,messages,"container_swap_taken",report["container_records"])
+        native_empty = until(lambda: matched(rcon.command("data get block 0 65 2 Items"),r"\[\]"))
+        native_taken = until(lambda: inventory_matches({9:("minecraft:dirt",2),0:("minecraft:stone",7)}))
+        report["container_creative_mode"] = rcon.command("gamemode creative UnifiedProbe")
+        stage(probe,messages,"container_swap_creative",report["container_records"])
+        stage(probe,messages,"container_swap_returned",report["container_records"])
+        native_returned = until(lambda: chest_matches(7))
+        native_return_inventory = until(lambda: inventory_matches({9:("minecraft:dirt",2)}))
         container_after = rcon.command("data get entity UnifiedProbe Pos")
         if container_after != container_position:
             raise RuntimeError("container observation changed native position")
         report["native_results"]["container_observation"] = {"opened_contents":native_open,"changed_contents":native_changed,"position_before":container_position,"position_after":container_after}
+        report["native_results"]["container_swaps"] = {"survival_container":native_empty,"survival_inventory":native_taken,"creative_container":native_returned,"creative_inventory":native_return_inventory,"position_before":container_position,"position_after":container_after}
         stage(probe,messages,"container_disconnect",report["container_records"])
         probe.wait(timeout=10)
         if probe.returncode != 0:

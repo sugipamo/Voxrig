@@ -1,5 +1,47 @@
 [
-  {"main_slot": 9, "hotbar": 0, "action": 1, "comparison_item_id": 1, "comparison_count": 3, "payload_hex": "0000090000010201010300"},
-  {"main_slot": 35, "hotbar": 8, "action": 128, "comparison_item_id": 1, "comparison_count": 3, "payload_hex": "0000230800800201010300"},
-  {"main_slot": 10, "hotbar": 1, "action": 32767, "comparison_item_id": 1, "comparison_count": 3, "payload_hex": "00000a017fff0201010300"}
+  {
+    "hotbar": 0,
+    "action": 1,
+    "comparison_item_id": 1,
+    "comparison_count": 3,
+    "payload_hex": "0000090000010201010300",
+    "window_id": 0,
+    "source_slot": 9
+  },
+  {
+    "hotbar": 8,
+    "action": 128,
+    "comparison_item_id": 1,
+    "comparison_count": 3,
+    "payload_hex": "0000230800800201010300",
+    "window_id": 0,
+    "source_slot": 35
+  },
+  {
+    "hotbar": 1,
+    "action": 32767,
+    "comparison_item_id": 1,
+    "comparison_count": 3,
+    "payload_hex": "00000a017fff0201010300",
+    "window_id": 0,
+    "source_slot": 10
+  },
+  {
+    "window_id": 3,
+    "source_slot": 0,
+    "hotbar": 0,
+    "action": 1,
+    "comparison_item_id": 1,
+    "comparison_count": 3,
+    "payload_hex": "0300000000010201010300"
+  },
+  {
+    "window_id": 7,
+    "source_slot": 26,
+    "hotbar": 8,
+    "action": 128,
+    "comparison_item_id": 1,
+    "comparison_count": 3,
+    "payload_hex": "07001a0800800201010300"
+  }
 ]

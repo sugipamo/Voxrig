@@ -19,8 +19,31 @@ let latest = survival.inventory_swap_record().await?;
 
 これは在庫・container統合段階の最初の操作である。一般containerのクリック列、split/shift click、
 crafting、装備、一般NBT/components付きstackの操作は後続作業に残る。
-`Feature::InventorySwap`は実装済みの限定交換、`Feature::Containers`は未実装のままとして区別する。
+`Feature::InventorySwap`はplayer交換、`Feature::Containers`は既に開いたstorage/hotbar交換のRestricted。一般open/close/クリック列は残る。
 既存のmodern専用`swap_player_hotbar` / `wait_inventory_swap`とlegacy Bot APIも維持する。
+
+## 開いたstorageとの交換
+
+`survival.swap_container_hotbar(screen_id, source_slot, hotbar)`と同じCreative handleのmethodは、
+実際に開いたconstructor確認済みstorageとhotbarのwhole stackを通常のSWAPで交換する。
+`Client::screen_state()`の現在の`ScreenId`を渡す。packet長からplayer slot位置を推定しない。
+source_slotはstorage側のみで、appended player slotは拒否する。hotbarはindex 0..8。
+両slotが非空の場合と一方が空の場合を扱い、default dataとempty cursorを要求する。
+
+`InventorySwapSource::PlayerMain`はplayer screen、`Container { screen }`はその接続/world/OPENの画面を表す。
+`source_slot: u16`と`hotbar_screen_slot: u16`は実クリック画面でのindex、`hotbar: u8`はcanonical hotbar index。
+`initial_screen`はI/O前の実container captureで、player交換ではNone。両方とも同じrecord・stage・読出しAPIを使う。
+
+受信full contents、constructor layout、現在の画面identity、playerとのhotbar受信対応が揃っていることを要求する。
+画面のclose・再OPEN・world変更は元attemptのinspectionとして残り、同じnumeric ID/期待値の復元で解除しない。
+constructor確認済みの9 storage menuを対象にするが、serverの操作許可やslot固有の受入れ条件を保証する契約ではない。
+期待する両destinationが実受信されない場合は未解決のまま保持する。特殊slotの個別preflight・一般click列は後続段階で拡張する。
+未解決のcontainer交換とplayer交換は同じcommon ownerを使い、一方を別の入口から迂回しない。
+
+legacyは実window IDの番号poolからactionを確保し、同じwindow/actionの実比較応答を照合する。
+modernは実container revisionを送る。どちらもclicked slot/hotbar mappingはそのopeningから確定し、
+取消で別の画面へ再送したり、保存したScreenIdを新接続へ再構成したりしない。
+完了したhistorical recordは凍結し、次の明示的交換は新しいcurrent captureから検証する。
 
 ## 前提と記録
 
@@ -30,7 +53,7 @@ crafting、装備、一般NBT/components付きstackの操作は後続作業に�
 modernはnative decoderの未対応components flagや画面revisionの欠測も拒否する。
 中身が同じ2slotは変更packetが返らない場合があるため、不要な交換としてI/O前に拒否する。
 
-`initial`、`main_before`、`hotbar_before`をadapterの同じ境界でI/O前に保持する。
+`initial`、`source_before`、`hotbar_before`をadapterの同じ境界でI/O前に保持する。
 `InventorySwapId`は元接続/world/attemptに結び付いたopaqueな識別子で、Deserializeを持たない。
 保存したJSONは診断であり、新しい接続の操作能力にはならない。
 `send.after_sequence`は送信前の実受信境界、`dispatched`は完全なframeが書かれたことを示す。
@@ -60,7 +83,7 @@ modernのstale revisionはクリックの実行を防がないため、revision�
 | `ObservedSwapped` | 完全送信と両方の新しいexact destinationを照合。legacyは同じtransactionの実比較応答も要求 |
 | `RequiresInspection` | 最初の不整合、session/mode/cursor/screen変更、送信不確実性等を保持 |
 
-`main_receipt`は元hotbar stack、`hotbar_receipt`は元main stackと完全一致し、
+`source_receipt`は元hotbar stack、`hotbar_receipt`は元main stackと完全一致し、
 各slotの実更新ordinalが`send.after_sequence`より新しいことを要求する。
 片側の更新、cache revision、無関係なslot更新、比較応答だけでは完了しない。
 先に届いたdestinationが完了前にprestackへ戻っても、あとで期待値が揃っても競合を消さない。
@@ -90,7 +113,7 @@ legacyのmatching応答、raw Inventory番号のhotbar変換、途中の競合�
 actorの所有権をmotion/placementと混同せず、write失敗で不確実な接続を再利用しないことも検査する。
 
 `scripts/VerifyLegacyInventorySwap.java`は未改変の公式1.16.1 server JARのpacket codecとnative registryで、
-`data/client_api/legacy_inventory_swap_packets.json`の3ケースをdecode/encodeし、packet ID 0x09とcomparison stackを含むpayloadを確認する。
+`data/client_api/legacy_inventory_swap_packets.json`のplayer 3・storage 2の計5ケースをdecode/encodeし、packet ID 0x09とcomparison stackを含むpayloadを確認する。
 Java 21とSHA-1検証済みJARを使い、ログを残す作業directoryから次の形で実行できる。
 server/worldやネットワークは起動しない。MinecraftのJAR・mappings・bytecodeはpackageへ含めない。
 
@@ -105,3 +128,7 @@ java -Xmx1024M -XX:ActiveProcessorCount=1 --class-path /absolute/path/1.16.1-ser
 続いて受信modeをcreativeへ変更してmain dirt 2を空hotbarへ移す。
 両方の実受信を待ち、独立したRCONでslot・item・個数と位置不変を確認する。
 再実行・実行結果は[共通native検証](common-client-native-validation.md)を参照。
+
+同じconsumer/native試験ではさらに開いたsingle chestのstone 7をsurvivalで空hotbarへ取り出し、
+同じopeningでcreativeへmodeを変更して戻す。両destinationのfresh receipt、元opening、
+独立RCONのcontainer Items/player Inventory/位置不変と正常終了を照合する。

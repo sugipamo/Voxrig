@@ -297,3 +297,21 @@ modern側は外国windowのfull内容を保持するようになった。malform
 cursorを省いた不完全なfixture（例`[1,0,0]`）はエラーになる。default empty cursorまで含む実wireへ修正する。
 legacyのfull内容からcursorをEmptyと推定せず、実cursor updateを待つ。
 詳細とAPI範囲は[コンテナ画面観測](common-container-observation.md)を参照。
+
+## 共通のstorage/hotbar交換とrecord名
+
+既に開いたstorageのwhole stack交換は、modeに合うhandleの`swap_container_hotbar(screen.id, slot, hotbar)`を一度だけ呼ぶ。
+結果はplayer交換と同じ`InventorySwapRecord`で読み出す。元openingが変わったら旧recordで再送しない。
+
+| 共通recordの旧field | 新field/意味 |
+| --- | --- |
+| `main_slot: u8` | `source_slot: u16`。実クリック画面内のsource slot |
+| `main_before` | `source_before`。完全な実受信predecessor |
+| `main_receipt` | `source_receipt`。反対側から移ったstackのfresh receipt |
+| 新規 | `source: InventorySwapSource`でPlayerMain/Container openingを区別 |
+| 新規 | `initial_screen`は同じboundaryの実container baseline。player交換はNone |
+| 新規 | `hotbar_screen_slot`は実native menuのhotbar slot。`hotbar`は従来通り0..8 |
+
+共通recordを参照/JSON集計する利用側はこの名前へ移行する。
+modern専用のnative `InventorySwap`/`InventorySwapObservation`の`main_*` fieldは変更していない。
+共通recordとnative専用submissionは別契約で、native waitでcommon ownerを解除しない。

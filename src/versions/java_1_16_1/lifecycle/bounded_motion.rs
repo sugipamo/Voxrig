@@ -42,7 +42,7 @@ pub(super) enum MotionCommand {
     },
     InventorySwap {
         run_id: u64,
-        main_slot: u8,
+        main_slot: u16,
         hotbar: u8,
         comparison: crate::versions::java_1_16_1::ItemStack,
         reply: oneshot::Sender<crate::Result<()>>,
@@ -63,6 +63,7 @@ enum Owner {
     InventorySwap {
         run_id: u64,
         action: i16,
+        window: i8,
         sent: bool,
     },
     Mining {
@@ -82,18 +83,19 @@ pub(super) struct MotionGate {
 impl MotionGate {
     pub(super) async fn begin_inventory_swap(
         &mut self,
-        run_id: u64,
+        identity: (u64, i8),
         expected_revision: u64,
         state: ConnectionState,
         control: &Arc<RwLock<crate::snapshot::Versioned<crate::ControlState>>>,
         pending: bool,
         next_actions: &mut HashMap<i8, i16>,
     ) -> Admission<i16> {
+        let (run_id, window) = identity;
         self.can_begin(state, control, pending).await?;
-        if run_id == 0 || expected_revision != self.normal_revision {
+        if run_id == 0 || window < 0 || expected_revision != self.normal_revision {
             return Err(OperationAdmissionError::InvalidOperation);
         }
-        let next = next_actions.entry(0).or_insert(0);
+        let next = next_actions.entry(window).or_insert(0);
         // Never recycle a transaction number for common exchanges in this source.
         let action = next
             .checked_add(1)
@@ -103,6 +105,7 @@ impl MotionGate {
         self.owner = Some(Owner::InventorySwap {
             run_id,
             action,
+            window,
             sent: false,
         });
         Ok(action)
@@ -355,6 +358,7 @@ impl MotionGate {
                     let Some(Owner::InventorySwap {
                         run_id: id,
                         action,
+                        window,
                         sent,
                     }) = self.owner.as_mut()
                     else {
@@ -362,7 +366,8 @@ impl MotionGate {
                     };
                     if *id != run_id
                         || *sent
-                        || !(9..=35).contains(&main_slot)
+                        || (*window == 0 && !(9..=35).contains(&main_slot))
+                        || main_slot >= 4096
                         || hotbar > 8
                         || comparison.item_id < 0
                         || comparison.count <= 0
@@ -371,8 +376,8 @@ impl MotionGate {
                         return Err(OperationAdmissionError::InvalidOperation);
                     }
                     *sent = true;
-                    let mut payload = vec![0];
-                    payload.extend(i16::from(main_slot).to_be_bytes());
+                    let mut payload = vec![*window as u8];
+                    payload.extend((main_slot as i16).to_be_bytes());
                     payload.push(hotbar);
                     payload.extend(action.to_be_bytes());
                     payload.push(2);
@@ -464,16 +469,26 @@ impl MotionGate {
     }
 }
 impl ConnectionActor {
+    #[cfg(test)]
     pub(crate) async fn begin_inventory_swap(
         &self,
         run_id: u64,
         expected_revision: u64,
+    ) -> Admission<i16> {
+        self.begin_window_swap(run_id, expected_revision, 0).await
+    }
+    pub(crate) async fn begin_window_swap(
+        &self,
+        run_id: u64,
+        expected_revision: u64,
+        window: i8,
     ) -> Admission<i16> {
         let (reply, result) = oneshot::channel();
         self.commands
             .send(Command::BeginInventorySwap {
                 run_id,
                 expected_revision,
+                window,
                 reply,
             })
             .await
@@ -483,7 +498,7 @@ impl ConnectionActor {
     pub(crate) async fn bounded_inventory_swap(
         &self,
         run_id: u64,
-        main_slot: u8,
+        main_slot: u16,
         hotbar: u8,
         comparison: crate::versions::java_1_16_1::ItemStack,
     ) -> crate::Result<()> {

@@ -348,16 +348,16 @@ async fn wait_swap(
     anyhow::ensure!(record.send.dispatched, "swap not dispatched");
     anyhow::ensure!(
         record
-            .main_receipt
+            .source_receipt
             .as_ref()
             .is_some_and(|r| r.value == record.hotbar_before.value)
             && record
                 .hotbar_receipt
                 .as_ref()
-                .is_some_and(|r| r.value == record.main_before.value),
+                .is_some_and(|r| r.value == record.source_before.value),
         "wrong swap destinations"
     );
-    for receipt in [&record.main_receipt, &record.hotbar_receipt] {
+    for receipt in [&record.source_receipt, &record.hotbar_receipt] {
         anyhow::ensure!(
             matches!(receipt.as_ref().unwrap().source,voxrig::client::ValueSource::Received{sequence} if sequence>record.send.after_sequence),
             "stale swap receipt"
@@ -538,6 +538,62 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 );
                 emit("container_disconnected", serde_json::json!({"closed":true}))?;
                 return Ok(());
+            }
+            "container_swap_survival" | "container_swap_creative" => {
+                let mode = if command == "container_swap_survival" {
+                    GameMode::Survival
+                } else {
+                    GameMode::Creative
+                };
+                wait_player(client, |p| p.game_mode == Some(mode)).await?;
+                let screen = opening.context("received opening missing")?;
+                let submitted = if mode == GameMode::Survival {
+                    client
+                        .survival()
+                        .swap_container_hotbar(screen, 0, 0)
+                        .await?
+                } else {
+                    client
+                        .creative()
+                        .swap_container_hotbar(screen, 0, 0)
+                        .await?
+                };
+                anyhow::ensure!(submitted.send.dispatched, "container click incomplete");
+                anyhow::ensure!(
+                    submitted.source == InventorySwapSource::Container { screen }
+                        && submitted.source_slot == 0
+                        && submitted.hotbar_screen_slot == 54,
+                    "wrong swap capture"
+                );
+                anyhow::ensure!(
+                    client
+                        .creative()
+                        .swap_container_hotbar(screen, 0, 0)
+                        .await
+                        .is_err(),
+                    "duplicate container click admitted"
+                );
+                emit(&command, submitted)?;
+            }
+            "container_swap_taken" | "container_swap_returned" => {
+                let completed = wait_swap(client).await?;
+                let expected_empty = command == "container_swap_taken";
+                anyhow::ensure!(
+                    matches!(
+                        &completed.source_receipt.as_ref().unwrap().value,
+                        SlotKnowledge::Empty
+                    ) == expected_empty,
+                    "wrong container destination"
+                );
+                let screen = client.screen_state().await?;
+                anyhow::ensure!(
+                    screen
+                        .screen
+                        .as_ref()
+                        .is_some_and(|s| Some(s.id) == opening),
+                    "exchange replaced opening"
+                );
+                emit(&command, completed)?;
             }
             _ => anyhow::bail!("unexpected container fixture command"),
         }

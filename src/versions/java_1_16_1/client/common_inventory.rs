@@ -15,6 +15,37 @@ impl Bot {
         main: u8,
         hotbar: u8,
     ) -> Result<InventorySwapRecord> {
+        contract::validate_slots(main, hotbar)?;
+        self.common_swap_source(
+            mode,
+            contract::InventorySwapSource::PlayerMain,
+            u16::from(main),
+            hotbar,
+        )
+        .await
+    }
+    pub(crate) async fn common_swap_container_hotbar(
+        &self,
+        mode: api::GameMode,
+        screen: api::container::ScreenId,
+        slot: u16,
+        hotbar: u8,
+    ) -> Result<InventorySwapRecord> {
+        self.common_swap_source(
+            mode,
+            contract::InventorySwapSource::Container { screen },
+            slot,
+            hotbar,
+        )
+        .await
+    }
+    async fn common_swap_source(
+        &self,
+        mode: api::GameMode,
+        source: contract::InventorySwapSource,
+        slot: u16,
+        hotbar: u8,
+    ) -> Result<InventorySwapRecord> {
         let gate = self.coherent_state_gate.lock().await;
         self.common_motion_admission().await?;
         let revision = self
@@ -24,7 +55,11 @@ impl Bot {
             .map_err(|e| contract::unavailable(format!("inventory admission: {e:?}")))?;
         {
             let inventory = self.inventory.read().await;
-            if inventory.open_window.is_some() || !inventory.pending_clicks.is_empty() {
+            if !inventory.pending_clicks.is_empty()
+                || inventory.cursor.is_some()
+                || (matches!(source, contract::InventorySwapSource::PlayerMain)
+                    && inventory.open_window.is_some())
+            {
                 return Err(contract::unavailable(
                     "legacy inventory operation unresolved",
                 ));
@@ -37,12 +72,26 @@ impl Bot {
             .as_ref()
             .map_or(Some(1), |p| p.record.id.attempt().checked_add(1))
             .ok_or_else(|| contract::unavailable("inventory attempts exhausted"))?;
-        let record = contract::prepare(
-            self.common_player_unlocked().await?,
+        let initial = self.common_player_unlocked().await?;
+        let screen = self
+            .common_receipts
+            .lock()
+            .await
+            .container
+            .as_ref()
+            .map(|s| s.capture(initial.session));
+        let record = contract::prepare_source(
+            initial,
             mode,
-            main,
+            source,
+            slot,
             hotbar,
             attempt,
+            if matches!(source, contract::InventorySwapSource::PlayerMain) {
+                None
+            } else {
+                screen
+            },
         )?;
         let id = record.id;
         *self.common_inventory_swap.lock().await = Some(NativeInventorySwap {
@@ -80,14 +129,21 @@ impl Bot {
                 ));
             }
             let current = self.common_player_unlocked().await?;
-            if current.session != record.initial.session
-                || current.game_mode != Some(record.mode)
-                || current.inventory.window_id != Some(0)
-                || current.inventory.cursor.as_ref().map(|v| &v.value)
-                    != Some(&api::SlotKnowledge::Empty)
-                || current.inventory.slots[usize::from(record.main_slot)].as_ref()
-                    != Some(&record.main_before)
-                || current.inventory.slots[36 + usize::from(record.hotbar)].as_ref()
+            let screen = self
+                .common_receipts
+                .lock()
+                .await
+                .container
+                .as_ref()
+                .map(|s| s.capture(current.session));
+            let slots = contract::source_slots(&record, &current, screen.as_ref())?;
+            if slots
+                .get(usize::from(record.source_slot))
+                .and_then(Option::as_ref)
+                != Some(&record.source_before)
+                || slots
+                    .get(usize::from(record.hotbar_screen_slot))
+                    .and_then(Option::as_ref)
                     != Some(&record.hotbar_before)
             {
                 return Err(contract::unavailable(
@@ -96,10 +152,10 @@ impl Bot {
             }
             let action = self
                 .connection
-                .begin_inventory_swap(id.attempt(), revision)
+                .begin_window_swap(id.attempt(), revision, record.window_id() as i8)
                 .await
                 .map_err(|e| contract::unavailable(format!("inventory reservation: {e:?}")))?;
-            let comparison = match (&record.main_before.value, &record.hotbar_before.value) {
+            let comparison = match (&record.source_before.value, &record.hotbar_before.value) {
                 (api::SlotKnowledge::Item { item }, _) | (_, api::SlotKnowledge::Item { item }) => {
                     item.clone()
                 }
@@ -119,7 +175,7 @@ impl Bot {
             self.connection
                 .bounded_inventory_swap(
                     id.attempt(),
-                    record.main_slot,
+                    record.source_slot,
                     record.hotbar,
                     ItemStack {
                         item_id: comparison.id.value(),
@@ -176,7 +232,7 @@ impl Bot {
         if let Some(run) = guard.as_mut().filter(|s| {
             s.record.stage != InventorySwapStage::ObservedSwapped
                 && s.record.send.legacy_action == Some(reply.action)
-                && reply.window_id == 0
+                && i32::from(reply.window_id) == s.record.window_id()
                 && reply.packet_sequence > s.record.send.after_sequence
         }) {
             if run.record.legacy_reply.is_none() {
@@ -204,15 +260,26 @@ impl Bot {
             return Ok(());
         }
         let current = self.common_player_unlocked().await?;
+        let screen = self
+            .common_receipts
+            .lock()
+            .await
+            .container
+            .as_ref()
+            .map(|s| s.capture(current.session));
         let inventory = self.inventory.read().await;
+        let window = inventory
+            .open_window
+            .as_ref()
+            .map_or(0, |s| i32::from(s.id));
         let native_conflict = inventory.cursor.is_some()
-            || inventory.open_window.is_some()
+            || window != snapshot.record.window_id()
             || !inventory.pending_clicks.is_empty();
         drop(inventory);
         let complete = {
             let mut guard = self.common_inventory_swap.lock().await;
             let record = &mut guard.as_mut().expect("retained").record;
-            contract::receive(record, &current);
+            contract::receive(record, &current, screen.as_ref());
             if native_conflict {
                 contract::inspection(record, "legacy inventory cache/click context changed");
             }
@@ -245,6 +312,231 @@ impl Bot {
 #[cfg(test)]
 mod tests {
     use super::*;
+    async fn seed_container(bot: &Bot) {
+        seed(bot).await;
+        let mut open = vec![3, 2];
+        put_string(&mut open, "{}");
+        bot.apply_packet(0x2e, open).await.unwrap();
+        let mut full = vec![3, 0, 63];
+        for slot in 0..63 {
+            let item = match slot {
+                0 => Some(ItemStack {
+                    item_id: crate::item_id("stone").unwrap(),
+                    count: 3,
+                    nbt: None,
+                }),
+                54 => Some(ItemStack {
+                    item_id: crate::item_id("dirt").unwrap(),
+                    count: 2,
+                    nbt: None,
+                }),
+                _ => None,
+            };
+            write_slot(&mut full, item.as_ref());
+        }
+        bot.apply_packet(0x14, full).await.unwrap();
+        bot.apply_packet(0x16, vec![255, 255, 255, 0])
+            .await
+            .unwrap();
+    }
+    async fn container_slot(bot: &Bot, index: i16, value: &api::SlotKnowledge) {
+        let mut payload = vec![3];
+        payload.extend(index.to_be_bytes());
+        let item = match value {
+            api::SlotKnowledge::Empty => None,
+            api::SlotKnowledge::Item { item } => Some(ItemStack {
+                item_id: item.id.value(),
+                count: item.count as i8,
+                nbt: None,
+            }),
+            _ => panic!("value"),
+        };
+        write_slot(&mut payload, item.as_ref());
+        bot.apply_packet(0x16, payload).await.unwrap();
+    }
+    async fn container_ack(bot: &Bot, record: &InventorySwapRecord) {
+        let mut p = vec![3];
+        p.extend(record.send.legacy_action.unwrap().to_be_bytes());
+        p.push(0);
+        bot.apply_packet(0x12, p).await.unwrap();
+    }
+    #[tokio::test]
+    async fn container_swap_same_consumer_receives_exact_slots_and_next_creative_exchange() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_container(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let screen = client.screen_state().await.unwrap().screen.unwrap().id;
+        assert!(
+            client
+                .survival()
+                .swap_container_hotbar(screen, 54, 0)
+                .await
+                .is_err()
+        );
+        assert!(
+            client
+                .survival()
+                .swap_container_hotbar(screen, 63, 0)
+                .await
+                .is_err()
+        );
+        let record = crate::client::tests::common_container_swap_start_scenario(
+            &client,
+            api::GameMode::Survival,
+            screen,
+        )
+        .await;
+        let packet = packets.recv().await.unwrap();
+        assert_eq!(packet.0, 0x09);
+        assert_eq!(&packet.1[..7], &[3, 0, 0, 0, 0, 1, 2]);
+        container_slot(&bot, 0, &record.hotbar_before.value).await;
+        crate::client::tests::common_swap_pending_scenario(&client).await;
+        container_slot(&bot, 54, &record.source_before.value).await;
+        assert_eq!(
+            client
+                .survival()
+                .inventory_swap_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            InventorySwapStage::Pending
+        );
+        container_ack(&bot, &record).await;
+        let complete =
+            crate::client::tests::common_swap_completed_scenario(&client, record.id).await;
+        assert!(!complete.legacy_reply.unwrap().accepted);
+        let mut mode = vec![3];
+        mode.extend(1f32.to_be_bytes());
+        bot.apply_packet(0x1e, mode).await.unwrap();
+        let next = crate::client::tests::common_container_swap_start_scenario(
+            &client,
+            api::GameMode::Creative,
+            screen,
+        )
+        .await;
+        while packets.recv().await.unwrap().0 != 0x09 {}
+        assert_eq!(next.send.legacy_action, Some(2));
+        assert_ne!(next.id, record.id);
+        container_slot(&bot, 0, &next.hotbar_before.value).await;
+        container_slot(&bot, 54, &next.source_before.value).await;
+        container_ack(&bot, &next).await;
+        crate::client::tests::common_swap_completed_scenario(&client, next.id).await;
+        bot.disconnect().await.unwrap();
+        assert_eq!(
+            client
+                .creative()
+                .inventory_swap_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            InventorySwapStage::ObservedSwapped
+        );
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn container_swap_new_opening_cannot_restore_pending_result() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_container(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let id = client.screen_state().await.unwrap().screen.unwrap().id;
+        let record = client
+            .survival()
+            .swap_container_hotbar(id, 0, 0)
+            .await
+            .unwrap();
+        packets.recv().await.unwrap();
+        seed_container(&bot).await;
+        container_slot(&bot, 0, &record.hotbar_before.value).await;
+        container_slot(&bot, 54, &record.source_before.value).await;
+        container_ack(&bot, &record).await;
+        let result = client
+            .survival()
+            .inventory_swap_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.stage, InventorySwapStage::RequiresInspection);
+        assert!(
+            client
+                .survival()
+                .swap_container_hotbar(id, 0, 0)
+                .await
+                .is_err()
+        );
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn container_swap_cancelled_waiter_keeps_one_owned_send() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_container(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let id = client.screen_state().await.unwrap().screen.unwrap().id;
+        let writer = bot.writer.lock().await;
+        let ops = client.survival();
+        let waiter = tokio::spawn(async move { ops.swap_container_hotbar(id, 0, 0).await });
+        timeout(Duration::from_secs(1), async {
+            while bot.common_inventory_swap.lock().await.is_none() {
+                tokio::task::yield_now().await
+            }
+        })
+        .await
+        .unwrap();
+        waiter.abort();
+        assert!(waiter.await.unwrap_err().is_cancelled());
+        drop(writer);
+        let (packet, bytes) = timeout(Duration::from_secs(1), packets.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(packet, 0x09);
+        assert_eq!(bytes[0], 3);
+        let record = client
+            .survival()
+            .inventory_swap_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(record.send.dispatched);
+        assert_eq!(record.stage, InventorySwapStage::Pending);
+        assert!(
+            client
+                .survival()
+                .swap_container_hotbar(id, 0, 0)
+                .await
+                .is_err()
+        );
+        assert!(
+            timeout(Duration::from_millis(20), packets.recv())
+                .await
+                .is_err()
+        );
+        bot.disconnect().await.unwrap();
+        assert_eq!(
+            client
+                .survival()
+                .inventory_swap_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            InventorySwapStage::RequiresInspection
+        );
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
     async fn seed(bot: &Bot) {
         super::super::common_motion::tests::seed_motion(bot).await;
         let mut slots = vec![0, 0, 46];
@@ -313,7 +605,7 @@ mod tests {
         slot(&bot, 9, &record.hotbar_before.value, false).await;
         crate::client::tests::common_swap_pending_scenario(&client).await;
         // Raw Inventory -2 hotbar receipt is still screen slot 36, with a real ordinal.
-        slot(&bot, 0, &record.main_before.value, true).await;
+        slot(&bot, 0, &record.source_before.value, true).await;
         crate::client::tests::common_swap_pending_scenario(&client).await;
         ack(&bot, action, true).await;
         let completed =
@@ -345,7 +637,7 @@ mod tests {
         assert_eq!(next.send.legacy_action, Some(action + 1));
         packets.recv().await.unwrap();
         slot(&bot, 9, &next.hotbar_before.value, false).await;
-        slot(&bot, 0, &next.main_before.value, true).await;
+        slot(&bot, 0, &next.source_before.value, true).await;
         ack(&bot, action + 1, true).await;
         crate::client::tests::common_swap_completed_scenario(&client, next.id).await;
         bot.disconnect().await.unwrap();
@@ -376,9 +668,9 @@ mod tests {
         let record = client.survival().swap_hotbar(9, 0).await.unwrap();
         packets.recv().await.unwrap();
         slot(&bot, 9, &record.hotbar_before.value, false).await;
-        slot(&bot, 9, &record.main_before.value, false).await;
+        slot(&bot, 9, &record.source_before.value, false).await;
         slot(&bot, 9, &record.hotbar_before.value, false).await;
-        slot(&bot, 0, &record.main_before.value, true).await;
+        slot(&bot, 0, &record.source_before.value, true).await;
         ack(&bot, record.send.legacy_action.unwrap(), true).await;
         let result = client
             .survival()
@@ -480,7 +772,7 @@ mod tests {
         assert_eq!(packets.recv().await.unwrap().0, 0x07);
         crate::client::tests::common_swap_pending_scenario(&client).await;
         slot(&bot, 9, &record.hotbar_before.value, false).await;
-        slot(&bot, 0, &record.main_before.value, true).await;
+        slot(&bot, 0, &record.source_before.value, true).await;
         ack(&bot, record.send.legacy_action.unwrap(), true).await;
         let result = client
             .survival()

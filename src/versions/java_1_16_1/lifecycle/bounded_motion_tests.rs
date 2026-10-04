@@ -39,6 +39,20 @@ async fn inventory_swap_actor_owns_click_identity_and_exact_release_without_repl
     actor.bounded_inventory_swap(2,35,8,swap_comparison()).await.unwrap();assert_eq!(read_packet(&mut peer,None).await.unwrap(),(0x09,vec![0,0,35,8,0,2,2,1,1,3,0]));actor.finish_inventory_swap(2).await.unwrap();
 }
 #[tokio::test]
+async fn storage_swap_actor_uses_reserved_window_and_independent_native_action_pool(){
+    let (actor,mut peer)=actor_fixture().await;actor.mark_ready().await;
+    for (run,window,slot,action) in [(1,3,0,1),(2,0,9,1),(3,3,26,2)] {
+        let revision=actor.motion_admission_revision().await.unwrap();
+        assert_eq!(actor.begin_window_swap(run,revision,window).await.unwrap(),action);
+        actor.bounded_inventory_swap(run,slot,0,swap_comparison()).await.unwrap();
+        let (id,packet)=read_packet(&mut peer,None).await.unwrap();assert_eq!(id,0x09);
+        assert_eq!(packet[0],window as u8);assert_eq!(i16::from_be_bytes([packet[1],packet[2]]),slot as i16);
+        assert_eq!(i16::from_be_bytes([packet[4],packet[5]]),action);
+        assert!(actor.bounded_inventory_swap(run,slot,0,swap_comparison()).await.is_err());
+        actor.finish_inventory_swap(run).await.unwrap();
+    }
+}
+#[tokio::test]
 async fn inventory_swap_actor_cancelled_waiter_does_not_cancel_owned_write(){
     let (actor,mut peer,writer)=actor_fixture_with_writer().await;actor.mark_ready().await;actor.begin_inventory_swap(1,actor.motion_admission_revision().await.unwrap()).await.unwrap();
     let guard=writer.lock().await;let mut send=Box::pin(actor.bounded_inventory_swap(1,9,0,swap_comparison()));std::future::poll_fn(|cx|{assert!(send.as_mut().poll(cx).is_pending());std::task::Poll::Ready(())}).await;drop(send);drop(guard);

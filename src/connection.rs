@@ -232,6 +232,25 @@ impl Client {
             }
         }
     }
+    pub(crate) async fn common_swap_container_hotbar(
+        &self,
+        mode: crate::client::GameMode,
+        screen: crate::client::container::ScreenId,
+        slot: u16,
+        hotbar: u8,
+    ) -> Result<crate::client::inventory::InventorySwapRecord> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => {
+                bot.common_swap_container_hotbar(mode, screen, slot, hotbar)
+                    .await
+            }
+            Adapter::Java1_21_11(bot) => {
+                bot.operations()
+                    .common_swap_container_hotbar(mode, screen, slot, hotbar)
+                    .await
+            }
+        }
+    }
     pub(crate) async fn common_inventory_swap_record(
         &self,
     ) -> Result<Option<crate::client::inventory::InventorySwapRecord>> {

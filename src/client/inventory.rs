@@ -1,8 +1,23 @@
-//! Received player-inventory exchanges; container/crafting rules remain separate.
+//! Received ordinary player/container exchanges; no click prediction is receive evidence.
+use super::container::{ContainerScreen, ScreenId};
 use super::{
     GameMode, ItemData, ObservedValue, PlayerObservation, SessionStamp, SlotKnowledge, ValueSource,
 };
 use crate::Result;
+
+/// Screen owning the clicked source slot. Container IDs are bound to an actual opening.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum InventorySwapSource {
+    /// Canonical player screen, with source slot 9..35.
+    PlayerMain,
+    /// Constructor-verified storage screen; the clicked slot is not a player slot.
+    Container {
+        /// Original live opening identity.
+        screen: ScreenId,
+    },
+}
 
 /// Connection/world-bound attempt identity; serialization supplies diagnostics only.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
@@ -41,7 +56,7 @@ pub struct InventorySwapSend {
 /// Actual legacy response; accepted alone does not establish both destinations.
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct InventoryTransactionReply {
-    /// Native player screen identifier.
+    /// Native click screen identifier.
     pub window_id: i8,
     /// Original click number.
     pub action: i16,
@@ -72,18 +87,24 @@ pub struct InventorySwapRecord {
     pub initial: PlayerObservation,
     /// Matching received mode required by the operations handle.
     pub mode: GameMode,
-    /// Main-inventory player-screen slot, 9..35.
-    pub main_slot: u8,
-    /// Hotbar index, 0..8; corresponding screen slot is 36..44.
+    /// Source screen: player main inventory or a received container opening.
+    pub source: InventorySwapSource,
+    /// Native screen slot clicked by SWAP, 9..35 for PlayerMain.
+    pub source_slot: u16,
+    /// Native screen slot referring to the selected hotbar destination.
+    pub hotbar_screen_slot: u16,
+    /// Actual container baseline at the same capture boundary; absent on PlayerMain.
+    pub initial_screen: Option<ContainerScreen>,
+    /// Hotbar index, 0..8; canonical player-screen index is 36..44.
     pub hotbar: u8,
-    /// Complete received main predecessor and its packet ordinal.
-    pub main_before: ObservedValue<SlotKnowledge>,
+    /// Complete received source predecessor and its packet ordinal.
+    pub source_before: ObservedValue<SlotKnowledge>,
     /// Complete received hotbar predecessor and its packet ordinal.
     pub hotbar_before: ObservedValue<SlotKnowledge>,
     /// Intent recorded before I/O; there is no resend API.
     pub send: InventorySwapSend,
-    /// Fresh exact main destination receipt.
-    pub main_receipt: Option<ObservedValue<SlotKnowledge>>,
+    /// Fresh exact source destination receipt.
+    pub source_receipt: Option<ObservedValue<SlotKnowledge>>,
     /// Fresh exact hotbar destination receipt.
     pub hotbar_receipt: Option<ObservedValue<SlotKnowledge>>,
     /// Actual legacy transaction response; modern has no such response.
@@ -104,6 +125,15 @@ pub(crate) fn validate_slots(main: u8, hotbar: u8) -> Result<()> {
     }
     Ok(())
 }
+impl InventorySwapRecord {
+    /// Native click window ID. It does not confer live operation authority.
+    pub fn window_id(&self) -> i32 {
+        match self.source {
+            InventorySwapSource::PlayerMain => 0,
+            InventorySwapSource::Container { screen } => screen.window_id(),
+        }
+    }
+}
 pub(crate) fn prepare(
     initial: PlayerObservation,
     mode: GameMode,
@@ -112,10 +142,29 @@ pub(crate) fn prepare(
     attempt: u64,
 ) -> Result<InventorySwapRecord> {
     validate_slots(main_slot, hotbar)?;
-    if !matches!(mode, GameMode::Survival | GameMode::Creative)
+    prepare_source(
+        initial,
+        mode,
+        InventorySwapSource::PlayerMain,
+        u16::from(main_slot),
+        hotbar,
+        attempt,
+        None,
+    )
+}
+pub(crate) fn prepare_source(
+    initial: PlayerObservation,
+    mode: GameMode,
+    source: InventorySwapSource,
+    source_slot: u16,
+    hotbar: u8,
+    attempt: u64,
+    screen: Option<ContainerScreen>,
+) -> Result<InventorySwapRecord> {
+    if hotbar > 8
+        || !matches!(mode, GameMode::Survival | GameMode::Creative)
         || initial.game_mode != Some(mode)
         || initial.pending_dispatch
-        || initial.inventory.window_id != Some(0)
         || !matches!(
             initial.inventory.cursor.as_ref(),
             Some(ObservedValue {
@@ -125,14 +174,67 @@ pub(crate) fn prepare(
         )
     {
         return Err(unavailable(
-            "swap requires matching received mode, player screen, received empty cursor and no unresolved dispatch",
+            "swap requires matching received mode/empty cursor and no unresolved dispatch",
         ));
     }
+    let (slots, hotbar_screen_slot, revision) = match source {
+        InventorySwapSource::PlayerMain => {
+            if !(9..=35).contains(&source_slot) || initial.inventory.window_id != Some(0) {
+                return Err(unavailable(
+                    "player swap requires received player screen and main slot 9..35",
+                ));
+            }
+            (
+                &initial.inventory.slots,
+                36 + u16::from(hotbar),
+                initial.inventory.screen_revision,
+            )
+        }
+        InventorySwapSource::Container { screen: id } => {
+            let screen = screen
+                .as_ref()
+                .filter(|s| {
+                    s.id == id
+                        && id.session() == initial.session
+                        && initial.inventory.window_id == Some(id.window_id())
+                        && s.full_contents_sequence.is_some()
+                })
+                .ok_or_else(|| unavailable("same live container opening/full contents required"))?;
+            if !screen.menu_name.as_deref().is_some_and(storage_menu) {
+                return Err(unavailable(
+                    "constructor-verified ordinary storage menu required",
+                ));
+            }
+            let layout = screen
+                .layout
+                .as_ref()
+                .ok_or_else(|| unavailable("container layout unavailable"))?;
+            if usize::from(source_slot) >= layout.total_slots
+                || layout
+                    .player_slots
+                    .iter()
+                    .any(|m| m.screen_slot == usize::from(source_slot))
+            {
+                return Err(super::registry::invalid(
+                    "source must be a storage slot, not an appended player slot",
+                ));
+            }
+            let hotbar_screen_slot = layout
+                .player_slots
+                .iter()
+                .find(|m| m.player_slot == 36 + usize::from(hotbar))
+                .and_then(|m| u16::try_from(m.screen_slot).ok())
+                .ok_or_else(|| unavailable("native hotbar mapping unavailable"))?;
+            (
+                &screen.slots,
+                hotbar_screen_slot,
+                screen.revision.as_ref().map(|r| r.value),
+            )
+        }
+    };
     let registry = super::registry::Registry::for_version(initial.session.version);
     let get = |slot: usize| -> Result<ObservedValue<SlotKnowledge>> {
-        let value = initial
-            .inventory
-            .slots
+        let value = slots
             .get(slot)
             .and_then(Option::as_ref)
             .filter(|v| {
@@ -156,12 +258,17 @@ pub(crate) fn prepare(
         }
         Ok(value)
     };
-    let main_before = get(usize::from(main_slot))?;
-    let hotbar_before = get(36 + usize::from(hotbar))?;
-    if main_before.value == hotbar_before.value {
+    let source_before = get(usize::from(source_slot))?;
+    let hotbar_before = get(usize::from(hotbar_screen_slot))?;
+    if source_before.value == hotbar_before.value {
         return Err(super::registry::invalid(
             "identical slot contents do not require a swap",
         ));
+    }
+    if matches!(source, InventorySwapSource::Container { .. })
+        && initial.inventory.slots[36 + usize::from(hotbar)].as_ref() != Some(&hotbar_before)
+    {
+        return Err(unavailable("container/player hotbar receipts disagree"));
     }
     Ok(InventorySwapRecord {
         id: InventorySwapId::new(initial.session, attempt),
@@ -169,21 +276,82 @@ pub(crate) fn prepare(
             after_sequence: initial.receive_sequence,
             legacy_action: None,
             legacy_comparison: None,
-            screen_revision: initial.inventory.screen_revision,
+            screen_revision: revision,
             dispatched: false,
         },
         initial,
         mode,
-        main_slot,
+        source,
+        source_slot,
+        hotbar_screen_slot,
+        initial_screen: screen,
         hotbar,
-        main_before,
+        source_before,
         hotbar_before,
-        main_receipt: None,
+        source_receipt: None,
         hotbar_receipt: None,
         legacy_reply: None,
         requires_inspection: None,
         stage: InventorySwapStage::Pending,
     })
+}
+fn storage_menu(name: &str) -> bool {
+    matches!(
+        name,
+        "minecraft:generic_9x1"
+            | "minecraft:generic_9x2"
+            | "minecraft:generic_9x3"
+            | "minecraft:generic_9x4"
+            | "minecraft:generic_9x5"
+            | "minecraft:generic_9x6"
+            | "minecraft:generic_3x3"
+            | "minecraft:hopper"
+            | "minecraft:shulker_box"
+    )
+}
+/// Validate current source identity, received cursor/mode and complete slot context.
+pub(crate) fn source_slots<'a>(
+    record: &InventorySwapRecord,
+    current: &'a PlayerObservation,
+    screen: Option<&'a ContainerScreen>,
+) -> Result<&'a Vec<Option<ObservedValue<SlotKnowledge>>>> {
+    if current.session != record.initial.session
+        || current.game_mode != Some(record.mode)
+        || current.inventory.window_id != Some(record.window_id())
+        || !matches!(
+            current.inventory.cursor.as_ref(),
+            Some(ObservedValue {
+                value: SlotKnowledge::Empty,
+                source: ValueSource::Received { .. }
+            })
+        )
+    {
+        return Err(unavailable(
+            "swap session/mode/screen/cursor context changed",
+        ));
+    }
+    match record.source {
+        InventorySwapSource::PlayerMain => Ok(&current.inventory.slots),
+        InventorySwapSource::Container { screen: id } => {
+            let screen = screen
+                .filter(|s| s.id == id && s.full_contents_sequence.is_some())
+                .ok_or_else(|| unavailable("container opening/full-content context changed"))?;
+            let original = record
+                .initial_screen
+                .as_ref()
+                .ok_or_else(|| unavailable("container baseline missing"))?;
+            if screen.layout != original.layout
+                || screen.menu_name != original.menu_name
+                || screen.slots.get(usize::from(record.hotbar_screen_slot))
+                    != current.inventory.slots.get(36 + usize::from(record.hotbar))
+            {
+                return Err(unavailable(
+                    "container layout/player hotbar context changed",
+                ));
+            }
+            Ok(&screen.slots)
+        }
+    }
 }
 pub(crate) fn inspection(record: &mut InventorySwapRecord, reason: impl std::fmt::Display) {
     if record.stage != InventorySwapStage::ObservedSwapped {
@@ -193,41 +361,36 @@ pub(crate) fn inspection(record: &mut InventorySwapRecord, reason: impl std::fmt
         record.stage = InventorySwapStage::RequiresInspection;
     }
 }
-pub(crate) fn receive(record: &mut InventorySwapRecord, current: &PlayerObservation) {
+pub(crate) fn receive(
+    record: &mut InventorySwapRecord,
+    current: &PlayerObservation,
+    screen: Option<&ContainerScreen>,
+) {
     if record.stage == InventorySwapStage::ObservedSwapped {
         return;
     }
-    if current.session != record.initial.session
-        || current.game_mode != Some(record.mode)
-        || current.inventory.window_id != Some(0)
-        || !matches!(
-            current.inventory.cursor.as_ref(),
-            Some(ObservedValue {
-                value: SlotKnowledge::Empty,
-                source: ValueSource::Received { .. }
-            })
-        )
-    {
-        inspection(
-            record,
-            "swap session/mode/player screen/cursor context changed",
-        );
-    }
+    let slots = match source_slots(record, current, screen) {
+        Ok(slots) => slots,
+        Err(error) => {
+            inspection(record, error);
+            return;
+        }
+    };
     for (slot, before, after, receipt) in [
         (
-            usize::from(record.main_slot),
-            &record.main_before.value,
+            usize::from(record.source_slot),
+            &record.source_before.value,
             &record.hotbar_before.value,
-            &mut record.main_receipt,
+            &mut record.source_receipt,
         ),
         (
-            36 + usize::from(record.hotbar),
+            usize::from(record.hotbar_screen_slot),
             &record.hotbar_before.value,
-            &record.main_before.value,
+            &record.source_before.value,
             &mut record.hotbar_receipt,
         ),
     ] {
-        match current.inventory.slots.get(slot).and_then(Option::as_ref) {
+        match slots.get(slot).and_then(Option::as_ref) {
             Some(value)
                 if matches!(value.source, ValueSource::Received { .. })
                     && (&value.value == before || &value.value == after) =>
@@ -258,6 +421,6 @@ pub(crate) fn receive(record: &mut InventorySwapRecord, current: &PlayerObservat
 pub(crate) fn destinations_ready(record: &InventorySwapRecord) -> bool {
     record.send.dispatched
         && record.requires_inspection.is_none()
-        && record.main_receipt.is_some()
+        && record.source_receipt.is_some()
         && record.hotbar_receipt.is_some()
 }

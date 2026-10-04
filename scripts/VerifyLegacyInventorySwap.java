@@ -18,8 +18,8 @@ public final class VerifyLegacyInventorySwap {
             var input = new mg(Unpooled.wrappedBuffer(bytes));
             var packet = new rj();
             packet.a(input);
-            if (input.isReadable() || packet.b() != 0
-                || packet.c() != value.get("main_slot").getAsInt()
+            if (input.isReadable() || packet.b() != value.get("window_id").getAsInt()
+                || packet.c() != value.get("source_slot").getAsInt()
                 || packet.d() != value.get("hotbar").getAsInt()
                 || packet.e() != value.get("action").getAsInt()
                 || packet.g() != bgq.c || packet.f().a()
@@ -34,7 +34,7 @@ public final class VerifyLegacyInventorySwap {
             output.readBytes(encoded);
             if (!Arrays.equals(encoded, bytes)) throw new IllegalStateException("native roundtrip");
             var result = new JsonObject();
-            for (String key : new String[]{"main_slot", "hotbar", "action", "payload_hex", "comparison_item_id", "comparison_count"})
+            for (String key : new String[]{"window_id", "source_slot", "hotbar", "action", "payload_hex", "comparison_item_id", "comparison_count"})
                 result.add(key, value.get(key));
             result.addProperty("native_packet_id", nativeId);
             result.addProperty("native_roundtrip", true);

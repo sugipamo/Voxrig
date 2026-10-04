@@ -1,5 +1,186 @@
 use super::*;
 
+impl CommonFixture {
+    async fn open_swap_container(&mut self) -> crate::client::container::ScreenId {
+        self.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 2, 10, 0])
+            .await;
+        let mut full = vec![3, 5, 63];
+        for index in 0..63 {
+            put_slot(
+                &mut full,
+                &match index {
+                    0 => plain("stone", 3),
+                    54 => plain("dirt", 2),
+                    _ => InventorySlot::Empty,
+                },
+            );
+        }
+        full.push(0);
+        self.receive(ids::play_clientbound::WINDOW_ITEMS, &full)
+            .await;
+        self.client()
+            .screen_state()
+            .await
+            .unwrap()
+            .screen
+            .unwrap()
+            .id
+    }
+    async fn container_slot(&mut self, index: u16, value: InventorySlot) {
+        let mut p = vec![3, 6];
+        p.extend(index.to_be_bytes());
+        put_slot(&mut p, &value);
+        self.receive(ids::play_clientbound::SET_SLOT, &p).await;
+    }
+}
+#[tokio::test]
+async fn container_swap_same_consumer_checks_fresh_destinations_and_next_creative_exchange() {
+    use crate::client::{GameMode as Mode, inventory::InventorySwapStage};
+    let mut f = CommonFixture::new().await;
+    let id = f.open_swap_container().await;
+    let client = f.client();
+    for slot in [54, 63] {
+        assert!(
+            client
+                .survival()
+                .swap_container_hotbar(id, slot, 0)
+                .await
+                .is_err()
+        );
+    }
+    let record =
+        crate::client::tests::common_container_swap_start_scenario(&client, Mode::Survival, id)
+            .await;
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap(),
+        (
+            ids::play_serverbound::WINDOW_CLICK,
+            vec![3, 5, 0, 0, 0, 2, 0, 0]
+        )
+    );
+    assert!(
+        f.api
+            .bot
+            .session
+            .state
+            .lock()
+            .await
+            .operations
+            .inventory
+            .pending_swap
+            .is_none()
+    );
+    f.container_slot(0, plain("dirt", 2)).await;
+    crate::client::tests::common_swap_pending_scenario(&client).await;
+    f.container_slot(54, plain("stone", 3)).await;
+    crate::client::tests::common_swap_completed_scenario(&client, record.id).await;
+    let mut mode = vec![3];
+    mode.extend(1f32.to_be_bytes());
+    f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &mode)
+        .await;
+    let next =
+        crate::client::tests::common_container_swap_start_scenario(&client, Mode::Creative, id)
+            .await;
+    read_packet(&mut f.peer, None).await.unwrap();
+    assert_ne!(next.id, record.id);
+    f.container_slot(0, plain("stone", 3)).await;
+    f.container_slot(54, plain("dirt", 2)).await;
+    crate::client::tests::common_swap_completed_scenario(&client, next.id).await;
+    client.disconnect().await.unwrap();
+    assert_eq!(
+        client
+            .creative()
+            .inventory_swap_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        InventorySwapStage::ObservedSwapped
+    );
+    f.stop().await;
+}
+#[tokio::test]
+async fn container_swap_reopened_numeric_id_and_restored_values_cannot_confirm() {
+    use crate::client::inventory::InventorySwapStage;
+    let mut f = CommonFixture::new().await;
+    let id = f.open_swap_container().await;
+    let client = f.client();
+    let record = client
+        .survival()
+        .swap_container_hotbar(id, 0, 0)
+        .await
+        .unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    let new = f.open_swap_container().await;
+    assert_ne!(new, id);
+    f.container_slot(0, plain("dirt", 2)).await;
+    f.container_slot(54, plain("stone", 3)).await;
+    let result = client
+        .survival()
+        .inventory_swap_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(result.id, record.id);
+    assert_eq!(result.stage, InventorySwapStage::RequiresInspection);
+    assert!(
+        client
+            .survival()
+            .swap_container_hotbar(new, 0, 0)
+            .await
+            .is_err()
+    );
+    f.stop().await;
+}
+#[tokio::test]
+async fn container_swap_cancelled_before_writer_never_completes_from_later_matching_slots() {
+    use crate::client::inventory::InventorySwapStage;
+    let mut f = CommonFixture::new().await;
+    let id = f.open_swap_container().await;
+    let client = f.client();
+    let session = f.api.bot.session.clone();
+    let writer = session.writer.lock().await;
+    let ops = client.survival();
+    let waiter = tokio::spawn(async move { ops.swap_container_hotbar(id, 0, 0).await });
+    timeout(Duration::from_secs(1), async {
+        while session.state.try_lock().is_ok() {
+            tokio::task::yield_now().await
+        }
+    })
+    .await
+    .unwrap();
+    waiter.abort();
+    assert!(waiter.await.unwrap_err().is_cancelled());
+    drop(writer);
+    f.container_slot(0, plain("dirt", 2)).await;
+    f.container_slot(54, plain("stone", 3)).await;
+    let result = client
+        .survival()
+        .inventory_swap_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(result.stage, InventorySwapStage::Pending);
+    assert!(!result.send.dispatched);
+    assert!(
+        timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    client.disconnect().await.unwrap();
+    assert_eq!(
+        client
+            .survival()
+            .inventory_swap_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        InventorySwapStage::RequiresInspection
+    );
+    f.stop().await;
+}
+
 #[tokio::test]
 async fn common_container_receives_native_content_and_reused_id_is_a_new_opening() {
     let mut f = CommonFixture::new().await;

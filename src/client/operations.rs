@@ -41,6 +41,18 @@ pub(crate) enum Action<'a> {
     UseOnBlock([i32; 3], BlockFace, [f32; 3]),
 }
 impl Survival {
+    /// Exchange one constructor-verified storage slot and a hotbar index once.
+    /// Requires the same live opening, default received stacks and empty cursor.
+    pub async fn swap_container_hotbar(
+        &self,
+        screen: super::container::ScreenId,
+        slot: u16,
+        hotbar: u8,
+    ) -> Result<super::inventory::InventorySwapRecord> {
+        self.client
+            .common_swap_container_hotbar(GameMode::Survival, screen, slot, hotbar)
+            .await
+    }
     /// Exchange main screen slot 9..35 and hotbar index 0..8 once.
     /// Uses complete received default stacks/cursor; retains intent before I/O.
     pub async fn swap_hotbar(
@@ -169,6 +181,17 @@ impl Survival {
     }
 }
 impl Creative {
+    /// Ordinary storage exchange; this does not manufacture creative items.
+    pub async fn swap_container_hotbar(
+        &self,
+        screen: super::container::ScreenId,
+        slot: u16,
+        hotbar: u8,
+    ) -> Result<super::inventory::InventorySwapRecord> {
+        self.client
+            .common_swap_container_hotbar(GameMode::Creative, screen, slot, hotbar)
+            .await
+    }
     /// Exchange complete received default player stacks once in creative mode.
     /// This ordinary inventory click does not create items or change mode.
     pub async fn swap_hotbar(

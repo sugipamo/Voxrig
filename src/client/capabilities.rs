@@ -41,7 +41,7 @@ pub enum Feature {
     CreativeControls,
     /// Extra audited dry-cube survival contract.
     CheckedSurvival,
-    /// Common container click operations.
+    /// Ordinary received storage/hotbar exchanges; broader container commands remain.
     Containers,
     /// Received open-screen identity, contents, cursor and native layout.
     ContainerObservation,
@@ -93,6 +93,9 @@ impl Capabilities {
             Feature::ContainerObservation => Support::Restricted(
                 "regular OPEN_WINDOW screens and supported stacks; constructor-verified storage layouts; modern non-default components/special entity windows remain incomplete",
             ),
+            Feature::Containers => Support::Restricted(
+                "already-open constructor-verified storage slot/hotbar SWAP; valid default stacks and received empty cursor; two fresh destinations; opening-bound intent; general open/close/clicks remain incomplete",
+            ),
             Feature::SurvivalMovement => Support::Restricted(
                 "1..120 dry walking/jump ticks with released-rest endpoint; retained intent/failure; predicted completion is not received acceptance",
             ),
@@ -102,8 +105,7 @@ impl Capabilities {
                     "audited dry full-cube movement; plain inventory swaps; passive-cube placement; empty-hand dirt/stone mining and fresh recovery",
                 ),
             },
-            Feature::Containers
-            | Feature::Crafting
+            Feature::Crafting
             | Feature::EntityInteraction
             | Feature::RecordingAndReconstruction => Support::NotImplemented,
         }

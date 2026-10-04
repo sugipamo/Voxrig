@@ -236,6 +236,7 @@ enum Command {
     BeginInventorySwap {
         run_id: u64,
         expected_revision: u64,
+        window: i8,
         reply: oneshot::Sender<Result<i16, OperationAdmissionError>>,
     },
     RecordObservation {
@@ -428,11 +429,12 @@ impl ConnectionActor {
                     Command::BeginInventorySwap {
                         run_id,
                         expected_revision,
+                        window,
                         reply,
                     } => {
                         let result = motion_gate
                             .begin_inventory_swap(
-                                run_id,
+                                (run_id, window),
                                 expected_revision,
                                 state,
                                 &actor_control,

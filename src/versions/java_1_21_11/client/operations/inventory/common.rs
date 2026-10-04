@@ -5,7 +5,7 @@ use contract::{InventorySwapRecord, InventorySwapStage};
 #[derive(Clone)]
 pub(in crate::versions::java_1_21_11::client) struct CommonSwap {
     pub(in crate::versions::java_1_21_11::client) record: InventorySwapRecord,
-    submission: InventorySwap,
+    submission: Option<InventorySwap>,
 }
 pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut State) {
     let Some(mut common) = state.common_inventory_swap.take() else {
@@ -45,8 +45,12 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
             screen_revision: inventory.screen_revision,
             local_cache: None,
         };
-        contract::receive(&mut common.record, &current);
-        if inventory.pending_swap.as_ref() != Some(&common.submission)
+        let screen = inventory
+            .container
+            .as_ref()
+            .map(|s| s.capture(current.session));
+        contract::receive(&mut common.record, &current, screen.as_ref());
+        if inventory.pending_swap.as_ref() != common.submission.as_ref()
             || inventory.unsupported_components
             || !inventory.pending_creative.is_empty()
         {
@@ -88,7 +92,69 @@ impl Operations {
             hotbar,
         )?;
         state.operations.inventory.pending_swap = Some(submission.clone());
-        state.common_inventory_swap = Some(CommonSwap { record, submission });
+        state.common_inventory_swap = Some(CommonSwap {
+            record,
+            submission: Some(submission),
+        });
+        self.bot
+            .session
+            .send(ids::play_serverbound::WINDOW_CLICK, &payload)
+            .await?;
+        let common = state.common_inventory_swap.as_mut().expect("retained");
+        common.record.send.dispatched = true;
+        Ok(common.record.clone())
+    }
+    pub(crate) async fn common_swap_container_hotbar(
+        &self,
+        mode: api::GameMode,
+        screen: api::container::ScreenId,
+        slot: u16,
+        hotbar: u8,
+    ) -> Result<InventorySwapRecord> {
+        let mut state = self.bot.session.state.lock().await;
+        self.mutable(&state)?;
+        let initial = self.common_player_unlocked(&state)?;
+        if state.operations.inventory.unsupported_components
+            || state.operations.inventory.pending_swap.is_some()
+            || !state.operations.inventory.pending_creative.is_empty()
+        {
+            return Err(contract::unavailable(
+                "native inventory data/mutation unresolved",
+            ));
+        }
+        let captured = state
+            .operations
+            .inventory
+            .container
+            .as_ref()
+            .map(|s| s.capture(initial.session));
+        let attempt = state
+            .common_inventory_swap
+            .as_ref()
+            .map_or(Some(1), |s| s.record.id.attempt().checked_add(1))
+            .ok_or_else(|| contract::unavailable("inventory attempts exhausted"))?;
+        let record = contract::prepare_source(
+            initial,
+            mode,
+            contract::InventorySwapSource::Container { screen },
+            slot,
+            hotbar,
+            attempt,
+            captured,
+        )?;
+        let revision = record
+            .send
+            .screen_revision
+            .ok_or_else(|| contract::unavailable("native screen revision unavailable"))?;
+        let mut payload = Vec::new();
+        put_varint(&mut payload, record.window_id());
+        put_varint(&mut payload, revision);
+        payload.extend((slot as i16).to_be_bytes());
+        payload.extend([hotbar, 2, 0, 0]);
+        state.common_inventory_swap = Some(CommonSwap {
+            record,
+            submission: None,
+        });
         self.bot
             .session
             .send(ids::play_serverbound::WINDOW_CLICK, &payload)
@@ -107,12 +173,9 @@ impl Operations {
         }
         let ready = state.common_inventory_swap.as_ref().is_some_and(|common| {
             contract::destinations_ready(&common.record)
-                && observed(
-                    &state.operations.inventory,
-                    &common.submission,
-                    state.sequence,
-                )
-                .is_some()
+                && common.submission.as_ref().is_none_or(|submission| {
+                    observed(&state.operations.inventory, submission, state.sequence).is_some()
+                })
         });
         if ready {
             let common = state.common_inventory_swap.as_mut().expect("retained");

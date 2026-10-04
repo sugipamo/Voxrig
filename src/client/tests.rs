@@ -69,7 +69,7 @@ pub(crate) async fn common_swap_start_scenario(
     assert_eq!(record.id.session(), before.session);
     assert_eq!(record.initial.receive_sequence, before.receive_sequence);
     assert_eq!(
-        record.main_before,
+        record.source_before,
         before.inventory.slots[usize::from(main)].clone().unwrap()
     );
     assert_eq!(
@@ -83,7 +83,7 @@ pub(crate) async fn common_swap_start_scenario(
     let after = client.player_state().await.unwrap();
     assert_eq!(
         after.inventory.slots[usize::from(main)],
-        Some(record.main_before.clone())
+        Some(record.source_before.clone())
     );
     assert_eq!(
         after.inventory.slots[36 + usize::from(hotbar)],
@@ -93,6 +93,48 @@ pub(crate) async fn common_swap_start_scenario(
     assert!(client.creative().swap_hotbar(main, hotbar).await.is_err());
     assert!(client.survival().select_hotbar(1).await.is_err());
     assert!(client.creative().select_hotbar(1).await.is_err());
+    record
+}
+pub(crate) async fn common_container_swap_start_scenario(
+    client: &Client,
+    mode: GameMode,
+    screen: container::ScreenId,
+) -> inventory::InventorySwapRecord {
+    let before = client.screen_state().await.unwrap().screen.unwrap();
+    let record = match mode {
+        GameMode::Survival => client.survival().swap_container_hotbar(screen, 0, 0).await,
+        GameMode::Creative => client.creative().swap_container_hotbar(screen, 0, 0).await,
+        _ => panic!("mode"),
+    }
+    .unwrap();
+    assert_eq!(
+        record.source,
+        inventory::InventorySwapSource::Container { screen }
+    );
+    assert_eq!(record.source_slot, 0);
+    assert_eq!(record.hotbar_screen_slot, 54);
+    assert_eq!(record.initial_screen.as_ref().unwrap().id, before.id);
+    assert_eq!(record.source_before, before.slots[0].clone().unwrap());
+    assert_eq!(record.hotbar_before, before.slots[54].clone().unwrap());
+    assert_eq!(record.window_id(), 3);
+    assert!(record.send.dispatched);
+    assert_eq!(record.stage, inventory::InventorySwapStage::Pending);
+    assert!(
+        client
+            .survival()
+            .swap_container_hotbar(screen, 0, 0)
+            .await
+            .is_err()
+    );
+    assert!(
+        client
+            .creative()
+            .swap_container_hotbar(screen, 0, 0)
+            .await
+            .is_err()
+    );
+    assert!(client.survival().swap_hotbar(9, 0).await.is_err());
+    assert!(client.creative().select_hotbar(0).await.is_err());
     record
 }
 pub(crate) async fn common_swap_pending_scenario(client: &Client) {
@@ -106,7 +148,7 @@ pub(crate) async fn common_swap_pending_scenario(client: &Client) {
     assert!(
         client
             .survival()
-            .swap_hotbar(record.main_slot, record.hotbar)
+            .swap_hotbar(record.source_slot as u8, record.hotbar)
             .await
             .is_err()
     );
@@ -124,14 +166,14 @@ pub(crate) async fn common_swap_completed_scenario(
     assert_eq!(record.id, id);
     assert_eq!(record.stage, inventory::InventorySwapStage::ObservedSwapped);
     assert_eq!(
-        record.main_receipt.as_ref().unwrap().value,
+        record.source_receipt.as_ref().unwrap().value,
         record.hotbar_before.value
     );
     assert_eq!(
         record.hotbar_receipt.as_ref().unwrap().value,
-        record.main_before.value
+        record.source_before.value
     );
-    for receipt in [&record.main_receipt, &record.hotbar_receipt] {
+    for receipt in [&record.source_receipt, &record.hotbar_receipt] {
         assert!(
             matches!(receipt.as_ref().unwrap().source,ValueSource::Received{sequence} if sequence>record.send.after_sequence)
         );
@@ -391,10 +433,10 @@ fn setup_only_accepts_exact_implemented_versions() {
         config.validate().unwrap();
         config.limits.max_chunks = 0;
         assert!(config.validate().is_err());
-        assert_eq!(
+        assert!(matches!(
             Capabilities::for_version(version).support(Feature::Containers),
-            Support::NotImplemented
-        );
+            Support::Restricted(_)
+        ));
     }
 }
 
