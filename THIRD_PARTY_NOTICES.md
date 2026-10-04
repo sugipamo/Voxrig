@@ -363,3 +363,13 @@ bytecode inspection remains local. Factual candidate order does not complete
 complex selector/profile/URI/dialog/item/entity constructors, persistent/cache
 semantics or gameplay support. These facts contain no original method bodies or
 game binaries and do not relicense Minecraft.
+
+`profile_rules-1.21.11.json`, its compressed cases and source record contain
+observed original profile NBT/stream constructors, name/model grammar, constructor
+fields and native equality results. Owned standalone tools call unchanged original
+codecs and getters without online profile/skin resolution. Original property
+key iteration order and distinct constructor/encode/roundtrip outcomes remain
+in the facts; comparison normalization is not persistent encoding or hash evidence.
+Original JAR/mapping/classpath/tool/input/raw/final digests bind the facts.
+Native method bodies and binaries remain local and are not distributed or
+relicensed. Persistent/cache semantics and gameplay admission remain incomplete.

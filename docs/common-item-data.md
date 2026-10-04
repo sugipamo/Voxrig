@@ -210,11 +210,11 @@ booleanは元Number.byteValueを使い、未指定とfalseを区別する。NBT 
 元lenient規則を使う一方、selectorのseparatorはstrictに読む。
 
 公式codecへ182個のwire入力を与え、受理された149値の元contents/style getterと照合した。
-元component.equalsの11,175 pair中、未解決の依存を含まない9,591 pairを内部field keyで照合し、
-残る1,584 pairは比較キーを作らない。selector/score、profile、URI、dialog、入れ子item/entity、
+元component.equalsの11,175 pair中、未解決の依存を含まない9,870 pairを内部field keyで照合し、
+残る1,305 pairは比較キーを作らない。selector/score、URI、dialog、入れ子item/entity、
 追加のconstructor検査が必要なfieldを未完了として残す。
 このキーは完全なconstructor validation、全component/item identity、persistent encoder、cache hash、
-操作の許可を証明しない。未解決のselector/profile/URI/dialog/item/entity constructorを含む完全な構築規則は残作業である。
+操作の許可を証明しない。未解決のselector/URI/dialog/item/entity constructorを含む完全な構築規則は残作業である。
 
 runtimeの小さな色grammarは`text_color_rules-1.21.11.json`、検査値と比較は
 `text_core_cases-1.21.11.json.gz`、元入力/tool/getter/出力のdigestは`text_core_source.json`へ分離する。
@@ -242,13 +242,41 @@ classpath/raw/final digestは`text_constructor_source.json`へ分ける。
 複数候補・逆のkey順・不正な先行候補・明示discriminator・strict/lenient optionalを含む419入力を
 未変更公式codecへ与え、受理された354値の取得済みfieldと照合した。64拒否は内部projectionも拒否し、
 残る1拒否（hover entityのUUID等）は未解決の依存を保持し、比較キーを作らない。
-元component.equalsの62,835組中、依存を含まない41,041組は一致し、21,794組は未解決である。
-これらはcoreの182入力/9,591比較を含む拡張検査で、別々の独立した合計値へ加算しない。
+元component.equalsの62,835組中、依存を含まない45,451組は一致し、17,384組は未解決である。
+これらはcoreの182入力/9,870比較を含む拡張検査で、別々の独立した合計値へ加算しない。
 
-selector/scoreの完全なsyntax/branch構築、profile、URI、dialog、入れ子item/entityが未実装のため、
+selector/scoreの完全なsyntax/branch構築、URI、dialog、入れ子item/entityが未実装のため、
 それらの候補の妥当性と候補間のfallbackも全条件で一致するとは主張しない。
 内部field projectionを完全なnative constructor検査やitem操作の許可に使わない。
 通常受信の元bytes保持経路、新しいlive gameplay/cache検証の不在、残る全体統合の範囲は同じである。
+
+### profile constructorの共通化
+
+modernのprofile stream rootとtext内のplayer objectを共通の内部profileへ読み取る。
+Dynamicの名前/UUID、Staticのfull/partialを区別し、元constructorが等価判定に使う種類を保持する。
+名前・UUIDが両方あっても、NBTのfullと通信で明示されたpartialは同じ値にまとめない。
+NBTの名前は16 UTF-16 unit以内の元ASCII grammarで検査する。通信の名前は同じ長さ制限だが、
+Unicodeや空白も受け付ける。空文字は両方で許可される。
+
+propertiesはcompact mapとrecord listを元codecの別々の制限で読む。キー間の順序は比較に使わず、
+同じキー内の値の順番・重複・署名の未指定と空文字は保持する。NBTのcompact mapでは長い値を
+受理する場合もあるため、constructorの成功と後続の通信encode失敗を分けて記録する。
+元property keyのiteration順はoracle出力と元bytesに残し、比較用の並べ替えをpersistent encodingや
+hashの代わりにしない。署名の通信読み取りは元codecの1,024 unit制限へ修正した。
+skinはtexture/cape/elytraのIdentifierと元のcomputed texture path、wide/slimモデルを保持する。
+componentのboolean streamは元ByteBufと同じく0以外をtrueとし、モデル値2/255も照合する。
+
+未変更公式codecでNBT/通信の324入力を検査し、253受理値の全constructor fieldと
+32,131組の元profile.equalsを照合した。正規化した通信で元codec自身が等価とした値も照合する。
+単独surrogateを含む2値は元通信往復で等価にならないことを記録し、正常往復として扱わない。
+textの比較範囲は上記の9,870組/45,451組へ広がった。以前の検査と重複するため加算しない。
+
+`profile_rules-1.21.11.json`は元name/modelの小さなgrammar、`profile_cases-1.21.11.json.gz`は
+入力・結果・比較、`profile_source.json`は元JAR/mapping/classpath/tool/raw/finalのdigestを保持する。
+owned `scripts/export_profiles.py`はJVM512 MiB・CPU1で実行し、保存runtimeの
+`--normalize-only --check`でも確認できる。通常受信でprofile modelを生成しない。
+online profile/skin解決、persistent encoder、server cache、legacy profile等価判定、
+data付きitemの操作許可や新たなlive gameplay検証はこの段階に含まれず、全体の統合は継続中である。
 
 ## Item比較・persistent hashの基礎
 

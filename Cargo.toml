@@ -47,6 +47,8 @@ include = [
     "/scripts/ExportResourceIdentifiers.java",
     "/scripts/ExportTextCore.java",
     "/scripts/export_text_core.py",
+    "/scripts/ExportProfiles.java",
+    "/scripts/export_profiles.py",
     "/scripts/ExportTextConstructors.java",
     "/scripts/export_text_constructors.py",
     "/scripts/export_component_normalization.py",

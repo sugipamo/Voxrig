@@ -1,6 +1,6 @@
 //! Typed stream fields for all component codec compositions.
 //! These retain structure and normalize native enum IDs. They are not native
-//! component/text equality, persistent encoding, resolved registry bindings or
+//! whole component/text equality, persistent encoding, resolved registry bindings or
 //! inventory authority. Decode without capture keeps the receive path allocation bounded.
 use crate::client::nbt::NbtValue;
 use anyhow::{Context, Result, bail};
@@ -47,6 +47,7 @@ pub(super) enum Value {
         dependencies: Vec<crate::client::text::Dependency>,
         field_key: Option<Box<crate::client::text::FieldKey>>,
     },
+    Profile(Box<crate::client::profile::Profile>),
     Sequence(Vec<Value>),
     List(Vec<Value>),
     Map(Vec<(Value, Value)>),

@@ -237,7 +237,12 @@ fn read_value(
                     values.push(value);
                 }
             }
-            Value::Sequence(values)
+            let value = Value::Sequence(values);
+            if capture && node == 583 {
+                Value::Profile(super::profile::from_fields(&value)?)
+            } else {
+                value
+            }
         }
         Rule::Forward { child } => {
             if values::identifier_forward(node, *child, &native.native_class)? {
@@ -289,7 +294,9 @@ fn read_value(
             }
         }
         Rule::Boolean => {
-            let value = r.bool()?;
+            // The original component boolean codec uses ByteBuf.readBoolean:
+            // every nonzero byte is true, including skin-model bytes 2/255.
+            let value = r.u8()? != 0;
             if capture {
                 Value::Boolean(value)
             } else {
@@ -460,7 +467,7 @@ fn read_value(
                 let name = text(r, 64)?;
                 let value = text(r, 32_767)?;
                 let signature = if r.bool()? {
-                    Some(text(r, 32_767)?)
+                    Some(text(r, 1024)?)
                 } else {
                     None
                 };

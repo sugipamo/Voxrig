@@ -5,6 +5,9 @@ use crate::client::{ItemComponent, ItemComponentPatch, registry::Registry};
 use anyhow::{Context, Result, bail};
 use std::{collections::BTreeSet, sync::OnceLock};
 mod framing;
+mod profile;
+#[cfg(test)]
+mod profile_tests;
 mod text;
 #[cfg(test)]
 mod text_tests;
@@ -241,7 +244,11 @@ mod tests {
                 "{invalid:?}"
             );
         }
-        assert!(read_patch(&mut Reader::new(&[1, 0, 21, 2])).is_err());
+        // The unchanged native boolean codec accepts any nonzero byte.
+        let noncanonical = read_patch(&mut Reader::new(&[1, 0, 21, 2]))
+            .unwrap()
+            .unwrap();
+        assert_eq!(noncanonical.added[0].bytes, [2]);
         assert!(read_patch(&mut Reader::new(&[1, 0, 0, 9, 0, 0, 0, 0, 1])).is_err());
         let mut oversized = vec![1, 0, 0, 7];
         oversized.extend(1_048_577_i32.to_be_bytes());

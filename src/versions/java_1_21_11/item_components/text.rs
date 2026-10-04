@@ -215,12 +215,11 @@ fn read_contents(
                     sprite: identifier(string(fields, "sprite")?)?,
                 },
                 "player" => Contents::PlayerSprite {
-                    profile: Arc::new(
+                    profile: Box::new(crate::client::profile::from_nbt(
                         fields
                             .get("player")
-                            .context("native player profile required")?
-                            .clone(),
-                    ),
+                            .context("native player profile required")?,
+                    )?),
                     hat: fields
                         .get("hat")
                         .map(|value| boolean(value).context("invalid native player hat flag"))

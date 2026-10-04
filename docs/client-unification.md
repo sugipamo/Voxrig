@@ -195,3 +195,10 @@ survival切替後のcreative write拒否をサーバーRCONで確認した。
 両版ともcallerの待機取消でowned返却を止めず、同じScreenIdの再呼び出しは拒否する。
 進捗は`container_close_record`で確認し、RequiresInspectionの操作は自動再試行しない。
 通常click履歴とclose内部stepは別に保持する。詳細は[共通close](common-container-close.md)を参照。
+
+### profile fieldの内部共通化
+
+modernのprofile componentとtextのplayer objectは共通の内部constructor fieldへ読み取る。
+NBT/通信の異なる名前制限、full/partialの種類、propertiesの順番・重複・署名、skin patchを保持し、
+公式codecの324入力・253受理値・32,131組の比較へ照合した。公開操作の拡大やskin解決は行わず、
+一般item data・persistent/cache・残る全機能の統合は継続する。詳細は[共通item data](common-item-data.md)を参照。

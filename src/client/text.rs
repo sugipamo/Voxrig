@@ -1,4 +1,4 @@
-//! Shared, internal text constructor fields. Registry/profile/item/dialog/URI
+//! Shared, internal text constructor fields. Registry/item/dialog/URI
 //! dependencies are explicit. A retained dependency is never a native equality
 //! result, persistent hash or authority to perform an item operation.
 use super::nbt::{NbtString, NbtValue};
@@ -44,7 +44,7 @@ pub(crate) enum Contents {
         sprite: Identifier,
     },
     PlayerSprite {
-        profile: Arc<NbtValue>,
+        profile: Box<super::profile::Profile>,
         hat: bool,
     },
 }
@@ -128,6 +128,7 @@ enum ContentsKey {
         source: NbtSource,
     },
     Sprite(Identifier, Identifier),
+    PlayerSprite(Box<super::profile::Profile>, bool),
 }
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 enum ArgumentKey {
@@ -205,12 +206,11 @@ pub(crate) enum Hover {
 }
 
 /// These fields still require native constructor/context work. No blanket Eq is
-/// implemented for this model: URI, selectors, profiles, nested items/dialogs and
+/// implemented for this model: URI, selectors, nested items/dialogs and
 /// entity bindings cannot be replaced with raw NBT/string/CRC equality.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 pub(crate) enum Dependency {
     Selector,
-    Profile,
     Uri,
     Dialog,
     Item,
@@ -228,7 +228,6 @@ impl Text {
                     }
                 }
                 Score { .. } => out.push(Dependency::Selector),
-                PlayerSprite { .. } => out.push(Dependency::Profile),
                 Translate { arguments, .. } => {
                     for value in arguments {
                         if let Argument::Text(value) = value {
@@ -301,6 +300,9 @@ impl Text {
                 },
                 Contents::Sprite { atlas, sprite } => {
                     ContentsKey::Sprite(atlas.clone(), sprite.clone())
+                }
+                Contents::PlayerSprite { profile, hat } => {
+                    ContentsKey::PlayerSprite(profile.clone(), *hat)
                 }
                 _ => unreachable!("dependency-free text cannot contain unresolved contents"),
             };

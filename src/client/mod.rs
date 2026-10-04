@@ -10,6 +10,7 @@ mod item;
 pub mod nbt;
 mod observation;
 pub(crate) mod operations;
+pub(crate) mod profile;
 pub mod registry;
 pub mod survival;
 #[cfg(test)]

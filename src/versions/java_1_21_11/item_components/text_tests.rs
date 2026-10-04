@@ -112,7 +112,6 @@ fn describe(text: &Text, expected: &Json) {
         Contents::PlayerSprite { hat, .. } => {
             assert_eq!(body["object_class"], "aab");
             assert_eq!(body["hat"], *hat);
-            assert!(!text.dependencies().is_empty());
         }
     }
     let s = &text.style;
@@ -220,7 +219,7 @@ fn native_getter_fields_and_context_free_comparisons_match_original_text_values(
             _ => pending += 1,
         }
     }
-    assert_eq!((comparisons, pending), (9591, 1584));
+    assert_eq!((comparisons, pending), (9870, 1305));
 }
 #[test]
 fn original_text_field_source_and_primitive_color_rules_are_bound() {
@@ -304,7 +303,7 @@ fn original_fuzzy_constructor_order_and_adverse_inputs_match() {
         }
     }
     assert_eq!((accepted, rejected, deferred_rejection), (354, 64, 1));
-    assert_eq!((comparisons, pending), (41041, 21794));
+    assert_eq!((comparisons, pending), (45451, 17384));
     assert_eq!(
         accepted + rejected + deferred_rejection,
         facts["cases"].as_array().unwrap().len()
