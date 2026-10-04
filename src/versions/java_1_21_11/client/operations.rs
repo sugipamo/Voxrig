@@ -116,6 +116,8 @@ pub struct Inventory {
     cursor_sequence: Option<u64>,
     #[serde(skip)]
     pub(crate) container: Option<crate::client::container::ScreenReceipts>,
+    #[serde(skip)]
+    player_revision: Option<crate::client::ObservedValue<i32>>,
 }
 /// Selected main-hand hotbar slot with explicit receive/submission provenance.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -143,6 +145,7 @@ impl Default for Inventory {
             slot_sequences: vec![None; 46],
             cursor_sequence: None,
             container: None,
+            player_revision: None,
         }
     }
 }
@@ -308,6 +311,7 @@ impl Operations {
             session: player.session,
             receive_sequence: state.sequence,
             active_window: state.operations.inventory.window_id,
+            player_screen: player.inventory.player_screen,
             screen: state
                 .operations
                 .inventory
@@ -1171,7 +1175,25 @@ impl Operations {
                 slots,
                 cursor,
                 window_id: inventory.window_id,
+                player_screen: crate::client::container::player_screen_access(
+                    api::SessionStamp {
+                        version: crate::MinecraftVersion::Java1_21_11,
+                        connection_id: self.bot.session.id,
+                        world_generation: state.loading.generation,
+                    },
+                    inventory.window_id,
+                    inventory.container.as_ref().map(|s| {
+                        s.capture(api::SessionStamp {
+                            version: crate::MinecraftVersion::Java1_21_11,
+                            connection_id: self.bot.session.id,
+                            world_generation: state.loading.generation,
+                        })
+                        .id
+                    }),
+                    state.common_container_close.as_ref(),
+                ),
                 screen_revision: inventory.screen_revision,
+                player_screen_revision: inventory.player_revision.clone(),
                 local_cache: None,
             },
         })

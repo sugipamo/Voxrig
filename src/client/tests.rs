@@ -1,5 +1,29 @@
 use super::*;
 
+pub(crate) async fn common_closed_player_screen_scenario(
+    client: &Client,
+    close: container::ContainerCloseId,
+) {
+    use container::PlayerScreenAccess;
+    let player = client.player_state().await.unwrap();
+    let screen = client.screen_state().await.unwrap();
+    assert_eq!(
+        player.inventory.player_screen,
+        Some(PlayerScreenAccess::SubmittedClose { close })
+    );
+    assert_eq!(screen.player_screen, player.inventory.player_screen);
+    assert_eq!(screen.active_window, Some(close.screen().window_id()));
+    assert_eq!(screen.screen.unwrap().id, close.screen());
+    assert!(!player.pending_dispatch);
+    assert!(
+        client
+            .survival()
+            .close_container(close.screen())
+            .await
+            .is_err()
+    );
+}
+
 pub(crate) async fn common_container_close_scenario(
     client: &Client,
     mode: GameMode,

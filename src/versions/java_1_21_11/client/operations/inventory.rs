@@ -48,13 +48,32 @@ fn prepare(
     main_slot: u8,
     hotbar: u8,
 ) -> Result<(InventorySwap, Vec<u8>)> {
+    prepare_with_player_revision(
+        inventory,
+        connection_id,
+        after_sequence,
+        main_slot,
+        hotbar,
+        None,
+    )
+}
+// Only the common owner may provide an actual historical player revision after
+// a coherently validated, completely dispatched close. Native-only entry stays strict.
+fn prepare_with_player_revision(
+    inventory: &Inventory,
+    connection_id: u64,
+    after_sequence: u64,
+    main_slot: u8,
+    hotbar: u8,
+    after_close_revision: Option<i32>,
+) -> Result<(InventorySwap, Vec<u8>)> {
     if !(9..=35).contains(&main_slot) || hotbar > 8 {
         return Err(invalid("swap requires main slot 9..35 and hotbar 0..8"));
     }
     if inventory.pending_swap.is_some() || !inventory.pending_creative.is_empty() {
         return Err(unavailable("prior inventory mutation needs inspection"));
     }
-    if inventory.window_id != Some(0)
+    if (inventory.window_id != Some(0) && after_close_revision.is_none())
         || inventory.cursor != InventorySlot::Empty
         || inventory.unsupported_components
     {
@@ -62,8 +81,8 @@ fn prepare(
             "received player screen and empty supported cursor required",
         ));
     }
-    let screen_revision = inventory
-        .screen_revision
+    let screen_revision = after_close_revision
+        .or(inventory.screen_revision)
         .ok_or_else(|| unavailable("player screen revision unavailable"))?;
     let main_before = inventory.slots[usize::from(main_slot)].clone();
     let hotbar_before = inventory.slots[36 + usize::from(hotbar)].clone();
@@ -327,6 +346,7 @@ pub(super) fn receive(
             };
             r.end()?;
             if window == 0 {
+                inventory.player_revision = Some(crate::client::received(revision, sequence));
                 inventory.slots = slots;
                 inventory.slot_sequences.fill(Some(sequence));
                 if inventory.window_id.is_none_or(|w| w == 0) {
@@ -407,6 +427,9 @@ pub(super) fn receive(
                 InventorySlot::Unavailable
             };
             if window == 0 {
+                if let Some(revision) = revision {
+                    inventory.player_revision = Some(crate::client::received(revision, sequence));
+                }
                 if inventory.window_id == Some(0) && revision.is_some() {
                     inventory.screen_revision = revision;
                 }

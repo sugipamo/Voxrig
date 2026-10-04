@@ -1,5 +1,215 @@
 use super::*;
 #[tokio::test]
+async fn player_screen_after_close_reconfiguration_clears_player_revision_and_local_basis() {
+    let mut f = CommonFixture::new().await;
+    let id = f.open_swap_container().await;
+    let client = f.client();
+    let close = client.survival().close_container(id).await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    f.receive(ids::play_clientbound::START_CONFIGURATION, &[])
+        .await;
+    {
+        let state = f.api.bot.session.state.lock().await;
+        assert_ne!(
+            state.loading.generation,
+            close.initial.session.world_generation
+        );
+        assert!(state.operations.inventory.player_revision.is_none());
+        assert!(state.operations.inventory.container.is_none());
+    }
+    let current = client.player_state().await.unwrap();
+    assert_ne!(current.session, close.initial.session);
+    assert!(current.inventory.player_screen.is_none());
+    assert!(current.inventory.player_screen_revision.is_none());
+    assert!(client.survival().swap_hotbar(9, 0).await.is_err());
+    assert_eq!(
+        client
+            .survival()
+            .container_close_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .id,
+        close.id
+    );
+    f.stop().await;
+}
+#[tokio::test]
+async fn player_screen_after_close_uses_same_consumer_and_actual_player_revision_not_container_revision()
+ {
+    use crate::client::{GameMode as Mode, container::PlayerScreenAccess};
+    let mut f = CommonFixture::new().await;
+    let id = f.open_swap_container().await;
+    let client = f.client();
+    let close = client.survival().close_container(id).await.unwrap();
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap(),
+        (ids::play_serverbound::CLOSE_WINDOW, vec![3])
+    );
+    crate::client::tests::common_closed_player_screen_scenario(&client, close.id).await;
+    let first =
+        crate::client::tests::common_swap_start_scenario(&client, Mode::Survival, 9, 0).await;
+    assert_eq!(first.send.screen_revision, Some(128));
+    let revision = first
+        .initial
+        .inventory
+        .player_screen_revision
+        .as_ref()
+        .unwrap();
+    assert_eq!(revision.value, 128);
+    assert!(
+        matches!(revision.source,crate::client::ValueSource::Received {sequence} if sequence < id.opened_sequence())
+    );
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap(),
+        (
+            ids::play_serverbound::WINDOW_CLICK,
+            vec![0, 128, 1, 0, 9, 0, 2, 0, 0]
+        )
+    );
+    f.slot(9, plain("dirt", 2)).await;
+    crate::client::tests::common_swap_pending_scenario(&client).await;
+    f.slot(36, InventorySlot::Empty).await;
+    crate::client::tests::common_swap_completed_scenario(&client, first.id).await;
+    crate::client::tests::common_closed_player_screen_scenario(&client, close.id).await;
+    let updated = client.player_state().await.unwrap();
+    assert_eq!(
+        updated
+            .inventory
+            .player_screen_revision
+            .as_ref()
+            .unwrap()
+            .value,
+        130
+    );
+    // SET_SLOT receipts did not invent active received player window zero.
+    assert_eq!(updated.inventory.window_id, Some(3));
+    let mut mode = vec![3];
+    mode.extend(1f32.to_be_bytes());
+    f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &mode)
+        .await;
+    let second =
+        crate::client::tests::common_swap_start_scenario(&client, Mode::Creative, 9, 0).await;
+    assert_eq!(second.send.screen_revision, Some(130));
+    assert_eq!(read_packet(&mut f.peer, None).await.unwrap().1[0], 0);
+    f.slot(9, InventorySlot::Empty).await;
+    f.slot(36, plain("dirt", 2)).await;
+    crate::client::tests::common_swap_completed_scenario(&client, second.id).await;
+    assert!(
+        matches!(client.screen_state().await.unwrap().player_screen,Some(PlayerScreenAccess::SubmittedClose { close: owning }) if owning==close.id)
+    );
+    client.disconnect().await.unwrap();
+    assert_eq!(
+        client
+            .creative()
+            .inventory_swap_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .id,
+        second.id
+    );
+    f.stop().await;
+}
+#[tokio::test]
+async fn player_screen_after_close_latches_a_new_opening_before_matching_restoration() {
+    use crate::client::inventory::InventorySwapStage;
+    let mut f = CommonFixture::new().await;
+    let id = f.open_swap_container().await;
+    let client = f.client();
+    client.survival().close_container(id).await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    let first = client.survival().swap_hotbar(9, 0).await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    f.open_swap_container().await;
+    assert!(
+        client
+            .player_state()
+            .await
+            .unwrap()
+            .inventory
+            .player_screen
+            .is_none()
+    );
+    f.slot(9, plain("dirt", 2)).await;
+    f.slot(36, InventorySlot::Empty).await;
+    assert_eq!(
+        client
+            .survival()
+            .inventory_swap_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        InventorySwapStage::RequiresInspection
+    );
+    assert!(client.survival().swap_hotbar(9, 0).await.is_err());
+    assert_eq!(
+        client
+            .survival()
+            .inventory_swap_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .id,
+        first.id
+    );
+    f.stop().await;
+}
+#[tokio::test]
+async fn player_screen_after_close_never_uses_foreign_revision_when_player_revision_missing() {
+    let mut f = CommonFixture::new().await;
+    let id = f.open_swap_container().await;
+    let client = f.client();
+    f.api
+        .bot
+        .session
+        .state
+        .lock()
+        .await
+        .operations
+        .inventory
+        .player_revision = None;
+    client.survival().close_container(id).await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    assert!(
+        client
+            .player_state()
+            .await
+            .unwrap()
+            .inventory
+            .player_screen_revision
+            .is_none()
+    );
+    assert_eq!(
+        client
+            .screen_state()
+            .await
+            .unwrap()
+            .screen
+            .unwrap()
+            .revision
+            .unwrap()
+            .value,
+        5
+    );
+    assert!(client.survival().swap_hotbar(9, 0).await.is_err());
+    assert!(
+        client
+            .survival()
+            .inventory_swap_record()
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.stop().await;
+}
+#[tokio::test]
 async fn common_container_close_refuses_received_nonempty_or_missing_cursor_and_pending_swap() {
     let mut f = CommonFixture::new().await;
     let client = f.client();

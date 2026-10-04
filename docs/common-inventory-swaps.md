@@ -51,6 +51,9 @@ modernは実container revisionを送る。どちらもclicked slot/hotbar mappin
 
 実受信済みplayer screen 0、空cursor、両slotの完全な受信値、handleに一致するsurvival/creative modeと、
 未解決dispatchがないことを要求する。slotの欠測やLocalCacheをEmpty/受信値へ補完しない。
+player画面は、同じopeningへのcloseを完全送信した明示的な`SubmittedClose`からも操作できる。
+actual window/cursor/slotを送信から生成せず、modernは別に保持したactual player-screen-zero revisionを使う。
+根拠・world変更・missing revisionの扱いは[共通プレイヤー画面](common-player-screen.md)を参照。
 材料名・版付きregistry ID・count・default dataを検査する。default stack以外は現在の共通入口では未対応。
 modernはnative decoderの未対応components flagや画面revisionの欠測も拒否する。
 中身が同じ2slotは変更packetが返らない場合があるため、不要な交換としてI/O前に拒否する。

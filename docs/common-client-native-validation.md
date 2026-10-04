@@ -42,6 +42,8 @@ JVMを回収してから`.local/native-client-unification/`へ記録とworldを�
 | creativeのstorageへ戻す操作 | 同じopeningでmodeの実受信後にstone 7を戻し、両fresh receiptと独立RCONのcontainer/player contents・位置不変を照合 |
 | creativeのcontainer closeと再OPEN | 元のScreenIdへのcloseを一度だけ送信。外部でstone 11へ変更後、別の実opening/full内容を受信。close送信からACKや受信screen消去を捏造しない |
 | survivalのcontainer close | 新openingからcloseを一度だけ送信し、再クリック/再closeを拒否。独立RCONはcontents/inventory/位置を照合し、menu stateを確認できたとは扱わない。切断後もclose recordを保持 |
+| close後のsurvival player交換 | complete no-echo closeのlocal player UI根拠を保持し、同じswap_hotbarでmain dirt 2を空hotbarへ交換。両fresh receiptと独立RCONのplayer slotsを照合 |
+| close後のcreative player交換 | 受信mode変更後に同じAPIでdirt 2をmainへ戻す。actual window/revision/cursorの捏造なし、chest stone 11/位置不変と独立player Inventoryを照合 |
 | survivalの有限jump/歩行 | RCONで途中の高さ・水平移動を取得し、実終点が予測終点に一致 |
 
 共通Clientは実際の受信mode・teleport・対象blockを待ってから操作する。

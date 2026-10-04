@@ -24,8 +24,8 @@ pub use operations::{Creative, DispatchReceipt, Survival};
 /// Imports for consumers selecting their Minecraft version at setup.
 pub mod prelude {
     pub use super::container::{
-        ContainerCloseId, ContainerCloseRecord, ContainerCloseStage, ContainerScreen, ScreenId,
-        ScreenObservation,
+        ContainerCloseId, ContainerCloseRecord, ContainerCloseStage, ContainerScreen,
+        PlayerScreenAccess, ScreenId, ScreenObservation,
     };
     pub use super::inventory::{
         InventorySwapId, InventorySwapRecord, InventorySwapSource, InventorySwapStage,

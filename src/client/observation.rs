@@ -110,8 +110,13 @@ pub struct InventoryObservation {
     pub cursor: Option<ObservedValue<SlotKnowledge>>,
     /// Received active container ID, when established.
     pub window_id: Option<i32>,
+    /// Player UI access, independent of the last received window ID.
+    pub player_screen: Option<super::container::PlayerScreenAccess>,
     /// Received revision if the selected protocol supplies one.
     pub screen_revision: Option<i32>,
+    /// Last actual player-screen-zero revision and packet ordinal, including
+    /// before a foreign screen opening. Not a foreign menu revision or ACK.
+    pub player_screen_revision: Option<ObservedValue<i32>>,
     /// Legacy compatibility cache, which may include local click predictions.
     /// Kept separate from received values; absent when no such cache exists.
     pub local_cache: Option<Vec<SlotKnowledge>>,
@@ -122,7 +127,9 @@ impl Default for InventoryObservation {
             slots: vec![None; 46],
             cursor: None,
             window_id: None,
+            player_screen: None,
             screen_revision: None,
+            player_screen_revision: None,
             local_cache: None,
         }
     }

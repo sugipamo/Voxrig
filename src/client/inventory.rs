@@ -179,16 +179,39 @@ pub(crate) fn prepare_source(
     }
     let (slots, hotbar_screen_slot, revision) = match source {
         InventorySwapSource::PlayerMain => {
-            if !(9..=35).contains(&source_slot) || initial.inventory.window_id != Some(0) {
+            use super::container::PlayerScreenAccess;
+            let player_screen = match initial.inventory.player_screen {
+                Some(PlayerScreenAccess::Received) => initial.inventory.window_id == Some(0),
+                Some(PlayerScreenAccess::SubmittedClose { close }) => {
+                    close.screen().session() == initial.session
+                }
+                None => false,
+            };
+            if !(9..=35).contains(&source_slot) || !player_screen {
                 return Err(unavailable(
-                    "player swap requires received player screen and main slot 9..35",
+                    "player swap requires received player screen or explicit completed local close, and main slot 9..35",
                 ));
             }
-            (
-                &initial.inventory.slots,
-                36 + u16::from(hotbar),
-                initial.inventory.screen_revision,
-            )
+            let revision = match initial.inventory.player_screen {
+                Some(PlayerScreenAccess::SubmittedClose { .. }) => match initial.session.version {
+                    crate::MinecraftVersion::Java1_16_1 => None,
+                    crate::MinecraftVersion::Java1_21_11 => Some(
+                        initial
+                            .inventory
+                            .player_screen_revision
+                            .as_ref()
+                            .filter(|r| matches!(r.source, ValueSource::Received { .. }))
+                            .ok_or_else(|| {
+                                unavailable(
+                                    "actual player-screen-zero revision unavailable after close",
+                                )
+                            })?
+                            .value,
+                    ),
+                },
+                _ => initial.inventory.screen_revision,
+            };
+            (&initial.inventory.slots, 36 + u16::from(hotbar), revision)
         }
         InventorySwapSource::Container { screen: id } => {
             let screen = screen
@@ -317,7 +340,6 @@ pub(crate) fn source_slots<'a>(
 ) -> Result<&'a Vec<Option<ObservedValue<SlotKnowledge>>>> {
     if current.session != record.initial.session
         || current.game_mode != Some(record.mode)
-        || current.inventory.window_id != Some(record.window_id())
         || !matches!(
             current.inventory.cursor.as_ref(),
             Some(ObservedValue {
@@ -331,8 +353,21 @@ pub(crate) fn source_slots<'a>(
         ));
     }
     match record.source {
-        InventorySwapSource::PlayerMain => Ok(&current.inventory.slots),
+        InventorySwapSource::PlayerMain => {
+            use super::container::PlayerScreenAccess;
+            let received = current.inventory.player_screen == Some(PlayerScreenAccess::Received)
+                && current.inventory.window_id == Some(0);
+            let locally_closed = matches!((record.initial.inventory.player_screen,current.inventory.player_screen),
+                (Some(PlayerScreenAccess::SubmittedClose { close: before }),Some(PlayerScreenAccess::SubmittedClose { close: now })) if before == now);
+            if !received && !locally_closed {
+                return Err(unavailable("player screen/local close basis changed"));
+            }
+            Ok(&current.inventory.slots)
+        }
         InventorySwapSource::Container { screen: id } => {
+            if current.inventory.window_id != Some(id.window_id()) {
+                return Err(unavailable("container active window changed"));
+            }
             let screen = screen
                 .filter(|s| s.id == id && s.full_contents_sequence.is_some())
                 .ok_or_else(|| unavailable("container opening/full-content context changed"))?;

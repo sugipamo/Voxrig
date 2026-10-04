@@ -13,6 +13,8 @@ native ACKの有無と取消後の未解決状態は[共通設置の契約](comm
 開いたstorageとの`swap_container_hotbar`、opening-boundな`close_container`は両modeで同じrecordを返します。一般open/click列は後続実装です。
 [コンテナ画面観測](common-container-observation.md)と[共通在庫交換](common-inventory-swaps.md)を参照してください。
 closeのcomplete dispatchとactual replyは[共通container close](common-container-close.md)で区別します。
+close後も同じ`swap_hotbar`を使えます。actual received windowと明示的なlocal UIを分ける
+`player_screen` / `player_screen_revision`は[共通プレイヤー画面](common-player-screen.md)を参照してください。
 下記の追加検査契約は
 `Client::checked_survival()`または`Client::survival().checked()?`で明示的に選ぶ1.21.11用の拡張です。
 

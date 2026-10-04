@@ -469,6 +469,17 @@ network-compression-threshold=256
         if close_position != container_position:
             raise RuntimeError("container close/reopen changed native position")
         report["native_results"]["container_close"] = {"closed_changed_contents":native_closed_contents,"player_inventory":until(lambda: inventory_matches({9:("minecraft:dirt",2)})),"position_before":container_position,"position_after":close_position,"authority_limits":"RCON verifies contents/inventory/position; same consumer verifies one complete close dispatch, no invented acknowledgement, closed-opening click refusal, and fresh distinct received reopening. No RCON menu-state assertion."}
+        stage(probe,messages,"container_player_swap_survival",report["container_records"])
+        stage(probe,messages,"container_player_taken",report["container_records"])
+        player_taken=until(lambda:inventory_matches({0:("minecraft:dirt",2)}))
+        report["container_player_creative_mode"]=rcon.command("gamemode creative UnifiedProbe")
+        stage(probe,messages,"container_player_swap_creative",report["container_records"])
+        stage(probe,messages,"container_player_returned",report["container_records"])
+        player_returned=until(lambda:inventory_matches({9:("minecraft:dirt",2)}))
+        player_position=rcon.command("data get entity UnifiedProbe Pos")
+        if player_position != container_position:
+            raise RuntimeError("player inventory resume after close changed native position")
+        report["native_results"]["player_screen_after_close"]={"survival_inventory":player_taken,"creative_inventory":player_returned,"container_contents":until(lambda:chest_matches(11)),"position_before":container_position,"position_after":player_position,"authority_limits":"Native default player inventory exchanges after complete no-echo close. Received slots and explicit submitted-close UI basis, not a fabricated received active window/cursor/revision; RCON verifies exact contents/inventory/position."}
         stage(probe,messages,"container_disconnect",report["container_records"])
         probe.wait(timeout=10)
         if probe.returncode != 0:

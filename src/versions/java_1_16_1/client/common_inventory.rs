@@ -326,6 +326,129 @@ impl Bot {
 mod tests {
     use super::*;
     #[tokio::test]
+    async fn player_screen_after_close_respawn_never_reuses_prior_local_basis() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_container(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let id = client.screen_state().await.unwrap().screen.unwrap().id;
+        let close = client.survival().close_container(id).await.unwrap();
+        packets.recv().await.unwrap();
+        let mut respawn = Vec::new();
+        put_string(&mut respawn, "minecraft:overworld");
+        put_string(&mut respawn, "world");
+        respawn.extend(0i64.to_be_bytes());
+        respawn.extend([0, 0, 0, 0, 0]);
+        bot.apply_packet(0x3a, respawn).await.unwrap();
+        let current = client.player_state().await.unwrap();
+        assert_ne!(current.session, close.initial.session);
+        assert!(current.inventory.player_screen.is_none());
+        assert!(client.survival().swap_hotbar(9, 0).await.is_err());
+        assert_eq!(
+            client
+                .survival()
+                .container_close_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .id,
+            close.id
+        );
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn player_screen_after_close_uses_same_consumer_and_two_actual_destinations() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_container(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let id = client.screen_state().await.unwrap().screen.unwrap().id;
+        let close = client.survival().close_container(id).await.unwrap();
+        assert_eq!(packets.recv().await.unwrap(), (0x0a, vec![3]));
+        api::tests::common_closed_player_screen_scenario(&client, close.id).await;
+        let first =
+            api::tests::common_swap_start_scenario(&client, api::GameMode::Survival, 9, 0).await;
+        let (packet, payload) = packets.recv().await.unwrap();
+        assert_eq!(packet, 0x09);
+        assert_eq!(payload[0], 0);
+        assert!(first.send.screen_revision.is_none());
+        slot(&bot, 9, &first.hotbar_before.value, false).await;
+        api::tests::common_swap_pending_scenario(&client).await;
+        slot(&bot, 36, &first.source_before.value, false).await;
+        api::tests::common_swap_pending_scenario(&client).await;
+        ack(&bot, first.send.legacy_action.unwrap(), false).await;
+        assert_eq!(packets.recv().await.unwrap().0, 0x07);
+        api::tests::common_swap_completed_scenario(&client, first.id).await;
+        api::tests::common_closed_player_screen_scenario(&client, close.id).await;
+        let mut mode = vec![3];
+        mode.extend(1f32.to_be_bytes());
+        bot.apply_packet(0x1e, mode).await.unwrap();
+        let second =
+            api::tests::common_swap_start_scenario(&client, api::GameMode::Creative, 9, 0).await;
+        assert_eq!(packets.recv().await.unwrap().1[0], 0);
+        slot(&bot, 9, &second.hotbar_before.value, false).await;
+        slot(&bot, 36, &second.source_before.value, false).await;
+        ack(&bot, second.send.legacy_action.unwrap(), false).await;
+        packets.recv().await.unwrap();
+        api::tests::common_swap_completed_scenario(&client, second.id).await;
+        bot.disconnect().await.unwrap();
+        assert_eq!(
+            client
+                .creative()
+                .inventory_swap_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .id,
+            second.id
+        );
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn player_screen_after_close_latches_a_new_opening_before_matching_restoration() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_container(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let id = client.screen_state().await.unwrap().screen.unwrap().id;
+        client.survival().close_container(id).await.unwrap();
+        packets.recv().await.unwrap();
+        let first = client.survival().swap_hotbar(9, 0).await.unwrap();
+        packets.recv().await.unwrap();
+        // Same numeric ID is a different received opening and revokes the local basis.
+        seed_container(&bot).await;
+        assert!(
+            client
+                .player_state()
+                .await
+                .unwrap()
+                .inventory
+                .player_screen
+                .is_none()
+        );
+        slot(&bot, 9, &first.hotbar_before.value, false).await;
+        slot(&bot, 36, &first.source_before.value, false).await;
+        ack(&bot, first.send.legacy_action.unwrap(), true).await;
+        let result = client
+            .survival()
+            .inventory_swap_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.stage, InventorySwapStage::RequiresInspection);
+        assert!(client.survival().swap_hotbar(9, 0).await.is_err());
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+    #[tokio::test]
     async fn common_container_close_refuses_received_nonempty_or_missing_cursor_and_pending_swap() {
         let (bot, mut packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;

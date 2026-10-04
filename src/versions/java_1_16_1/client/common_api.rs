@@ -11,6 +11,7 @@ impl Bot {
             session: player.session,
             receive_sequence: player.receive_sequence,
             active_window: receipts.inventory.window_id,
+            player_screen: player.inventory.player_screen,
             screen: receipts
                 .container
                 .as_ref()
@@ -34,6 +35,17 @@ impl Bot {
         let inventory = self.inventory.read().await;
         let receipts = self.common_receipts.lock().await;
         let mut received_inventory = receipts.inventory.clone();
+        let session = api::SessionStamp {
+            version: crate::MinecraftVersion::Java1_16_1,
+            connection_id: self.connection_id(),
+            world_generation: receipts.generation,
+        };
+        received_inventory.player_screen = api::container::player_screen_access(
+            session,
+            received_inventory.window_id,
+            receipts.container.as_ref().map(|s| s.capture(session).id),
+            self.common_container_close.lock().await.as_ref(),
+        );
         if !inventory.player_slots().is_empty() {
             received_inventory.local_cache = Some(
                 inventory

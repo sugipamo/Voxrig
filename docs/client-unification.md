@@ -111,6 +111,9 @@ legacyの特殊なraw inventory更新も公式実装へ照合し、hotbar/armor/
 legacyはnativeの更新抑止を避けるfull resyncを一度のクリックで要求し、negative比較応答をrollbackへ読み替えない。
 取消・途中の競合・閉じた接続の診断を保持する。一般containerの実装完了にはしない。
 詳細は[共通在庫交換](common-inventory-swaps.md)を参照する。
+close後の通常在庫交換も両版に実装する。received active windowを0へ変更せず、
+local player UIを`SubmittedClose`として別に保持し、modernのactual player-screen-zero revisionを使う。
+再OPEN/respawn/reconfigurationで元のbasisを失効させる。詳細は[共通プレイヤー画面](common-player-screen.md)を参照する。
 
 `Client::capabilities()` / `Capabilities::for_version`は共通面の実装状況を返す。
 NotImplementedはVoxrig側の不足であって、ゲームに存在しないという意味ではない。

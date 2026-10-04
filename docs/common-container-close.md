@@ -38,7 +38,9 @@ modernではwriter待ちでの取消は未送信のintentとして残り、後�
 `Client::screen_state()`は引き続き実受信の履歴である。close送信だけでscreenを消したり、active_windowを受信済み0へ変更したりしない。
 legacyの互換UI cacheのみlocal closeとして消す。共通の受信screenとは別に扱う。
 そのため最後に受信した画面が表示され続ける場合はclose recordも確認する。
-close後のplayer screen再開に必要な実観測/明示的なlocal UI契約と、共通openのtarget geometry/結果照合は後続作業に残る。
+close後のplayer画面の根拠は`player_screen: Some(SubmittedClose { close })`として別に返す。
+同じ`swap_hotbar`による通常在庫の操作再開とactual player revisionの扱いは
+[共通プレイヤー画面](common-player-screen.md)を参照。共通openのtarget geometry/結果照合は後続作業に残る。
 
 公式未改変JARのcodecを[VerifyContainerClose.java](../scripts/VerifyContainerClose.java)で照合する。
 [fixture](../data/client_api/container_close_packets.json)はlegacyのbyte ID 2件、modernのmulti-byte VarIntを含む3件。

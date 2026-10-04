@@ -88,7 +88,7 @@ impl Capabilities {
                 "healthy dry standing; default passive cubes; first-outline support/face; fresh target and one-material receipts; modern processing ACK also required",
             ),
             Feature::InventorySwap => Support::Restricted(
-                "player screen main slots 9..35 and hotbar 0..8; default stacks; received empty cursor; two fresh destinations; native legacy resync/comparison response",
+                "player main slots 9..35 and hotbar 0..8; received player UI or explicit complete local close; modern actual player revision; default stacks/received empty cursor/two fresh destinations; native legacy resync/comparison response",
             ),
             Feature::ContainerObservation => Support::Restricted(
                 "regular OPEN_WINDOW screens and supported stacks; constructor-verified storage layouts; modern non-default components/special entity windows remain incomplete",

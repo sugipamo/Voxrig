@@ -42,7 +42,17 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
             slots,
             cursor,
             window_id: inventory.window_id,
+            player_screen: api::container::player_screen_access(
+                current.session,
+                inventory.window_id,
+                inventory
+                    .container
+                    .as_ref()
+                    .map(|s| s.capture(current.session).id),
+                state.common_container_close.as_ref(),
+            ),
             screen_revision: inventory.screen_revision,
+            player_screen_revision: inventory.player_revision.clone(),
             local_cache: None,
         };
         let screen = inventory
@@ -84,12 +94,19 @@ impl Operations {
             .map_or(Some(1), |s| s.record.id.attempt().checked_add(1))
             .ok_or_else(|| contract::unavailable("inventory attempts exhausted"))?;
         let record = contract::prepare(initial, mode, main, hotbar, attempt)?;
-        let (submission, payload) = prepare(
+        let after_close = match record.initial.inventory.player_screen {
+            Some(api::container::PlayerScreenAccess::SubmittedClose { .. }) => {
+                record.send.screen_revision
+            }
+            _ => None,
+        };
+        let (submission, payload) = prepare_with_player_revision(
             &state.operations.inventory,
             self.bot.session.id,
             state.sequence,
             main,
             hotbar,
+            after_close,
         )?;
         state.operations.inventory.pending_swap = Some(submission.clone());
         state.common_inventory_swap = Some(CommonSwap {
@@ -184,6 +201,10 @@ impl Operations {
             contract::destinations_ready(&common.record)
                 && common.submission.as_ref().is_none_or(|submission| {
                     observed(&state.operations.inventory, submission, state.sequence).is_some()
+                        || matches!(
+                            common.record.initial.inventory.player_screen,
+                            Some(api::container::PlayerScreenAccess::SubmittedClose { .. })
+                        )
                 })
         });
         if ready {

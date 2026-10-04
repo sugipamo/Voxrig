@@ -18,6 +18,41 @@ impl ContainerCloseId {
         self.attempt
     }
 }
+/// Local player-screen admission, separate from the last received active window.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum PlayerScreenAccess {
+    /// Native receive established player screen zero.
+    Received,
+    /// This client completely dispatched close for the original opening.
+    /// Not a received close or permission to replay the original screen's clicks.
+    SubmittedClose {
+        /// Exact retained close; serialization does not recreate authority.
+        close: ContainerCloseId,
+    },
+}
+pub(crate) fn player_screen_access(
+    session: SessionStamp,
+    window: Option<i32>,
+    screen: Option<ScreenId>,
+    close: Option<&ContainerCloseRecord>,
+) -> Option<PlayerScreenAccess> {
+    let closed = close.filter(|r| {
+        r.dispatched && r.requires_inspection.is_none() && r.initial.session == session
+    });
+    if window == Some(0)
+        && (screen.is_none() || closed.is_some_and(|r| screen == Some(r.id.screen)))
+    {
+        return Some(PlayerScreenAccess::Received);
+    }
+    closed
+        .filter(|r| {
+            (screen == Some(r.id.screen) && window == Some(r.id.screen.window_id()))
+                || (screen.is_none() && window.is_none() && r.server_close_sequence.is_some())
+        })
+        .map(|r| PlayerScreenAccess::SubmittedClose { close: r.id })
+}
 /// Close transport facts. Vanilla need not send a close response.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -240,6 +275,8 @@ pub struct ScreenObservation {
     pub receive_sequence: u64,
     /// Active received window, unknown until established. Zero is the player screen.
     pub active_window: Option<i32>,
+    /// Local player-screen access with received/submitted basis kept explicit.
+    pub player_screen: Option<PlayerScreenAccess>,
     /// Metadata and actual contents of a received container opening.
     pub screen: Option<ContainerScreen>,
     /// Actual received cursor, independent of legacy full content packets.

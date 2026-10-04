@@ -327,3 +327,18 @@ Vanillaは通常closeをechoしないため、`server_close_sequence == None`で
 新しいOPENを実受信すればその新identityから次操作を明示的に始める。
 empty cursor限定、取消の版別write所有権、player screen再開/open契約の残作業は
 [共通container close](common-container-close.md)を参照。
+
+## close後のplayer画面とactual player revision
+
+共通`InventoryObservation`には`player_screen`と`player_screen_revision`を追加する。
+共通`ScreenObservation`には同じ`player_screen`を追加する。
+これらをstruct literalで作るfixtureは新fieldを用意し、受信/dispatchの根拠を持たない値をReceivedとしない。
+serialized recordの解析側は追加fieldを扱う。
+
+UIがplayerへ戻ったことを`window_id == Some(0)`だけで判定していた利用側は、`player_screen`のbasisを確認する。
+`SubmittedClose { close }`はそのClientが完全にcloseを送った根拠であり、serverの実close応答とは別である。
+通常在庫の共通入口`swap_hotbar` / `inventory_swap_record`の名前・引数は変えず、close後にも実装する。
+modernではclose後に別のmenu revisionや0を注入せず、actual player-screen-zero revisionを別に保持する。
+欠測の場合は再送せず、新しいreceived contextを検討する。
+既存modern native-only inventory APIのreceived-window制約は維持する。
+詳細は[共通プレイヤー画面](common-player-screen.md)を参照。

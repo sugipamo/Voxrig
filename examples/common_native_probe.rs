@@ -450,9 +450,73 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
     let mut commands = BufReader::new(tokio::io::stdin()).lines();
     let mut opening = None;
     let mut content_sequence = 0;
-    let mut closed_source = None;
     while let Some(command) = commands.next_line().await? {
         match command.as_str() {
+            "container_player_swap_survival" | "container_player_swap_creative" => {
+                let mode = if command == "container_player_swap_survival" {
+                    GameMode::Survival
+                } else {
+                    GameMode::Creative
+                };
+                let player = wait_player(client, |p| p.game_mode == Some(mode)).await?;
+                let close = client
+                    .survival()
+                    .container_close_record()
+                    .await?
+                    .context("close record missing")?;
+                anyhow::ensure!(
+                    close.dispatched,
+                    "player UI cannot resume from incomplete close"
+                );
+                if command == "container_player_swap_survival" {
+                    anyhow::ensure!(
+                        player.inventory.player_screen
+                            == Some(PlayerScreenAccess::SubmittedClose { close: close.id }),
+                        "local player UI close basis missing"
+                    );
+                }
+                let submitted = if mode == GameMode::Survival {
+                    client.survival().swap_hotbar(9, 0).await?
+                } else {
+                    client.creative().swap_hotbar(9, 0).await?
+                };
+                anyhow::ensure!(
+                    submitted.source == InventorySwapSource::PlayerMain
+                        && submitted.window_id() == 0
+                        && submitted.send.dispatched,
+                    "wrong resumed player swap intent"
+                );
+                anyhow::ensure!(
+                    client.survival().swap_hotbar(9, 0).await.is_err(),
+                    "resumed player swap replay admitted"
+                );
+                emit(&command, submitted)?;
+            }
+            "container_player_taken" | "container_player_returned" => {
+                let completed = wait_swap(client).await?;
+                let expected = command == "container_player_taken";
+                anyhow::ensure!(
+                    matches!(
+                        completed.source_receipt.as_ref().unwrap().value,
+                        SlotKnowledge::Empty
+                    ) == expected,
+                    "wrong resumed player main destination"
+                );
+                let close = client
+                    .survival()
+                    .container_close_record()
+                    .await?
+                    .context("close history missing")?;
+                anyhow::ensure!(
+                    client
+                        .creative()
+                        .swap_container_hotbar(close.id.screen(), 0, 0)
+                        .await
+                        .is_err(),
+                    "closed storage opening reused"
+                );
+                emit(&command, completed)?;
+            }
             "container_close_creative" | "container_close_survival" => {
                 use voxrig::client::container::ContainerCloseStage;
                 let mode = if command == "container_close_creative" {
@@ -462,7 +526,6 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 };
                 wait_player(client, |p| p.game_mode == Some(mode)).await?;
                 let screen = opening.context("opening missing")?;
-                let before = client.screen_state().await?;
                 let record = if mode == GameMode::Survival {
                     client.survival().close_container(screen).await?
                 } else {
@@ -492,18 +555,40 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                         .is_err(),
                     "closed opening clicked"
                 );
-                closed_source = before.screen.as_ref().and_then(|s| s.slots[0].clone());
                 emit(&command, record)?;
             }
             "container_closed_change" => {
                 tokio::time::sleep(Duration::from_millis(500)).await;
                 let capture = client.screen_state().await?;
+                let close = client
+                    .survival()
+                    .container_close_record()
+                    .await?
+                    .context("close record missing")?;
+                anyhow::ensure!(
+                    close.dispatched && capture.session == close.initial.session,
+                    "close basis missing"
+                );
+                anyhow::ensure!(
+                    matches!(capture.player_screen,Some(PlayerScreenAccess::SubmittedClose { close:owning }) if owning==close.id)
+                        || (capture.player_screen == Some(PlayerScreenAccess::Received)
+                            && capture.active_window == Some(0)),
+                    "explicit player UI missing after close"
+                );
                 if let Some(s) = capture.screen.as_ref() {
-                    anyhow::ensure!(
-                        Some(s.id) == opening && s.slots[0] == closed_source,
-                        "closed screen received live content update"
-                    );
+                    anyhow::ensure!(Some(s.id) == opening, "unrelated opening received");
                 }
+                // A complete client write neither drains in-flight updates nor
+                // orders an independent RCON command after native close handling.
+                // Keep actual updates as receive evidence instead of inventing silence.
+                anyhow::ensure!(
+                    client
+                        .creative()
+                        .swap_container_hotbar(close.id.screen(), 0, 0)
+                        .await
+                        .is_err(),
+                    "closed opening clicked"
+                );
                 emit(&command, capture)?;
             }
             "container_reopen" => {

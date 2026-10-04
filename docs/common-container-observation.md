@@ -21,6 +21,8 @@ async fn inspect(client: &Client) -> Result<()> {
 `active_window == None`は画面が未確定、`Some(0)`は受信で確立されたプレイヤー画面。
 `screen == None`だけではclosedを断定しない。OPENを受信せず内容だけ届いた場合は
 menuやlayoutを推測しない。閉じた接続へのcaptureはエラーになる。
+`player_screen`はlocal UIの操作状態を別に返す。完全送信close由来のSubmittedCloseとreceived player画面を区別し、
+actual `active_window`を送信から0へ変更しない。詳細は[共通プレイヤー画面](common-player-screen.md)を参照。
 
 ## 画面の識別と受信の由来
 
