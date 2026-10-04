@@ -64,6 +64,7 @@ connection、world generation、receive sequence、cache revisionは別の値で
 - 1.21.11はcomponent-free stackと、公式codecへ照合した全104型の追加値の境界・全104型の削除patchを元bytesで保持する。複雑な値・入れ子item・registry参照も元bytesで保持し、意味の正規化と実接続の参照解決は別に行う。受信と操作の対応範囲は[共通item data](common-item-data.md)を参照。
 - 1.21.11のcursorのordinalはcursorを更新したpacketのもの。無関係なslot更新で新しい受信根拠を作らない。
 - `ItemStack::custom_data()`は両版共通のtyped NBT読み取り。元bytesと受信根拠を保持し、native decode・比較・modernの純粋NBT hashを照合した。一般item/prototype統合とdata付き操作は残る。
+- `ItemStack::properties()`は現在itemの容量・耐久・stackableを共通fieldへ統合。native default prototypeと追加/削除/受信時補正を使い、signed値と元bytesを保持する。全componentの意味・item比較/hash・slot規則は別途統合する。
 - 在庫や位置の受信はserver内部状態の独立確認ではない。
 
 `DispatchReceipt`は完全なpacket送信のみを表す。protocol ACKや目的達成ではない。

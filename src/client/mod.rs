@@ -4,6 +4,7 @@ mod config;
 pub mod container;
 mod geometry;
 pub mod inventory;
+mod item;
 pub mod nbt;
 mod observation;
 pub(crate) mod operations;
@@ -15,6 +16,7 @@ pub use crate::connection::{Client, ConnectionConfig, Observation, ObservedBlock
 pub use capabilities::{Capabilities, Feature, Support};
 pub use config::{ClientLimits, Server};
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
+pub use item::ItemProperties;
 pub use observation::{
     Capture, Dimension, GameMode, Health, InventoryObservation, ItemComponent, ItemComponentPatch,
     ItemData, ItemStack, ObservedValue, PlayerObservation, ReceivedPose, SessionStamp,
@@ -50,7 +52,8 @@ pub mod prelude {
     };
     pub use super::{
         Client, ClientLimits, ConnectionConfig, Creative, Feature, GameMode, ItemComponent,
-        ItemComponentPatch, ItemData, ItemStack, PlayerObservation, Server, Support, Survival,
+        ItemComponentPatch, ItemData, ItemProperties, ItemStack, PlayerObservation, Server,
+        Support, Survival,
     };
     pub use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Region, Result};
 }

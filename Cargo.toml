@@ -39,6 +39,8 @@ include = [
     "/scripts/ExportItemComponents.java",
     "/scripts/ExportNbtSemantics.java",
     "/scripts/export_nbt_semantics.py",
+    "/scripts/ExportItemProperties.java",
+    "/scripts/export_item_properties.py",
     "/scripts/export_item_components.py",
     "/scripts/ExportMenuLayouts.java",
     "/scripts/ExportStorageOutlines.java",

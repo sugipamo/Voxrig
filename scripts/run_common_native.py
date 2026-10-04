@@ -904,15 +904,18 @@ network-compression-threshold=256
             result["rotation_before"] = rcon.command("data get entity UnifiedProbe Rotation")
             result["fixture"]["mode"] = rcon.command("gamemode " + mode + " UnifiedProbe")
             result["fixture"]["clear"] = rcon.command("clear UnifiedProbe")
-            command = (f'replaceitem entity UnifiedProbe inventory.0 minecraft:stone{{VoxrigProbe:{marker},display:{{Name:\'{{"text":"{observed_name}"}}\'}}}} {count}'
+            command = (f'replaceitem entity UnifiedProbe inventory.0 minecraft:stone{{VoxrigProbe:{marker},Damage:7,display:{{Name:\'{{"text":"{observed_name}"}}\'}}}} {count}'
                        if version == "1.16.1" else
-                       f'item replace entity UnifiedProbe inventory.0 with minecraft:stone[custom_data={{VoxrigProbe:{marker}}},custom_name={{text:"{observed_name}"}},bundle_contents=[{{id:"minecraft:stone",count:2,components:{{"minecraft:custom_name":"NestedProbe","minecraft:custom_data":{{VoxrigNestedProbe:19}}}}}}],enchantments={{"minecraft:unbreaking":2}},written_book_content={{title:"VoxrigBook",author:"Voxrig",pages:["ComplexProbe"],resolved:true}}] {count}')
+                       f'item replace entity UnifiedProbe inventory.0 with minecraft:stone[max_stack_size=16,custom_data={{VoxrigProbe:{marker}}},custom_name={{text:"{observed_name}"}},bundle_contents=[{{id:"minecraft:stone",count:2,components:{{"minecraft:custom_name":"NestedProbe","minecraft:custom_data":{{VoxrigNestedProbe:19}}}}}}],enchantments={{"minecraft:unbreaking":2}},written_book_content={{title:"VoxrigBook",author:"Voxrig",pages:["ComplexProbe"],resolved:true}}] {count}')
             result["fixture"]["item"] = rcon.command(command)
             result["native_inventory"] = until(lambda: inventory_matches({9:("minecraft:stone",count)}))
             path = "tag" if version == "1.16.1" else 'components."minecraft:custom_data"'
             result["native_marker"] = until(lambda:matched(rcon.command(f'data get entity UnifiedProbe Inventory[{{Slot:9b}}].{path}.VoxrigProbe'),rf'\b{marker}\b'))
             name_path = "tag.display.Name" if version == "1.16.1" else 'components."minecraft:custom_name"'
             result["native_name"] = until(lambda:matched(rcon.command(f'data get entity UnifiedProbe Inventory[{{Slot:9b}}].{name_path}'),observed_name))
+            property_path = "tag.Damage" if version == "1.16.1" else 'components."minecraft:max_stack_size"'
+            expected_property_value = 7 if version == "1.16.1" else 16
+            result["native_property_value"] = until(lambda:matched(rcon.command(f'data get entity UnifiedProbe Inventory[{{Slot:9b}}].{property_path}'),rf'\b{expected_property_value}\b'))
             if version == "1.21.11":
                 component_path='Inventory[{Slot:9b}].components.'
                 result["native_nested_marker"]=until(lambda:matched(rcon.command('data get entity UnifiedProbe '+component_path+'"minecraft:bundle_contents"[0].components."minecraft:custom_data".VoxrigNestedProbe'),r'\b19\b'))
@@ -938,7 +941,8 @@ network-compression-threshold=256
                     if data["kind"] != "modern_components": return None
                     patch = data["patch"]
                     added = {c["definition"]["name"]:c for c in patch["added"]}
-                    if set(added) != {"minecraft:custom_data", "minecraft:custom_name", "minecraft:bundle_contents", "minecraft:enchantments", "minecraft:written_book_content"} or patch["removed"]: return None
+                    if set(added) != {"minecraft:max_stack_size", "minecraft:custom_data", "minecraft:custom_name", "minecraft:bundle_contents", "minecraft:enchantments", "minecraft:written_book_content"} or patch["removed"]: return None
+                    if added["minecraft:max_stack_size"]["bytes"] != [16]: return None
                     if encoded_marker not in bytes(added["minecraft:custom_data"]["bytes"]) or observed_name.encode() not in bytes(added["minecraft:custom_name"]["bytes"]): return None
                     nested=bytes(added["minecraft:bundle_contents"]["bytes"])
                     nested_key=b"VoxrigNestedProbe"
@@ -958,6 +962,10 @@ network-compression-threshold=256
             if (custom["persistent_crc32c"] is None)!=(version=="1.16.1"):
                 raise RuntimeError("custom-data value hash invented legacy availability or lost modern value")
             result["decoded_custom_data"]={"data":custom,"source":custom_source,"session":registry_snapshot["custom_data_session"],"item":registry_snapshot["custom_data_item"],"native_marker":result["native_marker"],"authority_limits":"Same common item.custom_data accessor returns typed marker from actual received item in both modes/versions; original RCON confirms marker. Actual current item/source is retained; a newer unchanged receipt is not relabeled as the earlier ordinal. Pure modern NBT persistent CRC32C is separately oracle-verified, not an inventory hash/permission or general item interpretation."}
+            properties = registry_snapshot["item_properties"]
+            expected_properties = {"max_stack_size":64 if version=="1.16.1" else 16,"max_damage":0,"damage":7 if version=="1.16.1" else 0,"damageable":False,"damaged":False,"stackable":True}
+            if properties != expected_properties: raise RuntimeError("common effective item properties disagree with native fixture")
+            result["decoded_item_properties"]={"value":properties,"source":custom_source,"session":registry_snapshot["custom_data_session"],"item":registry_snapshot["custom_data_item"],"native_property_value":result["native_property_value"],"authority_limits":"Same public item.properties getter, actual received data/source preserved. Independent RCON confirms legacy Damage=7 or modern max_stack_size=16. Original prototype/scalar/removal oracle separately verifies native getters; not item equality, inventory/cache hash, slot rules or nondefault action permission."}
             result["position_after"] = rcon.command("data get entity UnifiedProbe Pos")
             result["rotation_after"] = rcon.command("data get entity UnifiedProbe Rotation")
             if result["position_before"] != result["position_after"] or result["rotation_before"] != result["rotation_after"]:

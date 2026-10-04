@@ -1163,6 +1163,7 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 let custom_data = item
                     .custom_data()?
                     .ok_or_else(|| anyhow::anyhow!("custom-data fixture value missing"))?;
+                let item_properties = item.properties()?;
                 anyhow::ensure!(
                     custom_data
                         .root()
@@ -1181,7 +1182,7 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 };
                 emit(
                     &command,
-                    serde_json::json!({"received": registries, "unbreaking": unbreaking,"custom_data":custom_data,"custom_data_source":slot.source,"custom_data_session":player.session,"custom_data_item":slot.value}),
+                    serde_json::json!({"received": registries, "unbreaking": unbreaking,"custom_data":custom_data,"custom_data_source":slot.source,"custom_data_session":player.session,"custom_data_item":slot.value,"item_properties":item_properties}),
                 )?;
             }
             "transfer_fixture_cleared" => {

@@ -91,6 +91,51 @@ if let Some(observed) = &player.inventory.slots[9] {
 # }
 ```
 
+## 共通item properties
+
+`item.properties()?`は両版で`ItemProperties`を返す。`client.registry().item(...)`の
+default定義と異なり、現在のitemのdefault値・追加patch・明示的削除・受信時補正を使う。
+`max_stack_size`・`max_damage`・`damage`・`damageable`・`damaged`・`stackable`を
+同じ名前で読める。元bytesと外側の受信sourceは保持し、新たな受信を主張しない。
+propertyはitem dataと固定native prototypeから導く値であり、外側のsourceは元itemの
+根拠である。default容量等の独立したpacket受信やserverの操作受理へ読み替えない。
+
+```rust,no_run
+use voxrig::client::prelude::*;
+# fn inspect(item: &ItemStack) -> Result<()> {
+let properties = item.properties()?;
+println!("capacity = {}, damage = {}", properties.max_stack_size, properties.damage);
+# Ok(())
+# }
+```
+
+legacyではitemによるNBT設定時のDamage補正、NBT numeric getterの幅変換・浮動小数の
+floor、Unbreakableのbyte判定を使う。非damageableなstoneのDamage metadataも消さない。
+modernではmax stackの削除はfallback 1、max damage/damageの削除はfallback 0。
+max damage・damageの存在とunbreakableの非存在でdamageableを判定するため、
+値0とcomponent削除は区別する。damage getterのclampは負の最大値でも元の分岐順を使う。
+stackableは容量に加えてnativeのdamageable/damaged条件を使う。
+
+値はnativeのsigned i32で保持する。元stream codecは負の容量や範囲外の値もdecodeできるため、
+受信値をdefaultや正数へ置き換えない。このgetterはslot受入れ・有効な操作容量・
+itemの意味の一致・inventory/cache hash・操作許可を証明しない。
+公的なpatchを直接作った場合もID/名前/版/重複と全値のfield境界を検査する。
+AIR/empty sentinelを通常のitem capacityとして扱わず、未知ID/dataも拒否する。
+
+`item_properties-*.json`は未変更公式JARの975 legacy・1,505 modern default item
+（各版のAIR sentinelを含む）と、実item stream decoderで読んだ1,428 legacy・1,288 modern
+dataケースのnative getter結果。modernの3,490種類のprototype component値も元codecで保存する。
+prototype内のraw registry参照は固定vanilla oracleのcontextに属し、実接続へIDを注入しない。
+今回のproperty getterが使うprototype値は参照のないscalar/presenceだけ。
+全componentの意味・item比較/hash・slot規則とdata付き操作は残作業である。
+tool/input/JAR digestは`item_properties_source.json`に保存し、再生成は
+`scripts/export_item_properties.py`、保存出力照合は`--normalize-only --check`で行う。
+JVMは512 MiB・CPU 1で順番に実行する。
+両版・両modeの実vanillaでも同じgetterを使い、legacy stoneのDamage=7と
+modern stoneのmax stack size=16を独立RCONへ照合した。受信bytes・元itemのsource・
+readonly frame・実行時入力は`data/client_api/item_properties_native_evidence.json`に保存する。
+実入力は4105a49にstaged変更を加えたもので、実行後のevidence/docsを入力へ付け足さない。
+
 ## Component registry
 
 `Registry::item_component` / `item_component_by_native_id` /

@@ -30,6 +30,42 @@ fn definition(id: i32) -> Result<&'static Definition> {
         .find(|d| d.native_id == id)
         .context("unknown native item-component ID; update Voxrig")
 }
+/// Validate a public patch's identities and complete encoded field boundaries.
+/// This does not resolve registry references, normalize values or authorize actions.
+pub(crate) fn validate_patch(patch: &ItemComponentPatch) -> Result<()> {
+    if patch.added.len() + patch.removed.len() > definitions().len() {
+        bail!("item-component patch exceeds native type count");
+    }
+    let size = patch.added.iter().try_fold(0usize, |sum, field| {
+        sum.checked_add(field.bytes.len())
+            .context("item-component patch byte overflow")
+    })?;
+    if size > 1_048_576 {
+        bail!("item-component patch exceeds byte budget");
+    }
+    let mut bytes = Vec::with_capacity(size + 104 * 5 + 10);
+    crate::protocol::put_varint(&mut bytes, patch.added.len() as i32);
+    crate::protocol::put_varint(&mut bytes, patch.removed.len() as i32);
+    for field in &patch.added {
+        crate::protocol::put_varint(&mut bytes, field.definition.id.value());
+        bytes.extend_from_slice(&field.bytes);
+    }
+    for field in &patch.removed {
+        crate::protocol::put_varint(&mut bytes, field.id.value());
+    }
+    let decoded = decode_patch(&bytes)?;
+    if decoded != *patch {
+        bail!("item-component identities or field boundaries disagree");
+    }
+    Ok(())
+}
+/// Decode one complete patch field, without exposing adapter wire internals.
+pub(crate) fn decode_patch(bytes: &[u8]) -> Result<ItemComponentPatch> {
+    let mut reader = Reader::new(bytes);
+    let patch = read_patch(&mut reader)?.context("unknown item-component value")?;
+    reader.end()?;
+    Ok(patch)
+}
 /// Decode original encoded field boundaries, retaining values without semantic normalization.
 pub(crate) fn read_patch(r: &mut Reader<'_>) -> Result<Option<ItemComponentPatch>> {
     let added = r.count(definitions().len())?;

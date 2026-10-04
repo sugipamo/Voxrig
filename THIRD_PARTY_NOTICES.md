@@ -293,6 +293,22 @@ These are factual outputs, not native method bodies or complete inventory hashes
 Original JARs, libraries, mappings and inspection logs remain local; these facts
 do not relicense Minecraft.
 
+`data/client_api/item_properties-*.json` and their requests/source metadata are
+factual outputs of unchanged original item constructors, prototypes, item stream
+codecs and property getters. Own wrappers enumerate 975 legacy/1,505 modern item
+defaults (including AIR), retain 3,490 modern prototype component values and
+decode 1,428 legacy/1,288 modern candidate data cases. Prototype registry bytes
+belong to the pinned vanilla oracle context, not arbitrary live connections.
+No game binaries or method bodies are included, and these facts do not establish
+full item semantics, inventory hashes, slot policy or action permission.
+
+`data/client_api/item_properties_native_evidence.json` retains actual common
+property interpretations from original item bytes and pinned prototypes in both
+versions/modes, with original item receipt provenance, independent RCON and
+readonly frames. Captured execution-input/raw-output hashes and an explicitly
+undelivered modern frame after requested disconnect limit the observations;
+no game binaries or method bodies are included.
+
 `data/client_api/nbt_semantics_native_evidence.json` retains actual typed metadata,
 original item bytes and source ordinals from sequential vanilla trials in both
 versions/modes, with independent RCON and readonly frames. Run-time input and

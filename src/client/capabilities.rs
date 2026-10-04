@@ -103,10 +103,10 @@ impl Capabilities {
                 "one ordinary native QUICK_MOVE; player slots 5..45 or same audited storage opening; native default data including exact legacy constructor NBT; empty actual cursor, full write/all fresh changed slots/legacy reply; partial capacity and armor/offhand destination rules",
             ),
             Feature::ContainerObservation => Support::Restricted(
-                "regular OPEN_WINDOW screens and supported stacks; constructor-verified storage layouts; modern non-default components/special entity windows remain incomplete",
+                "regular OPEN_WINDOW screens and constructor-verified storage layouts; lossless modern component boundaries, common custom metadata and effective scalar item properties; general component semantics and special entity windows remain incomplete",
             ),
             Feature::Containers => Support::Restricted(
-                "empty-hand audited storage activation with distinct dispatch/OPEN/full/cursor/modern processing facts; opening-bound empty-cursor close; constructor-verified default SWAP/PICKUP/QUICK_MOVE with separately received destinations; general UI/special clicks/item data remain incomplete",
+                "empty-hand audited storage activation with distinct dispatch/OPEN/full/cursor/modern processing facts; opening-bound close with observed default cursor return; constructor-verified default SWAP/PICKUP/QUICK_MOVE with separately received destinations; general UI/special clicks/data-bearing actions remain incomplete",
             ),
             Feature::SurvivalMovement => Support::Restricted(
                 "1..120 dry walking/jump ticks with released-rest endpoint; retained intent/failure; predicted completion is not received acceptance",
