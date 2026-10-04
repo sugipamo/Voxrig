@@ -127,7 +127,7 @@ def matched(response, pattern):
 
 
 def stage(probe, messages, name, records, timeout=30, poll=None):
-    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready"):
+    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready"):
         probe.stdin.write(name + "\n")
         probe.stdin.flush()
     deadline = time.monotonic() + timeout
@@ -142,7 +142,7 @@ def stage(probe, messages, name, records, timeout=30, poll=None):
             continue
         record = json.loads(line)
         records.append(record)
-        aliases = {"disconnect": "disconnected", "mining_disconnect": "mining_disconnected", "placement_disconnect": "placement_disconnected", "swap_disconnect": "swap_disconnected"}
+        aliases = {"disconnect": "disconnected", "mining_disconnect": "mining_disconnected", "placement_disconnect": "placement_disconnected", "swap_disconnect": "swap_disconnected", "container_disconnect": "container_disconnected"}
         if record["stage"] == name or record["stage"] == aliases.get(name):
             print("native", name, "received", flush=True)
             return record
@@ -415,6 +415,40 @@ network-compression-threshold=256
         probe.wait(timeout=10)
         if probe.returncode != 0:
             raise RuntimeError("inventory probe failed after disconnect")
+        until(lambda: matched(rcon.command("execute unless entity @a[name=UnifiedProbe]"), "Test passed"))
+        report["container_fixture"] = rcon.command("setblock 0 65 2 minecraft:chest")
+        until(lambda: matched(rcon.command("execute if block 0 65 2 minecraft:chest"), "Test passed"))
+        container_command = ("replaceitem block 0 65 2 container.0 minecraft:stone 3" if version == "1.16.1" else "item replace block 0 65 2 container.0 with minecraft:stone 3")
+        report["container_fixture_items"] = rcon.command(container_command)
+        def chest_matches(count):
+            response = rcon.command("data get block 0 65 2 Items")
+            return response if 'id: "minecraft:stone"' in response and "Slot: 0b" in response and re.search(rf"(?:Count|count): {count}(?:b)?(?:,|\s|}})", response) else None
+        report["container_fixture_native"] = until(lambda: chest_matches(3))
+        report["container_records"] = []
+        probe = subprocess.Popen([str(REPO / "target/debug/examples/common_native_probe")], cwd=REPO, env=dict(env, VOXRIG_NATIVE_SCENARIO="container"), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+        messages = queue.Queue()
+        thread = threading.Thread(target=pump, args=(probe.stdout, messages, probe_log), daemon=True)
+        thread.start()
+        stage(probe,messages,"container_ready",report["container_records"])
+        player_command = ("replaceitem entity UnifiedProbe inventory.0 minecraft:dirt 2" if version=="1.16.1" else "item replace entity UnifiedProbe inventory.0 with minecraft:dirt 2")
+        report["container_setup"] = {command:rcon.command(command) for command in ["gamemode creative UnifiedProbe","tp UnifiedProbe 0.5 65 0.5 0 0","clear UnifiedProbe",player_command]}
+        stage(probe,messages,"container_baseline",report["container_records"])
+        container_position = rcon.command("data get entity UnifiedProbe Pos")
+        stage(probe,messages,"container_open",report["container_records"])
+        stage(probe,messages,"container_observed",report["container_records"])
+        native_open = until(lambda: chest_matches(3))
+        change_command = ("replaceitem block 0 65 2 container.0 minecraft:stone 7" if version=="1.16.1" else "item replace block 0 65 2 container.0 with minecraft:stone 7")
+        report["container_change"] = rcon.command(change_command)
+        native_changed = until(lambda: chest_matches(7))
+        stage(probe,messages,"container_changed",report["container_records"])
+        container_after = rcon.command("data get entity UnifiedProbe Pos")
+        if container_after != container_position:
+            raise RuntimeError("container observation changed native position")
+        report["native_results"]["container_observation"] = {"opened_contents":native_open,"changed_contents":native_changed,"position_before":container_position,"position_after":container_after}
+        stage(probe,messages,"container_disconnect",report["container_records"])
+        probe.wait(timeout=10)
+        if probe.returncode != 0:
+            raise RuntimeError("container probe failed after disconnect")
         report["scenario_result"] = "passed"
         print(version, "native scenario verified; waiting for clean shutdown", flush=True)
     except BaseException as error:

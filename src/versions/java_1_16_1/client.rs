@@ -4789,8 +4789,24 @@ impl Bot {
             0x13 => {
                 let window_id = *p.first().context("missing closed window ID")? as i8;
                 let mut inventory = self.inventory.write().await;
-                inventory.open_window = None;
-                self.common_receipts.lock().await.inventory.window_id = Some(0);
+                if inventory
+                    .open_window
+                    .as_ref()
+                    .is_some_and(|window| window.id == window_id)
+                {
+                    inventory.open_window = None;
+                }
+                {
+                    let mut receipts = self.common_receipts.lock().await;
+                    if receipts
+                        .container
+                        .as_ref()
+                        .is_some_and(|screen| screen.window == i32::from(window_id))
+                    {
+                        receipts.container = None;
+                        receipts.inventory.window_id = Some(0);
+                    }
+                }
                 inventory.last_transaction = None;
                 inventory.merchant_offers = None;
                 inventory.windows.remove(&window_id);
@@ -4840,8 +4856,8 @@ impl Bot {
                 let mut update = parse_set_slot(&p)?;
                 update.packet_sequence = packet_sequence;
                 let mut inventory = self.inventory.write().await;
-                apply_slot(&mut inventory, &update)?;
                 self.common_receipts.lock().await.slot(&update)?;
+                apply_slot(&mut inventory, &update)?;
                 let observed = inventory.map_snapshot(|_| update.clone());
                 drop(inventory);
                 self.emit(Event::InventorySlotObserved(observed));
@@ -4969,7 +4985,15 @@ impl Bot {
                     inventory.open_window = Some(window.clone());
                     let mut receipts = self.common_receipts.lock().await;
                     receipts.inventory.window_id = Some(i32::from(window.id));
+                    receipts.inventory.cursor = None;
                     receipts.player_starts.remove(&window.id);
+                    receipts.container = Some(crate::client::container::ScreenReceipts::open(
+                        crate::MinecraftVersion::Java1_16_1,
+                        i32::from(window.id),
+                        None,
+                        crate::client::container::ScreenTitle::Unavailable,
+                        packet_sequence,
+                    ));
                 }
                 *self.furnace_window_position.lock().await = None;
                 self.emit(Event::WindowOpened(window));
@@ -5012,7 +5036,14 @@ impl Bot {
             },
             0x25 => {
                 let join = parse_join(&p)?;
-                self.common_receipts.lock().await.generation = packet_sequence;
+                {
+                    let mut receipts = self.common_receipts.lock().await;
+                    receipts.generation = packet_sequence;
+                    receipts.container = None;
+                    receipts.inventory.window_id = None;
+                    receipts.inventory.cursor = None;
+                    receipts.player_starts.clear();
+                }
                 let mut player = self.player.lock().await;
                 player.entity_id = Some(join.entity_id);
                 player.spawned = true;
@@ -5116,7 +5147,7 @@ impl Bot {
             0x2e => {
                 let mut rest = p.as_slice();
                 let id = get_varint(&mut rest)?;
-                if !(0..=127).contains(&id) {
+                if !(1..=127).contains(&id) {
                     bail!("invalid open window ID {id}");
                 }
                 let window = OpenWindow {
@@ -5133,7 +5164,17 @@ impl Bot {
                     inventory.open_window = Some(window.clone());
                     let mut receipts = self.common_receipts.lock().await;
                     receipts.inventory.window_id = Some(i32::from(window.id));
+                    receipts.inventory.cursor = None;
                     receipts.player_starts.remove(&window.id);
+                    receipts.container = Some(crate::client::container::ScreenReceipts::open(
+                        crate::MinecraftVersion::Java1_16_1,
+                        i32::from(window.id),
+                        Some(window.window_type),
+                        crate::client::container::ScreenTitle::LegacyJson {
+                            json: window.title_json.clone(),
+                        },
+                        packet_sequence,
+                    ));
                 }
                 let furnace_position = self
                     .connection
@@ -5261,6 +5302,10 @@ impl Bot {
                     receipts.health = None;
                     receipts.may_fly = None;
                     receipts.requested_flying = false;
+                    receipts.container = None;
+                    receipts.inventory.window_id = None;
+                    receipts.inventory.cursor = None;
+                    receipts.player_starts.clear();
                     if !respawn.copy_metadata {
                         receipts.inventory = Default::default();
                         receipts.selected_hotbar = None;

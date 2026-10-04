@@ -36,6 +36,8 @@ JVMを回収してから`.local/native-client-unification/`へ記録とworldを�
 | survivalのdefault dirt設置 | さらに新しい接続でfresh target/materialを受信し、RCONでもdirt・材料3→2・位置不変を確認 |
 | survivalのoccupied player swap | main stone 3 / hotbar dirt 2を交換し、両slotのfresh受信とRCONのslot/item/countを照合 |
 | creativeのempty hotbar swap | 同じ接続で受信mode変更後にmain dirt 2を空hotbarへ交換し、両slotのfresh受信とRCONのslot/item/count、位置不変を照合 |
+| container画面の実内容 | 新しい接続でcreative interactionからsingle chestを開き、stone 3とplayer dirt 2のslot対応、cursor/full contentsを共通APIで観測 |
+| 開いたcontainerへの外部変更 | RCONでchest slot 0をstone 7へ変更し、同じopeningに新しいslot受信が届くこと、native items/位置不変を独立照合 |
 | survivalの有限jump/歩行 | RCONで途中の高さ・水平移動を取得し、実終点が予測終点に一致 |
 
 共通Clientは実際の受信mode・teleport・対象blockを待ってから操作する。

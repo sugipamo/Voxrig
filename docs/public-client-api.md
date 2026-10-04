@@ -9,6 +9,8 @@ queryを採掘/設置の実行許可にしません。[狙い判定の範囲・�
 native ACKの有無と取消後の未解決状態は[共通設置の契約](common-survival-placement.md)を参照してください。
 両modeの`swap_hotbar` / `inventory_swap_record`はdefault player stackの交換を両版に実装しています。
 一般containerとの違い、legacy応答とmodern revisionの扱いは[共通在庫交換](common-inventory-swaps.md)を参照してください。
+`Client::screen_state()`は開いたcontainerのidentity・実内容・cursor・native layoutを両版で観測します。
+共通のclick操作は後続実装です。[コンテナ画面観測](common-container-observation.md)を参照してください。
 下記の追加検査契約は
 `Client::checked_survival()`または`Client::survival().checked()?`で明示的に選ぶ1.21.11用の拡張です。
 

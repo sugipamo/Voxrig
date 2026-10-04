@@ -113,6 +113,8 @@ pub struct Inventory {
     slot_sequences: Vec<Option<u64>>,
     #[serde(skip)]
     cursor_sequence: Option<u64>,
+    #[serde(skip)]
+    pub(crate) container: Option<crate::client::container::ScreenReceipts>,
 }
 /// Selected main-hand hotbar slot with explicit receive/submission provenance.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -139,6 +141,7 @@ impl Default for Inventory {
             pending_swap: None,
             slot_sequences: vec![None; 46],
             cursor_sequence: None,
+            container: None,
         }
     }
 }
@@ -295,6 +298,24 @@ pub struct Operations {
     pub(super) bot: Bot,
 }
 impl Operations {
+    pub(crate) async fn common_screen_state(
+        &self,
+    ) -> Result<crate::client::container::ScreenObservation> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        Ok(crate::client::container::ScreenObservation {
+            session: player.session,
+            receive_sequence: state.sequence,
+            active_window: state.operations.inventory.window_id,
+            screen: state
+                .operations
+                .inventory
+                .container
+                .as_ref()
+                .map(|s| s.capture(player.session)),
+            cursor: player.inventory.cursor,
+        })
+    }
     /// Inspect unresolved operation history without sending, reconnecting or
     /// checking for a live connection. Never turns stale data into action authority.
     pub async fn operation_history(&self) -> OperationHistory {

@@ -9,6 +9,12 @@ impl<'a> Reader<'a> {
     pub fn new(bytes: &'a [u8]) -> Self {
         Self { bytes }
     }
+    /// Preserve one complete native unnamed NBT field without rendering it.
+    pub fn encoded_nbt(&mut self) -> Result<Vec<u8>> {
+        let before = self.bytes;
+        self.skip_nbt()?;
+        Ok(before[..before.len() - self.bytes.len()].to_vec())
+    }
     pub fn take(&mut self, length: usize) -> Result<&'a [u8]> {
         if length > self.bytes.len() {
             bail!("truncated packet field");

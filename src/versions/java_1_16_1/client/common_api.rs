@@ -3,6 +3,21 @@ use super::*;
 use crate::client::{self as api, operations::Action};
 
 impl Bot {
+    pub(crate) async fn common_screen_state(&self) -> Result<api::container::ScreenObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        let receipts = self.common_receipts.lock().await;
+        Ok(api::container::ScreenObservation {
+            session: player.session,
+            receive_sequence: player.receive_sequence,
+            active_window: receipts.inventory.window_id,
+            screen: receipts
+                .container
+                .as_ref()
+                .map(|s| s.capture(player.session)),
+            cursor: receipts.inventory.cursor.clone(),
+        })
+    }
     pub(crate) async fn common_player_state(&self) -> Result<api::PlayerObservation> {
         let _gate = self.coherent_state_gate.lock().await;
         self.common_player_unlocked().await
@@ -336,6 +351,73 @@ fn common_state(message: &str) -> crate::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn common_container_receipts_keep_opening_identity_and_ignore_cache_predictions() {
+        let (bot, server, release) =
+            super::super::tests::ready_test_bot(ConnectionOptions::default()).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        assert!(client.screen_state().await.unwrap().screen.is_none());
+        let mut open = vec![3, 2];
+        put_string(&mut open, "{\"text\":\"Storage\"}");
+        bot.apply_packet(0x2e, open.clone()).await.unwrap();
+        let before = crate::client::tests::common_container_capture_scenario(&client, false).await;
+        let stone = ItemStack {
+            item_id: crate::item_id("stone").unwrap(),
+            count: 3,
+            nbt: None,
+        };
+        let dirt = ItemStack {
+            item_id: crate::item_id("dirt").unwrap(),
+            count: 2,
+            nbt: None,
+        };
+        let mut full = vec![3];
+        full.extend(63i16.to_be_bytes());
+        for index in 0..63 {
+            write_slot(
+                &mut full,
+                match index {
+                    0 => Some(&stone),
+                    27 => Some(&dirt),
+                    _ => None,
+                },
+            );
+        }
+        bot.apply_packet(0x14, full).await.unwrap();
+        // A full legacy content packet does not contain a cursor.
+        assert!(client.screen_state().await.unwrap().cursor.is_none());
+        bot.apply_packet(0x16, vec![255, 255, 255, 0])
+            .await
+            .unwrap();
+        assert_eq!(
+            crate::client::tests::common_container_capture_scenario(&client, true).await,
+            before
+        );
+        bot.inventory.write().await.windows.get_mut(&3).unwrap()[0] = None;
+        crate::client::tests::common_container_capture_scenario(&client, true).await;
+        let received = client.screen_state().await.unwrap();
+        assert!(received.screen.as_ref().unwrap().revision.is_none());
+        bot.apply_packet(0x2e, open).await.unwrap();
+        let reopened =
+            crate::client::tests::common_container_capture_scenario(&client, false).await;
+        assert_ne!(reopened, before);
+        let mut stale = vec![4];
+        stale.extend(0i16.to_be_bytes());
+        write_slot(&mut stale, Some(&stone));
+        bot.apply_packet(0x16, stale).await.unwrap();
+        crate::client::tests::common_container_capture_scenario(&client, false).await;
+        bot.apply_packet(0x13, vec![4]).await.unwrap();
+        assert_eq!(
+            client.screen_state().await.unwrap().screen.unwrap().id,
+            reopened
+        );
+        bot.apply_packet(0x13, vec![3]).await.unwrap();
+        assert!(client.screen_state().await.unwrap().screen.is_none());
+        release.send(()).unwrap();
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
     #[tokio::test]
     async fn common_creative_contract_dispatches_legacy_packets_without_inventory_echo() {
         let (bot, mut packets, release, server) =

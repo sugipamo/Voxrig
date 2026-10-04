@@ -287,3 +287,13 @@ default stack・実受信empty cursor/両slot・player screenを要求し、lega
 modernの画面revisionとlegacyのtransaction番号を共通の成功ACKとして扱わない。
 完了後の次操作は新しいbaselineから開始する。container/crafting/general item dataはこの操作だけで対応済みにはならない。
 前提・取消・履歴と検証は[共通在庫交換](common-inventory-swaps.md)を参照。
+
+## 共通のcontainer観測へ移行
+
+開いた画面は`Client::screen_state()`で取得する。`screen.slots`とplayer screen 0..45の在庫を混ぜない。
+playerとの対応は`screen.layout.player_slots`を使い、末尾36slotや件数だけから推定しない。
+layout未確定なら対応は未確定のまま扱う。`ScreenId`全体でopeningを比較し、window IDだけを再利用しない。
+modern側は外国windowのfull内容を保持するようになった。malformed packetを途中で適用しないため、
+cursorを省いた不完全なfixture（例`[1,0,0]`）はエラーになる。default empty cursorまで含む実wireへ修正する。
+legacyのfull内容からcursorをEmptyと推定せず、実cursor updateを待つ。
+詳細とAPI範囲は[コンテナ画面観測](common-container-observation.md)を参照。

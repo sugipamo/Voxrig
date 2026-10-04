@@ -231,6 +231,7 @@ pub(crate) fn received<T>(value: T, sequence: u64) -> ObservedValue<T> {
 
 #[derive(Default)]
 pub(crate) struct LegacyReceipts {
+    pub container: Option<super::container::ScreenReceipts>,
     pub generation: u64,
     pub pose: Option<ReceivedPose>,
     pub position_source: Option<ValueSource>,
@@ -253,20 +254,31 @@ impl LegacyReceipts {
             .iter()
             .map(|slot| legacy_slot(slot.as_ref()).map(|slot| received(slot, sequence)))
             .collect::<Result<Vec<_>>>()?;
-        self.inventory.window_id = Some(i32::from(window));
         if window == 0 {
+            if self.container.is_none() {
+                self.inventory.window_id = Some(0);
+            }
             self.inventory.slots = vec![None; 46];
             for (out, slot) in self.inventory.slots.iter_mut().zip(decoded) {
                 *out = Some(slot);
             }
-        } else if window > 0 && slots.len() >= 36 {
-            let start = slots.len() - 36;
-            self.player_starts.insert(window, start);
-            for (out, slot) in self.inventory.slots[9..45]
-                .iter_mut()
-                .zip(decoded.into_iter().skip(start))
-            {
-                *out = Some(slot);
+        } else if self
+            .container
+            .as_ref()
+            .is_some_and(|screen| screen.window == i32::from(window))
+        {
+            let screen = self.container.as_mut().expect("matching opening");
+            screen.full_items(decoded.into_iter().map(Some).collect(), None, sequence)?;
+            if let Some(layout) = &screen.layout {
+                if layout.player_slots.len() == 36 {
+                    if let Some(first) = layout.player_slots.iter().map(|m| m.screen_slot).min() {
+                        self.player_starts.insert(window, first);
+                    }
+                }
+                for mapping in &layout.player_slots {
+                    self.inventory.slots[mapping.player_slot] =
+                        screen.slots[mapping.screen_slot].clone();
+                }
             }
         }
         Ok(())
@@ -284,13 +296,46 @@ impl LegacyReceipts {
             crate::versions::java_1_16_1::inventory::player_inventory_slot(update.slot)
         } else if update.window_id == 0 {
             Some(slot)
-        } else {
+        } else if self
+            .container
+            .as_ref()
+            .is_some_and(|screen| screen.window == i32::from(update.window_id))
+        {
             self.player_starts
                 .get(&update.window_id)
                 .and_then(|start| slot.checked_sub(*start))
                 .filter(|i| *i < 36)
                 .map(|i| 9 + i)
+        } else {
+            None
         };
+        if let Some(screen) = &mut self.container {
+            if update.window_id > 0 && screen.window == i32::from(update.window_id) {
+                screen.slot(slot, Some(value.clone()), None, update.packet_sequence)?;
+                if let Some(mapping) = screen
+                    .layout
+                    .as_ref()
+                    .and_then(|layout| layout.player_slots.iter().find(|m| m.screen_slot == slot))
+                {
+                    self.inventory.slots[mapping.player_slot] = Some(value.clone());
+                }
+            } else if update.window_id == -2 {
+                if let Some(screen_slot) = index.and_then(|i| {
+                    screen
+                        .layout
+                        .as_ref()
+                        .and_then(|layout| layout.player_slots.iter().find(|m| m.player_slot == i))
+                        .map(|m| m.screen_slot)
+                }) {
+                    screen.slot(
+                        screen_slot,
+                        Some(value.clone()),
+                        None,
+                        update.packet_sequence,
+                    )?;
+                }
+            }
+        }
         if let Some(out) = index.and_then(|i| self.inventory.slots.get_mut(i)) {
             *out = Some(value);
         }

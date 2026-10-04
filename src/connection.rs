@@ -200,6 +200,14 @@ impl Client {
             Adapter::Java1_21_11(bot) => bot.operations().common_player_state().await,
         }
     }
+    /// Actual open-container contents and cursor at one native capture boundary.
+    /// Numeric window IDs may be reused; use the session-bound screen identity.
+    pub async fn screen_state(&self) -> Result<crate::client::container::ScreenObservation> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_screen_state().await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_screen_state().await,
+        }
+    }
     /// Capture player, inventory and a received region at one adapter boundary.
     /// Missing data stays unavailable; neither local physics nor a capture is server confirmation.
     pub async fn capture(&self, region: Region) -> Result<crate::client::Capture> {

@@ -1,5 +1,58 @@
 use super::*;
 
+pub(crate) async fn common_container_capture_scenario(
+    client: &Client,
+    full: bool,
+) -> container::ScreenId {
+    let capture = client.screen_state().await.unwrap();
+    let screen = capture.screen.unwrap();
+    assert_eq!(capture.active_window, Some(3));
+    assert_eq!(screen.id.session(), capture.session);
+    assert_eq!(screen.id.window_id(), 3);
+    assert!(screen.id.opened_sequence() <= capture.receive_sequence);
+    assert_eq!(screen.menu_name.as_deref(), Some("minecraft:generic_9x3"));
+    let layout = screen.layout.unwrap();
+    assert_eq!(layout.total_slots, 63);
+    assert_eq!(layout.player_slots.len(), 36);
+    assert_eq!(
+        (
+            layout.player_slots[0].screen_slot,
+            layout.player_slots[0].player_slot
+        ),
+        (27, 9)
+    );
+    assert_eq!(
+        (
+            layout.player_slots[27].screen_slot,
+            layout.player_slots[27].player_slot
+        ),
+        (54, 36)
+    );
+    assert_eq!(screen.slots.len(), 63);
+    if full {
+        assert!(screen.full_contents_sequence.is_some());
+        assert!(
+            matches!(&screen.slots[0],Some(v) if matches!(&v.value,SlotKnowledge::Item{item} if item.name=="minecraft:stone" && item.count==3))
+        );
+        assert!(
+            matches!(&screen.slots[27],Some(v) if matches!(&v.value,SlotKnowledge::Item{item} if item.name=="minecraft:dirt" && item.count==2))
+        );
+        assert_eq!(
+            screen.slots[54].as_ref().unwrap().value,
+            SlotKnowledge::Empty
+        );
+        let player = client.player_state().await.unwrap();
+        assert_eq!(player.inventory.slots[9], screen.slots[27]);
+        assert_eq!(player.inventory.slots[36], screen.slots[54]);
+        assert_eq!(capture.cursor.as_ref().unwrap().value, SlotKnowledge::Empty);
+    } else {
+        assert!(screen.full_contents_sequence.is_none());
+        assert!(screen.slots.iter().all(Option::is_none));
+        assert!(capture.cursor.is_none());
+    }
+    screen.id
+}
+
 pub(crate) async fn common_swap_start_scenario(
     client: &Client,
     mode: GameMode,

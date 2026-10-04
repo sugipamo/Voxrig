@@ -43,6 +43,8 @@ pub enum Feature {
     CheckedSurvival,
     /// Common container click operations.
     Containers,
+    /// Received open-screen identity, contents, cursor and native layout.
+    ContainerObservation,
     /// Received whole-default-stack player main/hotbar exchange.
     InventorySwap,
     /// Common crafting operations.
@@ -87,6 +89,9 @@ impl Capabilities {
             ),
             Feature::InventorySwap => Support::Restricted(
                 "player screen main slots 9..35 and hotbar 0..8; default stacks; received empty cursor; two fresh destinations; native legacy resync/comparison response",
+            ),
+            Feature::ContainerObservation => Support::Restricted(
+                "regular OPEN_WINDOW screens and supported stacks; constructor-verified storage layouts; modern non-default components/special entity windows remain incomplete",
             ),
             Feature::SurvivalMovement => Support::Restricted(
                 "1..120 dry walking/jump ticks with released-rest endpoint; retained intent/failure; predicted completion is not received acceptance",

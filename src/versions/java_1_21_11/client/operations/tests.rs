@@ -62,7 +62,12 @@ fn inventory_is_received_only_and_unsupported_components_never_become_empty_slot
     receive(&mut state, ids::play_clientbound::WINDOW_ITEMS, &full).unwrap();
     assert!(!state.operations.inventory.unsupported_components);
     // Other windows cannot silently preserve stale player inventory knowledge.
-    receive(&mut state, ids::play_clientbound::WINDOW_ITEMS, &[1, 0, 0]).unwrap();
+    receive(
+        &mut state,
+        ids::play_clientbound::WINDOW_ITEMS,
+        &[1, 0, 0, 0],
+    )
+    .unwrap();
     assert!(
         state
             .operations

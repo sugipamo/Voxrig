@@ -1,6 +1,7 @@
 //! Common client entry points and data. Wire formats and physics belong to adapters.
 mod capabilities;
 mod config;
+pub mod container;
 mod geometry;
 pub mod inventory;
 mod observation;
@@ -22,6 +23,7 @@ pub use operations::{Creative, DispatchReceipt, Survival};
 
 /// Imports for consumers selecting their Minecraft version at setup.
 pub mod prelude {
+    pub use super::container::{ContainerScreen, ScreenId, ScreenObservation};
     pub use super::inventory::{InventorySwapId, InventorySwapRecord, InventorySwapStage};
     pub use super::survival::{
         BlockTargetHit, BlockTargetObservation, MiningId, MiningRecord, MiningStage, MotionPreview,

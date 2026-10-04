@@ -1,0 +1,1441 @@
+[
+  {
+    "native_id": 0,
+    "name": "minecraft:generic_9x1",
+    "total_slots": 45,
+    "player_slots": [
+      {
+        "screen_slot": 9,
+        "raw_player_slot": 9
+      },
+      {
+        "screen_slot": 10,
+        "raw_player_slot": 10
+      },
+      {
+        "screen_slot": 11,
+        "raw_player_slot": 11
+      },
+      {
+        "screen_slot": 12,
+        "raw_player_slot": 12
+      },
+      {
+        "screen_slot": 13,
+        "raw_player_slot": 13
+      },
+      {
+        "screen_slot": 14,
+        "raw_player_slot": 14
+      },
+      {
+        "screen_slot": 15,
+        "raw_player_slot": 15
+      },
+      {
+        "screen_slot": 16,
+        "raw_player_slot": 16
+      },
+      {
+        "screen_slot": 17,
+        "raw_player_slot": 17
+      },
+      {
+        "screen_slot": 18,
+        "raw_player_slot": 18
+      },
+      {
+        "screen_slot": 19,
+        "raw_player_slot": 19
+      },
+      {
+        "screen_slot": 20,
+        "raw_player_slot": 20
+      },
+      {
+        "screen_slot": 21,
+        "raw_player_slot": 21
+      },
+      {
+        "screen_slot": 22,
+        "raw_player_slot": 22
+      },
+      {
+        "screen_slot": 23,
+        "raw_player_slot": 23
+      },
+      {
+        "screen_slot": 24,
+        "raw_player_slot": 24
+      },
+      {
+        "screen_slot": 25,
+        "raw_player_slot": 25
+      },
+      {
+        "screen_slot": 26,
+        "raw_player_slot": 26
+      },
+      {
+        "screen_slot": 27,
+        "raw_player_slot": 27
+      },
+      {
+        "screen_slot": 28,
+        "raw_player_slot": 28
+      },
+      {
+        "screen_slot": 29,
+        "raw_player_slot": 29
+      },
+      {
+        "screen_slot": 30,
+        "raw_player_slot": 30
+      },
+      {
+        "screen_slot": 31,
+        "raw_player_slot": 31
+      },
+      {
+        "screen_slot": 32,
+        "raw_player_slot": 32
+      },
+      {
+        "screen_slot": 33,
+        "raw_player_slot": 33
+      },
+      {
+        "screen_slot": 34,
+        "raw_player_slot": 34
+      },
+      {
+        "screen_slot": 35,
+        "raw_player_slot": 35
+      },
+      {
+        "screen_slot": 36,
+        "raw_player_slot": 0
+      },
+      {
+        "screen_slot": 37,
+        "raw_player_slot": 1
+      },
+      {
+        "screen_slot": 38,
+        "raw_player_slot": 2
+      },
+      {
+        "screen_slot": 39,
+        "raw_player_slot": 3
+      },
+      {
+        "screen_slot": 40,
+        "raw_player_slot": 4
+      },
+      {
+        "screen_slot": 41,
+        "raw_player_slot": 5
+      },
+      {
+        "screen_slot": 42,
+        "raw_player_slot": 6
+      },
+      {
+        "screen_slot": 43,
+        "raw_player_slot": 7
+      },
+      {
+        "screen_slot": 44,
+        "raw_player_slot": 8
+      }
+    ]
+  },
+  {
+    "native_id": 1,
+    "name": "minecraft:generic_9x2",
+    "total_slots": 54,
+    "player_slots": [
+      {
+        "screen_slot": 18,
+        "raw_player_slot": 9
+      },
+      {
+        "screen_slot": 19,
+        "raw_player_slot": 10
+      },
+      {
+        "screen_slot": 20,
+        "raw_player_slot": 11
+      },
+      {
+        "screen_slot": 21,
+        "raw_player_slot": 12
+      },
+      {
+        "screen_slot": 22,
+        "raw_player_slot": 13
+      },
+      {
+        "screen_slot": 23,
+        "raw_player_slot": 14
+      },
+      {
+        "screen_slot": 24,
+        "raw_player_slot": 15
+      },
+      {
+        "screen_slot": 25,
+        "raw_player_slot": 16
+      },
+      {
+        "screen_slot": 26,
+        "raw_player_slot": 17
+      },
+      {
+        "screen_slot": 27,
+        "raw_player_slot": 18
+      },
+      {
+        "screen_slot": 28,
+        "raw_player_slot": 19
+      },
+      {
+        "screen_slot": 29,
+        "raw_player_slot": 20
+      },
+      {
+        "screen_slot": 30,
+        "raw_player_slot": 21
+      },
+      {
+        "screen_slot": 31,
+        "raw_player_slot": 22
+      },
+      {
+        "screen_slot": 32,
+        "raw_player_slot": 23
+      },
+      {
+        "screen_slot": 33,
+        "raw_player_slot": 24
+      },
+      {
+        "screen_slot": 34,
+        "raw_player_slot": 25
+      },
+      {
+        "screen_slot": 35,
+        "raw_player_slot": 26
+      },
+      {
+        "screen_slot": 36,
+        "raw_player_slot": 27
+      },
+      {
+        "screen_slot": 37,
+        "raw_player_slot": 28
+      },
+      {
+        "screen_slot": 38,
+        "raw_player_slot": 29
+      },
+      {
+        "screen_slot": 39,
+        "raw_player_slot": 30
+      },
+      {
+        "screen_slot": 40,
+        "raw_player_slot": 31
+      },
+      {
+        "screen_slot": 41,
+        "raw_player_slot": 32
+      },
+      {
+        "screen_slot": 42,
+        "raw_player_slot": 33
+      },
+      {
+        "screen_slot": 43,
+        "raw_player_slot": 34
+      },
+      {
+        "screen_slot": 44,
+        "raw_player_slot": 35
+      },
+      {
+        "screen_slot": 45,
+        "raw_player_slot": 0
+      },
+      {
+        "screen_slot": 46,
+        "raw_player_slot": 1
+      },
+      {
+        "screen_slot": 47,
+        "raw_player_slot": 2
+      },
+      {
+        "screen_slot": 48,
+        "raw_player_slot": 3
+      },
+      {
+        "screen_slot": 49,
+        "raw_player_slot": 4
+      },
+      {
+        "screen_slot": 50,
+        "raw_player_slot": 5
+      },
+      {
+        "screen_slot": 51,
+        "raw_player_slot": 6
+      },
+      {
+        "screen_slot": 52,
+        "raw_player_slot": 7
+      },
+      {
+        "screen_slot": 53,
+        "raw_player_slot": 8
+      }
+    ]
+  },
+  {
+    "native_id": 2,
+    "name": "minecraft:generic_9x3",
+    "total_slots": 63,
+    "player_slots": [
+      {
+        "screen_slot": 27,
+        "raw_player_slot": 9
+      },
+      {
+        "screen_slot": 28,
+        "raw_player_slot": 10
+      },
+      {
+        "screen_slot": 29,
+        "raw_player_slot": 11
+      },
+      {
+        "screen_slot": 30,
+        "raw_player_slot": 12
+      },
+      {
+        "screen_slot": 31,
+        "raw_player_slot": 13
+      },
+      {
+        "screen_slot": 32,
+        "raw_player_slot": 14
+      },
+      {
+        "screen_slot": 33,
+        "raw_player_slot": 15
+      },
+      {
+        "screen_slot": 34,
+        "raw_player_slot": 16
+      },
+      {
+        "screen_slot": 35,
+        "raw_player_slot": 17
+      },
+      {
+        "screen_slot": 36,
+        "raw_player_slot": 18
+      },
+      {
+        "screen_slot": 37,
+        "raw_player_slot": 19
+      },
+      {
+        "screen_slot": 38,
+        "raw_player_slot": 20
+      },
+      {
+        "screen_slot": 39,
+        "raw_player_slot": 21
+      },
+      {
+        "screen_slot": 40,
+        "raw_player_slot": 22
+      },
+      {
+        "screen_slot": 41,
+        "raw_player_slot": 23
+      },
+      {
+        "screen_slot": 42,
+        "raw_player_slot": 24
+      },
+      {
+        "screen_slot": 43,
+        "raw_player_slot": 25
+      },
+      {
+        "screen_slot": 44,
+        "raw_player_slot": 26
+      },
+      {
+        "screen_slot": 45,
+        "raw_player_slot": 27
+      },
+      {
+        "screen_slot": 46,
+        "raw_player_slot": 28
+      },
+      {
+        "screen_slot": 47,
+        "raw_player_slot": 29
+      },
+      {
+        "screen_slot": 48,
+        "raw_player_slot": 30
+      },
+      {
+        "screen_slot": 49,
+        "raw_player_slot": 31
+      },
+      {
+        "screen_slot": 50,
+        "raw_player_slot": 32
+      },
+      {
+        "screen_slot": 51,
+        "raw_player_slot": 33
+      },
+      {
+        "screen_slot": 52,
+        "raw_player_slot": 34
+      },
+      {
+        "screen_slot": 53,
+        "raw_player_slot": 35
+      },
+      {
+        "screen_slot": 54,
+        "raw_player_slot": 0
+      },
+      {
+        "screen_slot": 55,
+        "raw_player_slot": 1
+      },
+      {
+        "screen_slot": 56,
+        "raw_player_slot": 2
+      },
+      {
+        "screen_slot": 57,
+        "raw_player_slot": 3
+      },
+      {
+        "screen_slot": 58,
+        "raw_player_slot": 4
+      },
+      {
+        "screen_slot": 59,
+        "raw_player_slot": 5
+      },
+      {
+        "screen_slot": 60,
+        "raw_player_slot": 6
+      },
+      {
+        "screen_slot": 61,
+        "raw_player_slot": 7
+      },
+      {
+        "screen_slot": 62,
+        "raw_player_slot": 8
+      }
+    ]
+  },
+  {
+    "native_id": 3,
+    "name": "minecraft:generic_9x4",
+    "total_slots": 72,
+    "player_slots": [
+      {
+        "screen_slot": 36,
+        "raw_player_slot": 9
+      },
+      {
+        "screen_slot": 37,
+        "raw_player_slot": 10
+      },
+      {
+        "screen_slot": 38,
+        "raw_player_slot": 11
+      },
+      {
+        "screen_slot": 39,
+        "raw_player_slot": 12
+      },
+      {
+        "screen_slot": 40,
+        "raw_player_slot": 13
+      },
+      {
+        "screen_slot": 41,
+        "raw_player_slot": 14
+      },
+      {
+        "screen_slot": 42,
+        "raw_player_slot": 15
+      },
+      {
+        "screen_slot": 43,
+        "raw_player_slot": 16
+      },
+      {
+        "screen_slot": 44,
+        "raw_player_slot": 17
+      },
+      {
+        "screen_slot": 45,
+        "raw_player_slot": 18
+      },
+      {
+        "screen_slot": 46,
+        "raw_player_slot": 19
+      },
+      {
+        "screen_slot": 47,
+        "raw_player_slot": 20
+      },
+      {
+        "screen_slot": 48,
+        "raw_player_slot": 21
+      },
+      {
+        "screen_slot": 49,
+        "raw_player_slot": 22
+      },
+      {
+        "screen_slot": 50,
+        "raw_player_slot": 23
+      },
+      {
+        "screen_slot": 51,
+        "raw_player_slot": 24
+      },
+      {
+        "screen_slot": 52,
+        "raw_player_slot": 25
+      },
+      {
+        "screen_slot": 53,
+        "raw_player_slot": 26
+      },
+      {
+        "screen_slot": 54,
+        "raw_player_slot": 27
+      },
+      {
+        "screen_slot": 55,
+        "raw_player_slot": 28
+      },
+      {
+        "screen_slot": 56,
+        "raw_player_slot": 29
+      },
+      {
+        "screen_slot": 57,
+        "raw_player_slot": 30
+      },
+      {
+        "screen_slot": 58,
+        "raw_player_slot": 31
+      },
+      {
+        "screen_slot": 59,
+        "raw_player_slot": 32
+      },
+      {
+        "screen_slot": 60,
+        "raw_player_slot": 33
+      },
+      {
+        "screen_slot": 61,
+        "raw_player_slot": 34
+      },
+      {
+        "screen_slot": 62,
+        "raw_player_slot": 35
+      },
+      {
+        "screen_slot": 63,
+        "raw_player_slot": 0
+      },
+      {
+        "screen_slot": 64,
+        "raw_player_slot": 1
+      },
+      {
+        "screen_slot": 65,
+        "raw_player_slot": 2
+      },
+      {
+        "screen_slot": 66,
+        "raw_player_slot": 3
+      },
+      {
+        "screen_slot": 67,
+        "raw_player_slot": 4
+      },
+      {
+        "screen_slot": 68,
+        "raw_player_slot": 5
+      },
+      {
+        "screen_slot": 69,
+        "raw_player_slot": 6
+      },
+      {
+        "screen_slot": 70,
+        "raw_player_slot": 7
+      },
+      {
+        "screen_slot": 71,
+        "raw_player_slot": 8
+      }
+    ]
+  },
+  {
+    "native_id": 4,
+    "name": "minecraft:generic_9x5",
+    "total_slots": 81,
+    "player_slots": [
+      {
+        "screen_slot": 45,
+        "raw_player_slot": 9
+      },
+      {
+        "screen_slot": 46,
+        "raw_player_slot": 10
+      },
+      {
+        "screen_slot": 47,
+        "raw_player_slot": 11
+      },
+      {
+        "screen_slot": 48,
+        "raw_player_slot": 12
+      },
+      {
+        "screen_slot": 49,
+        "raw_player_slot": 13
+      },
+      {
+        "screen_slot": 50,
+        "raw_player_slot": 14
+      },
+      {
+        "screen_slot": 51,
+        "raw_player_slot": 15
+      },
+      {
+        "screen_slot": 52,
+        "raw_player_slot": 16
+      },
+      {
+        "screen_slot": 53,
+        "raw_player_slot": 17
+      },
+      {
+        "screen_slot": 54,
+        "raw_player_slot": 18
+      },
+      {
+        "screen_slot": 55,
+        "raw_player_slot": 19
+      },
+      {
+        "screen_slot": 56,
+        "raw_player_slot": 20
+      },
+      {
+        "screen_slot": 57,
+        "raw_player_slot": 21
+      },
+      {
+        "screen_slot": 58,
+        "raw_player_slot": 22
+      },
+      {
+        "screen_slot": 59,
+        "raw_player_slot": 23
+      },
+      {
+        "screen_slot": 60,
+        "raw_player_slot": 24
+      },
+      {
+        "screen_slot": 61,
+        "raw_player_slot": 25
+      },
+      {
+        "screen_slot": 62,
+        "raw_player_slot": 26
+      },
+      {
+        "screen_slot": 63,
+        "raw_player_slot": 27
+      },
+      {
+        "screen_slot": 64,
+        "raw_player_slot": 28
+      },
+      {
+        "screen_slot": 65,
+        "raw_player_slot": 29
+      },
+      {
+        "screen_slot": 66,
+        "raw_player_slot": 30
+      },
+      {
+        "screen_slot": 67,
+        "raw_player_slot": 31
+      },
+      {
+        "screen_slot": 68,
+        "raw_player_slot": 32
+      },
+      {
+        "screen_slot": 69,
+        "raw_player_slot": 33
+      },
+      {
+        "screen_slot": 70,
+        "raw_player_slot": 34
+      },
+      {
+        "screen_slot": 71,
+        "raw_player_slot": 35
+      },
+      {
+        "screen_slot": 72,
+        "raw_player_slot": 0
+      },
+      {
+        "screen_slot": 73,
+        "raw_player_slot": 1
+      },
+      {
+        "screen_slot": 74,
+        "raw_player_slot": 2
+      },
+      {
+        "screen_slot": 75,
+        "raw_player_slot": 3
+      },
+      {
+        "screen_slot": 76,
+        "raw_player_slot": 4
+      },
+      {
+        "screen_slot": 77,
+        "raw_player_slot": 5
+      },
+      {
+        "screen_slot": 78,
+        "raw_player_slot": 6
+      },
+      {
+        "screen_slot": 79,
+        "raw_player_slot": 7
+      },
+      {
+        "screen_slot": 80,
+        "raw_player_slot": 8
+      }
+    ]
+  },
+  {
+    "native_id": 5,
+    "name": "minecraft:generic_9x6",
+    "total_slots": 90,
+    "player_slots": [
+      {
+        "screen_slot": 54,
+        "raw_player_slot": 9
+      },
+      {
+        "screen_slot": 55,
+        "raw_player_slot": 10
+      },
+      {
+        "screen_slot": 56,
+        "raw_player_slot": 11
+      },
+      {
+        "screen_slot": 57,
+        "raw_player_slot": 12
+      },
+      {
+        "screen_slot": 58,
+        "raw_player_slot": 13
+      },
+      {
+        "screen_slot": 59,
+        "raw_player_slot": 14
+      },
+      {
+        "screen_slot": 60,
+        "raw_player_slot": 15
+      },
+      {
+        "screen_slot": 61,
+        "raw_player_slot": 16
+      },
+      {
+        "screen_slot": 62,
+        "raw_player_slot": 17
+      },
+      {
+        "screen_slot": 63,
+        "raw_player_slot": 18
+      },
+      {
+        "screen_slot": 64,
+        "raw_player_slot": 19
+      },
+      {
+        "screen_slot": 65,
+        "raw_player_slot": 20
+      },
+      {
+        "screen_slot": 66,
+        "raw_player_slot": 21
+      },
+      {
+        "screen_slot": 67,
+        "raw_player_slot": 22
+      },
+      {
+        "screen_slot": 68,
+        "raw_player_slot": 23
+      },
+      {
+        "screen_slot": 69,
+        "raw_player_slot": 24
+      },
+      {
+        "screen_slot": 70,
+        "raw_player_slot": 25
+      },
+      {
+        "screen_slot": 71,
+        "raw_player_slot": 26
+      },
+      {
+        "screen_slot": 72,
+        "raw_player_slot": 27
+      },
+      {
+        "screen_slot": 73,
+        "raw_player_slot": 28
+      },
+      {
+        "screen_slot": 74,
+        "raw_player_slot": 29
+      },
+      {
+        "screen_slot": 75,
+        "raw_player_slot": 30
+      },
+      {
+        "screen_slot": 76,
+        "raw_player_slot": 31
+      },
+      {
+        "screen_slot": 77,
+        "raw_player_slot": 32
+      },
+      {
+        "screen_slot": 78,
+        "raw_player_slot": 33
+      },
+      {
+        "screen_slot": 79,
+        "raw_player_slot": 34
+      },
+      {
+        "screen_slot": 80,
+        "raw_player_slot": 35
+      },
+      {
+        "screen_slot": 81,
+        "raw_player_slot": 0
+      },
+      {
+        "screen_slot": 82,
+        "raw_player_slot": 1
+      },
+      {
+        "screen_slot": 83,
+        "raw_player_slot": 2
+      },
+      {
+        "screen_slot": 84,
+        "raw_player_slot": 3
+      },
+      {
+        "screen_slot": 85,
+        "raw_player_slot": 4
+      },
+      {
+        "screen_slot": 86,
+        "raw_player_slot": 5
+      },
+      {
+        "screen_slot": 87,
+        "raw_player_slot": 6
+      },
+      {
+        "screen_slot": 88,
+        "raw_player_slot": 7
+      },
+      {
+        "screen_slot": 89,
+        "raw_player_slot": 8
+      }
+    ]
+  },
+  {
+    "native_id": 6,
+    "name": "minecraft:generic_3x3",
+    "total_slots": 45,
+    "player_slots": [
+      {
+        "screen_slot": 9,
+        "raw_player_slot": 9
+      },
+      {
+        "screen_slot": 10,
+        "raw_player_slot": 10
+      },
+      {
+        "screen_slot": 11,
+        "raw_player_slot": 11
+      },
+      {
+        "screen_slot": 12,
+        "raw_player_slot": 12
+      },
+      {
+        "screen_slot": 13,
+        "raw_player_slot": 13
+      },
+      {
+        "screen_slot": 14,
+        "raw_player_slot": 14
+      },
+      {
+        "screen_slot": 15,
+        "raw_player_slot": 15
+      },
+      {
+        "screen_slot": 16,
+        "raw_player_slot": 16
+      },
+      {
+        "screen_slot": 17,
+        "raw_player_slot": 17
+      },
+      {
+        "screen_slot": 18,
+        "raw_player_slot": 18
+      },
+      {
+        "screen_slot": 19,
+        "raw_player_slot": 19
+      },
+      {
+        "screen_slot": 20,
+        "raw_player_slot": 20
+      },
+      {
+        "screen_slot": 21,
+        "raw_player_slot": 21
+      },
+      {
+        "screen_slot": 22,
+        "raw_player_slot": 22
+      },
+      {
+        "screen_slot": 23,
+        "raw_player_slot": 23
+      },
+      {
+        "screen_slot": 24,
+        "raw_player_slot": 24
+      },
+      {
+        "screen_slot": 25,
+        "raw_player_slot": 25
+      },
+      {
+        "screen_slot": 26,
+        "raw_player_slot": 26
+      },
+      {
+        "screen_slot": 27,
+        "raw_player_slot": 27
+      },
+      {
+        "screen_slot": 28,
+        "raw_player_slot": 28
+      },
+      {
+        "screen_slot": 29,
+        "raw_player_slot": 29
+      },
+      {
+        "screen_slot": 30,
+        "raw_player_slot": 30
+      },
+      {
+        "screen_slot": 31,
+        "raw_player_slot": 31
+      },
+      {
+        "screen_slot": 32,
+        "raw_player_slot": 32
+      },
+      {
+        "screen_slot": 33,
+        "raw_player_slot": 33
+      },
+      {
+        "screen_slot": 34,
+        "raw_player_slot": 34
+      },
+      {
+        "screen_slot": 35,
+        "raw_player_slot": 35
+      },
+      {
+        "screen_slot": 36,
+        "raw_player_slot": 0
+      },
+      {
+        "screen_slot": 37,
+        "raw_player_slot": 1
+      },
+      {
+        "screen_slot": 38,
+        "raw_player_slot": 2
+      },
+      {
+        "screen_slot": 39,
+        "raw_player_slot": 3
+      },
+      {
+        "screen_slot": 40,
+        "raw_player_slot": 4
+      },
+      {
+        "screen_slot": 41,
+        "raw_player_slot": 5
+      },
+      {
+        "screen_slot": 42,
+        "raw_player_slot": 6
+      },
+      {
+        "screen_slot": 43,
+        "raw_player_slot": 7
+      },
+      {
+        "screen_slot": 44,
+        "raw_player_slot": 8
+      }
+    ]
+  },
+  {
+    "native_id": 7,
+    "name": "minecraft:crafter_3x3",
+    "unavailable_reason": "constructor not yet inspected by this oracle"
+  },
+  {
+    "native_id": 8,
+    "name": "minecraft:anvil",
+    "unavailable_reason": "constructor not yet inspected by this oracle"
+  },
+  {
+    "native_id": 9,
+    "name": "minecraft:beacon",
+    "unavailable_reason": "constructor not yet inspected by this oracle"
+  },
+  {
+    "native_id": 10,
+    "name": "minecraft:blast_furnace",
+    "unavailable_reason": "constructor not yet inspected by this oracle"
+  },
+  {
+    "native_id": 11,
+    "name": "minecraft:brewing_stand",
+    "unavailable_reason": "constructor not yet inspected by this oracle"
+  },
+  {
+    "native_id": 12,
+    "name": "minecraft:crafting",
+    "unavailable_reason": "constructor not yet inspected by this oracle"
+  },
+  {
+    "native_id": 13,
+    "name": "minecraft:enchantment",
+    "unavailable_reason": "constructor not yet inspected by this oracle"
+  },
+  {
+    "native_id": 14,
+    "name": "minecraft:furnace",
+    "unavailable_reason": "constructor not yet inspected by this oracle"
+  },
+  {
+    "native_id": 15,
+    "name": "minecraft:grindstone",
+    "unavailable_reason": "constructor not yet inspected by this oracle"
+  },
+  {
+    "native_id": 16,
+    "name": "minecraft:hopper",
+    "total_slots": 41,
+    "player_slots": [
+      {
+        "screen_slot": 5,
+        "raw_player_slot": 9
+      },
+      {
+        "screen_slot": 6,
+        "raw_player_slot": 10
+      },
+      {
+        "screen_slot": 7,
+        "raw_player_slot": 11
+      },
+      {
+        "screen_slot": 8,
+        "raw_player_slot": 12
+      },
+      {
+        "screen_slot": 9,
+        "raw_player_slot": 13
+      },
+      {
+        "screen_slot": 10,
+        "raw_player_slot": 14
+      },
+      {
+        "screen_slot": 11,
+        "raw_player_slot": 15
+      },
+      {
+        "screen_slot": 12,
+        "raw_player_slot": 16
+      },
+      {
+        "screen_slot": 13,
+        "raw_player_slot": 17
+      },
+      {
+        "screen_slot": 14,
+        "raw_player_slot": 18
+      },
+      {
+        "screen_slot": 15,
+        "raw_player_slot": 19
+      },
+      {
+        "screen_slot": 16,
+        "raw_player_slot": 20
+      },
+      {
+        "screen_slot": 17,
+        "raw_player_slot": 21
+      },
+      {
+        "screen_slot": 18,
+        "raw_player_slot": 22
+      },
+      {
+        "screen_slot": 19,
+        "raw_player_slot": 23
+      },
+      {
+        "screen_slot": 20,
+        "raw_player_slot": 24
+      },
+      {
+        "screen_slot": 21,
+        "raw_player_slot": 25
+      },
+      {
+        "screen_slot": 22,
+        "raw_player_slot": 26
+      },
+      {
+        "screen_slot": 23,
+        "raw_player_slot": 27
+      },
+      {
+        "screen_slot": 24,
+        "raw_player_slot": 28
+      },
+      {
+        "screen_slot": 25,
+        "raw_player_slot": 29
+      },
+      {
+        "screen_slot": 26,
+        "raw_player_slot": 30
+      },
+      {
+        "screen_slot": 27,
+        "raw_player_slot": 31
+      },
+      {
+        "screen_slot": 28,
+        "raw_player_slot": 32
+      },
+      {
+        "screen_slot": 29,
+        "raw_player_slot": 33
+      },
+      {
+        "screen_slot": 30,
+        "raw_player_slot": 34
+      },
+      {
+        "screen_slot": 31,
+        "raw_player_slot": 35
+      },
+      {
+        "screen_slot": 32,
+        "raw_player_slot": 0
+      },
+      {
+        "screen_slot": 33,
+        "raw_player_slot": 1
+      },
+      {
+        "screen_slot": 34,
+        "raw_player_slot": 2
+      },
+      {
+        "screen_slot": 35,
+        "raw_player_slot": 3
+      },
+      {
+        "screen_slot": 36,
+        "raw_player_slot": 4
+      },
+      {
+        "screen_slot": 37,
+        "raw_player_slot": 5
+      },
+      {
+        "screen_slot": 38,
+        "raw_player_slot": 6
+      },
+      {
+        "screen_slot": 39,
+        "raw_player_slot": 7
+      },
+      {
+        "screen_slot": 40,
+        "raw_player_slot": 8
+      }
+    ]
+  },
+  {
+    "native_id": 17,
+    "name": "minecraft:lectern",
+    "unavailable_reason": "constructor not yet inspected by this oracle"
+  },
+  {
+    "native_id": 18,
+    "name": "minecraft:loom",
+    "unavailable_reason": "constructor not yet inspected by this oracle"
+  },
+  {
+    "native_id": 19,
+    "name": "minecraft:merchant",
+    "unavailable_reason": "constructor not yet inspected by this oracle"
+  },
+  {
+    "native_id": 20,
+    "name": "minecraft:shulker_box",
+    "total_slots": 63,
+    "player_slots": [
+      {
+        "screen_slot": 27,
+        "raw_player_slot": 9
+      },
+      {
+        "screen_slot": 28,
+        "raw_player_slot": 10
+      },
+      {
+        "screen_slot": 29,
+        "raw_player_slot": 11
+      },
+      {
+        "screen_slot": 30,
+        "raw_player_slot": 12
+      },
+      {
+        "screen_slot": 31,
+        "raw_player_slot": 13
+      },
+      {
+        "screen_slot": 32,
+        "raw_player_slot": 14
+      },
+      {
+        "screen_slot": 33,
+        "raw_player_slot": 15
+      },
+      {
+        "screen_slot": 34,
+        "raw_player_slot": 16
+      },
+      {
+        "screen_slot": 35,
+        "raw_player_slot": 17
+      },
+      {
+        "screen_slot": 36,
+        "raw_player_slot": 18
+      },
+      {
+        "screen_slot": 37,
+        "raw_player_slot": 19
+      },
+      {
+        "screen_slot": 38,
+        "raw_player_slot": 20
+      },
+      {
+        "screen_slot": 39,
+        "raw_player_slot": 21
+      },
+      {
+        "screen_slot": 40,
+        "raw_player_slot": 22
+      },
+      {
+        "screen_slot": 41,
+        "raw_player_slot": 23
+      },
+      {
+        "screen_slot": 42,
+        "raw_player_slot": 24
+      },
+      {
+        "screen_slot": 43,
+        "raw_player_slot": 25
+      },
+      {
+        "screen_slot": 44,
+        "raw_player_slot": 26
+      },
+      {
+        "screen_slot": 45,
+        "raw_player_slot": 27
+      },
+      {
+        "screen_slot": 46,
+        "raw_player_slot": 28
+      },
+      {
+        "screen_slot": 47,
+        "raw_player_slot": 29
+      },
+      {
+        "screen_slot": 48,
+        "raw_player_slot": 30
+      },
+      {
+        "screen_slot": 49,
+        "raw_player_slot": 31
+      },
+      {
+        "screen_slot": 50,
+        "raw_player_slot": 32
+      },
+      {
+        "screen_slot": 51,
+        "raw_player_slot": 33
+      },
+      {
+        "screen_slot": 52,
+        "raw_player_slot": 34
+      },
+      {
+        "screen_slot": 53,
+        "raw_player_slot": 35
+      },
+      {
+        "screen_slot": 54,
+        "raw_player_slot": 0
+      },
+      {
+        "screen_slot": 55,
+        "raw_player_slot": 1
+      },
+      {
+        "screen_slot": 56,
+        "raw_player_slot": 2
+      },
+      {
+        "screen_slot": 57,
+        "raw_player_slot": 3
+      },
+      {
+        "screen_slot": 58,
+        "raw_player_slot": 4
+      },
+      {
+        "screen_slot": 59,
+        "raw_player_slot": 5
+      },
+      {
+        "screen_slot": 60,
+        "raw_player_slot": 6
+      },
+      {
+        "screen_slot": 61,
+        "raw_player_slot": 7
+      },
+      {
+        "screen_slot": 62,
+        "raw_player_slot": 8
+      }
+    ]
+  },
+  {
+    "native_id": 21,
+    "name": "minecraft:smithing",
+    "unavailable_reason": "constructor not yet inspected by this oracle"
+  },
+  {
+    "native_id": 22,
+    "name": "minecraft:smoker",
+    "unavailable_reason": "constructor not yet inspected by this oracle"
+  },
+  {
+    "native_id": 23,
+    "name": "minecraft:cartography_table",
+    "unavailable_reason": "constructor not yet inspected by this oracle"
+  },
+  {
+    "native_id": 24,
+    "name": "minecraft:stonecutter",
+    "unavailable_reason": "constructor not yet inspected by this oracle"
+  }
+]

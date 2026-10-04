@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "library_baseline_commit": "3e14f4c59878a3577301cb1e63580a635597259a",
+  "library_baseline_commit": "9c1c3f48bdcf0a353ae57c136a63ef3d732b4747",
   "scenario_sources_sha256": {
-    "examples/common_native_probe.rs": "21906c00f47091c52186250a7206256086d0465155ee2c17e0c2f6c2a4cbe3c2",
-    "scripts/run_common_native.py": "fc92832ef3eaf6bd9a1681ffa8cb77ef70976e5c5ac6ad5481ec7435d1c3bdb0"
+    "examples/common_native_probe.rs": "68194728e3721d57dbdbc97bfb96d63b36f3a45145d1b28bcf999c16c5bcf0b5",
+    "scripts/run_common_native.py": "2d54ff43197f541df8ba905d67b6b808d655e2f8e1ab6afdcf0cde38c3341f14"
   },
-  "scope": "Common creative operations/live-mode rejection; read-only preview/static-outline targeting; finite dry walk/jump with predicted released-rest endpoint; a fresh connection explicitly starts/finishes empty-hand stone mining and receives exact-target air. A third fresh connection places default dirt and receives exact-target dirt and one-material consumption; modern additionally receives a fresh processing ACK. A fourth fresh connection exchanges occupied main/hotbar stacks in survival and then a main stack with an empty hotbar in creative, with two fresh destinations. Not tools/general mining, arbitrary placement, general containers/item data/crafting, observer continuation or common recovery parity.",
-  "result_authority": "Vanilla server RCON for creative outcomes, unchanged preview/targeting/mining/placement position, target stone/air/dirt and exact dirt inventory count, occupied/empty player inventory exchange contents and actual movement samples/endpoint. Target face/point math separately checked against native JAR methods. Client target receipts/frames and Predicted status are not independent server authority or mutation continuation.",
+  "scope": "Common creative operations/live-mode rejection; read-only preview/static-outline targeting; finite dry walk/jump with predicted released-rest endpoint; a fresh connection explicitly starts/finishes empty-hand stone mining and receives exact-target air. A third fresh connection places default dirt and receives exact-target dirt and one-material consumption; modern additionally receives a fresh processing ACK. A fourth fresh connection exchanges occupied main/hotbar stacks in survival and then a main stack with an empty hotbar in creative, with two fresh destinations. A fifth fresh connection opens a regular single chest through the existing creative interaction, receives complete contents/cursor/constructor-verified player layout, and receives a fresh same-opening slot update after an independent native change from stone 3 to 7. Not tools/general mining, arbitrary placement, general container click/open/close contracts, non-default modern item data/crafting, observer continuation or common recovery parity.",
+  "result_authority": "Vanilla server RCON for creative outcomes, unchanged preview/targeting/mining/placement position, target stone/air/dirt and exact dirt inventory count, occupied/empty player inventory exchange contents and actual movement samples/endpoint. Target face/point math separately checked against native JAR methods. Client target receipts/frames and Predicted status are not independent server authority or mutation continuation. Container contents are independently verified through native RCON Items before/after the live update (stone 3 to 7), with unchanged native position. The Client receives its own native screen/slot/cursor evidence; RCON is not substituted for it.",
   "servers_run_sequentially": true,
   "java": "OpenJDK 21.0.12.1",
   "runs": [
     {
       "version": "1.16.1",
-      "run_id": "trial-1.16.1-a34778b5",
+      "run_id": "trial-1.16.1-d15c0dad",
       "source": {
         "version": "1.16.1",
         "metadata_url": "https://piston-meta.mojang.com/v1/packages/54fa3af57d041d2771e66d390197b2c0288e697c/1.16.1.json",
@@ -71,8 +71,18 @@
       },
       "inventory_fixture_native": "UnifiedProbe has the following entity data: [{Slot: 0b, id: \"minecraft:dirt\", Count: 2b}, {Slot: 9b, id: \"minecraft:stone\", Count: 3b}]",
       "inventory_creative_mode": "Set UnifiedProbe's game mode to Creative Mode",
+      "container_fixture": "Changed the block at 0, 65, 2",
+      "container_fixture_items": "Replaced a slot at 0, 65, 2 with [Stone]",
+      "container_fixture_native": "0, 65, 2 has the following block data: [{Slot: 0b, id: \"minecraft:stone\", Count: 3b}]",
+      "container_setup": {
+        "gamemode creative UnifiedProbe": "",
+        "tp UnifiedProbe 0.5 65 0.5 0 0": "Teleported UnifiedProbe to 0.5, 65.0, 0.5",
+        "clear UnifiedProbe": "Removed 5 items from player UnifiedProbe",
+        "replaceitem entity UnifiedProbe inventory.0 minecraft:dirt 2": "Replaced a slot on UnifiedProbe with [Dirt]"
+      },
+      "container_change": "Replaced a slot at 0, 65, 2 with [Stone]",
       "server_exit_code": 0,
-      "raw_report_sha256": "2816427a524e6743940168d97a9cfa1cd0c2da8343849a75c87394567cf362ce",
+      "raw_report_sha256": "5f4ae0bd6a2882483ede898e42deae111963d316027d269e1a3696611d0069cf",
       "native_results": {
         "inventory": "UnifiedProbe has the following entity data: [{Slot: 1b, id: \"minecraft:stone\", Count: 3b}]",
         "selected_slot": "UnifiedProbe has the following entity data: 1",
@@ -122,11 +132,11 @@
             },
             {
               "position": [
-                0.4004712382245058,
-                65.7531999805212,
-                0.639183249344125
+                0.3503728126546795,
+                66.00133597911214,
+                0.7092420095803049
               ],
-              "response": "UnifiedProbe has the following entity data: [0.4004712382245058d, 65.7531999805212d, 0.639183249344125d]"
+              "response": "UnifiedProbe has the following entity data: [0.3503728126546795d, 66.00133597911214d, 0.7092420095803049d]"
             },
             {
               "position": [
@@ -154,11 +164,11 @@
             },
             {
               "position": [
-                -0.010366989870453376,
-                65.49520087700593,
-                1.2137086279479854
+                -0.046291533195517945,
+                65.1212968405392,
+                1.2639463138388733
               ],
-              "response": "UnifiedProbe has the following entity data: [-0.010366989870453376d, 65.49520087700593d, 1.2137086279479854d]"
+              "response": "UnifiedProbe has the following entity data: [-0.046291533195517945d, 65.1212968405392d, 1.2639463138388733d]"
             },
             {
               "position": [
@@ -286,6 +296,12 @@
           "creative_empty_swap": "UnifiedProbe has the following entity data: [{Slot: 0b, id: \"minecraft:stone\", Count: 3b}, {Slot: 1b, id: \"minecraft:dirt\", Count: 2b}]",
           "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        },
+        "container_observation": {
+          "opened_contents": "0, 65, 2 has the following block data: [{Slot: 0b, id: \"minecraft:stone\", Count: 3b}]",
+          "changed_contents": "0, 65, 2 has the following block data: [{Slot: 0b, id: \"minecraft:stone\", Count: 7b}]",
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
         }
       },
       "client_records_excerpt": [
@@ -312,7 +328,7 @@
                 0.5
               ]
             },
-            "receive_sequence": 15,
+            "receive_sequence": 25,
             "received_pose": {
               "position": [
                 0.5,
@@ -375,7 +391,7 @@
             "position": {
               "source": {
                 "kind": "received",
-                "sequence": 40
+                "sequence": 41
               },
               "value": [
                 0.5,
@@ -390,7 +406,7 @@
                 65.0,
                 0.5
               ],
-              "receive_sequence": 40,
+              "receive_sequence": 41,
               "rotation": [
                 0.0,
                 0.0
@@ -473,7 +489,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 40
+                  "sequence": 41
                 },
                 "value": [
                   0.5,
@@ -481,14 +497,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 60,
+              "receive_sequence": 58,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 40,
+                "receive_sequence": 41,
                 "rotation": [
                   0.0,
                   0.0
@@ -570,14 +586,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 77,
+              "receive_sequence": 84,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 40,
+                "receive_sequence": 41,
                 "rotation": [
                   0.0,
                   0.0
@@ -684,14 +700,14 @@
                 0.5
               ]
             },
-            "receive_sequence": 88,
+            "receive_sequence": 96,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 40,
+              "receive_sequence": 41,
               "rotation": [
                 0.0,
                 0.0
@@ -782,14 +798,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 108,
+              "receive_sequence": 123,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 93,
+                "receive_sequence": 100,
                 "rotation": [
                   0.0,
                   0.0
@@ -815,7 +831,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 91
+                    "sequence": 99
                   },
                   "value": {
                     "kind": "empty"
@@ -826,7 +842,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 89
+                    "sequence": 97
                   },
                   "value": {
                     "kind": "empty"
@@ -854,7 +870,7 @@
               "horizontal_margin": 0.0625,
               "status": "admitted"
             },
-            "world_revision": 51,
+            "world_revision": 67,
             "frames_summary": {
               "count": 35,
               "first": {
@@ -968,14 +984,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 108,
+              "receive_sequence": 123,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 93,
+                "receive_sequence": 100,
                 "rotation": [
                   0.0,
                   0.0
@@ -1001,7 +1017,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 91
+                    "sequence": 99
                   },
                   "value": {
                     "kind": "empty"
@@ -1012,7 +1028,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 89
+                    "sequence": 97
                   },
                   "value": {
                     "kind": "empty"
@@ -1021,7 +1037,7 @@
               }
             },
             "maximum_distance": 4.5,
-            "world_revision": 51
+            "world_revision": 67
           }
         },
         {
@@ -1060,14 +1076,14 @@
                     0.5
                   ]
                 },
-                "receive_sequence": 108,
+                "receive_sequence": 123,
                 "received_pose": {
                   "position": [
                     0.5,
                     65.0,
                     0.5
                   ],
-                  "receive_sequence": 93,
+                  "receive_sequence": 100,
                   "rotation": [
                     0.0,
                     0.0
@@ -1093,7 +1109,7 @@
                   "cursor": {
                     "source": {
                       "kind": "received",
-                      "sequence": 91
+                      "sequence": 99
                     },
                     "value": {
                       "kind": "empty"
@@ -1104,7 +1120,7 @@
                   "selected_slot_value": {
                     "source": {
                       "kind": "received",
-                      "sequence": 89
+                      "sequence": 97
                     },
                     "value": {
                       "kind": "empty"
@@ -1132,7 +1148,7 @@
                 "horizontal_margin": 0.0625,
                 "status": "admitted"
               },
-              "world_revision": 51,
+              "world_revision": 67,
               "frames_summary": {
                 "count": 35,
                 "first": {
@@ -1235,14 +1251,14 @@
                     0.5
                   ]
                 },
-                "receive_sequence": 108,
+                "receive_sequence": 123,
                 "received_pose": {
                   "position": [
                     0.5,
                     65.0,
                     0.5
                   ],
-                  "receive_sequence": 93,
+                  "receive_sequence": 100,
                   "rotation": [
                     0.0,
                     0.0
@@ -1268,7 +1284,7 @@
                   "cursor": {
                     "source": {
                       "kind": "received",
-                      "sequence": 91
+                      "sequence": 99
                     },
                     "value": {
                       "kind": "empty"
@@ -1279,7 +1295,7 @@
                   "selected_slot_value": {
                     "source": {
                       "kind": "received",
-                      "sequence": 89
+                      "sequence": 97
                     },
                     "value": {
                       "kind": "empty"
@@ -1307,7 +1323,7 @@
                 "horizontal_margin": 0.0625,
                 "status": "admitted"
               },
-              "world_revision": 51,
+              "world_revision": 67,
               "frames_summary": {
                 "count": 35,
                 "first": {
@@ -1455,7 +1471,7 @@
             "health": {
               "source": {
                 "kind": "received",
-                "sequence": 90
+                "sequence": 106
               },
               "value": {
                 "food": 20,
@@ -1468,7 +1484,7 @@
             "position": {
               "source": {
                 "kind": "received",
-                "sequence": 104
+                "sequence": 117
               },
               "value": [
                 0.5,
@@ -1476,14 +1492,14 @@
                 0.5
               ]
             },
-            "receive_sequence": 128,
+            "receive_sequence": 119,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 104,
+              "receive_sequence": 117,
               "rotation": [
                 0.0,
                 0.0
@@ -1510,7 +1526,7 @@
               "cursor": {
                 "source": {
                   "kind": "received",
-                  "sequence": 106
+                  "sequence": 119
                 },
                 "value": {
                   "kind": "empty"
@@ -1521,7 +1537,7 @@
               "selected_slot_value": {
                 "source": {
                   "kind": "received",
-                  "sequence": 88
+                  "sequence": 104
                 },
                 "value": {
                   "kind": "empty"
@@ -1560,7 +1576,7 @@
               "health": {
                 "source": {
                   "kind": "received",
-                  "sequence": 90
+                  "sequence": 106
                 },
                 "value": {
                   "food": 20,
@@ -1572,8 +1588,7 @@
               "pending_dispatch": false,
               "position": {
                 "source": {
-                  "kind": "received",
-                  "sequence": 104
+                  "kind": "predicted"
                 },
                 "value": [
                   0.5,
@@ -1581,14 +1596,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 128,
+              "receive_sequence": 142,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 104,
+                "receive_sequence": 117,
                 "rotation": [
                   0.0,
                   0.0
@@ -1614,7 +1629,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 106
+                    "sequence": 119
                   },
                   "value": {
                     "kind": "empty"
@@ -1625,7 +1640,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 88
+                    "sequence": 104
                   },
                   "value": {
                     "kind": "empty"
@@ -1638,7 +1653,7 @@
             "requires_inspection": null,
             "stage": "mining",
             "start": {
-              "after_sequence": 128,
+              "after_sequence": 142,
               "dispatched": true,
               "interaction_sequence": null
             },
@@ -1684,7 +1699,7 @@
               "health": {
                 "source": {
                   "kind": "received",
-                  "sequence": 90
+                  "sequence": 106
                 },
                 "value": {
                   "food": 20,
@@ -1696,8 +1711,7 @@
               "pending_dispatch": false,
               "position": {
                 "source": {
-                  "kind": "received",
-                  "sequence": 104
+                  "kind": "predicted"
                 },
                 "value": [
                   0.5,
@@ -1705,14 +1719,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 128,
+              "receive_sequence": 142,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 104,
+                "receive_sequence": 117,
                 "rotation": [
                   0.0,
                   0.0
@@ -1738,7 +1752,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 106
+                    "sequence": 119
                   },
                   "value": {
                     "kind": "empty"
@@ -1749,7 +1763,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 88
+                    "sequence": 104
                   },
                   "value": {
                     "kind": "empty"
@@ -1771,7 +1785,7 @@
             "requires_inspection": null,
             "stage": "observed_removed",
             "start": {
-              "after_sequence": 128,
+              "after_sequence": 142,
               "dispatched": true,
               "interaction_sequence": null
             },
@@ -1781,7 +1795,7 @@
               3
             ],
             "target_receipt": {
-              "receive_sequence": 154,
+              "receive_sequence": 153,
               "state": {
                 "name": "minecraft:air",
                 "properties": {}
@@ -1823,7 +1837,7 @@
               "health": {
                 "source": {
                   "kind": "received",
-                  "sequence": 90
+                  "sequence": 106
                 },
                 "value": {
                   "food": 20,
@@ -1835,8 +1849,7 @@
               "pending_dispatch": false,
               "position": {
                 "source": {
-                  "kind": "received",
-                  "sequence": 104
+                  "kind": "predicted"
                 },
                 "value": [
                   0.5,
@@ -1844,14 +1857,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 128,
+              "receive_sequence": 142,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 104,
+                "receive_sequence": 117,
                 "rotation": [
                   0.0,
                   0.0
@@ -1877,7 +1890,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 106
+                    "sequence": 119
                   },
                   "value": {
                     "kind": "empty"
@@ -1888,7 +1901,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 88
+                    "sequence": 104
                   },
                   "value": {
                     "kind": "empty"
@@ -1910,7 +1923,7 @@
             "requires_inspection": null,
             "stage": "observed_removed",
             "start": {
-              "after_sequence": 128,
+              "after_sequence": 142,
               "dispatched": true,
               "interaction_sequence": null
             },
@@ -1920,7 +1933,7 @@
               3
             ],
             "target_receipt": {
-              "receive_sequence": 154,
+              "receive_sequence": 153,
               "state": {
                 "name": "minecraft:air",
                 "properties": {}
@@ -2016,7 +2029,7 @@
             "position": {
               "source": {
                 "kind": "received",
-                "sequence": 131
+                "sequence": 130
               },
               "value": [
                 0.5,
@@ -2031,7 +2044,7 @@
                 65.0,
                 0.5
               ],
-              "receive_sequence": 131,
+              "receive_sequence": 130,
               "rotation": [
                 0.0,
                 0.0
@@ -2058,7 +2071,7 @@
               "cursor": {
                 "source": {
                   "kind": "received",
-                  "sequence": 133
+                  "sequence": 132
                 },
                 "value": {
                   "kind": "empty"
@@ -2069,7 +2082,7 @@
               "selected_slot_value": {
                 "source": {
                   "kind": "received",
-                  "sequence": 138
+                  "sequence": 137
                 },
                 "value": {
                   "item": {
@@ -2119,7 +2132,7 @@
               },
               "name": "minecraft:dirt"
             },
-            "held_receive_sequence": 138,
+            "held_receive_sequence": 137,
             "id": {
               "attempt": 1,
               "session": {
@@ -2151,7 +2164,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 131
+                  "sequence": 130
                 },
                 "value": [
                   0.5,
@@ -2166,7 +2179,7 @@
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 131,
+                "receive_sequence": 130,
                 "rotation": [
                   0.0,
                   0.0
@@ -2192,7 +2205,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 133
+                    "sequence": 132
                   },
                   "value": {
                     "kind": "empty"
@@ -2203,7 +2216,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 138
+                    "sequence": 137
                   },
                   "value": {
                     "item": {
@@ -2278,7 +2291,7 @@
               },
               "name": "minecraft:dirt"
             },
-            "held_receive_sequence": 138,
+            "held_receive_sequence": 137,
             "id": {
               "attempt": 1,
               "session": {
@@ -2310,7 +2323,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 131
+                  "sequence": 130
                 },
                 "value": [
                   0.5,
@@ -2325,7 +2338,7 @@
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 131,
+                "receive_sequence": 130,
                 "rotation": [
                   0.0,
                   0.0
@@ -2351,7 +2364,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 133
+                    "sequence": 132
                   },
                   "value": {
                     "kind": "empty"
@@ -2362,7 +2375,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 138
+                    "sequence": 137
                   },
                   "value": {
                     "item": {
@@ -2466,7 +2479,7 @@
               },
               "name": "minecraft:dirt"
             },
-            "held_receive_sequence": 138,
+            "held_receive_sequence": 137,
             "id": {
               "attempt": 1,
               "session": {
@@ -2498,7 +2511,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 131
+                  "sequence": 130
                 },
                 "value": [
                   0.5,
@@ -2513,7 +2526,7 @@
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 131,
+                "receive_sequence": 130,
                 "rotation": [
                   0.0,
                   0.0
@@ -2539,7 +2552,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 133
+                    "sequence": 132
                   },
                   "value": {
                     "kind": "empty"
@@ -2550,7 +2563,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 138
+                    "sequence": 137
                   },
                   "value": {
                     "item": {
@@ -2713,7 +2726,7 @@
             "position": {
               "source": {
                 "kind": "received",
-                "sequence": 130
+                "sequence": 131
               },
               "value": [
                 0.5,
@@ -2721,14 +2734,14 @@
                 0.5
               ]
             },
-            "receive_sequence": 135,
+            "receive_sequence": 136,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 130,
+              "receive_sequence": 131,
               "rotation": [
                 0.0,
                 0.0
@@ -2755,7 +2768,7 @@
               "cursor": {
                 "source": {
                   "kind": "received",
-                  "sequence": 133
+                  "sequence": 134
                 },
                 "value": {
                   "kind": "empty"
@@ -2766,7 +2779,7 @@
               "selected_slot_value": {
                 "source": {
                   "kind": "received",
-                  "sequence": 135
+                  "sequence": 136
                 },
                 "value": {
                   "item": {
@@ -2794,7 +2807,7 @@
             "hotbar_before": {
               "source": {
                 "kind": "received",
-                "sequence": 135
+                "sequence": 136
               },
               "value": {
                 "item": {
@@ -2844,7 +2857,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 130
+                  "sequence": 131
                 },
                 "value": [
                   0.5,
@@ -2852,14 +2865,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 135,
+              "receive_sequence": 136,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 130,
+                "receive_sequence": 131,
                 "rotation": [
                   0.0,
                   0.0
@@ -2886,7 +2899,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 133
+                    "sequence": 134
                   },
                   "value": {
                     "kind": "empty"
@@ -2897,7 +2910,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 135
+                    "sequence": 136
                   },
                   "value": {
                     "item": {
@@ -2921,7 +2934,7 @@
             "main_before": {
               "source": {
                 "kind": "received",
-                "sequence": 134
+                "sequence": 135
               },
               "value": {
                 "item": {
@@ -2944,7 +2957,7 @@
             "mode": "survival",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 135,
+              "after_sequence": 136,
               "dispatched": true,
               "legacy_action": 1,
               "legacy_comparison": {
@@ -2971,7 +2984,7 @@
             "hotbar_before": {
               "source": {
                 "kind": "received",
-                "sequence": 135
+                "sequence": 136
               },
               "value": {
                 "item": {
@@ -2992,7 +3005,7 @@
             "hotbar_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 137
+                "sequence": 138
               },
               "value": {
                 "item": {
@@ -3041,7 +3054,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 130
+                  "sequence": 131
                 },
                 "value": [
                   0.5,
@@ -3049,14 +3062,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 135,
+              "receive_sequence": 136,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 130,
+                "receive_sequence": 131,
                 "rotation": [
                   0.0,
                   0.0
@@ -3083,7 +3096,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 133
+                    "sequence": 134
                   },
                   "value": {
                     "kind": "empty"
@@ -3094,7 +3107,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 135
+                    "sequence": 136
                   },
                   "value": {
                     "item": {
@@ -3117,13 +3130,13 @@
             "legacy_reply": {
               "accepted": false,
               "action": 1,
-              "receive_sequence": 136,
+              "receive_sequence": 137,
               "window_id": 0
             },
             "main_before": {
               "source": {
                 "kind": "received",
-                "sequence": 134
+                "sequence": 135
               },
               "value": {
                 "item": {
@@ -3144,7 +3157,7 @@
             "main_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 137
+                "sequence": 138
               },
               "value": {
                 "item": {
@@ -3166,7 +3179,7 @@
             "mode": "survival",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 135,
+              "after_sequence": 136,
               "dispatched": true,
               "legacy_action": 1,
               "legacy_comparison": {
@@ -3193,7 +3206,7 @@
             "hotbar_before": {
               "source": {
                 "kind": "received",
-                "sequence": 137
+                "sequence": 138
               },
               "value": {
                 "kind": "empty"
@@ -3231,7 +3244,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 130
+                  "sequence": 131
                 },
                 "value": [
                   0.5,
@@ -3239,14 +3252,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 145,
+              "receive_sequence": 146,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 130,
+                "receive_sequence": 131,
                 "rotation": [
                   0.0,
                   0.0
@@ -3273,7 +3286,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 138
+                    "sequence": 139
                   },
                   "value": {
                     "kind": "empty"
@@ -3284,7 +3297,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 140
+                    "sequence": 146
                   },
                   "value": {
                     "item": {
@@ -3308,7 +3321,7 @@
             "main_before": {
               "source": {
                 "kind": "received",
-                "sequence": 139
+                "sequence": 145
               },
               "value": {
                 "item": {
@@ -3331,7 +3344,7 @@
             "mode": "creative",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 145,
+              "after_sequence": 146,
               "dispatched": true,
               "legacy_action": 2,
               "legacy_comparison": {
@@ -3358,7 +3371,7 @@
             "hotbar_before": {
               "source": {
                 "kind": "received",
-                "sequence": 137
+                "sequence": 138
               },
               "value": {
                 "kind": "empty"
@@ -3367,7 +3380,7 @@
             "hotbar_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 147
+                "sequence": 148
               },
               "value": {
                 "item": {
@@ -3416,7 +3429,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 130
+                  "sequence": 131
                 },
                 "value": [
                   0.5,
@@ -3424,14 +3437,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 145,
+              "receive_sequence": 146,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 130,
+                "receive_sequence": 131,
                 "rotation": [
                   0.0,
                   0.0
@@ -3458,7 +3471,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 138
+                    "sequence": 139
                   },
                   "value": {
                     "kind": "empty"
@@ -3469,7 +3482,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 140
+                    "sequence": 146
                   },
                   "value": {
                     "item": {
@@ -3492,13 +3505,13 @@
             "legacy_reply": {
               "accepted": false,
               "action": 2,
-              "receive_sequence": 146,
+              "receive_sequence": 147,
               "window_id": 0
             },
             "main_before": {
               "source": {
                 "kind": "received",
-                "sequence": 139
+                "sequence": 145
               },
               "value": {
                 "item": {
@@ -3519,7 +3532,7 @@
             "main_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 147
+                "sequence": 148
               },
               "value": {
                 "kind": "empty"
@@ -3529,7 +3542,7 @@
             "mode": "creative",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 145,
+              "after_sequence": 146,
               "dispatched": true,
               "legacy_action": 2,
               "legacy_comparison": {
@@ -3556,7 +3569,7 @@
             "hotbar_before": {
               "source": {
                 "kind": "received",
-                "sequence": 137
+                "sequence": 138
               },
               "value": {
                 "kind": "empty"
@@ -3565,7 +3578,7 @@
             "hotbar_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 147
+                "sequence": 148
               },
               "value": {
                 "item": {
@@ -3614,7 +3627,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 130
+                  "sequence": 131
                 },
                 "value": [
                   0.5,
@@ -3622,14 +3635,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 145,
+              "receive_sequence": 146,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 130,
+                "receive_sequence": 131,
                 "rotation": [
                   0.0,
                   0.0
@@ -3656,7 +3669,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 138
+                    "sequence": 139
                   },
                   "value": {
                     "kind": "empty"
@@ -3667,7 +3680,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 140
+                    "sequence": 146
                   },
                   "value": {
                     "item": {
@@ -3690,13 +3703,13 @@
             "legacy_reply": {
               "accepted": false,
               "action": 2,
-              "receive_sequence": 146,
+              "receive_sequence": 147,
               "window_id": 0
             },
             "main_before": {
               "source": {
                 "kind": "received",
-                "sequence": 139
+                "sequence": 145
               },
               "value": {
                 "item": {
@@ -3717,7 +3730,7 @@
             "main_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 147
+                "sequence": 148
               },
               "value": {
                 "kind": "empty"
@@ -3727,7 +3740,7 @@
             "mode": "creative",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 145,
+              "after_sequence": 146,
               "dispatched": true,
               "legacy_action": 2,
               "legacy_comparison": {
@@ -3747,11 +3760,677 @@
             "stage": "observed_swapped"
           }
         }
+      ],
+      "container_records_excerpt": [
+        {
+          "stage": "container_ready",
+          "value": {
+            "dimension": {
+              "height": 256,
+              "min_y": 0,
+              "name": "minecraft:overworld"
+            },
+            "game_mode": "creative",
+            "health": null,
+            "may_fly": true,
+            "pending_dispatch": false,
+            "position": {
+              "source": {
+                "kind": "received",
+                "sequence": 11
+              },
+              "value": [
+                0.5,
+                65.0,
+                0.5
+              ]
+            },
+            "receive_sequence": 25,
+            "received_pose": {
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "receive_sequence": 11,
+              "rotation": [
+                0.0,
+                0.0
+              ]
+            },
+            "rotation": [
+              0.0,
+              0.0
+            ],
+            "selected_hotbar": {
+              "source": {
+                "kind": "received",
+                "sequence": 5
+              },
+              "value": 0
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "inventory_excerpt": {
+              "window_id": null,
+              "cursor": null,
+              "screen_revision": null,
+              "selected_slot": 36,
+              "selected_slot_value": null
+            }
+          }
+        },
+        {
+          "stage": "container_baseline",
+          "value": {
+            "dimension": {
+              "height": 256,
+              "min_y": 0,
+              "name": "minecraft:overworld"
+            },
+            "game_mode": "creative",
+            "health": {
+              "source": {
+                "kind": "received",
+                "sequence": 120
+              },
+              "value": {
+                "food": 20,
+                "health": 20.0,
+                "saturation": 5.0
+              }
+            },
+            "may_fly": true,
+            "pending_dispatch": false,
+            "position": {
+              "source": {
+                "kind": "received",
+                "sequence": 126
+              },
+              "value": [
+                0.5,
+                65.0,
+                0.5
+              ]
+            },
+            "receive_sequence": 132,
+            "received_pose": {
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "receive_sequence": 126,
+              "rotation": [
+                0.0,
+                0.0
+              ]
+            },
+            "rotation": [
+              0.0,
+              0.0
+            ],
+            "selected_hotbar": {
+              "source": {
+                "kind": "received",
+                "sequence": 5
+              },
+              "value": 0
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "inventory_excerpt": {
+              "window_id": 0,
+              "cursor": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 130
+                },
+                "value": {
+                  "kind": "empty"
+                }
+              },
+              "screen_revision": null,
+              "selected_slot": 36,
+              "selected_slot_value": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 127
+                },
+                "value": {
+                  "kind": "empty"
+                }
+              }
+            }
+          }
+        },
+        {
+          "stage": "container_open",
+          "value": {
+            "connection_id": 1,
+            "interaction_sequence": null,
+            "version": "Java1_16_1"
+          }
+        },
+        {
+          "stage": "container_observed",
+          "value": {
+            "active_window": 1,
+            "cursor": {
+              "source": {
+                "kind": "received",
+                "sequence": 135
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "receive_sequence": 139,
+            "screen": {
+              "full_contents_sequence": 134,
+              "id": {
+                "opened_sequence": 133,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                },
+                "window": 1
+              },
+              "layout": {
+                "player_slots": [
+                  {
+                    "player_slot": 9,
+                    "screen_slot": 27
+                  },
+                  {
+                    "player_slot": 10,
+                    "screen_slot": 28
+                  },
+                  {
+                    "player_slot": 11,
+                    "screen_slot": 29
+                  },
+                  {
+                    "player_slot": 12,
+                    "screen_slot": 30
+                  },
+                  {
+                    "player_slot": 13,
+                    "screen_slot": 31
+                  },
+                  {
+                    "player_slot": 14,
+                    "screen_slot": 32
+                  },
+                  {
+                    "player_slot": 15,
+                    "screen_slot": 33
+                  },
+                  {
+                    "player_slot": 16,
+                    "screen_slot": 34
+                  },
+                  {
+                    "player_slot": 17,
+                    "screen_slot": 35
+                  },
+                  {
+                    "player_slot": 18,
+                    "screen_slot": 36
+                  },
+                  {
+                    "player_slot": 19,
+                    "screen_slot": 37
+                  },
+                  {
+                    "player_slot": 20,
+                    "screen_slot": 38
+                  },
+                  {
+                    "player_slot": 21,
+                    "screen_slot": 39
+                  },
+                  {
+                    "player_slot": 22,
+                    "screen_slot": 40
+                  },
+                  {
+                    "player_slot": 23,
+                    "screen_slot": 41
+                  },
+                  {
+                    "player_slot": 24,
+                    "screen_slot": 42
+                  },
+                  {
+                    "player_slot": 25,
+                    "screen_slot": 43
+                  },
+                  {
+                    "player_slot": 26,
+                    "screen_slot": 44
+                  },
+                  {
+                    "player_slot": 27,
+                    "screen_slot": 45
+                  },
+                  {
+                    "player_slot": 28,
+                    "screen_slot": 46
+                  },
+                  {
+                    "player_slot": 29,
+                    "screen_slot": 47
+                  },
+                  {
+                    "player_slot": 30,
+                    "screen_slot": 48
+                  },
+                  {
+                    "player_slot": 31,
+                    "screen_slot": 49
+                  },
+                  {
+                    "player_slot": 32,
+                    "screen_slot": 50
+                  },
+                  {
+                    "player_slot": 33,
+                    "screen_slot": 51
+                  },
+                  {
+                    "player_slot": 34,
+                    "screen_slot": 52
+                  },
+                  {
+                    "player_slot": 35,
+                    "screen_slot": 53
+                  },
+                  {
+                    "player_slot": 36,
+                    "screen_slot": 54
+                  },
+                  {
+                    "player_slot": 37,
+                    "screen_slot": 55
+                  },
+                  {
+                    "player_slot": 38,
+                    "screen_slot": 56
+                  },
+                  {
+                    "player_slot": 39,
+                    "screen_slot": 57
+                  },
+                  {
+                    "player_slot": 40,
+                    "screen_slot": 58
+                  },
+                  {
+                    "player_slot": 41,
+                    "screen_slot": 59
+                  },
+                  {
+                    "player_slot": 42,
+                    "screen_slot": 60
+                  },
+                  {
+                    "player_slot": 43,
+                    "screen_slot": 61
+                  },
+                  {
+                    "player_slot": 44,
+                    "screen_slot": 62
+                  }
+                ],
+                "total_slots": 63
+              },
+              "menu_name": "minecraft:generic_9x3",
+              "native_menu_id": 2,
+              "revision": null,
+              "title": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 133
+                },
+                "value": {
+                  "json": "{\"translate\":\"container.chest\"}",
+                  "kind": "legacy_json"
+                }
+              },
+              "slots_excerpt": {
+                "count": 63,
+                "values": {
+                  "0": {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 136
+                    },
+                    "value": {
+                      "item": {
+                        "count": 3,
+                        "data": {
+                          "kind": "default"
+                        },
+                        "id": {
+                          "kind": "Item",
+                          "value": 1,
+                          "version": "Java1_16_1"
+                        },
+                        "name": "minecraft:stone"
+                      },
+                      "kind": "item"
+                    }
+                  },
+                  "27": {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 137
+                    },
+                    "value": {
+                      "item": {
+                        "count": 2,
+                        "data": {
+                          "kind": "default"
+                        },
+                        "id": {
+                          "kind": "Item",
+                          "value": 9,
+                          "version": "Java1_16_1"
+                        },
+                        "name": "minecraft:dirt"
+                      },
+                      "kind": "item"
+                    }
+                  },
+                  "54": {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 134
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  }
+                }
+              }
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            }
+          }
+        },
+        {
+          "stage": "container_changed",
+          "value": {
+            "active_window": 1,
+            "cursor": {
+              "source": {
+                "kind": "received",
+                "sequence": 135
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "receive_sequence": 142,
+            "screen": {
+              "full_contents_sequence": 134,
+              "id": {
+                "opened_sequence": 133,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                },
+                "window": 1
+              },
+              "layout": {
+                "player_slots": [
+                  {
+                    "player_slot": 9,
+                    "screen_slot": 27
+                  },
+                  {
+                    "player_slot": 10,
+                    "screen_slot": 28
+                  },
+                  {
+                    "player_slot": 11,
+                    "screen_slot": 29
+                  },
+                  {
+                    "player_slot": 12,
+                    "screen_slot": 30
+                  },
+                  {
+                    "player_slot": 13,
+                    "screen_slot": 31
+                  },
+                  {
+                    "player_slot": 14,
+                    "screen_slot": 32
+                  },
+                  {
+                    "player_slot": 15,
+                    "screen_slot": 33
+                  },
+                  {
+                    "player_slot": 16,
+                    "screen_slot": 34
+                  },
+                  {
+                    "player_slot": 17,
+                    "screen_slot": 35
+                  },
+                  {
+                    "player_slot": 18,
+                    "screen_slot": 36
+                  },
+                  {
+                    "player_slot": 19,
+                    "screen_slot": 37
+                  },
+                  {
+                    "player_slot": 20,
+                    "screen_slot": 38
+                  },
+                  {
+                    "player_slot": 21,
+                    "screen_slot": 39
+                  },
+                  {
+                    "player_slot": 22,
+                    "screen_slot": 40
+                  },
+                  {
+                    "player_slot": 23,
+                    "screen_slot": 41
+                  },
+                  {
+                    "player_slot": 24,
+                    "screen_slot": 42
+                  },
+                  {
+                    "player_slot": 25,
+                    "screen_slot": 43
+                  },
+                  {
+                    "player_slot": 26,
+                    "screen_slot": 44
+                  },
+                  {
+                    "player_slot": 27,
+                    "screen_slot": 45
+                  },
+                  {
+                    "player_slot": 28,
+                    "screen_slot": 46
+                  },
+                  {
+                    "player_slot": 29,
+                    "screen_slot": 47
+                  },
+                  {
+                    "player_slot": 30,
+                    "screen_slot": 48
+                  },
+                  {
+                    "player_slot": 31,
+                    "screen_slot": 49
+                  },
+                  {
+                    "player_slot": 32,
+                    "screen_slot": 50
+                  },
+                  {
+                    "player_slot": 33,
+                    "screen_slot": 51
+                  },
+                  {
+                    "player_slot": 34,
+                    "screen_slot": 52
+                  },
+                  {
+                    "player_slot": 35,
+                    "screen_slot": 53
+                  },
+                  {
+                    "player_slot": 36,
+                    "screen_slot": 54
+                  },
+                  {
+                    "player_slot": 37,
+                    "screen_slot": 55
+                  },
+                  {
+                    "player_slot": 38,
+                    "screen_slot": 56
+                  },
+                  {
+                    "player_slot": 39,
+                    "screen_slot": 57
+                  },
+                  {
+                    "player_slot": 40,
+                    "screen_slot": 58
+                  },
+                  {
+                    "player_slot": 41,
+                    "screen_slot": 59
+                  },
+                  {
+                    "player_slot": 42,
+                    "screen_slot": 60
+                  },
+                  {
+                    "player_slot": 43,
+                    "screen_slot": 61
+                  },
+                  {
+                    "player_slot": 44,
+                    "screen_slot": 62
+                  }
+                ],
+                "total_slots": 63
+              },
+              "menu_name": "minecraft:generic_9x3",
+              "native_menu_id": 2,
+              "revision": null,
+              "title": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 133
+                },
+                "value": {
+                  "json": "{\"translate\":\"container.chest\"}",
+                  "kind": "legacy_json"
+                }
+              },
+              "slots_excerpt": {
+                "count": 63,
+                "values": {
+                  "0": {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 141
+                    },
+                    "value": {
+                      "item": {
+                        "count": 7,
+                        "data": {
+                          "kind": "default"
+                        },
+                        "id": {
+                          "kind": "Item",
+                          "value": 1,
+                          "version": "Java1_16_1"
+                        },
+                        "name": "minecraft:stone"
+                      },
+                      "kind": "item"
+                    }
+                  },
+                  "27": {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 137
+                    },
+                    "value": {
+                      "item": {
+                        "count": 2,
+                        "data": {
+                          "kind": "default"
+                        },
+                        "id": {
+                          "kind": "Item",
+                          "value": 9,
+                          "version": "Java1_16_1"
+                        },
+                        "name": "minecraft:dirt"
+                      },
+                      "kind": "item"
+                    }
+                  },
+                  "54": {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 134
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  }
+                }
+              }
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            }
+          }
+        },
+        {
+          "stage": "container_disconnected",
+          "value": {
+            "closed": true
+          }
+        }
       ]
     },
     {
       "version": "1.21.11",
-      "run_id": "trial-1.21.11-41b2b2ca",
+      "run_id": "trial-1.21.11-8bb47f4d",
       "source": {
         "version": "1.21.11",
         "metadata_url": "https://piston-meta.mojang.com/v1/packages/4f6bd9388f12e9d7adc2ded64acba66212d60521/1.21.11.json",
@@ -3810,8 +4489,18 @@
       },
       "inventory_fixture_native": "UnifiedProbe has the following entity data: [{count: 2, Slot: 0b, id: \"minecraft:dirt\"}, {count: 3, Slot: 9b, id: \"minecraft:stone\"}]",
       "inventory_creative_mode": "Set UnifiedProbe's game mode to Creative Mode",
+      "container_fixture": "Changed the block at 0, 65, 2",
+      "container_fixture_items": "Replaced a slot at 0, 65, 2 with [Stone]",
+      "container_fixture_native": "0, 65, 2 has the following block data: [{count: 3, Slot: 0b, id: \"minecraft:stone\"}]",
+      "container_setup": {
+        "gamemode creative UnifiedProbe": "",
+        "tp UnifiedProbe 0.5 65 0.5 0 0": "Teleported UnifiedProbe to 0.500000, 65.000000, 0.500000",
+        "clear UnifiedProbe": "Removed 5 item(s) from player UnifiedProbe",
+        "item replace entity UnifiedProbe inventory.0 with minecraft:dirt 2": "Replaced a slot on UnifiedProbe with [Dirt]"
+      },
+      "container_change": "Replaced a slot at 0, 65, 2 with [Stone]",
       "server_exit_code": 0,
-      "raw_report_sha256": "67ebbc3b099592b06c7085c65091f0dcc49abaf61cff6014f24dbfed398105b1",
+      "raw_report_sha256": "eedb7152b803253723d5b78599b3f206e2040293e9b3160b5ac1e3553e28af50",
       "native_results": {
         "inventory": "UnifiedProbe has the following entity data: [{count: 3, Slot: 1b, id: \"minecraft:stone\"}]",
         "selected_slot": "UnifiedProbe has the following entity data: 1",
@@ -3861,11 +4550,11 @@
             },
             {
               "position": [
-                0.44299612910363223,
-                65.41999998688698,
-                0.5797154896234523
+                0.4004712382245058,
+                65.7531999805212,
+                0.639183249344125
               ],
-              "response": "UnifiedProbe has the following entity data: [0.44299612910363223d, 65.41999998688698d, 0.5797154896234523d]"
+              "response": "UnifiedProbe has the following entity data: [0.4004712382245058d, 65.7531999805212d, 0.639183249344125d]"
             },
             {
               "position": [
@@ -3877,19 +4566,19 @@
             },
             {
               "position": [
-                0.17255207391670527,
-                66.25220334025373,
-                0.9579105128030367
+                0.23012048354184136,
+                66.24918707874468,
+                0.8774055595788233
               ],
-              "response": "UnifiedProbe has the following entity data: [0.17255207391670527d, 66.25220334025373d, 0.9579105128030367d]"
+              "response": "UnifiedProbe has the following entity data: [0.23012048354184136d, 66.24918707874468d, 0.8774055595788233d]"
             },
             {
               "position": [
-                0.1201648196480398,
-                66.17675927506424,
-                1.0311700223483975
+                0.07249241688964378,
+                66.02442408821369,
+                1.0978361779559829
               ],
-              "response": "UnifiedProbe has the following entity data: [0.1201648196480398d, 66.17675927506424d, 1.0311700223483975d]"
+              "response": "UnifiedProbe has the following entity data: [0.07249241688964378d, 66.02442408821369d, 1.0978361779559829d]"
             },
             {
               "position": [
@@ -3917,11 +4606,11 @@
             },
             {
               "position": [
-                -0.13868599844005214,
+                -0.14132989730463877,
                 65.0,
-                1.393152803146504
+                1.3968500905270147
               ],
-              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.393152803146504d]"
+              "response": "UnifiedProbe has the following entity data: [-0.14132989730463877d, 65.0d, 1.3968500905270147d]"
             },
             {
               "position": [
@@ -4023,6 +4712,12 @@
         "inventory_swaps": {
           "survival_occupied_swap": "UnifiedProbe has the following entity data: [{count: 3, Slot: 0b, id: \"minecraft:stone\"}, {count: 2, Slot: 9b, id: \"minecraft:dirt\"}]",
           "creative_empty_swap": "UnifiedProbe has the following entity data: [{count: 3, Slot: 0b, id: \"minecraft:stone\"}, {count: 2, Slot: 1b, id: \"minecraft:dirt\"}]",
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        },
+        "container_observation": {
+          "opened_contents": "0, 65, 2 has the following block data: [{count: 3, Slot: 0b, id: \"minecraft:stone\"}]",
+          "changed_contents": "0, 65, 2 has the following block data: [{count: 7, Slot: 0b, id: \"minecraft:stone\"}]",
           "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
         }
@@ -4335,7 +5030,7 @@
                   0.5
                 ]
               },
-              "receive_sequence": 97,
+              "receive_sequence": 112,
               "received_pose": {
                 "position": [
                   0.5,
@@ -4429,7 +5124,7 @@
                 0.5
               ]
             },
-            "receive_sequence": 144,
+            "receive_sequence": 146,
             "received_pose": {
               "position": [
                 0.5,
@@ -4500,7 +5195,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 147
+                  "sequence": 149
                 },
                 "value": [
                   0.5,
@@ -4508,14 +5203,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 147,
+              "receive_sequence": 149,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 147,
+                "receive_sequence": 149,
                 "rotation": [
                   0.0,
                   0.0
@@ -4552,7 +5247,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 145
+                    "sequence": 147
                   },
                   "value": {
                     "kind": "empty"
@@ -4687,7 +5382,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 147
+                  "sequence": 149
                 },
                 "value": [
                   0.5,
@@ -4695,14 +5390,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 147,
+              "receive_sequence": 149,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 147,
+                "receive_sequence": 149,
                 "rotation": [
                   0.0,
                   0.0
@@ -4739,7 +5434,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 145
+                    "sequence": 147
                   },
                   "value": {
                     "kind": "empty"
@@ -4780,7 +5475,7 @@
                 "position": {
                   "source": {
                     "kind": "received",
-                    "sequence": 147
+                    "sequence": 149
                   },
                   "value": [
                     0.5,
@@ -4788,14 +5483,14 @@
                     0.5
                   ]
                 },
-                "receive_sequence": 147,
+                "receive_sequence": 149,
                 "received_pose": {
                   "position": [
                     0.5,
                     65.0,
                     0.5
                   ],
-                  "receive_sequence": 147,
+                  "receive_sequence": 149,
                   "rotation": [
                     0.0,
                     0.0
@@ -4832,7 +5527,7 @@
                   "selected_slot_value": {
                     "source": {
                       "kind": "received",
-                      "sequence": 145
+                      "sequence": 147
                     },
                     "value": {
                       "kind": "empty"
@@ -4956,7 +5651,7 @@
                 "position": {
                   "source": {
                     "kind": "received",
-                    "sequence": 147
+                    "sequence": 149
                   },
                   "value": [
                     0.5,
@@ -4964,14 +5659,14 @@
                     0.5
                   ]
                 },
-                "receive_sequence": 147,
+                "receive_sequence": 149,
                 "received_pose": {
                   "position": [
                     0.5,
                     65.0,
                     0.5
                   ],
-                  "receive_sequence": 147,
+                  "receive_sequence": 149,
                   "rotation": [
                     0.0,
                     0.0
@@ -5008,7 +5703,7 @@
                   "selected_slot_value": {
                     "source": {
                       "kind": "received",
-                      "sequence": 145
+                      "sequence": 147
                     },
                     "value": {
                       "kind": "empty"
@@ -5144,7 +5839,7 @@
                 1.3968500905270147
               ]
             },
-            "receive_sequence": 66,
+            "receive_sequence": 65,
             "received_pose": {
               "position": [
                 -0.14132989730463877,
@@ -5223,7 +5918,7 @@
             "position": {
               "source": {
                 "kind": "received",
-                "sequence": 72
+                "sequence": 71
               },
               "value": [
                 0.5,
@@ -5231,14 +5926,14 @@
                 0.5
               ]
             },
-            "receive_sequence": 73,
+            "receive_sequence": 74,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 72,
+              "receive_sequence": 71,
               "rotation": [
                 0.0,
                 0.0
@@ -5328,7 +6023,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 72
+                  "sequence": 71
                 },
                 "value": [
                   0.5,
@@ -5336,14 +6031,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 73,
+              "receive_sequence": 85,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 72,
+                "receive_sequence": 71,
                 "rotation": [
                   0.0,
                   0.0
@@ -5393,7 +6088,7 @@
             "requires_inspection": null,
             "stage": "mining",
             "start": {
-              "after_sequence": 73,
+              "after_sequence": 85,
               "dispatched": true,
               "interaction_sequence": 1
             },
@@ -5452,7 +6147,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 72
+                  "sequence": 71
                 },
                 "value": [
                   0.5,
@@ -5460,14 +6155,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 73,
+              "receive_sequence": 85,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 72,
+                "receive_sequence": 71,
                 "rotation": [
                   0.0,
                   0.0
@@ -5521,7 +6216,7 @@
             "requires_inspection": null,
             "stage": "observed_removed",
             "start": {
-              "after_sequence": 73,
+              "after_sequence": 85,
               "dispatched": true,
               "interaction_sequence": 1
             },
@@ -5586,7 +6281,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 72
+                  "sequence": 71
                 },
                 "value": [
                   0.5,
@@ -5594,14 +6289,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 73,
+              "receive_sequence": 85,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 72,
+                "receive_sequence": 71,
                 "rotation": [
                   0.0,
                   0.0
@@ -5655,7 +6350,7 @@
             "requires_inspection": null,
             "stage": "observed_removed",
             "start": {
-              "after_sequence": 73,
+              "after_sequence": 85,
               "dispatched": true,
               "interaction_sequence": 1
             },
@@ -6156,7 +6851,7 @@
             "material_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 108
+                "sequence": 97
               },
               "value": {
                 "item": {
@@ -6175,7 +6870,7 @@
               }
             },
             "processing": {
-              "receive_sequence": 109,
+              "receive_sequence": 98,
               "sequence": 1
             },
             "requires_inspection": null,
@@ -6202,7 +6897,7 @@
             "target_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 106
+                "sequence": 95
               },
               "value": {
                 "name": "minecraft:dirt",
@@ -6347,7 +7042,7 @@
             "material_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 108
+                "sequence": 97
               },
               "value": {
                 "item": {
@@ -6366,7 +7061,7 @@
               }
             },
             "processing": {
-              "receive_sequence": 109,
+              "receive_sequence": 98,
               "sequence": 1
             },
             "requires_inspection": null,
@@ -6393,7 +7088,7 @@
             "target_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 106
+                "sequence": 95
               },
               "value": {
                 "name": "minecraft:dirt",
@@ -7027,7 +7722,7 @@
                   0.5
                 ]
               },
-              "receive_sequence": 114,
+              "receive_sequence": 103,
               "received_pose": {
                 "position": [
                   0.5,
@@ -7119,7 +7814,7 @@
             "mode": "creative",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 114,
+              "after_sequence": 103,
               "dispatched": true,
               "legacy_action": null,
               "legacy_comparison": null,
@@ -7144,7 +7839,7 @@
             "hotbar_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 126
+                "sequence": 116
               },
               "value": {
                 "item": {
@@ -7201,7 +7896,7 @@
                   0.5
                 ]
               },
-              "receive_sequence": 114,
+              "receive_sequence": 103,
               "received_pose": {
                 "position": [
                   0.5,
@@ -7291,7 +7986,7 @@
             "main_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 125
+                "sequence": 115
               },
               "value": {
                 "kind": "empty"
@@ -7301,7 +7996,7 @@
             "mode": "creative",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 114,
+              "after_sequence": 103,
               "dispatched": true,
               "legacy_action": null,
               "legacy_comparison": null,
@@ -7326,7 +8021,7 @@
             "hotbar_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 126
+                "sequence": 116
               },
               "value": {
                 "item": {
@@ -7383,7 +8078,7 @@
                   0.5
                 ]
               },
-              "receive_sequence": 114,
+              "receive_sequence": 103,
               "received_pose": {
                 "position": [
                   0.5,
@@ -7473,7 +8168,7 @@
             "main_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 125
+                "sequence": 115
               },
               "value": {
                 "kind": "empty"
@@ -7483,13 +8178,793 @@
             "mode": "creative",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 114,
+              "after_sequence": 103,
               "dispatched": true,
               "legacy_action": null,
               "legacy_comparison": null,
               "screen_revision": 7
             },
             "stage": "observed_swapped"
+          }
+        }
+      ],
+      "container_records_excerpt": [
+        {
+          "stage": "container_ready",
+          "value": {
+            "dimension": {
+              "height": 384,
+              "min_y": -64,
+              "name": "minecraft:overworld"
+            },
+            "game_mode": "creative",
+            "health": {
+              "source": {
+                "kind": "received",
+                "sequence": 53
+              },
+              "value": {
+                "food": 20,
+                "health": 20.0,
+                "saturation": 5.0
+              }
+            },
+            "may_fly": true,
+            "pending_dispatch": false,
+            "position": {
+              "source": {
+                "kind": "received",
+                "sequence": 38
+              },
+              "value": [
+                0.5,
+                65.0,
+                0.5
+              ]
+            },
+            "receive_sequence": 65,
+            "received_pose": {
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "receive_sequence": 38,
+              "rotation": [
+                0.0,
+                0.0
+              ]
+            },
+            "rotation": [
+              0.0,
+              0.0
+            ],
+            "selected_hotbar": {
+              "source": {
+                "kind": "received",
+                "sequence": 32
+              },
+              "value": 0
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "inventory_excerpt": {
+              "window_id": 0,
+              "cursor": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 49
+                },
+                "value": {
+                  "kind": "empty"
+                }
+              },
+              "screen_revision": 1,
+              "selected_slot": 36,
+              "selected_slot_value": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 49
+                },
+                "value": {
+                  "item": {
+                    "count": 3,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 1,
+                      "version": "Java1_21_11"
+                    },
+                    "name": "minecraft:stone"
+                  },
+                  "kind": "item"
+                }
+              }
+            }
+          }
+        },
+        {
+          "stage": "container_baseline",
+          "value": {
+            "dimension": {
+              "height": 384,
+              "min_y": -64,
+              "name": "minecraft:overworld"
+            },
+            "game_mode": "creative",
+            "health": {
+              "source": {
+                "kind": "received",
+                "sequence": 53
+              },
+              "value": {
+                "food": 20,
+                "health": 20.0,
+                "saturation": 5.0
+              }
+            },
+            "may_fly": true,
+            "pending_dispatch": false,
+            "position": {
+              "source": {
+                "kind": "received",
+                "sequence": 66
+              },
+              "value": [
+                0.5,
+                65.0,
+                0.5
+              ]
+            },
+            "receive_sequence": 70,
+            "received_pose": {
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "receive_sequence": 66,
+              "rotation": [
+                0.0,
+                0.0
+              ]
+            },
+            "rotation": [
+              0.0,
+              0.0
+            ],
+            "selected_hotbar": {
+              "source": {
+                "kind": "received",
+                "sequence": 32
+              },
+              "value": 0
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "inventory_excerpt": {
+              "window_id": 0,
+              "cursor": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 49
+                },
+                "value": {
+                  "kind": "empty"
+                }
+              },
+              "screen_revision": 5,
+              "selected_slot": 36,
+              "selected_slot_value": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 67
+                },
+                "value": {
+                  "kind": "empty"
+                }
+              }
+            }
+          }
+        },
+        {
+          "stage": "container_open",
+          "value": {
+            "connection_id": 1,
+            "interaction_sequence": 1,
+            "version": "Java1_21_11"
+          }
+        },
+        {
+          "stage": "container_observed",
+          "value": {
+            "active_window": 1,
+            "cursor": {
+              "source": {
+                "kind": "received",
+                "sequence": 84
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "receive_sequence": 84,
+            "screen": {
+              "full_contents_sequence": 84,
+              "id": {
+                "opened_sequence": 83,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                },
+                "window": 1
+              },
+              "layout": {
+                "player_slots": [
+                  {
+                    "player_slot": 9,
+                    "screen_slot": 27
+                  },
+                  {
+                    "player_slot": 10,
+                    "screen_slot": 28
+                  },
+                  {
+                    "player_slot": 11,
+                    "screen_slot": 29
+                  },
+                  {
+                    "player_slot": 12,
+                    "screen_slot": 30
+                  },
+                  {
+                    "player_slot": 13,
+                    "screen_slot": 31
+                  },
+                  {
+                    "player_slot": 14,
+                    "screen_slot": 32
+                  },
+                  {
+                    "player_slot": 15,
+                    "screen_slot": 33
+                  },
+                  {
+                    "player_slot": 16,
+                    "screen_slot": 34
+                  },
+                  {
+                    "player_slot": 17,
+                    "screen_slot": 35
+                  },
+                  {
+                    "player_slot": 18,
+                    "screen_slot": 36
+                  },
+                  {
+                    "player_slot": 19,
+                    "screen_slot": 37
+                  },
+                  {
+                    "player_slot": 20,
+                    "screen_slot": 38
+                  },
+                  {
+                    "player_slot": 21,
+                    "screen_slot": 39
+                  },
+                  {
+                    "player_slot": 22,
+                    "screen_slot": 40
+                  },
+                  {
+                    "player_slot": 23,
+                    "screen_slot": 41
+                  },
+                  {
+                    "player_slot": 24,
+                    "screen_slot": 42
+                  },
+                  {
+                    "player_slot": 25,
+                    "screen_slot": 43
+                  },
+                  {
+                    "player_slot": 26,
+                    "screen_slot": 44
+                  },
+                  {
+                    "player_slot": 27,
+                    "screen_slot": 45
+                  },
+                  {
+                    "player_slot": 28,
+                    "screen_slot": 46
+                  },
+                  {
+                    "player_slot": 29,
+                    "screen_slot": 47
+                  },
+                  {
+                    "player_slot": 30,
+                    "screen_slot": 48
+                  },
+                  {
+                    "player_slot": 31,
+                    "screen_slot": 49
+                  },
+                  {
+                    "player_slot": 32,
+                    "screen_slot": 50
+                  },
+                  {
+                    "player_slot": 33,
+                    "screen_slot": 51
+                  },
+                  {
+                    "player_slot": 34,
+                    "screen_slot": 52
+                  },
+                  {
+                    "player_slot": 35,
+                    "screen_slot": 53
+                  },
+                  {
+                    "player_slot": 36,
+                    "screen_slot": 54
+                  },
+                  {
+                    "player_slot": 37,
+                    "screen_slot": 55
+                  },
+                  {
+                    "player_slot": 38,
+                    "screen_slot": 56
+                  },
+                  {
+                    "player_slot": 39,
+                    "screen_slot": 57
+                  },
+                  {
+                    "player_slot": 40,
+                    "screen_slot": 58
+                  },
+                  {
+                    "player_slot": 41,
+                    "screen_slot": 59
+                  },
+                  {
+                    "player_slot": 42,
+                    "screen_slot": 60
+                  },
+                  {
+                    "player_slot": 43,
+                    "screen_slot": 61
+                  },
+                  {
+                    "player_slot": 44,
+                    "screen_slot": 62
+                  }
+                ],
+                "total_slots": 63
+              },
+              "menu_name": "minecraft:generic_9x3",
+              "native_menu_id": 2,
+              "revision": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 84
+                },
+                "value": 1
+              },
+              "title": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 83
+                },
+                "value": {
+                  "bytes": [
+                    10,
+                    8,
+                    0,
+                    9,
+                    116,
+                    114,
+                    97,
+                    110,
+                    115,
+                    108,
+                    97,
+                    116,
+                    101,
+                    0,
+                    15,
+                    99,
+                    111,
+                    110,
+                    116,
+                    97,
+                    105,
+                    110,
+                    101,
+                    114,
+                    46,
+                    99,
+                    104,
+                    101,
+                    115,
+                    116,
+                    0
+                  ],
+                  "kind": "native_nbt"
+                }
+              },
+              "slots_excerpt": {
+                "count": 63,
+                "values": {
+                  "0": {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 84
+                    },
+                    "value": {
+                      "item": {
+                        "count": 3,
+                        "data": {
+                          "kind": "default"
+                        },
+                        "id": {
+                          "kind": "Item",
+                          "value": 1,
+                          "version": "Java1_21_11"
+                        },
+                        "name": "minecraft:stone"
+                      },
+                      "kind": "item"
+                    }
+                  },
+                  "27": {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 84
+                    },
+                    "value": {
+                      "item": {
+                        "count": 2,
+                        "data": {
+                          "kind": "default"
+                        },
+                        "id": {
+                          "kind": "Item",
+                          "value": 28,
+                          "version": "Java1_21_11"
+                        },
+                        "name": "minecraft:dirt"
+                      },
+                      "kind": "item"
+                    }
+                  },
+                  "54": {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 84
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  }
+                }
+              }
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          }
+        },
+        {
+          "stage": "container_changed",
+          "value": {
+            "active_window": 1,
+            "cursor": {
+              "source": {
+                "kind": "received",
+                "sequence": 84
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "receive_sequence": 109,
+            "screen": {
+              "full_contents_sequence": 84,
+              "id": {
+                "opened_sequence": 83,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                },
+                "window": 1
+              },
+              "layout": {
+                "player_slots": [
+                  {
+                    "player_slot": 9,
+                    "screen_slot": 27
+                  },
+                  {
+                    "player_slot": 10,
+                    "screen_slot": 28
+                  },
+                  {
+                    "player_slot": 11,
+                    "screen_slot": 29
+                  },
+                  {
+                    "player_slot": 12,
+                    "screen_slot": 30
+                  },
+                  {
+                    "player_slot": 13,
+                    "screen_slot": 31
+                  },
+                  {
+                    "player_slot": 14,
+                    "screen_slot": 32
+                  },
+                  {
+                    "player_slot": 15,
+                    "screen_slot": 33
+                  },
+                  {
+                    "player_slot": 16,
+                    "screen_slot": 34
+                  },
+                  {
+                    "player_slot": 17,
+                    "screen_slot": 35
+                  },
+                  {
+                    "player_slot": 18,
+                    "screen_slot": 36
+                  },
+                  {
+                    "player_slot": 19,
+                    "screen_slot": 37
+                  },
+                  {
+                    "player_slot": 20,
+                    "screen_slot": 38
+                  },
+                  {
+                    "player_slot": 21,
+                    "screen_slot": 39
+                  },
+                  {
+                    "player_slot": 22,
+                    "screen_slot": 40
+                  },
+                  {
+                    "player_slot": 23,
+                    "screen_slot": 41
+                  },
+                  {
+                    "player_slot": 24,
+                    "screen_slot": 42
+                  },
+                  {
+                    "player_slot": 25,
+                    "screen_slot": 43
+                  },
+                  {
+                    "player_slot": 26,
+                    "screen_slot": 44
+                  },
+                  {
+                    "player_slot": 27,
+                    "screen_slot": 45
+                  },
+                  {
+                    "player_slot": 28,
+                    "screen_slot": 46
+                  },
+                  {
+                    "player_slot": 29,
+                    "screen_slot": 47
+                  },
+                  {
+                    "player_slot": 30,
+                    "screen_slot": 48
+                  },
+                  {
+                    "player_slot": 31,
+                    "screen_slot": 49
+                  },
+                  {
+                    "player_slot": 32,
+                    "screen_slot": 50
+                  },
+                  {
+                    "player_slot": 33,
+                    "screen_slot": 51
+                  },
+                  {
+                    "player_slot": 34,
+                    "screen_slot": 52
+                  },
+                  {
+                    "player_slot": 35,
+                    "screen_slot": 53
+                  },
+                  {
+                    "player_slot": 36,
+                    "screen_slot": 54
+                  },
+                  {
+                    "player_slot": 37,
+                    "screen_slot": 55
+                  },
+                  {
+                    "player_slot": 38,
+                    "screen_slot": 56
+                  },
+                  {
+                    "player_slot": 39,
+                    "screen_slot": 57
+                  },
+                  {
+                    "player_slot": 40,
+                    "screen_slot": 58
+                  },
+                  {
+                    "player_slot": 41,
+                    "screen_slot": 59
+                  },
+                  {
+                    "player_slot": 42,
+                    "screen_slot": 60
+                  },
+                  {
+                    "player_slot": 43,
+                    "screen_slot": 61
+                  },
+                  {
+                    "player_slot": 44,
+                    "screen_slot": 62
+                  }
+                ],
+                "total_slots": 63
+              },
+              "menu_name": "minecraft:generic_9x3",
+              "native_menu_id": 2,
+              "revision": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 99
+                },
+                "value": 2
+              },
+              "title": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 83
+                },
+                "value": {
+                  "bytes": [
+                    10,
+                    8,
+                    0,
+                    9,
+                    116,
+                    114,
+                    97,
+                    110,
+                    115,
+                    108,
+                    97,
+                    116,
+                    101,
+                    0,
+                    15,
+                    99,
+                    111,
+                    110,
+                    116,
+                    97,
+                    105,
+                    110,
+                    101,
+                    114,
+                    46,
+                    99,
+                    104,
+                    101,
+                    115,
+                    116,
+                    0
+                  ],
+                  "kind": "native_nbt"
+                }
+              },
+              "slots_excerpt": {
+                "count": 63,
+                "values": {
+                  "0": {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 99
+                    },
+                    "value": {
+                      "item": {
+                        "count": 7,
+                        "data": {
+                          "kind": "default"
+                        },
+                        "id": {
+                          "kind": "Item",
+                          "value": 1,
+                          "version": "Java1_21_11"
+                        },
+                        "name": "minecraft:stone"
+                      },
+                      "kind": "item"
+                    }
+                  },
+                  "27": {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 84
+                    },
+                    "value": {
+                      "item": {
+                        "count": 2,
+                        "data": {
+                          "kind": "default"
+                        },
+                        "id": {
+                          "kind": "Item",
+                          "value": 28,
+                          "version": "Java1_21_11"
+                        },
+                        "name": "minecraft:dirt"
+                      },
+                      "kind": "item"
+                    }
+                  },
+                  "54": {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 84
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  }
+                }
+              }
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          }
+        },
+        {
+          "stage": "container_disconnected",
+          "value": {
+            "closed": true
           }
         }
       ]
@@ -7501,14 +8976,14 @@
     "src/versions/java_1_16_1/client/common_motion.rs": "2b860d352c018aa2c1b7c0e2b03cba45ccb989ecf8d08a4322510acf9682767b",
     "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "97bdef083185484d3b5eec8b2f09c5faf9d0eba055e35aaf82b38643fc858439",
     "src/versions/java_1_21_11/client/operations/movement/control.rs": "5827110068926d9c17fc40e41f8dadbcee6ccf9738f865d05ceb8e33d0f0a228",
-    "src/versions/java_1_16_1/client.rs": "660a650ba5d42a8eb958863f0ecd27658e2105a229eb170bdb1e413a5f2cb1d3",
+    "src/versions/java_1_16_1/client.rs": "c941d6d55ffbf9308fb108a4317d1d560256d50f32b66da1ac9045aab69197d8",
     "src/versions/java_1_16_1/lifecycle.rs": "8f731ce61b92f036b60e72d64223f3a9dac5514cc639b7cf0b074742faa59fbf",
     "src/versions/java_1_21_11/client.rs": "9b4a8bde912d8302bbe0abd2cc04ba7ad558cfe4d45f473533568eb0b86bada9"
   },
   "targeting_implementation_sha256": {
     "src/client/survival/target.rs": "cf0a0be4a204b7fc78895c9bcd3ddfbcdc52cfe683b7bf12c632d5cc2349d816",
     "src/client/operations.rs": "6d4b136ae884f68d68ee84aba0c614141d545c1040ee956b119b8e9556b26fb3",
-    "src/connection.rs": "bdb7cf7bd8de2764c0b3bc245e965cc0e56bb4b2013be26a9b6f3b98045e15c2",
+    "src/connection.rs": "ea91de4e2d33e2a55e481cc33721a2ac11c528c92393bb8535e4e320a12d8060",
     "src/versions/java_1_16_1/client/common_motion.rs": "2b860d352c018aa2c1b7c0e2b03cba45ccb989ecf8d08a4322510acf9682767b",
     "src/versions/java_1_21_11/client/operations/movement.rs": "011c5867d0455f39f46982ea206d85df67f3b57d36a54fe4ef6ec6f15ba8a0eb",
     "src/versions/java_1_21_11/client/raycast.rs": "97e95b79b4e0a26a0e442cb60ea81eaa97ebb66adf45ef3dc50e9e4d4440c7c6",
@@ -7530,16 +9005,16 @@
   "mining_implementation_sha256": {
     "src/client/survival/mining.rs": "96c2588f3e21f4e9cb86dab1aab9cf8662f9b986c5bd96aadcb1f83924291347",
     "src/client/operations.rs": "6d4b136ae884f68d68ee84aba0c614141d545c1040ee956b119b8e9556b26fb3",
-    "src/client/capabilities.rs": "962f7d3603066c770c7f4bcf506da5cdf457ac344392e047b197436687addc2b",
-    "src/connection.rs": "bdb7cf7bd8de2764c0b3bc245e965cc0e56bb4b2013be26a9b6f3b98045e15c2",
-    "src/versions/java_1_16_1/client.rs": "660a650ba5d42a8eb958863f0ecd27658e2105a229eb170bdb1e413a5f2cb1d3",
+    "src/client/capabilities.rs": "2303936807351ed47fc6ea67e60daa33fdeb2d60fa579dc9d248dfa0fcab3567",
+    "src/connection.rs": "ea91de4e2d33e2a55e481cc33721a2ac11c528c92393bb8535e4e320a12d8060",
+    "src/versions/java_1_16_1/client.rs": "c941d6d55ffbf9308fb108a4317d1d560256d50f32b66da1ac9045aab69197d8",
     "src/versions/java_1_16_1/client/common_mining.rs": "ef4a1f26555a8040c58596191027157b96ac9244cdb731cfc6428e82aaf032e4",
     "src/versions/java_1_16_1/client/common_motion.rs": "2b860d352c018aa2c1b7c0e2b03cba45ccb989ecf8d08a4322510acf9682767b",
     "src/versions/java_1_16_1/lifecycle.rs": "8f731ce61b92f036b60e72d64223f3a9dac5514cc639b7cf0b074742faa59fbf",
     "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "97bdef083185484d3b5eec8b2f09c5faf9d0eba055e35aaf82b38643fc858439",
     "src/versions/java_1_16_1/world.rs": "d1451ea09a36c27df09b44861bd2ca715f6e61ec08726caa0ccd251f4072f3df",
     "src/versions/java_1_21_11/client.rs": "9b4a8bde912d8302bbe0abd2cc04ba7ad558cfe4d45f473533568eb0b86bada9",
-    "src/versions/java_1_21_11/client/operations.rs": "ebac1c5372510b7dfcba66636a6fdd944445985d5cede414ac4ce748e6d7bd6b",
+    "src/versions/java_1_21_11/client/operations.rs": "26c0be3c33fa4a3d2f301dcd1b579010e58cab55df3b06acd10723725bc1b9a0",
     "src/versions/java_1_21_11/client/operations/mining.rs": "458c08568388035610223d21134e890152a98c6f9f0c7f9ed3250dfdff8a8339",
     "src/versions/java_1_21_11/client/operations/movement.rs": "011c5867d0455f39f46982ea206d85df67f3b57d36a54fe4ef6ec6f15ba8a0eb"
   },
@@ -7575,20 +9050,20 @@
   ],
   "placement_implementation_sha256": {
     "src/client/survival/placement.rs": "615da875af2b620d08bc06b5c41683d9852b56f79f0b929e9b5ead8ef147b74a",
-    "src/client/observation.rs": "8d9496f075130b342b36a7ad74a6ead90a34bf245f04b8689a8fcc4ce4a9ecf0",
+    "src/client/observation.rs": "b6243ffebfd8e9cf6c37209b3136250c07b4967e0206dfdacb0d7e4819f34acc",
     "src/client/operations.rs": "6d4b136ae884f68d68ee84aba0c614141d545c1040ee956b119b8e9556b26fb3",
-    "src/client/capabilities.rs": "962f7d3603066c770c7f4bcf506da5cdf457ac344392e047b197436687addc2b",
-    "src/client/mod.rs": "c7696bd543b678a9e56496d2dfd4091656f7b15d60d042e23891d28b4086dab3",
+    "src/client/capabilities.rs": "2303936807351ed47fc6ea67e60daa33fdeb2d60fa579dc9d248dfa0fcab3567",
+    "src/client/mod.rs": "874348a0f6233fd0e9dd3851897b1b4cefd1712109d06f5aa3275cc2e013f197",
     "src/client/survival.rs": "7be78a0216b2ecfa94e4816bdd49500f116f91538853a789dce1655ca5aeb4e5",
-    "src/connection.rs": "bdb7cf7bd8de2764c0b3bc245e965cc0e56bb4b2013be26a9b6f3b98045e15c2",
-    "src/versions/java_1_16_1/client.rs": "660a650ba5d42a8eb958863f0ecd27658e2105a229eb170bdb1e413a5f2cb1d3",
+    "src/connection.rs": "ea91de4e2d33e2a55e481cc33721a2ac11c528c92393bb8535e4e320a12d8060",
+    "src/versions/java_1_16_1/client.rs": "c941d6d55ffbf9308fb108a4317d1d560256d50f32b66da1ac9045aab69197d8",
     "src/versions/java_1_16_1/client/common_placement.rs": "bc897ce7cda4fbd818d97c356eb1c4ac0dddf377c4a6a1fdf7d32547fa699e1a",
     "src/versions/java_1_16_1/client/common_motion.rs": "2b860d352c018aa2c1b7c0e2b03cba45ccb989ecf8d08a4322510acf9682767b",
     "src/versions/java_1_16_1/inventory.rs": "fc1abbb539ce5ebb66455a032702e50d074b8070308e2d52c1a48f362393aaf9",
     "src/versions/java_1_16_1/lifecycle.rs": "8f731ce61b92f036b60e72d64223f3a9dac5514cc639b7cf0b074742faa59fbf",
     "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "97bdef083185484d3b5eec8b2f09c5faf9d0eba055e35aaf82b38643fc858439",
     "src/versions/java_1_21_11/client.rs": "9b4a8bde912d8302bbe0abd2cc04ba7ad558cfe4d45f473533568eb0b86bada9",
-    "src/versions/java_1_21_11/client/operations.rs": "ebac1c5372510b7dfcba66636a6fdd944445985d5cede414ac4ce748e6d7bd6b",
+    "src/versions/java_1_21_11/client/operations.rs": "26c0be3c33fa4a3d2f301dcd1b579010e58cab55df3b06acd10723725bc1b9a0",
     "src/versions/java_1_21_11/client/operations/placement.rs": "31d44c3f0b87fb601ec8203209515e68ced3c8c7811f2e6ba3b15d7a7e0d6f39"
   },
   "legacy_raw_inventory_primary_check": {
@@ -7615,20 +9090,20 @@
   },
   "inventory_implementation_sha256": {
     "src/client/inventory.rs": "d6a3e95ef89e22c5f2d83a4dea20151cce2319b11d88a0c0065d5d9e52a74f11",
-    "src/client/mod.rs": "c7696bd543b678a9e56496d2dfd4091656f7b15d60d042e23891d28b4086dab3",
+    "src/client/mod.rs": "874348a0f6233fd0e9dd3851897b1b4cefd1712109d06f5aa3275cc2e013f197",
     "src/client/operations.rs": "6d4b136ae884f68d68ee84aba0c614141d545c1040ee956b119b8e9556b26fb3",
-    "src/client/capabilities.rs": "962f7d3603066c770c7f4bcf506da5cdf457ac344392e047b197436687addc2b",
-    "src/client/observation.rs": "8d9496f075130b342b36a7ad74a6ead90a34bf245f04b8689a8fcc4ce4a9ecf0",
-    "src/connection.rs": "bdb7cf7bd8de2764c0b3bc245e965cc0e56bb4b2013be26a9b6f3b98045e15c2",
-    "src/versions/java_1_16_1/client.rs": "660a650ba5d42a8eb958863f0ecd27658e2105a229eb170bdb1e413a5f2cb1d3",
+    "src/client/capabilities.rs": "2303936807351ed47fc6ea67e60daa33fdeb2d60fa579dc9d248dfa0fcab3567",
+    "src/client/observation.rs": "b6243ffebfd8e9cf6c37209b3136250c07b4967e0206dfdacb0d7e4819f34acc",
+    "src/connection.rs": "ea91de4e2d33e2a55e481cc33721a2ac11c528c92393bb8535e4e320a12d8060",
+    "src/versions/java_1_16_1/client.rs": "c941d6d55ffbf9308fb108a4317d1d560256d50f32b66da1ac9045aab69197d8",
     "src/versions/java_1_16_1/client/common_inventory.rs": "4ed0993ff0aa5b7e019a6b1e9b6f781b4b9eac08335f3ca820bf60c2d6c80356",
     "src/versions/java_1_16_1/client/common_motion.rs": "2b860d352c018aa2c1b7c0e2b03cba45ccb989ecf8d08a4322510acf9682767b",
     "src/versions/java_1_16_1/inventory.rs": "fc1abbb539ce5ebb66455a032702e50d074b8070308e2d52c1a48f362393aaf9",
     "src/versions/java_1_16_1/lifecycle.rs": "8f731ce61b92f036b60e72d64223f3a9dac5514cc639b7cf0b074742faa59fbf",
     "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "97bdef083185484d3b5eec8b2f09c5faf9d0eba055e35aaf82b38643fc858439",
     "src/versions/java_1_21_11/client.rs": "9b4a8bde912d8302bbe0abd2cc04ba7ad558cfe4d45f473533568eb0b86bada9",
-    "src/versions/java_1_21_11/client/operations.rs": "ebac1c5372510b7dfcba66636a6fdd944445985d5cede414ac4ce748e6d7bd6b",
-    "src/versions/java_1_21_11/client/operations/inventory.rs": "e9f469d49c2a11a0673a9fe4422053f448f9b8eed5e680ef32368bfba59aed6e",
+    "src/versions/java_1_21_11/client/operations.rs": "26c0be3c33fa4a3d2f301dcd1b579010e58cab55df3b06acd10723725bc1b9a0",
+    "src/versions/java_1_21_11/client/operations/inventory.rs": "8f822ce11a2f17b2d0dfb6169f218b4c55c982c09170d8376b3aead6c882ce45",
     "src/versions/java_1_21_11/client/operations/inventory/common.rs": "8d636ff797737c67ec0227d464cb1e5627f9bfcd49ee6b9ddf36b71f244ed69c"
   },
   "legacy_inventory_protocol_oracle": {
@@ -7701,6 +9176,58 @@
       "result": "failed",
       "server_exit_code": 0,
       "raw_report_sha256": "8406dc2a591bab99aaa97acaf4e7b8fb29c3723382490cad153470edc9d7db5f"
+    }
+  ],
+  "container_implementation_sha256": {
+    "examples/common_native_probe.rs": "68194728e3721d57dbdbc97bfb96d63b36f3a45145d1b28bcf999c16c5bcf0b5",
+    "scripts/run_common_native.py": "2d54ff43197f541df8ba905d67b6b808d655e2f8e1ab6afdcf0cde38c3341f14",
+    "scripts/ExportMenuLayouts.java": "5267bd8b15e01b8bb2492b42546e5e6963a402b9dd6bfbf9d1dc7440e4116fc0",
+    "src/client/container.rs": "0c7c618d9321f749b6240bf2219c3075c2ad418e5bc89ef6e87118245f31388a",
+    "src/client/observation.rs": "b6243ffebfd8e9cf6c37209b3136250c07b4967e0206dfdacb0d7e4819f34acc",
+    "src/client/capabilities.rs": "2303936807351ed47fc6ea67e60daa33fdeb2d60fa579dc9d248dfa0fcab3567",
+    "src/client/mod.rs": "874348a0f6233fd0e9dd3851897b1b4cefd1712109d06f5aa3275cc2e013f197",
+    "src/client/tests.rs": "e43153aae736b5fe2c16ec051ce10c9bed8e7f19b51217fd9e35a186948022d3",
+    "src/connection.rs": "ea91de4e2d33e2a55e481cc33721a2ac11c528c92393bb8535e4e320a12d8060",
+    "src/versions/java_1_16_1/client.rs": "c941d6d55ffbf9308fb108a4317d1d560256d50f32b66da1ac9045aab69197d8",
+    "src/versions/java_1_16_1/client/common_api.rs": "ec67f43d9ed51bbda1e53b55db17bae3d1e40b01d569a294994ed840f9282951",
+    "src/versions/java_1_21_11/client/operations.rs": "26c0be3c33fa4a3d2f301dcd1b579010e58cab55df3b06acd10723725bc1b9a0",
+    "src/versions/java_1_21_11/client/operations/inventory.rs": "8f822ce11a2f17b2d0dfb6169f218b4c55c982c09170d8376b3aead6c882ce45",
+    "src/versions/java_1_21_11/client/operations/inventory/tests.rs": "7e85bffc4b7bc67e2beb9131333a2a3b43969e5fafe3a148406fe7be2bd15d6a",
+    "src/versions/java_1_21_11/client/operations/tests.rs": "1a81a211a2ccba6e42bb0e6fc05bd3eb1edb1ecc59c67ccdc6de9f814c5bdfcd",
+    "src/versions/java_1_21_11/wire.rs": "5c80f55a641b5ebd5feb0a0e8adbec3dbb189f727f9c485679ab57969100304c",
+    "data/client_api/menus-1.16.1.json": "6f24bb20bffee0b0e6207640f5cb4308302b010883da5fdbfe15839f7939d4cd",
+    "data/client_api/menus-1.21.11.json": "203c3ccc2a5c6206cbaef4fd4d48bdc2f3bf283fb8de815df412d6b90d91c9ca"
+  },
+  "native_menu_layout_oracle": {
+    "verifier": "scripts/ExportMenuLayouts.java",
+    "verifier_sha256": "5267bd8b15e01b8bb2492b42546e5e6963a402b9dd6bfbf9d1dc7440e4116fc0",
+    "scope": "Pinned original official server menu registry and 9 actual storage constructors per version. Total slots and per-Slot identity/reference/raw Inventory mappings, not inferred from packet length. Other menu constructors remain unaudited.",
+    "versions": {
+      "1.16.1": {
+        "registry_entries": 24,
+        "layouts_verified": 9,
+        "results": "data/client_api/menus-1.16.1.json",
+        "results_sha256": "6f24bb20bffee0b0e6207640f5cb4308302b010883da5fdbfe15839f7939d4cd",
+        "mappings_sha256": "9b19cc7d56e58258117e2fcc092f773b151682ecb2b1adb3de9832b3c450a30f",
+        "original_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077"
+      },
+      "1.21.11": {
+        "registry_entries": 25,
+        "layouts_verified": 9,
+        "results": "data/client_api/menus-1.21.11.json",
+        "results_sha256": "203c3ccc2a5c6206cbaef4fd4d48bdc2f3bf283fb8de815df412d6b90d91c9ca",
+        "mappings_sha256": "7ffd98f77f403043748d56467aac287a58f8187a27d5d6b7ebcac70042b02b1c",
+        "original_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed"
+      }
+    }
+  },
+  "failed_container_stage_trials": [
+    {
+      "run_id": "trial-1.16.1-c84c65cd",
+      "result": "failed",
+      "server_exit_code": 0,
+      "raw_report_sha256": "b23519cd0413c2aca3a723bb27907cc18d421e82fa555dc2df78edda96fcb558",
+      "reason": "Client actually received opening, full contents, changed contents and disconnected. Driver omitted container_disconnect/container_disconnected notification alias and incorrectly failed after the completed consumer. Added exact alias, without changing receipt/gameplay guards; clean JVM exit 0."
     }
   ]
 }

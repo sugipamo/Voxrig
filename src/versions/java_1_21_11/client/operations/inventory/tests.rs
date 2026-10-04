@@ -1,5 +1,135 @@
 use super::*;
 
+#[tokio::test]
+async fn common_container_receives_native_content_and_reused_id_is_a_new_opening() {
+    let mut f = CommonFixture::new().await;
+    let client = f.client();
+    f.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 2, 10, 0])
+        .await;
+    let before = crate::client::tests::common_container_capture_scenario(&client, false).await;
+    let mut full = vec![3, 5, 63];
+    for index in 0..63 {
+        put_slot(
+            &mut full,
+            &match index {
+                0 => plain("stone", 3),
+                27 => plain("dirt", 2),
+                _ => InventorySlot::Empty,
+            },
+        );
+    }
+    full.push(0);
+    f.receive(ids::play_clientbound::WINDOW_ITEMS, &full).await;
+    assert_eq!(
+        crate::client::tests::common_container_capture_scenario(&client, true).await,
+        before
+    );
+    let screen = client.screen_state().await.unwrap().screen.unwrap();
+    assert_eq!(screen.revision.as_ref().unwrap().value, 5);
+    let mut raw = vec![0];
+    put_slot(&mut raw, &plain("dirt", 7));
+    f.receive(ids::play_clientbound::SET_PLAYER_INVENTORY, &raw)
+        .await;
+    let updated = client.screen_state().await.unwrap().screen.unwrap();
+    assert!(
+        matches!(&updated.slots[54],Some(v) if matches!(&v.value,crate::client::SlotKnowledge::Item{item} if item.count==7))
+    );
+    assert_eq!(updated.revision, screen.revision);
+    f.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 2, 10, 0])
+        .await;
+    let reopened = crate::client::tests::common_container_capture_scenario(&client, false).await;
+    assert_ne!(reopened, before);
+    let mut stale = vec![4, 8, 0, 0];
+    put_slot(&mut stale, &plain("stone", 3));
+    f.receive(ids::play_clientbound::SET_SLOT, &stale).await;
+    crate::client::tests::common_container_capture_scenario(&client, false).await;
+    f.receive(ids::play_clientbound::CLOSE_WINDOW, &[4]).await;
+    assert_eq!(
+        client.screen_state().await.unwrap().screen.unwrap().id,
+        reopened
+    );
+    f.receive(ids::play_clientbound::CLOSE_WINDOW, &[3]).await;
+    assert!(client.screen_state().await.unwrap().screen.is_none());
+    f.stop().await;
+}
+
+#[test]
+fn container_content_malformed_packets_are_atomic_and_do_not_guess_layout() {
+    let mut state = baseline();
+    super::super::receive(
+        &mut state,
+        ids::play_clientbound::OPEN_WINDOW,
+        &[3, 2, 10, 0],
+    )
+    .unwrap();
+    let mut full = vec![3, 5, 63];
+    full.extend([0; 64]);
+    for length in 0..full.len() {
+        assert!(
+            super::super::receive(
+                &mut state,
+                ids::play_clientbound::WINDOW_ITEMS,
+                &full[..length]
+            )
+            .is_err()
+        );
+        let screen = state.operations.inventory.container.as_ref().unwrap();
+        assert!(screen.full_contents_sequence.is_none());
+        assert!(screen.slots.iter().all(Option::is_none));
+    }
+    let mut trailing = full.clone();
+    trailing.push(0);
+    assert!(
+        super::super::receive(&mut state, ids::play_clientbound::WINDOW_ITEMS, &trailing).is_err()
+    );
+    let mut wrong = vec![3, 5, 62];
+    wrong.extend([0; 63]);
+    assert!(
+        super::super::receive(&mut state, ids::play_clientbound::WINDOW_ITEMS, &wrong).is_err()
+    );
+    super::super::receive(&mut state, ids::play_clientbound::WINDOW_ITEMS, &full).unwrap();
+    let mut partial = vec![3, 6, 0, 63];
+    put_slot(&mut partial, &InventorySlot::Empty);
+    assert!(super::super::receive(&mut state, ids::play_clientbound::SET_SLOT, &partial).is_err());
+    assert_eq!(
+        state
+            .operations
+            .inventory
+            .container
+            .as_ref()
+            .unwrap()
+            .revision
+            .as_ref()
+            .unwrap()
+            .value,
+        5
+    );
+    // An unaudited menu keeps its actual contents, but no player mapping is invented.
+    super::super::receive(
+        &mut state,
+        ids::play_clientbound::OPEN_WINDOW,
+        &[4, 127, 10, 0],
+    )
+    .unwrap();
+    let mut unknown = vec![4, 1, 63];
+    unknown.extend([0; 64]);
+    super::super::receive(&mut state, ids::play_clientbound::WINDOW_ITEMS, &unknown).unwrap();
+    let screen = state.operations.inventory.container.as_ref().unwrap();
+    assert!(screen.layout.is_none());
+    assert!(screen.menu_name.is_none());
+    assert_eq!(screen.slots.len(), 63);
+    assert!(
+        state
+            .operations
+            .inventory
+            .slots
+            .iter()
+            .all(|s| *s == InventorySlot::Unavailable)
+    );
+    state.operations.reset_world(0).unwrap();
+    assert!(state.operations.inventory.container.is_none());
+}
+
 fn plain(name: &str, count: u8) -> InventorySlot {
     InventorySlot::Item {
         item: default_item(name, count).unwrap(),
@@ -535,7 +665,12 @@ fn confirmation_requires_both_post_submission_destinations() {
     assert_eq!((proof.main_sequence, proof.hotbar_sequence), (11, 12));
     assert_eq!(proof.submission.connection_id, 42);
     // A foreign container invalidates the cursor/revision and keeps uncertainty.
-    super::super::receive(&mut state, ids::play_clientbound::WINDOW_ITEMS, &[1, 0, 0]).unwrap();
+    super::super::receive(
+        &mut state,
+        ids::play_clientbound::WINDOW_ITEMS,
+        &[1, 0, 0, 0],
+    )
+    .unwrap();
     assert_eq!(
         state.operations.inventory.pending_swap.as_ref(),
         Some(&submission)

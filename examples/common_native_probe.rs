@@ -442,6 +442,108 @@ async fn inventory_probe(client: &Client) -> anyhow::Result<()> {
     }
     anyhow::bail!("inventory fixture ended without disconnect")
 }
+async fn container_probe(client: &Client) -> anyhow::Result<()> {
+    use voxrig::client::{ValueSource, container::ScreenObservation};
+    let ready = client.player_state().await?;
+    let initial_sequence = ready.receive_sequence;
+    emit("container_ready", ready)?;
+    let mut commands = BufReader::new(tokio::io::stdin()).lines();
+    let mut opening = None;
+    let mut content_sequence = 0;
+    while let Some(command) = commands.next_line().await? {
+        match command.as_str() {
+            "container_baseline" => {
+                let baseline = wait_player(client, |p| {
+                    p.game_mode == Some(GameMode::Creative)
+                        && p.received_pose.as_ref().is_some_and(|pose| pose.receive_sequence > initial_sequence && pose.position == [0.5,65.0,0.5])
+                        && p.inventory.window_id == Some(0)
+                        && p.inventory.cursor.as_ref().is_some_and(|c| c.value == SlotKnowledge::Empty)
+                        && p.inventory.slots[36].as_ref().is_some_and(|c| c.value == SlotKnowledge::Empty)
+                        && matches!(&p.inventory.slots[9],Some(c) if matches!(&c.value,SlotKnowledge::Item{item} if item.name=="minecraft:dirt" && item.count==2))
+                }).await?;
+                wait_block(client, [0, 65, 2], "minecraft:chest").await?;
+                anyhow::ensure!(
+                    client.screen_state().await?.screen.is_none(),
+                    "old screen retained on fresh source"
+                );
+                emit("container_baseline", baseline)?;
+            }
+            "container_open" => {
+                let dispatch = client
+                    .creative()
+                    .use_on_block([0, 65, 2], BlockFace::North, [0.5, 0.5, 0.0])
+                    .await?;
+                emit("container_open", dispatch)?;
+            }
+            "container_observed" | "container_changed" => {
+                let expected = if command == "container_observed" {
+                    3
+                } else {
+                    7
+                };
+                let capture: ScreenObservation = tokio::time::timeout(Duration::from_secs(15),async {
+                    loop {
+                        let capture = client.screen_state().await?;
+                        let matches = capture.screen.as_ref().is_some_and(|screen| {
+                            screen.menu_name.as_deref()==Some("minecraft:generic_9x3")
+                                && screen.full_contents_sequence.is_some()
+                                && screen.slots.len()==63
+                                && matches!(&screen.slots[0],Some(v) if matches!(&v.value,SlotKnowledge::Item{item} if item.name=="minecraft:stone" && item.count==expected) && matches!(v.source,ValueSource::Received{sequence} if sequence>content_sequence))
+                                && matches!(&screen.slots[27],Some(v) if matches!(&v.value,SlotKnowledge::Item{item} if item.name=="minecraft:dirt" && item.count==2))
+                                && screen.slots[54].as_ref().is_some_and(|v| v.value==SlotKnowledge::Empty)
+                                && capture.cursor.as_ref().is_some_and(|v| v.value==SlotKnowledge::Empty)
+                        });
+                        if matches { return Ok::<_,anyhow::Error>(capture); }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                }).await??;
+                let screen = capture.screen.as_ref().context("screen missing")?;
+                anyhow::ensure!(
+                    screen.id.session() == capture.session
+                        && capture.active_window == Some(screen.id.window_id()),
+                    "screen identity mismatch"
+                );
+                let layout = screen.layout.as_ref().context("native layout missing")?;
+                anyhow::ensure!(
+                    layout.total_slots == 63
+                        && layout.player_slots.len() == 36
+                        && layout.player_slots[0].screen_slot == 27
+                        && layout.player_slots[0].player_slot == 9
+                        && layout.player_slots[27].screen_slot == 54
+                        && layout.player_slots[27].player_slot == 36,
+                    "wrong native player mapping"
+                );
+                let player = client.player_state().await?;
+                anyhow::ensure!(
+                    player.inventory.slots[9] == screen.slots[27]
+                        && player.inventory.slots[36] == screen.slots[54],
+                    "player projection mismatch"
+                );
+                if let Some(id) = opening {
+                    anyhow::ensure!(id == screen.id, "slot update replaced opening identity");
+                } else {
+                    opening = Some(screen.id);
+                }
+                if let ValueSource::Received { sequence } = screen.slots[0].as_ref().unwrap().source
+                {
+                    content_sequence = sequence;
+                }
+                emit(&command, capture)?;
+            }
+            "container_disconnect" => {
+                client.disconnect().await?;
+                anyhow::ensure!(
+                    client.screen_state().await.is_err(),
+                    "closed screen treated as live"
+                );
+                emit("container_disconnected", serde_json::json!({"closed":true}))?;
+                return Ok(());
+            }
+            _ => anyhow::bail!("unexpected container fixture command"),
+        }
+    }
+    anyhow::bail!("container fixture ended without disconnect")
+}
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let port: u16 = std::env::var("VOXRIG_PORT")?.parse()?;
@@ -449,6 +551,9 @@ async fn main() -> anyhow::Result<()> {
         ConnectionConfig::offline_from_env(Server::new("127.0.0.1", port), "UnifiedProbe")?;
     let client = Client::connect(config).await?;
     client.wait_until_ready().await?;
+    if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("container") {
+        return container_probe(&client).await;
+    }
     if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("inventory") {
         return inventory_probe(&client).await;
     }
