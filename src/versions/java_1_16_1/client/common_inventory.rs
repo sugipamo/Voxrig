@@ -150,15 +150,17 @@ impl Bot {
                 .as_ref()
                 .map(|s| s.capture(current.session));
             let slots = contract::source_slots(&record, &current, screen.as_ref())?;
-            if slots
-                .get(usize::from(record.source_slot))
-                .and_then(Option::as_ref)
-                != Some(&record.source_before)
-                || slots
+            if !contract::same_received_value(
+                slots
+                    .get(usize::from(record.source_slot))
+                    .and_then(Option::as_ref),
+                &record.source_before,
+            ) || !contract::same_received_value(
+                slots
                     .get(usize::from(record.hotbar_screen_slot))
-                    .and_then(Option::as_ref)
-                    != Some(&record.hotbar_before)
-            {
+                    .and_then(Option::as_ref),
+                &record.hotbar_before,
+            ) {
                 return Err(contract::unavailable(
                     "inventory capture changed before I/O",
                 ));
@@ -1510,6 +1512,110 @@ mod tests {
         payload.extend(action.to_be_bytes());
         payload.push(u8::from(accepted));
         bot.apply_packet(0x12, payload).await.unwrap();
+    }
+    #[tokio::test]
+    async fn refreshed_predecessors_allow_one_swap_but_never_count_as_results_or_heal_conflicts() {
+        for conflict in [false, true] {
+            let (bot, mut packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            seed(&bot).await;
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            let revision = bot.connection.motion_admission_revision().await.unwrap();
+            // Pause at the real before-I/O boundary deterministically. Every
+            // predecessor below comes from the normal native packet handler.
+            let record = contract::prepare_source(
+                client.player_state().await.unwrap(),
+                api::GameMode::Survival,
+                contract::InventorySwapSource::PlayerMain,
+                9,
+                0,
+                1,
+                None,
+            )
+            .unwrap();
+            *bot.common_inventory_swap.lock().await = Some(NativeInventorySwap {
+                record: record.clone(),
+                released: false,
+            });
+            slot(&bot, 9, &record.source_before.value, false).await;
+            slot(&bot, 36, &record.hotbar_before.value, false).await;
+            bot.apply_packet(0x16, vec![255, 255, 255, 0])
+                .await
+                .unwrap();
+            let refreshed = client.player_state().await.unwrap();
+            assert_ne!(
+                refreshed.inventory.slots[9],
+                Some(record.source_before.clone())
+            );
+            assert_ne!(
+                refreshed.inventory.slots[36],
+                Some(record.hotbar_before.clone())
+            );
+            if conflict {
+                let mut changed = record.source_before.value.clone();
+                let api::SlotKnowledge::Item { item } = &mut changed else {
+                    unreachable!()
+                };
+                item.count += 1;
+                slot(&bot, 9, &changed, false).await;
+                slot(&bot, 9, &record.source_before.value, false).await;
+            }
+            let send_boundary = bot.protocol_packet_sequence.load(Ordering::Acquire);
+            let sent = bot.common_swap_send_owned(record.id, revision).await;
+            if conflict {
+                assert!(sent.is_err());
+                assert!(
+                    timeout(Duration::from_millis(20), packets.recv())
+                        .await
+                        .is_err()
+                );
+                let retained = client
+                    .survival()
+                    .inventory_swap_record()
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(retained.stage, InventorySwapStage::RequiresInspection);
+                assert!(!retained.send.dispatched);
+                assert!(retained.source_receipt.is_none());
+                assert!(retained.hotbar_receipt.is_none());
+            } else {
+                let sent = sent.unwrap();
+                assert_eq!(packets.recv().await.unwrap().0, 0x09);
+                assert_eq!(sent.source_before, record.source_before);
+                assert_eq!(sent.hotbar_before, record.hotbar_before);
+                assert_eq!(sent.send.after_sequence, send_boundary);
+                assert!(sent.send.after_sequence > sent.initial.receive_sequence);
+                assert!(sent.source_receipt.is_none());
+                assert!(sent.hotbar_receipt.is_none());
+                assert_eq!(sent.stage, InventorySwapStage::Pending);
+                slot(&bot, 9, &record.hotbar_before.value, false).await;
+                slot(&bot, 36, &record.source_before.value, false).await;
+                assert_eq!(
+                    client
+                        .survival()
+                        .inventory_swap_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .stage,
+                    InventorySwapStage::Pending
+                );
+                ack(&bot, sent.send.legacy_action.unwrap(), false).await;
+                assert_eq!(packets.recv().await.unwrap().0, 0x07);
+                api::tests::common_swap_completed_scenario(&client, record.id).await;
+                assert!(
+                    timeout(Duration::from_millis(20), packets.recv())
+                        .await
+                        .is_err()
+                );
+            }
+            bot.disconnect().await.unwrap();
+            drop(release);
+            drop(client);
+            drop(bot);
+            server.await.unwrap();
+        }
     }
     #[tokio::test]
     async fn common_swap_same_consumer_checks_destinations_native_ack_and_next_empty_swap() {

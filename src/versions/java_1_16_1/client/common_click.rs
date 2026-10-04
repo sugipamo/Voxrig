@@ -116,12 +116,15 @@ impl Bot {
                 .as_ref()
                 .map(|s| s.capture(current.session));
             let slots = click::source_slots(&record, &current, screen.as_ref())?;
-            if slots
-                .get(usize::from(record.source_slot))
-                .and_then(Option::as_ref)
-                != Some(&record.source_before)
-                || current.inventory.cursor.as_ref() != Some(&record.cursor_before)
-            {
+            if !contract::same_received_value(
+                slots
+                    .get(usize::from(record.source_slot))
+                    .and_then(Option::as_ref),
+                &record.source_before,
+            ) || !contract::same_received_value(
+                current.inventory.cursor.as_ref(),
+                &record.cursor_before,
+            ) {
                 return Err(contract::unavailable("click capture changed before I/O"));
             }
             {

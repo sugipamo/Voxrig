@@ -482,3 +482,17 @@ pub(crate) fn destinations_ready(record: &InventorySwapRecord) -> bool {
         && record.source_receipt.is_some()
         && record.hotbar_receipt.is_some()
 }
+
+/// Re-observing an unchanged native value does not invalidate a before-I/O
+/// predecessor. Its original ordinal remains historical, and send.after_sequence
+/// uses the current packet boundary; only later actual effect receipts complete.
+pub(crate) fn same_received_value(
+    actual: Option<&ObservedValue<SlotKnowledge>>,
+    before: &ObservedValue<SlotKnowledge>,
+) -> bool {
+    matches!(before.source, ValueSource::Received { .. })
+        && before.value != SlotKnowledge::Unavailable
+        && actual.is_some_and(|v| {
+            matches!(v.source, ValueSource::Received { .. }) && v.value == before.value
+        })
+}

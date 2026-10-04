@@ -114,8 +114,25 @@ impl Bot {
                 .as_ref()
                 .map(|s| s.capture(current.session));
             let slots = transfer::source_slots(&record, &current, screen.as_ref())?;
-            if slots != &record.before_slots
-                || current.inventory.cursor.as_ref() != Some(&record.cursor_before)
+            if record
+                .before_slots
+                .iter()
+                .enumerate()
+                .any(|(index, before)| {
+                    before
+                        .as_ref()
+                        .filter(|v| v.value != api::SlotKnowledge::Unavailable)
+                        .is_some_and(|before| {
+                            !contract::same_received_value(
+                                slots.get(index).and_then(Option::as_ref),
+                                before,
+                            )
+                        })
+                })
+                || !contract::same_received_value(
+                    current.inventory.cursor.as_ref(),
+                    &record.cursor_before,
+                )
             {
                 return Err(contract::unavailable("transfer capture changed before I/O"));
             }
