@@ -43,6 +43,12 @@ async fn pending<F: Future>(mut future: Pin<&mut F>) {
 fn operations(session: &Arc<Session>) -> operations::Operations {
     operations::Operations {
         bot: Bot {
+            close_history: session
+                .state
+                .try_lock()
+                .expect("new session")
+                .close_history
+                .clone(),
             session: session.clone(),
             _lease: Arc::new(Lease(Arc::downgrade(session))),
         },

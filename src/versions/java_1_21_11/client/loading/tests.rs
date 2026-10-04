@@ -36,6 +36,12 @@ async fn fixture() -> (Bot, OwnedReadHalf, TcpStream) {
         interaction_sequence: AtomicI32::new(0),
     });
     let bot = Bot {
+        close_history: session
+            .state
+            .try_lock()
+            .expect("new session")
+            .close_history
+            .clone(),
         session: session.clone(),
         _lease: Arc::new(Lease(Arc::downgrade(&session))),
     };

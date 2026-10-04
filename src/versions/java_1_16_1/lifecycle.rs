@@ -114,6 +114,8 @@ pub enum OperationClass {
 /// Typed rejection from the connection actor before packet write.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OperationAdmissionError {
+    /// A retained cursor-return/close pipeline owns normal dispatch.
+    BoundedContainerCloseInProgress,
     /// A retained common storage activation owns ordinary gameplay dispatch.
     BoundedContainerOpenInProgress,
     /// A finite common motion run exclusively owns normal gameplay dispatch.
@@ -147,6 +149,9 @@ pub enum OperationAdmissionError {
 impl Display for OperationAdmissionError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         let name = match self {
+            Self::BoundedContainerCloseInProgress => {
+                "retained cursor return/close owns gameplay dispatch"
+            }
             Self::BoundedContainerOpenInProgress => {
                 "retained common container open owns gameplay dispatch"
             }
@@ -248,6 +253,15 @@ pub(crate) enum TerminalClassification {
 
 enum Command {
     Motion(bounded_motion::MotionCommand),
+    BeginCursorClose {
+        identity: (u64, i8, u16),
+        expected_revision: u64,
+        reply: oneshot::Sender<Result<(), OperationAdmissionError>>,
+    },
+    ReserveCursorReturn {
+        identity: (u64, u16),
+        reply: oneshot::Sender<Result<i16, OperationAdmissionError>>,
+    },
     BeginInventorySwap {
         run_id: u64,
         expected_revision: u64,
@@ -453,6 +467,31 @@ impl ConnectionActor {
             let mut motion_gate = MotionGate::default();
             while let Some(command) = receiver.recv().await {
                 match command {
+                    Command::BeginCursorClose {
+                        identity,
+                        expected_revision,
+                        reply,
+                    } => {
+                        let result = motion_gate
+                            .begin_cursor_close(
+                                identity,
+                                expected_revision,
+                                state,
+                                &actor_control,
+                                !pending_transactions.is_empty()
+                                    || pending_furnace_interaction
+                                        .is_some_and(|p| p.expires_at > Instant::now()),
+                            )
+                            .await;
+                        let _ = reply.send(result);
+                    }
+                    Command::ReserveCursorReturn { identity, reply } => {
+                        let _ = reply.send(motion_gate.reserve_cursor_return(
+                            identity,
+                            state,
+                            &mut next_actions,
+                        ));
+                    }
                     Command::BeginInventorySwap {
                         run_id,
                         expected_revision,

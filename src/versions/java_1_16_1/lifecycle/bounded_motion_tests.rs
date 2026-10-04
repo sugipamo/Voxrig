@@ -279,3 +279,52 @@ async fn shift_transfer_actor_owns_exact_mode_shared_action_and_native_default_n
     assert_eq!(actor.begin_window_click(2,actor.motion_admission_revision().await.unwrap(),0).await.unwrap(),2);
     actor.bounded_inventory_click(2,9,0,None).await.unwrap();read_packet(&mut peer,None).await.unwrap();actor.finish_inventory_click(2).await.unwrap();
 }
+
+#[tokio::test]
+async fn cursor_close_parent_retains_normal_exclusion_and_shared_actions_between_return_steps() {
+    let (actor, mut peer) = actor_fixture().await;
+    actor.mark_ready().await;
+    let revision = actor.motion_admission_revision().await.unwrap();
+    actor.begin_cursor_close(1, revision, 3, 2).await.unwrap();
+    let context = OperationContext { generation: actor.generation(), source_observation_sequence: 0 };
+    assert_eq!(actor.admit(context, OperationClass::Normal).await,
+        Err(OperationAdmissionError::BoundedContainerCloseInProgress));
+    actor.dispatch_protocol(0x10, &[9]).await.unwrap();
+    assert_eq!(read_packet(&mut peer, None).await.unwrap(), (0x10, vec![9]));
+
+    assert!(actor.finish_cursor_close(1).await.is_err());
+    assert!(actor.bounded_cursor_close(1).await.is_err());
+    assert!(actor.reserve_cursor_return(2, 0).await.is_err());
+    assert!(actor.reserve_cursor_return(1, 1).await.is_err());
+    no_packet(&mut peer).await;
+    for number in 0..2 {
+        let action = actor.reserve_cursor_return(1, number).await.unwrap();
+        assert_eq!(action, number as i16 + 1);
+        assert!(actor.reserve_cursor_return(1, number).await.is_err());
+        assert!(actor.finish_cursor_return(1, number).await.is_err());
+        assert!(actor.bounded_cursor_return(2, number, 27, None).await.is_err());
+        no_packet(&mut peer).await;
+        actor.bounded_cursor_return(1, number, 27 + number, None).await.unwrap();
+        let (id, payload) = read_packet(&mut peer, None).await.unwrap();
+        assert_eq!(id, 0x09);
+        assert_eq!(i16::from_be_bytes([payload[4], payload[5]]), action);
+        assert!(actor.bounded_cursor_return(1, number, 27, None).await.is_err());
+        assert!(actor.bounded_cursor_close(1).await.is_err());
+        actor.finish_cursor_return(1, number).await.unwrap();
+        assert!(actor.finish_cursor_return(1, number).await.is_err());
+        assert!(actor.begin_inventory_swap(2, revision).await.is_err());
+        assert!(actor.begin_bounded_motion(2, revision).await.is_err());
+        no_packet(&mut peer).await;
+    }
+    actor.bounded_cursor_close(1).await.unwrap();
+    assert_eq!(read_packet(&mut peer, None).await.unwrap(), (0x0a, vec![3]));
+    assert!(actor.bounded_cursor_close(1).await.is_err());
+    actor.finish_cursor_close(1).await.unwrap();
+    let next_revision = actor.motion_admission_revision().await.unwrap();
+    assert!(next_revision > revision);
+    let revision = next_revision;
+    assert_eq!(actor.begin_window_swap(2, revision, 3).await.unwrap(), 3);
+    actor.bounded_inventory_swap(2, 27, 0, swap_comparison()).await.unwrap();
+    read_packet(&mut peer, None).await.unwrap();
+    actor.finish_inventory_swap(2).await.unwrap();
+}

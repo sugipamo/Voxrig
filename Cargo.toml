@@ -31,6 +31,8 @@ include = [
     "/scripts/VerifyLegacyInventorySwap.java",
     "/scripts/VerifyContainerClose.java",
     "/scripts/InspectNativeClose.java",
+    "/scripts/ExportCursorReturns.java",
+    "/scripts/export_cursor_returns.py",
     "/scripts/ExportMenuLayouts.java",
     "/scripts/ExportStorageOutlines.java",
     "/scripts/ExportRegularClicks.java",

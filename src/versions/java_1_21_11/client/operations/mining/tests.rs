@@ -667,6 +667,12 @@ impl Fixture {
         });
         let api = Operations {
             bot: Bot {
+                close_history: session
+                    .state
+                    .try_lock()
+                    .expect("new session")
+                    .close_history
+                    .clone(),
                 session: session.clone(),
                 _lease: Arc::new(Lease(Arc::downgrade(&session))),
             },

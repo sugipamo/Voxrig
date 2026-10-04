@@ -180,3 +180,19 @@ raw report/trace/hashは`data/client_api/cursor_close_native_evidence.json`へ�
 実値の競合が復元されても解除しないこと、再受信を送信後の結果として数えないことをtransport試験で確認する。
 この調査はcursor付き共通closeの実装・完了ではない。終了前の実在庫返却／実受信／owned closeを
 次に組み合わせる。範囲と順序は[追加native調査](common-cursor-close-audit.md)を参照。
+
+## 実cursor返却からcloseまで
+
+`trial-1.16.1-8aa5526a` / `trial-1.21.11-e1c711c9`は同じconsumer binaryで既存の全workflowとcursor付きcloseを通過した。
+各版・各modeでstone 5の部分結合→空きmain返却とdefault diamond helmet 1を検証し、modernはdefault bundle 1も検証した。
+close record内の各PICKUPは実source/cursor before、予測、完全送信、新しい実source/cursorとlegacy実比較応答を別に保持する。
+すべてのstepの実結果とEmpty cursorを確認後にCLOSEを一度だけ送り、vanillaの無応答をACKへ変換しない。
+RCONは個数保持、dropなし、空で閉じたbarrel、位置・向き不変を独立に照合する。
+両JVM exit 0でtmpfs runtimeを削除した。raw hashとactual input/binary snapshot、結果は
+[cursor return native evidence](../data/client_api/cursor_return_native_evidence.json)に保持した。
+
+追加試験は同値pose再受信の誤拒否と、modernの新しいposition公開がteleport確認より先だった競合を発見した。
+前者は同じ実位置・向きを比較して履歴ordinalを保持し、後者はoriginal確認/position応答の完全送信までstate lockを保持する。
+writerを止めたtransport回帰試験でnormal lookが確認packetを追い越さないことを確認する。
+fixtureも外部teleportの新しい実poseを待つ。過去の失敗を成功へ読み替えず、最終runと分けて保持した。
+任意item data/components、製作・一般装備・entity、広いmovement条件、context/記録/再構成/復旧等は全体goalに残る。

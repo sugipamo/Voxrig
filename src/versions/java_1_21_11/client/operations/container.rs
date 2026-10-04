@@ -1,30 +1,57 @@
 //! Retained storage activation/close; complete sends never fabricate actual screen receipts.
 use super::*;
 use crate::client::{self as api, container as contract};
+use std::time::Duration;
 
 pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut State) {
-    let session = api::SessionStamp {
-        version: crate::MinecraftVersion::Java1_21_11,
-        connection_id: state
-            .common_container_close
-            .as_ref()
-            .map_or(0, |r| r.initial.session.connection_id),
-        world_generation: state.loading.generation,
-    };
-    let inventory = &state.operations.inventory;
-    let screen = inventory.container.as_ref().map(|s| s.capture(session).id);
-    let cursor = inventory.cursor_sequence.and_then(|s| {
-        super::common_slot(&inventory.cursor)
-            .ok()
-            .map(|v| api::received(v, s))
-    });
-    if let Some(r) = state.common_container_close.as_mut() {
-        r.context_received(session, state.operations.game_mode, screen, cursor.as_ref());
-        if !state.ready || !matches!(state.phase, Phase::Play) || state.failure.is_some() {
-            r.inspection("close session closed or unavailable");
+    if let Some(mut record) = state.common_container_close.take() {
+        let current =
+            super::common_player_in_state(state, record.initial.session.connection_id, false);
+        match current {
+            Ok(current) => {
+                let screen = state
+                    .operations
+                    .inventory
+                    .container
+                    .as_ref()
+                    .map(|s| s.capture(current.session));
+                record.return_received(&current, screen.as_ref());
+            }
+            Err(error) => record.inspection(error),
         }
+        if !state.ready || !matches!(state.phase, Phase::Play) || state.failure.is_some() {
+            record.inspection("close session closed or unavailable");
+        }
+        let inventory = &state.operations.inventory;
+        if inventory.pending_swap.is_some()
+            || !inventory.pending_creative.is_empty()
+            || inventory.unsupported_components
+            || !state.loading.notification_dispatched()
+        {
+            record.inspection("close native inventory/loading context changed");
+        }
+        state.common_container_close = Some(record);
+        publish_close(state);
     }
     open_context_received(state);
+}
+// Diagnostic mirror has a separate short synchronous lock. Reading it never
+// waits behind a state lock held across an actual outbound writer attempt.
+fn publish_close(state: &mut State) {
+    let mut history = state.close_history.lock().expect("close history");
+    if let (Some(record), Some(previous)) =
+        (state.common_container_close.as_mut(), history.as_ref())
+    {
+        if record.id == previous.id {
+            if let Some(reason) = &previous.requires_inspection {
+                if record.requires_inspection.is_none() {
+                    record.requires_inspection = Some(reason.clone());
+                    record.stage = contract::ContainerCloseStage::RequiresInspection;
+                }
+            }
+        }
+    }
+    *history = state.common_container_close.clone();
 }
 fn open_context_received(state: &mut State) {
     let Some(mut record) = state.common_container_open.take() else {
@@ -281,30 +308,156 @@ impl Operations {
             mode,
             state.common_container_close.as_ref(),
         )?;
-        let mut payload = Vec::new();
-        put_varint(&mut payload, screen.window_id());
+        let id = record.id;
         state.common_container_close = Some(record);
-        // State retains uncertainty if this future is cancelled while waiting for the writer.
-        match self
-            .bot
-            .session
-            .send(ids::play_serverbound::CLOSE_WINDOW, &payload)
+        publish_close(&mut state);
+        let owner = self.clone();
+        let (reply, outcome) = tokio::sync::oneshot::channel();
+        tokio::spawn(async move {
+            let result = owner.return_and_close_owned(id).await;
+            if let Err(error) = &result {
+                let mut state = owner.bot.session.state.lock().await;
+                if let Some(record) = state.common_container_close.as_mut().filter(|r| r.id == id) {
+                    record.inspection(error);
+                }
+                publish_close(&mut state);
+            }
+            let _ = reply.send(result);
+        });
+        drop(state);
+        outcome
             .await
-        {
-            Ok(()) => state
+            .map_err(|_| api::inventory::unavailable("close owner result unavailable"))?
+    }
+    fn close_current(
+        &self,
+        state: &mut State,
+        id: contract::ContainerCloseId,
+    ) -> Result<(api::PlayerObservation, contract::ContainerScreen)> {
+        self.ready(state)?;
+        context_received(state);
+        let record = state
+            .common_container_close
+            .as_ref()
+            .filter(|r| r.id == id)
+            .ok_or_else(|| api::inventory::unavailable("close intent superseded"))?;
+        if record.requires_inspection.is_some() {
+            return Err(api::inventory::unavailable(
+                "close context changed; inspect without replay",
+            ));
+        }
+        let current = self.common_player_unlocked(state)?;
+        let screen = state
+            .operations
+            .inventory
+            .container
+            .as_ref()
+            .map(|s| s.capture(current.session))
+            .ok_or_else(|| api::inventory::unavailable("close original opening unavailable"))?;
+        Ok((current, screen))
+    }
+    async fn return_and_close_owned(
+        &self,
+        id: contract::ContainerCloseId,
+    ) -> Result<contract::ContainerCloseRecord> {
+        let count = {
+            let mut state = self.bot.session.state.lock().await;
+            self.close_current(&mut state, id)?;
+            state
                 .common_container_close
-                .as_mut()
+                .as_ref()
                 .expect("retained")
-                .sent(),
-            Err(e) => {
+                .return_plan
+                .len()
+        };
+        for _ in 0..count {
+            {
+                let mut state = self.bot.session.state.lock().await;
+                let (current, screen) = self.close_current(&mut state, id)?;
+                let revision = screen.revision.as_ref().map(|r| r.value);
+                let sequence = current.receive_sequence;
+                let record = state.common_container_close.as_mut().expect("retained");
+                record.begin_return_step(current, screen)?;
+                let step = record.return_steps.last_mut().expect("prepared");
+                step.send.screen_revision = revision;
+                step.send.after_sequence = sequence;
+                let payload = inventory::click::payload(step)?;
+                publish_close(&mut state);
+                self.bot
+                    .session
+                    .send(ids::play_serverbound::WINDOW_CLICK, &payload)
+                    .await?;
                 state
                     .common_container_close
                     .as_mut()
                     .expect("retained")
-                    .inspection(&e);
-                return Err(e);
+                    .return_steps
+                    .last_mut()
+                    .expect("prepared")
+                    .send
+                    .dispatched = true;
+                publish_close(&mut state);
             }
+            tokio::time::timeout(contract::close::RECEIPT_TIMEOUT, async {
+                loop {
+                    {
+                        let mut state = self.bot.session.state.lock().await;
+                        self.close_current(&mut state, id)?;
+                        if state
+                            .common_container_close
+                            .as_ref()
+                            .expect("retained")
+                            .return_steps
+                            .last()
+                            .is_some_and(|s| {
+                                s.stage == api::inventory::InventoryClickStage::ObservedClicked
+                            })
+                        {
+                            return Ok::<(), crate::Error>(());
+                        }
+                    }
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+            })
+            .await
+            .map_err(|_| {
+                api::inventory::unavailable(
+                    "return actual receipt deadline elapsed; inspect without replay",
+                )
+            })??;
         }
+        let mut state = self.bot.session.state.lock().await;
+        let (current, _) = self.close_current(&mut state, id)?;
+        if !state
+            .common_container_close
+            .as_ref()
+            .expect("retained")
+            .return_complete()
+            || !matches!(
+                current.inventory.cursor.as_ref(),
+                Some(api::ObservedValue {
+                    value: api::SlotKnowledge::Empty,
+                    source: api::ValueSource::Received { .. }
+                })
+            )
+        {
+            return Err(api::inventory::unavailable(
+                "close requires all actual return steps and actual Empty cursor",
+            ));
+        }
+        let mut payload = Vec::new();
+        put_varint(&mut payload, id.screen().window_id());
+        publish_close(&mut state);
+        self.bot
+            .session
+            .send(ids::play_serverbound::CLOSE_WINDOW, &payload)
+            .await?;
+        state
+            .common_container_close
+            .as_mut()
+            .expect("retained")
+            .sent();
+        publish_close(&mut state);
         Ok(state
             .common_container_close
             .as_ref()
@@ -314,13 +467,15 @@ impl Operations {
     pub(crate) async fn common_container_close_record(
         &self,
     ) -> Result<Option<contract::ContainerCloseRecord>> {
-        let mut state = self.bot.session.state.lock().await;
-        context_received(&mut state);
-        if self.bot.session.stopped.load(Ordering::Acquire) || state.failure.is_some() {
-            if let Some(r) = state.common_container_close.as_mut() {
-                r.inspection("close connection closed or uncertain");
+        if let Ok(mut state) = self.bot.session.state.try_lock() {
+            context_received(&mut state);
+        }
+        let mut history = self.bot.close_history.lock().expect("close history");
+        if self.bot.session.stopped.load(Ordering::Acquire) {
+            if let Some(record) = history.as_mut() {
+                record.inspection("close connection closed or uncertain");
             }
         }
-        Ok(state.common_container_close.clone())
+        Ok(history.clone())
     }
 }

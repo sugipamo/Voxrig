@@ -83,7 +83,9 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
     }
     state.common_inventory_click = Some(record);
 }
-pub(super) fn payload(record: &InventoryClickRecord) -> Result<Vec<u8>> {
+pub(in crate::versions::java_1_21_11::client::operations) fn payload(
+    record: &InventoryClickRecord,
+) -> Result<Vec<u8>> {
     let revision = record
         .send
         .screen_revision

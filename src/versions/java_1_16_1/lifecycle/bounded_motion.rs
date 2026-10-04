@@ -3,6 +3,26 @@ use super::*;
 type Admission<T> = Result<T, OperationAdmissionError>;
 
 pub(super) enum MotionCommand {
+    CursorReturn {
+        run_id: u64,
+        step: u16,
+        slot: u16,
+        comparison: Option<crate::versions::java_1_16_1::ItemStack>,
+        reply: oneshot::Sender<crate::Result<()>>,
+    },
+    FinishCursorReturn {
+        run_id: u64,
+        step: u16,
+        reply: oneshot::Sender<Admission<()>>,
+    },
+    CursorClose {
+        run_id: u64,
+        reply: oneshot::Sender<crate::Result<()>>,
+    },
+    FinishCursorClose {
+        run_id: u64,
+        reply: oneshot::Sender<Admission<()>>,
+    },
     OpenContainer {
         run_id: u64,
         expected_revision: u64,
@@ -15,6 +35,7 @@ pub(super) enum MotionCommand {
         run_id: u64,
         reply: oneshot::Sender<Admission<()>>,
     },
+    #[cfg(test)]
     CloseContainer {
         expected_revision: u64,
         window: i8,
@@ -97,6 +118,14 @@ pub(super) enum MotionCommand {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Owner {
+    CursorClose {
+        run_id: u64,
+        window: i8,
+        steps: u16,
+        next: u16,
+        active: Option<CursorStep>,
+        closed: bool,
+    },
     ContainerOpen {
         run_id: u64,
         sent: bool,
@@ -130,12 +159,85 @@ enum Owner {
         aborted: bool,
     },
 }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct CursorStep {
+    number: u16,
+    action: i16,
+    sent: bool,
+}
 #[derive(Default)]
 pub(super) struct MotionGate {
     owner: Option<Owner>,
     normal_revision: u64,
 }
 impl MotionGate {
+    pub(super) async fn begin_cursor_close(
+        &mut self,
+        identity: (u64, i8, u16),
+        expected_revision: u64,
+        state: ConnectionState,
+        control: &Arc<RwLock<crate::snapshot::Versioned<crate::ControlState>>>,
+        pending: bool,
+    ) -> Admission<()> {
+        self.can_begin(state, control, pending).await?;
+        let (run_id, window, steps) = identity;
+        if run_id == 0 || window <= 0 || steps > 36 || expected_revision != self.normal_revision {
+            return Err(OperationAdmissionError::InvalidOperation);
+        }
+        self.normal_revision = self
+            .normal_revision
+            .checked_add(1)
+            .ok_or(OperationAdmissionError::InvalidOperation)?;
+        self.owner = Some(Owner::CursorClose {
+            run_id,
+            window,
+            steps,
+            next: 0,
+            active: None,
+            closed: false,
+        });
+        Ok(())
+    }
+    pub(super) fn reserve_cursor_return(
+        &mut self,
+        identity: (u64, u16),
+        state: ConnectionState,
+        actions: &mut HashMap<i8, i16>,
+    ) -> Admission<i16> {
+        admit_lifecycle(state, OperationClass::Normal)?;
+        let Some(Owner::CursorClose {
+            run_id,
+            window,
+            steps,
+            next,
+            active,
+            closed,
+        }) = self.owner.as_mut()
+        else {
+            return Err(OperationAdmissionError::InvalidOperation);
+        };
+        if *run_id != identity.0
+            || *next != identity.1
+            || *next >= *steps
+            || active.is_some()
+            || *closed
+        {
+            return Err(OperationAdmissionError::InvalidOperation);
+        }
+        let previous = actions.entry(*window).or_insert(0);
+        let action = previous
+            .checked_add(1)
+            .filter(|a| *a > 0)
+            .ok_or(OperationAdmissionError::InvalidOperation)?;
+        *previous = action;
+        *active = Some(CursorStep {
+            number: identity.1,
+            action,
+            sent: false,
+        });
+        Ok(action)
+    }
+
     pub(super) async fn begin_inventory_swap(
         &mut self,
         identity: (u64, i8),
@@ -256,6 +358,145 @@ impl MotionGate {
         pending: bool,
     ) -> bool {
         match command {
+            MotionCommand::CursorReturn {
+                run_id,
+                step,
+                slot,
+                comparison,
+                reply,
+            } => {
+                let payload = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
+                    let Some(Owner::CursorClose {
+                        run_id: id,
+                        window,
+                        active: Some(active),
+                        closed: false,
+                        ..
+                    }) = self.owner.as_mut()
+                    else {
+                        return Err(OperationAdmissionError::InvalidOperation);
+                    };
+                    if *id != run_id
+                        || active.number != step
+                        || active.sent
+                        || slot >= 4096
+                        || comparison.as_ref().is_some_and(|s| {
+                            !crate::client::inventory::transfer_policy::legacy_comparison_supported(
+                                s,
+                            )
+                        })
+                    {
+                        return Err(OperationAdmissionError::InvalidOperation);
+                    }
+                    active.sent = true;
+                    let mut payload = vec![*window as u8];
+                    payload.extend((slot as i16).to_be_bytes());
+                    payload.push(0);
+                    payload.extend(active.action.to_be_bytes());
+                    payload.push(0);
+                    crate::versions::java_1_16_1::inventory::write_slot(
+                        &mut payload,
+                        comparison.as_ref(),
+                    );
+                    Ok(payload)
+                });
+                let admitted = payload.is_ok();
+                let result = match payload {
+                    Err(e) => Err(crate::client::inventory::unavailable(format!(
+                        "cursor return actor rejected: {e:?}"
+                    ))),
+                    Ok(payload) => {
+                        let mut writer = writer.lock().await;
+                        let compression = writer.compression;
+                        crate::protocol::write_packet(
+                            &mut writer.inner,
+                            compression,
+                            0x09,
+                            &payload,
+                        )
+                        .await
+                        .map_err(crate::Error::from)
+                    }
+                };
+                let failed = admitted && result.is_err();
+                let _ = reply.send(result);
+                return failed;
+            }
+            MotionCommand::FinishCursorReturn {
+                run_id,
+                step,
+                reply,
+            } => {
+                let result = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
+                    let Some(Owner::CursorClose {
+                        run_id: id,
+                        next,
+                        active,
+                        closed: false,
+                        ..
+                    }) = self.owner.as_mut()
+                    else {
+                        return Err(OperationAdmissionError::InvalidOperation);
+                    };
+                    if *id != run_id || !active.is_some_and(|a| a.number == step && a.sent) {
+                        return Err(OperationAdmissionError::InvalidOperation);
+                    }
+                    *next = next
+                        .checked_add(1)
+                        .ok_or(OperationAdmissionError::InvalidOperation)?;
+                    *active = None;
+                    Ok(())
+                });
+                let _ = reply.send(result);
+            }
+            MotionCommand::CursorClose { run_id, reply } => {
+                let payload = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
+                    let Some(Owner::CursorClose {
+                        run_id: id,
+                        window,
+                        steps,
+                        next,
+                        active: None,
+                        closed,
+                    }) = self.owner.as_mut()
+                    else {
+                        return Err(OperationAdmissionError::InvalidOperation);
+                    };
+                    if *id != run_id || *closed || *next != *steps {
+                        return Err(OperationAdmissionError::InvalidOperation);
+                    }
+                    *closed = true;
+                    Ok([*window as u8])
+                });
+                let admitted = payload.is_ok();
+                let result = match payload {
+                    Err(e) => Err(crate::client::inventory::unavailable(format!(
+                        "owned close actor rejected: {e:?}"
+                    ))),
+                    Ok(payload) => {
+                        let mut writer = writer.lock().await;
+                        let compression = writer.compression;
+                        crate::protocol::write_packet(
+                            &mut writer.inner,
+                            compression,
+                            0x0a,
+                            &payload,
+                        )
+                        .await
+                        .map_err(crate::Error::from)
+                    }
+                };
+                let failed = admitted && result.is_err();
+                let _ = reply.send(result);
+                return failed;
+            }
+            MotionCommand::FinishCursorClose { run_id, reply } => {
+                let result = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
+                    if !matches!(self.owner, Some(Owner::CursorClose { run_id: id, closed: true, active: None, .. }) if id == run_id) { return Err(OperationAdmissionError::InvalidOperation); }
+                    self.owner = None; Ok(())
+                });
+                let _ = reply.send(result);
+            }
             MotionCommand::OpenContainer {
                 run_id,
                 expected_revision,
@@ -333,6 +574,7 @@ impl MotionGate {
                 });
                 let _ = reply.send(result);
             }
+            #[cfg(test)]
             MotionCommand::CloseContainer {
                 expected_revision,
                 window,
@@ -663,9 +905,11 @@ impl MotionGate {
                         || (*window == 0 && !(9..=44).contains(&slot))
                         || slot >= 4096
                         || button > 1
-                        || comparison
-                            .as_ref()
-                            .is_some_and(|s| s.item_id < 0 || s.count <= 0 || s.nbt.is_some())
+                        || comparison.as_ref().is_some_and(|s| {
+                            !crate::client::inventory::transfer_policy::legacy_comparison_supported(
+                                s,
+                            )
+                        })
                     {
                         return Err(OperationAdmissionError::InvalidOperation);
                     }
@@ -817,6 +1061,9 @@ impl MotionGate {
     }
     fn owner_error(&self) -> OperationAdmissionError {
         match self.owner {
+            Some(Owner::CursorClose { .. }) => {
+                OperationAdmissionError::BoundedContainerCloseInProgress
+            }
             Some(Owner::ContainerOpen { .. }) => {
                 OperationAdmissionError::BoundedContainerOpenInProgress
             }
@@ -879,6 +1126,7 @@ impl ConnectionActor {
         self.motion_admission(|reply| MotionCommand::FinishContainerOpen { run_id, reply })
             .await
     }
+    #[cfg(test)]
     pub(crate) async fn bounded_container_close(
         &self,
         expected_revision: u64,
@@ -1163,5 +1411,86 @@ impl ConnectionActor {
                 anyhow::anyhow!("bounded motion actor result missing"),
             )
         })?
+    }
+}
+
+impl ConnectionActor {
+    pub(crate) async fn begin_cursor_close(
+        &self,
+        run_id: u64,
+        revision: u64,
+        window: i8,
+        steps: u16,
+    ) -> Admission<()> {
+        let (reply, result) = oneshot::channel();
+        self.commands
+            .send(Command::BeginCursorClose {
+                identity: (run_id, window, steps),
+                expected_revision: revision,
+                reply,
+            })
+            .await
+            .map_err(|_| self.terminal_admission_error())?;
+        result.await.map_err(|_| self.terminal_admission_error())?
+    }
+    pub(crate) async fn reserve_cursor_return(&self, run_id: u64, step: u16) -> Admission<i16> {
+        let (reply, result) = oneshot::channel();
+        self.commands
+            .send(Command::ReserveCursorReturn {
+                identity: (run_id, step),
+                reply,
+            })
+            .await
+            .map_err(|_| self.terminal_admission_error())?;
+        result.await.map_err(|_| self.terminal_admission_error())?
+    }
+    pub(crate) async fn bounded_cursor_return(
+        &self,
+        run_id: u64,
+        step: u16,
+        slot: u16,
+        comparison: Option<crate::versions::java_1_16_1::ItemStack>,
+    ) -> crate::Result<()> {
+        let (reply, result) = oneshot::channel();
+        self.commands
+            .send(Command::Motion(MotionCommand::CursorReturn {
+                run_id,
+                step,
+                slot,
+                comparison,
+                reply,
+            }))
+            .await
+            .map_err(|_| {
+                crate::client::inventory::unavailable("cursor return actor unavailable")
+            })?;
+        result.await.map_err(|_| {
+            crate::client::inventory::unavailable("cursor return result unavailable")
+        })?
+    }
+    pub(crate) async fn finish_cursor_return(&self, run_id: u64, step: u16) -> Admission<()> {
+        self.motion_admission(|reply| MotionCommand::FinishCursorReturn {
+            run_id,
+            step,
+            reply,
+        })
+        .await
+    }
+    pub(crate) async fn bounded_cursor_close(&self, run_id: u64) -> crate::Result<()> {
+        let (reply, result) = oneshot::channel();
+        self.commands
+            .send(Command::Motion(MotionCommand::CursorClose {
+                run_id,
+                reply,
+            }))
+            .await
+            .map_err(|_| crate::client::inventory::unavailable("close actor unavailable"))?;
+        result
+            .await
+            .map_err(|_| crate::client::inventory::unavailable("close result unavailable"))?
+    }
+    pub(crate) async fn finish_cursor_close(&self, run_id: u64) -> Admission<()> {
+        self.motion_admission(|reply| MotionCommand::FinishCursorClose { run_id, reply })
+            .await
     }
 }

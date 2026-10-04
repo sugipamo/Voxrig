@@ -479,7 +479,8 @@ mod tests {
         server.await.unwrap();
     }
     #[tokio::test]
-    async fn common_container_close_refuses_received_nonempty_or_missing_cursor_and_pending_swap() {
+    async fn common_container_close_refuses_missing_cursor_insufficient_capacity_and_pending_swap()
+    {
         let (bot, mut packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
         seed_container(&bot).await;
@@ -506,6 +507,20 @@ mod tests {
         );
         seed_container(&bot).await;
         let id = client.screen_state().await.unwrap().screen.unwrap().id;
+        let definition = api::registry::Registry::for_version(crate::MinecraftVersion::Java1_16_1)
+            .item("minecraft:stone")
+            .unwrap();
+        let full = api::SlotKnowledge::Item {
+            item: api::ItemStack {
+                id: definition.id,
+                name: definition.name,
+                count: 64,
+                data: api::ItemData::Default,
+            },
+        };
+        for index in 27..63 {
+            container_slot(&bot, index, &full).await;
+        }
         let mut cursor = vec![255, 255, 255];
         write_slot(
             &mut cursor,
@@ -525,6 +540,8 @@ mod tests {
                 .unwrap()
                 .is_none()
         );
+        seed_container(&bot).await;
+        let id = client.screen_state().await.unwrap().screen.unwrap().id;
         bot.apply_packet(0x16, vec![255, 255, 255, 0])
             .await
             .unwrap();
@@ -1164,6 +1181,156 @@ mod tests {
                 drop(bot);
                 server.await.unwrap();
             }
+        }
+    }
+    #[tokio::test]
+    async fn cursor_return_close_same_consumer_both_modes_waits_for_each_actual_step_and_reply() {
+        for mode in [api::GameMode::Survival, api::GameMode::Creative] {
+            let (bot, mut packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            seed_container(&bot).await;
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            let screen = client.screen_state().await.unwrap().screen.unwrap().id;
+            let definition =
+                api::registry::Registry::for_version(crate::MinecraftVersion::Java1_16_1)
+                    .item("minecraft:stone")
+                    .unwrap();
+            let item = |count| api::SlotKnowledge::Item {
+                item: api::ItemStack {
+                    id: definition.id,
+                    name: definition.name.clone(),
+                    count,
+                    data: api::ItemData::Default,
+                },
+            };
+            let mut health = Vec::from(20f32.to_be_bytes());
+            put_varint(&mut health, 20);
+            health.extend(5f32.to_be_bytes());
+            bot.apply_packet(0x49, health).await.unwrap();
+            container_slot(&bot, 27, &item(63)).await;
+            let mut cursor = vec![255, 255, 255];
+            write_slot(
+                &mut cursor,
+                Some(&ItemStack {
+                    item_id: definition.id.value(),
+                    count: 5,
+                    nbt: None,
+                }),
+            );
+            bot.apply_packet(0x16, cursor).await.unwrap();
+            if mode == api::GameMode::Creative {
+                let mut p = vec![3];
+                p.extend(1f32.to_be_bytes());
+                bot.apply_packet(0x1e, p).await.unwrap();
+            }
+            let waiter = api::tests::common_cursor_close_start(&client, mode, screen);
+            for index in 0..2 {
+                let (id, payload) = timeout(Duration::from_secs(1), packets.recv())
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(id, 0x09);
+                assert_eq!(payload[0], 3);
+                let record = api::tests::common_cursor_close_retained(&client, index + 1).await;
+                let step = &record.return_steps[index];
+                assert_eq!(step.source_slot, 27 + index as u16);
+                assert_eq!(
+                    i16::from_be_bytes([payload[1], payload[2]]),
+                    step.source_slot as i16
+                );
+                assert!(client.survival().swap_hotbar(9, 0).await.is_err());
+                assert!(
+                    timeout(Duration::from_millis(20), packets.recv())
+                        .await
+                        .is_err()
+                );
+                container_slot(
+                    &bot,
+                    step.source_slot as i16,
+                    &item(if index == 0 { 64 } else { 4 }),
+                )
+                .await;
+                let mut cursor = vec![255, 255, 255];
+                let held = (index == 0).then_some(ItemStack {
+                    item_id: definition.id.value(),
+                    count: 4,
+                    nbt: None,
+                });
+                write_slot(&mut cursor, held.as_ref());
+                bot.apply_packet(0x16, cursor).await.unwrap();
+                assert!(
+                    timeout(Duration::from_millis(20), packets.recv())
+                        .await
+                        .is_err()
+                );
+                let mut reply = vec![3];
+                reply.extend(step.send.legacy_action.unwrap().to_be_bytes());
+                reply.push(0);
+                bot.apply_packet(0x12, reply).await.unwrap();
+                assert_eq!(packets.recv().await.unwrap().0, 0x07);
+            }
+            assert_eq!(
+                timeout(Duration::from_secs(1), packets.recv())
+                    .await
+                    .unwrap()
+                    .unwrap(),
+                (0x0a, vec![3])
+            );
+            let complete = waiter.await.unwrap().unwrap();
+            assert!(complete.dispatched);
+            assert!(
+                complete
+                    .return_steps
+                    .iter()
+                    .all(|s| s.stage == contract::InventoryClickStage::ObservedClicked)
+            );
+            assert!(
+                complete
+                    .return_steps
+                    .iter()
+                    .all(|s| s.legacy_reply.as_ref().is_some_and(|r| !r.accepted))
+            );
+            assert!(complete.server_close_sequence.is_none());
+            assert!(
+                timeout(Duration::from_millis(20), packets.recv())
+                    .await
+                    .is_err()
+            );
+            drop(release);
+            drop(client);
+            drop(bot);
+            server.await.unwrap();
+        }
+    }
+    #[test]
+    fn all_default_cursor_return_comparisons_preserve_original_native_nbt_codecs() {
+        let cases: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../data/client_api/cursor_return_packets-1.16.1.json"
+        ))
+        .unwrap();
+        assert_eq!(cases.as_array().unwrap().len(), 1948);
+        for case in cases.as_array().unwrap() {
+            let slot = case["slot"].as_u64().unwrap() as i16;
+            let bytes: Vec<u8> = serde_json::from_value(case["cursor"]["nbt"].clone()).unwrap();
+            let item = ItemStack {
+                item_id: api::registry::Registry::for_version(crate::MinecraftVersion::Java1_16_1)
+                    .item(case["item"].as_str().unwrap())
+                    .unwrap()
+                    .id
+                    .value(),
+                count: 1,
+                nbt: (bytes != [0]).then_some(bytes),
+            };
+            assert!(contract::transfer_policy::legacy_comparison_supported(
+                &item
+            ));
+            let mut payload = vec![3];
+            payload.extend(slot.to_be_bytes());
+            payload.push(0);
+            payload.extend(slot.to_be_bytes());
+            payload.push(0);
+            write_slot(&mut payload, Some(&item));
+            assert_eq!(hex::encode(payload), case["payload_hex"].as_str().unwrap());
         }
     }
     async fn seed_container(bot: &Bot) {

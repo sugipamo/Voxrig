@@ -1,4 +1,6 @@
 //! Actual container-screen receipts, separate from the player inventory and click predictions.
+pub(crate) mod close;
+pub use close::CursorReturnPlanStep;
 pub(crate) mod open;
 pub(crate) mod outline;
 use super::{ObservedValue, SessionStamp, SlotKnowledge, received};
@@ -65,6 +67,8 @@ pub(crate) fn player_screen_access(
 pub enum ContainerCloseStage {
     /// Intent retained before any I/O; do not replay it.
     Pending,
+    /// Planned cursor return is awaiting actual step results.
+    ReturningCursor,
     /// Complete close frame written; this is not received server closure.
     Dispatched,
     /// A fresh actual close packet for the original opening was also received.
@@ -83,7 +87,11 @@ pub struct ContainerCloseRecord {
     pub initial_screen: ContainerScreen,
     /// Matching received mode at admission.
     pub mode: super::GameMode,
-    /// True only after a complete frame write.
+    /// Top-level player destinations planned before any I/O.
+    pub return_plan: Vec<CursorReturnPlanStep>,
+    /// Each executed PICKUP with actual predecessors and separate effect receipts.
+    pub return_steps: Vec<super::inventory::InventoryClickRecord>,
+    /// True only after a complete CLOSE frame write, not a return step.
     pub dispatched: bool,
     /// Actual original-opening CLOSE packet ordinal; never synthesized from send.
     pub server_close_sequence: Option<u64>,
@@ -96,7 +104,9 @@ impl ContainerCloseRecord {
     pub(crate) fn unresolved(&self) -> bool {
         matches!(
             self.stage,
-            ContainerCloseStage::Pending | ContainerCloseStage::RequiresInspection
+            ContainerCloseStage::Pending
+                | ContainerCloseStage::ReturningCursor
+                | ContainerCloseStage::RequiresInspection
         )
     }
     pub(crate) fn inspection(&mut self, reason: impl std::fmt::Display) {
@@ -107,6 +117,9 @@ impl ContainerCloseRecord {
         }
     }
     pub(crate) fn sent(&mut self) {
+        if !self.return_complete() {
+            self.inspection("close frame written before actual cursor-return completion");
+        }
         self.dispatched = true;
         if self.requires_inspection.is_none() {
             self.stage = if self.server_close_sequence.is_some() {
@@ -131,17 +144,13 @@ impl ContainerCloseRecord {
         screen: Option<ScreenId>,
         cursor: Option<&ObservedValue<SlotKnowledge>>,
     ) {
-        if self.stage == ContainerCloseStage::Pending
-            && (session != self.initial.session
-                || mode != Some(self.mode)
-                || screen != Some(self.id.screen)
-                || !matches!(
-                    cursor,
-                    Some(ObservedValue {
-                        value: SlotKnowledge::Empty,
-                        source: super::ValueSource::Received { .. }
-                    })
-                ))
+        if matches!(
+            self.stage,
+            ContainerCloseStage::Pending | ContainerCloseStage::ReturningCursor
+        ) && (session != self.initial.session
+            || mode != Some(self.mode)
+            || screen != Some(self.id.screen)
+            || !self.valid_cursor(cursor))
         {
             self.inspection(
                 "close session/mode/opening/cursor context changed before complete dispatch",
@@ -162,16 +171,9 @@ pub(crate) fn prepare_close(
         || initial.session != requested.session()
         || screen.id != requested
         || initial.inventory.window_id != Some(requested.window_id())
-        || !matches!(
-            initial.inventory.cursor.as_ref(),
-            Some(ObservedValue {
-                value: SlotKnowledge::Empty,
-                source: super::ValueSource::Received { .. },
-            })
-        )
     {
         return Err(super::inventory::unavailable(
-            "close requires same live received opening, matching mode and received empty cursor",
+            "close requires same live received opening, matching mode and known received cursor",
         ));
     }
     if previous.is_some_and(|p| p.unresolved() || p.id.screen == requested) {
@@ -182,6 +184,7 @@ pub(crate) fn prepare_close(
     let attempt = previous
         .map_or(Some(1), |p| p.id.attempt.checked_add(1))
         .ok_or_else(|| super::inventory::unavailable("close attempts exhausted"))?;
+    let return_plan = close::plan(&initial, &screen)?;
     Ok(ContainerCloseRecord {
         id: ContainerCloseId {
             screen: requested,
@@ -190,6 +193,8 @@ pub(crate) fn prepare_close(
         initial,
         initial_screen: screen,
         mode,
+        return_plan,
+        return_steps: Vec::new(),
         dispatched: false,
         server_close_sequence: None,
         requires_inspection: None,
@@ -547,3 +552,6 @@ mod native_close_audit_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod native_return_evidence_tests;

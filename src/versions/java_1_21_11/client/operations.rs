@@ -1086,158 +1086,170 @@ impl Operations {
         })
     }
     fn common_player_unlocked(&self, state: &State) -> Result<crate::client::PlayerObservation> {
-        use crate::client as api;
         self.bot.session.check(state)?;
-        let native = &state.operations;
-        let inventory = &native.inventory;
-        let slots = inventory
-            .slots
-            .iter()
-            .zip(&inventory.slot_sequences)
-            .map(|(slot, sequence)| {
-                if matches!(slot, InventorySlot::Unavailable) {
-                    return Ok(None);
-                }
-                sequence
-                    .map(|sequence| common_slot(slot).map(|value| api::received(value, sequence)))
-                    .transpose()
-            })
-            .collect::<Result<Vec<_>>>()?;
-        let cursor = match inventory.cursor {
-            InventorySlot::Unavailable => None,
-            _ => inventory
-                .cursor_sequence
-                .map(|sequence| {
-                    common_slot(&inventory.cursor).map(|value| api::received(value, sequence))
-                })
-                .transpose()?,
-        };
-        let pose = state
-            .motion
-            .received_pose
-            .as_ref()
-            .filter(|pose| pose.generation == state.loading.generation)
-            .map(|pose| api::ReceivedPose {
-                position: pose.position,
-                rotation: pose.rotation,
-                receive_sequence: pose.receive_sequence,
-            });
-        let source = match state.motion.position_basis {
-            PositionBasis::Received => api::ValueSource::Received {
-                sequence: pose.as_ref().map_or(state.sequence, |p| p.receive_sequence),
-            },
-            PositionBasis::Submitted => api::ValueSource::Submitted,
-            _ => api::ValueSource::Predicted,
-        };
-        Ok(api::PlayerObservation {
-            session: api::SessionStamp {
-                version: crate::MinecraftVersion::Java1_21_11,
-                connection_id: self.bot.session.id,
-                world_generation: state.loading.generation,
-            },
-            receive_sequence: state.sequence,
-            pending_dispatch: state
-                .common_container_open
-                .as_ref()
-                .is_some_and(|o| o.unresolved())
-                || self.bot.session.interrupted_packet.load(Ordering::Acquire) >= 0
-                || state
-                    .common_container_close
-                    .as_ref()
-                    .is_some_and(|r| r.unresolved())
-                || state.common_inventory_swap.as_ref().is_some_and(|s| {
-                    s.record.stage != crate::client::inventory::InventorySwapStage::ObservedSwapped
-                })
-                || state
-                    .common_inventory_click
-                    .as_ref()
-                    .is_some_and(|s| s.unresolved())
-                || state
-                    .common_inventory_transfer
-                    .as_ref()
-                    .is_some_and(|s| s.unresolved())
-                || !inventory.pending_creative.is_empty()
-                || inventory.pending_swap.is_some()
-                || state.motion.position_basis == PositionBasis::PendingSubmission
-                || state.mining.is_some()
-                || state
-                    .placement
-                    .as_ref()
-                    .is_some_and(|p| p.observation.is_none())
-                || state
-                    .survival_motion
-                    .as_ref()
-                    .is_some_and(|m| !m.status.is_continuation_candidate()),
-            dimension: state
-                .world
-                .dimension
-                .as_ref()
-                .map(|(name, dimension)| api::Dimension {
-                    name: name.clone(),
-                    min_y: dimension.min_y,
-                    height: dimension.height,
-                }),
-            position: match state.motion.position_basis {
-                PositionBasis::Unavailable | PositionBasis::PendingSubmission => None,
-                _ => state
-                    .position
-                    .map(|value| api::ObservedValue { value, source }),
-            },
-            received_pose: pose,
-            rotation: state.rotation,
-            game_mode: native.game_mode,
-            may_fly: native.abilities.map(|flags| flags & 4 != 0),
-            health: native.local_player.health.as_ref().map(|health| {
-                api::received(
-                    api::Health {
-                        health: health.health,
-                        food: health.food,
-                        saturation: health.saturation,
-                    },
-                    health.receive_sequence,
-                )
-            }),
-            selected_hotbar: native
-                .selected_hotbar
-                .as_ref()
-                .map(|selection| api::ObservedValue {
-                    value: selection.slot,
-                    source: if selection.from_server {
-                        api::ValueSource::Received {
-                            sequence: selection.sequence,
-                        }
-                    } else {
-                        api::ValueSource::Submitted
-                    },
-                }),
-            inventory: api::InventoryObservation {
-                slots,
-                cursor,
-                window_id: inventory.window_id,
-                player_screen: crate::client::container::player_screen_access(
-                    api::SessionStamp {
-                        version: crate::MinecraftVersion::Java1_21_11,
-                        connection_id: self.bot.session.id,
-                        world_generation: state.loading.generation,
-                    },
-                    inventory.window_id,
-                    inventory.container.as_ref().map(|s| {
-                        s.capture(api::SessionStamp {
-                            version: crate::MinecraftVersion::Java1_21_11,
-                            connection_id: self.bot.session.id,
-                            world_generation: state.loading.generation,
-                        })
-                        .id
-                    }),
-                    state.common_container_close.as_ref(),
-                ),
-                screen_revision: inventory.screen_revision,
-                player_screen_revision: inventory.player_revision.clone(),
-                local_cache: None,
-            },
-        })
+        common_player_in_state(
+            state,
+            self.bot.session.id,
+            self.bot.session.interrupted_packet.load(Ordering::Acquire) >= 0,
+        )
     }
 }
+fn common_player_in_state(
+    state: &State,
+    connection_id: u64,
+    interrupted: bool,
+) -> Result<crate::client::PlayerObservation> {
+    use crate::client as api;
+    let native = &state.operations;
+    let inventory = &native.inventory;
+    let slots = inventory
+        .slots
+        .iter()
+        .zip(&inventory.slot_sequences)
+        .map(|(slot, sequence)| {
+            if matches!(slot, InventorySlot::Unavailable) {
+                return Ok(None);
+            }
+            sequence
+                .map(|sequence| common_slot(slot).map(|value| api::received(value, sequence)))
+                .transpose()
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let cursor = match inventory.cursor {
+        InventorySlot::Unavailable => None,
+        _ => inventory
+            .cursor_sequence
+            .map(|sequence| {
+                common_slot(&inventory.cursor).map(|value| api::received(value, sequence))
+            })
+            .transpose()?,
+    };
+    let pose = state
+        .motion
+        .received_pose
+        .as_ref()
+        .filter(|pose| pose.generation == state.loading.generation)
+        .map(|pose| api::ReceivedPose {
+            position: pose.position,
+            rotation: pose.rotation,
+            receive_sequence: pose.receive_sequence,
+        });
+    let source = match state.motion.position_basis {
+        PositionBasis::Received => api::ValueSource::Received {
+            sequence: pose.as_ref().map_or(state.sequence, |p| p.receive_sequence),
+        },
+        PositionBasis::Submitted => api::ValueSource::Submitted,
+        _ => api::ValueSource::Predicted,
+    };
+    Ok(api::PlayerObservation {
+        session: api::SessionStamp {
+            version: crate::MinecraftVersion::Java1_21_11,
+            connection_id,
+            world_generation: state.loading.generation,
+        },
+        receive_sequence: state.sequence,
+        pending_dispatch: state
+            .common_container_open
+            .as_ref()
+            .is_some_and(|o| o.unresolved())
+            || interrupted
+            || state
+                .common_container_close
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
+            || state.common_inventory_swap.as_ref().is_some_and(|s| {
+                s.record.stage != crate::client::inventory::InventorySwapStage::ObservedSwapped
+            })
+            || state
+                .common_inventory_click
+                .as_ref()
+                .is_some_and(|s| s.unresolved())
+            || state
+                .common_inventory_transfer
+                .as_ref()
+                .is_some_and(|s| s.unresolved())
+            || !inventory.pending_creative.is_empty()
+            || inventory.pending_swap.is_some()
+            || state.motion.position_basis == PositionBasis::PendingSubmission
+            || state.mining.is_some()
+            || state
+                .placement
+                .as_ref()
+                .is_some_and(|p| p.observation.is_none())
+            || state
+                .survival_motion
+                .as_ref()
+                .is_some_and(|m| !m.status.is_continuation_candidate()),
+        dimension: state
+            .world
+            .dimension
+            .as_ref()
+            .map(|(name, dimension)| api::Dimension {
+                name: name.clone(),
+                min_y: dimension.min_y,
+                height: dimension.height,
+            }),
+        position: match state.motion.position_basis {
+            PositionBasis::Unavailable | PositionBasis::PendingSubmission => None,
+            _ => state
+                .position
+                .map(|value| api::ObservedValue { value, source }),
+        },
+        received_pose: pose,
+        rotation: state.rotation,
+        game_mode: native.game_mode,
+        may_fly: native.abilities.map(|flags| flags & 4 != 0),
+        health: native.local_player.health.as_ref().map(|health| {
+            api::received(
+                api::Health {
+                    health: health.health,
+                    food: health.food,
+                    saturation: health.saturation,
+                },
+                health.receive_sequence,
+            )
+        }),
+        selected_hotbar: native
+            .selected_hotbar
+            .as_ref()
+            .map(|selection| api::ObservedValue {
+                value: selection.slot,
+                source: if selection.from_server {
+                    api::ValueSource::Received {
+                        sequence: selection.sequence,
+                    }
+                } else {
+                    api::ValueSource::Submitted
+                },
+            }),
+        inventory: api::InventoryObservation {
+            slots,
+            cursor,
+            window_id: inventory.window_id,
+            player_screen: crate::client::container::player_screen_access(
+                api::SessionStamp {
+                    version: crate::MinecraftVersion::Java1_21_11,
+                    connection_id,
+                    world_generation: state.loading.generation,
+                },
+                inventory.window_id,
+                inventory.container.as_ref().map(|s| {
+                    s.capture(api::SessionStamp {
+                        version: crate::MinecraftVersion::Java1_21_11,
+                        connection_id,
+                        world_generation: state.loading.generation,
+                    })
+                    .id
+                }),
+                state.common_container_close.as_ref(),
+            ),
+            screen_revision: inventory.screen_revision,
+            player_screen_revision: inventory.player_revision.clone(),
+            local_cache: None,
+        },
+    })
+}
+
 fn common_slot(slot: &InventorySlot) -> Result<crate::client::SlotKnowledge> {
     use crate::client as api;
     Ok(match slot {

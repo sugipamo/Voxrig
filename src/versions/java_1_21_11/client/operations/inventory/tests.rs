@@ -274,7 +274,7 @@ async fn player_screen_after_close_never_uses_foreign_revision_when_player_revis
     f.stop().await;
 }
 #[tokio::test]
-async fn common_container_close_refuses_received_nonempty_or_missing_cursor_and_pending_swap() {
+async fn common_container_close_refuses_missing_cursor_unreceived_health_and_pending_swap() {
     let mut f = CommonFixture::new().await;
     let client = f.client();
     f.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 2, 10, 0])
@@ -406,7 +406,7 @@ async fn common_container_close_retains_dispatch_and_only_matches_original_openi
     f.stop().await;
 }
 #[tokio::test]
-async fn common_container_close_cancelled_modern_write_cannot_complete_from_matching_reply() {
+async fn common_container_close_cancelled_modern_waiter_keeps_one_owned_write_and_prompt_history() {
     use crate::client::container::ContainerCloseStage;
     let mut f = CommonFixture::new().await;
     let id = f.open_swap_container().await;
@@ -422,24 +422,49 @@ async fn common_container_close_cancelled_modern_write_cannot_complete_from_matc
     })
     .await
     .unwrap();
+    let retained = timeout(
+        Duration::from_millis(100),
+        client.survival().container_close_record(),
+    )
+    .await
+    .unwrap()
+    .unwrap()
+    .unwrap();
+    assert_eq!(retained.id.screen(), id);
+    assert_eq!(retained.stage, ContainerCloseStage::Pending);
     waiter.abort();
     assert!(waiter.await.unwrap_err().is_cancelled());
     drop(writer);
-    assert!(client.creative().look([0.0, 0.0]).await.is_err());
-    assert!(client.player_state().await.unwrap().pending_dispatch);
+    assert_eq!(
+        timeout(Duration::from_secs(1), read_packet(&mut f.peer, None))
+            .await
+            .unwrap()
+            .unwrap(),
+        (ids::play_serverbound::CLOSE_WINDOW, vec![3])
+    );
+    timeout(Duration::from_secs(1), async {
+        while !client
+            .survival()
+            .container_close_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .dispatched
+        {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
     assert!(client.survival().close_container(id).await.is_err());
     f.receive(ids::play_clientbound::CLOSE_WINDOW, &[3]).await;
-    let record = client
+    let observed = client
         .survival()
         .container_close_record()
         .await
         .unwrap()
         .unwrap();
-    assert!(!record.dispatched);
-    assert!(record.server_close_sequence.is_some());
-    assert_eq!(record.stage, ContainerCloseStage::RequiresInspection);
-    f.open_swap_container().await;
-    assert!(client.survival().close_container(id).await.is_err());
+    assert_eq!(observed.stage, ContainerCloseStage::ObservedClosed);
     assert!(
         timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
             .await
@@ -454,7 +479,7 @@ async fn common_container_close_cancelled_modern_write_cannot_complete_from_matc
             .unwrap()
             .unwrap()
             .stage,
-        ContainerCloseStage::RequiresInspection
+        ContainerCloseStage::ObservedClosed
     );
     f.stop().await;
 }
@@ -922,6 +947,12 @@ impl CommonFixture {
         });
         let api = Operations {
             bot: Bot {
+                close_history: session
+                    .state
+                    .try_lock()
+                    .expect("new session")
+                    .close_history
+                    .clone(),
                 session: session.clone(),
                 _lease: Arc::new(Lease(Arc::downgrade(&session))),
             },
@@ -1446,6 +1477,12 @@ async fn ordinary_click_uses_real_transport_and_timeout_never_resubmits() {
     });
     let operations = Operations {
         bot: Bot {
+            close_history: session
+                .state
+                .try_lock()
+                .expect("new session")
+                .close_history
+                .clone(),
             session: session.clone(),
             _lease: Arc::new(Lease(Arc::downgrade(&session))),
         },
@@ -1676,6 +1713,50 @@ async fn common_container_open_same_consumer_in_both_modes_needs_actual_contents
         expected.extend([0, 0]);
         put_varint(&mut expected, record.send.interaction_sequence.unwrap());
         assert_eq!(packet, expected);
+        // A real identical own-position refresh has a new ordinal, not a new pose.
+        let pose = record.initial.received_pose.as_ref().unwrap();
+        let mut refresh = vec![77];
+        for v in pose.position {
+            refresh.extend(v.to_be_bytes());
+        }
+        for _ in 0..3 {
+            refresh.extend(0f64.to_be_bytes());
+        }
+        for v in pose.rotation {
+            refresh.extend(v.to_be_bytes());
+        }
+        refresh.extend(0u32.to_be_bytes());
+        f.receive(ids::play_clientbound::POSITION, &refresh).await;
+        assert_eq!(
+            read_packet(&mut f.peer, None).await.unwrap(),
+            (ids::play_serverbound::TELEPORT_CONFIRM, vec![77])
+        );
+        assert_eq!(
+            read_packet(&mut f.peer, None).await.unwrap().0,
+            ids::play_serverbound::POSITION_LOOK
+        );
+        let refreshed = client
+            .survival()
+            .container_open_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(refreshed.requires_inspection.is_none());
+        assert_eq!(
+            refreshed.initial.received_pose,
+            record.initial.received_pose
+        );
+        assert!(
+            client
+                .player_state()
+                .await
+                .unwrap()
+                .received_pose
+                .unwrap()
+                .receive_sequence
+                > pose.receive_sequence
+        );
+
         f.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 2, 10, 0])
             .await;
         let pending = client
@@ -2434,5 +2515,189 @@ async fn shift_transfer_reused_numeric_storage_opening_stays_uncertain_after_val
         .unwrap();
     assert_eq!(retained.id, record.id);
     assert_eq!(retained.stage, Stage::RequiresInspection);
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn cursor_return_close_same_consumer_both_modes_waits_for_each_actual_step_before_close() {
+    use crate::client::{GameMode as Mode, inventory::InventoryClickStage};
+    for mode in [Mode::Survival, Mode::Creative] {
+        let mut f = CommonFixture::new().await;
+        let screen = f.open_swap_container().await;
+        let mut health = Vec::from(20f32.to_be_bytes());
+        put_varint(&mut health, 20);
+        health.extend(5f32.to_be_bytes());
+        f.receive(ids::play_clientbound::UPDATE_HEALTH, &health)
+            .await;
+        f.container_slot(27, plain("stone", 63)).await;
+        let mut cursor = Vec::new();
+        put_slot(&mut cursor, &plain("stone", 5));
+        f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+            .await;
+        if mode == Mode::Creative {
+            let mut p = vec![3];
+            p.extend(1f32.to_be_bytes());
+            f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &p)
+                .await;
+        }
+        let client = f.client();
+        let waiter = crate::client::tests::common_cursor_close_start(&client, mode, screen);
+        for index in 0..2 {
+            let (id, payload) = timeout(Duration::from_secs(1), read_packet(&mut f.peer, None))
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(id, ids::play_serverbound::WINDOW_CLICK);
+            let record =
+                crate::client::tests::common_cursor_close_retained(&client, index + 1).await;
+            let step = &record.return_steps[index];
+            assert_eq!(payload, super::click::payload(step).unwrap());
+            assert_eq!(step.source_slot, 27 + index as u16);
+            assert!(client.survival().swap_hotbar(9, 0).await.is_err());
+            assert!(f.api.swap_player_hotbar(9, 0).await.is_err());
+            assert!(
+                timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+                    .await
+                    .is_err()
+            );
+            f.container_slot(
+                step.source_slot,
+                plain("stone", if index == 0 { 64 } else { 4 }),
+            )
+            .await;
+            assert!(
+                timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+                    .await
+                    .is_err()
+            );
+            let mut cursor = Vec::new();
+            put_slot(
+                &mut cursor,
+                &if index == 0 {
+                    plain("stone", 4)
+                } else {
+                    InventorySlot::Empty
+                },
+            );
+            f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+                .await;
+        }
+        assert_eq!(
+            timeout(Duration::from_secs(1), read_packet(&mut f.peer, None))
+                .await
+                .unwrap()
+                .unwrap(),
+            (ids::play_serverbound::CLOSE_WINDOW, vec![3])
+        );
+        let complete = waiter.await.unwrap().unwrap();
+        assert!(complete.dispatched);
+        assert!(
+            complete
+                .return_steps
+                .iter()
+                .all(|s| s.stage == InventoryClickStage::ObservedClicked)
+        );
+        assert!(
+            complete
+                .return_steps
+                .iter()
+                .all(|s| s.source_receipt.is_some() && s.cursor_receipt.is_some())
+        );
+        assert!(complete.server_close_sequence.is_none());
+        assert!(
+            timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+                .await
+                .is_err()
+        );
+        f.stop().await;
+    }
+}
+
+#[test]
+fn all_default_cursor_return_hashes_match_original_native_packet_codecs() {
+    let cases: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../../data/client_api/cursor_return_packets-1.21.11.json"
+    ))
+    .unwrap();
+    assert_eq!(cases.as_array().unwrap().len(), 3008);
+    for case in cases.as_array().unwrap() {
+        let item = default_item(case["item"].as_str().unwrap(), 1).unwrap();
+        let mut payload = vec![3, 7];
+        payload.extend((case["slot"].as_u64().unwrap() as i16).to_be_bytes());
+        payload.extend([0, 0, 0]);
+        put_default_cursor_hash(&mut payload, &InventorySlot::Item { item }).unwrap();
+        assert_eq!(hex::encode(payload), case["payload_hex"].as_str().unwrap());
+    }
+}
+
+#[tokio::test]
+async fn actual_position_is_published_after_teleport_confirmation_before_normal_look() {
+    let mut f = CommonFixture::new().await;
+    let mut mode = vec![3];
+    mode.extend(1f32.to_be_bytes());
+    f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &mode)
+        .await;
+    let session = f.api.bot.session.clone();
+    let writer = session.writer.lock().await;
+    let mut position = vec![77];
+    for v in [8.5f64, 65., 8.5, 0., 0., 0.] {
+        position.extend(v.to_be_bytes());
+    }
+    for v in [0f32, 0.] {
+        position.extend(v.to_be_bytes());
+    }
+    position.extend(0u32.to_be_bytes());
+    write_packet(
+        &mut f.peer,
+        None,
+        ids::play_clientbound::POSITION,
+        &position,
+    )
+    .await
+    .unwrap();
+    timeout(Duration::from_secs(1), async {
+        while session.state.try_lock().is_ok() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    let client = f.client();
+    assert!(
+        timeout(Duration::from_millis(20), client.player_state())
+            .await
+            .is_err()
+    );
+    let creative = client.creative();
+    let look = tokio::spawn(async move { creative.look([4., 0.]).await });
+    assert!(
+        timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    drop(writer);
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap(),
+        (ids::play_serverbound::TELEPORT_CONFIRM, vec![77])
+    );
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap().0,
+        ids::play_serverbound::POSITION_LOOK
+    );
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap().0,
+        ids::play_serverbound::LOOK
+    );
+    look.await.unwrap().unwrap();
+    assert_eq!(
+        client
+            .player_state()
+            .await
+            .unwrap()
+            .received_pose
+            .unwrap()
+            .position,
+        [8.5, 65., 8.5]
+    );
     f.stop().await;
 }

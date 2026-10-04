@@ -319,6 +319,12 @@ async fn survival_look_sends_native_ground_bit_and_refusal_sends_nothing() {
     });
     let operations = Operations {
         bot: Bot {
+            close_history: session
+                .state
+                .try_lock()
+                .expect("new session")
+                .close_history
+                .clone(),
             session: session.clone(),
             _lease: Arc::new(Lease(Arc::downgrade(&session))),
         },

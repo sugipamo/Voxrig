@@ -277,17 +277,7 @@ impl Bot {
             .ok()
             .filter(|w| *w > 0)
             .ok_or_else(|| api::inventory::unavailable("native legacy window unavailable"))?;
-        {
-            let inventory = self.inventory.read().await;
-            if inventory.open_window.as_ref().map(|w| w.id) != Some(window)
-                || inventory.cursor.is_some()
-                || !inventory.pending_clicks.is_empty()
-            {
-                return Err(api::inventory::unavailable(
-                    "legacy close inventory context unresolved",
-                ));
-            }
-        }
+        self.close_native_basis(window, &initial).await?;
         let record = contract::prepare_close(
             initial,
             captured,
@@ -297,90 +287,262 @@ impl Bot {
         )?;
         let id = record.id;
         *self.common_container_close.lock().await = Some(record);
-        // Dropping the waiter cannot cancel the connection-owned single write.
         let bot = self.clone_internal();
         let (reply, result) = oneshot::channel();
         tokio::spawn(async move {
-            let _gate = bot.coherent_state_gate.lock().await;
-            let outcome = async {
-                let player = bot.common_player_unlocked().await?;
-                let screen = bot
-                    .common_receipts
-                    .lock()
-                    .await
-                    .container
-                    .as_ref()
-                    .map(|s| s.capture(player.session).id);
-                {
-                    let mut guard = bot.common_container_close.lock().await;
-                    let r = guard
-                        .as_mut()
-                        .filter(|r| r.id == id)
-                        .ok_or_else(|| api::inventory::unavailable("close intent superseded"))?;
-                    r.context_received(
-                        player.session,
-                        player.game_mode,
-                        screen,
-                        player.inventory.cursor.as_ref(),
-                    );
-                    if r.requires_inspection.is_some() {
-                        return Err(api::inventory::unavailable(
-                            "close context interrupted before I/O",
-                        ));
-                    }
-                }
-                let inventory = bot.inventory.read().await;
-                if inventory.open_window.as_ref().map(|w| w.id) != Some(window)
-                    || inventory.cursor.is_some()
-                    || !inventory.pending_clicks.is_empty()
-                {
-                    return Err(api::inventory::unavailable(
-                        "legacy close context changed before I/O",
-                    ));
-                }
-                drop(inventory);
-                bot.connection
-                    .bounded_container_close(revision, window)
-                    .await
-            }
-            .await;
-            if outcome.is_ok() {
-                bot.common_container_close
-                    .lock()
-                    .await
-                    .as_mut()
-                    .expect("retained")
-                    .sent();
-                bot.clear_local_window_unlocked(window).await;
-            } else if let Err(e) = &outcome {
-                bot.common_container_close
-                    .lock()
-                    .await
-                    .as_mut()
-                    .expect("retained")
-                    .inspection(e);
-            }
-            let value = match outcome {
-                Ok(()) => Ok(bot
+            let outcome = bot.return_and_close_owned(id, revision, window).await;
+            if let Err(e) = &outcome {
+                if let Some(record) = bot
                     .common_container_close
                     .lock()
                     .await
-                    .as_ref()
-                    .expect("retained")
-                    .clone()),
-                Err(e) => Err(e),
-            };
-            let _ = reply.send(value);
+                    .as_mut()
+                    .filter(|r| r.id == id)
+                {
+                    record.inspection(e);
+                }
+            }
+            let _ = reply.send(outcome);
         });
         drop(gate);
         result
             .await
-            .map_err(|_| api::inventory::unavailable("close owner unavailable"))?
+            .map_err(|_| api::inventory::unavailable("close owner result unavailable"))?
+    }
+    async fn close_native_basis(&self, window: i8, player: &api::PlayerObservation) -> Result<()> {
+        let inventory = self.inventory.read().await;
+        if inventory.open_window.as_ref().map(|w| w.id) != Some(window)
+            || !inventory.pending_clicks.is_empty()
+            || player.inventory.cursor.as_ref().is_none_or(|c| {
+                api::legacy_slot(inventory.cursor.as_ref()).ok().as_ref() != Some(&c.value)
+            })
+        {
+            return Err(api::inventory::unavailable(
+                "legacy close actual/cache UI/cursor basis unresolved",
+            ));
+        }
+        Ok(())
+    }
+    async fn close_current(
+        &self,
+        id: contract::ContainerCloseId,
+    ) -> Result<(api::PlayerObservation, contract::ContainerScreen)> {
+        if self.is_stopped() || self.connection_state() != ConnectionState::Ready {
+            return Err(api::inventory::unavailable(
+                "close source connection unavailable",
+            ));
+        }
+        let current = self.common_player_unlocked().await?;
+        let screen = self
+            .common_receipts
+            .lock()
+            .await
+            .container
+            .as_ref()
+            .map(|s| s.capture(current.session));
+        let mut guard = self.common_container_close.lock().await;
+        let record = guard
+            .as_mut()
+            .filter(|r| r.id == id)
+            .ok_or_else(|| api::inventory::unavailable("close intent superseded"))?;
+        record.return_received(&current, screen.as_ref());
+        if record.requires_inspection.is_some() {
+            return Err(api::inventory::unavailable(
+                "close context changed; retained without replay",
+            ));
+        }
+        Ok((
+            current,
+            screen
+                .ok_or_else(|| api::inventory::unavailable("close original opening unavailable"))?,
+        ))
+    }
+    async fn return_and_close_owned(
+        &self,
+        id: contract::ContainerCloseId,
+        revision: u64,
+        window: i8,
+    ) -> Result<contract::ContainerCloseRecord> {
+        let count;
+        {
+            let _gate = self.coherent_state_gate.lock().await;
+            let (current, _) = self.close_current(id).await?;
+            self.close_native_basis(window, &current).await?;
+            count = self
+                .common_container_close
+                .lock()
+                .await
+                .as_ref()
+                .expect("retained")
+                .return_plan
+                .len() as u16;
+            self.connection
+                .begin_cursor_close(id.attempt(), revision, window, count)
+                .await
+                .map_err(|e| {
+                    api::inventory::unavailable(format!("close parent reservation: {e:?}"))
+                })?;
+        }
+        for number in 0..count {
+            {
+                let _gate = self.coherent_state_gate.lock().await;
+                let (current, screen) = self.close_current(id).await?;
+                self.close_native_basis(window, &current).await?;
+                self.common_container_close
+                    .lock()
+                    .await
+                    .as_mut()
+                    .expect("retained")
+                    .begin_return_step(current, screen)?;
+                let action = self
+                    .connection
+                    .reserve_cursor_return(id.attempt(), number)
+                    .await
+                    .map_err(|e| {
+                        api::inventory::unavailable(format!("return reservation: {e:?}"))
+                    })?;
+                let (slot, native) = {
+                    let mut guard = self.common_container_close.lock().await;
+                    let step = guard
+                        .as_mut()
+                        .expect("retained")
+                        .return_steps
+                        .last_mut()
+                        .expect("prepared");
+                    let comparison = if step.source_before.value == api::SlotKnowledge::Empty {
+                        step.cursor_before.value.clone()
+                    } else {
+                        api::SlotKnowledge::Empty
+                    };
+                    let native = match &comparison {
+                        api::SlotKnowledge::Empty => None,
+                        api::SlotKnowledge::Item { item } => Some(ItemStack {
+                            item_id: item.id.value(),
+                            count: item.count as i8,
+                            nbt: match &item.data {
+                                api::ItemData::Default => None,
+                                api::ItemData::LegacyNbt { bytes } => Some(bytes.clone()),
+                            },
+                        }),
+                        _ => unreachable!("validated actual cursor"),
+                    };
+                    step.send.legacy_action = Some(action);
+                    step.send.legacy_comparison = Some(comparison);
+                    step.send.after_sequence =
+                        self.protocol_packet_sequence.load(Ordering::Acquire);
+                    (step.source_slot, native)
+                };
+                self.connection
+                    .bounded_cursor_return(id.attempt(), number, slot, native)
+                    .await?;
+                self.common_container_close
+                    .lock()
+                    .await
+                    .as_mut()
+                    .expect("retained")
+                    .return_steps
+                    .last_mut()
+                    .expect("prepared")
+                    .send
+                    .dispatched = true;
+            }
+            tokio::time::timeout(contract::close::RECEIPT_TIMEOUT, async {
+                loop {
+                    {
+                        let _gate = self.coherent_state_gate.lock().await;
+                        let (current, _) = self.close_current(id).await?;
+                        self.close_native_basis(window, &current).await?;
+                        let ready = self
+                            .common_container_close
+                            .lock()
+                            .await
+                            .as_ref()
+                            .expect("retained")
+                            .return_steps
+                            .last()
+                            .is_some_and(|s| {
+                                s.stage == api::inventory::InventoryClickStage::ObservedClicked
+                            });
+                        if ready {
+                            self.connection
+                                .finish_cursor_return(id.attempt(), number)
+                                .await
+                                .map_err(|e| {
+                                    api::inventory::unavailable(format!(
+                                        "return step release: {e:?}"
+                                    ))
+                                })?;
+                            return Ok::<(), crate::Error>(());
+                        }
+                    }
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+            })
+            .await
+            .map_err(|_| {
+                api::inventory::unavailable(
+                    "return actual receipt deadline elapsed; inspect without replay",
+                )
+            })??;
+        }
+        let _gate = self.coherent_state_gate.lock().await;
+        let (current, _) = self.close_current(id).await?;
+        self.close_native_basis(window, &current).await?;
+        if !self
+            .common_container_close
+            .lock()
+            .await
+            .as_ref()
+            .expect("retained")
+            .return_complete()
+            || !matches!(
+                current.inventory.cursor.as_ref(),
+                Some(api::ObservedValue {
+                    value: api::SlotKnowledge::Empty,
+                    source: api::ValueSource::Received { .. }
+                })
+            )
+        {
+            return Err(api::inventory::unavailable(
+                "close requires all actual return steps and actual Empty cursor",
+            ));
+        }
+        self.connection.bounded_cursor_close(id.attempt()).await?;
+        self.common_container_close
+            .lock()
+            .await
+            .as_mut()
+            .expect("retained")
+            .sent();
+        self.clear_local_window_unlocked(window).await;
+        self.connection
+            .finish_cursor_close(id.attempt())
+            .await
+            .map_err(|e| api::inventory::unavailable(format!("close parent release: {e:?}")))?;
+        Ok(self
+            .common_container_close
+            .lock()
+            .await
+            .as_ref()
+            .expect("retained")
+            .clone())
+    }
+    pub(super) async fn common_container_return_reply(&self, reply: WindowTransaction) {
+        if let Some(record) = self.common_container_close.lock().await.as_mut() {
+            record.return_reply(api::inventory::InventoryTransactionReply {
+                window_id: reply.window_id,
+                action: reply.action,
+                accepted: reply.accepted,
+                receive_sequence: reply.packet_sequence,
+            });
+        }
     }
     pub(crate) async fn common_container_close_record(
         &self,
     ) -> Result<Option<contract::ContainerCloseRecord>> {
-        let _gate = self.coherent_state_gate.lock().await;
+        if let Ok(_gate) = self.coherent_state_gate.try_lock() {
+            self.common_container_close_context_received().await?;
+        }
         if self.is_stopped() || self.connection_state() != ConnectionState::Ready {
             if let Some(r) = self.common_container_close.lock().await.as_mut() {
                 r.inspection("close connection closed or uncertain");
@@ -408,7 +570,13 @@ impl Bot {
             .lock()
             .await
             .as_ref()
-            .is_some_and(|r| r.stage == contract::ContainerCloseStage::Pending)
+            .is_some_and(|r| {
+                matches!(
+                    r.stage,
+                    contract::ContainerCloseStage::Pending
+                        | contract::ContainerCloseStage::ReturningCursor
+                )
+            })
         {
             return Ok(());
         }
@@ -417,14 +585,9 @@ impl Bot {
         let screen = receipts
             .container
             .as_ref()
-            .map(|s| s.capture(player.session).id);
+            .map(|s| s.capture(player.session));
         if let Some(r) = self.common_container_close.lock().await.as_mut() {
-            r.context_received(
-                player.session,
-                player.game_mode,
-                screen,
-                player.inventory.cursor.as_ref(),
-            );
+            r.return_received(&player, screen.as_ref());
         }
         Ok(())
     }
@@ -496,6 +659,39 @@ mod tests {
                     .unwrap()
                     .unwrap(),
                 (0x2d, expected)
+            );
+            let pose = record.initial.received_pose.as_ref().unwrap();
+            let mut refresh = Vec::new();
+            for v in pose.position {
+                refresh.extend(v.to_be_bytes());
+            }
+            for v in pose.rotation {
+                refresh.extend(v.to_be_bytes());
+            }
+            refresh.extend([0, 77]);
+            bot.apply_packet(0x35, refresh).await.unwrap();
+            assert_eq!(packets.recv().await.unwrap(), (0x00, vec![77]));
+            assert_eq!(packets.recv().await.unwrap().0, 0x13);
+            let refreshed = client
+                .survival()
+                .container_open_record()
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(refreshed.requires_inspection.is_none(), "{refreshed:?}");
+            assert_eq!(
+                refreshed.initial.received_pose,
+                record.initial.received_pose
+            );
+            assert!(
+                client
+                    .player_state()
+                    .await
+                    .unwrap()
+                    .received_pose
+                    .unwrap()
+                    .receive_sequence
+                    > pose.receive_sequence
             );
             received_open(&bot).await;
             contents(&bot).await;

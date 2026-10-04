@@ -787,6 +787,58 @@ network-compression-threshold=256
         probe.wait(timeout=10)
         if probe.returncode != 0:
             raise RuntimeError("container probe failed after disconnect")
+        cursor_returns = {}
+        report["native_results"]["cursor_return_close"] = cursor_returns
+        return_items = [("minecraft:stone", 5), ("minecraft:diamond_helmet", 1)]
+        if version == "1.21.11":
+            return_items.append(("minecraft:bundle", 1))
+        for mode in ("survival", "creative"):
+            for item, count in return_items:
+                until(lambda:matched(rcon.command("execute unless entity @a[name=UnifiedProbe]"),"Test passed"))
+                probe = subprocess.Popen([str(REPO / "target/debug/examples/common_native_probe")], cwd=REPO, env=dict(env, VOXRIG_NATIVE_SCENARIO="container"), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+                messages = queue.Queue()
+                thread = threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True)
+                thread.start()
+                stage(probe,messages,"container_ready",report["container_records"])
+                key = mode + "/" + item
+                result = {"fixture": {}}
+                cursor_returns[key] = result
+                for command in ("clear UnifiedProbe", "kill @e[type=minecraft:item]", "gamemode " + mode + " UnifiedProbe", "tp UnifiedProbe 0.5 65 0.5 0 35"):
+                    result["fixture"][command] = rcon.command(command)
+                if item == "minecraft:stone":
+                    command = ("replaceitem entity UnifiedProbe inventory.0 minecraft:stone 63" if version == "1.16.1" else "item replace entity UnifiedProbe inventory.0 with minecraft:stone 63")
+                    result["fixture"][command] = rcon.command(command)
+                command = (f"replaceitem block 0 65 2 container.0 {item} {count}" if version == "1.16.1" else f"item replace block 0 65 2 container.0 with {item} {count}")
+                result["fixture"][command] = rcon.command(command)
+                stage(probe,messages,"cursor_close_audit_open_" + mode,report["container_records"])
+                result["opened"] = stage(probe,messages,"cursor_close_audit_opened",report["container_records"])["value"]
+                stage(probe,messages,"cursor_close_audit_pickup",report["container_records"])
+                result["held"] = stage(probe,messages,"cursor_return_holding",report["container_records"])["value"]
+                result["position_before"] = rcon.command("data get entity UnifiedProbe Pos")
+                result["rotation_before"] = rcon.command("data get entity UnifiedProbe Rotation")
+                boundary = trace.mark()
+                result["close"] = stage(probe,messages,"cursor_return_close",report["container_records"])["value"]
+                result["inventory_after"] = until(lambda:inventory_matches({9:(item,64),10:(item,4)} if item == "minecraft:stone" else {9:(item,1)}))
+                result["no_drop"] = until(lambda:matched(rcon.command("execute unless entity @e[type=minecraft:item]"),"Test passed"))
+                result["barrel_empty_closed"] = until(lambda:matched(rcon.command("execute if block 0 65 2 minecraft:barrel[open=false] run data get block 0 65 2 Items"),r"\[\]$"))
+                result["position_after"] = rcon.command("data get entity UnifiedProbe Pos")
+                result["rotation_after"] = rcon.command("data get entity UnifiedProbe Rotation")
+                if result["position_before"] != result["position_after"] or result["rotation_before"] != result["rotation_after"]:
+                    raise RuntimeError("cursor return changed native pose")
+                result["frames"] = [f for f in trace.since(boundary) if f["direction"] == "serverbound" and f["phase"] == "play"]
+                clicks = [f for f in result["frames"] if f["packet_id"] == (0x09 if version == "1.16.1" else 0x11)]
+                closes = [f for f in result["frames"] if f["packet_id"] == (0x0a if version == "1.16.1" else 0x12)]
+                if len(clicks) != (2 if item == "minecraft:stone" else 1) or len(closes) != 1:
+                    raise RuntimeError("native cursor return frames missing/duplicated")
+                result["authority_limits"] = "Common Client returns held cursor through original PICKUP, waits for each actual source/cursor receipt (plus legacy transaction), then writes exactly one CLOSE. Read-only original frames and independent RCON verify exact counts, no drops, empty closed barrel and unchanged position/rotation. Native disposal audit is separate."
+                # Restore the original audit player's fixture for following runs.
+                result["fixture"]["clear_after"] = rcon.command("clear UnifiedProbe")
+                command = ("replaceitem entity UnifiedProbe inventory.0 minecraft:dirt 2" if version == "1.16.1" else "item replace entity UnifiedProbe inventory.0 with minecraft:dirt 2")
+                result["fixture"][command] = rcon.command(command)
+                stage(probe,messages,"cursor_close_audit_disconnect",report["container_records"])
+                probe.wait(timeout=10)
+                if probe.returncode != 0:
+                    raise RuntimeError("native cursor return probe failed after disconnect")
         forced_close_results = {}
         report["native_results"]["native_cursor_close_audit"] = forced_close_results
         report["cursor_close_audit_drop_cleanup"] = rcon.command("kill @e[type=minecraft:item]")

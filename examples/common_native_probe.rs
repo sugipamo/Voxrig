@@ -514,9 +514,11 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 };
                 wait_player(client, |p| {
                     p.game_mode == Some(mode)
-                        && p.received_pose
-                            .as_ref()
-                            .is_some_and(|pose| pose.position == [0.5, 65., 0.5])
+                        && p.received_pose.as_ref().is_some_and(|pose| {
+                            pose.receive_sequence > initial_sequence
+                                && pose.position == [0.5, 65., 0.5]
+                                && pose.rotation == [0., 35.]
+                        })
                 })
                 .await?;
                 wait_barrel_target(client, mode, "false").await?;
@@ -555,14 +557,58 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 };
                 emit(&command, pickup)?;
             }
-            "cursor_close_audit_holding" => {
+            "cursor_close_audit_holding" | "cursor_return_holding" => {
                 let record = wait_pickup(client).await?;
                 anyhow::ensure!(
                     record.source_receipt.as_ref().unwrap().value == SlotKnowledge::Empty
-                        && stack_count(&record.cursor_receipt.as_ref().unwrap().value) == 5,
-                    "native audit must hold received stone 5"
+                        && stack_count(&record.cursor_receipt.as_ref().unwrap().value) > 0,
+                    "native audit must hold received nonempty cursor"
                 );
                 emit(&command, record)?;
+            }
+            "cursor_return_close" => {
+                let held = wait_pickup(client).await?;
+                let InventorySource::Container { screen } = held.source else {
+                    anyhow::bail!("cursor return requires original storage opening")
+                };
+                let close = if held.mode == GameMode::Survival {
+                    client.survival().close_container(screen).await?
+                } else {
+                    client.creative().close_container(screen).await?
+                };
+                anyhow::ensure!(
+                    close.dispatched
+                        && close.requires_inspection.is_none()
+                        && !close.return_steps.is_empty(),
+                    "return and close did not complete"
+                );
+                for step in &close.return_steps {
+                    anyhow::ensure!(
+                        step.stage
+                            == voxrig::client::inventory::InventoryClickStage::ObservedClicked
+                            && step.id.close() == Some(close.id),
+                        "return child not actual/completed/owned"
+                    );
+                    for receipt in [&step.source_receipt, &step.cursor_receipt] {
+                        anyhow::ensure!(
+                            matches!(receipt, Some(voxrig::client::ObservedValue {
+                            source: ValueSource::Received { sequence }, ..
+                        }) if *sequence > step.send.after_sequence),
+                            "return child lacks fresh actual receipt"
+                        );
+                    }
+                }
+                anyhow::ensure!(
+                    client
+                        .player_state()
+                        .await?
+                        .inventory
+                        .cursor
+                        .as_ref()
+                        .is_some_and(|c| c.value == SlotKnowledge::Empty),
+                    "actual cursor did not empty"
+                );
+                emit(&command, close)?;
             }
             "cursor_close_audit_forced" => {
                 let screen = tokio::time::timeout(Duration::from_secs(10), async {

@@ -41,13 +41,19 @@ impl InventoryClickButton {
 pub struct InventoryClickId {
     session: SessionStamp,
     attempt: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    close: Option<crate::client::container::ContainerCloseId>,
 }
 impl InventoryClickId {
     /// Original owning transport/world.
     pub fn session(self) -> SessionStamp {
         self.session
     }
-    /// Local attempt number.
+    /// Parent close for an internal return step; None for a standalone click.
+    pub fn close(self) -> Option<crate::client::container::ContainerCloseId> {
+        self.close
+    }
+    /// Local attempt number, scoped to the parent when present.
     pub fn attempt(self) -> u64 {
         self.attempt
     }
@@ -123,6 +129,9 @@ pub struct InventoryClickRecord {
     pub stage: InventoryClickStage,
 }
 impl InventoryClickRecord {
+    pub(crate) fn bind_close(&mut self, close: crate::client::container::ContainerCloseId) {
+        self.id.close = Some(close);
+    }
     /// Native source window, not a live permission.
     pub fn window_id(&self) -> i32 {
         match self.source {
@@ -308,6 +317,7 @@ pub(crate) fn prepare(
         id: InventoryClickId {
             session: initial.session,
             attempt,
+            close: None,
         },
         send: InventoryClickSend {
             after_sequence: initial.receive_sequence,

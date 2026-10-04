@@ -1082,3 +1082,51 @@ pub(crate) async fn common_transfer_complete_scenario(
     }
     record
 }
+
+// Same consumer drives both transports; adapters only provide original packets.
+pub(crate) fn common_cursor_close_start(
+    client: &Client,
+    mode: GameMode,
+    screen: container::ScreenId,
+) -> tokio::task::JoinHandle<crate::Result<container::ContainerCloseRecord>> {
+    let client = client.clone();
+    tokio::spawn(async move {
+        match mode {
+            GameMode::Survival => client.survival().close_container(screen).await,
+            GameMode::Creative => client.creative().close_container(screen).await,
+            _ => unreachable!(),
+        }
+    })
+}
+pub(crate) async fn common_cursor_close_retained(
+    client: &Client,
+    steps: usize,
+) -> container::ContainerCloseRecord {
+    tokio::time::timeout(std::time::Duration::from_secs(1), async {
+        loop {
+            if let Some(record) = client.survival().container_close_record().await.unwrap() {
+                assert!(record.requires_inspection.is_none(), "{record:?}");
+                if record.return_steps.len() == steps
+                    && record
+                        .return_steps
+                        .last()
+                        .is_some_and(|s| s.send.dispatched)
+                {
+                    assert_eq!(
+                        record.stage,
+                        container::ContainerCloseStage::ReturningCursor
+                    );
+                    assert!(!record.dispatched);
+                    assert_eq!(record.return_plan.len(), 2);
+                    for step in &record.return_steps {
+                        assert_eq!(step.id.close(), Some(record.id));
+                    }
+                    return record;
+                }
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap()
+}

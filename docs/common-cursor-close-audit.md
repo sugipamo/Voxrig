@@ -1,7 +1,8 @@
 # カーソルitem付き画面終了のnative調査
 
 この段階はnativeの調査と、legacyの送信前に同値の再受信を競合としていた不具合の修正まで。
-共通`close_container`は引き続き実受信のEmpty cursorを要求する。
+当時の共通`close_container`は実受信のEmpty cursorを要求した。現在の返却→受信→closeの実装は
+[共通コンテナclose](common-container-close.md)を参照。
 item付きcursorの共通close、任意NBT/components、製作、復旧までの統合完了を意味しない。
 
 ## 実際の版差
@@ -47,7 +48,7 @@ vanillaの無応答をclose ACKへ変換しない。
 この一連の処理をconnection-ownedの排他操作として保持し、待機側の取消後も再送しない。
 途中の実値・mode・world・openingの競合は最初の理由を残し、値の復元では解除しない。
 writerが止まっていても保存済みのintent／完了stepを確認できる入口が必要。
-これらの実装と両版native検証は次の作業に残る。
+この調査の証拠は元のdisposal結果を保持する。後続の返却実装・検証は共通closeの資料へ分けて記載する。
 
 ## 同値再受信の修正
 

@@ -1,5 +1,6 @@
 //! Received ordinary player/container exchanges; no click prediction is receive evidence.
 pub(crate) mod click;
+pub(crate) mod return_policy;
 pub(crate) mod slot_policy;
 pub(crate) mod transfer;
 pub(crate) mod transfer_policy;
@@ -341,7 +342,7 @@ pub(crate) fn prepare_source(
         stage: InventorySwapStage::Pending,
     })
 }
-fn storage_menu(name: &str) -> bool {
+pub(crate) fn storage_menu(name: &str) -> bool {
     matches!(
         name,
         "minecraft:generic_9x1"

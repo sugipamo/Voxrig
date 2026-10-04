@@ -27,7 +27,8 @@ pub mod prelude {
     pub use super::container::{
         ContainerCloseId, ContainerCloseRecord, ContainerCloseStage, ContainerOpenId,
         ContainerOpenProcessing, ContainerOpenRecord, ContainerOpenSend, ContainerOpenStage,
-        ContainerOpenTargetState, ContainerScreen, PlayerScreenAccess, ScreenId, ScreenObservation,
+        ContainerOpenTargetState, ContainerScreen, CursorReturnPlanStep, PlayerScreenAccess,
+        ScreenId, ScreenObservation,
     };
     pub use super::inventory::{
         InventoryClickButton, InventoryClickId, InventoryClickRecord, InventoryClickSource,

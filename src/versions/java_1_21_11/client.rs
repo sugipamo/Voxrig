@@ -123,6 +123,7 @@ struct State {
     common_inventory_click: Option<crate::client::inventory::InventoryClickRecord>,
     common_inventory_transfer: Option<crate::client::inventory::InventoryTransferRecord>,
     common_container_close: Option<crate::client::container::ContainerCloseRecord>,
+    close_history: Arc<std::sync::Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
     common_container_open: Option<crate::client::container::ContainerOpenRecord>,
     survival_motion: Option<operations::SurvivalMotionRecord>,
     retired_common_motion: Option<crate::client::survival::MotionRecord>,
@@ -158,6 +159,7 @@ impl Default for State {
             common_inventory_click: None,
             common_inventory_transfer: None,
             common_container_close: None,
+            close_history: Arc::default(),
             common_container_open: None,
             survival_motion: None,
             retired_common_motion: None,
@@ -251,6 +253,7 @@ impl Drop for Lease {
 
 #[derive(Clone)]
 pub(crate) struct Bot {
+    close_history: Arc<std::sync::Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
     session: Arc<Session>,
     _lease: Arc<Lease>,
 }
@@ -459,6 +462,12 @@ impl Bot {
             .send(ids::configuration_serverbound::SETTINGS, &settings())
             .await?;
         let bot = Self {
+            close_history: session
+                .state
+                .try_lock()
+                .expect("new session")
+                .close_history
+                .clone(),
             _lease: Arc::new(Lease(Arc::downgrade(&session))),
             session: session.clone(),
         };
@@ -607,7 +616,18 @@ impl Session {
                     ..
                 } = &mut *state;
                 reconstruction.advance(world, target);
-                state.receive(packet.0, &packet.1, self.limits.max_chunks)?
+                let mut responses = state.receive(packet.0, &packet.1, self.limits.max_chunks)?;
+                if packet.0 == ids::play_clientbound::POSITION && matches!(state.phase, Phase::Play)
+                {
+                    // Publish a received correction only after its original
+                    // teleport confirmation/position response frames complete.
+                    // Normal operations share this state lock and cannot
+                    // overtake the server's outstanding teleport boundary.
+                    for (id, payload) in responses.drain(..) {
+                        self.send(id, &payload).await?;
+                    }
+                }
+                responses
             };
             for (id, payload) in responses {
                 self.send(id, &payload).await?;

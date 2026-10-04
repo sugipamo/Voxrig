@@ -342,6 +342,12 @@ impl Bot {
         if let Some(r) = self.common_container_close.lock().await.as_mut() {
             r.inspection(problem);
         }
+        self.interrupt_common_motion_operations(problem).await;
+    }
+    // Position packets revalidate stationary containers against actual values
+    // after decoding. Finite movement and other operations still retain every
+    // native correction as an interruption, including an identical refresh.
+    pub(super) async fn interrupt_common_motion_operations(&self, problem: &str) {
         self.interrupt_common_mining(problem).await;
         self.interrupt_common_placement(problem).await;
         self.interrupt_common_inventory_swap(problem).await;

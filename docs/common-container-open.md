@@ -98,3 +98,8 @@ RCONはbarrelの実open/closed状態・内容と姿勢を独立に確認し、me
 一般block activation、非empty item use、一般click/split/shift、slot acceptance、modernの
 非default components、製作・装備・entity UI・復旧は統合全体の残作業。
 `Feature::Containers`はこの限定範囲のRestrictedであり、全機能の統合完了ではない。
+
+同じ位置・向きの実position packetを再受信しても、受信ordinalだけの更新で競合とはしない。
+元の`initial.received_pose`の履歴を保持し、新しい実position packetをOPEN/full/cursorやprocessingの結果として数えない。
+位置・向き・mode・world・opening等の実変化は引き続きinspectionへ残し、値の復元では解除しない。
+legacyの有限移動や他の操作は従来どおりnative補正で中断し、stationary containerだけを実contextで再評価する。

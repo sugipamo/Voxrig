@@ -296,7 +296,12 @@ impl ContainerOpenRecord {
             || now.mode != Some(self.mode)
             || now.position != self.initial.position.as_ref().map(|p| p.value)
             || now.rotation != self.initial.rotation
-            || now.pose != self.initial.received_pose.as_ref()
+            || now
+                .pose
+                .zip(self.initial.received_pose.as_ref())
+                .is_none_or(|(actual, before)| {
+                    actual.position != before.position || actual.rotation != before.rotation
+                })
             || now.selected != self.initial.selected_hotbar.as_ref().map(|s| s.value)
             || !hand_ok(now.hand)
             || !hand_ok(now.offhand)

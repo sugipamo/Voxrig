@@ -154,7 +154,10 @@ impl Bot {
                 api::SlotKnowledge::Item { item } => Some(ItemStack {
                     item_id: item.id.value(),
                     count: item.count as i8,
-                    nbt: None,
+                    nbt: match &item.data {
+                        api::ItemData::Default => None,
+                        api::ItemData::LegacyNbt { bytes } => Some(bytes.clone()),
+                    },
                 }),
                 api::SlotKnowledge::Unavailable => unreachable!("validated predecessor"),
             };

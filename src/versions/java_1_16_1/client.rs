@@ -4804,6 +4804,7 @@ impl Bot {
                 self.common_inventory_reply_received(transaction).await;
                 self.common_click_reply_received(transaction).await;
                 self.common_transfer_reply_received(transaction).await;
+                self.common_container_return_reply(transaction).await;
                 self.emit(Event::WindowTransaction(transaction));
             }
             0x13 => {
@@ -6089,8 +6090,10 @@ impl Bot {
             Some(crate::client::ValueSource::Received {
                 sequence: self.protocol_packet_sequence.load(Ordering::Acquire),
             });
-        self.interrupt_common_motion("native own-pose correction interrupted finite motion")
-            .await;
+        self.interrupt_common_motion_operations(
+            "native own-pose correction interrupted finite motion",
+        )
+        .await;
         self.common_receipts.lock().await.pose = Some(crate::client::ReceivedPose {
             position: [next_x, next_y, next_z],
             rotation: [next_yaw, next_pitch],

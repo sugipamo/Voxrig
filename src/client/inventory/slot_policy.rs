@@ -76,7 +76,7 @@ pub(crate) fn default_item_capacity(version: MinecraftVersion, id: i32, name: &s
 }
 
 /// Ordinary default-item PICKUP only; item overrides require separate adapters.
-pub(super) fn pickup(
+pub(crate) fn pickup(
     version: MinecraftVersion,
     menu_name: &str,
     source_slot: usize,
@@ -93,6 +93,21 @@ pub(super) fn pickup(
         .and_then(|m| m.slots.iter().find(|s| s.slot == source_slot))
         .and_then(|s| profiles.slot_policies.get(s.policy))
         .ok_or_else(|| unavailable("native PICKUP slot policy unavailable; update Voxrig"))?;
+    let ordinary = |value: &SlotKnowledge| match value {
+        SlotKnowledge::Empty => true,
+        SlotKnowledge::Item { item } => profiles
+            .items
+            .iter()
+            .find(|p| p.native_id == item.id.value() && p.name == item.name)
+            .is_some_and(|p| p.ordinary_pickup),
+        _ => false,
+    };
+    let left_boundary = button == super::InventoryClickButton::Left
+        && (matches!(source, SlotKnowledge::Empty)
+            || matches!(cursor, SlotKnowledge::Empty)
+            || (ordinary(source)
+                && ordinary(cursor)
+                && matches!((source, cursor), (SlotKnowledge::Item { item: a }, SlotKnowledge::Item { item: b }) if a.id == b.id && a.data == b.data && a.name == b.name)));
     let validate = |value: &SlotKnowledge| -> Result<Option<u32>> {
         match value {
             SlotKnowledge::Empty => Ok(None),
@@ -115,7 +130,9 @@ pub(super) fn pickup(
                         "PICKUP requires valid version-bound item counts",
                     ));
                 }
-                if item.data != ItemData::Default || !profile.ordinary_pickup {
+                if (item.data != ItemData::Default || !profile.ordinary_pickup)
+                    && !(left_boundary && super::return_policy::default_left_item(version, item))
+                {
                     return Err(crate::Error::new(
                         crate::ErrorKind::Unsupported,
                         anyhow::anyhow!(
@@ -367,7 +384,9 @@ mod tests {
             );
             if let SlotKnowledge::Item { item } = &mut item {
                 item.count = 1;
-                item.data = ItemData::LegacyNbt { bytes: vec![0] };
+                item.data = ItemData::LegacyNbt {
+                    bytes: vec![10, 0, 0, 8, 0, 1, 120, 0, 1, 121, 0],
+                };
             }
             assert_eq!(
                 pickup(
@@ -419,7 +438,7 @@ mod tests {
                         MinecraftVersion::Java1_21_11,
                         "minecraft:player",
                         9,
-                        super::super::InventoryClickButton::Left,
+                        super::super::InventoryClickButton::Right,
                         source,
                         cursor
                     )

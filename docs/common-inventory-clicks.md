@@ -15,8 +15,10 @@ empty sentinelの容量値をitem容量に読み替えない。
 `InventoryClickSource::Player`はcanonical player screen slot 9..44、`Container { screen }`は
 元の受信済みopeningのstorageと付属player slotを指定する。native slot番号であり、hotbar indexではない。
 元opening、実mode、完全なdefault source/cursor、版別slot条件を送信前に検査する。
-未知item、上限超過、非default NBT/components、modern bundle固有overrideは送信前に拒否する。
-Shift転送は[共通転送API](common-inventory-transfers.md)で別途実装する。PICKUPのcrafting/result/armor/offhandとcursor付きcloseは追加対応を要する。
+未知item、上限超過、任意NBT/componentsは送信前に拒否する。Leftの空きcursor/空きslotとの移動は、
+元JARで照合したdefault constructorのlegacy NBTもそのまま保持する。modern default bundleのLeft移動も
+空きcursor/空きslotとの境界に限って認める。bundle内部への収納、Right overrideは後続作業。
+Shift転送は[共通転送API](common-inventory-transfers.md)で別途実装する。PICKUPのcrafting/result/armor/offhandは追加対応を要する。cursor付きcloseは[返却とclose](common-container-close.md)で別に実装する。
 
 ```rust,ignore
 use voxrig::client::prelude::*;
