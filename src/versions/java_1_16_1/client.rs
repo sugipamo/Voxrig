@@ -1034,6 +1034,7 @@ pub struct Bot {
     common_placement: Arc<Mutex<Option<common_placement::NativePlacementRun>>>,
     common_inventory_swap: Arc<Mutex<Option<common_inventory::NativeInventorySwap>>>,
     common_container_close: Arc<Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
+    common_container_open: Arc<Mutex<Option<common_container::NativeContainerOpen>>>,
     exact_window_barriers: Arc<Mutex<HashMap<(i8, i16), ExactWindowBarrier>>>,
     furnace_window_position: Arc<Mutex<Option<(i8, BlockPos)>>>,
     click_lock: Arc<Mutex<()>>,
@@ -1131,6 +1132,7 @@ impl Bot {
             common_placement: self.common_placement.clone(),
             common_inventory_swap: self.common_inventory_swap.clone(),
             common_container_close: self.common_container_close.clone(),
+            common_container_open: self.common_container_open.clone(),
             exact_window_barriers: self.exact_window_barriers.clone(),
             furnace_window_position: self.furnace_window_position.clone(),
             click_lock: self.click_lock.clone(),
@@ -1278,6 +1280,7 @@ impl Bot {
             common_placement: Arc::new(Mutex::new(None)),
             common_inventory_swap: Arc::new(Mutex::new(None)),
             common_container_close: Arc::new(Mutex::new(None)),
+            common_container_open: Arc::new(Mutex::new(None)),
             exact_window_barriers: Arc::new(Mutex::new(HashMap::new())),
             furnace_window_position: Arc::new(Mutex::new(None)),
             click_lock: Arc::new(Mutex::new(())),
@@ -5678,6 +5681,7 @@ impl Bot {
         self.common_placement_context_received().await?;
         self.common_inventory_context_received().await?;
         self.common_container_close_context_received().await?;
+        self.common_container_open_context_received().await?;
         self.enforce_session_limits().await?;
         Ok(true)
     }

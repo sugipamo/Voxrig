@@ -3,6 +3,18 @@ use super::*;
 type Admission<T> = Result<T, OperationAdmissionError>;
 
 pub(super) enum MotionCommand {
+    OpenContainer {
+        run_id: u64,
+        expected_revision: u64,
+        target: crate::BlockPos,
+        face: u8,
+        cursor: [f32; 3],
+        reply: oneshot::Sender<crate::Result<()>>,
+    },
+    FinishContainerOpen {
+        run_id: u64,
+        reply: oneshot::Sender<Admission<()>>,
+    },
     CloseContainer {
         expected_revision: u64,
         window: i8,
@@ -63,6 +75,10 @@ pub(super) enum MotionCommand {
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Owner {
+    ContainerOpen {
+        run_id: u64,
+        sent: bool,
+    },
     Motion(u64),
     Placement(u64),
     InventorySwap {
@@ -148,6 +164,83 @@ impl MotionGate {
         pending: bool,
     ) -> bool {
         match command {
+            MotionCommand::OpenContainer {
+                run_id,
+                expected_revision,
+                target,
+                face,
+                cursor,
+                reply,
+            } => {
+                let admission = self
+                    .can_begin(state, control, pending)
+                    .await
+                    .and_then(|()| {
+                        if run_id == 0
+                            || expected_revision != self.normal_revision
+                            || face > 5
+                            || !(0..=255).contains(&target.y)
+                            || target.x.abs_diff(0) > 30_000_000
+                            || target.z.abs_diff(0) > 30_000_000
+                            || cursor
+                                .iter()
+                                .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
+                        {
+                            return Err(OperationAdmissionError::InvalidOperation);
+                        }
+                        self.normal_revision = self
+                            .normal_revision
+                            .checked_add(1)
+                            .ok_or(OperationAdmissionError::InvalidOperation)?;
+                        self.owner = Some(Owner::ContainerOpen {
+                            run_id,
+                            sent: false,
+                        });
+                        Ok(())
+                    });
+                let admitted = admission.is_ok();
+                let result = match admission {
+                    Err(e) => Err(crate::client::inventory::unavailable(format!(
+                        "storage open admission: {e:?}"
+                    ))),
+                    Ok(()) => {
+                        let mut payload = vec![0];
+                        payload.extend(target.packed().to_be_bytes());
+                        payload.push(face);
+                        for v in cursor {
+                            payload.extend(v.to_be_bytes());
+                        }
+                        payload.push(0);
+                        let mut writer = writer.lock().await;
+                        let compression = writer.compression;
+                        let result = crate::protocol::write_packet(
+                            &mut writer.inner,
+                            compression,
+                            0x2d,
+                            &payload,
+                        )
+                        .await
+                        .map_err(crate::Error::from);
+                        if result.is_ok() {
+                            self.owner = Some(Owner::ContainerOpen { run_id, sent: true });
+                        }
+                        result
+                    }
+                };
+                let failed = admitted && result.is_err();
+                let _ = reply.send(result);
+                return failed;
+            }
+            MotionCommand::FinishContainerOpen { run_id, reply } => {
+                let result = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
+                    if self.owner != Some(Owner::ContainerOpen { run_id, sent: true }) {
+                        return Err(OperationAdmissionError::InvalidOperation);
+                    }
+                    self.owner = None;
+                    Ok(())
+                });
+                let _ = reply.send(result);
+            }
             MotionCommand::CloseContainer {
                 expected_revision,
                 window,
@@ -488,6 +581,9 @@ impl MotionGate {
     }
     fn owner_error(&self) -> OperationAdmissionError {
         match self.owner {
+            Some(Owner::ContainerOpen { .. }) => {
+                OperationAdmissionError::BoundedContainerOpenInProgress
+            }
             Some(Owner::InventorySwap { .. }) => {
                 OperationAdmissionError::BoundedInventorySwapInProgress
             }
@@ -513,6 +609,34 @@ impl MotionGate {
     }
 }
 impl ConnectionActor {
+    pub(crate) async fn bounded_container_open(
+        &self,
+        run_id: u64,
+        expected_revision: u64,
+        target: crate::BlockPos,
+        face: u8,
+        cursor: [f32; 3],
+    ) -> crate::Result<()> {
+        let (reply, result) = oneshot::channel();
+        self.commands
+            .send(Command::Motion(MotionCommand::OpenContainer {
+                run_id,
+                expected_revision,
+                target,
+                face,
+                cursor,
+                reply,
+            }))
+            .await
+            .map_err(|_| crate::client::inventory::unavailable("storage open actor unavailable"))?;
+        result.await.map_err(|_| {
+            crate::client::inventory::unavailable("storage open actor result unavailable")
+        })?
+    }
+    pub(crate) async fn finish_container_open(&self, run_id: u64) -> Admission<()> {
+        self.motion_admission(|reply| MotionCommand::FinishContainerOpen { run_id, reply })
+            .await
+    }
     pub(crate) async fn bounded_container_close(
         &self,
         expected_revision: u64,

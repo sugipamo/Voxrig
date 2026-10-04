@@ -41,6 +41,24 @@ pub(crate) enum Action<'a> {
     UseOnBlock([i32; 3], BlockFace, [f32; 3]),
 }
 impl Survival {
+    /// Activate one received first-outline storage target with empty hands/cursor.
+    /// Retains intent before I/O; complete dispatch and received screen/content facts
+    /// are separate. OPEN packets contain no causal target-block identity.
+    pub async fn open_container(
+        &self,
+        target: [i32; 3],
+    ) -> Result<super::container::ContainerOpenRecord> {
+        self.client
+            .common_open_container(GameMode::Survival, target)
+            .await
+    }
+    /// Read the latest activation record without resending, including after cancellation/closure.
+    pub async fn container_open_record(
+        &self,
+    ) -> Result<Option<super::container::ContainerOpenRecord>> {
+        self.client.common_container_open_record().await
+    }
+
     /// Close one actual opening once. Complete dispatch is not server closure.
     /// Requires matching received mode and empty cursor; retains intent before I/O.
     pub async fn close_container(
@@ -199,6 +217,24 @@ impl Survival {
     }
 }
 impl Creative {
+    /// Activate one received first-outline storage target with empty hands/cursor.
+    /// Retains intent before I/O; complete dispatch and received screen/content facts
+    /// are separate. OPEN packets contain no causal target-block identity.
+    pub async fn open_container(
+        &self,
+        target: [i32; 3],
+    ) -> Result<super::container::ContainerOpenRecord> {
+        self.client
+            .common_open_container(GameMode::Creative, target)
+            .await
+    }
+    /// Read the latest activation record without resending, including after cancellation/closure.
+    pub async fn container_open_record(
+        &self,
+    ) -> Result<Option<super::container::ContainerOpenRecord>> {
+        self.client.common_container_open_record().await
+    }
+
     /// Read the first audited static outline from a coherent dry-standing capture.
     /// Checks received creative mode; no flight, mutation or open result is implied.
     /// Shares native shape selection with Survival::target_block, reach <=4.5.

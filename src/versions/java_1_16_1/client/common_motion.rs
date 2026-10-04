@@ -9,12 +9,14 @@ use crate::client::{
 
 #[derive(Clone, Copy)]
 pub(super) enum CommonOwner {
+    ContainerOpen(crate::client::container::ContainerOpenId),
     Mining(crate::client::survival::MiningId),
     Placement(crate::client::survival::PlacementId),
 }
 impl CommonOwner {
     fn session(self) -> crate::client::SessionStamp {
         match self {
+            Self::ContainerOpen(id) => id.session(),
             Self::Mining(id) => id.session(),
             Self::Placement(id) => id.session(),
         }
@@ -156,6 +158,12 @@ impl Bot {
         let initial = self.common_player_unlocked().await?;
         let owns_operation = owner.is_some_and(|o| o.session() == initial.session)
             && match owner {
+                Some(CommonOwner::ContainerOpen(id)) => self
+                    .common_container_open
+                    .lock()
+                    .await
+                    .as_ref()
+                    .is_some_and(|o| o.record.id == id && !o.released),
                 Some(CommonOwner::Mining(id)) => self
                     .common_mining
                     .lock()
@@ -270,6 +278,15 @@ pub(super) struct NativeMotionRun {
 impl Bot {
     pub(super) async fn common_motion_pauses_physics(&self) -> bool {
         if self
+            .common_container_open
+            .lock()
+            .await
+            .as_ref()
+            .is_some_and(|o| !o.released)
+        {
+            return true;
+        }
+        if self
             .common_container_close
             .lock()
             .await
@@ -301,6 +318,15 @@ impl Bot {
             .is_some_and(|run| !run.record.status.is_continuation_candidate())
     }
     pub(super) async fn interrupt_common_motion(&self, problem: &str) {
+        if let Some(o) = self
+            .common_container_open
+            .lock()
+            .await
+            .as_mut()
+            .filter(|o| !o.released)
+        {
+            o.record.inspection(problem);
+        }
         if let Some(r) = self.common_container_close.lock().await.as_mut() {
             r.inspection(problem);
         }
@@ -315,6 +341,17 @@ impl Bot {
         }
     }
     pub(super) async fn common_motion_admission(&self) -> Result<()> {
+        if self
+            .common_container_open
+            .lock()
+            .await
+            .as_ref()
+            .is_some_and(|o| !o.released)
+        {
+            return Err(motion_state(
+                "common container activation unresolved; inspect without replay",
+            ));
+        }
         if self
             .common_container_close
             .lock()

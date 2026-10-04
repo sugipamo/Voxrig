@@ -217,6 +217,24 @@ impl Client {
             Adapter::Java1_21_11(bot) => bot.operations().common_capture(region).await,
         }
     }
+    pub(crate) async fn common_open_container(
+        &self,
+        mode: crate::client::GameMode,
+        target: [i32; 3],
+    ) -> Result<crate::client::container::ContainerOpenRecord> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_open_container(mode, target).await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_open_container(mode, target).await,
+        }
+    }
+    pub(crate) async fn common_container_open_record(
+        &self,
+    ) -> Result<Option<crate::client::container::ContainerOpenRecord>> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_container_open_record().await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_container_open_record().await,
+        }
+    }
     pub(crate) async fn common_close_container(
         &self,
         mode: crate::client::GameMode,

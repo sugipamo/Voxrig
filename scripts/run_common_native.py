@@ -469,13 +469,15 @@ network-compression-threshold=256
         report["container_closed_change"] = rcon.command(closed_change)
         native_closed_contents = until(lambda: chest_matches(11))
         stage(probe,messages,"container_closed_change",report["container_records"])
+        report["container_reopen_survival_mode"] = rcon.command("gamemode survival UnifiedProbe")
         stage(probe,messages,"container_reopen",report["container_records"])
         stage(probe,messages,"container_reopened",report["container_records"])
-        report["container_close_survival_mode"] = rcon.command("gamemode survival UnifiedProbe")
+        report["container_close_survival_mode"] = report["container_reopen_survival_mode"]
         stage(probe,messages,"container_close_survival",report["container_records"])
         close_position = rcon.command("data get entity UnifiedProbe Pos")
         if close_position != container_position:
             raise RuntimeError("container close/reopen changed native position")
+        report["native_results"]["container_open"] = {"target":[0,65,2],"creative_contents":native_open,"survival_contents":native_closed_contents,"position_before":container_position,"position_after":close_position,"authority_limits":"Same common empty-hand API in both modes: complete activation frame, actual fresh matching OPEN/full/cursor, modern actual processing ACK, distinct reopening and retained history. OPEN has no target coordinates: received screen facts do not prove causal target ownership. RCON independently verifies actual storage contents and unchanged native position."}
         report["native_results"]["container_close"] = {"closed_changed_contents":native_closed_contents,"player_inventory":until(lambda: inventory_matches({9:("minecraft:dirt",2)})),"position_before":container_position,"position_after":close_position,"authority_limits":"RCON verifies contents/inventory/position; same consumer verifies one complete close dispatch, no invented acknowledgement, closed-opening click refusal, and fresh distinct received reopening. No RCON menu-state assertion."}
         stage(probe,messages,"container_player_swap_survival",report["container_records"])
         stage(probe,messages,"container_player_taken",report["container_records"])
@@ -488,6 +490,20 @@ network-compression-threshold=256
         if player_position != container_position:
             raise RuntimeError("player inventory resume after close changed native position")
         report["native_results"]["player_screen_after_close"]={"survival_inventory":player_taken,"creative_inventory":player_returned,"container_contents":until(lambda:chest_matches(11)),"position_before":container_position,"position_after":player_position,"authority_limits":"Native default player inventory exchanges after complete no-echo close. Received slots and explicit submitted-close UI basis, not a fabricated received active window/cursor/revision; RCON verifies exact contents/inventory/position."}
+        report["barrel_fixture"]=rcon.command("setblock 0 65 2 minecraft:barrel[facing=north,open=false]")
+        report["barrel_fixture_items"]=rcon.command("replaceitem block 0 65 2 container.0 minecraft:stone 5" if version=="1.16.1" else "item replace block 0 65 2 container.0 with minecraft:stone 5")
+        barrel_results={}
+        for mode in ("creative","survival"):
+            report["barrel_mode_"+mode]=rcon.command("gamemode "+mode+" UnifiedProbe")
+            stage(probe,messages,"barrel_open_"+mode,report["container_records"])
+            stage(probe,messages,"barrel_observed_"+mode,report["container_records"])
+            opened=until(lambda:matched(rcon.command("execute if block 0 65 2 minecraft:barrel[open=true] run data get block 0 65 2 Items"),r'(?s)(?=.*minecraft:stone)(?=.*(?:Count|count): 5(?:b)?(?:,|\s|})).*'))
+            stage(probe,messages,"barrel_close_"+mode,report["container_records"])
+            closed=until(lambda:matched(rcon.command("execute if block 0 65 2 minecraft:barrel[open=false] run data get block 0 65 2 Items"),r'(?s)(?=.*minecraft:stone)(?=.*(?:Count|count): 5(?:b)?(?:,|\s|})).*'))
+            barrel_results[mode]={"opened":opened,"closed":closed}
+        barrel_position=rcon.command("data get entity UnifiedProbe Pos")
+        if barrel_position!=container_position:raise RuntimeError("barrel activation changed native position")
+        report["native_results"]["barrel_activation"]={"modes":barrel_results,"player_inventory":until(lambda:inventory_matches({9:("minecraft:dirt",2)})),"position_before":container_position,"position_after":barrel_position,"authority_limits":"Native RCON verifies real barrel open/closed boolean and unchanged stone 5 contents/player inventory/pose. Same Client independently receives matching menus/full/cursor/modern processing and actual open flag cache. Open-property transitions are outline/menu-compatible, not a target-linked acknowledgement or menu ownership proof."}
         stage(probe,messages,"container_disconnect",report["container_records"])
         probe.wait(timeout=10)
         if probe.returncode != 0:

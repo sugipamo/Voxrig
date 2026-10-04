@@ -452,6 +452,72 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
     let mut content_sequence = 0;
     while let Some(command) = commands.next_line().await? {
         match command.as_str() {
+            "barrel_open_creative" | "barrel_open_survival" => {
+                let mode = if command == "barrel_open_creative" {
+                    GameMode::Creative
+                } else {
+                    GameMode::Survival
+                };
+                wait_player(client, |p| p.game_mode == Some(mode)).await?;
+                let closed = wait_barrel_target(client, mode, "false").await?;
+                anyhow::ensure!(
+                    closed
+                        .hit
+                        .as_ref()
+                        .context("closed barrel missing")?
+                        .position
+                        == [0, 65, 2],
+                    "barrel target differs"
+                );
+                let record = if mode == GameMode::Creative {
+                    client.creative().open_container([0, 65, 2]).await?
+                } else {
+                    client.survival().open_container([0, 65, 2]).await?
+                };
+                anyhow::ensure!(
+                    record.send.dispatched && record.target.state.properties["open"] == "false",
+                    "barrel admission/dispatch differs"
+                );
+                emit(&command, record)?;
+            }
+            "barrel_observed_creative" | "barrel_observed_survival" => {
+                let mode = if command == "barrel_observed_creative" {
+                    GameMode::Creative
+                } else {
+                    GameMode::Survival
+                };
+                let record = wait_container_open(client).await?;
+                anyhow::ensure!(
+                    record.mode == mode && record.target.state.name == "minecraft:barrel",
+                    "barrel record differs"
+                );
+                let screen = record
+                    .observed_screen
+                    .as_ref()
+                    .context("barrel screen missing")?;
+                anyhow::ensure!(
+                    matches!(&screen.slots[0],Some(v) if matches!(&v.value,SlotKnowledge::Item { item } if item.name=="minecraft:stone" && item.count==5)),
+                    "barrel contents differ"
+                );
+                let live = wait_barrel_target(client, mode, "true").await?;
+                emit("barrel_received_open_flag", live)?;
+                emit(&command, record)?;
+            }
+            "barrel_close_creative" | "barrel_close_survival" => {
+                let record = client
+                    .survival()
+                    .container_open_record()
+                    .await?
+                    .context("barrel open missing")?;
+                let screen = record.observed_screen.context("barrel opening missing")?.id;
+                let close = if command == "barrel_close_creative" {
+                    client.creative().close_container(screen).await?
+                } else {
+                    client.survival().close_container(screen).await?
+                };
+                anyhow::ensure!(close.dispatched, "barrel close incomplete");
+                emit(&command, close)?;
+            }
             "container_target_creative" | "container_target_survival" => {
                 let mode = if command == "container_target_creative" {
                     GameMode::Creative
@@ -632,13 +698,13 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 emit(&command, capture)?;
             }
             "container_reopen" => {
-                emit(
-                    &command,
-                    client
-                        .creative()
-                        .use_on_block([0, 65, 2], BlockFace::North, [0.5, 0.5, 0.0])
-                        .await?,
-                )?;
+                wait_player(client, |p| p.game_mode == Some(GameMode::Survival)).await?;
+                let record = client.survival().open_container([0, 65, 2]).await?;
+                anyhow::ensure!(
+                    record.send.dispatched && record.requires_inspection.is_none(),
+                    "survival activation incomplete"
+                );
+                emit(&command, record)?;
             }
             "container_reopened" => {
                 let capture = tokio::time::timeout(Duration::from_secs(15), async {
@@ -650,6 +716,14 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                         tokio::time::sleep(Duration::from_millis(25)).await;
                     }
                 }).await??;
+                let record = wait_container_open(client).await?;
+                anyhow::ensure!(
+                    record.mode == GameMode::Survival
+                        && record.observed_screen.as_ref().map(|s| s.id)
+                            == capture.screen.as_ref().map(|s| s.id),
+                    "survival opening facts differ"
+                );
+                emit("container_reopen_completed", record)?;
                 opening = capture.screen.as_ref().map(|s| s.id);
                 emit(&command, capture)?;
             }
@@ -670,10 +744,11 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 emit("container_baseline", baseline)?;
             }
             "container_open" => {
-                let dispatch = client
-                    .creative()
-                    .use_on_block([0, 65, 2], BlockFace::North, [0.5, 0.5, 0.0])
-                    .await?;
+                let dispatch = client.creative().open_container([0, 65, 2]).await?;
+                anyhow::ensure!(
+                    dispatch.send.dispatched && dispatch.requires_inspection.is_none(),
+                    "creative activation incomplete"
+                );
                 emit("container_open", dispatch)?;
             }
             "container_observed" | "container_changed" => {
@@ -698,6 +773,16 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                         tokio::time::sleep(Duration::from_millis(25)).await;
                     }
                 }).await??;
+                if command == "container_observed" {
+                    let record = wait_container_open(client).await?;
+                    anyhow::ensure!(
+                        record.mode == GameMode::Creative
+                            && record.observed_screen.as_ref().map(|s| s.id)
+                                == capture.screen.as_ref().map(|s| s.id),
+                        "creative opening facts differ"
+                    );
+                    emit("container_open_completed", record)?;
+                }
                 let screen = capture.screen.as_ref().context("screen missing")?;
                 anyhow::ensure!(
                     screen.id.session() == capture.session
@@ -733,7 +818,24 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
             }
             "container_disconnect" => {
                 let close = client.survival().container_close_record().await?;
+                let open = client
+                    .survival()
+                    .container_open_record()
+                    .await?
+                    .context("open history missing")?;
                 client.disconnect().await?;
+                let retained = client
+                    .creative()
+                    .container_open_record()
+                    .await?
+                    .context("closed open history missing")?;
+                anyhow::ensure!(
+                    retained.id == open.id
+                        && retained.stage
+                            == voxrig::client::container::ContainerOpenStage::ObservedContents,
+                    "closed open history changed"
+                );
+                emit("container_open_disconnected", retained)?;
                 anyhow::ensure!(
                     client.screen_state().await.is_err(),
                     "closed screen treated as live"
@@ -1063,4 +1165,72 @@ async fn main() -> anyhow::Result<()> {
         }
     }
     anyhow::bail!("controller closed before explicit disconnect")
+}
+
+async fn wait_container_open(
+    client: &Client,
+) -> anyhow::Result<voxrig::client::container::ContainerOpenRecord> {
+    use voxrig::client::container::ContainerOpenStage;
+    tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            let record = client
+                .survival()
+                .container_open_record()
+                .await?
+                .context("activation history missing")?;
+            anyhow::ensure!(
+                record.requires_inspection.is_none(),
+                "activation uncertain: {:?}",
+                record.requires_inspection
+            );
+            if record.stage == ContainerOpenStage::ObservedContents {
+                anyhow::ensure!(
+                    record.send.dispatched
+                        && record.observed_screen.is_some()
+                        && record.received_cursor.is_some(),
+                    "opening received facts incomplete"
+                );
+                if client.version() == MinecraftVersion::Java1_21_11 {
+                    anyhow::ensure!(
+                        record.protocol_processing.as_ref().is_some_and(|ack| Some(
+                            ack.acknowledged_sequence
+                        ) >= record
+                            .send
+                            .interaction_sequence),
+                        "processing ACK missing"
+                    );
+                }
+                return Ok(record);
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await?
+}
+
+async fn wait_barrel_target(
+    client: &Client,
+    mode: GameMode,
+    open: &str,
+) -> anyhow::Result<BlockTargetObservation> {
+    tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            let query = if mode == GameMode::Creative {
+                client.creative().target_block(4.5).await
+            } else {
+                client.survival().target_block(4.5).await
+            };
+            if let Ok(query) = query {
+                if query.hit.as_ref().is_some_and(|hit| {
+                    hit.position == [0, 65, 2]
+                        && hit.state.name == "minecraft:barrel"
+                        && hit.state.properties.get("open").map(String::as_str) == Some(open)
+                }) {
+                    return Ok(query);
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await?
 }

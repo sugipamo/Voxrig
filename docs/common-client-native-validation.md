@@ -41,7 +41,8 @@ JVMを回収してから`.local/native-client-unification/`へ記録とworldを�
 | 開いたcontainerへの外部変更 | RCONでchest slot 0をstone 7へ変更し、同じopeningに新しいslot受信が届くこと、native items/位置不変を独立照合 |
 | survivalのstorage取出し | 同じopeningのstone 7を空hotbarへSWAPし、両fresh receiptと独立RCONの空container/stone hotbarを照合 |
 | creativeのstorageへ戻す操作 | 同じopeningでmodeの実受信後にstone 7を戻し、両fresh receiptと独立RCONのcontainer/player contents・位置不変を照合 |
-| creativeのcontainer closeと再OPEN | 元のScreenIdへのcloseを一度だけ送信。外部でstone 11へ変更後、別の実opening/full内容を受信。close送信からACKや受信screen消去を捏造しない |
+| creativeの共通storage open | empty-handの同じopen_containerでsingle chestを開き、実OPEN/full/cursorとmodern processingを保持。RCONはstone 3/位置を照合し、targetへの因果関係は主張しない |
+| creativeのcontainer closeとsurvival再OPEN | 元のScreenIdへのcloseを一度だけ送信。外部でstone 11へ変更し、実survival mode受信後に同じopen_containerで別の実opening/full/cursorを受信。close送信からACKや受信screen消去を捏造しない |
 | survivalのcontainer close | 新openingからcloseを一度だけ送信し、再クリック/再closeを拒否。独立RCONはcontents/inventory/位置を照合し、menu stateを確認できたとは扱わない。切断後もclose recordを保持 |
 | close後のsurvival player交換 | complete no-echo closeのlocal player UI根拠を保持し、同じswap_hotbarでmain dirt 2を空hotbarへ交換。両fresh receiptと独立RCONのplayer slotsを照合 |
 | close後のcreative player交換 | 受信mode変更後に同じAPIでdirt 2をmainへ戻す。actual window/revision/cursorの捏造なし、chest stone 11/位置不変と独立player Inventoryを照合 |
@@ -117,3 +118,17 @@ false比較応答は交換を取り消した証明ではない。modernにはこ
 初回のlegacy fixture slot名誤りと、正しいEmpty returnによるslot更新抑止はfailed runとしてhash/理由を保持する。
 ライブラリのguardをRCON結果で解除したり、slot予測を受信値へ変換したりしない。
 詳細と公式codecの検証は[共通在庫交換](common-inventory-swaps.md)を参照する。
+
+共通storage activationのnative検証は同じ接続でcreative open、storage交換、close、
+survival再openを実行する。`container_open_completed`と`container_reopen_completed`に
+完全送信・actual新OPEN・fresh full contents/cursor・modern actual処理sequenceを記録し、
+切断後のopen historyも確認する。legacyに処理ACKは作らない。OPENにblock座標がないため、
+matching screenの実受信とtargetがそれを開いたという因果関係を区別する。
+[共通open契約](common-container-open.md)のempty-hand・dry standing・shape/menu範囲の検証であり、
+ロック、遮蔽、animated shape、general UI/item useを完了扱いにしない。
+
+barrelも同じClientの両modeでopen/closeする。native `open=true/false`とstone 5・player在庫・
+位置不変をRCONから確認し、Client側は実画面・内容・cursor・modern processingと実受信world
+cacheのopen flagを別に観測する。通常のopen flag変更を未知のgeometry変化へ読み替えず、
+facing等の別property変更はconflictとして保持する。最初のchest-only native成功はこの追加
+barrelシナリオを検証したものではなく、後続の全体runを最終evidenceとして保持する。

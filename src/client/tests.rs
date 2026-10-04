@@ -1,6 +1,90 @@
 use super::*;
 use crate::MinecraftVersion;
 
+pub(crate) async fn common_open_start_scenario(
+    client: &Client,
+    mode: GameMode,
+    target: [i32; 3],
+) -> container::ContainerOpenRecord {
+    use container::ContainerOpenStage;
+    let before = client.player_state().await.unwrap();
+    let record = match mode {
+        GameMode::Survival => {
+            assert!(client.creative().open_container(target).await.is_err());
+            client.survival().open_container(target).await.unwrap()
+        }
+        GameMode::Creative => {
+            assert!(client.survival().open_container(target).await.is_err());
+            client.creative().open_container(target).await.unwrap()
+        }
+        _ => panic!("fixture mode"),
+    };
+    assert_eq!(record.id.session(), before.session);
+    assert_eq!(record.initial.received_pose, before.received_pose);
+    assert_eq!(record.initial.position, before.position);
+    assert_eq!(record.target.position, target);
+    assert_eq!(record.target.face, BlockFace::North);
+    assert_eq!(record.expected_menu, "minecraft:generic_9x3");
+    assert!(record.send.dispatched);
+    assert_eq!(record.stage, ContainerOpenStage::Dispatched);
+    assert!(record.observed_screen.is_none());
+    assert!(record.protocol_processing.is_none());
+    assert!(record.received_cursor.is_none());
+    assert!(client.player_state().await.unwrap().pending_dispatch);
+    assert!(client.survival().open_container(target).await.is_err());
+    assert!(client.creative().open_container(target).await.is_err());
+    assert!(client.survival().look([0.0; 2]).await.is_err());
+    assert!(client.creative().look([0.0; 2]).await.is_err());
+    assert_eq!(
+        client
+            .creative()
+            .container_open_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .id,
+        record.id
+    );
+    record
+}
+pub(crate) async fn common_open_completed_scenario(
+    client: &Client,
+    id: container::ContainerOpenId,
+) -> container::ContainerOpenRecord {
+    use container::ContainerOpenStage;
+    let r = client
+        .survival()
+        .container_open_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(r.id, id);
+    assert_eq!(r.stage, ContainerOpenStage::ObservedContents);
+    assert!(r.send.dispatched);
+    assert!(r.requires_inspection.is_none());
+    let screen = r.observed_screen.as_ref().unwrap();
+    assert_eq!(screen.id.session(), id.session());
+    assert!(screen.id.opened_sequence() > r.send.after_sequence);
+    assert!(screen.full_contents_sequence.unwrap() > screen.id.opened_sequence());
+    assert!(
+        matches!(r.received_cursor.as_ref().unwrap().source,ValueSource::Received {sequence} if sequence>screen.id.opened_sequence())
+    );
+    match id.session().version {
+        MinecraftVersion::Java1_16_1 => assert!(r.protocol_processing.is_none()),
+        MinecraftVersion::Java1_21_11 => {
+            let ack = r.protocol_processing.as_ref().unwrap();
+            assert!(ack.acknowledged_sequence >= r.send.interaction_sequence.unwrap());
+            assert!(ack.receive_sequence > r.send.after_sequence);
+        }
+    }
+    assert!(!client.player_state().await.unwrap().pending_dispatch);
+    assert_eq!(
+        client.screen_state().await.unwrap().screen.unwrap().id,
+        screen.id
+    );
+    r
+}
+
 pub(crate) async fn common_closed_player_screen_scenario(
     client: &Client,
     close: container::ContainerCloseId,

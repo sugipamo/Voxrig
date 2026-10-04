@@ -1,7 +1,12 @@
 //! Actual container-screen receipts, separate from the player inventory and click predictions.
+pub(crate) mod open;
 pub(crate) mod outline;
 use super::{ObservedValue, SessionStamp, SlotKnowledge, received};
 use crate::MinecraftVersion;
+pub use open::{
+    ContainerOpenId, ContainerOpenProcessing, ContainerOpenRecord, ContainerOpenSend,
+    ContainerOpenStage, ContainerOpenTargetState,
+};
 
 /// One close intent, bound to its received connection/world/opening.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]

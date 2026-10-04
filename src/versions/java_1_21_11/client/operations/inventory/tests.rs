@@ -680,7 +680,15 @@ fn container_content_malformed_packets_are_atomic_and_do_not_guess_layout() {
             .value,
         5
     );
-    // An unaudited menu keeps its actual contents, but no player mapping is invented.
+    // An unaudited menu keeps actual contents without an appended-player mapping.
+    // Equipment is independent same-world history, with its original receive ordinals.
+    let equipment = [5, 6, 7, 8, 45].map(|i| {
+        (
+            i,
+            state.operations.inventory.slots[i].clone(),
+            state.operations.inventory.slot_sequences[i],
+        )
+    });
     super::super::receive(
         &mut state,
         ids::play_clientbound::OPEN_WINDOW,
@@ -694,14 +702,19 @@ fn container_content_malformed_packets_are_atomic_and_do_not_guess_layout() {
     assert!(screen.layout.is_none());
     assert!(screen.menu_name.is_none());
     assert_eq!(screen.slots.len(), 63);
-    assert!(
-        state
-            .operations
-            .inventory
-            .slots
-            .iter()
-            .all(|s| *s == InventorySlot::Unavailable)
-    );
+    for (index, value, sequence) in equipment {
+        assert_eq!(state.operations.inventory.slots[index], value);
+        assert_eq!(state.operations.inventory.slot_sequences[index], sequence);
+    }
+    for index in 0..46 {
+        if ![5, 6, 7, 8, 45].contains(&index) {
+            assert_eq!(
+                state.operations.inventory.slots[index],
+                InventorySlot::Unavailable
+            );
+            assert!(state.operations.inventory.slot_sequences[index].is_none());
+        }
+    }
     state.operations.reset_world(0).unwrap();
     assert!(state.operations.inventory.container.is_none());
 }
@@ -1454,4 +1467,404 @@ async fn ordinary_click_uses_real_transport_and_timeout_never_resubmits() {
     );
     operations.bot.disconnect().await.unwrap();
     receiver.await.unwrap().unwrap();
+}
+
+impl CommonFixture {
+    async fn seed_common_open(&mut self) {
+        use super::super::survival::{LocalPlayerState, PlayerHealth, VelocitySample};
+        use crate::versions::java_1_21_11::{state_id, world::Dimension};
+        let mut state = self.api.bot.session.state.lock().await;
+        state.position = Some([8.5, 65.0, 8.5]);
+        state.operations.local_player = LocalPlayerState::spawned(42);
+        state.operations.local_player.velocity = Some(VelocitySample {
+            value: [0.0; 3],
+            receive_sequence: 10,
+        });
+        state.operations.local_player.health = Some(PlayerHealth {
+            health: 20.0,
+            food: 20,
+            saturation: 5.0,
+            receive_sequence: 10,
+        });
+        let pose = super::super::super::motion::ReceivedPose {
+            generation: state.loading.generation,
+            receive_sequence: 10,
+            position: state.position.unwrap(),
+            rotation: state.rotation,
+            velocity: Some([0.0; 3]),
+        };
+        state.motion.receive(pose);
+        state.world.select_dimension(
+            "minecraft:overworld".into(),
+            Dimension::new(-64, 384).unwrap(),
+        );
+        for x in 0..16 {
+            for z in 0..16 {
+                for y in 63..73 {
+                    state
+                        .world
+                        .seed_replay_cell([x, y, z], if y == 64 { 1 } else { 0 });
+                }
+            }
+        }
+        let chest = crate::NativeBlockState {
+            name: "minecraft:chest".into(),
+            properties: std::collections::BTreeMap::from([
+                ("facing".into(), "north".into()),
+                ("type".into(), "single".into()),
+                ("waterlogged".into(), "false".into()),
+            ]),
+        };
+        state
+            .world
+            .seed_replay_cell([8, 66, 11], state_id(&chest).unwrap());
+        drop(state);
+        self.slot(36, InventorySlot::Empty).await;
+        self.receive(ids::play_clientbound::HELD_ITEM_SLOT, &[0])
+            .await;
+    }
+    async fn common_open_contents(&mut self) {
+        let mut full = vec![3, 5, 63];
+        full.extend([0; 64]);
+        self.receive(ids::play_clientbound::WINDOW_ITEMS, &full)
+            .await;
+    }
+}
+#[tokio::test]
+async fn common_container_open_same_consumer_in_both_modes_needs_actual_contents_and_modern_ack() {
+    use crate::client::{GameMode as Mode, container::ContainerOpenStage};
+    let mut f = CommonFixture::new().await;
+    f.seed_common_open().await;
+    let client = f.client();
+    let mut old = None;
+    for mode in [Mode::Survival, Mode::Creative] {
+        if mode == Mode::Creative {
+            let mut p = vec![3];
+            p.extend(1f32.to_be_bytes());
+            f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &p)
+                .await;
+        }
+        let record =
+            crate::client::tests::common_open_start_scenario(&client, mode, [8, 66, 11]).await;
+        assert_eq!(record.before_screen, old);
+        let (id, packet) = read_packet(&mut f.peer, None).await.unwrap();
+        assert_eq!(id, ids::play_serverbound::BLOCK_PLACE);
+        let mut expected = vec![0];
+        expected.extend(
+            crate::BlockPos { x: 8, y: 66, z: 11 }
+                .packed()
+                .to_be_bytes(),
+        );
+        expected.push(2);
+        for cursor in record.cursor {
+            expected.extend(cursor.to_be_bytes());
+        }
+        expected.extend([0, 0]);
+        put_varint(&mut expected, record.send.interaction_sequence.unwrap());
+        assert_eq!(packet, expected);
+        f.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 2, 10, 0])
+            .await;
+        let pending = client
+            .survival()
+            .container_open_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(pending.stage, ContainerOpenStage::ObservedScreen);
+        assert!(
+            pending
+                .observed_screen
+                .unwrap()
+                .full_contents_sequence
+                .is_none()
+        );
+        assert!(pending.received_cursor.is_none());
+        f.common_open_contents().await;
+        assert_eq!(
+            client
+                .survival()
+                .container_open_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            ContainerOpenStage::ObservedScreen
+        );
+        assert!(client.player_state().await.unwrap().pending_dispatch);
+        let mut ack = Vec::new();
+        put_varint(&mut ack, record.send.interaction_sequence.unwrap());
+        f.receive(ids::play_clientbound::ACKNOWLEDGE_PLAYER_DIGGING, &ack)
+            .await;
+        let complete =
+            crate::client::tests::common_open_completed_scenario(&client, record.id).await;
+        let screen = complete.observed_screen.unwrap().id;
+        assert_ne!(Some(screen), old);
+        let close =
+            crate::client::tests::common_container_close_scenario(&client, mode, screen).await;
+        assert_eq!(
+            read_packet(&mut f.peer, None).await.unwrap(),
+            (ids::play_serverbound::CLOSE_WINDOW, vec![3])
+        );
+        crate::client::tests::common_closed_player_screen_scenario(&client, close.id).await;
+        old = Some(screen);
+    }
+    client.disconnect().await.unwrap();
+    let history = client
+        .creative()
+        .container_open_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(history.stage, ContainerOpenStage::ObservedContents);
+    assert_eq!(history.observed_screen.unwrap().id, old.unwrap());
+    f.stop().await;
+}
+#[tokio::test]
+async fn common_container_open_reused_numeric_window_and_cursor_conflicts_latch_before_restoration()
+{
+    use crate::client::container::ContainerOpenStage;
+    for replace in [true, false] {
+        let mut f = CommonFixture::new().await;
+        f.seed_common_open().await;
+        let client = f.client();
+        let record = client.survival().open_container([8, 66, 11]).await.unwrap();
+        read_packet(&mut f.peer, None).await.unwrap();
+        f.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 2, 10, 0])
+            .await;
+        let first = client.screen_state().await.unwrap().screen.unwrap().id;
+        if replace {
+            f.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 2, 10, 0])
+                .await;
+            assert_ne!(
+                client.screen_state().await.unwrap().screen.unwrap().id,
+                first
+            );
+        } else {
+            let mut cursor = Vec::new();
+            put_slot(&mut cursor, &plain("stone", 1));
+            f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+                .await;
+        }
+        f.common_open_contents().await;
+        let mut ack = Vec::new();
+        put_varint(&mut ack, record.send.interaction_sequence.unwrap());
+        f.receive(ids::play_clientbound::ACKNOWLEDGE_PLAYER_DIGGING, &ack)
+            .await;
+        let history = client
+            .survival()
+            .container_open_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(history.stage, ContainerOpenStage::RequiresInspection);
+        assert_eq!(history.observed_screen.unwrap().id, first);
+        assert!(client.survival().open_container([8, 66, 11]).await.is_err());
+        assert!(
+            timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+                .await
+                .is_err()
+        );
+        f.stop().await;
+    }
+}
+#[tokio::test]
+async fn common_container_open_cancelled_modern_write_retains_unsent_intent_without_replay() {
+    use crate::client::container::ContainerOpenStage;
+    let mut f = CommonFixture::new().await;
+    f.seed_common_open().await;
+    let client = f.client();
+    let session = f.api.bot.session.clone();
+    let writer = session.writer.lock().await;
+    let ops = client.survival();
+    let waiter = tokio::spawn(async move { ops.open_container([8, 66, 11]).await });
+    timeout(Duration::from_secs(1), async {
+        while session.state.try_lock().is_ok() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    waiter.abort();
+    assert!(waiter.await.unwrap_err().is_cancelled());
+    drop(writer);
+    let record = client
+        .survival()
+        .container_open_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(!record.send.dispatched);
+    assert_eq!(record.stage, ContainerOpenStage::Pending);
+    f.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 2, 10, 0])
+        .await;
+    f.common_open_contents().await;
+    let mut ack = Vec::new();
+    put_varint(&mut ack, record.send.interaction_sequence.unwrap());
+    f.receive(ids::play_clientbound::ACKNOWLEDGE_PLAYER_DIGGING, &ack)
+        .await;
+    let history = client
+        .creative()
+        .container_open_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(history.stage, ContainerOpenStage::RequiresInspection);
+    assert!(!history.send.dispatched);
+    assert!(client.survival().open_container([8, 66, 11]).await.is_err());
+    assert!(
+        timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.stop().await;
+}
+#[tokio::test]
+async fn common_container_open_received_mode_conflict_survives_restoration_and_matching_outcome() {
+    use crate::client::container::ContainerOpenStage;
+    let mut f = CommonFixture::new().await;
+    f.seed_common_open().await;
+    let client = f.client();
+    let record = client.survival().open_container([8, 66, 11]).await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    for mode in [1f32, 0f32] {
+        let mut p = vec![3];
+        p.extend(mode.to_be_bytes());
+        f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &p)
+            .await;
+    }
+    f.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 2, 10, 0])
+        .await;
+    f.common_open_contents().await;
+    let mut ack = Vec::new();
+    put_varint(&mut ack, record.send.interaction_sequence.unwrap());
+    f.receive(ids::play_clientbound::ACKNOWLEDGE_PLAYER_DIGGING, &ack)
+        .await;
+    assert_eq!(
+        client
+            .survival()
+            .container_open_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        ContainerOpenStage::RequiresInspection
+    );
+    assert!(client.player_state().await.unwrap().pending_dispatch);
+    f.stop().await;
+}
+#[test]
+fn screen_open_close_preserves_only_same_world_received_equipment_with_original_ordinals() {
+    let mut state = baseline();
+    let original = state.operations.inventory.clone();
+    for id in [
+        ids::play_clientbound::OPEN_WINDOW,
+        ids::play_clientbound::CLOSE_WINDOW,
+    ] {
+        state.sequence += 1;
+        super::super::receive(
+            &mut state,
+            id,
+            if id == ids::play_clientbound::OPEN_WINDOW {
+                &[3, 2, 10, 0]
+            } else {
+                &[3]
+            },
+        )
+        .unwrap();
+        for index in [5, 6, 7, 8, 45] {
+            assert_eq!(
+                state.operations.inventory.slots[index],
+                original.slots[index]
+            );
+            assert_eq!(
+                state.operations.inventory.slot_sequences[index],
+                original.slot_sequences[index]
+            );
+        }
+        assert!(matches!(
+            state.operations.inventory.slots[36],
+            InventorySlot::Unavailable
+        ));
+        assert!(state.operations.inventory.slot_sequences[36].is_none());
+        assert!(state.operations.inventory.cursor_sequence.is_none());
+    }
+    state.operations.reset_world(0).unwrap();
+    for index in [5, 6, 7, 8, 45] {
+        assert!(matches!(
+            state.operations.inventory.slots[index],
+            InventorySlot::Unavailable
+        ));
+        assert!(state.operations.inventory.slot_sequences[index].is_none());
+    }
+}
+
+#[tokio::test]
+async fn common_container_open_barrel_native_flag_change_is_distinct_from_facing_conflict() {
+    use crate::client::container::ContainerOpenStage;
+    for conflict in [false, true] {
+        let mut f = CommonFixture::new().await;
+        f.seed_common_open().await;
+        let client = f.client();
+        let mut barrel = crate::NativeBlockState {
+            name: "minecraft:barrel".into(),
+            properties: std::collections::BTreeMap::from([
+                ("facing".into(), "north".into()),
+                ("open".into(), "false".into()),
+            ]),
+        };
+        let packet = |state: &crate::NativeBlockState| {
+            let mut p = crate::BlockPos { x: 8, y: 66, z: 11 }
+                .packed()
+                .to_be_bytes()
+                .to_vec();
+            put_varint(
+                &mut p,
+                crate::versions::java_1_21_11::state_id(state).unwrap(),
+            );
+            p
+        };
+        f.receive(ids::play_clientbound::BLOCK_CHANGE, &packet(&barrel))
+            .await;
+        let record = client.survival().open_container([8, 66, 11]).await.unwrap();
+        read_packet(&mut f.peer, None).await.unwrap();
+        barrel.properties.insert(
+            if conflict { "facing" } else { "open" }.into(),
+            if conflict { "south" } else { "true" }.into(),
+        );
+        f.receive(ids::play_clientbound::BLOCK_CHANGE, &packet(&barrel))
+            .await;
+        if conflict {
+            barrel.properties.insert("facing".into(), "north".into());
+            f.receive(ids::play_clientbound::BLOCK_CHANGE, &packet(&barrel))
+                .await;
+        }
+        f.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 2, 10, 0])
+            .await;
+        f.common_open_contents().await;
+        let mut ack = Vec::new();
+        put_varint(&mut ack, record.send.interaction_sequence.unwrap());
+        f.receive(ids::play_clientbound::ACKNOWLEDGE_PLAYER_DIGGING, &ack)
+            .await;
+        let history = client
+            .survival()
+            .container_open_record()
+            .await
+            .unwrap()
+            .unwrap();
+        if conflict {
+            assert_eq!(history.stage, ContainerOpenStage::RequiresInspection);
+            assert_eq!(
+                history.target_state.unwrap().state.properties["facing"],
+                "south"
+            );
+        } else {
+            crate::client::tests::common_open_completed_scenario(&client, record.id).await;
+            assert_eq!(
+                history.target_state.unwrap().state.properties["open"],
+                "true"
+            );
+            assert_eq!(record.target.state.properties["open"], "false");
+        }
+        f.stop().await;
+    }
 }

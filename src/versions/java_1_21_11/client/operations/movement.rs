@@ -210,7 +210,7 @@ fn preview(
         frames,
     })
 }
-fn validate_initial(initial: &StandingContext) -> Result<()> {
+pub(super) fn validate_initial(initial: &StandingContext) -> Result<()> {
     let p = &initial.player;
     if !initial.on_ground
         || !p.effect_updates.is_empty()

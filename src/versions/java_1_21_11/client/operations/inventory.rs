@@ -262,6 +262,19 @@ fn invalidate(inventory: &mut Inventory, window: Option<i32>) {
     inventory.slot_sequences.fill(None);
 }
 
+// Regular screen OPEN/CLOSE does not supply or alter player equipment. Keep its
+// last actual values/ordinals, independently of foreign appended-player layouts.
+// Unsupported packet invalidation still clears all knowledge; world reset uses Default.
+fn invalidate_screen(inventory: &mut Inventory, window: Option<i32>) {
+    let equipment =
+        [5, 6, 7, 8, 45].map(|i| (i, inventory.slots[i].clone(), inventory.slot_sequences[i]));
+    invalidate(inventory, window);
+    for (i, value, sequence) in equipment {
+        inventory.slots[i] = value;
+        inventory.slot_sequences[i] = sequence;
+    }
+}
+
 fn invalidate_container_contents(inventory: &mut Inventory) {
     if let Some(screen) = &mut inventory.container {
         screen.slots.fill(None);
@@ -299,7 +312,7 @@ pub(super) fn receive(
             let kind = r.count(i32::MAX as usize)? as i32;
             let title = r.encoded_nbt()?;
             r.end()?;
-            invalidate(inventory, Some(window));
+            invalidate_screen(inventory, Some(window));
             inventory.container = Some(crate::client::container::ScreenReceipts::open(
                 crate::MinecraftVersion::Java1_21_11,
                 window,
@@ -312,7 +325,7 @@ pub(super) fn receive(
             let window = r.varint()?;
             r.end()?;
             if inventory.window_id == Some(window) {
-                invalidate(inventory, None);
+                invalidate_screen(inventory, None);
                 inventory.container = None;
             }
         }

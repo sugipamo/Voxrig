@@ -658,6 +658,15 @@ impl Operations {
     pub(super) fn mutable(&self, state: &State) -> Result<()> {
         self.ready(state)?;
         if state
+            .common_container_open
+            .as_ref()
+            .is_some_and(|o| o.unresolved())
+        {
+            return Err(crate::client::inventory::unavailable(
+                "common storage activation unresolved; inspect without replay",
+            ));
+        }
+        if state
             .common_container_close
             .as_ref()
             .is_some_and(|r| r.unresolved())
@@ -1109,7 +1118,11 @@ impl Operations {
                 world_generation: state.loading.generation,
             },
             receive_sequence: state.sequence,
-            pending_dispatch: self.bot.session.interrupted_packet.load(Ordering::Acquire) >= 0
+            pending_dispatch: state
+                .common_container_open
+                .as_ref()
+                .is_some_and(|o| o.unresolved())
+                || self.bot.session.interrupted_packet.load(Ordering::Acquire) >= 0
                 || state
                     .common_container_close
                     .as_ref()

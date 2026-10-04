@@ -215,3 +215,7 @@ inventory interruptionの型を所有する。modernの既存native intent/recov
 同じrecordでもlegacy action応答とmodern interaction ACKの意味は区別する。
 受信済み空手のdirt/stoneに限定し、除去観測では元接続の次のmutationを許可しない。
 [共通Survivalの採掘](common-survival-mining.md)に条件と検証を記録する。
+
+両modeの`open_container(target)`は監査済みstorageのempty-hand activationを共通化する。
+`container_open_record()`は送信とactual screen/content/cursor/modern processingの事実を保持する。
+[対応条件と取消](common-container-open.md)を確認し、一般UI/クリック/製作の対応とは区別する。

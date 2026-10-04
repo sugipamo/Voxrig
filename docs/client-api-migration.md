@@ -349,3 +349,19 @@ modernではclose後に別のmenu revisionや0を注入せず、actual player-sc
 欠測の場合は再送せず、新しいreceived contextを検討する。
 既存modern native-only inventory APIのreceived-window制約は維持する。
 詳細は[共通プレイヤー画面](common-player-screen.md)を参照。
+
+## Storage activationの共通化
+
+両modeで`open_container([x,y,z])`と`container_open_record()`を使う。
+empty main hand/offhand/cursor、実player UI、default dry standing、監査済みstorageのfirst outlineを要求する。
+creative `use_on_block`の固定cursorによるcontainer opening fixtureから移行できる。
+survival activationも独立実装し、modernのraw survival use-on-block拒否を解除していない。
+送信済みを開いたとせず、actual OPEN/full/cursorとmodern actual processing ACKを別に保持する。
+画面を開かなかった場合も同じintentを再送しない。OPENにはtarget座標がない。
+[契約と対応範囲](common-container-open.md)を確認して、受信したscreen IDで次のswap/closeを要求する。
+legacy native `OperationAdmissionError`に`BoundedContainerOpenInProgress`を追加したため、
+そのenumのexhaustive matchは移行が必要。共通Client consumerはこのnative enumに依存する必要はない。
+
+`ContainerOpenRecord.target`は初期state、`target_state`は最後のworld cache inspectionを表す。
+後者の`capture_sequence`はblock固有の更新ordinalではない。通常barrelのopen boolean更新は
+outline/menuを変えず、完全送信後だけ互換として扱う。他propertyや送信前の変化は許可しない。

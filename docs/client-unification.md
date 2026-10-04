@@ -72,7 +72,7 @@ modernの既存intent・session guardも維持する。保存したreceiptは次
 | 1. 設定・基本型・対応情報・registry | 共通fixture・静的検証済み | 両版で同じ共通型。未知版/ID、誤ったnamespaceを拒否。設定を黙って無視しない |
 | 2. player/world/inventory共通観測 | 基本capture共通fixture・静的検証済み | 同じcapture境界、受信/予測/欠測を保持。NBTは保持、未対応componentsは欠測として保持 |
 | 3. 視点・選択・移動・採掘・設置 | creative基本操作・survival preview/有限dry移動・read-only狙い判定・限定採掘/default cube設置は両版native検証済み。広い移動/採掘/設置条件は残る | 共通request/resultと両版実装、native結果と物理の検証。片版Unsupportedだけでは完了しない |
-| 4. container/item data/製作/装備/entity | default player main/hotbar交換は両mode・両版で実装。共通container画面のidentity/内容/slot対応、既に開いたstorage/hotbar交換とopening-bound closeを実装。一般container open/クリック列/複雑なitem data/製作/装備/entityは残る | modern側に受信/クリック/一般item操作を実装。同じ代表workflowと結果検証 |
+| 4. container/item data/製作/装備/entity | default player main/hotbar交換は両mode・両版で実装。共通container画面のidentity/内容/slot対応、既に開いたstorage/hotbar交換、opening-bound close、両modeのempty-hand storage openを実装。一般UI activation/クリック列/複雑なitem data/製作/装備/entityは残る | modern側に受信/クリック/一般item操作を実装。同じ代表workflowと結果検証 |
 | 5. context/記録/再構成/scene/復旧 | 残る | 共通型を所有し、legacy側にも版別規則・lifecycleの監査済み実装 |
 | 6. UI/特殊window/vehicle/manager | 残る | 各機能の共通操作/観測と両版実装。raw操作自体の版依存は明示的な拡張へ残す |
 
@@ -93,7 +93,10 @@ canonical moduleは`client::survival::checked`、旧`checked_survival`は互換a
 `Survival::target_block`は同じ境界のcaptureと最初のstatic outlineを両版で返す。
 `Creative::target_block`も同じ型・shape・版選択を使い、受信creative modeを検査する。
 両版とも7種類・全102storage stateのoutline/auxiliaryを公式JARへ照合し、chestのinset等を扱う。
-共通container openのgeometryの前提を実装したもので、openの送信/結果確認自体は後続となる。
+同じnative geometryを両modeの`open_container`へ接続し、完全送信とactual新OPEN/full/cursorを分離する。
+modernは実global processing ACKも保持し、legacyに相当値を発明しない。
+OPENにはblock座標がなく、受信したmatching screenをtarget由来の因果証明にはしない。
+詳細・限定範囲・取消は[共通container open](common-container-open.md)を参照する。
 視線/traversal kernelを共有し、shapeは各版で検証したデータから選ぶ。採掘・設置の実行許可ではない。
 範囲と独立native oracleは[共通Survivalのブロック狙い判定](common-survival-targeting.md)を参照する。
 

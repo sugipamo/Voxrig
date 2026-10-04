@@ -25,8 +25,9 @@ pub use survival::{BlockTargetHit, BlockTargetObservation};
 /// Imports for consumers selecting their Minecraft version at setup.
 pub mod prelude {
     pub use super::container::{
-        ContainerCloseId, ContainerCloseRecord, ContainerCloseStage, ContainerScreen,
-        PlayerScreenAccess, ScreenId, ScreenObservation,
+        ContainerCloseId, ContainerCloseRecord, ContainerCloseStage, ContainerOpenId,
+        ContainerOpenProcessing, ContainerOpenRecord, ContainerOpenSend, ContainerOpenStage,
+        ContainerOpenTargetState, ContainerScreen, PlayerScreenAccess, ScreenId, ScreenObservation,
     };
     pub use super::inventory::{
         InventorySwapId, InventorySwapRecord, InventorySwapSource, InventorySwapStage,

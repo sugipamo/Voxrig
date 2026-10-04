@@ -114,6 +114,8 @@ pub enum OperationClass {
 /// Typed rejection from the connection actor before packet write.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OperationAdmissionError {
+    /// A retained common storage activation owns ordinary gameplay dispatch.
+    BoundedContainerOpenInProgress,
     /// A finite common motion run exclusively owns normal gameplay dispatch.
     BoundedMotionInProgress,
     /// A retained common mining attempt owns normal dispatch until fresh recovery.
@@ -141,6 +143,9 @@ pub enum OperationAdmissionError {
 impl Display for OperationAdmissionError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         let name = match self {
+            Self::BoundedContainerOpenInProgress => {
+                "retained common container open owns gameplay dispatch"
+            }
             Self::BoundedMotionInProgress => "finite common motion owns gameplay dispatch",
             Self::BoundedPlacementInProgress => "retained common placement owns gameplay dispatch",
             Self::BoundedInventorySwapInProgress => {

@@ -208,3 +208,28 @@ async fn bounded_placement_failed_write_terminates_without_retry() {
     assert_eq!(actor.wait_for_terminal().await,ConnectionState::ConnectionStateUnknown);
     assert!(actor.bounded_placement(1,revision,crate::BlockPos{x:10,y:66,z:8},4,[0.0,0.5,0.5]).await.is_err());
 }
+
+#[tokio::test]
+async fn container_open_actor_reserves_exact_owner_and_rejects_stale_revision_or_replay() {
+    let (actor,mut peer)=actor_fixture().await;actor.mark_ready().await;
+    let revision=actor.motion_admission_revision().await.unwrap();let target=crate::BlockPos {x:8,y:66,z:11};
+    assert!(actor.bounded_container_open(1,revision,target,6,[0.5;3]).await.is_err());no_packet(&mut peer).await;
+    actor.bounded_container_open(1,revision,target,2,[0.5;3]).await.unwrap();assert_eq!(read_packet(&mut peer,None).await.unwrap().0,0x2d);
+    let context=OperationContext {generation:actor.generation(),source_observation_sequence:0};
+    assert_eq!(actor.replace_control(context,OperationClass::Normal,crate::ControlState::default()).await,Err(OperationAdmissionError::BoundedContainerOpenInProgress));
+    assert!(actor.finish_bounded_motion(1).await.is_err());assert!(actor.finish_container_open(2).await.is_err());assert!(actor.bounded_container_open(1,revision,target,2,[0.5;3]).await.is_err());no_packet(&mut peer).await;
+    actor.dispatch_protocol(0x10,&[9]).await.unwrap();assert_eq!(read_packet(&mut peer,None).await.unwrap(),(0x10,vec![9]));actor.finish_container_open(1).await.unwrap();
+    assert!(actor.bounded_container_open(2,revision,target,2,[0.5;3]).await.is_err());no_packet(&mut peer).await;
+    actor.bounded_container_open(2,actor.motion_admission_revision().await.unwrap(),target,2,[0.5;3]).await.unwrap();assert_eq!(read_packet(&mut peer,None).await.unwrap().0,0x2d);actor.finish_container_open(2).await.unwrap();
+}
+#[tokio::test]
+async fn container_open_actor_cancelled_waiter_does_not_cancel_owned_write() {
+    let (actor,mut peer,writer)=actor_fixture_with_writer().await;actor.mark_ready().await;let revision=actor.motion_admission_revision().await.unwrap();let target=crate::BlockPos {x:8,y:66,z:11};let guard=writer.lock().await;
+    let mut send=Box::pin(actor.bounded_container_open(1,revision,target,2,[0.5;3]));std::future::poll_fn(|cx|{assert!(send.as_mut().poll(cx).is_pending());std::task::Poll::Ready(())}).await;drop(send);drop(guard);
+    assert_eq!(timeout(Duration::from_secs(1),read_packet(&mut peer,None)).await.unwrap().unwrap().0,0x2d);assert!(actor.bounded_container_open(1,revision,target,2,[0.5;3]).await.is_err());actor.finish_container_open(1).await.unwrap();no_packet(&mut peer).await;
+}
+#[tokio::test]
+async fn container_open_actor_failed_write_retains_terminal_uncertainty() {
+    let (actor,_peer)=actor_fixture().await;actor.mark_ready().await;actor.shutdown_writer().await.unwrap();let target=crate::BlockPos {x:8,y:66,z:11};
+    assert!(actor.bounded_container_open(1,actor.motion_admission_revision().await.unwrap(),target,2,[0.5;3]).await.is_err());assert_eq!(actor.wait_for_terminal().await,ConnectionState::ConnectionStateUnknown);assert!(actor.finish_container_open(1).await.is_err());
+}
