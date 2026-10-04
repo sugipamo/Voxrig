@@ -364,6 +364,31 @@ pub(crate) fn decode(bytes: &[u8], version: MinecraftVersion) -> Result<NbtData>
     })()
     .map_err(|e| Error::new(ErrorKind::InvalidInput, e))
 }
+/// Logical modern unnamed Tag, including the explicit EndTag sentinel.
+/// Component text/codec normalization is separate from this NBT interpretation.
+pub(crate) fn decode_unnamed_tag(bytes: &[u8]) -> Result<Option<Arc<NbtValue>>> {
+    (|| -> anyhow::Result<_> {
+        if bytes.len() > MAX_BYTES {
+            bail!("NBT exceeds byte budget");
+        }
+        let mut decoder = Decoder {
+            rest: bytes,
+            nodes: MAX_NODES,
+            version: MinecraftVersion::Java1_21_11,
+        };
+        let kind = decoder.byte()?;
+        let value = if kind == 0 {
+            None
+        } else {
+            Some(decoder.value(kind, 0)?)
+        };
+        if !decoder.rest.is_empty() {
+            bail!("trailing unnamed NBT bytes");
+        }
+        Ok(value)
+    })()
+    .map_err(|e| Error::new(ErrorKind::InvalidInput, e))
+}
 fn equivalent(left: &Arc<NbtValue>, right: &Arc<NbtValue>, version: MinecraftVersion) -> bool {
     if Arc::ptr_eq(left, right) {
         return true;
@@ -441,6 +466,35 @@ mod tests {
             }
         })
         .unwrap()
+    }
+    #[test]
+    fn every_original_unnamed_tag_kind_uses_the_same_logical_nbt_decoder() {
+        use std::io::Read;
+        let mut bytes = Vec::new();
+        flate2::read::GzDecoder::new(
+            &include_bytes!("../../data/client_api/component_value_cases-1.21.11.json.gz")[..],
+        )
+        .read_to_end(&mut bytes)
+        .unwrap();
+        let facts: Value = serde_json::from_slice(&bytes).unwrap();
+        let tags = facts["unnamed_tags"].as_array().unwrap();
+        for row in tags {
+            let bytes = hex::decode(row["input_hex"].as_str().unwrap()).unwrap();
+            let value = decode_unnamed_tag(&bytes).unwrap();
+            let (decoded, crc) = match value {
+                Some(value) => (describe(&value), hash(&value)),
+                None => (json!({"kind":0}), crate::client::hash_ops::primitive(1, [])),
+            };
+            assert_eq!(decoded, row["decoded"], "{}", row["input_hex"]);
+            assert_eq!(crc as i32, row["pure_nbt_crc32c"].as_i64().unwrap() as i32);
+            let mut trailing = bytes.clone();
+            trailing.push(0);
+            assert!(decode_unnamed_tag(&trailing).is_err());
+            for end in 0..bytes.len() {
+                assert!(decode_unnamed_tag(&bytes[..end]).is_err());
+            }
+        }
+        assert_eq!(tags.len(), 20);
     }
     // Only translates public decoded fields into the original oracle's JSON shape.
     fn describe(value: &NbtValue) -> Value {

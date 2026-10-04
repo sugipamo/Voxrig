@@ -323,3 +323,12 @@ native-key caching at the mapped capacity; it is not live ServerPlayer cache
 or synchronizer evidence. Source/request/JAR/mapping/classpath/raw-output hashes
 are recorded in `item_semantics_source.json`. Original binaries, mappings and
 method bodies remain local; these facts do not relicense Minecraft.
+
+`component_value_rules-1.21.11.json`, its compressed cases and source record
+retain factual enum IDs/names/factory aliases and fixed scalar/NBT decoder
+outputs from unchanged original codecs, getters, NbtIo and NbtOps. Native enum
+factory/math bytecode inspection stays local; no method bodies are distributed.
+Original JAR/mappings/classpath/tool/raw/final digests bind the limited primitive
+scope. Typed stream fields are not full native component/text equality, resolved
+live registries, cached item hashes or gameplay support; these facts do not
+relicense Minecraft.

@@ -41,6 +41,8 @@ include = [
     "/scripts/export_nbt_semantics.py",
     "/scripts/ExportItemProperties.java",
     "/scripts/ExportItemSemantics.java",
+    "/scripts/ExportComponentValueRules.java",
+    "/scripts/export_component_value_rules.py",
     "/scripts/RecordingNativeHashOps.java",
     "/scripts/export_item_semantics.py",
     "/scripts/export_item_properties.py",

@@ -5,6 +5,7 @@ use crate::client::{ItemComponent, ItemComponentPatch, registry::Registry};
 use anyhow::{Context, Result, bail};
 use std::{collections::BTreeSet, sync::OnceLock};
 mod framing;
+mod values;
 
 #[cfg(test)]
 mod native_evidence_tests;
@@ -58,6 +59,17 @@ pub(crate) fn validate_patch(patch: &ItemComponentPatch) -> Result<()> {
         bail!("item-component identities or field boundaries disagree");
     }
     Ok(())
+}
+/// Decode a complete native signed scalar through the same typed grammar.
+pub(crate) fn scalar_value(value: &ItemComponent) -> Result<i32> {
+    let native = definition(value.definition.id.value())?;
+    if value.definition.name != native.name {
+        bail!("item-component name/ID mismatch");
+    }
+    match framing::decode_value(native, &value.bytes)? {
+        values::Value::Integer(value) => Ok(value),
+        _ => bail!("item-component value is not a signed integer"),
+    }
 }
 /// Decode one complete patch field, without exposing adapter wire internals.
 pub(crate) fn decode_patch(bytes: &[u8]) -> Result<ItemComponentPatch> {

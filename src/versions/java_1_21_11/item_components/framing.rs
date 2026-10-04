@@ -114,6 +114,10 @@ pub(super) fn value(
     budget: &mut Budget,
     depth: usize,
 ) -> Result<()> {
+    read_value(r, root(native)?, budget, depth, false)?;
+    Ok(())
+}
+fn root(native: &Definition) -> Result<usize> {
     let root = *schema()
         .roots
         .get(&native.name)
@@ -121,50 +125,80 @@ pub(super) fn value(
     if schema().nodes[root].native_class != native.stream_codec_class {
         bail!("pinned component codec composition differs from registry");
     }
-    read(r, root, budget, depth)
+    Ok(root)
+}
+pub(super) fn decode_value(native: &Definition, bytes: &[u8]) -> Result<super::values::Value> {
+    let mut reader = Reader::new(bytes);
+    let mut budget = Budget::new(&reader);
+    let value = read_value(&mut reader, root(native)?, &mut budget, 0, true)?;
+    reader.end()?;
+    Ok(value)
 }
 fn reference(r: &mut Reader<'_>, registry: &str) -> Result<i32> {
     let id = r.varint()?;
     if id < 0 || !registry.starts_with("minecraft:") {
         bail!("invalid encoded registry reference: {registry}/{id}");
     }
-    // Preserve the original ID. This alone does not resolve a datapack-dependent
-    // registry, confer semantic identity, or authorize any item operation.
     Ok(id)
 }
-fn text(r: &mut Reader<'_>, maximum: usize) -> Result<()> {
+fn text(r: &mut Reader<'_>, maximum: usize) -> Result<String> {
     let value = r.string()?;
     if value.encode_utf16().count() > maximum {
         bail!("native item-component string length limit");
     }
-    Ok(())
+    Ok(value)
 }
-fn nested_patch(r: &mut Reader<'_>, budget: &mut Budget, depth: usize) -> Result<()> {
-    let added = r.count(definitions().len())?;
-    let removed = r.count(definitions().len())?;
-    if added + removed > definitions().len() {
+fn nested_patch(
+    r: &mut Reader<'_>,
+    budget: &mut Budget,
+    depth: usize,
+    capture: bool,
+) -> Result<super::values::Value> {
+    use super::values::Value;
+    let added_count = r.count(definitions().len())?;
+    let removed_count = r.count(definitions().len())?;
+    if added_count + removed_count > definitions().len() {
         bail!("nested item-component patch type count limit");
     }
     let mut seen = std::collections::BTreeSet::new();
-    for _ in 0..added {
+    let mut added = Vec::new();
+    let mut removed = Vec::new();
+    for _ in 0..added_count {
         let id = r.varint()?;
         let native = definition(id)?;
         if !seen.insert(id) {
             bail!("duplicate nested item-component type");
         }
-        value(r, native, budget, depth + 1)?;
+        let value = read_value(r, root(native)?, budget, depth + 1, capture)?;
+        if capture {
+            added.push((id, value));
+        }
     }
-    for _ in 0..removed {
+    for _ in 0..removed_count {
         let id = r.varint()?;
         definition(id)?;
         if !seen.insert(id) {
             bail!("duplicate nested item-component type");
         }
+        if capture {
+            removed.push(id);
+        }
     }
-    budget.check(r)
+    budget.check(r)?;
+    Ok(if capture {
+        Value::Patch { added, removed }
+    } else {
+        Value::Unit
+    })
 }
-
-fn read(r: &mut Reader<'_>, node: usize, budget: &mut Budget, depth: usize) -> Result<()> {
+fn read_value(
+    r: &mut Reader<'_>,
+    node: usize,
+    budget: &mut Budget,
+    depth: usize,
+    capture: bool,
+) -> Result<super::values::Value> {
+    use super::values::{self, ProfileProperty, Value};
     if depth > 256 {
         bail!("item-component codec depth limit");
     }
@@ -174,95 +208,227 @@ fn read(r: &mut Reader<'_>, node: usize, budget: &mut Budget, depth: usize) -> R
         .context("item-component work limit")?;
     budget.check(r)?;
     let child_depth = depth + 1;
-    match &schema()
+    let native = schema()
         .nodes
         .get(node)
-        .context("invalid pinned codec node")?
-        .rule
-    {
+        .context("invalid pinned codec node")?;
+    let decoded = match &native.rule {
         Rule::Sequence { children } => {
+            let mut values = Vec::new();
             for &child in children {
-                read(r, child, budget, child_depth)?;
+                let value = read_value(r, child, budget, child_depth, capture)?;
+                if capture {
+                    values.push(value);
+                }
+            }
+            Value::Sequence(values)
+        }
+        Rule::Forward { child } => read_value(r, *child, budget, child_depth, capture)?,
+        Rule::Boolean => {
+            let value = r.bool()?;
+            if capture {
+                Value::Boolean(value)
+            } else {
+                Value::Unit
             }
         }
-        Rule::Forward { child } => read(r, *child, budget, child_depth)?,
-        Rule::Boolean => {
-            r.bool()?;
-        }
         Rule::Fixed { length } => {
-            r.take(*length)?;
+            let bytes = r.take(*length)?;
+            if capture {
+                values::fixed(node, &native.native_class, bytes)?
+            } else {
+                Value::Unit
+            }
         }
         Rule::Varint => {
-            r.varint()?;
+            let value = r.varint()?;
+            if !capture {
+                Value::Unit
+            } else if native.native_class == "aam$21" {
+                Value::Enumeration {
+                    codec: node,
+                    native_id: values::enumeration(node, value)?,
+                }
+            } else {
+                Value::Integer(value)
+            }
         }
-        Rule::Nbt => r.skip_nbt()?,
-        Rule::Unit => {}
-        Rule::String { maximum } => text(r, *maximum)?,
+        Rule::Nbt => {
+            if capture {
+                Value::Nbt(
+                    crate::client::nbt::decode_unnamed_tag(&r.encoded_nbt()?)
+                        .map_err(|e| anyhow::anyhow!(e.to_string()))?,
+                )
+            } else {
+                r.skip_nbt()?;
+                Value::Unit
+            }
+        }
+        Rule::Unit => Value::Unit,
+        Rule::String { maximum } => {
+            let value = text(r, *maximum)?;
+            if capture {
+                Value::String(value)
+            } else {
+                Value::Unit
+            }
+        }
         Rule::Optional { child } => {
-            if r.bool()? {
-                read(r, *child, budget, child_depth)?;
+            let present = r.bool()?;
+            let value = if present {
+                Some(read_value(r, *child, budget, child_depth, capture)?)
+            } else {
+                None
+            };
+            if capture {
+                Value::Optional(value.map(Box::new))
+            } else {
+                Value::Unit
             }
         }
         Rule::List { child, maximum } => {
+            let mut values = Vec::new();
             for _ in 0..r.count((*maximum).min(65_536))? {
-                read(r, *child, budget, child_depth)?;
+                let value = read_value(r, *child, budget, child_depth, capture)?;
+                if capture {
+                    values.push(value);
+                }
             }
+            Value::List(values)
         }
         Rule::Map {
             key,
             value,
             maximum,
         } => {
+            let mut entries = Vec::new();
             for _ in 0..r.count((*maximum).min(65_536))? {
-                read(r, *key, budget, child_depth)?;
-                read(r, *value, budget, child_depth)?;
+                let key = read_value(r, *key, budget, child_depth, capture)?;
+                let value = read_value(r, *value, budget, child_depth, capture)?;
+                if capture {
+                    entries.push((key, value));
+                }
             }
+            Value::Map(entries)
         }
         Rule::Either { left, right } => {
-            let child = if r.bool()? { left } else { right };
-            read(r, *child, budget, child_depth)?;
+            let left_side = r.bool()?;
+            let child = if left_side { left } else { right };
+            let value = read_value(r, *child, budget, child_depth, capture)?;
+            if capture {
+                Value::Either {
+                    left: left_side,
+                    value: Box::new(value),
+                }
+            } else {
+                Value::Unit
+            }
         }
         Rule::Registry { registry } => {
-            reference(r, registry)?;
+            let native_id = reference(r, registry)?;
+            if capture {
+                Value::Registry {
+                    registry: registry.clone(),
+                    native_id,
+                }
+            } else {
+                Value::Unit
+            }
         }
         Rule::Holder { registry, inline } => {
-            if reference(r, registry)? == 0 {
-                read(r, *inline, budget, child_depth)?;
+            let id = reference(r, registry)?;
+            if id == 0 {
+                let value = read_value(r, *inline, budget, child_depth, capture)?;
+                if capture {
+                    Value::HolderInline {
+                        registry: registry.clone(),
+                        value: Box::new(value),
+                    }
+                } else {
+                    Value::Unit
+                }
+            } else if capture {
+                Value::HolderReference {
+                    registry: registry.clone(),
+                    native_id: id - 1,
+                }
+            } else {
+                Value::Unit
             }
         }
         Rule::HolderSet { registry, child } => {
             let count = reference(r, registry)?;
             if count == 0 {
-                text(r, 32_767)?;
+                let tag = text(r, 32_767)?;
+                if capture {
+                    Value::HolderTag {
+                        registry: registry.clone(),
+                        tag,
+                    }
+                } else {
+                    Value::Unit
+                }
             } else {
                 let count = usize::try_from(count - 1)?;
                 if count > 65_536 {
                     bail!("item-component holder-set count limit");
                 }
+                let mut values = Vec::new();
                 for _ in 0..count {
-                    read(r, *child, budget, child_depth)?;
+                    let value = read_value(r, *child, budget, child_depth, capture)?;
+                    if capture {
+                        values.push(value);
+                    }
+                }
+                if capture {
+                    Value::HolderList {
+                        registry: registry.clone(),
+                        values,
+                    }
+                } else {
+                    Value::Unit
                 }
             }
         }
         Rule::ProfileProperties => {
+            let mut values = Vec::new();
             for _ in 0..r.count(65_536)? {
-                text(r, 64)?;
-                text(r, 32_767)?;
-                if r.bool()? {
-                    text(r, 32_767)?;
+                let name = text(r, 64)?;
+                let value = text(r, 32_767)?;
+                let signature = if r.bool()? {
+                    Some(text(r, 32_767)?)
+                } else {
+                    None
+                };
+                if capture {
+                    values.push(ProfileProperty {
+                        name,
+                        value,
+                        signature,
+                    });
                 }
             }
+            Value::ProfileProperties(values)
         }
         Rule::TypedComponent => {
-            let native = definition(r.varint()?)?;
-            value(r, native, budget, child_depth)?;
+            let native_id = r.varint()?;
+            let native = definition(native_id)?;
+            let value = read_value(r, root(native)?, budget, child_depth, capture)?;
+            if capture {
+                Value::TypedComponent {
+                    native_id,
+                    value: Box::new(value),
+                }
+            } else {
+                Value::Unit
+            }
         }
         Rule::Item { nonempty } => {
             let count = r.varint()?;
             if count < 0 || (*nonempty && count == 0) {
                 bail!("invalid nested native item count");
             }
-            if count != 0 {
+            let (native_id, patch) = if count != 0 {
                 let id = r.varint()?;
                 if *nonempty && id == 0 {
                     bail!("empty air stack in nonempty nested item codec");
@@ -271,10 +437,18 @@ fn read(r: &mut Reader<'_>, node: usize, budget: &mut Budget, depth: usize) -> R
                     crate::MinecraftVersion::Java1_21_11,
                 )
                 .item_by_native_id(id)?;
-                nested_patch(r, budget, child_depth)?;
+                let patch = nested_patch(r, budget, child_depth, capture)?;
+                (Some(id), if capture { Some(Box::new(patch)) } else { None })
+            } else {
+                (None, None)
+            };
+            Value::Item {
+                count,
+                native_id,
+                patch,
             }
         }
-        Rule::Patch => nested_patch(r, budget, child_depth)?,
+        Rule::Patch => nested_patch(r, budget, child_depth, capture)?,
         Rule::Dispatch { branched, variants } => {
             let left = if *branched { Some(r.bool()?) } else { None };
             let tag = r.varint()?;
@@ -282,10 +456,34 @@ fn read(r: &mut Reader<'_>, node: usize, budget: &mut Budget, depth: usize) -> R
                 .iter()
                 .find(|v| v.tag == tag && v.left == left)
                 .context("unknown native component dispatcher tag; update Voxrig")?;
-            read(r, chosen.codec, budget, child_depth)?;
+            let value = read_value(r, chosen.codec, budget, child_depth, capture)?;
+            if capture {
+                Value::Dispatch {
+                    left,
+                    tag,
+                    value: Box::new(value),
+                }
+            } else {
+                Value::Unit
+            }
         }
-    }
-    budget.check(r)
+    };
+    budget.check(r)?;
+    Ok(if capture { decoded } else { Value::Unit })
+}
+
+#[cfg(test)]
+fn read(r: &mut Reader<'_>, node: usize, budget: &mut Budget, depth: usize) -> Result<()> {
+    read_value(r, node, budget, depth, false)?;
+    Ok(())
+}
+#[cfg(test)]
+pub(super) fn decode_node(node: usize, bytes: &[u8]) -> Result<super::values::Value> {
+    let mut reader = Reader::new(bytes);
+    let mut budget = Budget::new(&reader);
+    let value = read_value(&mut reader, node, &mut budget, 0, true)?;
+    reader.end()?;
+    Ok(value)
 }
 
 #[cfg(test)]

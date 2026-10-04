@@ -136,6 +136,36 @@ modern stoneのmax stack size=16を独立RCONへ照合した。受信bytes・元
 readonly frame・実行時入力は`data/client_api/item_properties_native_evidence.json`に保存する。
 実入力は4105a49にstaged変更を加えたもので、実行後のevidence/docsを入力へ付け足さない。
 
+## 型を保持する内部field decoder
+
+全104型の既存の651 node構造を、scalar・boolean・NBT・sequence・optional・list/map、
+registry/holder/tag、profile、typed component、入れ子item/patch、dispatcherを区別する
+内部value treeへ接続した。通常の受信はcaptureを無効にしてtreeを保持しない。
+既存の共通property getterのsigned整数もこの同じgrammarから読む。
+追加の公開low-level APIや、stack比較・操作許可はこの段階では作らない。
+
+元factoryの19 enum nodeについて6,230 alias入力を検査し、zero fallback・clamp・wrapを区別する。
+EquipmentSlotの宣言順とID順は異なり、tropical fish/rabbitは非連番IDを含む。
+そのためenum ordinalや最大値からIDを推測しない。元ByIdMapとMath helperもlocalで確認した。
+固定幅の5 nodeは元stream codecの実decoder/getterで型と34入力を確認し、
+float/doubleのNaN・infinity・signed zeroを保持する。姿勢のfinite-only decoderへ流用しない。
+NBTの20 unnamed rootは元NbtIo/NbtOpsへ照合し、全kind、EndTag、modified UTF-8、
+重複compound key、modern list wrapperと純粋NBT hashを同じ共通decoderで読む。
+数値streamのsigned zeroとNBT factoryのzero補正は区別する。
+
+4,134 component入力を元canonical wireへ照合した。これはwire fieldの型・構造の検査で、
+mapのnative等価性やforward codecによるconstructor/text正規化を証明しない。
+registry/holder/tagは名前付きの未解決参照で、fixture IDやtag名から実server値を推測しない。
+このtreeを使う完全なcomponent/prototype/text比較・persistent encoder・live registry/cache・
+slot規則/data付き操作の実装は引き続き統合する。
+
+runtimeは`component_value_rules-1.21.11.json`の小さな型定義だけを読み、
+大量のprobeは`component_value_cases-1.21.11.json.gz`へ分離した。
+`component_value_rules_source.json`にtool/JAR/classpath/mappingとraw/final digestを保存する。
+`scripts/export_component_value_rules.py`で元JVM512 MiB・CPU1を使って生成し、
+同じruntime directoryの`--normalize-only --check`で保存出力を照合できる。
+このstandalone検査を新たなlive gameplay/ServerPlayer cache検証とは扱わない。
+
 ## Item比較・persistent hashの基礎
 
 `item_semantics-*.json.gz`は未変更公式JARで独立にdecodeしたitemの比較結果。

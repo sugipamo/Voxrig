@@ -126,12 +126,11 @@ impl ItemStack {
                             "minecraft:max_stack_size"
                             | "minecraft:max_damage"
                             | "minecraft:damage" => {
-                                let mut bytes = value.bytes.as_slice();
-                                let decoded = crate::protocol::get_varint(&mut bytes)
+                                let decoded =
+                                    crate::versions::java_1_21_11::item_components::scalar_value(
+                                        value,
+                                    )
                                     .map_err(|e| Error::new(ErrorKind::InvalidInput, e))?;
-                                if !bytes.is_empty() {
-                                    return Err(invalid("trailing item property value bytes"));
-                                }
                                 fields.insert(name.to_owned(), decoded.into());
                             }
                             "minecraft:unbreakable" => {
