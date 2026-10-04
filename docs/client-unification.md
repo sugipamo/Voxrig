@@ -121,6 +121,12 @@ close後の通常在庫交換も両版に実装する。received active window�
 local player UIを`SubmittedClose`として別に保持し、modernのactual player-screen-zero revisionを使う。
 再OPEN/respawn/reconfigurationで元のbasisを失効させる。詳細は[共通プレイヤー画面](common-player-screen.md)を参照する。
 
+通常slotのnative条件をSWAPの送信前に検査し、shulker boxへのshulker box収納をowner/packet前に拒否する。
+legacyのitem容量も元JARへ揃え、warped_fungus_on_a_stickの64→1を元upstream dataを変えずに修正した。
+PICKUP/split/返却は元menu 18,432ケースずつ、default cursor比較は元codec 120件ずつを照合したが、
+共通PICKUPの実送信・owner・fresh cursor/slot受信APIは後続作業として残る。
+[検証範囲とslot条件](common-inventory-clicks.md)、[更新後のnative回帰](common-client-native-validation.md)を参照する。
+
 `Client::capabilities()` / `Capabilities::for_version`は共通面の実装状況を返す。
 NotImplementedはVoxrig側の不足であって、ゲームに存在しないという意味ではない。
 既存Botにあるcontainer等も共通入口が未実装なら共通capabilityではNotImplementedになる。

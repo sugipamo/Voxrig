@@ -32,6 +32,8 @@ include = [
     "/scripts/VerifyContainerClose.java",
     "/scripts/ExportMenuLayouts.java",
     "/scripts/ExportStorageOutlines.java",
+    "/scripts/ExportRegularClicks.java",
+    "/scripts/export_regular_clicks.py",
     "/README.md",
     "/LICENSE",
     "/THIRD_PARTY_NOTICES.md",

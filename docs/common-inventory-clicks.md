@@ -1,0 +1,85 @@
+# 共通Clientの通常クリック調査とslot条件
+
+共通`swap_hotbar` / `swap_container_hotbar`は、元のnative constructorで確認したslot条件を
+送信前に検査する。shulker boxに別のshulker boxを入れるwhole SWAPは`InvalidInput`で拒否する。
+拒否時はpacket・owner・未解決recordを作らず、同じopeningで有効な交換を続けられる。
+slot番号や名前の類似から受入れ条件を推測せず、選択した版の検証済みprofileを使う。
+
+1.16.1の最大stack容量もnative値へ揃えた。`warped_fungus_on_a_stick`のupstream登録値64は
+nativeでは1だった。元の`data/items.json`とharvest監査のsource hashを保持し、registry loaderで
+同じnative ID/nameに対応する実容量を適用する。974種類すべての実item容量とID/nameを照合する。
+1.21.11はAIR以外の1,504種類を照合する。AIRは実item stackではなくemptyであり、
+empty sentinelの容量値をitem容量に読み替えない。
+
+一般PICKUP（左・右クリック）の公開操作はこの段階では追加していない。
+取り出し・半分取る・1個置く・結合・戻す・交換を、両版の実menu primitiveで照合した。
+後続の共通操作は、owner・I/O前record・実slot/cursor受信・取消/競合保持まで実装してから公開する。
+NBT/components、bundle専用操作、crafting/result/armor/offhand、shift-click、cursorを持ったcloseも残る。
+
+## 元のnative実装へ照合した範囲
+
+公式の未変更server JARと公式mappingを使用する。modernは公式bundleのserverと39 libraryの
+全40 classpath entryをSHA-256で照合し、別JAR・変更したmethod bodyを混ぜない。
+Java 21のsource-file modeで実行するため、`javac`バイナリを別途要求しない。
+実サーバーやworldの起動は行わず、native menu/slot/item/codecメソッドをそのまま呼ぶ。
+
+| 各版の照合 | 件数・内容 |
+| --- | --- |
+| native item登録 | 975 / 1,505、default容量・empty判定・item override |
+| constructor slot条件 | storage 9 menu、player slot 9..44 |
+| PICKUP | 18,432、要求count有効11,250、実操作前count有効11,450 / 11,950 |
+| SWAP | 7,500、hotbarの両端とslot拒否 |
+| packet codec往復 | 120、Empty/非空比較、左右button、window、action/revision |
+
+stone/dirt/egg/saddle/white_shulker_boxで容量64/16/1、空・奇数・上限・上限超過を扱う。
+`requested_source` / `requested_cursor`はfixtureへ渡した要求で、`source_before` / `cursor_before`は
+元のnative setterが完了した後の実stackを別に読む。要求countの有効性は`valid_requested_counts`、
+実操作前countの有効性は`valid_default_counts`に保持する。storage準備時のnativeによる数量制限も
+256 / 896ケースとして記録し、要求値を実操作前の値に読み替えない。手動で切り詰めて通常操作へ通さない。
+PICKUPの実操作前countが有効な変更10,540 / 10,994ケースは、すべて実cursorも変化する。
+
+shulker box slotは17種類のshulker box itemを拒否する。playerに付属する通常slotはこの制限を持たない。
+slotのnative基本容量はlegacy 64、modern 99であり、共通の定数64へ丸めない。
+実stackには別のitem容量も適用する。default容量を超えたcountや容量を変えるcomponentsを通常stackへ補完しない。
+modernの17種類のbundleはitem自身がPICKUPをoverrideするので、通常PICKUPの計算対象へ混ぜない。
+SWAPはこのitem overrideを実行しないため、bundleの通常クリックとwhole SWAPは別の条件になる。
+
+legacy PICKUPのnative returnは操作前のclicked slot stackである。今後の一度のクリックで実resyncを
+求める比較値は、source非空ならEmpty、source空なら受信済みの非空cursorにする。
+nativeはclickを実行してから比較するので、false比較応答をrollbackへ読み替えない。
+
+modernは予測cursor hashが実結果と一致するとcursor更新を省略する。
+特に全量を戻してEmptyになる時、Empty hashを送るだけでは実Empty受信の根拠を得られない。
+実操作前cursorを比較値にし、実cursor更新を求める。default stackのhash codecはnative holder ID/countと
+空patch追加・削除から成り、native HashGeneratorがcomponent hashを要求しないことも確認した。
+既存SWAPのEmpty hashも同じ検証済みencoderへ揃えた。一般PICKUPの送信・受信契約の完成を意味しない。
+
+## 再生成
+
+`DOWNLOADS`には別途取得した`VERSION-server.jar`と`VERSION-server-mappings.txt`を配置する。
+`MODERN_CLASSPATH`は公式modern bundleを展開したserver/libraryのclasspathを含むテキストファイル。
+公式配布物はpackageへ含めない。
+
+```bash
+python3 scripts/export_regular_clicks.py \
+  --downloads "$DOWNLOADS" \
+  --modern-classpath-file "$MODERN_CLASSPATH" \
+  --runtime-output .local/regular-click-oracle \
+  --check
+```
+
+JVMは1つずつ、heap512 MiB・active processor1で実行する。raw/logは`.local`へ保持する。
+確認済みrawを正規化する場合だけ`--normalize-only`を使う。これは新しいnative実行の代わりにはならない。
+`regular_click_profiles-*`は判定用の事実、`regular_click_cases-*.json.gz`はnative結果、
+`regular_click_packets-*`は元codecのbyte列、`regular_click_source.json`は範囲・入力・生成器・出力hashを保持する。
+
+このprimitive oracleのplayer/worldは未spawnの最小contextであり、通常slotのInventoryと
+native default feature flagsだけを供給する。接続、mode、対象screenの所有、送信取消、
+他者の変更、復旧、実slot/cursor packetの因果を証明する試験ではない。
+共通SWAPには別に両adapter/両modeの送信前拒否と、元openingでの有効な交換のconsumer試験を行う。
+一般クリックの実装後には同じClient consumerを両版へ通し、独立した実server状態とも照合する。
+
+既存Clientシナリオの更新後のnative回帰は両公式版で成功した。
+`data/client_api/regular_click_native_evidence.json`に実行時input・raw reportのhash、
+storage/player SWAPのfresh receiptsと独立RCON結果を保持する。両JVMは正常終了し、tmpfs runtimeも削除済み。
+この回帰は一般PICKUPのowner/transport/receipt APIの完成を意味しない。

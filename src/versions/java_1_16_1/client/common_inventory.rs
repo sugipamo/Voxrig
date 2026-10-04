@@ -325,6 +325,34 @@ impl Bot {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn pickup_comparison_encoding_matches_original_native_packet_codec() {
+        let cases: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../data/client_api/regular_click_packets-1.16.1.json"
+        ))
+        .unwrap();
+        assert_eq!(cases.as_array().unwrap().len(), 120);
+        for case in cases.as_array().unwrap() {
+            let comparison = case["cursor_comparison"]["item"]
+                .as_str()
+                .map(|name| ItemStack {
+                    item_id: crate::item_id(name.strip_prefix("minecraft:").unwrap()).unwrap(),
+                    count: case["cursor_comparison"]["count"]
+                        .as_i64()
+                        .unwrap()
+                        .try_into()
+                        .unwrap(),
+                    nbt: None,
+                });
+            let mut payload = vec![case["window"].as_u64().unwrap() as u8];
+            payload.extend((case["slot"].as_i64().unwrap() as i16).to_be_bytes());
+            payload.push(case["button"].as_u64().unwrap() as u8);
+            payload.extend((case["revision"].as_i64().unwrap() as i16).to_be_bytes());
+            payload.push(0); // original PICKUP mode; action, not a modern revision
+            write_slot(&mut payload, comparison.as_ref());
+            assert_eq!(hex::encode(payload), case["payload_hex"].as_str().unwrap());
+        }
+    }
     #[tokio::test]
     async fn player_screen_after_close_respawn_never_reuses_prior_local_basis() {
         let (bot, mut packets, release, server) =
@@ -701,6 +729,83 @@ mod tests {
         p.extend(record.send.legacy_action.unwrap().to_be_bytes());
         p.push(0);
         bot.apply_packet(0x12, p).await.unwrap();
+    }
+    #[tokio::test]
+    async fn shulker_slot_refusal_is_shared_by_both_modes_before_owner_or_click() {
+        for mode in [api::GameMode::Survival, api::GameMode::Creative] {
+            let (bot, mut packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            seed(&bot).await;
+            let mut open = vec![3, 19]; // original native SHULKER_BOX registry ID
+            put_string(&mut open, "{}");
+            bot.apply_packet(0x2e, open).await.unwrap();
+            let mut full = vec![3, 0, 63];
+            for index in 0..63 {
+                let item = match index {
+                    0 => Some(ItemStack {
+                        item_id: crate::item_id("stone").unwrap(),
+                        count: 3,
+                        nbt: None,
+                    }),
+                    54 => Some(ItemStack {
+                        item_id: crate::item_id("white_shulker_box").unwrap(),
+                        count: 1,
+                        nbt: None,
+                    }),
+                    _ => None,
+                };
+                write_slot(&mut full, item.as_ref());
+            }
+            bot.apply_packet(0x14, full).await.unwrap();
+            bot.apply_packet(0x16, vec![255, 255, 255, 0])
+                .await
+                .unwrap();
+            if mode == api::GameMode::Creative {
+                let mut p = vec![3];
+                p.extend(1f32.to_be_bytes());
+                bot.apply_packet(0x1e, p).await.unwrap();
+            }
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            let screen = client.screen_state().await.unwrap().screen.unwrap().id;
+            api::tests::common_refused_shulker_swap_scenario(&client, mode, screen).await;
+            while let Ok(packet) = packets.try_recv() {
+                assert_ne!(packet.0, 0x09);
+            }
+            // A valid ordinary incoming stack on the same opening remains usable.
+            let dirt = api::registry::Registry::for_version(crate::MinecraftVersion::Java1_16_1)
+                .item("minecraft:dirt")
+                .unwrap();
+            container_slot(
+                &bot,
+                54,
+                &api::SlotKnowledge::Item {
+                    item: api::ItemStack {
+                        id: dirt.id,
+                        name: dirt.name,
+                        count: 2,
+                        data: api::ItemData::Default,
+                    },
+                },
+            )
+            .await;
+            let record = match mode {
+                api::GameMode::Survival => {
+                    client.survival().swap_container_hotbar(screen, 0, 0).await
+                }
+                api::GameMode::Creative => {
+                    client.creative().swap_container_hotbar(screen, 0, 0).await
+                }
+                _ => unreachable!(),
+            }
+            .unwrap();
+            assert!(record.send.dispatched);
+            while packets.recv().await.unwrap().0 != 0x09 {}
+            bot.disconnect().await.unwrap();
+            drop(release);
+            drop(client);
+            drop(bot);
+            server.await.unwrap();
+        }
     }
     #[tokio::test]
     async fn container_swap_same_consumer_receives_exact_slots_and_next_creative_exchange() {

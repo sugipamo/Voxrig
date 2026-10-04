@@ -176,7 +176,8 @@ impl Operations {
         put_varint(&mut payload, record.window_id());
         put_varint(&mut payload, revision);
         payload.extend((slot as i16).to_be_bytes());
-        payload.extend([hotbar, 2, 0, 0]);
+        payload.extend([hotbar, 2, 0]);
+        put_default_cursor_hash(&mut payload, &InventorySlot::Empty)?;
         state.common_inventory_swap = Some(CommonSwap {
             record,
             submission: None,

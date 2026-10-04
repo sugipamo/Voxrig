@@ -128,8 +128,38 @@ fn prepare_with_player_revision(
     let mut payload = vec![0];
     put_varint(&mut payload, screen_revision);
     payload.extend(i16::from(main_slot).to_be_bytes());
-    payload.extend([hotbar, 2, 0, 0]);
+    payload.extend([hotbar, 2, 0]);
+    put_default_cursor_hash(&mut payload, &InventorySlot::Empty)?;
     Ok((submission, payload))
+}
+
+// The native hash of a default stack is its holder ID/count and empty patch
+// additions/removals, not a predicted cursor result. Capacity/mode/slot checks
+// belong to click admission; the codec itself also represents overstacks.
+fn put_default_cursor_hash(payload: &mut Vec<u8>, cursor: &InventorySlot) -> Result<()> {
+    match cursor {
+        InventorySlot::Empty => payload.push(0),
+        InventorySlot::Unavailable => {
+            return Err(unavailable("actual supported cursor unavailable"));
+        }
+        InventorySlot::Item { item } => {
+            if item.count <= 0
+                || items()
+                    .iter()
+                    .find(|d| d.id == item.item_id)
+                    .is_none_or(|d| item.name != format!("minecraft:{}", d.name) || d.name == "air")
+            {
+                return Err(invalid(
+                    "default cursor hash requires known nonempty native item identity",
+                ));
+            }
+            payload.push(1);
+            put_varint(payload, item.item_id);
+            put_varint(payload, item.count);
+            payload.extend([0, 0]);
+        }
+    }
+    Ok(())
 }
 
 fn observed(

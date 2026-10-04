@@ -36,8 +36,11 @@ source_slotはstorage側のみで、appended player slotは拒否する。hotbar
 
 受信full contents、constructor layout、現在の画面identity、playerとのhotbar受信対応が揃っていることを要求する。
 画面のclose・再OPEN・world変更は元attemptのinspectionとして残り、同じnumeric ID/期待値の復元で解除しない。
-constructor確認済みの9 storage menuを対象にするが、serverの操作許可やslot固有の受入れ条件を保証する契約ではない。
-期待する両destinationが実受信されない場合は未解決のまま保持する。特殊slotの個別preflight・一般click列は後続段階で拡張する。
+constructor確認済みの9 storage menuとplayer main slotのnative受入れ条件を送信前に検査する。
+shulker boxへのshulker box収納は`InvalidInput`で拒否し、click/owner/未解決recordを作らない。
+元のsourceが空でない場合は取り出し許可、非空hotbarはslotの全量受入れ許可と容量を要求する。
+実serverの追加制限や操作許可を保証する契約ではなく、期待する両destinationが実受信されない場合は未解決のまま保持する。
+特殊UI/slot・一般click列は後続段階で拡張する。[native通常クリック調査](common-inventory-clicks.md)を参照。
 未解決のcontainer交換とplayer交換は同じcommon ownerを使い、一方を別の入口から迂回しない。
 未解決のcloseも同じadmissionで拒否し、close送信を保持した元のScreenIdにはクリックしない。
 closeのactual receiptとdispatchの区別は[共通container close](common-container-close.md)を参照。

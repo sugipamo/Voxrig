@@ -310,6 +310,40 @@ pub(crate) async fn common_container_swap_start_scenario(
     assert!(client.creative().select_hotbar(0).await.is_err());
     record
 }
+pub(crate) async fn common_refused_shulker_swap_scenario(
+    client: &Client,
+    mode: GameMode,
+    screen: container::ScreenId,
+) {
+    let before = client.screen_state().await.unwrap();
+    let player = client.player_state().await.unwrap();
+    assert_eq!(
+        before.screen.as_ref().unwrap().menu_name.as_deref(),
+        Some("minecraft:shulker_box")
+    );
+    let error = match mode {
+        GameMode::Survival => client.survival().swap_container_hotbar(screen, 0, 0).await,
+        GameMode::Creative => client.creative().swap_container_hotbar(screen, 0, 0).await,
+        _ => panic!("mode"),
+    }
+    .unwrap_err();
+    assert_eq!(error.kind(), crate::ErrorKind::InvalidInput);
+    assert!(
+        client
+            .survival()
+            .inventory_swap_record()
+            .await
+            .unwrap()
+            .is_none()
+    );
+    let after = client.screen_state().await.unwrap();
+    assert_eq!(after.receive_sequence, before.receive_sequence);
+    assert_eq!(after.screen.unwrap().slots, before.screen.unwrap().slots);
+    let after = client.player_state().await.unwrap();
+    assert_eq!(after.inventory.slots, player.inventory.slots);
+    assert_eq!(after.inventory.cursor, player.inventory.cursor);
+    assert!(!after.pending_dispatch);
+}
 pub(crate) async fn common_swap_pending_scenario(client: &Client) {
     let record = client
         .survival()

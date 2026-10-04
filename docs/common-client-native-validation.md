@@ -132,3 +132,11 @@ barrelも同じClientの両modeでopen/closeする。native `open=true/false`と
 cacheのopen flagを別に観測する。通常のopen flag変更を未知のgeometry変化へ読み替えず、
 facing等の別property変更はconflictとして保持する。最初のchest-only native成功はこの追加
 barrelシナリオを検証したものではなく、後続の全体runを最終evidenceとして保持する。
+
+native slot条件・item容量・default cursor hash encoderを揃えた後の回帰runは、
+`trial-1.16.1-63556176` / `trial-1.21.11-e3596fc0`。両版とも同じClient consumerの
+storage/player交換・開閉を含む全シナリオが成功し、JVMはexit 0、tmpfs runtimeは削除済み。
+`data/client_api/regular_click_native_evidence.json`に実RCON結果、fresh swap receipts、
+実行時input hashとraw report hashを保持する。以前のfailed runと履歴は元のevidenceに残す。
+これは通常PICKUPの接続/owner/受信契約を検証したrunではない。その公開操作はまだ未実装。
+元menuのPICKUP primitiveとslot条件の別の照合は[通常クリック調査](common-inventory-clicks.md)を参照。

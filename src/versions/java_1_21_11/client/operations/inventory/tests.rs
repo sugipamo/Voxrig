@@ -1,4 +1,68 @@
 use super::*;
+#[test]
+fn pickup_cursor_comparison_encoding_matches_original_native_codec() {
+    let cases: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../../data/client_api/regular_click_packets-1.21.11.json"
+    ))
+    .unwrap();
+    assert_eq!(cases.as_array().unwrap().len(), 120);
+    for case in cases.as_array().unwrap() {
+        let cursor = if let Some(name) = case["cursor_comparison"]["item"].as_str() {
+            let definition = crate::client::registry::Registry::for_version(
+                crate::MinecraftVersion::Java1_21_11,
+            )
+            .item(name)
+            .unwrap();
+            InventorySlot::Item {
+                item: PlainItem {
+                    name: definition.name,
+                    item_id: definition.id.value(),
+                    count: case["cursor_comparison"]["count"]
+                        .as_i64()
+                        .unwrap()
+                        .try_into()
+                        .unwrap(),
+                },
+            }
+        } else {
+            InventorySlot::Empty
+        };
+        let mut payload = Vec::new();
+        put_varint(
+            &mut payload,
+            case["window"].as_i64().unwrap().try_into().unwrap(),
+        );
+        put_varint(
+            &mut payload,
+            case["revision"].as_i64().unwrap().try_into().unwrap(),
+        );
+        payload.extend((case["slot"].as_i64().unwrap() as i16).to_be_bytes());
+        payload.extend([case["button"].as_u64().unwrap() as u8, 0, 0]); // PICKUP, no predicted modified-slot hashes
+        put_default_cursor_hash(&mut payload, &cursor).unwrap();
+        assert_eq!(hex::encode(payload), case["payload_hex"].as_str().unwrap());
+    }
+    for cursor in [
+        InventorySlot::Unavailable,
+        InventorySlot::Item {
+            item: PlainItem {
+                name: "minecraft:stone".into(),
+                item_id: 0,
+                count: 1,
+            },
+        },
+        InventorySlot::Item {
+            item: PlainItem {
+                name: "minecraft:stone".into(),
+                item_id: 1,
+                count: 0,
+            },
+        },
+    ] {
+        let mut bytes = vec![42];
+        assert!(put_default_cursor_hash(&mut bytes, &cursor).is_err());
+        assert_eq!(bytes, vec![42]);
+    }
+}
 #[tokio::test]
 async fn player_screen_after_close_reconfiguration_clears_player_revision_and_local_basis() {
     let mut f = CommonFixture::new().await;
@@ -426,6 +490,56 @@ impl CommonFixture {
         p.extend(index.to_be_bytes());
         put_slot(&mut p, &value);
         self.receive(ids::play_clientbound::SET_SLOT, &p).await;
+    }
+}
+#[tokio::test]
+async fn shulker_slot_refusal_is_shared_by_both_modes_before_owner_or_click() {
+    use crate::client::GameMode as Mode;
+    for mode in [Mode::Survival, Mode::Creative] {
+        let mut f = CommonFixture::new().await;
+        f.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 20, 10, 0])
+            .await;
+        let mut full = vec![3, 5, 63];
+        for index in 0..63 {
+            put_slot(
+                &mut full,
+                &match index {
+                    0 => plain("stone", 3),
+                    54 => plain("white_shulker_box", 1),
+                    _ => InventorySlot::Empty,
+                },
+            );
+        }
+        full.push(0);
+        f.receive(ids::play_clientbound::WINDOW_ITEMS, &full).await;
+        if mode == Mode::Creative {
+            let mut p = vec![3];
+            p.extend(1f32.to_be_bytes());
+            f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &p)
+                .await;
+        }
+        let client = f.client();
+        let screen = client.screen_state().await.unwrap().screen.unwrap().id;
+        crate::client::tests::common_refused_shulker_swap_scenario(&client, mode, screen).await;
+        assert!(
+            timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+                .await
+                .is_err()
+        );
+        f.container_slot(54, plain("dirt", 2)).await;
+        let record = match mode {
+            Mode::Survival => client.survival().swap_container_hotbar(screen, 0, 0).await,
+            Mode::Creative => client.creative().swap_container_hotbar(screen, 0, 0).await,
+            _ => unreachable!(),
+        }
+        .unwrap();
+        assert!(record.send.dispatched);
+        assert_eq!(
+            read_packet(&mut f.peer, None).await.unwrap().0,
+            ids::play_serverbound::WINDOW_CLICK
+        );
+        client.disconnect().await.unwrap();
+        f.stop().await;
     }
 }
 #[tokio::test]

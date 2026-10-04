@@ -1,4 +1,5 @@
 //! Received ordinary player/container exchanges; no click prediction is receive evidence.
+pub(crate) mod slot_policy;
 use super::container::{ContainerScreen, ScreenId};
 use super::{
     GameMode, ItemData, ObservedValue, PlayerObservation, SessionStamp, SlotKnowledge, ValueSource,
@@ -283,6 +284,16 @@ pub(crate) fn prepare_source(
     };
     let source_before = get(usize::from(source_slot))?;
     let hotbar_before = get(usize::from(hotbar_screen_slot))?;
+    slot_policy::validate_swap(
+        initial.session.version,
+        screen
+            .as_ref()
+            .and_then(|s| s.menu_name.as_deref())
+            .unwrap_or("minecraft:player"),
+        usize::from(source_slot),
+        &source_before.value,
+        &hotbar_before.value,
+    )?;
     if source_before.value == hotbar_before.value {
         return Err(super::registry::invalid(
             "identical slot contents do not require a swap",

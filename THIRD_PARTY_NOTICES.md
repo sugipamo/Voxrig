@@ -7,6 +7,19 @@ notices. Exact npm versions and registry integrity digests are recorded in
 
 ## Locally recorded Java 1.21.11 diagnostics
 
+`data/client_api/regular_click_*` contains factual registry/default-capacity,
+native slot acceptance, PICKUP/SWAP outcomes and packet/hash encodings recorded
+from the unmodified official Java 1.16.1 and 1.21.11 server JARs. The original
+Java/Python exporters verify the original bundle/classpath hashes and call native
+methods; no Minecraft binaries, mappings or method bodies are redistributed.
+`regular_click_source.json` records the exact scope and source/output hashes.
+The skeletal player/world context supplies inventory/default feature flags and
+does not constitute a network, ownership or gameplay-mode test. Native capacity
+facts correct the effective legacy warped_fungus_on_a_stick capacity from 64 to
+1 during registry loading; the upstream `data/items.json` stays byte-for-byte
+unchanged, including its existing harvest-audit source identity.
+Regeneration and limits are documented in `docs/common-inventory-clicks.md`.
+
 `data/java_1_21_11/outline_*` contains factual shape coordinates, native state
 coverage and numeric raycast/rotation observations from a locally obtained Java
 1.21.11 game. Original Java/Python tooling invokes native APIs; it is not copied

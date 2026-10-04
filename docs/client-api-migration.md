@@ -295,6 +295,12 @@ modernの画面revisionとlegacyのtransaction番号を共通の成功ACKとし�
 完了後の次操作は新しいbaselineから開始する。container/crafting/general item dataはこの操作だけで対応済みにはならない。
 前提・取消・履歴と検証は[共通在庫交換](common-inventory-swaps.md)を参照。
 
+storage交換はnative slotの受入れ条件も送信前に検査する。shulker boxへのshulker box収納は
+`InvalidInput`で拒否し、clickや未解決recordを作らない。一般PICKUP/shift-click APIは後続作業。
+1.16.1の`warped_fungus_on_a_stick`最大容量はnativeに合わせ1へ修正した。
+版別の容量は`client.registry().item(...)`から読み、upstream値64や共通の固定容量を仮定しない。
+[nativeクリック調査](common-inventory-clicks.md)に元の実装と再生成手順を記載する。
+
 ## 共通のcontainer観測へ移行
 
 開いた画面は`Client::screen_state()`で取得する。`screen.slots`とplayer screen 0..45の在庫を混ぜない。
