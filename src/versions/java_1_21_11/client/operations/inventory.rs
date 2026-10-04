@@ -3,6 +3,7 @@ use super::*;
 use std::time::Duration;
 pub(in crate::versions::java_1_21_11::client) mod click;
 pub(in crate::versions::java_1_21_11::client) mod common;
+pub(in crate::versions::java_1_21_11::client) mod transfer;
 
 /// One submitted SWAP click, tied to this connection and received baseline.
 /// It is not an acknowledgement and cannot be restored from serialized history.

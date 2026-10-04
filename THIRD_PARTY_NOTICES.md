@@ -20,6 +20,15 @@ facts correct the effective legacy warped_fungus_on_a_stick capacity from 64 to
 unchanged, including its existing harvest-audit source identity.
 Regeneration and limits are documented in `docs/common-inventory-clicks.md`.
 
+`data/client_api/inventory_transfer_*` separately records default QUICK_MOVE
+routes, equipment slot acceptance/capacity, complete original menu outcomes,
+legacy returned stacks/default constructor NBT, and original packet encodings
+from those same unmodified official JARs. Original exporters supply an unspawned
+player with actual Inventory/EntityEquipment/ServerPlayerGameMode; they do not
+replace native algorithms or prove network/mode/ownership behavior. Source,
+raw and output hashes and regeneration limits are recorded in
+`inventory_transfer_source.json` and `docs/common-inventory-transfers.md`.
+
 `data/java_1_21_11/outline_*` contains factual shape coordinates, native state
 coverage and numeric raycast/rotation observations from a locally obtained Java
 1.21.11 game. Original Java/Python tooling invokes native APIs; it is not copied

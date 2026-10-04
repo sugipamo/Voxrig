@@ -147,3 +147,21 @@ close後のplayer main/hotbarも、survival取り出し、creativeで1個置く�
 確認し、RCONのcursor/menu所有確認とは扱わない。新しい実行時input、8完了recordずつ、raw hashと
 RCON結果は`data/client_api/ordinary_pickup_native_evidence.json`に保持する。
 元menuのPICKUP primitiveとslot条件の別の照合は[通常クリック調査](common-inventory-clicks.md)を参照。
+
+
+共通ClientのShift転送の実接続runは`trial-1.16.1-841caa80` /
+`trial-1.21.11-a6428298`で成功した。両runは同一consumer binaryを使い、各版9件の完了recordを
+`data/client_api/inventory_transfer_native_evidence.json`へ保持する。チェストの逆順転送、close後の
+main/hotbar転送、カボチャの自動装備・既存stackへの合流・hotbarからの再装備、防具の装備と返却を
+両modeで実行する。legacyのdefault `Damage=0` NBTも元bytesのまま受信・送信する。
+変化した全slotはfreshな実受信、変化しないcursorは元ordinalの実観測を検査する。
+RCONはstorage/player数量とhead装備を独立して照合し、位置も不変だった。
+旧版は`Inventory`内のSlot 103、modernはnative `equipment.head`を照合するが、共通APIのheadは
+両方canonical player slot 5である。両JVMはexit 0、tmpfs runtimeは退避後に削除済み。
+
+検証側の失敗3 runもraw hash・理由・実行時inputとともに保持する。空mainより既存stackへのmergeを
+優先するnative規則、modernの独立したhead保存形式、play/RCON別経路での即時fixture cleanupを
+修正した。外部cleanup前は実native tick進行を確認するが、tickは処理ACKへ読み替えない。
+slot/cursorの実受信条件は緩和しない。保存済みmodern native player dataも装備形式の独立診断に
+使用した。native入力のsnapshot後に行ったsource互換名のre-export・diagnostic wordingと生成器commentの
+整理は動作を変えず、現在のsourceは別途全テスト・compiler・packageで確認する。

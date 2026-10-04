@@ -402,6 +402,29 @@ async fn wait_pickup(
         }
     }).await?
 }
+async fn wait_transfer(
+    client: &Client,
+) -> anyhow::Result<voxrig::client::inventory::InventoryTransferRecord> {
+    tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            let record = client.survival().inventory_transfer_record().await?.context("transfer record missing")?;
+            anyhow::ensure!(record.requires_inspection.is_none(), "transfer interrupted: {:?}", record.requires_inspection);
+            if record.stage == InventoryTransferStage::ObservedTransferred {
+                anyhow::ensure!(record.send.dispatched && !record.changed_slots.is_empty(), "transfer dispatch missing");
+                anyhow::ensure!(record.cursor_inspected.as_ref().is_some_and(|c| c.value == record.cursor_before.value && matches!(c.source, voxrig::client::ValueSource::Received{..})), "unchanged cursor inspection missing");
+                for change in &record.changed_slots {
+                    let actual = change.receipt.as_ref().context("changed slot receipt missing")?;
+                    anyhow::ensure!(actual.value == change.prediction.value && matches!(actual.source, voxrig::client::ValueSource::Received{sequence} if sequence > record.send.after_sequence), "transfer requires fresh exact changed slots");
+                }
+                if let Some(action) = record.send.legacy_action {
+                    anyhow::ensure!(record.legacy_reply.as_ref().is_some_and(|r| r.action == action && i32::from(r.window_id) == record.window_id() && r.receive_sequence > record.send.after_sequence), "native transfer reply missing");
+                } else { anyhow::ensure!(record.legacy_reply.is_none() && record.legacy_return_prediction.is_none(), "invented legacy transfer fact"); }
+                return Ok::<_, anyhow::Error>(record);
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    }).await?
+}
 fn stack_count(value: &SlotKnowledge) -> u32 {
     match value {
         SlotKnowledge::Empty => 0,
@@ -918,6 +941,110 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                     "duplicate container click admitted"
                 );
                 emit(&command, submitted)?;
+            }
+            "container_transfer_survival"
+            | "container_transfer_creative"
+            | "player_transfer_survival"
+            | "player_transfer_creative"
+            | "pumpkin_transfer_survival"
+            | "pumpkin_transfer_creative_armor"
+            | "pumpkin_transfer_creative_hotbar"
+            | "helmet_transfer_survival"
+            | "helmet_transfer_creative" => {
+                let mode = if command.ends_with("survival") {
+                    GameMode::Survival
+                } else {
+                    GameMode::Creative
+                };
+                wait_player(client, |p| p.game_mode == Some(mode)).await?;
+                let source = if command.starts_with("container_transfer") {
+                    InventorySource::Container {
+                        screen: opening.context("opening missing")?,
+                    }
+                } else {
+                    InventorySource::Player
+                };
+                let slot = match command.as_str() {
+                    "container_transfer_survival" => 0,
+                    "container_transfer_creative" => 62,
+                    "player_transfer_survival" => 9,
+                    "player_transfer_creative" | "pumpkin_transfer_creative_hotbar" => 36,
+                    "pumpkin_transfer_creative_armor" | "helmet_transfer_creative" => 5,
+                    _ => 10,
+                };
+                if command == "pumpkin_transfer_survival" || command == "helmet_transfer_survival" {
+                    let name = if command.starts_with("pumpkin") {
+                        "minecraft:carved_pumpkin"
+                    } else {
+                        "minecraft:diamond_helmet"
+                    };
+                    let count = if command.starts_with("pumpkin") { 7 } else { 1 };
+                    wait_player(client, |p| p.inventory.slots[10].as_ref().is_some_and(|s| matches!(&s.value, SlotKnowledge::Item{item} if item.name == name && item.count == count)) && p.inventory.slots[5].as_ref().is_some_and(|s| s.value == SlotKnowledge::Empty)).await?;
+                }
+                let record = if mode == GameMode::Survival {
+                    client.survival().transfer_inventory(source, slot).await?
+                } else {
+                    client.creative().transfer_inventory(source, slot).await?
+                };
+                anyhow::ensure!(
+                    record.send.dispatched && record.source_slot == slot && record.mode == mode,
+                    "transfer submission differs"
+                );
+                emit(&command, record)?;
+            }
+            "container_transfer_taken"
+            | "container_transfer_returned"
+            | "player_transfer_taken"
+            | "player_transfer_returned"
+            | "pumpkin_transfer_equipped"
+            | "pumpkin_transfer_armor_returned"
+            | "pumpkin_transfer_hotbar_equipped"
+            | "helmet_transfer_equipped"
+            | "helmet_transfer_returned" => {
+                let record = wait_transfer(client).await?;
+                if command == "container_transfer_taken" {
+                    anyhow::ensure!(
+                        record
+                            .changed_slots
+                            .iter()
+                            .any(|s| s.slot == 62 && s.player_slot == Some(44)),
+                        "storage transfer must use native reverse order"
+                    );
+                }
+                if command == "pumpkin_transfer_equipped" {
+                    anyhow::ensure!(
+                        record.changed_slots.len() == 3
+                            && record
+                                .changed_slots
+                                .iter()
+                                .any(|s| s.slot == 5 && stack_count(&s.prediction.value) == 1)
+                            && record
+                                .changed_slots
+                                .iter()
+                                .any(|s| s.slot == 36 && stack_count(&s.prediction.value) == 6),
+                        "one native QUICK_MOVE must equip one pumpkin and move remaining six"
+                    );
+                }
+                emit(&command, record)?;
+            }
+            "transfer_fixture_cleared" => {
+                emit("transfer_fixture_before_wait", client.player_state().await?)?;
+                let result = wait_player(client, |p| {
+                    [5, 10, 36, 44].iter().all(|i| {
+                        p.inventory.slots[*i]
+                            .as_ref()
+                            .is_some_and(|s| s.value == SlotKnowledge::Empty)
+                    }) && p
+                        .inventory
+                        .cursor
+                        .as_ref()
+                        .is_some_and(|c| c.value == SlotKnowledge::Empty)
+                })
+                .await;
+                if result.is_err() {
+                    emit("transfer_fixture_timeout", client.player_state().await?)?;
+                }
+                emit(&command, result?)?;
             }
             "container_pickup_survival"
             | "container_pickup_creative_one"

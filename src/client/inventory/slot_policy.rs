@@ -28,10 +28,10 @@ struct Slot {
     policy: usize,
 }
 #[derive(serde::Deserialize)]
-struct SlotPolicy {
-    may_pickup: bool,
-    base_capacity: u32,
-    rejected_default_items: Vec<String>,
+pub(super) struct SlotPolicy {
+    pub(super) may_pickup: bool,
+    pub(super) base_capacity: u32,
+    pub(super) rejected_default_items: Vec<String>,
 }
 fn profiles(version: MinecraftVersion) -> &'static Profiles {
     static LEGACY: OnceLock<Profiles> = OnceLock::new();
@@ -50,6 +50,20 @@ fn profiles(version: MinecraftVersion) -> &'static Profiles {
             .expect("pinned native click profiles")
         }),
     }
+}
+pub(super) fn regular_slot(
+    version: MinecraftVersion,
+    menu: &str,
+    index: usize,
+) -> Result<&'static SlotPolicy> {
+    let profiles = profiles(version);
+    profiles
+        .menus
+        .iter()
+        .find(|m| m.name == menu)
+        .and_then(|m| m.slots.iter().find(|s| s.slot == index))
+        .and_then(|s| profiles.slot_policies.get(s.policy))
+        .ok_or_else(|| unavailable("native ordinary slot policy unavailable; update Voxrig"))
 }
 /// Original native default-stack capacity, tied to both registry ID and name.
 /// AIR's empty sentinel is not an inventory stack/capacity definition.

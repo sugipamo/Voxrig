@@ -2220,3 +2220,219 @@ async fn ordinary_pickup_reused_numeric_opening_latches_conflict_even_when_expec
     assert_eq!(retained.stage, Stage::RequiresInspection);
     f.stop().await;
 }
+#[tokio::test]
+async fn shift_transfer_same_consumer_both_modes_storage_player_equipment_and_old_cursor_ordinal() {
+    use crate::client::{
+        GameMode as Mode,
+        inventory::{InventorySource as Source, InventoryTransferStage as Stage},
+    };
+    for mode in [Mode::Survival, Mode::Creative] {
+        for scenario in [0, 1, 2, 3, 4] {
+            let mut f = CommonFixture::new().await;
+            let source = if scenario == 0 {
+                Source::Container {
+                    screen: f.open_swap_container().await,
+                }
+            } else {
+                Source::Player
+            };
+            if scenario >= 2 {
+                f.slot(
+                    9,
+                    match scenario {
+                        2 => plain("diamond_helmet", 1),
+                        3 => plain("carved_pumpkin", 7),
+                        _ => plain("bundle", 1),
+                    },
+                )
+                .await;
+            }
+            if mode == Mode::Creative {
+                let mut p = vec![3];
+                p.extend(1f32.to_be_bytes());
+                f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &p)
+                    .await;
+            }
+            let client = f.client();
+            let record = crate::client::tests::common_transfer_start_scenario(
+                &client,
+                mode,
+                source,
+                if scenario == 0 { 0 } else { 9 },
+            )
+            .await;
+            let (id, p) = read_packet(&mut f.peer, None).await.unwrap();
+            assert_eq!(id, ids::play_serverbound::WINDOW_CLICK);
+            assert_eq!(p, super::transfer::payload(&record).unwrap());
+            if scenario == 0 {
+                assert!(
+                    record
+                        .changed_slots
+                        .iter()
+                        .any(|s| s.slot == 62 && s.player_slot == Some(44))
+                );
+            }
+            if scenario == 2 || scenario == 3 {
+                assert!(record.changed_slots.iter().any(|s| s.slot == 5));
+            }
+            for (i, change) in record.changed_slots.iter().enumerate() {
+                let value = match &change.prediction.value {
+                    crate::client::SlotKnowledge::Empty => InventorySlot::Empty,
+                    crate::client::SlotKnowledge::Item { item } => {
+                        plain(&item.name, item.count as u8)
+                    }
+                    _ => unreachable!(),
+                };
+                if scenario == 0 {
+                    f.container_slot(change.slot, value).await;
+                } else {
+                    f.slot(change.slot, value).await;
+                }
+                if i + 1 < record.changed_slots.len() {
+                    assert_eq!(
+                        client
+                            .survival()
+                            .inventory_transfer_record()
+                            .await
+                            .unwrap()
+                            .unwrap()
+                            .stage,
+                        Stage::Pending
+                    );
+                }
+            }
+            let complete =
+                crate::client::tests::common_transfer_complete_scenario(&client, record.id).await;
+            assert_eq!(
+                complete.cursor_inspected.unwrap().source,
+                record.cursor_before.source
+            );
+            assert!(complete.legacy_reply.is_none() && complete.legacy_return_prediction.is_none());
+            f.stop().await;
+            assert_eq!(
+                client
+                    .creative()
+                    .inventory_transfer_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .stage,
+                Stage::ObservedTransferred
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn shift_transfer_cancelled_before_full_write_retains_intent_and_cannot_confirm_from_other_actor_values()
+ {
+    use crate::client::inventory::{InventorySource as Source, InventoryTransferStage as Stage};
+    let mut f = CommonFixture::new().await;
+    let client = f.client();
+    let session = f.api.bot.session.clone();
+    let writer = session.writer.lock().await;
+    let survival = client.survival();
+    let mut send = Box::pin(survival.transfer_inventory(Source::Player, 9));
+    std::future::poll_fn(|cx| {
+        assert!(std::future::Future::poll(send.as_mut(), cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+    drop(send);
+    drop(writer);
+    let retained = client
+        .survival()
+        .inventory_transfer_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(!retained.send.dispatched);
+    assert_eq!(retained.stage, Stage::Pending);
+    assert!(
+        client
+            .survival()
+            .transfer_inventory(Source::Player, 9)
+            .await
+            .is_err()
+    );
+    assert!(
+        timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    for c in &retained.changed_slots {
+        let value = match &c.prediction.value {
+            crate::client::SlotKnowledge::Empty => InventorySlot::Empty,
+            crate::client::SlotKnowledge::Item { item } => plain(&item.name, item.count as u8),
+            _ => unreachable!(),
+        };
+        f.slot(c.slot, value).await;
+    }
+    let current = client
+        .survival()
+        .inventory_transfer_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(current.id, retained.id);
+    assert_eq!(current.stage, Stage::RequiresInspection);
+    assert!(!current.send.dispatched);
+    assert!(current.changed_slots.iter().all(|c| c.receipt.is_none()));
+    f.stop().await;
+}
+#[tokio::test]
+async fn shift_transfer_partial_merge_needs_both_actual_receipts_without_cursor_packet() {
+    use crate::client::inventory::{InventorySource as Source, InventoryTransferStage as Stage};
+    let mut f = CommonFixture::new().await;
+    f.slot(36, plain("stone", 63)).await;
+    for i in 37..45 {
+        f.slot(i, plain("dirt", 64)).await;
+    }
+    let client = f.client();
+    let record = client
+        .survival()
+        .transfer_inventory(Source::Player, 9)
+        .await
+        .unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    assert_eq!(record.changed_slots.len(), 2);
+    f.slot(9, plain("stone", 31)).await;
+    assert_eq!(
+        client
+            .survival()
+            .inventory_transfer_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        Stage::Pending
+    );
+    f.slot(36, plain("stone", 64)).await;
+    crate::client::tests::common_transfer_complete_scenario(&client, record.id).await;
+    f.stop().await;
+}
+#[tokio::test]
+async fn shift_transfer_reused_numeric_storage_opening_stays_uncertain_after_values_return() {
+    use crate::client::inventory::{InventorySource as Source, InventoryTransferStage as Stage};
+    let mut f = CommonFixture::new().await;
+    let screen = f.open_swap_container().await;
+    let client = f.client();
+    let record = client
+        .survival()
+        .transfer_inventory(Source::Container { screen }, 0)
+        .await
+        .unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    assert_ne!(f.open_swap_container().await, screen);
+    f.container_slot(0, InventorySlot::Empty).await;
+    f.container_slot(62, plain("stone", 3)).await;
+    let retained = client
+        .survival()
+        .inventory_transfer_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(retained.id, record.id);
+    assert_eq!(retained.stage, Stage::RequiresInspection);
+    f.stop().await;
+}

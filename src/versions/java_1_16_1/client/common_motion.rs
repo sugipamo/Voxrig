@@ -307,6 +307,12 @@ impl Bot {
                 .await
                 .as_ref()
                 .is_some_and(|s| !s.released)
+            || self
+                .common_inventory_transfer
+                .lock()
+                .await
+                .as_ref()
+                .is_some_and(|s| !s.released)
             || self.common_mining.lock().await.is_some()
             || self
                 .common_placement
@@ -340,6 +346,7 @@ impl Bot {
         self.interrupt_common_placement(problem).await;
         self.interrupt_common_inventory_swap(problem).await;
         self.interrupt_common_inventory_click(problem).await;
+        self.interrupt_common_inventory_transfer(problem).await;
         if let Some(run) = self.common_motion.lock().await.as_mut() {
             run.record.status = MotionStatus::RequiresInspection;
             run.record
@@ -390,6 +397,17 @@ impl Bot {
         {
             return Err(motion_state(
                 "common inventory click unresolved; inspect without replay",
+            ));
+        }
+        if self
+            .common_inventory_transfer
+            .lock()
+            .await
+            .as_ref()
+            .is_some_and(|s| !s.released)
+        {
+            return Err(motion_state(
+                "common inventory transfer unresolved; inspect without replay",
             ));
         }
         if self.common_mining.lock().await.is_some() {

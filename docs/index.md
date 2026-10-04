@@ -28,6 +28,8 @@
 - [Java 1.21.11の通常配置と材料の受信確認](survival-placement.md)
 - [共通Survivalの設置と材料の受信確認](common-survival-placement.md)
 - [共通Clientの在庫交換](common-inventory-swaps.md)
+- [共通Clientの通常クリック](common-inventory-clicks.md)
+- [共通ClientのShift転送](common-inventory-transfers.md)
 - [共通Clientのコンテナ画面観測](common-container-observation.md)
 - [Java 1.21.11の移動属性と位置の由来](survival-movement-foundation.md)
 - [Java 1.21.11の限定移動制御と実試行の制約](survival-motion-controls.md)

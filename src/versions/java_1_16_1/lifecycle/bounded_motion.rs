@@ -64,7 +64,18 @@ pub(super) enum MotionCommand {
         comparison: Option<crate::versions::java_1_16_1::ItemStack>,
         reply: oneshot::Sender<crate::Result<()>>,
     },
+    InventoryTransfer {
+        run_id: u64,
+        slot: u16,
+        button: u8,
+        comparison: Option<crate::versions::java_1_16_1::ItemStack>,
+        reply: oneshot::Sender<crate::Result<()>>,
+    },
     FinishInventoryClick {
+        run_id: u64,
+        reply: oneshot::Sender<Admission<()>>,
+    },
+    FinishInventoryTransfer {
         run_id: u64,
         reply: oneshot::Sender<Admission<()>>,
     },
@@ -93,6 +104,12 @@ enum Owner {
     Motion(u64),
     Placement(u64),
     InventoryClick {
+        run_id: u64,
+        action: i16,
+        window: i8,
+        sent: bool,
+    },
+    InventoryTransfer {
         run_id: u64,
         action: i16,
         window: i8,
@@ -170,6 +187,35 @@ impl MotionGate {
             .ok_or(OperationAdmissionError::InvalidOperation)?;
         *next = action;
         self.owner = Some(Owner::InventoryClick {
+            run_id,
+            action,
+            window,
+            sent: false,
+        });
+        Ok(action)
+    }
+    pub(super) async fn begin_inventory_transfer(
+        &mut self,
+        identity: (u64, i8),
+        expected_revision: u64,
+        state: ConnectionState,
+        control: &Arc<RwLock<crate::snapshot::Versioned<crate::ControlState>>>,
+        pending: bool,
+        next_actions: &mut HashMap<i8, i16>,
+    ) -> Admission<i16> {
+        let (run_id, window) = identity;
+        self.can_begin(state, control, pending).await?;
+        if run_id == 0 || window < 0 || expected_revision != self.normal_revision {
+            return Err(OperationAdmissionError::InvalidOperation);
+        }
+        let next = next_actions.entry(window).or_insert(0);
+        // Never recycle a transaction number for common exchanges in this source.
+        let action = next
+            .checked_add(1)
+            .filter(|v| *v > 0)
+            .ok_or(OperationAdmissionError::InvalidOperation)?;
+        *next = action;
+        self.owner = Some(Owner::InventoryTransfer {
             run_id,
             action,
             window,
@@ -666,6 +712,79 @@ impl MotionGate {
                 });
                 let _ = reply.send(result);
             }
+            MotionCommand::InventoryTransfer {
+                run_id,
+                slot,
+                button,
+                comparison,
+                reply,
+            } => {
+                let payload = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
+                    let Some(Owner::InventoryTransfer {
+                        run_id: id,
+                        action,
+                        window,
+                        sent,
+                    }) = self.owner.as_mut()
+                    else {
+                        return Err(OperationAdmissionError::InvalidOperation);
+                    };
+                    if *id != run_id
+                        || *sent
+                        || (*window == 0 && !(5..=45).contains(&slot))
+                        || slot >= 4096
+                        || button != 0
+                        || comparison.as_ref().is_some_and(|s| {
+                            !crate::client::inventory::transfer_policy::legacy_comparison_supported(
+                                s,
+                            )
+                        })
+                    {
+                        return Err(OperationAdmissionError::InvalidOperation);
+                    }
+                    *sent = true;
+                    let mut payload = vec![*window as u8];
+                    payload.extend((slot as i16).to_be_bytes());
+                    payload.push(button);
+                    payload.extend(action.to_be_bytes());
+                    payload.push(1); // Original QUICK_MOVE, one frame including native internal rounds.
+                    crate::versions::java_1_16_1::inventory::write_slot(
+                        &mut payload,
+                        comparison.as_ref(),
+                    );
+                    Ok(payload)
+                });
+                let admitted = payload.is_ok();
+                let result = match payload {
+                    Err(e) => Err(crate::client::inventory::unavailable(format!(
+                        "inventory click actor rejected: {e:?}"
+                    ))),
+                    Ok(payload) => {
+                        let mut writer = writer.lock().await;
+                        let compression = writer.compression;
+                        crate::protocol::write_packet(
+                            &mut writer.inner,
+                            compression,
+                            0x09,
+                            &payload,
+                        )
+                        .await
+                        .map_err(crate::Error::from)
+                    }
+                };
+                let failed = admitted && result.is_err();
+                let _ = reply.send(result);
+                return failed;
+            }
+            MotionCommand::FinishInventoryTransfer { run_id, reply } => {
+                let result = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
+                    if !matches!(self.owner, Some(Owner::InventoryTransfer { run_id: id, sent: true, .. }) if id == run_id) {
+                        return Err(OperationAdmissionError::InvalidOperation);
+                    }
+                    self.owner = None; Ok(())
+                });
+                let _ = reply.send(result);
+            }
             MotionCommand::FinishInventorySwap { run_id, reply } => {
                 let result=admit_lifecycle(state,OperationClass::Normal).and_then(|()|{
                     if !matches!(self.owner,Some(Owner::InventorySwap{run_id:id,sent:true,..}) if id==run_id){return Err(OperationAdmissionError::InvalidOperation)}
@@ -700,6 +819,9 @@ impl MotionGate {
         match self.owner {
             Some(Owner::ContainerOpen { .. }) => {
                 OperationAdmissionError::BoundedContainerOpenInProgress
+            }
+            Some(Owner::InventoryTransfer { .. }) => {
+                OperationAdmissionError::BoundedInventoryTransferInProgress
             }
             Some(Owner::InventoryClick { .. }) => {
                 OperationAdmissionError::BoundedInventoryClickInProgress
@@ -871,6 +993,52 @@ impl ConnectionActor {
     }
     pub(crate) async fn finish_inventory_click(&self, run_id: u64) -> Admission<()> {
         self.motion_admission(|reply| MotionCommand::FinishInventoryClick { run_id, reply })
+            .await
+    }
+    pub(crate) async fn begin_window_transfer(
+        &self,
+        run_id: u64,
+        expected_revision: u64,
+        window: i8,
+    ) -> Admission<i16> {
+        let (reply, result) = oneshot::channel();
+        self.commands
+            .send(Command::BeginInventoryTransfer {
+                run_id,
+                expected_revision,
+                window,
+                reply,
+            })
+            .await
+            .map_err(|_| self.terminal_admission_error())?;
+        result.await.map_err(|_| self.terminal_admission_error())?
+    }
+    pub(crate) async fn bounded_inventory_transfer(
+        &self,
+        run_id: u64,
+        slot: u16,
+        button: u8,
+        comparison: Option<crate::versions::java_1_16_1::ItemStack>,
+    ) -> crate::Result<()> {
+        let (reply, result) = oneshot::channel();
+        self.commands
+            .send(Command::Motion(MotionCommand::InventoryTransfer {
+                run_id,
+                slot,
+                button,
+                comparison,
+                reply,
+            }))
+            .await
+            .map_err(|_| {
+                crate::client::inventory::unavailable("inventory click actor unavailable")
+            })?;
+        result.await.map_err(|_| {
+            crate::client::inventory::unavailable("inventory click actor result unavailable")
+        })?
+    }
+    pub(crate) async fn finish_inventory_transfer(&self, run_id: u64) -> Admission<()> {
+        self.motion_admission(|reply| MotionCommand::FinishInventoryTransfer { run_id, reply })
             .await
     }
     async fn motion_admission<T>(

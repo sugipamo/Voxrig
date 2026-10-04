@@ -691,6 +691,15 @@ impl Operations {
                 "common inventory click unresolved; inspect without replay",
             ));
         }
+        if state
+            .common_inventory_transfer
+            .as_ref()
+            .is_some_and(|s| s.unresolved())
+        {
+            return Err(crate::client::inventory::unavailable(
+                "common inventory transfer unresolved; inspect without replay",
+            ));
+        }
         if !state.loading.notification_dispatched() {
             return Err(Error::new(
                 ErrorKind::State,
@@ -1141,6 +1150,10 @@ impl Operations {
                 })
                 || state
                     .common_inventory_click
+                    .as_ref()
+                    .is_some_and(|s| s.unresolved())
+                || state
+                    .common_inventory_transfer
                     .as_ref()
                     .is_some_and(|s| s.unresolved())
                 || !inventory.pending_creative.is_empty()

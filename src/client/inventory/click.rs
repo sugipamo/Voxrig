@@ -1,17 +1,17 @@
 //! One ordinary native PICKUP intent; predictions never become receive evidence.
-use super::{InventoryTransactionReply, unavailable};
+use super::{InventoryClickSource, InventoryTransactionReply, unavailable};
 use crate::client::{
     GameMode, ObservedValue, PlayerObservation, SessionStamp, SlotKnowledge, ValueSource,
     container::{ContainerScreen, PlayerScreenAccess, ScreenId},
 };
 use crate::{MinecraftVersion, Result};
 
-/// Source of one ordinary left/right click, bound to the current UI basis.
+/// Source UI for ordinary inventory operations, bound to the current basis.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[non_exhaustive]
-pub enum InventoryClickSource {
-    /// Canonical player main/hotbar screen slots 9..44.
+pub enum InventorySource {
+    /// Canonical player screen; each operation validates its supported slot range.
     Player,
     /// Same received storage opening, including its appended player slots.
     Container {

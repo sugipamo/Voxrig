@@ -15,7 +15,7 @@ Client共通化ブランチでは`Client::survival()` / `Client::creative()`を�
 
 共通通常在庫では両版・両modeで`click_inventory`による取り出し・split・1個置く・結合・返却を
 実装します。監査済みstorage/player main/hotbarのdefault stackを対象とし、予測と実source/cursor受信を
-分けます。一般item data・bundle固有操作・special slot・shift-clickは追加対応を要します。
+分けます。通常Shift転送とdefault防具への自動装備も両版・両modeの`transfer_inventory`で実装します。一般item data・bundle固有PICKUP・special slotの通常クリックは追加対応を要します。
 [通常クリック契約](common-inventory-clicks.md)を参照してください。
 
 ## Java 1.16.1 の従来API — 対応環境

@@ -126,6 +126,34 @@ def matched(response, pattern):
     return response if re.search(pattern, response) else None
 
 
+def outer_snbt_compounds(response):
+    """Keep entire inventory entries, including nested default item tags."""
+    result, depth, start, quoted, escaped = [], 0, None, False, False
+    for index, char in enumerate(response):
+        if quoted:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                quoted = False
+        elif char == '"':
+            quoted = True
+        elif char == "{":
+            if depth == 0:
+                start = index
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth < 0:
+                raise RuntimeError("unbalanced native inventory SNBT")
+            if depth == 0:
+                result.append(response[start:index + 1])
+    if depth or quoted:
+        raise RuntimeError("incomplete native inventory SNBT")
+    return result
+
+
 def stage(probe, messages, name, records, timeout=30, poll=None):
     if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready"):
         probe.stdin.write(name + "\n")
@@ -389,13 +417,31 @@ network-compression-threshold=256
         hand_command = ("replaceitem entity UnifiedProbe hotbar.0 minecraft:dirt 2" if version == "1.16.1" else "item replace entity UnifiedProbe hotbar.0 with minecraft:dirt 2")
         report["inventory_setup"] = {command: rcon.command(command) for command in ["gamemode survival UnifiedProbe", "tp UnifiedProbe 0.5 65 0.5 0 0", "clear UnifiedProbe", main_command, hand_command]}
         def inventory_matches(expected):
+            expected_inventory = dict(expected)
+            expected_head = expected_inventory.pop(103, None) if version == "1.21.11" else None
             response = rcon.command("data get entity UnifiedProbe Inventory")
-            stacks = re.findall(r"\{[^{}]*\}", response)
-            if len(stacks) != len(expected):
+            stacks = outer_snbt_compounds(response)
+            report["last_inventory_check"] = {"expected": expected, "inventory": response}
+            if len(stacks) != len(expected_inventory):
                 return None
-            for slot, (item, count) in expected.items():
+            for slot, (item, count) in expected_inventory.items():
                 if not any(re.search(rf"Slot: {slot}b(?:,|\s|}})", stack) and f'id: "{item}"' in stack and re.search(rf"(?:Count|count): {count}(?:b)?(?:,|\s|}})", stack) for stack in stacks):
                     return None
+            if version == "1.21.11":
+                # Original saved modern player data separates head equipment
+                # from Inventory; it has no legacy Inventory Slot 103 entry.
+                if expected_head is None:
+                    head = rcon.command("execute unless data entity UnifiedProbe equipment.head")
+                    if "Test passed" not in head:
+                        report["last_inventory_check"]["equipment_head"] = head
+                        return None
+                else:
+                    item, count = expected_head
+                    head = rcon.command("data get entity UnifiedProbe equipment.head")
+                    if len(outer_snbt_compounds(head)) != 1 or f'id: "{item}"' not in head or not re.search(rf"count: {count}(?:,|\s|}})", head):
+                        report["last_inventory_check"]["equipment_head"] = head
+                        return None
+                return {"inventory": response, "equipment_head": head}
             return response
         report["inventory_fixture_native"] = until(lambda: inventory_matches({9: ("minecraft:stone", 3), 0: ("minecraft:dirt", 2)}))
         stage(probe, messages, "swap_baseline", report["inventory_records"])
@@ -478,6 +524,17 @@ network-compression-threshold=256
         report["native_results"]["container_pickups"] = {"survival_split_contents":pickup_split,"creative_one_contents":pickup_one,"creative_return_contents":pickup_return,"position_before":container_position,"position_after":rcon.command("data get entity UnifiedProbe Pos"),"authority_limits":"Original network PICKUP in both modes; independent RCON verifies storage counts. Fresh source/cursor and legacy comparison reply come from actual received packets; RCON does not verify cursor/menu ownership."}
         if report["native_results"]["container_pickups"]["position_after"] != container_position:
             raise RuntimeError("ordinary container pickup changed native position")
+        report["container_transfer_survival_mode"] = rcon.command("gamemode survival UnifiedProbe")
+        stage(probe,messages,"container_transfer_survival",report["container_records"])
+        stage(probe,messages,"container_transfer_taken",report["container_records"])
+        transfer_taken = until(lambda: inventory_matches({9:("minecraft:dirt",2),8:("minecraft:stone",7)}))
+        transfer_empty = until(lambda: matched(rcon.command("data get block 0 65 2 Items"),r"\[\]"))
+        report["container_transfer_creative_mode"] = rcon.command("gamemode creative UnifiedProbe")
+        stage(probe,messages,"container_transfer_creative",report["container_records"])
+        stage(probe,messages,"container_transfer_returned",report["container_records"])
+        report["native_results"]["container_transfers"] = {"survival_inventory":transfer_taken,"survival_storage":transfer_empty,"creative_storage":until(lambda:chest_matches(7)),"creative_inventory":until(lambda:inventory_matches({9:("minecraft:dirt",2)})),"position_before":container_position,"position_after":rcon.command("data get entity UnifiedProbe Pos"),"authority_limits":"One original QUICK_MOVE per intent. RCON independently verifies exact counts and native reverse player order; fresh changed-slot receipts and unchanged actual cursor inspection are separate Client evidence, with matching actual legacy reply. No menu ownership or cursor assertion from RCON."}
+        if report["native_results"]["container_transfers"]["position_after"] != container_position:
+            raise RuntimeError("container shift transfer changed position")
         stage(probe,messages,"container_close_creative",report["container_records"])
         closed_change = ("replaceitem block 0 65 2 container.0 minecraft:stone 11" if version=="1.16.1" else "item replace block 0 65 2 container.0 with minecraft:stone 11")
         report["container_closed_change"] = rcon.command(closed_change)
@@ -524,6 +581,52 @@ network-compression-threshold=256
         if player_pickups["position_after"] != container_position:
             raise RuntimeError("ordinary player pickup changed native position")
         report["native_results"]["player_pickups"] = player_pickups
+        report["player_transfer_survival_mode"] = rcon.command("gamemode survival UnifiedProbe")
+        stage(probe,messages,"player_transfer_survival",report["container_records"])
+        stage(probe,messages,"player_transfer_taken",report["container_records"])
+        player_transfer_taken=until(lambda:inventory_matches({0:("minecraft:dirt",2)}))
+        report["player_transfer_creative_mode"] = rcon.command("gamemode creative UnifiedProbe")
+        stage(probe,messages,"player_transfer_creative",report["container_records"])
+        stage(probe,messages,"player_transfer_returned",report["container_records"])
+        report["native_results"]["player_transfers"]={"survival_inventory":player_transfer_taken,"creative_inventory":until(lambda:inventory_matches({9:("minecraft:dirt",2)})),"position_before":container_position,"position_after":rcon.command("data get entity UnifiedProbe Pos")}
+        equipment_transfers={}
+        for kind,item,count in [("pumpkin","minecraft:carved_pumpkin",7),("helmet","minecraft:diamond_helmet",1)]:
+            command=(f"replaceitem entity UnifiedProbe inventory.1 {item} {count}" if version=="1.16.1" else f"item replace entity UnifiedProbe inventory.1 with {item} {count}")
+            report[kind+"_transfer_fixture"]=rcon.command(command)
+            before=until(lambda:inventory_matches({9:("minecraft:dirt",2),10:(item,count)}))
+            report[kind+"_transfer_survival_mode"]=rcon.command("gamemode survival UnifiedProbe")
+            stage(probe,messages,kind+"_transfer_survival",report["container_records"])
+            stage(probe,messages,kind+"_transfer_equipped",report["container_records"])
+            equipped=until(lambda:inventory_matches({9:("minecraft:dirt",2),103:(item,1),**({0:(item,6)} if kind=="pumpkin" else {})}))
+            report[kind+"_transfer_creative_mode"]=rcon.command("gamemode creative UnifiedProbe")
+            submit=kind+"_transfer_creative"+("_armor" if kind=="pumpkin" else "")
+            observed=kind+"_transfer_"+("armor_returned" if kind=="pumpkin" else "returned")
+            stage(probe,messages,submit,report["container_records"])
+            stage(probe,messages,observed,report["container_records"])
+            returned=until(lambda:inventory_matches({9:("minecraft:dirt",2),**({0:(item,7)} if kind=="pumpkin" else {10:(item,1)})}))
+            if kind=="pumpkin":
+                stage(probe,messages,"pumpkin_transfer_creative_hotbar",report["container_records"])
+                stage(probe,messages,"pumpkin_transfer_hotbar_equipped",report["container_records"])
+                returned=until(lambda:inventory_matches({9:("minecraft:dirt",2),103:(item,1),10:(item,6)}))
+            # RCON and play packets have different server queues. Give the
+            # already-written legacy comparison confirmation real native ticks
+            # before an external fixture edit; this is not a gameplay ACK.
+            def native_tick():
+                raw = rcon.command("time query gametime")
+                value = re.search(r"(\d+)\D*$", raw)
+                if value is None:
+                    raise RuntimeError("native tick query unavailable: " + raw)
+                return int(value.group(1))
+            tick_before = native_tick()
+            tick_after = until(lambda: (tick if (tick := native_tick()) - tick_before >= 2 else None))
+            cleared=rcon.command("clear UnifiedProbe "+item)
+            report.setdefault("equipment_transfer_cleanup", {})[kind] = {"native_tick_before": tick_before, "native_tick_after": tick_after, "clear_response": cleared, "authority_limits": "Observed native fixture pacing between independent RCON and play queues; no processing or gameplay ACK is inferred."}
+            until(lambda:inventory_matches({9:("minecraft:dirt",2)}))
+            stage(probe,messages,"transfer_fixture_cleared",report["container_records"])
+            equipment_transfers[kind]={"before":before,"survival_equipped":equipped,"creative_returned":returned,"clear_fixture":cleared}
+        report["native_results"]["equipment_transfers"]={"items":equipment_transfers,"position_before":container_position,"position_after":rcon.command("data get entity UnifiedProbe Pos"),"authority_limits":"Original default equipment QUICK_MOVE on both modes. A single pumpkin-7 click equips one and transfers six; creative armor return first merges into existing hotbar stack; a following hotbar QUICK_MOVE equips one again and moves six to main. Default legacy Damage=0 NBT is preserved on diamond helmet. RCON checks exact real inventory counts separately from actual changed-slot receipts."}
+        if any(report["native_results"][key]["position_after"]!=container_position for key in ("player_transfers","equipment_transfers")):
+            raise RuntimeError("player/equipment shift transfer changed position")
         report["barrel_fixture"]=rcon.command("setblock 0 65 2 minecraft:barrel[facing=north,open=false]")
         report["barrel_fixture_items"]=rcon.command("replaceitem block 0 65 2 container.0 minecraft:stone 5" if version=="1.16.1" else "item replace block 0 65 2 container.0 with minecraft:stone 5")
         barrel_results={}

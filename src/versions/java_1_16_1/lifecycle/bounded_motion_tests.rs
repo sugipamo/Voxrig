@@ -262,3 +262,20 @@ async fn ordinary_pickup_actor_cancelled_waiter_keeps_owned_write_and_failure_is
     let revision=actor.motion_admission_revision().await.unwrap();actor.begin_window_click(2,revision,0).await.unwrap();actor.shutdown_writer().await.unwrap();
     assert!(actor.bounded_inventory_click(2,9,0,None).await.is_err());assert_eq!(actor.wait_for_terminal().await,ConnectionState::ConnectionStateUnknown);
 }
+#[tokio::test]
+async fn shift_transfer_actor_owns_exact_mode_shared_action_and_native_default_nbt_codec() {
+    let(actor,mut peer)=actor_fixture().await;actor.mark_ready().await;
+    let action=actor.begin_window_transfer(1,actor.motion_admission_revision().await.unwrap(),0).await.unwrap();assert_eq!(action,1);
+    let context=OperationContext{generation:actor.generation(),source_observation_sequence:0};assert_eq!(actor.admit(context,OperationClass::Normal).await,Err(OperationAdmissionError::BoundedInventoryTransferInProgress));
+    assert!(actor.finish_inventory_click(1).await.is_err());assert!(actor.finish_inventory_swap(1).await.is_err());assert!(actor.finish_inventory_transfer(1).await.is_err());
+    assert!(actor.bounded_inventory_transfer(1,0,0,None).await.is_err());assert!(actor.bounded_inventory_transfer(1,9,1,None).await.is_err());no_packet(&mut peer).await;
+    let cases:serde_json::Value=serde_json::from_str(include_str!("../../../../data/client_api/inventory_transfer_packets-1.16.1.json")).unwrap();
+    let case=cases.as_array().unwrap().iter().find(|c|c["window"]==0&&c["comparison"]["item"]=="minecraft:shield"&&c["comparison"]["count"]==1).unwrap();
+    let nbt=case["comparison"]["nbt"].as_array().unwrap().iter().map(|v|v.as_u64().unwrap() as u8).collect();
+    let native=crate::versions::java_1_16_1::ItemStack{item_id:crate::item_id("shield").unwrap(),count:1,nbt:Some(nbt)};
+    actor.bounded_inventory_transfer(1,9,0,Some(native)).await.unwrap();let(id,payload)=read_packet(&mut peer,None).await.unwrap();assert_eq!(id,0x09);
+    let mut expected=hex::decode(case["payload_hex"].as_str().unwrap()).unwrap();expected[4..6].copy_from_slice(&1i16.to_be_bytes());assert_eq!(payload,expected);
+    assert!(actor.bounded_inventory_transfer(1,9,0,None).await.is_err());actor.finish_inventory_transfer(1).await.unwrap();
+    assert_eq!(actor.begin_window_click(2,actor.motion_admission_revision().await.unwrap(),0).await.unwrap(),2);
+    actor.bounded_inventory_click(2,9,0,None).await.unwrap();read_packet(&mut peer,None).await.unwrap();actor.finish_inventory_click(2).await.unwrap();
+}

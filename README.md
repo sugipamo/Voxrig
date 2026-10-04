@@ -39,6 +39,7 @@ async fn main() -> Result<()> {
 両版の限定的な素手dirt/stone採掘は[共通Survivalの採掘](docs/common-survival-mining.md)を参照してください。
 両版のdefault cube設置と材料の受信確認は[共通Survivalの設置](docs/common-survival-placement.md)を参照してください。
 通常在庫とhotbarの交換は[共通Clientの在庫交換](docs/common-inventory-swaps.md)を参照してください。
+共通Clientの両modeで通常Shift転送を使う場合は[転送契約](docs/common-inventory-transfers.md)を参照してください。
 開いたチェスト等の実内容・slot対応は[共通Clientのコンテナ画面観測](docs/common-container-observation.md)で確認できます。
 新しい版・ブロックへの対応にはVoxrig更新が必要です。`latest`や未知ブロックの推測互換はありません。
 

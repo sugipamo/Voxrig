@@ -7,6 +7,7 @@ mod common_inventory;
 mod common_mining;
 mod common_motion;
 mod common_placement;
+mod common_transfer;
 
 use crate::versions::java_1_16_1::Result;
 use crate::versions::java_1_16_1::{
@@ -1035,6 +1036,7 @@ pub struct Bot {
     common_placement: Arc<Mutex<Option<common_placement::NativePlacementRun>>>,
     common_inventory_swap: Arc<Mutex<Option<common_inventory::NativeInventorySwap>>>,
     common_inventory_click: Arc<Mutex<Option<common_click::NativeInventoryClick>>>,
+    common_inventory_transfer: Arc<Mutex<Option<common_transfer::NativeInventoryTransfer>>>,
     common_container_close: Arc<Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
     common_container_open: Arc<Mutex<Option<common_container::NativeContainerOpen>>>,
     exact_window_barriers: Arc<Mutex<HashMap<(i8, i16), ExactWindowBarrier>>>,
@@ -1134,6 +1136,7 @@ impl Bot {
             common_placement: self.common_placement.clone(),
             common_inventory_swap: self.common_inventory_swap.clone(),
             common_inventory_click: self.common_inventory_click.clone(),
+            common_inventory_transfer: self.common_inventory_transfer.clone(),
             common_container_close: self.common_container_close.clone(),
             common_container_open: self.common_container_open.clone(),
             exact_window_barriers: self.exact_window_barriers.clone(),
@@ -1283,6 +1286,7 @@ impl Bot {
             common_placement: Arc::new(Mutex::new(None)),
             common_inventory_swap: Arc::new(Mutex::new(None)),
             common_inventory_click: Arc::new(Mutex::new(None)),
+            common_inventory_transfer: Arc::new(Mutex::new(None)),
             common_container_close: Arc::new(Mutex::new(None)),
             common_container_open: Arc::new(Mutex::new(None)),
             exact_window_barriers: Arc::new(Mutex::new(HashMap::new())),
@@ -4799,6 +4803,7 @@ impl Bot {
                 }
                 self.common_inventory_reply_received(transaction).await;
                 self.common_click_reply_received(transaction).await;
+                self.common_transfer_reply_received(transaction).await;
                 self.emit(Event::WindowTransaction(transaction));
             }
             0x13 => {
@@ -5686,6 +5691,7 @@ impl Bot {
         self.common_placement_context_received().await?;
         self.common_inventory_context_received().await?;
         self.common_click_context_received().await?;
+        self.common_transfer_context_received().await?;
         self.common_container_close_context_received().await?;
         self.common_container_open_context_received().await?;
         self.enforce_session_limits().await?;

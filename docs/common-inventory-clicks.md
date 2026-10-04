@@ -16,7 +16,7 @@ empty sentinelの容量値をitem容量に読み替えない。
 元の受信済みopeningのstorageと付属player slotを指定する。native slot番号であり、hotbar indexではない。
 元opening、実mode、完全なdefault source/cursor、版別slot条件を送信前に検査する。
 未知item、上限超過、非default NBT/components、modern bundle固有overrideは送信前に拒否する。
-shift-click、crafting/result/armor/offhand、cursor付きcloseは引き続き未実装。
+Shift転送は[共通転送API](common-inventory-transfers.md)で別途実装する。PICKUPのcrafting/result/armor/offhandとcursor付きcloseは追加対応を要する。
 
 ```rust,ignore
 use voxrig::client::prelude::*;

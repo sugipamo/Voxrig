@@ -51,6 +51,8 @@ pub enum Feature {
     InventorySwap,
     /// Ordinary default-stack player/storage PICKUP with separate predictions/receipts.
     InventoryClick,
+    /// Ordinary native-order transfer, including default equipment and partial capacity.
+    InventoryTransfer,
     /// Common crafting operations.
     Crafting,
     /// Common general-entity interaction.
@@ -95,13 +97,16 @@ impl Capabilities {
                 "player main slots 9..35 and hotbar 0..8; received player UI or explicit complete local close; modern actual player revision; default stacks/received empty cursor/two fresh destinations; native legacy resync/comparison response",
             ),
             Feature::InventoryClick => Support::Restricted(
-                "ordinary default-item PICKUP; player slots 9..44 or same audited storage opening including appended player; separate prediction and fresh source/cursor receipts; modern bundle override/general item data/special slots/shift-click remain incomplete",
+                "ordinary default-item PICKUP; player slots 9..44 or same audited storage opening including appended player; separate prediction and fresh source/cursor receipts; modern bundle PICKUP override/general item data/special PICKUP slots remain incomplete",
+            ),
+            Feature::InventoryTransfer => Support::Restricted(
+                "one ordinary native QUICK_MOVE; player slots 5..45 or same audited storage opening; native default data including exact legacy constructor NBT; empty actual cursor, full write/all fresh changed slots/legacy reply; partial capacity and armor/offhand destination rules",
             ),
             Feature::ContainerObservation => Support::Restricted(
                 "regular OPEN_WINDOW screens and supported stacks; constructor-verified storage layouts; modern non-default components/special entity windows remain incomplete",
             ),
             Feature::Containers => Support::Restricted(
-                "empty-hand audited storage activation with distinct dispatch/OPEN/full/cursor/modern processing facts; opening-bound empty-cursor close; constructor-verified default SWAP/PICKUP with two fresh destinations; general UI/special clicks/item data remain incomplete",
+                "empty-hand audited storage activation with distinct dispatch/OPEN/full/cursor/modern processing facts; opening-bound empty-cursor close; constructor-verified default SWAP/PICKUP/QUICK_MOVE with separately received destinations; general UI/special clicks/item data remain incomplete",
             ),
             Feature::SurvivalMovement => Support::Restricted(
                 "1..120 dry walking/jump ticks with released-rest endpoint; retained intent/failure; predicted completion is not received acceptance",

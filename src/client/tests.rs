@@ -1007,3 +1007,78 @@ pub(crate) async fn common_pickup_complete_scenario(
     }
     record
 }
+
+pub(crate) async fn common_transfer_start_scenario(
+    client: &Client,
+    mode: GameMode,
+    source: inventory::InventorySource,
+    slot: u16,
+) -> inventory::InventoryTransferRecord {
+    let record = match mode {
+        GameMode::Survival => client
+            .survival()
+            .transfer_inventory(source, slot)
+            .await
+            .unwrap(),
+        GameMode::Creative => client
+            .creative()
+            .transfer_inventory(source, slot)
+            .await
+            .unwrap(),
+        _ => unreachable!(),
+    };
+    assert!(record.send.dispatched);
+    assert_eq!(record.stage, inventory::InventoryTransferStage::Pending);
+    assert_eq!(record.cursor_before.value, SlotKnowledge::Empty);
+    assert!(!record.changed_slots.is_empty());
+    for change in &record.changed_slots {
+        assert!(matches!(change.before.source, ValueSource::Received { .. }));
+        assert_eq!(change.prediction.source, ValueSource::Predicted);
+        assert!(change.receipt.is_none());
+    }
+    assert!(
+        client
+            .survival()
+            .transfer_inventory(source, slot)
+            .await
+            .is_err()
+    );
+    assert!(
+        client
+            .creative()
+            .transfer_inventory(source, slot)
+            .await
+            .is_err()
+    );
+    record
+}
+pub(crate) async fn common_transfer_complete_scenario(
+    client: &Client,
+    id: inventory::InventoryTransferId,
+) -> inventory::InventoryTransferRecord {
+    let record = client
+        .survival()
+        .inventory_transfer_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(record.id, id);
+    assert_eq!(
+        record.stage,
+        inventory::InventoryTransferStage::ObservedTransferred,
+        "{record:#?}"
+    );
+    assert!(record.requires_inspection.is_none());
+    assert_eq!(
+        record.cursor_inspected.as_ref().unwrap().value,
+        SlotKnowledge::Empty
+    );
+    for change in &record.changed_slots {
+        let receipt = change.receipt.as_ref().unwrap();
+        assert_eq!(receipt.value, change.prediction.value);
+        assert!(
+            matches!(receipt.source,ValueSource::Received{sequence} if sequence>record.send.after_sequence)
+        );
+    }
+    record
+}

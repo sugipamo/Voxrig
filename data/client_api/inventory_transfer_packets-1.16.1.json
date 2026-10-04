@@ -1,0 +1,275 @@
+[
+  {
+    "button": 0,
+    "comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "000009007fff0100",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "030000007fff0100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "7f0000007fff0100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "comparison": {
+      "count": 1,
+      "item": "minecraft:stone",
+      "nbt": [
+        0
+      ]
+    },
+    "payload_hex": "000009007fff0101010100",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "comparison": {
+      "count": 1,
+      "item": "minecraft:stone",
+      "nbt": [
+        0
+      ]
+    },
+    "payload_hex": "030000007fff0101010100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "comparison": {
+      "count": 1,
+      "item": "minecraft:stone",
+      "nbt": [
+        0
+      ]
+    },
+    "payload_hex": "7f0000007fff0101010100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "000009007fff0100",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "030000007fff0100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "7f0000007fff0100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "comparison": {
+      "count": 1,
+      "item": "minecraft:carved_pumpkin",
+      "nbt": [
+        0
+      ]
+    },
+    "payload_hex": "000009007fff0101d9010100",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "comparison": {
+      "count": 1,
+      "item": "minecraft:carved_pumpkin",
+      "nbt": [
+        0
+      ]
+    },
+    "payload_hex": "030000007fff0101d9010100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "comparison": {
+      "count": 1,
+      "item": "minecraft:carved_pumpkin",
+      "nbt": [
+        0
+      ]
+    },
+    "payload_hex": "7f0000007fff0101d9010100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "000009007fff0100",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "030000007fff0100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "7f0000007fff0100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "comparison": {
+      "count": 1,
+      "item": "minecraft:shield",
+      "nbt": [
+        10,
+        0,
+        0,
+        3,
+        0,
+        6,
+        68,
+        97,
+        109,
+        97,
+        103,
+        101,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "payload_hex": "000009007fff01018007010a000003000644616d6167650000000000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "comparison": {
+      "count": 1,
+      "item": "minecraft:shield",
+      "nbt": [
+        10,
+        0,
+        0,
+        3,
+        0,
+        6,
+        68,
+        97,
+        109,
+        97,
+        103,
+        101,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "payload_hex": "030000007fff01018007010a000003000644616d6167650000000000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "comparison": {
+      "count": 1,
+      "item": "minecraft:shield",
+      "nbt": [
+        10,
+        0,
+        0,
+        3,
+        0,
+        6,
+        68,
+        97,
+        109,
+        97,
+        103,
+        101,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "payload_hex": "7f0000007fff01018007010a000003000644616d6167650000000000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  }
+]

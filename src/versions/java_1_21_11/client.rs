@@ -121,6 +121,7 @@ struct State {
     retired_common_placement: Option<crate::client::survival::PlacementRecord>,
     common_inventory_swap: Option<operations::inventory::common::CommonSwap>,
     common_inventory_click: Option<crate::client::inventory::InventoryClickRecord>,
+    common_inventory_transfer: Option<crate::client::inventory::InventoryTransferRecord>,
     common_container_close: Option<crate::client::container::ContainerCloseRecord>,
     common_container_open: Option<crate::client::container::ContainerOpenRecord>,
     survival_motion: Option<operations::SurvivalMotionRecord>,
@@ -155,6 +156,7 @@ impl Default for State {
             retired_common_placement: None,
             common_inventory_swap: None,
             common_inventory_click: None,
+            common_inventory_transfer: None,
             common_container_close: None,
             common_container_open: None,
             survival_motion: None,
@@ -202,6 +204,7 @@ impl State {
             operations::placement::common_placement_context_received(self);
             operations::inventory::common::context_received(self);
             operations::inventory::click::context_received(self);
+            operations::inventory::transfer::context_received(self);
             operations::container::context_received(self);
             operations::mining::common_mining_context_received(self);
         }

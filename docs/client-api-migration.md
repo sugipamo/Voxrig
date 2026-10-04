@@ -296,7 +296,7 @@ modernの画面revisionとlegacyのtransaction番号を共通の成功ACKとし�
 前提・取消・履歴と検証は[共通在庫交換](common-inventory-swaps.md)を参照。
 
 storage交換はnative slotの受入れ条件も送信前に検査する。shulker boxへのshulker box収納は
-`InvalidInput`で拒否し、clickや未解決recordを作らない。通常PICKUPは`click_inventory`へ共通化する。shift-clickは後続作業。
+`InvalidInput`で拒否し、clickや未解決recordを作らない。通常PICKUPは`click_inventory`へ共通化する。shift-clickは`transfer_inventory`を使用する。
 1.16.1の`warped_fungus_on_a_stick`最大容量はnativeに合わせ1へ修正した。
 版別の容量は`client.registry().item(...)`から読み、upstream値64や共通の固定容量を仮定しない。
 [nativeクリック調査](common-inventory-clicks.md)に元の実装と再生成手順を記載する。
@@ -387,5 +387,18 @@ SWAPのhotbar引数とは異なり、ここはnative screen slot番号を渡す�
 このenumを網羅matchしている利用側は対応するarmを追加する。
 
 default stack、監査済みstorageとplayer main/hotbarを実装対象とする。modern bundle override、
-一般NBT/components、crafting/result/armor/offhand、shift-click、cursorを持ったcloseは追加対応を要する。
+一般NBT/components、PICKUPのcrafting/result/armor/offhand、cursorを持ったcloseは追加対応を要する。
 詳細は[通常クリック契約](common-inventory-clicks.md)を参照する。
+
+
+## Shift転送と共通source型
+
+両mode handleの`transfer_inventory(InventorySource, slot)`を使う。
+sourceは`Player`のslot 5..45か、元の`Container { screen }`のnative screen slot。
+通常PICKUPの`InventoryClickSource`は`InventorySource`と同一型の互換aliasで、importを共通名へ移せる。
+装備先やdestination順序はnativeが決めるため、利用側が固定destinationを渡さない。
+`inventory_transfer_record()`の`ObservedTransferred`を待ち、全changed slotsのfresh実受信を確認する。
+転送で変化しない空cursorのordinalは元の受信を保持し、新規packet受信を主張しない。
+旧native `OperationAdmissionError`を網羅matchする利用側には
+`BoundedInventoryTransferInProgress`のarm追加が必要になる。
+詳しくは[Shift転送契約](common-inventory-transfers.md)を参照する。

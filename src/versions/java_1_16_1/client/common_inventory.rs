@@ -900,6 +900,270 @@ mod tests {
         drop(bot);
         server.await.unwrap();
     }
+    #[tokio::test]
+    async fn shift_transfer_cancelled_caller_keeps_owned_write_and_record_is_prompt_behind_writer()
+    {
+        use contract::{InventorySource as Source, InventoryTransferStage as Stage};
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let writer = bot.writer.lock().await;
+        let ops = client.survival();
+        let waiter = tokio::spawn(async move { ops.transfer_inventory(Source::Player, 9).await });
+        timeout(Duration::from_secs(1), async {
+            loop {
+                if bot
+                    .common_inventory_transfer
+                    .lock()
+                    .await
+                    .as_ref()
+                    .is_some_and(|s| s.record.send.legacy_action.is_some())
+                {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        let intent = timeout(
+            Duration::from_millis(100),
+            client.survival().inventory_transfer_record(),
+        )
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+        assert!(!intent.send.dispatched);
+        assert_eq!(intent.stage, Stage::Pending);
+        waiter.abort();
+        assert!(waiter.await.unwrap_err().is_cancelled());
+        drop(writer);
+        assert_eq!(
+            timeout(Duration::from_secs(1), packets.recv())
+                .await
+                .unwrap()
+                .unwrap()
+                .0,
+            0x09
+        );
+        timeout(Duration::from_secs(1), async {
+            while !bot
+                .common_inventory_transfer
+                .lock()
+                .await
+                .as_ref()
+                .unwrap()
+                .record
+                .send
+                .dispatched
+            {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert!(
+            client
+                .survival()
+                .transfer_inventory(Source::Player, 9)
+                .await
+                .is_err()
+        );
+        assert!(
+            timeout(Duration::from_millis(20), packets.recv())
+                .await
+                .is_err()
+        );
+        bot.disconnect().await.unwrap();
+        let retained = client
+            .survival()
+            .inventory_transfer_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(retained.id, intent.id);
+        assert!(retained.send.dispatched);
+        assert_eq!(retained.stage, Stage::RequiresInspection);
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+    async fn transfer_value(bot: &Bot, window: u8, index: i16, value: &api::SlotKnowledge) {
+        let mut p = vec![window];
+        p.extend(index.to_be_bytes());
+        let native = match value {
+            api::SlotKnowledge::Empty => None,
+            api::SlotKnowledge::Item { item } => Some(ItemStack {
+                item_id: item.id.value(),
+                count: item.count as i8,
+                nbt: match &item.data {
+                    api::ItemData::Default => None,
+                    api::ItemData::LegacyNbt { bytes } => Some(bytes.clone()),
+                },
+            }),
+            _ => unreachable!(),
+        };
+        write_slot(&mut p, native.as_ref());
+        bot.apply_packet(0x16, p).await.unwrap();
+    }
+    #[tokio::test]
+    async fn shift_transfer_same_consumer_both_modes_storage_player_equipment_and_native_reply() {
+        use contract::{InventorySource as Source, InventoryTransferStage as Stage};
+        for mode in [api::GameMode::Survival, api::GameMode::Creative] {
+            for scenario in [0, 1, 2, 3] {
+                let (bot, mut packets, release, server) =
+                    super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+                if scenario == 0 {
+                    seed_container(&bot).await;
+                } else {
+                    seed(&bot).await;
+                }
+                if scenario >= 2 {
+                    let name = if scenario == 2 {
+                        "minecraft:diamond_helmet"
+                    } else {
+                        "minecraft:carved_pumpkin"
+                    };
+                    let profile: serde_json::Value = serde_json::from_str(include_str!(
+                        "../../../../data/client_api/inventory_transfer_profiles-1.16.1.json"
+                    ))
+                    .unwrap();
+                    let nbt = &profile["routes"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .find(|r| r["name"] == name)
+                        .unwrap()["default_legacy_nbt"];
+                    let data = if nbt == &serde_json::json!([0]) {
+                        api::ItemData::Default
+                    } else {
+                        api::ItemData::LegacyNbt {
+                            bytes: nbt
+                                .as_array()
+                                .unwrap()
+                                .iter()
+                                .map(|v| v.as_u64().unwrap() as u8)
+                                .collect(),
+                        }
+                    };
+                    let definition =
+                        api::registry::Registry::for_version(crate::MinecraftVersion::Java1_16_1)
+                            .item(name)
+                            .unwrap();
+                    transfer_value(
+                        &bot,
+                        0,
+                        9,
+                        &api::SlotKnowledge::Item {
+                            item: api::ItemStack {
+                                id: definition.id,
+                                name: definition.name,
+                                count: if scenario == 2 { 1 } else { 7 },
+                                data,
+                            },
+                        },
+                    )
+                    .await;
+                }
+                if mode == api::GameMode::Creative {
+                    let mut p = vec![3];
+                    p.extend(1f32.to_be_bytes());
+                    bot.apply_packet(0x1e, p).await.unwrap();
+                }
+                let client = crate::Client::from_java_1_16_1(bot.clone());
+                let source = if scenario == 0 {
+                    Source::Container {
+                        screen: client.screen_state().await.unwrap().screen.unwrap().id,
+                    }
+                } else {
+                    Source::Player
+                };
+                let record = api::tests::common_transfer_start_scenario(
+                    &client,
+                    mode,
+                    source,
+                    if scenario == 0 { 0 } else { 9 },
+                )
+                .await;
+                let packet = loop {
+                    let p = packets.recv().await.unwrap();
+                    if p.0 == 0x09 {
+                        break p;
+                    }
+                };
+                assert_eq!(packet.1[6], 1);
+                if scenario == 0 {
+                    assert!(
+                        record
+                            .changed_slots
+                            .iter()
+                            .any(|s| s.slot == 62 && s.player_slot == Some(44))
+                    );
+                }
+                if scenario >= 2 {
+                    assert!(record.changed_slots.iter().any(|s| s.slot == 5));
+                }
+                if scenario == 3 {
+                    assert_eq!(record.changed_slots.len(), 3);
+                    assert!(matches!(
+                        record.legacy_return_prediction.as_ref().unwrap().value,
+                        api::SlotKnowledge::Item { .. }
+                    ));
+                    assert_eq!(
+                        record.send.legacy_comparison.as_ref(),
+                        Some(&api::SlotKnowledge::Empty)
+                    );
+                }
+                for change in &record.changed_slots {
+                    transfer_value(
+                        &bot,
+                        record.window_id() as u8,
+                        change.slot as i16,
+                        &change.prediction.value,
+                    )
+                    .await;
+                    assert_eq!(
+                        client
+                            .survival()
+                            .inventory_transfer_record()
+                            .await
+                            .unwrap()
+                            .unwrap()
+                            .stage,
+                        Stage::Pending
+                    );
+                }
+                // Cursor's original actual ordinal is a valid unchanged baseline.
+                let before_cursor = record.cursor_before.source;
+                let mut ack = vec![record.window_id() as u8];
+                ack.extend(record.send.legacy_action.unwrap().to_be_bytes());
+                ack.push(0);
+                bot.apply_packet(0x12, ack).await.unwrap();
+                let complete =
+                    api::tests::common_transfer_complete_scenario(&client, record.id).await;
+                assert_eq!(complete.cursor_inspected.unwrap().source, before_cursor);
+                assert!(!complete.legacy_reply.unwrap().accepted);
+                bot.disconnect().await.unwrap();
+                assert_eq!(
+                    client
+                        .creative()
+                        .inventory_transfer_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .stage,
+                    Stage::ObservedTransferred
+                );
+                drop(release);
+                drop(client);
+                drop(bot);
+                server.await.unwrap();
+            }
+        }
+    }
     async fn seed_container(bot: &Bot) {
         seed(bot).await;
         let mut open = vec![3, 2];

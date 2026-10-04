@@ -93,6 +93,24 @@ impl Survival {
     ) -> Result<Option<super::inventory::InventoryClickRecord>> {
         self.client.common_inventory_click_record().await
     }
+    /// Shift-transfer one received source using native destination order, once.
+    /// Player slots 5..45 include armor/offhand; storage uses the same original opening.
+    /// Default data and empty cursor are required. All changed-slot receipts are separate from predictions.
+    pub async fn transfer_inventory(
+        &self,
+        source: super::inventory::InventorySource,
+        slot: u16,
+    ) -> Result<super::inventory::InventoryTransferRecord> {
+        self.client
+            .common_transfer_inventory(GameMode::Survival, source, slot)
+            .await
+    }
+    /// Inspect the retained transfer without repeating it, including partial capacity/conflicts.
+    pub async fn inventory_transfer_record(
+        &self,
+    ) -> Result<Option<super::inventory::InventoryTransferRecord>> {
+        self.client.common_inventory_transfer_record().await
+    }
     /// Exchange one constructor-verified storage slot and a hotbar index once.
     /// Requires the same live opening, default received stacks and empty cursor.
     pub async fn swap_container_hotbar(
@@ -298,6 +316,24 @@ impl Creative {
         &self,
     ) -> Result<Option<super::inventory::InventoryClickRecord>> {
         self.client.common_inventory_click_record().await
+    }
+    /// Shift-transfer one received source using native destination order, once.
+    /// Player slots 5..45 include armor/offhand; storage uses the same original opening.
+    /// Default data and empty cursor are required. All changed-slot receipts are separate from predictions.
+    pub async fn transfer_inventory(
+        &self,
+        source: super::inventory::InventorySource,
+        slot: u16,
+    ) -> Result<super::inventory::InventoryTransferRecord> {
+        self.client
+            .common_transfer_inventory(GameMode::Creative, source, slot)
+            .await
+    }
+    /// Inspect the retained transfer without repeating it, including partial capacity/conflicts.
+    pub async fn inventory_transfer_record(
+        &self,
+    ) -> Result<Option<super::inventory::InventoryTransferRecord>> {
+        self.client.common_inventory_transfer_record().await
     }
 
     /// Ordinary storage exchange; this does not manufacture creative items.

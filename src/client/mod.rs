@@ -31,8 +31,9 @@ pub mod prelude {
     };
     pub use super::inventory::{
         InventoryClickButton, InventoryClickId, InventoryClickRecord, InventoryClickSource,
-        InventoryClickStage, InventorySwapId, InventorySwapRecord, InventorySwapSource,
-        InventorySwapStage,
+        InventoryClickStage, InventorySource, InventorySwapId, InventorySwapRecord,
+        InventorySwapSource, InventorySwapStage, InventoryTransferId, InventoryTransferRecord,
+        InventoryTransferStage,
     };
     pub use super::survival::{
         BlockTargetHit, BlockTargetObservation, MiningId, MiningRecord, MiningStage, MotionPreview,

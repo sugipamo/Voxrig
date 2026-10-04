@@ -34,6 +34,8 @@ include = [
     "/scripts/ExportStorageOutlines.java",
     "/scripts/ExportRegularClicks.java",
     "/scripts/export_regular_clicks.py",
+    "/scripts/ExportInventoryTransfers.java",
+    "/scripts/export_inventory_transfers.py",
     "/README.md",
     "/LICENSE",
     "/THIRD_PARTY_NOTICES.md",

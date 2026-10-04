@@ -1,14 +1,21 @@
 //! Received ordinary player/container exchanges; no click prediction is receive evidence.
 pub(crate) mod click;
 pub(crate) mod slot_policy;
+pub(crate) mod transfer;
+pub(crate) mod transfer_policy;
 use super::container::{ContainerScreen, ScreenId};
 use super::{
     GameMode, ItemData, ObservedValue, PlayerObservation, SessionStamp, SlotKnowledge, ValueSource,
 };
 use crate::Result;
+/// Compatibility name for the common source UI used by inventory operations.
+pub use click::InventorySource as InventoryClickSource;
 pub use click::{
     InventoryClickButton, InventoryClickId, InventoryClickPrediction, InventoryClickRecord,
-    InventoryClickSend, InventoryClickSource, InventoryClickStage,
+    InventoryClickSend, InventoryClickStage, InventorySource,
+};
+pub use transfer::{
+    InventoryTransferId, InventoryTransferRecord, InventoryTransferSlot, InventoryTransferStage,
 };
 
 /// Screen owning the clicked source slot. Container IDs are bound to an actual opening.
