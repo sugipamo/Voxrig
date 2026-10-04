@@ -4,6 +4,7 @@ mod config;
 pub mod container;
 mod geometry;
 pub mod inventory;
+pub mod nbt;
 mod observation;
 pub(crate) mod operations;
 pub mod registry;
@@ -37,6 +38,7 @@ pub mod prelude {
         InventorySwapSource, InventorySwapStage, InventoryTransferId, InventoryTransferRecord,
         InventoryTransferStage,
     };
+    pub use super::nbt::{NbtCompound, NbtData, NbtEntry, NbtString, NbtValue};
     pub use super::registry::{
         ItemComponentDefinition, Registry, RegistryId, RegistryKind, ServerRegistryEntry,
         ServerRegistryId, ServerRegistryObservation, ServerRegistryStamp, ServerRegistryTags,

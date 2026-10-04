@@ -239,6 +239,7 @@ DustRoute: native observation、piston/recovery、照準、配置・除去・取
 | PlayerStateを共通playerとして使用 | `client.player_state()`のPlayerObservation。追加検査契約のnative PlayerStateとは区別 |
 | 版なしの`item_id`/`item_name`など | `client.registry()`。整数IDはversion/kind付きRegistryIdとして保持 |
 | vanilla fixtureの動的registry IDを接続先へ流用 | `client.server_registry_state().await?`。受信済みentryから`find`/`bind`し、connection/configuration付きServerRegistryIdを保持。legacy codecの個別解決は後続作業 |
+| metadataをNBT/patchの元bytesから独自に取得 | 両版共通の`item.custom_data()?`。typed `NbtData`を読み、受信の根拠は外側の`ObservedValue.source`を参照。全itemの意味・inventory hashは別契約 |
 | 任意のshort item name | 共通APIでは`minecraft:stone`等のnamespaceを明示 |
 
 Client共通入口ではoffline名は3～16のASCII英数字/underscore。不正名・空host/port 0、

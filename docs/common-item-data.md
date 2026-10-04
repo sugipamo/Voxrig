@@ -17,6 +17,54 @@ setupで選んだ版のID・名前・count・実受信dataを保持する。同�
 意味を正規化するものではない。prototypeとの統合、属性の解釈、stack容量の再計算、
 native cursor hashの作成は別の版別規則を必要とする。
 
+## 共通custom metadata
+
+`item.custom_data()?`は両版で`Option<NbtData>`を返す。legacyはconventionalな
+`Damage`や`display`を含む完全なtag、modernは`minecraft:custom_data`を読む。
+固定したmodern公式1,505 itemのdefault prototypeにcustom dataがないことを確認した。
+未設定・明示的な削除・defaultは`None`、空compoundは`Some`で区別する。
+ID・名前・版を検査し、元の`ItemData` bytesと外側の`ObservedValue.source`は保持する。
+
+```rust,no_run
+use voxrig::client::prelude::*;
+# fn inspect(item: &ItemStack) -> Result<()> {
+if let Some(data) = item.custom_data()? {
+    if let Some(marker) = data.root().get("VoxrigProbe").and_then(NbtValue::as_int) {
+        println!("marker = {marker}");
+    }
+}
+# Ok(())
+# }
+```
+
+`NbtValue`は12種の型、数値の幅、arrayとlistの違いを保持する。compoundのkeyは
+UTF-16順で、重複はnativeと同じ最後の値を採用する。modern list内の単一empty-key
+compound wrapperはnativeと同じ一段の展開を行い、legacyはcompoundを保持する。
+空listのsubtypeとroot名は論理値に含めないが、元bytesは失わない。
+modified UTF-8のNUL・補助文字・単独surrogateをUTF-16として保持する。
+`NbtString::text()`は単独surrogateでエラーになり、JSONは通常stringまたはUTF-16配列を使う。
+
+nativeのzero factoryによる正負zeroの統一とNaNのbitsを扱う。
+`native_equivalent()`は同じ版に限定する。legacyで独立にdecodeしたNaNは元bytesが
+同じでも比較不一致になり、同一の共有値はidentityで一致する。modernはrecordの比較規則を使う。
+`persistent_crc32c()`はmodernの元`CompoundTag.CODEC`と`HashOps.CRC32C`による
+**NBT値だけのhash**で、legacyは`None`。型marker・数値幅・UTF-16長と内容・list順序・
+mapの子hash順序を照合する。modernでnative比較が一致するNaNでもpayloadが異なると
+この純粋hashは異なる。serverのcache、item prototype・component patch全体のhash、
+inventory操作の許可としては使えない。
+
+decodeは1 MiB・深さ64・65,536 nodeに制限し、不正入力・truncation・末尾bytesを拒否する。
+未変更公式JARの各版93値・4,371比較pair・10不正入力と、modernの93 hashを
+`nbt_semantics-*.json`に保存して照合した。入力・tool・JARのdigestは
+`nbt_semantics_source.json`に記録し、native method bodyやJARは配布しない。
+再生成は`scripts/export_nbt_semantics.py`、保存済み出力との照合は`--normalize-only --check`で行う。
+oracleは各JVMを512 MiB・CPU 1で順番に実行する。
+実vanilla 1.16.1/1.21.11のsurvival/creativeでも同じgetterを使い、typed markerと
+独立RCONの値を照合した。元item bytes・実受信sourceとreadonly frameを
+`data/client_api/nbt_semantics_native_evidence.json`に保存した。実入力はcf1ae42に
+staged変更を加えたもので、実行後のevidenceを実行時入力へ付け足していない。
+一般itemの意味・text・prototype統合・slot規則とdata付き操作は引き続き追加対応が必要。
+
 ```rust,no_run
 use voxrig::client::prelude::*;
 use voxrig::client::SlotKnowledge;

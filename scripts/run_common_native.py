@@ -950,6 +950,14 @@ network-compression-threshold=256
             result["received"] = until(received_item_data)
             registry_snapshot = stage(probe, messages, "registry_state", report["container_records"])["value"]
             result["server_registry"] = verify_received_registries(registry_snapshot, result["received"], trace, version)
+            custom=registry_snapshot["custom_data"]
+            marker_value=next((entry["value"] for entry in custom["root"]["value"]["entries"] if entry["key"]=="VoxrigProbe"),None)
+            custom_source=registry_snapshot["custom_data_source"]
+            if marker_value!={"type":"int","value":marker} or custom_source["kind"]!="received" or custom_source["sequence"]<result["received"]["inventory"]["slots"][9]["source"]["sequence"] or registry_snapshot["custom_data_session"]!=result["received"]["session"] or registry_snapshot["custom_data_item"]!=result["received"]["inventory"]["slots"][9]["value"]:
+                raise RuntimeError("decoded common custom-data marker/session/source differs from fresh actual item")
+            if (custom["persistent_crc32c"] is None)!=(version=="1.16.1"):
+                raise RuntimeError("custom-data value hash invented legacy availability or lost modern value")
+            result["decoded_custom_data"]={"data":custom,"source":custom_source,"session":registry_snapshot["custom_data_session"],"item":registry_snapshot["custom_data_item"],"native_marker":result["native_marker"],"authority_limits":"Same common item.custom_data accessor returns typed marker from actual received item in both modes/versions; original RCON confirms marker. Actual current item/source is retained; a newer unchanged receipt is not relabeled as the earlier ordinal. Pure modern NBT persistent CRC32C is separately oracle-verified, not an inventory hash/permission or general item interpretation."}
             result["position_after"] = rcon.command("data get entity UnifiedProbe Pos")
             result["rotation_after"] = rcon.command("data get entity UnifiedProbe Rotation")
             if result["position_before"] != result["position_after"] or result["rotation_before"] != result["rotation_after"]:

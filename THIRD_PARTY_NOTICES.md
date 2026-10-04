@@ -284,3 +284,16 @@ now invokes original vanilla resource, registry and tag loaders and records
 actual native item-prototype values; fixture registry IDs are not universal
 bindings for arbitrary servers. `item_data_complex_native_evidence.json` retains
 separate original live observations and the earlier failed own-marker check.
+
+`data/client_api/nbt_semantics-*.json` and their requests/source metadata record
+native decoding, equality and pure modern persistent-codec CRC32C facts from
+unmodified official 1.16.1/1.21.11 JARs. The own Java/Python wrappers also record
+the absence of default custom data in all 1,505 pinned modern item prototypes.
+These are factual outputs, not native method bodies or complete inventory hashes.
+Original JARs, libraries, mappings and inspection logs remain local; these facts
+do not relicense Minecraft.
+
+`data/client_api/nbt_semantics_native_evidence.json` retains actual typed metadata,
+original item bytes and source ordinals from sequential vanilla trials in both
+versions/modes, with independent RCON and readonly frames. Run-time input and
+raw-output hashes bind these limited observations; game binaries are excluded.

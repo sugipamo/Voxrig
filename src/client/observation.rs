@@ -124,6 +124,66 @@ pub struct ItemStack {
     /// Supported native item data; unsupported stacks remain unavailable.
     pub data: ItemData,
 }
+impl ItemStack {
+    /// Decode common custom metadata while preserving the original ItemData bytes.
+    /// Legacy returns its complete tag, including conventional item fields;
+    /// modern returns the custom_data component. All pinned modern default item
+    /// prototypes have no custom_data, verified from the original 1,505 items.
+    /// This read-only value is not a normalized complete item or action authority.
+    ///
+    /// ```no_run
+    /// use voxrig::client::prelude::*;
+    /// fn inspect(item: &ItemStack) -> Result<()> {
+    ///     if let Some(data) = item.custom_data()? {
+    ///         if let Some(marker) = data.root().get("VoxrigProbe").and_then(NbtValue::as_int) {
+    ///             println!("marker = {marker}");
+    ///         }
+    ///     }
+    ///     Ok(())
+    /// }
+    /// ```
+    pub fn custom_data(&self) -> Result<Option<super::nbt::NbtData>> {
+        use super::registry::invalid;
+        let registry = Registry::for_version(self.id.version());
+        if registry.item_definition(self.id)?.name != self.name {
+            return Err(invalid("item name and ID disagree"));
+        }
+        match (self.id.version(), &self.data) {
+            (_, ItemData::Default) => Ok(None),
+            (MinecraftVersion::Java1_16_1, ItemData::LegacyNbt { bytes }) => {
+                super::nbt::decode(bytes, self.id.version()).map(Some)
+            }
+            (MinecraftVersion::Java1_21_11, ItemData::ModernComponents { patch }) => {
+                let mut seen = std::collections::BTreeSet::new();
+                let mut custom = None;
+                for component in &patch.added {
+                    if registry.item_component_definition(component.definition.id)?
+                        != component.definition
+                        || !seen.insert(component.definition.id.value())
+                    {
+                        return Err(invalid("invalid or duplicate component identity"));
+                    }
+                    if component.definition.name == "minecraft:custom_data" {
+                        custom = Some(&component.bytes);
+                    }
+                }
+                for removed in &patch.removed {
+                    if registry.item_component_definition(removed.id)? != *removed
+                        || !seen.insert(removed.id.value())
+                    {
+                        return Err(invalid("invalid or duplicate removed component identity"));
+                    }
+                }
+                custom
+                    .map(|bytes| super::nbt::decode(bytes, self.id.version()))
+                    .transpose()
+            }
+            _ => Err(invalid(
+                "item data representation belongs to another adapter",
+            )),
+        }
+    }
+}
 /// Knowledge of one inventory slot.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]

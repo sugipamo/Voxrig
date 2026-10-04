@@ -37,6 +37,8 @@ include = [
     "/scripts/ExportCursorReturns.java",
     "/scripts/export_cursor_returns.py",
     "/scripts/ExportItemComponents.java",
+    "/scripts/ExportNbtSemantics.java",
+    "/scripts/export_nbt_semantics.py",
     "/scripts/export_item_components.py",
     "/scripts/ExportMenuLayouts.java",
     "/scripts/ExportStorageOutlines.java",

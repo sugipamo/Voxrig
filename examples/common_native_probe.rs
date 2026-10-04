@@ -1153,6 +1153,24 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 emit(&command, record)?;
             }
             "registry_state" => {
+                let player = client.player_state().await?;
+                let slot = player.inventory.slots[9]
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("custom-data slot unavailable"))?;
+                let SlotKnowledge::Item { item } = &slot.value else {
+                    anyhow::bail!("custom-data fixture item missing")
+                };
+                let custom_data = item
+                    .custom_data()?
+                    .ok_or_else(|| anyhow::anyhow!("custom-data fixture value missing"))?;
+                anyhow::ensure!(
+                    custom_data
+                        .root()
+                        .get("VoxrigProbe")
+                        .and_then(NbtValue::as_int)
+                        .is_some(),
+                    "common marker missing"
+                );
                 let registries = client.server_registry_state().await?;
                 let unbreaking = if client.version() == MinecraftVersion::Java1_21_11 {
                     let id = registries.find("minecraft:enchantment", "minecraft:unbreaking")?;
@@ -1163,7 +1181,7 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 };
                 emit(
                     &command,
-                    serde_json::json!({"received": registries, "unbreaking": unbreaking}),
+                    serde_json::json!({"received": registries, "unbreaking": unbreaking,"custom_data":custom_data,"custom_data_source":slot.source,"custom_data_session":player.session,"custom_data_item":slot.value}),
                 )?;
             }
             "transfer_fixture_cleared" => {
