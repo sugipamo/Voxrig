@@ -67,7 +67,10 @@ def main():
     outputs['data/client_api/item_component_source.json'] = encoded({
         'schema': 1,
         'authority': 'Untouched original native DataComponentType registry, component/patch/item and four clientbound packet stream codecs.',
-        'scope': 'All actual registry identities/removal patches; requested persistent scalar/NBT/list/map component values and native-enumerated enum samples. Each native codec decoded and reencoded exactly. Not live receipt, gameplay semantics or arbitrary component parity proof.',
+        'scope': 'All 104 original component value compositions exercised by persistent requests, original item prototypes and native enum samples. Original vanilla resource/registry/tag loaders establish the oracle buffer context; each codec decoded and reencoded exactly. Default fixture registry IDs are not bindings for an arbitrary live connection. Not live receipt, semantic normalization or gameplay parity proof.',
+        'vanilla_pack_selection': ['vanilla'],
+        'registry_context': 'Original trusted vanilla pack repository, ResourceManager, RegistryDataLoader WORLDGEN_REGISTRIES, original tag loading/binding, frozen original registries. No fabricated holder IDs or substituted game methods.',
+        'registry_binding_fixture_count': len(raw.get('vanilla_registry_bindings', {})),
         'original_server_jar_sha1': jar_sha1,
         'mappings_sha256': mapping_sha256,
         'original_classpath_entries_sha256': classpath_hashes,

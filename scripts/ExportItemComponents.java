@@ -3,6 +3,7 @@
 import com.google.gson.*;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
+import com.mojang.serialization.DynamicOps;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.lang.reflect.*;
@@ -12,6 +13,31 @@ import java.util.*;
 public final class ExportItemComponents {
     static Class<?> typeClass, codecClass, bufferClass;
     static Object registries;
+    static Object resourceManager;
+    @SuppressWarnings("unchecked")
+    static DynamicOps<JsonElement> loadVanillaRegistries() throws Exception {
+        Object builtin=Class.forName("jr").getMethod("a",ExportInventoryTransfers.registryClass)
+                .invoke(null,Class.forName("mi").getField("aR").get(null));
+        Object repository=Class.forName("ban").getMethod("c").invoke(null);
+        Class<?> repo=Class.forName("bak");repo.getMethod("a").invoke(repository);
+        repo.getMethod("b",Collection.class).invoke(repository,List.of("vanilla"));
+        resourceManager=Class.forName("bas").getConstructor(Class.forName("azn"),List.class)
+                .newInstance(Class.forName("azn").getField("b").get(null),repo.getMethod("h").invoke(repository));
+        Class<?> tags=Class.forName("beg");
+        List<?> pending=(List<?>)tags.getMethod("a",Class.forName("baz"),Class.forName("jr")).invoke(null,resourceManager,builtin);
+        Object lookups=tags.getMethod("a",Class.forName("jr$b"),List.class).invoke(null,builtin,pending);
+        Object loaded=Class.forName("amp").getMethod("a",Class.forName("baz"),List.class,List.class)
+                .invoke(null,resourceManager,lookups,Class.forName("amp").getField("a").get(null));
+        java.util.stream.Stream<?> all=java.util.stream.Stream.concat(
+                (java.util.stream.Stream<?>)Class.forName("jr").getMethod("a").invoke(builtin),
+                (java.util.stream.Stream<?>)Class.forName("jr").getMethod("a").invoke(loaded));
+        registries=Class.forName("jr$c").getConstructor(java.util.stream.Stream.class).newInstance(all);
+        pending=(List<?>)tags.getMethod("a",Class.forName("baz"),Class.forName("jr")).invoke(null,resourceManager,registries);
+        for(Object p:pending)Class.forName("jq$a").getMethod("d").invoke(p);
+        registries=Class.forName("jr").getMethod("e").invoke(registries);
+        return (DynamicOps<JsonElement>)Class.forName("ams").getMethod("a",DynamicOps.class,Class.forName("jf$a"))
+                .invoke(null,JsonOps.INSTANCE,registries);
+    }
     static Object buffer(ByteBuf bytes) throws Exception {
         return bufferClass.getConstructor(ByteBuf.class, Class.forName("jr")).newInstance(bytes, registries);
     }
@@ -40,8 +66,7 @@ public final class ExportItemComponents {
         if (ExportInventoryTransfers.legacy) throw new IllegalArgumentException("modern component oracle");
         typeClass = Class.forName("kh"); codecClass = Class.forName("aao"); bufferClass = Class.forName("xq");
         Object components = Class.forName("mi").getField("am").get(null);
-        registries = Class.forName("jr").getMethod("a", ExportInventoryTransfers.registryClass)
-                .invoke(null, Class.forName("mi").getField("aR").get(null));
+        DynamicOps<JsonElement> jsonOps=loadVanillaRegistries();
         Map<String,Object> types = new TreeMap<>();
         JsonArray definitions = new JsonArray(), removed = new JsonArray(), samples = new JsonArray();
         JsonArray stacks = new JsonArray(), failures = new JsonArray();
@@ -76,10 +101,36 @@ public final class ExportItemComponents {
             for (int id : new int[]{0,1,7}) {
                 JsonObject request = new JsonObject(); request.addProperty("name",entry.getKey());
                 if (persistent == null) request.addProperty("native_enum_id",id);
-                else request.add("value",persistent.encodeStart(JsonOps.INSTANCE,byId.apply(id)).getOrThrow());
+                else request.add("value",persistent.encodeStart(jsonOps,byId.apply(id)).getOrThrow());
                 input.add(request);
             }
         }
+        // Obtain previously unrequested complex values from actual item prototypes.
+        // Values are original native objects; do not guess their persistent JSON.
+        Set<String> requestedNames=new HashSet<>();
+        for(JsonElement element:input)requestedNames.add(element.getAsJsonObject().get("name").getAsString());
+        Map<Integer,Object> prototypeValues=new HashMap<>();Set<String> prototypeBytes=new HashSet<>();
+        for(String itemName:ExportInventoryTransfers.byName.keySet()) {
+            Object prototype=ExportInventoryTransfers.stackClass.getMethod("c")
+                    .invoke(ExportInventoryTransfers.stack(itemName,1));
+            for(Object component:(Iterable<?>)prototype) {
+                Object type=Class.forName("kk").getMethod("a").invoke(component);
+                String name=ExportInventoryTransfers.nameOf.invoke(components,type).toString();
+                if(requestedNames.contains(name))continue;
+                Object value=Class.forName("kk").getMethod("b").invoke(component);
+                try {
+                    String fingerprint=name+":"+hex(roundtrip(typeClass.getMethod("f").invoke(type),value));
+                    if(!prototypeBytes.add(fingerprint))continue;
+                    JsonObject request=new JsonObject();request.addProperty("name",name);
+                    request.addProperty("prototype_of",itemName);prototypeValues.put(input.size(),value);input.add(request);
+                } catch(Exception failure) {
+                    JsonObject failed=entry(name,(int)ExportInventoryTransfers.idOf.invoke(components,type));
+                    failed.addProperty("prototype_of",itemName);failed.addProperty("exception",failure.toString());
+                    if(failure.getCause()!=null)failed.addProperty("cause",failure.getCause().toString());failures.add(failed);
+                }
+            }
+        }
+        int requestIndex=0;
         for (JsonElement element : input) {
             JsonObject request = element.getAsJsonObject();
             String name = request.get("name").getAsString();
@@ -89,14 +140,20 @@ public final class ExportItemComponents {
                 Codec<?> persistent = (Codec<?>) typeClass.getMethod("b").invoke(type);
                 Object stream = typeClass.getMethod("f").invoke(type);
                 Object value;
-                if (request.has("native_enum_id")) {
+                if(prototypeValues.containsKey(requestIndex))value=prototypeValues.get(requestIndex);
+                else if (request.has("native_enum_id")) {
                     Field field = stream.getClass().getDeclaredField("a"); field.setAccessible(true);
                     value = ((java.util.function.IntFunction<?>)field.get(stream))
                             .apply(request.get("native_enum_id").getAsInt());
                 } else value = persistent == null ? Class.forName("bhr").getField("a").get(null)
-                        : persistent.parse(JsonOps.INSTANCE, request.get("value")).getOrThrow();
+                        : persistent.parse(jsonOps, request.get("value")).getOrThrow();
                 JsonObject sample = entry(name, id);
                 sample.add("requested_value", request.get("value"));
+                if(request.has("prototype_of"))sample.add("prototype_of",request.get("prototype_of"));
+                if(persistent!=null) {
+                    @SuppressWarnings("unchecked") Codec<Object> writer=(Codec<Object>)persistent;
+                    sample.add("canonical_persistent_value",writer.encodeStart(jsonOps,value).getOrThrow());
+                }
                 sample.addProperty("value_class", value.getClass().getName());
                 sample.addProperty("value_hex", hex(roundtrip(stream, value)));
                 sampleValues.put(name,value);
@@ -109,6 +166,7 @@ public final class ExportItemComponents {
                 ExportInventoryTransfers.stackClass.getMethod("b", typeClass, Object.class).invoke(stack, type, value);
                 JsonObject record = entry(name, id);
                 record.add("requested_value", request.get("value"));
+                if(request.has("prototype_of"))record.add("prototype_of",request.get("prototype_of"));
                 record.addProperty("stack_hex", hex(roundtrip(stackCodec, stack)));
                 record.addProperty("actual_patch_hex", hex(roundtrip(patchCodec,
                         ExportInventoryTransfers.stackClass.getMethod("d").invoke(stack))));
@@ -141,6 +199,7 @@ public final class ExportItemComponents {
                 if(failure.getCause()!=null) failed.addProperty("cause",failure.getCause().toString());
                 failures.add(failed);
             }
+            requestIndex++;
         }
         Object mixedBuilder=Class.forName("kg").getMethod("a").invoke(null);
         JsonArray mixedAdded=new JsonArray();
@@ -160,6 +219,21 @@ public final class ExportItemComponents {
         output.add("registry",definitions); output.add("removed",removed); output.add("samples",samples);
         output.add("stacks",stacks); output.add("failures",failures);
         output.add("mixed",mixed);
+        JsonObject bindings=new JsonObject();
+        java.util.stream.Stream<?> entries=(java.util.stream.Stream<?>)Class.forName("jr").getMethod("a").invoke(registries);
+        for(Object entry:entries.toList()) {
+            Object key=Class.forName("jr$d").getMethod("a").invoke(entry);
+            Object registry=Class.forName("jr$d").getMethod("b").invoke(entry);
+            String registryName=key.toString().split(" / ")[1].replace("]","");
+            JsonArray values=new JsonArray();
+            for(Object value:(Iterable<?>)registry) {
+                JsonObject v=new JsonObject();v.addProperty("name",ExportInventoryTransfers.nameOf.invoke(registry,value).toString());
+                v.addProperty("id",(int)ExportInventoryTransfers.idOf.invoke(registry,value));values.add(v);
+            }
+            bindings.add(registryName,values);
+        }
+        output.add("vanilla_registry_bindings",bindings);
         Files.writeString(Path.of(args[1]),new GsonBuilder().setPrettyPrinting().create().toJson(output)+"\n");
+        ((AutoCloseable)resourceManager).close();
     }
 }

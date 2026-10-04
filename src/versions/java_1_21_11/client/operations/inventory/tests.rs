@@ -1552,10 +1552,11 @@ fn window_changes_and_unsupported_cursor_cannot_restore_stale_swap_authority() {
         .unwrap();
     let cursor = hex::decode(packet["payload_hex"].as_str().unwrap()).unwrap();
     super::super::receive(&mut state, ids::play_clientbound::SET_CURSOR_ITEM, &cursor).unwrap();
-    assert_eq!(
+    assert!(matches!(
         state.operations.inventory.cursor,
-        InventorySlot::Unavailable
-    );
+        InventorySlot::ItemWithComponents { .. }
+    ));
+    assert!(!state.operations.inventory.unsupported_components);
     assert!(prepare(&state.operations.inventory, 42, 10, 9, 0).is_err());
 }
 
@@ -2816,9 +2817,6 @@ async fn actual_position_is_published_after_teleport_confirmation_before_normal_
 fn component_observation_cannot_enter_native_default_swap_or_cursor_hash() {
     let corpus = super::super::component_tests::corpus();
     for sample in corpus["stacks"].as_array().unwrap() {
-        if sample["name"] == "minecraft:bundle_contents" {
-            continue;
-        }
         let bytes = hex::decode(sample["stack_hex"].as_str().unwrap()).unwrap();
         let value = slot(&mut Reader::new(&bytes)).unwrap().unwrap();
         if !matches!(value, InventorySlot::ItemWithComponents { .. }) {

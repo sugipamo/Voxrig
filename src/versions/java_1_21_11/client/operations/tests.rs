@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn inventory_is_received_only_and_unsupported_components_never_become_empty_slots() {
+fn inventory_is_received_only_and_recursive_components_never_become_empty_slots() {
     let mut state = State {
         sequence: 9,
         ..State::default()
@@ -47,8 +47,7 @@ fn inventory_is_received_only_and_unsupported_components_never_become_empty_slot
     }
     let mut unsupported = vec![0, 1];
     put_varint(&mut unsupported, stone);
-    // Original native bundle-contents empty-list encoding is complete but
-    // recursive item-component framing is not implemented in this milestone.
+    // Original native recursive component remains received data, never Empty.
     unsupported.extend([1, 0, 48, 0]);
     receive(
         &mut state,
@@ -56,11 +55,10 @@ fn inventory_is_received_only_and_unsupported_components_never_become_empty_slot
         &unsupported,
     )
     .unwrap();
-    assert_eq!(
-        state.operations.inventory.slots[36],
-        InventorySlot::Unavailable
+    assert!(
+        matches!(&state.operations.inventory.slots[36], InventorySlot::ItemWithComponents { components, .. } if components.added[0].definition.name == "minecraft:bundle_contents" && components.added[0].bytes == vec![0])
     );
-    assert!(state.operations.inventory.unsupported_components);
+    assert!(!state.operations.inventory.unsupported_components);
     receive(&mut state, ids::play_clientbound::WINDOW_ITEMS, &full).unwrap();
     assert!(!state.operations.inventory.unsupported_components);
     // Other windows cannot silently preserve stale player inventory knowledge.

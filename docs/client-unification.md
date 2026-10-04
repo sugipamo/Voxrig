@@ -57,7 +57,7 @@ connection、world generation、receive sequence、cache revisionは別の値で
 - `ObservedValue.source`は受信ordinal、送信値、client modelを区別する。等しい座標だけで受信と判定しない。
 - 在庫slotの`None`は欠測。Emptyは明示的に分かっている空slot。
 - 1.16.1は実際のWindow Items/Set Slotから受信表を保持する。クリック後の予測を含み得る従来cacheは`local_cache`へ分離する。
-- 1.21.11はcomponent-free stackと、公式codecへ照合した52型の追加値・全104型の削除patchを元bytesで保持する。まだ読めない複雑なcomponentsをEmptyやdefault stackへ変換しない。受信と操作の対応範囲は[共通item data](common-item-data.md)を参照。
+- 1.21.11はcomponent-free stackと、公式codecへ照合した全104型の追加値の境界・全104型の削除patchを元bytesで保持する。複雑な値・入れ子item・registry参照も元bytesで保持し、意味の正規化と実接続の参照解決は別に行う。受信と操作の対応範囲は[共通item data](common-item-data.md)を参照。
 - 1.21.11のcursorのordinalはcursorを更新したpacketのもの。無関係なslot更新で新しい受信根拠を作らない。
 - 在庫や位置の受信はserver内部状態の独立確認ではない。
 
@@ -72,7 +72,7 @@ modernの既存intent・session guardも維持する。保存したreceiptは次
 | 1. 設定・基本型・対応情報・registry | 共通fixture・静的検証済み | 両版で同じ共通型。未知版/ID、誤ったnamespaceを拒否。設定を黙って無視しない |
 | 2. player/world/inventory共通観測 | 基本capture共通fixture・静的検証済み | 同じcapture境界、受信/予測/欠測を保持。NBTは保持、未対応componentsは欠測として保持 |
 | 3. 視点・選択・移動・採掘・設置 | creative基本操作・survival preview/有限dry移動・read-only狙い判定・限定採掘/default cube設置は両版native検証済み。広い移動/採掘/設置条件は残る | 共通request/resultと両版実装、native結果と物理の検証。片版Unsupportedだけでは完了しない |
-| 4. container/item data/製作/装備/entity | default player main/hotbar交換は両mode・両版で実装。共通container画面のidentity/内容/slot対応、既に開いたstorage/hotbar交換、opening-bound close、両modeのempty-hand storage openを実装。通常PICKUPで取り出し・split・1個置く・結合・返却も両mode/両版で実装。通常Shift転送とnative default防具への自動装備を両mode/両版で実装。cursor付きcloseのnative版差も両modeで確認し、同値再受信によるlegacy送信前の誤拒否を修正。cursor付き共通closeは実player在庫への返却とstepごとの実受信を組み合わせて実装。modern componentの52型の追加値と全104型の削除patchを共通観測へ保持。一般UI activation/複雑なitem data/製作/一般装備操作/entityは残る | modern側に受信/クリック/一般item操作を実装。同じ代表workflowと結果検証 |
+| 4. container/item data/製作/装備/entity | default player main/hotbar交換は両mode・両版で実装。共通container画面のidentity/内容/slot対応、既に開いたstorage/hotbar交換、opening-bound close、両modeのempty-hand storage openを実装。通常PICKUPで取り出し・split・1個置く・結合・返却も両mode/両版で実装。通常Shift転送とnative default防具への自動装備を両mode/両版で実装。cursor付きcloseのnative版差も両modeで確認し、同値再受信によるlegacy送信前の誤拒否を修正。cursor付き共通closeは実player在庫への返却とstepごとの実受信を組み合わせて実装。modern component全104型の追加値の境界と削除patchを共通観測へ保持。一般UI activation/複雑なitem data/製作/一般装備操作/entityは残る | modern側に受信/クリック/一般item操作を実装。同じ代表workflowと結果検証 |
 | 5. context/記録/再構成/scene/復旧 | 残る | 共通型を所有し、legacy側にも版別規則・lifecycleの監査済み実装 |
 | 6. UI/特殊window/vehicle/manager | 残る | 各機能の共通操作/観測と両版実装。raw操作自体の版依存は明示的な拡張へ残す |
 

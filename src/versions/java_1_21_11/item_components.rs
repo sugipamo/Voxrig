@@ -4,6 +4,7 @@ use super::wire::Reader;
 use crate::client::{ItemComponent, ItemComponentPatch, registry::Registry};
 use anyhow::{Context, Result, bail};
 use std::{collections::BTreeSet, sync::OnceLock};
+mod framing;
 
 #[cfg(test)]
 mod native_evidence_tests;
@@ -29,7 +30,7 @@ fn definition(id: i32) -> Result<&'static Definition> {
         .find(|d| d.native_id == id)
         .context("unknown native item-component ID; update Voxrig")
 }
-/// None means a known but not yet framed component, never an empty patch/item.
+/// Decode original encoded field boundaries, retaining values without semantic normalization.
 pub(crate) fn read_patch(r: &mut Reader<'_>) -> Result<Option<ItemComponentPatch>> {
     let added = r.count(definitions().len())?;
     let removed = r.count(definitions().len())?;
@@ -42,7 +43,7 @@ pub(crate) fn read_patch(r: &mut Reader<'_>) -> Result<Option<ItemComponentPatch
         added: Vec::with_capacity(added),
         removed: Vec::with_capacity(removed),
     };
-    let start = r.remaining().len();
+    let mut budget = framing::Budget::new(r);
     for _ in 0..added {
         let id = r.varint()?;
         let native = definition(id)?;
@@ -50,13 +51,9 @@ pub(crate) fn read_patch(r: &mut Reader<'_>) -> Result<Option<ItemComponentPatch
             bail!("duplicate item-component patch type");
         }
         let before = r.remaining();
-        if !read_value(r, native)? {
-            return Ok(None);
-        }
+        framing::value(r, native, &mut budget, 0)?;
         let length = before.len() - r.remaining().len();
-        if start - r.remaining().len() > 1_048_576 {
-            bail!("item-component patch byte limit");
-        }
+
         patch.added.push(ItemComponent {
             definition: registry.item_component_by_native_id(id)?,
             bytes: before[..length].to_vec(),
@@ -73,88 +70,6 @@ pub(crate) fn read_patch(r: &mut Reader<'_>) -> Result<Option<ItemComponentPatch
             .push(registry.item_component_by_native_id(id)?);
     }
     Ok(Some(patch))
-}
-fn read_value(r: &mut Reader<'_>, native: &Definition) -> Result<bool> {
-    // These exact codec classes are bound to the pinned native JAR and verified
-    // by original codec roundtrips for every affected component type.
-    if native.stream_codec_class == "aam$10" {
-        r.skip_nbt()?;
-        return Ok(true);
-    }
-    if native.stream_codec_class == "aam$21" {
-        r.varint()?;
-        return Ok(true);
-    }
-    match native.name.as_str() {
-        "minecraft:max_stack_size"
-        | "minecraft:max_damage"
-        | "minecraft:damage"
-        | "minecraft:repair_cost"
-        | "minecraft:map_id"
-        | "minecraft:enchantable"
-        | "minecraft:ominous_bottle_amplifier" => {
-            r.varint()?;
-        }
-        "minecraft:unbreakable" | "minecraft:creative_slot_lock" | "minecraft:glider" => {}
-        "minecraft:minimum_attack_charge"
-        | "minecraft:potion_duration_scale"
-        | "minecraft:map_color"
-        | "minecraft:dyed_color" => {
-            r.take(4)?;
-        }
-        "minecraft:enchantment_glint_override" => {
-            r.bool()?;
-        }
-        "minecraft:item_model" | "minecraft:note_block_sound" | "minecraft:tooltip_style" => {
-            r.string()?;
-        }
-        "minecraft:lore" => {
-            for _ in 0..r.count(256)? {
-                r.skip_nbt()?;
-            }
-        }
-        "minecraft:use_effects" => {
-            r.bool()?;
-            r.bool()?;
-            r.take(4)?;
-        }
-        "minecraft:weapon" => {
-            r.varint()?;
-            r.take(4)?;
-        }
-        "minecraft:use_cooldown" => {
-            r.take(4)?;
-            if r.bool()? {
-                r.string()?;
-            }
-        }
-        "minecraft:tooltip_display" => {
-            r.bool()?;
-            for _ in 0..r.count(definitions().len())? {
-                definition(r.varint()?)?;
-            }
-        }
-        "minecraft:custom_model_data" => {
-            let floats = r.count(65_536)?;
-            r.take(floats * 4)?;
-            for _ in 0..r.count(65_536)? {
-                r.bool()?;
-            }
-            for _ in 0..r.count(65_536)? {
-                r.string()?;
-            }
-            let colors = r.count(65_536)?;
-            r.take(colors * 4)?;
-        }
-        "minecraft:block_state" => {
-            for _ in 0..r.count(65_536)? {
-                r.string()?;
-                r.string()?;
-            }
-        }
-        _ => return Ok(false),
-    }
-    Ok(true)
 }
 
 #[cfg(test)]
@@ -177,13 +92,6 @@ mod tests {
             let bytes = hex::decode(sample["patch_hex"].as_str().unwrap()).unwrap();
             let mut reader = Reader::new(&bytes);
             let patch = read_patch(&mut reader).unwrap();
-            if sample["name"] == "minecraft:bundle_contents" {
-                assert!(
-                    patch.is_none(),
-                    "recursive item components remain a required next step"
-                );
-                continue;
-            }
             reader.end().unwrap();
             let patch = patch.unwrap();
             assert_eq!(patch.added.len(), 1);
@@ -223,7 +131,7 @@ mod tests {
                 assert!(read_patch(&mut Reader::new(&bytes[..end])).is_err());
             }
         }
-        assert_eq!(covered.len(), 52);
+        assert_eq!(covered.len(), 104);
     }
     #[test]
     fn original_mixed_patch_preserves_values_and_equality_ignores_type_order() {
@@ -342,7 +250,8 @@ mod tests {
         }
         assert_eq!(source["component_types"], 104);
         assert_eq!(source["removal_roundtrips"], 104);
-        assert_eq!(source["component_roundtrips"], 95);
-        assert_eq!(source["packet_roundtrips"], 475);
+        assert_eq!(source["component_roundtrips"], 518);
+        assert_eq!(source["packet_roundtrips"], 2_590);
+        assert_eq!(source["registry_binding_fixture_count"], 133);
     }
 }

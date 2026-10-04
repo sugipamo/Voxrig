@@ -1,23 +1,19 @@
 {
-  "authority": "Untouched original native DataComponentType registry, component/patch/item and four clientbound packet stream codecs.",
-  "component_roundtrips": 518,
-  "component_types": 104,
-  "failed_requests": [],
+  "authority": "Unmodified original native registry and actual stream-codec object compositions, including resolved recursion and original static dispatcher branches. Encoded-boundary facts, not method bodies or semantic/gameplay parity.",
+  "codec_nodes": 651,
+  "component_roots": 104,
   "files_sha256": {
-    "data/client_api/item_component_cases-1.21.11.json": "d9e3580aedb274aa6f7df087869917703e9de0ca88e1e57edb23ab1703a613fa",
-    "data/client_api/item_components-1.21.11.json": "5f3452aa05267683b0405a998e9b118b5e4d20c82f2ae1ca892c257e3e58c291"
+    "data/client_api/item_component_schema-1.21.11.json": "daca9c75291d430e50fca686b0dd22d60c3674e894449fbfd9a0a7106a9b611e"
   },
   "generated_compiler_sha256": "492d7b8f71d81de7d5906246a17a5d3e81a9a382894780a385e9b0b92bedea65",
   "generators_sha256": {
-    "data/client_api/item_component_requests-1.21.11.json": "66bbec26eb2a0532dd393275fa348f70ccdd67a1143313374d38f5c1205c0581",
     "scripts/ExportInventoryTransfers.java": "6c3208f45290c535ac510db4d0a308c944bd601331d61b577ab5235744db8806",
-    "scripts/ExportItemComponents.java": "73f958c666f849b0d14d3676e89fdf5b861f4c959bde58df04aeab54c9d6a75f",
+    "scripts/ExportItemComponentSchema.java": "cd8d1dd209935f79d897cd1d118487a171fb928cba2bc785242b890794e48c30",
+    "scripts/export_item_component_schema.py": "22bed3b760475623692e2fc7738518d38f5cb1304bb4f0fe28b780f75d075ddd",
     "scripts/export_item_components.py": "88696905bdb6b2d346c86b37e6b4d13779bd240d254ae91857b704d45e5bc029",
     "scripts/export_regular_clicks.py": "00f974491dbfc30a1d947521627229ca320ec77c1c17bcc56b641bf50a707cde"
   },
-  "item_roundtrips": 518,
   "mappings_sha256": "7ffd98f77f403043748d56467aac287a58f8187a27d5d6b7ebcac70042b02b1c",
-  "mixed_patch_roundtrips": 1,
   "original_classpath_entries_sha256": {
     "09a152617bd23c86bf59db1f9ba82ede23ec8f691a824d6c5dec4f0175f82aa4": "com/mojang/authlib/7.0.61/authlib-7.0.61.jar",
     "1de8ff91b90fba9d4896b8617ed3594c2e4390d321d5a92c34f80e62e406c1b0": "at/yawk/lz4/lz4-java/1.8.1/lz4-java-1.8.1.jar",
@@ -61,14 +57,6 @@
     "faffe8c867d59f813fb4bd1edf5354bfe86125811a7c9b305e5d225da8e7ea54": "org/apache/logging/log4j/log4j-slf4j2-impl/2.25.2/log4j-slf4j2-impl-2.25.2.jar"
   },
   "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
-  "packet_roundtrips": 2590,
-  "raw_output_sha256": "8e57a819cce61ea584238deb0f4cb0f61ea1728e1780bd754c75458bf3984c8e",
-  "registry_binding_fixture_count": 133,
-  "registry_context": "Original trusted vanilla pack repository, ResourceManager, RegistryDataLoader WORLDGEN_REGISTRIES, original tag loading/binding, frozen original registries. No fabricated holder IDs or substituted game methods.",
-  "removal_roundtrips": 104,
-  "schema": 1,
-  "scope": "All 104 original component value compositions exercised by persistent requests, original item prototypes and native enum samples. Original vanilla resource/registry/tag loaders establish the oracle buffer context; each codec decoded and reencoded exactly. Default fixture registry IDs are not bindings for an arbitrary live connection. Not live receipt, semantic normalization or gameplay parity proof.",
-  "vanilla_pack_selection": [
-    "vanilla"
-  ]
+  "raw_output_sha256": "b3f2b7971b304e63eba60961cc83c0495334cb90eb283978b65e8972735bd560",
+  "schema": 1
 }

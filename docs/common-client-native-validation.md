@@ -203,6 +203,16 @@ RCONは個数保持、dropなし、空で閉じたbarrel、位置・向き不変
 範囲・再現手順と残作業は[共通item data](common-item-data.md)、実行時の入力hashと
 以前の失敗は[item data native evidence](../data/client_api/item_data_native_evidence.json)を参照。
 
+追加のmodern fixtureは名前付き入れ子item、実エンチャント、本の本文を同時に含む。
+同じ公開Clientで両modeのfresh slot/patchを受信し、独立RCONが入れ子の個数/marker、
+enchantment level、本文と位置/回転不変を確認した。通常の在庫変更をClientから送っていない。
+legacyも同じconsumerで再実行し、両版の既存全workflowも成功した。
+最初のmodern試験は自作marker照合のlength誤りで失敗し、その元report/hashを保持した。
+修正後は両JVM exit 0、trace error/未配達0で完了した。
+実行時入力と結果は[complex item data evidence](../data/client_api/item_data_complex_native_evidence.json)。
+これは元データの受信検証で、実接続のregistry参照解決・意味の正規化やdata付きitem操作を
+実装済みとする証拠ではない。
+
 追加試験は同値pose再受信の誤拒否と、modernの新しいposition公開がteleport確認より先だった競合を発見した。
 前者は同じ実位置・向きを比較して履歴ordinalを保持し、後者はoriginal確認/position応答の完全送信までstate lockを保持する。
 writerを止めたtransport回帰試験でnormal lookが確認packetを追い越さないことを確認する。

@@ -837,13 +837,19 @@ network-compression-threshold=256
             result["fixture"]["clear"] = rcon.command("clear UnifiedProbe")
             command = (f'replaceitem entity UnifiedProbe inventory.0 minecraft:stone{{VoxrigProbe:{marker},display:{{Name:\'{{"text":"{observed_name}"}}\'}}}} {count}'
                        if version == "1.16.1" else
-                       f'item replace entity UnifiedProbe inventory.0 with minecraft:stone[custom_data={{VoxrigProbe:{marker}}},custom_name={{text:"{observed_name}"}}] {count}')
+                       f'item replace entity UnifiedProbe inventory.0 with minecraft:stone[custom_data={{VoxrigProbe:{marker}}},custom_name={{text:"{observed_name}"}},bundle_contents=[{{id:"minecraft:stone",count:2,components:{{"minecraft:custom_name":"NestedProbe","minecraft:custom_data":{{VoxrigNestedProbe:19}}}}}}],enchantments={{"minecraft:unbreaking":2}},written_book_content={{title:"VoxrigBook",author:"Voxrig",pages:["ComplexProbe"],resolved:true}}] {count}')
             result["fixture"]["item"] = rcon.command(command)
             result["native_inventory"] = until(lambda: inventory_matches({9:("minecraft:stone",count)}))
             path = "tag" if version == "1.16.1" else 'components."minecraft:custom_data"'
             result["native_marker"] = until(lambda:matched(rcon.command(f'data get entity UnifiedProbe Inventory[{{Slot:9b}}].{path}.VoxrigProbe'),rf'\b{marker}\b'))
             name_path = "tag.display.Name" if version == "1.16.1" else 'components."minecraft:custom_name"'
             result["native_name"] = until(lambda:matched(rcon.command(f'data get entity UnifiedProbe Inventory[{{Slot:9b}}].{name_path}'),observed_name))
+            if version == "1.21.11":
+                component_path='Inventory[{Slot:9b}].components.'
+                result["native_nested_marker"]=until(lambda:matched(rcon.command('data get entity UnifiedProbe '+component_path+'"minecraft:bundle_contents"[0].components."minecraft:custom_data".VoxrigNestedProbe'),r'\b19\b'))
+                result["native_nested_count"]=until(lambda:matched(rcon.command('data get entity UnifiedProbe '+component_path+'"minecraft:bundle_contents"[0].count'),r'\b2\b'))
+                result["native_enchantment"]=until(lambda:matched(rcon.command('data get entity UnifiedProbe '+component_path+'"minecraft:enchantments"."minecraft:unbreaking"'),r'\b2\b'))
+                result["native_book"]=until(lambda:matched(rcon.command('data get entity UnifiedProbe '+component_path+'"minecraft:written_book_content"'), 'ComplexProbe'))
             marker_key = b"VoxrigProbe"
             encoded_marker = bytes([3])+len(marker_key).to_bytes(2,"big")+marker_key+marker.to_bytes(4,"big",signed=True)
             def received_item_data():
@@ -863,8 +869,14 @@ network-compression-threshold=256
                     if data["kind"] != "modern_components": return None
                     patch = data["patch"]
                     added = {c["definition"]["name"]:c for c in patch["added"]}
-                    if set(added) != {"minecraft:custom_data", "minecraft:custom_name"} or patch["removed"]: return None
+                    if set(added) != {"minecraft:custom_data", "minecraft:custom_name", "minecraft:bundle_contents", "minecraft:enchantments", "minecraft:written_book_content"} or patch["removed"]: return None
                     if encoded_marker not in bytes(added["minecraft:custom_data"]["bytes"]) or observed_name.encode() not in bytes(added["minecraft:custom_name"]["bytes"]): return None
+                    nested=bytes(added["minecraft:bundle_contents"]["bytes"])
+                    nested_key=b"VoxrigNestedProbe"
+                    encoded_nested=bytes([3])+len(nested_key).to_bytes(2,"big")+nested_key+(19).to_bytes(4,"big")
+                    if b"NestedProbe" not in nested or encoded_nested not in nested: return None
+                    if b"ComplexProbe" not in bytes(added["minecraft:written_book_content"]["bytes"]): return None
+                    if not added["minecraft:enchantments"]["bytes"]: return None
                 return player
             result["received"] = until(received_item_data)
             result["position_after"] = rcon.command("data get entity UnifiedProbe Pos")
@@ -875,7 +887,7 @@ network-compression-threshold=256
             mutation_ids = (0x09,0x0a,0x27) if version == "1.16.1" else (0x11,0x12,0x37)
             if any(f["direction"] == "serverbound" and f["packet_id"] in mutation_ids for f in result["frames"]):
                 raise RuntimeError("read-only item-data observation wrote inventory/close frames")
-            result["authority_limits"] = "Same public Client observation receives fresh exact item identity/count and original legacy NBT or modern custom_data/custom_name patch, separately confirmed by native RCON fields and unchanged pose. Read-only original frames contain no outgoing click/close/creative-slot mutation. This does not establish component-bearing item operations or arbitrary component parity."
+            result["authority_limits"] = "Same public Client observation receives fresh exact item identity/count and original legacy NBT or modern custom-data/name, nested named item, registry-referencing enchantment and book patch. Independent RCON fields confirm values and unchanged pose. Read-only original frames contain no outgoing click/close/creative-slot mutation. Raw reference retention does not resolve arbitrary live registry bindings or authorize component-bearing gameplay."
             result["fixture"]["clear_after"] = rcon.command("clear UnifiedProbe")
             result["fixture"]["restore"] = rcon.command("replaceitem entity UnifiedProbe inventory.0 minecraft:dirt 2" if version == "1.16.1" else "item replace entity UnifiedProbe inventory.0 with minecraft:dirt 2")
         trace.expect_disconnect()

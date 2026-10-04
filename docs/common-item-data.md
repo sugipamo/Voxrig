@@ -53,20 +53,24 @@ registryへの掲載と値codecの実装状況は別である。
 
 ## 現在の受信範囲
 
-modernの追加値は、公式codecへ照合した52型に対応する。
-scalar・unit・NBT形式の値、各native enum、lore、custom model data、tooltip display、
-block-state property map、use effects、weapon、cooldownを元bytesのまま保持する。
-custom data/NBTと名前を含むtext componentも全payloadを保存する。
-削除patchは全104型に対応する。追加/削除の重複、未知ID、過大count、truncation、
-不正なbooleanやNBT、1 MiBを超えるpatchは拒否する。
+modernの追加値・削除patchは、公式1.21.11の全104型の値境界に対応する。
+scalar・unit・NBT、native enum、struct・optional・list/map、registry参照、
+名前付き入れ子item、effectの再帰、predicate/表示形式のdispatcherを元bytesで保持する。
+公式codecの組み合わせを651 nodeの固定schemaへ記録し、各型のnative classと照合する。
+追加/削除の重複、未知ID/dispatcher、過大count、truncation、不正なboolean/NBTは拒否する。
+値のbyte上限1 MiB、list/map上限65,536、共有work budget65,536、codec深さ256を設ける。
+この制限を超える受信を部分的な既知itemとして公開しない。
 
 通常のclientbound item codecにはcomponentごとの長さがない。
 slotの末尾やpacket残部を一つのopaque値として扱うと、後続slot/cursorまで取り込んでしまう。
 対応値は型別に境界を読み取り、元bytesを保存してから後続fieldへ進む。
-bundle/charged projectiles/containerなどの再帰的なitem、動的registry参照や
-その他の構造化componentの一般codecは残作業。
-既知だがまだ境界を読めない値では、従来どおり影響するbaselineを欠測にする。
-通常full-content受信での部分更新は行わない。
+bundle/charged projectiles/containerは後続slotまで取り込まず、各入れ子itemのID・patchを
+同じbudget内で読み取る。原形を保持するため、入れ子値も外側componentの元bytesへ含める。
+
+registry参照は元の数値/inline/tag表現を保持する。
+現在の接続のdatapackによる名前・値への解決や、predicate/属性の意味の検証とは別である。
+検証fixtureのvanilla registry IDsを実接続へ注入したり、名前を推測したりしない。
+prototypeとの統合、一般NBT/text等価性、hash・容量・slot規則と共通property getterは残作業。
 
 この段階は受信・保持を追加する。既存のdefault-onlyクリック/転送/返却/設置等が、
 component付きstackをdefaultと扱うことはない。
@@ -76,13 +80,15 @@ component付きitemの操作、任意legacy NBTの操作、crafting等は後続�
 ## 独立検証
 
 `data/client_api/item_components-1.21.11.json`は未変更公式JARの実registry。
-`item_component_cases-1.21.11.json`は全104 removal patch、95 component/item codec往復、
-475 clientbound packet往復と複数型のmixed patchを保存する。
-候補JSONは公式persistent codecでnative値に変換し、transient enumは元のby-ID関数で取得する。
+`item_component_cases-1.21.11.json`は全104 removal patch、518 component/item codec往復、
+2,590 clientbound packet往復と複数型のmixed patchを保存する。
+候補JSONは公式vanilla resource・registry・tag loaderの元contextでnative値に変換する。
+実itemのprototypeも元native値として取得し、transient enumは元のby-ID関数で取得する。
+保存した133 registryのID/名前はこのdefault vanilla fixtureの事実で、任意実接続のbindingではない。
 codecは元のdecode/reencodeで全bytes一致と末尾消費を確認する。
 game method、JAR、codecを置き換えない。codec往復と、下記の実サーバー上の受信workflowは別の証拠。
 
-Rust側では52型の値と全removal/mixed patchを照合し、470対応packetについて
+Rust側では全104型の値と全removal/mixed patchを照合し、2,590 packetについて
 player/storage slot・後続item・cursor・元の受信ordinalと全prefix/trailing拒否を検査する。
 別の共通Client consumerはlegacy NBTとmodern patchを同じ公開読み出しで検査する。
 
@@ -117,3 +123,21 @@ PYTHONDONTWRITEBYTECODE=1 python3 scripts/export_item_components.py \
 `--normalize-only --check`は保存済みraw出力とpackage data/source digestを照合する。
 公式JAR・mapping・classpath、元requestと自作generatorのhashは
 `data/client_api/item_component_source.json`へ束縛する。
+
+
+追加の実ゲーム試験では、同じClientと両modeでmodernの名前付き入れ子item、
+実エンチャント、本の本文も同時に受信し、個数・marker・level・本文をRCONへ照合した。
+元SET_SLOTを再decodeして公開patchの全bytesと照合する。
+実入力hashと先行fixture照合の失敗は
+[`item_data_complex_native_evidence.json`](../data/client_api/item_data_complex_native_evidence.json)へ保存した。
+
+固定schemaの組み合わせ・再帰先・元dispatcher全branchは
+`item_component_schema-1.21.11.json`と`item_component_schema_source.json`に束縛する。
+元のmethod bodyは配布しない。再生成は下記を使い、保存rawからの照合は`--normalize-only --check`。
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 python3 scripts/export_item_component_schema.py \
+  --downloads .local/native-client-unification/downloads \
+  --modern-classpath-file .local/integration-validation/client-api-unification/storage-outline-modern-classpath.txt \
+  --runtime-output .local/integration-validation/client-api-unification/item-data-schema-oracle/current
+```

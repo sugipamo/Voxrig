@@ -275,3 +275,12 @@ observations and independent RCON facts from sequential unmodified vanilla
 failed attempts document the limited named-item/custom-data reception scope.
 Original game binaries, libraries, method bodies and disposable worlds are
 excluded from the package; these facts do not relicense Minecraft.
+
+`item_component_schema-1.21.11.json` records factual stream-codec compositions,
+resolved recursion and original dispatcher branches observed by the own
+`ExportItemComponentSchema.java` reflection tool. The schema contains encoded
+field boundaries, not decompiled method bodies. Component fixture generation
+now invokes original vanilla resource, registry and tag loaders and records
+actual native item-prototype values; fixture registry IDs are not universal
+bindings for arbitrary servers. `item_data_complex_native_evidence.json` retains
+separate original live observations and the earlier failed own-marker check.

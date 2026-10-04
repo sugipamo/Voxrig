@@ -36,16 +36,12 @@ fn opened(mut state: State) -> State {
 #[test]
 fn original_item_packets_preserve_components_following_slots_cursor_and_received_ordinals() {
     let corpus = corpus();
-    assert_eq!(corpus["stacks"].as_array().unwrap().len(), 95);
+    assert_eq!(corpus["stacks"].as_array().unwrap().len(), 518);
     let mut applied = 0;
     for sample in corpus["stacks"].as_array().unwrap() {
         let bytes = hex::decode(sample["stack_hex"].as_str().unwrap()).unwrap();
         let mut reader = Reader::new(&bytes);
         let expected = slot(&mut reader).unwrap();
-        if sample["name"] == "minecraft:bundle_contents" {
-            assert!(expected.is_none());
-            continue;
-        }
         reader.end().unwrap();
         let expected = expected.unwrap();
         let expected_common = common_slot(&expected).unwrap();
@@ -155,5 +151,5 @@ fn original_item_packets_preserve_components_following_slots_cursor_and_received
             applied += 1;
         }
     }
-    assert_eq!(applied, 470);
+    assert_eq!(applied, 2_590);
 }
