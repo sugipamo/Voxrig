@@ -682,6 +682,15 @@ impl Operations {
                 "common inventory swap unresolved; inspect retained record without replay",
             ));
         }
+        if state
+            .common_inventory_click
+            .as_ref()
+            .is_some_and(|s| s.unresolved())
+        {
+            return Err(crate::client::inventory::unavailable(
+                "common inventory click unresolved; inspect without replay",
+            ));
+        }
         if !state.loading.notification_dispatched() {
             return Err(Error::new(
                 ErrorKind::State,
@@ -1130,6 +1139,10 @@ impl Operations {
                 || state.common_inventory_swap.as_ref().is_some_and(|s| {
                     s.record.stage != crate::client::inventory::InventorySwapStage::ObservedSwapped
                 })
+                || state
+                    .common_inventory_click
+                    .as_ref()
+                    .is_some_and(|s| s.unresolved())
                 || !inventory.pending_creative.is_empty()
                 || inventory.pending_swap.is_some()
                 || state.motion.position_basis == PositionBasis::PendingSubmission

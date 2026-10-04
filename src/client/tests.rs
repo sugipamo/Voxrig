@@ -921,3 +921,89 @@ pub(crate) async fn common_placement_completed_scenario(
     client.survival().select_hotbar(0).await.unwrap();
     record
 }
+
+pub(crate) async fn common_pickup_start_scenario(
+    client: &Client,
+    mode: GameMode,
+    source: inventory::InventoryClickSource,
+    slot: u16,
+    button: inventory::InventoryClickButton,
+) -> inventory::InventoryClickRecord {
+    use inventory::InventoryClickStage;
+    let record = match mode {
+        GameMode::Survival => client
+            .survival()
+            .click_inventory(source, slot, button)
+            .await
+            .unwrap(),
+        GameMode::Creative => client
+            .creative()
+            .click_inventory(source, slot, button)
+            .await
+            .unwrap(),
+        _ => unreachable!(),
+    };
+    assert!(record.send.dispatched);
+    assert_eq!(record.stage, InventoryClickStage::Pending);
+    assert_eq!(record.button, button);
+    assert!(matches!(
+        record.source_before.source,
+        ValueSource::Received { .. }
+    ));
+    assert!(matches!(
+        record.cursor_before.source,
+        ValueSource::Received { .. }
+    ));
+    assert_eq!(record.prediction.source.source, ValueSource::Predicted);
+    assert_eq!(record.prediction.cursor.source, ValueSource::Predicted);
+    assert!(record.source_receipt.is_none() && record.cursor_receipt.is_none());
+    assert!(
+        client
+            .survival()
+            .click_inventory(source, slot, button)
+            .await
+            .is_err()
+    );
+    assert!(
+        client
+            .creative()
+            .click_inventory(source, slot, button)
+            .await
+            .is_err()
+    );
+    record
+}
+pub(crate) async fn common_pickup_complete_scenario(
+    client: &Client,
+    id: inventory::InventoryClickId,
+) -> inventory::InventoryClickRecord {
+    let record = client
+        .survival()
+        .inventory_click_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(record.id, id);
+    assert_eq!(
+        record.stage,
+        inventory::InventoryClickStage::ObservedClicked,
+        "{record:#?}"
+    );
+    assert!(record.requires_inspection.is_none());
+    for (receipt, prediction) in [
+        (
+            record.source_receipt.as_ref().unwrap(),
+            &record.prediction.source,
+        ),
+        (
+            record.cursor_receipt.as_ref().unwrap(),
+            &record.prediction.cursor,
+        ),
+    ] {
+        assert_eq!(receipt.value, prediction.value);
+        assert!(
+            matches!(receipt.source, ValueSource::Received { sequence } if sequence > record.send.after_sequence)
+        );
+    }
+    record
+}

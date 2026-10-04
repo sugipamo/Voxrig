@@ -30,7 +30,9 @@ pub mod prelude {
         ContainerOpenTargetState, ContainerScreen, PlayerScreenAccess, ScreenId, ScreenObservation,
     };
     pub use super::inventory::{
-        InventorySwapId, InventorySwapRecord, InventorySwapSource, InventorySwapStage,
+        InventoryClickButton, InventoryClickId, InventoryClickRecord, InventoryClickSource,
+        InventoryClickStage, InventorySwapId, InventorySwapRecord, InventorySwapSource,
+        InventorySwapStage,
     };
     pub use super::survival::{
         BlockTargetHit, BlockTargetObservation, MiningId, MiningRecord, MiningStage, MotionPreview,

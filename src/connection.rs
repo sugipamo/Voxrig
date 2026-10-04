@@ -255,6 +255,32 @@ impl Client {
             Adapter::Java1_21_11(bot) => bot.operations().common_container_close_record().await,
         }
     }
+    pub(crate) async fn common_click_inventory(
+        &self,
+        mode: crate::client::GameMode,
+        source: crate::client::inventory::InventoryClickSource,
+        slot: u16,
+        button: crate::client::inventory::InventoryClickButton,
+    ) -> Result<crate::client::inventory::InventoryClickRecord> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => {
+                bot.common_click_inventory(mode, source, slot, button).await
+            }
+            Adapter::Java1_21_11(bot) => {
+                bot.operations()
+                    .common_click_inventory(mode, source, slot, button)
+                    .await
+            }
+        }
+    }
+    pub(crate) async fn common_inventory_click_record(
+        &self,
+    ) -> Result<Option<crate::client::inventory::InventoryClickRecord>> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_inventory_click_record().await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_inventory_click_record().await,
+        }
+    }
     pub(crate) async fn common_swap_hotbar(
         &self,
         mode: crate::client::GameMode,

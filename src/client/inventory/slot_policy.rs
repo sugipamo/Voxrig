@@ -15,6 +15,7 @@ struct ItemCapacity {
     name: String,
     maximum_stack_size: u32,
     represents_empty: bool,
+    ordinary_pickup: bool,
 }
 #[derive(serde::Deserialize)]
 struct Menu {
@@ -58,6 +59,134 @@ pub(crate) fn default_item_capacity(version: MinecraftVersion, id: i32, name: &s
         .iter()
         .find(|i| i.native_id == id && i.name == name && !i.represents_empty)
         .map(|i| i.maximum_stack_size)
+}
+
+/// Ordinary default-item PICKUP only; item overrides require separate adapters.
+pub(super) fn pickup(
+    version: MinecraftVersion,
+    menu_name: &str,
+    source_slot: usize,
+    button: super::InventoryClickButton,
+    source: &SlotKnowledge,
+    cursor: &SlotKnowledge,
+) -> Result<(SlotKnowledge, SlotKnowledge)> {
+    use crate::client::{ItemData, registry::Registry};
+    let profiles = profiles(version);
+    let slot = profiles
+        .menus
+        .iter()
+        .find(|m| m.name == menu_name)
+        .and_then(|m| m.slots.iter().find(|s| s.slot == source_slot))
+        .and_then(|s| profiles.slot_policies.get(s.policy))
+        .ok_or_else(|| unavailable("native PICKUP slot policy unavailable; update Voxrig"))?;
+    let validate = |value: &SlotKnowledge| -> Result<Option<u32>> {
+        match value {
+            SlotKnowledge::Empty => Ok(None),
+            SlotKnowledge::Unavailable => Err(unavailable("PICKUP predecessor unavailable")),
+            SlotKnowledge::Item { item } => {
+                let definition = Registry::for_version(version).item(&item.name)?;
+                let profile = profiles
+                    .items
+                    .iter()
+                    .find(|p| p.native_id == item.id.value() && p.name == item.name)
+                    .filter(|p| !p.represents_empty)
+                    .ok_or_else(|| {
+                        crate::client::registry::invalid("native PICKUP item identity unavailable")
+                    })?;
+                if item.id != definition.id
+                    || item.count == 0
+                    || item.count > profile.maximum_stack_size
+                {
+                    return Err(crate::client::registry::invalid(
+                        "PICKUP requires valid version-bound item counts",
+                    ));
+                }
+                if item.data != ItemData::Default || !profile.ordinary_pickup {
+                    return Err(crate::Error::new(
+                        crate::ErrorKind::Unsupported,
+                        anyhow::anyhow!(
+                            "PICKUP item data/override requires additional adapter support"
+                        ),
+                    ));
+                }
+                Ok(Some(profile.maximum_stack_size))
+            }
+        }
+    };
+    let source_max = validate(source)?;
+    let cursor_max = validate(cursor)?;
+    let counted = |value: &SlotKnowledge, count: u32| -> SlotKnowledge {
+        if count == 0 {
+            SlotKnowledge::Empty
+        } else {
+            let SlotKnowledge::Item { item } = value else {
+                unreachable!()
+            };
+            let mut item = item.clone();
+            item.count = count;
+            SlotKnowledge::Item { item }
+        }
+    };
+    let right = button == super::InventoryClickButton::Right;
+    let (result_source, result_cursor) = match (source, cursor) {
+        (SlotKnowledge::Empty, SlotKnowledge::Empty) => (source.clone(), cursor.clone()),
+        (SlotKnowledge::Item { item }, SlotKnowledge::Empty) if slot.may_pickup => {
+            let take = if right {
+                item.count.div_ceil(2)
+            } else {
+                item.count
+            };
+            (counted(source, item.count - take), counted(source, take))
+        }
+        (_, SlotKnowledge::Item { item: incoming }) => {
+            let may_place = !slot.rejected_default_items.contains(&incoming.name);
+            let capacity = slot.base_capacity.min(cursor_max.expect("validated item"));
+            match source {
+                SlotKnowledge::Empty if may_place => {
+                    let take = incoming.count.min(if right { 1 } else { capacity });
+                    (
+                        counted(cursor, take),
+                        counted(cursor, incoming.count - take),
+                    )
+                }
+                SlotKnowledge::Item { item: existing } => {
+                    let same = existing.id == incoming.id
+                        && existing.name == incoming.name
+                        && existing.data == incoming.data;
+                    if same && may_place {
+                        let room = capacity.saturating_sub(existing.count);
+                        let take = incoming
+                            .count
+                            .min(room)
+                            .min(if right { 1 } else { u32::MAX });
+                        (
+                            counted(source, existing.count + take),
+                            counted(cursor, incoming.count - take),
+                        )
+                    } else if !same && may_place && slot.may_pickup && incoming.count <= capacity {
+                        (cursor.clone(), source.clone())
+                    } else if same
+                        && !may_place
+                        && slot.may_pickup
+                        && existing.count
+                            <= source_max
+                                .expect("validated item")
+                                .saturating_sub(incoming.count)
+                    {
+                        (
+                            SlotKnowledge::Empty,
+                            counted(cursor, incoming.count + existing.count),
+                        )
+                    } else {
+                        (source.clone(), cursor.clone())
+                    }
+                }
+                _ => (source.clone(), cursor.clone()),
+            }
+        }
+        _ => (source.clone(), cursor.clone()),
+    };
+    Ok((result_source, result_cursor))
 }
 
 /// Whole SWAP only: a native partial insertion would require different receipts.
@@ -166,6 +295,126 @@ mod tests {
             .read_to_string(&mut decoded)
             .unwrap();
         serde_json::from_str(&decoded).unwrap()
+    }
+    #[test]
+    fn pickup_predictions_match_every_original_native_valid_default_case() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let data = cases(version);
+            for case in data["cases"].as_array().unwrap() {
+                let source = value(version, &case["source_before"]);
+                let cursor = value(version, &case["cursor_before"]);
+                let result = pickup(
+                    version,
+                    case["menu"].as_str().unwrap(),
+                    case["slot"].as_u64().unwrap() as usize,
+                    if case["button"] == 0 {
+                        super::super::InventoryClickButton::Left
+                    } else {
+                        super::super::InventoryClickButton::Right
+                    },
+                    &source,
+                    &cursor,
+                );
+                if case["valid_default_counts"] == false {
+                    assert!(result.is_err(), "{version:?} {case}");
+                    continue;
+                }
+                assert_eq!(
+                    result.unwrap(),
+                    (
+                        value(version, &case["source_after"]),
+                        value(version, &case["cursor_after"])
+                    ),
+                    "{version:?} {case}"
+                );
+            }
+        }
+    }
+    #[test]
+    fn pickup_rejects_nondefault_identity_and_count_without_normalizing_received_stack() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let mut item = value(
+                version,
+                &serde_json::json!({"item":"minecraft:stone","count":1}),
+            );
+            if let SlotKnowledge::Item { item } = &mut item {
+                item.count = 65;
+            }
+            assert!(
+                pickup(
+                    version,
+                    "minecraft:player",
+                    9,
+                    super::super::InventoryClickButton::Left,
+                    &item,
+                    &SlotKnowledge::Empty
+                )
+                .is_err()
+            );
+            if let SlotKnowledge::Item { item } = &mut item {
+                item.count = 1;
+                item.data = ItemData::LegacyNbt { bytes: vec![0] };
+            }
+            assert_eq!(
+                pickup(
+                    version,
+                    "minecraft:player",
+                    9,
+                    super::super::InventoryClickButton::Left,
+                    &item,
+                    &SlotKnowledge::Empty
+                )
+                .unwrap_err()
+                .kind(),
+                crate::ErrorKind::Unsupported
+            );
+            if let SlotKnowledge::Item { item } = &mut item {
+                item.data = ItemData::Default;
+                item.id = Registry::for_version(version)
+                    .item("minecraft:dirt")
+                    .unwrap()
+                    .id;
+            }
+            assert!(
+                pickup(
+                    version,
+                    "minecraft:player",
+                    9,
+                    super::super::InventoryClickButton::Left,
+                    &item,
+                    &SlotKnowledge::Empty
+                )
+                .is_err()
+            );
+        }
+        for profile in profiles(MinecraftVersion::Java1_21_11)
+            .items
+            .iter()
+            .filter(|p| !p.ordinary_pickup && !p.represents_empty)
+        {
+            let item = value(
+                MinecraftVersion::Java1_21_11,
+                &serde_json::json!({"item":profile.name,"count":1}),
+            );
+            for (source, cursor) in [
+                (&item, &SlotKnowledge::Empty),
+                (&SlotKnowledge::Empty, &item),
+            ] {
+                assert_eq!(
+                    pickup(
+                        MinecraftVersion::Java1_21_11,
+                        "minecraft:player",
+                        9,
+                        super::super::InventoryClickButton::Left,
+                        source,
+                        cursor
+                    )
+                    .unwrap_err()
+                    .kind(),
+                    crate::ErrorKind::Unsupported
+                );
+            }
+        }
     }
     #[test]
     fn admission_matches_all_original_native_whole_swaps_including_slot_refusal() {

@@ -682,6 +682,224 @@ mod tests {
         drop(bot);
         server.await.unwrap();
     }
+    #[tokio::test]
+    async fn ordinary_pickup_both_modes_player_storage_and_appended_player_require_cursor_and_reply()
+     {
+        use contract::{
+            InventoryClickButton as Button, InventoryClickSource as Source,
+            InventoryClickStage as Stage,
+        };
+        for mode in [api::GameMode::Survival, api::GameMode::Creative] {
+            for storage_slot in [None, Some(0), Some(54)] {
+                let (bot, mut packets, release, server) =
+                    super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+                if storage_slot.is_some() {
+                    seed_container(&bot).await;
+                } else {
+                    seed(&bot).await;
+                }
+                if mode == api::GameMode::Creative {
+                    let mut p = vec![3];
+                    p.extend(1f32.to_be_bytes());
+                    bot.apply_packet(0x1e, p).await.unwrap();
+                }
+                let client = crate::Client::from_java_1_16_1(bot.clone());
+                let source = if storage_slot.is_some() {
+                    Source::Container {
+                        screen: client.screen_state().await.unwrap().screen.unwrap().id,
+                    }
+                } else {
+                    Source::Player
+                };
+                let index = storage_slot.unwrap_or(9);
+                let first = if storage_slot == Some(54) {
+                    Button::Left
+                } else {
+                    Button::Right
+                };
+                for button in [first, Button::Right, Button::Left] {
+                    let record = api::tests::common_pickup_start_scenario(
+                        &client, mode, source, index, button,
+                    )
+                    .await;
+                    let packet = loop {
+                        let p = packets.recv().await.unwrap();
+                        if p.0 == 0x09 {
+                            break p;
+                        }
+                    };
+                    assert_eq!(packet.1[0], record.window_id() as u8);
+                    assert_eq!(packet.1[3], button.native());
+                    assert_eq!(packet.1[6], 0);
+                    if let Some(index) = storage_slot {
+                        container_slot(&bot, index as i16, &record.prediction.source.value).await;
+                    } else {
+                        slot(&bot, 9, &record.prediction.source.value, false).await;
+                    }
+                    assert_eq!(
+                        client
+                            .survival()
+                            .inventory_click_record()
+                            .await
+                            .unwrap()
+                            .unwrap()
+                            .stage,
+                        Stage::Pending
+                    );
+                    let mut p = vec![255, 255, 255];
+                    let native = match &record.prediction.cursor.value {
+                        api::SlotKnowledge::Empty => None,
+                        api::SlotKnowledge::Item { item } => Some(ItemStack {
+                            item_id: item.id.value(),
+                            count: item.count as i8,
+                            nbt: None,
+                        }),
+                        _ => unreachable!(),
+                    };
+                    write_slot(&mut p, native.as_ref());
+                    bot.apply_packet(0x16, p).await.unwrap();
+                    assert_eq!(
+                        client
+                            .survival()
+                            .inventory_click_record()
+                            .await
+                            .unwrap()
+                            .unwrap()
+                            .stage,
+                        Stage::Pending
+                    );
+                    let mut p = vec![record.window_id() as u8];
+                    p.extend(record.send.legacy_action.unwrap().to_be_bytes());
+                    p.push(0);
+                    bot.apply_packet(0x12, p).await.unwrap();
+                    let complete =
+                        api::tests::common_pickup_complete_scenario(&client, record.id).await;
+                    assert!(!complete.legacy_reply.unwrap().accepted);
+                }
+                assert!(matches!(
+                    client
+                        .player_state()
+                        .await
+                        .unwrap()
+                        .inventory
+                        .cursor
+                        .unwrap()
+                        .value,
+                    api::SlotKnowledge::Empty
+                ));
+                bot.disconnect().await.unwrap();
+                assert_eq!(
+                    client
+                        .survival()
+                        .inventory_click_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .stage,
+                    Stage::ObservedClicked
+                );
+                drop(release);
+                drop(client);
+                drop(bot);
+                server.await.unwrap();
+            }
+        }
+    }
+    #[tokio::test]
+    async fn ordinary_pickup_cancelled_caller_keeps_owned_write_and_record_is_prompt_behind_writer()
+    {
+        use contract::{
+            InventoryClickButton as Button, InventoryClickSource as Source,
+            InventoryClickStage as Stage,
+        };
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let writer = bot.writer.lock().await;
+        let ops = client.survival();
+        let waiter =
+            tokio::spawn(async move { ops.click_inventory(Source::Player, 9, Button::Left).await });
+        timeout(Duration::from_secs(1), async {
+            loop {
+                if bot
+                    .common_inventory_click
+                    .lock()
+                    .await
+                    .as_ref()
+                    .is_some_and(|s| s.record.send.legacy_action.is_some())
+                {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        let intent = timeout(
+            Duration::from_millis(100),
+            client.survival().inventory_click_record(),
+        )
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+        assert!(!intent.send.dispatched);
+        assert_eq!(intent.stage, Stage::Pending);
+        waiter.abort();
+        assert!(waiter.await.unwrap_err().is_cancelled());
+        drop(writer);
+        assert_eq!(
+            timeout(Duration::from_secs(1), packets.recv())
+                .await
+                .unwrap()
+                .unwrap()
+                .0,
+            0x09
+        );
+        timeout(Duration::from_secs(1), async {
+            while !bot
+                .common_inventory_click
+                .lock()
+                .await
+                .as_ref()
+                .unwrap()
+                .record
+                .send
+                .dispatched
+            {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert!(
+            client
+                .survival()
+                .click_inventory(Source::Player, 9, Button::Left)
+                .await
+                .is_err()
+        );
+        assert!(
+            timeout(Duration::from_millis(20), packets.recv())
+                .await
+                .is_err()
+        );
+        bot.disconnect().await.unwrap();
+        let retained = client
+            .survival()
+            .inventory_click_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(retained.id, intent.id);
+        assert!(retained.send.dispatched);
+        assert_eq!(retained.stage, Stage::RequiresInspection);
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
     async fn seed_container(bot: &Bot) {
         seed(bot).await;
         let mut open = vec![3, 2];

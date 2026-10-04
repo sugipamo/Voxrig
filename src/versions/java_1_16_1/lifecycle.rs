@@ -124,6 +124,8 @@ pub enum OperationAdmissionError {
     BoundedPlacementInProgress,
     /// A retained common inventory exchange owns ordinary gameplay dispatch.
     BoundedInventorySwapInProgress,
+    /// A retained common ordinary click owns gameplay dispatch.
+    BoundedInventoryClickInProgress,
     /// The operation belongs to a previous or different connection.
     StaleGeneration,
     /// The connection has not reached its initial ready boundary.
@@ -148,6 +150,9 @@ impl Display for OperationAdmissionError {
             }
             Self::BoundedMotionInProgress => "finite common motion owns gameplay dispatch",
             Self::BoundedPlacementInProgress => "retained common placement owns gameplay dispatch",
+            Self::BoundedInventoryClickInProgress => {
+                "retained common inventory click owns gameplay dispatch"
+            }
             Self::BoundedInventorySwapInProgress => {
                 "retained common inventory swap owns gameplay dispatch"
             }
@@ -239,6 +244,12 @@ pub(crate) enum TerminalClassification {
 enum Command {
     Motion(bounded_motion::MotionCommand),
     BeginInventorySwap {
+        run_id: u64,
+        expected_revision: u64,
+        window: i8,
+        reply: oneshot::Sender<Result<i16, OperationAdmissionError>>,
+    },
+    BeginInventoryClick {
         run_id: u64,
         expected_revision: u64,
         window: i8,
@@ -439,6 +450,26 @@ impl ConnectionActor {
                     } => {
                         let result = motion_gate
                             .begin_inventory_swap(
+                                (run_id, window),
+                                expected_revision,
+                                state,
+                                &actor_control,
+                                !pending_transactions.is_empty()
+                                    || pending_furnace_interaction
+                                        .is_some_and(|p| p.expires_at > Instant::now()),
+                                &mut next_actions,
+                            )
+                            .await;
+                        let _ = reply.send(result);
+                    }
+                    Command::BeginInventoryClick {
+                        run_id,
+                        expected_revision,
+                        window,
+                        reply,
+                    } => {
+                        let result = motion_gate
+                            .begin_inventory_click(
                                 (run_id, window),
                                 expected_revision,
                                 state,

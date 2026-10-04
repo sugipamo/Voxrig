@@ -1982,3 +1982,241 @@ async fn common_container_open_barrel_native_flag_change_is_distinct_from_facing
         f.stop().await;
     }
 }
+
+#[tokio::test]
+async fn ordinary_pickup_both_modes_player_storage_and_appended_player_require_actual_cursor() {
+    use crate::client::{
+        GameMode as Mode,
+        inventory::{
+            InventoryClickButton as Button, InventoryClickSource as Source,
+            InventoryClickStage as Stage,
+        },
+    };
+    for mode in [Mode::Survival, Mode::Creative] {
+        for storage_slot in [None, Some(0), Some(54)] {
+            let mut f = CommonFixture::new().await;
+            let source = if storage_slot.is_some() {
+                Source::Container {
+                    screen: f.open_swap_container().await,
+                }
+            } else {
+                Source::Player
+            };
+            // A small real predecessor makes split, one-place and all-return distinct.
+            if storage_slot.is_none() {
+                f.slot(9, plain("stone", 3)).await;
+            }
+            if mode == Mode::Creative {
+                let mut p = vec![3];
+                p.extend(1f32.to_be_bytes());
+                f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &p)
+                    .await;
+            }
+            let client = f.client();
+            let index = storage_slot.unwrap_or(9);
+            for button in [
+                if storage_slot == Some(54) {
+                    Button::Left
+                } else {
+                    Button::Right
+                },
+                Button::Right,
+                Button::Left,
+            ] {
+                let record = crate::client::tests::common_pickup_start_scenario(
+                    &client, mode, source, index, button,
+                )
+                .await;
+                let (id, p) = read_packet(&mut f.peer, None).await.unwrap();
+                assert_eq!(id, ids::play_serverbound::WINDOW_CLICK);
+                assert_eq!(p, super::click::payload(&record).unwrap());
+                let native = |value: &crate::client::SlotKnowledge| match value {
+                    crate::client::SlotKnowledge::Empty => InventorySlot::Empty,
+                    crate::client::SlotKnowledge::Item { item } => {
+                        plain(&item.name, item.count as u8)
+                    }
+                    _ => unreachable!(),
+                };
+                if storage_slot.is_some() {
+                    f.container_slot(index, native(&record.prediction.source.value))
+                        .await;
+                } else {
+                    f.slot(index, native(&record.prediction.source.value)).await;
+                }
+                assert_eq!(
+                    client
+                        .survival()
+                        .inventory_click_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .stage,
+                    Stage::Pending
+                );
+                let mut p = vec![];
+                put_slot(&mut p, &native(&record.prediction.cursor.value));
+                f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &p).await;
+                let complete =
+                    crate::client::tests::common_pickup_complete_scenario(&client, record.id).await;
+                assert!(complete.legacy_reply.is_none());
+            }
+            assert!(matches!(
+                client
+                    .player_state()
+                    .await
+                    .unwrap()
+                    .inventory
+                    .cursor
+                    .unwrap()
+                    .value,
+                crate::client::SlotKnowledge::Empty
+            ));
+            f.stop().await;
+            assert_eq!(
+                client
+                    .creative()
+                    .inventory_click_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .stage,
+                Stage::ObservedClicked
+            );
+        }
+    }
+}
+#[tokio::test]
+async fn ordinary_pickup_cancelled_before_full_write_retains_unsent_intent_and_latches_later_values()
+ {
+    use crate::client::inventory::{
+        InventoryClickButton as Button, InventoryClickSource as Source,
+        InventoryClickStage as Stage,
+    };
+    let mut f = CommonFixture::new().await;
+    let client = f.client();
+    let session = f.api.bot.session.clone();
+    let writer = session.writer.lock().await;
+    let survival = client.survival();
+    let mut send = Box::pin(survival.click_inventory(Source::Player, 9, Button::Left));
+    std::future::poll_fn(|cx| {
+        assert!(std::future::Future::poll(send.as_mut(), cx).is_pending());
+        std::task::Poll::Ready(())
+    })
+    .await;
+    drop(send);
+    drop(writer);
+    let retained = client
+        .survival()
+        .inventory_click_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(!retained.send.dispatched);
+    assert_eq!(retained.stage, Stage::Pending);
+    assert!(
+        client
+            .survival()
+            .click_inventory(Source::Player, 9, Button::Left)
+            .await
+            .is_err()
+    );
+    assert!(
+        timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.slot(9, InventorySlot::Empty).await;
+    let mut p = vec![];
+    put_slot(&mut p, &plain("stone", 32));
+    f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &p).await;
+    let record = client
+        .survival()
+        .inventory_click_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(record.id, retained.id);
+    assert!(!record.send.dispatched);
+    assert_eq!(record.stage, Stage::RequiresInspection);
+    assert!(record.source_receipt.is_none() && record.cursor_receipt.is_none());
+    f.stop().await;
+}
+#[tokio::test]
+async fn ordinary_pickup_native_bundle_override_refuses_before_record_or_io_and_default_remains_usable()
+ {
+    use crate::client::inventory::{
+        InventoryClickButton as Button, InventoryClickSource as Source,
+    };
+    let mut f = CommonFixture::new().await;
+    let client = f.client();
+    let mut p = vec![];
+    put_slot(&mut p, &plain("bundle", 1));
+    f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &p).await;
+    assert_eq!(
+        client
+            .survival()
+            .click_inventory(Source::Player, 9, Button::Left)
+            .await
+            .unwrap_err()
+            .kind(),
+        crate::ErrorKind::Unsupported
+    );
+    assert!(
+        client
+            .survival()
+            .inventory_click_record()
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &[0])
+        .await;
+    let record = client
+        .survival()
+        .click_inventory(Source::Player, 9, Button::Right)
+        .await
+        .unwrap();
+    assert!(record.send.dispatched);
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap().0,
+        ids::play_serverbound::WINDOW_CLICK
+    );
+    f.stop().await;
+}
+#[tokio::test]
+async fn ordinary_pickup_reused_numeric_opening_latches_conflict_even_when_expected_values_return()
+{
+    use crate::client::inventory::{
+        InventoryClickButton as Button, InventoryClickSource as Source,
+        InventoryClickStage as Stage,
+    };
+    let mut f = CommonFixture::new().await;
+    let screen = f.open_swap_container().await;
+    let client = f.client();
+    let record = client
+        .survival()
+        .click_inventory(Source::Container { screen }, 0, Button::Right)
+        .await
+        .unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    let new = f.open_swap_container().await;
+    assert_ne!(screen, new);
+    f.container_slot(0, plain("stone", 1)).await;
+    let mut p = vec![];
+    put_slot(&mut p, &plain("stone", 2));
+    f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &p).await;
+    let retained = client
+        .survival()
+        .inventory_click_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(retained.id, record.id);
+    assert_eq!(retained.stage, Stage::RequiresInspection);
+    f.stop().await;
+}

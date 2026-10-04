@@ -464,6 +464,20 @@ network-compression-threshold=256
             raise RuntimeError("container observation changed native position")
         report["native_results"]["container_observation"] = {"opened_contents":native_open,"changed_contents":native_changed,"position_before":container_position,"position_after":container_after}
         report["native_results"]["container_swaps"] = {"survival_container":native_empty,"survival_inventory":native_taken,"creative_container":native_returned,"creative_inventory":native_return_inventory,"position_before":container_position,"position_after":container_after}
+        report["container_pickup_survival_mode"] = rcon.command("gamemode survival UnifiedProbe")
+        stage(probe,messages,"container_pickup_survival",report["container_records"])
+        stage(probe,messages,"container_pickup_split",report["container_records"])
+        pickup_split = until(lambda: chest_matches(3))
+        report["container_pickup_creative_mode"] = rcon.command("gamemode creative UnifiedProbe")
+        stage(probe,messages,"container_pickup_creative_one",report["container_records"])
+        stage(probe,messages,"container_pickup_one",report["container_records"])
+        pickup_one = until(lambda: chest_matches(4))
+        stage(probe,messages,"container_pickup_creative_return",report["container_records"])
+        stage(probe,messages,"container_pickup_returned",report["container_records"])
+        pickup_return = until(lambda: chest_matches(7))
+        report["native_results"]["container_pickups"] = {"survival_split_contents":pickup_split,"creative_one_contents":pickup_one,"creative_return_contents":pickup_return,"position_before":container_position,"position_after":rcon.command("data get entity UnifiedProbe Pos"),"authority_limits":"Original network PICKUP in both modes; independent RCON verifies storage counts. Fresh source/cursor and legacy comparison reply come from actual received packets; RCON does not verify cursor/menu ownership."}
+        if report["native_results"]["container_pickups"]["position_after"] != container_position:
+            raise RuntimeError("ordinary container pickup changed native position")
         stage(probe,messages,"container_close_creative",report["container_records"])
         closed_change = ("replaceitem block 0 65 2 container.0 minecraft:stone 11" if version=="1.16.1" else "item replace block 0 65 2 container.0 with minecraft:stone 11")
         report["container_closed_change"] = rcon.command(closed_change)
@@ -490,6 +504,26 @@ network-compression-threshold=256
         if player_position != container_position:
             raise RuntimeError("player inventory resume after close changed native position")
         report["native_results"]["player_screen_after_close"]={"survival_inventory":player_taken,"creative_inventory":player_returned,"container_contents":until(lambda:chest_matches(11)),"position_before":container_position,"position_after":player_position,"authority_limits":"Native default player inventory exchanges after complete no-echo close. Received slots and explicit submitted-close UI basis, not a fabricated received active window/cursor/revision; RCON verifies exact contents/inventory/position."}
+        report["player_pickup_survival_mode"] = rcon.command("gamemode survival UnifiedProbe")
+        player_pickups = {}
+        for submit, observed, inventory in [
+            ("player_pickup_survival","player_pickup_taken",{}),
+            ("player_pickup_creative_one","player_pickup_one",{0:("minecraft:dirt",1)}),
+            ("player_pickup_creative_return","player_pickup_returned",{9:("minecraft:dirt",1),0:("minecraft:dirt",1)}),
+            ("player_pickup_creative_retake","player_pickup_retaken",{9:("minecraft:dirt",1)}),
+            ("player_pickup_creative_restore","player_pickup_restored",{9:("minecraft:dirt",2)}),
+        ]:
+            if submit == "player_pickup_creative_one":
+                report["player_pickup_creative_mode"] = rcon.command("gamemode creative UnifiedProbe")
+            stage(probe,messages,submit,report["container_records"])
+            stage(probe,messages,observed,report["container_records"])
+            player_pickups[observed] = until(lambda: inventory_matches(inventory))
+        player_pickups["position_before"] = container_position
+        player_pickups["position_after"] = rcon.command("data get entity UnifiedProbe Pos")
+        player_pickups["authority_limits"] = "Actual ordinary player main/hotbar PICKUP after no-echo close, both modes and nonempty cursor. RCON independently verifies exact player inventory; cursor completion is separate actual receive evidence. No predicted receipt, invented window/revision/close acknowledgement or replay."
+        if player_pickups["position_after"] != container_position:
+            raise RuntimeError("ordinary player pickup changed native position")
+        report["native_results"]["player_pickups"] = player_pickups
         report["barrel_fixture"]=rcon.command("setblock 0 65 2 minecraft:barrel[facing=north,open=false]")
         report["barrel_fixture_items"]=rcon.command("replaceitem block 0 65 2 container.0 minecraft:stone 5" if version=="1.16.1" else "item replace block 0 65 2 container.0 with minecraft:stone 5")
         barrel_results={}

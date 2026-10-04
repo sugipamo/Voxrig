@@ -1,4 +1,4 @@
-# 共通Clientの通常クリック調査とslot条件
+# 共通Clientの通常クリックとslot条件
 
 共通`swap_hotbar` / `swap_container_hotbar`は、元のnative constructorで確認したslot条件を
 送信前に検査する。shulker boxに別のshulker boxを入れるwhole SWAPは`InvalidInput`で拒否する。
@@ -11,10 +11,33 @@ nativeでは1だった。元の`data/items.json`とharvest監査のsource hash�
 1.21.11はAIR以外の1,504種類を照合する。AIRは実item stackではなくemptyであり、
 empty sentinelの容量値をitem容量に読み替えない。
 
-一般PICKUP（左・右クリック）の公開操作はこの段階では追加していない。
-取り出し・半分取る・1個置く・結合・戻す・交換を、両版の実menu primitiveで照合した。
-後続の共通操作は、owner・I/O前record・実slot/cursor受信・取消/競合保持まで実装してから公開する。
-NBT/components、bundle専用操作、crafting/result/armor/offhand、shift-click、cursorを持ったcloseも残る。
+`Survival::click_inventory` / `Creative::click_inventory`は同じ引数・recordで通常PICKUPを実装する。
+`InventoryClickSource::Player`はcanonical player screen slot 9..44、`Container { screen }`は
+元の受信済みopeningのstorageと付属player slotを指定する。native slot番号であり、hotbar indexではない。
+元opening、実mode、完全なdefault source/cursor、版別slot条件を送信前に検査する。
+未知item、上限超過、非default NBT/components、modern bundle固有overrideは送信前に拒否する。
+shift-click、crafting/result/armor/offhand、cursor付きcloseは引き続き未実装。
+
+```rust,ignore
+use voxrig::client::prelude::*;
+let intent = client.survival().click_inventory(
+    InventoryClickSource::Container { screen }, 0, InventoryClickButton::Right,
+).await?;
+let latest = client.survival().inventory_click_record().await?;
+```
+
+カーソルが空ならLeftは全量、Rightは半分を切り上げて取る。持っている時はLeftが可能な量、
+Rightが1個を置く。同一itemはslot/item容量の範囲で結合し、別itemは受入れ可能なwhole stackを交換する。
+何も変わらないclickは`InvalidInput`で拒否し、packet・owner・recordを作らない。
+
+`InventoryClickRecord`はI/O前の受信済みsource/cursorと、常に`ValueSource::Predicted`の予測を分ける。
+予測は受信在庫へ適用しない。`send.dispatched`はframe全量の送信だけを表し、サーバー結果ではない。
+両destinationのfreshな実packet受信と、legacyでは元window/actionの実comparison replyを待つ。
+`inventory_click_record()`を読み、`ObservedClicked`を確認してから次の操作へ進む。
+途中の受信、送信取消、opening再利用、mode/world/hand変更、復元された競合は自動再送しない。
+最初の競合は`RequiresInspection`へ保持する。完了recordは後のmode変更や切断でも履歴として保持する。
+legacyの送信はactor所有で、呼出元の取消後も引き受けた一度のwriteを続ける。
+modernは取消時の未完了dispatchを保持し、後から似た値を受信しても完了へ読み替えない。
 
 ## 元のnative実装へ照合した範囲
 
@@ -44,7 +67,7 @@ slotのnative基本容量はlegacy 64、modern 99であり、共通の定数64�
 modernの17種類のbundleはitem自身がPICKUPをoverrideするので、通常PICKUPの計算対象へ混ぜない。
 SWAPはこのitem overrideを実行しないため、bundleの通常クリックとwhole SWAPは別の条件になる。
 
-legacy PICKUPのnative returnは操作前のclicked slot stackである。今後の一度のクリックで実resyncを
+legacy PICKUPのnative returnは操作前のclicked slot stackである。一度のクリックで実resyncを
 求める比較値は、source非空ならEmpty、source空なら受信済みの非空cursorにする。
 nativeはclickを実行してから比較するので、false比較応答をrollbackへ読み替えない。
 
@@ -52,7 +75,7 @@ modernは予測cursor hashが実結果と一致するとcursor更新を省略す
 特に全量を戻してEmptyになる時、Empty hashを送るだけでは実Empty受信の根拠を得られない。
 実操作前cursorを比較値にし、実cursor更新を求める。default stackのhash codecはnative holder ID/countと
 空patch追加・削除から成り、native HashGeneratorがcomponent hashを要求しないことも確認した。
-既存SWAPのEmpty hashも同じ検証済みencoderへ揃えた。一般PICKUPの送信・受信契約の完成を意味しない。
+既存SWAPのEmpty hashも同じ検証済みencoderへ揃えた。通常PICKUPも実predecessorのhashを同じencoderへ渡す。
 
 ## 再生成
 
@@ -77,9 +100,16 @@ JVMは1つずつ、heap512 MiB・active processor1で実行する。raw/logは`.
 native default feature flagsだけを供給する。接続、mode、対象screenの所有、送信取消、
 他者の変更、復旧、実slot/cursor packetの因果を証明する試験ではない。
 共通SWAPには別に両adapter/両modeの送信前拒否と、元openingでの有効な交換のconsumer試験を行う。
-一般クリックの実装後には同じClient consumerを両版へ通し、独立した実server状態とも照合する。
+通常クリックの接続試験では同じClient consumerを両版へ通し、独立した実server状態とも照合する。
 
 既存Clientシナリオの更新後のnative回帰は両公式版で成功した。
 `data/client_api/regular_click_native_evidence.json`に実行時input・raw reportのhash、
 storage/player SWAPのfresh receiptsと独立RCON結果を保持する。両JVMは正常終了し、tmpfs runtimeも削除済み。
 この回帰は一般PICKUPのowner/transport/receipt APIの完成を意味しない。
+
+通常PICKUPの実接続runは`trial-1.16.1-3275293e` / `trial-1.21.11-a30b17c0`で成功した。
+同じconsumerでchest 7を3/cursor 4へsplitし、1個返して4/3、全量返して7/Emptyを受信する。
+close後のplayer main/hotbarの取り出し・1個置く・返却・元在庫への復元も行う。
+`data/client_api/ordinary_pickup_native_evidence.json`に8完了recordずつ、実行時input・raw hashと
+独立RCON結果を保持する。両JVMはexit 0、tmpfs runtimeは削除済み。RCONはslot数量・位置を照合し、
+cursor/menu所有は実packet以上の根拠を作らない。過去のfailed native履歴は元のevidenceへ保持する。

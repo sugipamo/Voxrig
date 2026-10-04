@@ -138,5 +138,12 @@ native slot条件・item容量・default cursor hash encoderを揃えた後の�
 storage/player交換・開閉を含む全シナリオが成功し、JVMはexit 0、tmpfs runtimeは削除済み。
 `data/client_api/regular_click_native_evidence.json`に実RCON結果、fresh swap receipts、
 実行時input hashとraw report hashを保持する。以前のfailed runと履歴は元のevidenceに残す。
-これは通常PICKUPの接続/owner/受信契約を検証したrunではない。その公開操作はまだ未実装。
+この2 runは通常PICKUPの接続/owner/受信契約を検証したrunではない。
+後続の`trial-1.16.1-3275293e` / `trial-1.21.11-a30b17c0`では共通PICKUPも実行し、両JVMはexit 0、
+tmpfs runtimeは削除済み。chest stone 7をsurvival右クリックでsource 3/cursor 4へ分割し、
+creative右クリックで1個戻して4/3、左クリックで全量を戻して7/Emptyを実際に受信する。
+close後のplayer main/hotbarも、survival取り出し、creativeで1個置く・返却・再取り出し・元の在庫への
+復元を実行する。RCONは独立したchest/player数量と位置不変を確認する。cursorは実packetからのみ
+確認し、RCONのcursor/menu所有確認とは扱わない。新しい実行時input、8完了recordずつ、raw hashと
+RCON結果は`data/client_api/ordinary_pickup_native_evidence.json`に保持する。
 元menuのPICKUP primitiveとslot条件の別の照合は[通常クリック調査](common-inventory-clicks.md)を参照。

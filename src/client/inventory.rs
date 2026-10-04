@@ -1,10 +1,15 @@
 //! Received ordinary player/container exchanges; no click prediction is receive evidence.
+pub(crate) mod click;
 pub(crate) mod slot_policy;
 use super::container::{ContainerScreen, ScreenId};
 use super::{
     GameMode, ItemData, ObservedValue, PlayerObservation, SessionStamp, SlotKnowledge, ValueSource,
 };
 use crate::Result;
+pub use click::{
+    InventoryClickButton, InventoryClickId, InventoryClickPrediction, InventoryClickRecord,
+    InventoryClickSend, InventoryClickSource, InventoryClickStage,
+};
 
 /// Screen owning the clicked source slot. Container IDs are bound to an actual opening.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]

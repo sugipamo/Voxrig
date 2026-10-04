@@ -378,6 +378,37 @@ async fn wait_swap(
     }
     Ok(record)
 }
+async fn wait_pickup(
+    client: &Client,
+) -> anyhow::Result<voxrig::client::inventory::InventoryClickRecord> {
+    tokio::time::timeout(Duration::from_secs(15),async {
+        loop {
+            let record=client.survival().inventory_click_record().await?.context("click record missing")?;
+            match record.stage {
+                InventoryClickStage::ObservedClicked => {
+                    anyhow::ensure!(record.send.dispatched && record.requires_inspection.is_none(),"click dispatch/conflict");
+                    for (receipt,prediction) in [(record.source_receipt.as_ref().context("source missing")?,&record.prediction.source),
+                        (record.cursor_receipt.as_ref().context("cursor missing")?,&record.prediction.cursor)] {
+                        anyhow::ensure!(receipt.value==prediction.value && matches!(receipt.source,voxrig::client::ValueSource::Received{sequence} if sequence>record.send.after_sequence),"click requires fresh actual source/cursor");
+                    }
+                    if let Some(action)=record.send.legacy_action {
+                        anyhow::ensure!(record.legacy_reply.as_ref().is_some_and(|r|r.action==action && i32::from(r.window_id)==record.window_id() && r.receive_sequence>record.send.after_sequence),"native click reply missing");
+                    } else {anyhow::ensure!(record.legacy_reply.is_none(),"invented click reply");}
+                    return Ok::<_,anyhow::Error>(record);
+                }
+                InventoryClickStage::RequiresInspection=>anyhow::bail!("click interrupted: {:?}",record.requires_inspection),
+                _=>tokio::time::sleep(Duration::from_millis(25)).await,
+            }
+        }
+    }).await?
+}
+fn stack_count(value: &SlotKnowledge) -> u32 {
+    match value {
+        SlotKnowledge::Empty => 0,
+        SlotKnowledge::Item { item } => item.count,
+        _ => u32::MAX,
+    }
+}
 async fn inventory_probe(client: &Client) -> anyhow::Result<()> {
     let ready = client.player_state().await?;
     let initial_sequence = ready.receive_sequence;
@@ -887,6 +918,112 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                     "duplicate container click admitted"
                 );
                 emit(&command, submitted)?;
+            }
+            "container_pickup_survival"
+            | "container_pickup_creative_one"
+            | "container_pickup_creative_return" => {
+                let mode = if command == "container_pickup_survival" {
+                    GameMode::Survival
+                } else {
+                    GameMode::Creative
+                };
+                wait_player(client, |p| p.game_mode == Some(mode)).await?;
+                let source = InventoryClickSource::Container {
+                    screen: opening.context("opening missing")?,
+                };
+                let button = if command == "container_pickup_creative_return" {
+                    InventoryClickButton::Left
+                } else {
+                    InventoryClickButton::Right
+                };
+                let record = if mode == GameMode::Survival {
+                    client.survival().click_inventory(source, 0, button).await?
+                } else {
+                    client.creative().click_inventory(source, 0, button).await?
+                };
+                anyhow::ensure!(
+                    client
+                        .creative()
+                        .click_inventory(source, 0, button)
+                        .await
+                        .is_err(),
+                    "duplicate pickup admitted"
+                );
+                emit(&command, record)?;
+            }
+            "container_pickup_split" | "container_pickup_one" | "container_pickup_returned" => {
+                let record = wait_pickup(client).await?;
+                let expected = match command.as_str() {
+                    "container_pickup_split" => (3, 4),
+                    "container_pickup_one" => (4, 3),
+                    _ => (7, 0),
+                };
+                anyhow::ensure!(
+                    (
+                        stack_count(&record.source_receipt.as_ref().unwrap().value),
+                        stack_count(&record.cursor_receipt.as_ref().unwrap().value)
+                    ) == expected,
+                    "unexpected storage pickup outcome"
+                );
+                emit(&command, record)?;
+            }
+            "player_pickup_survival"
+            | "player_pickup_creative_one"
+            | "player_pickup_creative_return"
+            | "player_pickup_creative_retake"
+            | "player_pickup_creative_restore" => {
+                let mode = if command == "player_pickup_survival" {
+                    GameMode::Survival
+                } else {
+                    GameMode::Creative
+                };
+                wait_player(client, |p| p.game_mode == Some(mode)).await?;
+                let slot = if command == "player_pickup_creative_one"
+                    || command == "player_pickup_creative_retake"
+                {
+                    36
+                } else {
+                    9
+                };
+                let button = if command == "player_pickup_creative_one" {
+                    InventoryClickButton::Right
+                } else {
+                    InventoryClickButton::Left
+                };
+                let record = if mode == GameMode::Survival {
+                    client
+                        .survival()
+                        .click_inventory(InventoryClickSource::Player, slot, button)
+                        .await?
+                } else {
+                    client
+                        .creative()
+                        .click_inventory(InventoryClickSource::Player, slot, button)
+                        .await?
+                };
+                emit(&command, record)?;
+            }
+            "player_pickup_taken"
+            | "player_pickup_one"
+            | "player_pickup_returned"
+            | "player_pickup_retaken"
+            | "player_pickup_restored" => {
+                let record = wait_pickup(client).await?;
+                let expected = match command.as_str() {
+                    "player_pickup_taken" => (0, 2),
+                    "player_pickup_one" => (1, 1),
+                    "player_pickup_returned" => (1, 0),
+                    "player_pickup_retaken" => (0, 1),
+                    _ => (2, 0),
+                };
+                anyhow::ensure!(
+                    (
+                        stack_count(&record.source_receipt.as_ref().unwrap().value),
+                        stack_count(&record.cursor_receipt.as_ref().unwrap().value)
+                    ) == expected,
+                    "unexpected player pickup outcome"
+                );
+                emit(&command, record)?;
             }
             "container_swap_taken" | "container_swap_returned" => {
                 let completed = wait_swap(client).await?;

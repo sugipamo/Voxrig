@@ -13,6 +13,11 @@ Client共通化ブランチでは`Client::survival()` / `Client::creative()`を�
 - `Client::checked_survival()` は [検査付きサバイバルAPI](survival-api.md) を選択します。現時点では1.21.11のみがこの契約を実装し、1.16.1には `Unsupported` を返します。従来APIの機能が同じ観測・検査契約を満たすとは扱いません。
 - 静的な対応状況は `survival_capabilities()` で取得できます。各操作の現在の可否は、その時点の受信状態と未解決操作から別途判定します。
 
+共通通常在庫では両版・両modeで`click_inventory`による取り出し・split・1個置く・結合・返却を
+実装します。監査済みstorage/player main/hotbarのdefault stackを対象とし、予測と実source/cursor受信を
+分けます。一般item data・bundle固有操作・special slot・shift-clickは追加対応を要します。
+[通常クリック契約](common-inventory-clicks.md)を参照してください。
+
 ## Java 1.16.1 の従来API — 対応環境
 
 | 項目 | 対応 |

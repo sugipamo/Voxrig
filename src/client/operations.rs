@@ -75,6 +75,24 @@ impl Survival {
     ) -> Result<Option<super::container::ContainerCloseRecord>> {
         self.client.common_container_close_record().await
     }
+    /// One ordinary left/right click of player slots 9..44 or the same storage opening.
+    /// Requires received default predecessors; retains intent and separate prediction before I/O.
+    pub async fn click_inventory(
+        &self,
+        source: super::inventory::InventoryClickSource,
+        slot: u16,
+        button: super::inventory::InventoryClickButton,
+    ) -> Result<super::inventory::InventoryClickRecord> {
+        self.client
+            .common_click_inventory(GameMode::Survival, source, slot, button)
+            .await
+    }
+    /// Inspect the retained click without replay. Both fresh source/cursor receipts are required.
+    pub async fn inventory_click_record(
+        &self,
+    ) -> Result<Option<super::inventory::InventoryClickRecord>> {
+        self.client.common_inventory_click_record().await
+    }
     /// Exchange one constructor-verified storage slot and a hotbar index once.
     /// Requires the same live opening, default received stacks and empty cursor.
     pub async fn swap_container_hotbar(
@@ -263,6 +281,25 @@ impl Creative {
     ) -> Result<Option<super::container::ContainerCloseRecord>> {
         self.client.common_container_close_record().await
     }
+    /// One ordinary left/right click of player slots 9..44 or the same storage opening.
+    /// Requires received default predecessors; retains intent and separate prediction before I/O.
+    pub async fn click_inventory(
+        &self,
+        source: super::inventory::InventoryClickSource,
+        slot: u16,
+        button: super::inventory::InventoryClickButton,
+    ) -> Result<super::inventory::InventoryClickRecord> {
+        self.client
+            .common_click_inventory(GameMode::Creative, source, slot, button)
+            .await
+    }
+    /// Inspect the retained click without replay. Both fresh source/cursor receipts are required.
+    pub async fn inventory_click_record(
+        &self,
+    ) -> Result<Option<super::inventory::InventoryClickRecord>> {
+        self.client.common_inventory_click_record().await
+    }
+
     /// Ordinary storage exchange; this does not manufacture creative items.
     pub async fn swap_container_hotbar(
         &self,

@@ -1,6 +1,7 @@
 //! Ordinary player-inventory swaps. Submitted clicks never predict received slots.
 use super::*;
 use std::time::Duration;
+pub(in crate::versions::java_1_21_11::client) mod click;
 pub(in crate::versions::java_1_21_11::client) mod common;
 
 /// One submitted SWAP click, tied to this connection and received baseline.

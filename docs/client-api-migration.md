@@ -296,7 +296,7 @@ modernの画面revisionとlegacyのtransaction番号を共通の成功ACKとし�
 前提・取消・履歴と検証は[共通在庫交換](common-inventory-swaps.md)を参照。
 
 storage交換はnative slotの受入れ条件も送信前に検査する。shulker boxへのshulker box収納は
-`InvalidInput`で拒否し、clickや未解決recordを作らない。一般PICKUP/shift-click APIは後続作業。
+`InvalidInput`で拒否し、clickや未解決recordを作らない。通常PICKUPは`click_inventory`へ共通化する。shift-clickは後続作業。
 1.16.1の`warped_fungus_on_a_stick`最大容量はnativeに合わせ1へ修正した。
 版別の容量は`client.registry().item(...)`から読み、upstream値64や共通の固定容量を仮定しない。
 [nativeクリック調査](common-inventory-clicks.md)に元の実装と再生成手順を記載する。
@@ -371,3 +371,21 @@ legacy native `OperationAdmissionError`に`BoundedContainerOpenInProgress`を追
 `ContainerOpenRecord.target`は初期state、`target_state`は最後のworld cache inspectionを表す。
 後者の`capture_sequence`はblock固有の更新ordinalではない。通常barrelのopen boolean更新は
 outline/menuを変えず、完全送信後だけ互換として扱う。他propertyや送信前の変化は許可しない。
+
+## 通常クリック・split・返却
+
+両mode handleで`click_inventory(source, slot, InventoryClickButton::{Left,Right})`を使用する。
+プレイヤー在庫は`InventoryClickSource::Player`とslot 9..44、storageは受信した`ScreenId`を
+`InventoryClickSource::Container { screen }`へ渡す。storage側は付属player slotも指定できる。
+SWAPのhotbar引数とは異なり、ここはnative screen slot番号を渡す。
+
+返されたrecordはI/O前のintentと別の予測を保持する。`inventory_click_record()`を読み、
+`ObservedClicked`で両方のfresh実source/cursorを確認してから次へ進む。timeout/取消/競合時に
+同じclickを繰り返さない。`RequiresInspection`は後から値が復元されても保持する。
+両handleのgetterは同じ接続の最新clickを読むので、modeが変わっても履歴を調査できる。
+旧native `OperationAdmissionError`には`BoundedInventoryClickInProgress`を追加するため、
+このenumを網羅matchしている利用側は対応するarmを追加する。
+
+default stack、監査済みstorageとplayer main/hotbarを実装対象とする。modern bundle override、
+一般NBT/components、crafting/result/armor/offhand、shift-click、cursorを持ったcloseは追加対応を要する。
+詳細は[通常クリック契約](common-inventory-clicks.md)を参照する。
