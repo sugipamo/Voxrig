@@ -24,17 +24,26 @@ fn color_rules() -> &'static ColorRules {
     })
 }
 
+#[derive(Debug)]
+struct ReadLimit(&'static str);
+impl std::fmt::Display for ReadLimit {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.0)
+    }
+}
+impl std::error::Error for ReadLimit {}
+
 pub(super) fn project(value: &Arc<NbtValue>) -> Result<Text> {
     let mut budget = 65_536;
     read(value, &mut budget, 0)
 }
 fn read(value: &Arc<NbtValue>, budget: &mut usize, depth: usize) -> Result<Text> {
     if depth > 64 {
-        bail!("text constructor depth limit");
+        return Err(ReadLimit("text constructor depth limit").into());
     }
     *budget = budget
         .checked_sub(1)
-        .context("text constructor work limit")?;
+        .ok_or(ReadLimit("text constructor work limit"))?;
     match &**value {
         NbtValue::String(text) => Ok(Text {
             contents: Contents::Literal { text: text.clone() },
@@ -52,118 +61,9 @@ fn read(value: &Arc<NbtValue>, budget: &mut usize, depth: usize) -> Result<Text>
             Ok(result)
         }
         NbtValue::Compound(fields) => {
-            let explicit = optional_string(fields, "type")?
-                .map(NbtString::text)
-                .transpose()
-                .map_err(|e| anyhow::anyhow!(e.to_string()))?;
-            let kind = match explicit.as_deref() {
-                Some(
-                    "text" | "translatable" | "keybind" | "score" | "selector" | "nbt" | "object",
-                ) => explicit.as_deref().unwrap(),
-                Some(_) => bail!("unknown native text contents type; update Voxrig"),
-                None => [
-                    "text",
-                    "translate",
-                    "keybind",
-                    "score",
-                    "selector",
-                    "nbt",
-                    "sprite",
-                    "player",
-                ]
-                .into_iter()
-                .find(|key| fields.get(key).is_some())
-                .context("native text contents absent")?,
-            };
-            let contents = match kind {
-                "text" => Contents::Literal {
-                    text: string(fields, "text")?.clone(),
-                },
-                "translatable" | "translate" => {
-                    let mut arguments = Vec::new();
-                    if let Some(values) = fields.get("with") {
-                        for value in values
-                            .as_list()
-                            .context("native translation arguments must be a list")?
-                        {
-                            if let Some(number) = argument_number(value) {
-                                arguments.push(Argument::Number(number));
-                            } else if let NbtValue::String(value) = &**value {
-                                arguments.push(Argument::String(value.clone()));
-                            } else {
-                                let value = read(value, budget, depth + 1)?;
-                                match &value.contents {
-                                    Contents::Literal { text }
-                                        if empty_style(&value.style)
-                                            && value.siblings.is_empty() =>
-                                    {
-                                        arguments.push(Argument::String(text.clone()))
-                                    }
-                                    _ => arguments.push(Argument::Text(Box::new(value))),
-                                }
-                            }
-                        }
-                    }
-                    Contents::Translate {
-                        key: string(fields, "translate")?.clone(),
-                        fallback: optional_string(fields, "fallback")?.cloned(),
-                        arguments,
-                    }
-                }
-                "keybind" => Contents::Keybind {
-                    keybind: string(fields, "keybind")?.clone(),
-                },
-                "selector" => Contents::Selector {
-                    pattern: string(fields, "selector")?.clone(),
-                    separator: strict_separator(fields, budget, depth)?,
-                },
-                "score" => {
-                    let fields = fields
-                        .get("score")
-                        .and_then(NbtValue::as_compound)
-                        .context("native score contents must be a compound")?;
-                    Contents::Score {
-                        name: string(fields, "name")?.clone(),
-                        objective: string(fields, "objective")?.clone(),
-                    }
-                }
-                "nbt" => {
-                    let source = if fields.get("block").is_some() {
-                        NbtSource::Block(string(fields, "block")?.clone())
-                    } else if fields.get("entity").is_some() {
-                        NbtSource::Entity(string(fields, "entity")?.clone())
-                    } else {
-                        NbtSource::Storage(identifier(string(fields, "storage")?)?)
-                    };
-                    Contents::Nbt {
-                        path: string(fields, "nbt")?.clone(),
-                        interpret: fields.get("interpret").and_then(boolean).unwrap_or(false),
-                        separator: separator(fields, budget, depth),
-                        source,
-                    }
-                }
-                "object" | "sprite" | "player" => {
-                    if let Some(profile) = fields
-                        .entries()
-                        .iter()
-                        .find(|f| f.key().utf16().iter().copied().eq("player".encode_utf16()))
-                    {
-                        Contents::PlayerSprite {
-                            profile: Arc::new(profile.value().clone()),
-                            hat: fields.get("hat").and_then(boolean).unwrap_or(true),
-                        }
-                    } else {
-                        Contents::Sprite {
-                            atlas: optional_string(fields, "atlas")?
-                                .map(identifier)
-                                .transpose()?
-                                .unwrap_or(Identifier::parse("minecraft:blocks")?),
-                            sprite: identifier(string(fields, "sprite")?)?,
-                        }
-                    }
-                }
-                _ => unreachable!(),
-            };
+            let contents = dispatch(fields, "type", &constructor_rules().contents, |kind| {
+                read_contents(fields, kind, budget, depth)
+            })?;
             let style = style(fields, budget, depth)?;
             let mut siblings = Vec::new();
             if let Some(extra) = fields.get("extra") {
@@ -186,21 +86,164 @@ fn read(value: &Arc<NbtValue>, budget: &mut usize, depth: usize) -> Result<Text>
         _ => bail!("native text root must be a string, list or compound"),
     }
 }
-fn separator(fields: &NbtCompound, budget: &mut usize, depth: usize) -> Option<Box<Text>> {
-    // The original NBT contents optional separator decoder is lenient.
-    // Failed attempts still consume work; they do not get a fresh recursion budget.
-    fields
-        .entries()
-        .iter()
-        .find(|f| {
-            f.key()
-                .utf16()
-                .iter()
-                .copied()
-                .eq("separator".encode_utf16())
-        })
-        .and_then(|f| read(&Arc::new(f.value().clone()), budget, depth + 1).ok())
-        .map(Box::new)
+#[derive(serde::Deserialize)]
+struct ConstructorRules {
+    contents: Vec<String>,
+    sources: Vec<String>,
+    objects: Vec<String>,
+}
+fn constructor_rules() -> &'static ConstructorRules {
+    static RULES: OnceLock<ConstructorRules> = OnceLock::new();
+    RULES.get_or_init(|| {
+        serde_json::from_str(include_str!(
+            "../../../../data/client_api/text_constructor_rules-1.21.11.json"
+        ))
+        .expect("pinned original native constructor order")
+    })
+}
+fn dispatch<T>(
+    fields: &NbtCompound,
+    discriminator: &str,
+    kinds: &[String],
+    mut decode: impl FnMut(&str) -> Result<T>,
+) -> Result<T> {
+    // StrictEither never tries fuzzy fallback when a discriminator is present.
+    if fields.get(discriminator).is_some() {
+        let kind = string(fields, discriminator)?
+            .text()
+            .map_err(|error| anyhow::anyhow!(error.to_string()))?;
+        if !kinds.contains(&kind) {
+            bail!("unknown native text {discriminator}; update Voxrig");
+        }
+        return decode(&kind);
+    }
+    // Original FuzzyCodec accepts the first successful decoder in mapper order,
+    // not the first present key. Failed attempts keep the same work budget.
+    for kind in kinds {
+        match decode(kind) {
+            Ok(value) => return Ok(value),
+            Err(error) if error.downcast_ref::<ReadLimit>().is_some() => return Err(error),
+            Err(_) => {}
+        }
+    }
+    bail!("no matching native text {discriminator} constructor")
+}
+#[inline(never)]
+fn read_contents(
+    fields: &NbtCompound,
+    kind: &str,
+    budget: &mut usize,
+    depth: usize,
+) -> Result<Contents> {
+    Ok(match kind {
+        "text" => Contents::Literal {
+            text: string(fields, "text")?.clone(),
+        },
+        "translatable" => {
+            let mut arguments = Vec::new();
+            if let Some(values) = fields.get("with") {
+                for value in values
+                    .as_list()
+                    .context("native translation arguments must be a list")?
+                {
+                    if let Some(number) = argument_number(value) {
+                        arguments.push(Argument::Number(number));
+                    } else if let NbtValue::String(value) = &**value {
+                        arguments.push(Argument::String(value.clone()));
+                    } else {
+                        let value = read(value, budget, depth + 1)?;
+                        match &value.contents {
+                            Contents::Literal { text }
+                                if empty_style(&value.style) && value.siblings.is_empty() =>
+                            {
+                                arguments.push(Argument::String(text.clone()))
+                            }
+                            _ => arguments.push(Argument::Text(Box::new(value))),
+                        }
+                    }
+                }
+            }
+            Contents::Translate {
+                key: string(fields, "translate")?.clone(),
+                fallback: fields
+                    .get("fallback")
+                    .and_then(NbtValue::as_string)
+                    .cloned(),
+                arguments,
+            }
+        }
+        "keybind" => Contents::Keybind {
+            keybind: string(fields, "keybind")?.clone(),
+        },
+        "selector" => Contents::Selector {
+            pattern: string(fields, "selector")?.clone(),
+            separator: strict_separator(fields, budget, depth)?,
+        },
+        "score" => {
+            let fields = fields
+                .get("score")
+                .and_then(NbtValue::as_compound)
+                .context("native score contents must be a compound")?;
+            Contents::Score {
+                name: string(fields, "name")?.clone(),
+                objective: string(fields, "objective")?.clone(),
+            }
+        }
+        "nbt" => {
+            let source = dispatch(fields, "source", &constructor_rules().sources, |kind| {
+                Ok(match kind {
+                    "entity" => NbtSource::Entity(string(fields, "entity")?.clone()),
+                    "block" => NbtSource::Block(string(fields, "block")?.clone()),
+                    "storage" => NbtSource::Storage(identifier(string(fields, "storage")?)?),
+                    _ => bail!("unknown native text data source; update Voxrig"),
+                })
+            })?;
+            Contents::Nbt {
+                path: string(fields, "nbt")?.clone(),
+                interpret: fields.get("interpret").and_then(boolean).unwrap_or(false),
+                separator: separator(fields, budget, depth)?,
+                source,
+            }
+        }
+        "object" => dispatch(fields, "object", &constructor_rules().objects, |kind| {
+            Ok(match kind {
+                "atlas" => Contents::Sprite {
+                    atlas: optional_string(fields, "atlas")?
+                        .map(identifier)
+                        .transpose()?
+                        .unwrap_or(Identifier::parse("minecraft:blocks")?),
+                    sprite: identifier(string(fields, "sprite")?)?,
+                },
+                "player" => Contents::PlayerSprite {
+                    profile: Arc::new(
+                        fields
+                            .get("player")
+                            .context("native player profile required")?
+                            .clone(),
+                    ),
+                    hat: fields
+                        .get("hat")
+                        .map(|value| boolean(value).context("invalid native player hat flag"))
+                        .transpose()?
+                        .unwrap_or(true),
+                },
+                _ => bail!("unknown native text object; update Voxrig"),
+            })
+        })?,
+        _ => bail!("unknown native text contents; update Voxrig"),
+    })
+}
+fn separator(fields: &NbtCompound, budget: &mut usize, depth: usize) -> Result<Option<Box<Text>>> {
+    let Some(value) = fields.get("separator") else {
+        return Ok(None);
+    };
+    // Native lenient optional ignores semantic decode errors. Our resource limit
+    // is not such an error: never silently discard a valid, expensive separator.
+    match read(&Arc::new(value.clone()), budget, depth + 1) {
+        Ok(value) => Ok(Some(Box::new(value))),
+        Err(error) if error.downcast_ref::<ReadLimit>().is_some() => Err(error),
+        Err(_) => Ok(None),
+    }
 }
 fn strict_separator(
     fields: &NbtCompound,
@@ -402,7 +445,7 @@ fn click(value: &NbtValue) -> Result<Click> {
         .map_err(|e| anyhow::anyhow!(e.to_string()))?;
     Ok(match kind.as_str() {
         "open_url" => Click::OpenUrl(string(fields, "url")?.clone()),
-        "open_file" => Click::OpenFile(string(fields, "path")?.clone()),
+        "open_file" => bail!("native text stream forbids OPEN_FILE click events"),
         "run_command" => Click::RunCommand(string(fields, "command")?.clone()),
         "suggest_command" => Click::SuggestCommand(string(fields, "command")?.clone()),
         "copy_to_clipboard" => Click::Copy(string(fields, "value")?.clone()),
@@ -445,4 +488,85 @@ fn hover(value: &NbtValue, budget: &mut usize, depth: usize) -> Result<Hover> {
         "show_entity" => Hover::Entity(Arc::new(value.clone())),
         _ => bail!("unknown native hover action; update Voxrig"),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Read;
+    #[test]
+    fn text_resource_limits_never_become_fuzzy_fallback_or_missing_separator() {
+        let mut bytes = Vec::new();
+        flate2::read::GzDecoder::new(
+            &include_bytes!("../../../../data/client_api/text_core_cases-1.21.11.json.gz")[..],
+        )
+        .read_to_end(&mut bytes)
+        .unwrap();
+        let facts: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        let rows = facts["cases"].as_array().unwrap();
+        let separator_row = rows
+            .iter()
+            .find(|row| {
+                row["accepted"] == true
+                    && row["fields"]["contents_class"] == "zl"
+                    && !row["fields"]["body"]["separator"].is_null()
+            })
+            .unwrap();
+        let root = crate::client::nbt::decode_unnamed_tag(
+            &hex::decode(separator_row["input_hex"].as_str().unwrap()).unwrap(),
+        )
+        .unwrap()
+        .unwrap();
+        let mut budget = 1;
+        assert!(
+            read(&root, &mut budget, 0)
+                .unwrap_err()
+                .downcast_ref::<ReadLimit>()
+                .is_some()
+        );
+        let mut budget = 100;
+        let value = read(&root, &mut budget, 0).unwrap();
+        assert!(matches!(
+            value.contents,
+            Contents::Nbt {
+                separator: Some(_),
+                ..
+            }
+        ));
+        assert!(
+            read(&root, &mut budget, 65)
+                .unwrap_err()
+                .downcast_ref::<ReadLimit>()
+                .is_some()
+        );
+
+        let row = rows
+            .iter()
+            .find(|row| row["case"] == "translate-styled-arg")
+            .unwrap();
+        let mut wire = hex::decode(row["input_hex"].as_str().unwrap()).unwrap();
+        assert_eq!(wire.pop(), Some(0));
+        // A lower-priority valid keybind must not hide resource exhaustion in
+        // the original higher-priority translation argument.
+        wire.extend_from_slice(&[8, 0, 7]);
+        wire.extend_from_slice(b"keybind");
+        wire.extend_from_slice(&[0, 8]);
+        wire.extend_from_slice(b"key.jump");
+        wire.push(0);
+        let root = crate::client::nbt::decode_unnamed_tag(&wire)
+            .unwrap()
+            .unwrap();
+        let mut budget = 1;
+        assert!(
+            read(&root, &mut budget, 0)
+                .unwrap_err()
+                .downcast_ref::<ReadLimit>()
+                .is_some()
+        );
+        let mut budget = 100;
+        assert!(matches!(
+            read(&root, &mut budget, 0).unwrap().contents,
+            Contents::Translate { .. }
+        ));
+    }
 }

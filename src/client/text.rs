@@ -186,7 +186,6 @@ pub(crate) struct Color {
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub(crate) enum Click {
     OpenUrl(NbtString),
-    OpenFile(NbtString),
     RunCommand(NbtString),
     SuggestCommand(NbtString),
     ChangePage(i32),
@@ -216,7 +215,6 @@ pub(crate) enum Dependency {
     Dialog,
     Item,
     Entity,
-    NativeValidation,
 }
 impl Text {
     pub(crate) fn dependencies(&self) -> Vec<Dependency> {
@@ -247,7 +245,6 @@ impl Text {
             match &text.style.click {
                 Some(Click::OpenUrl(_)) => out.push(Dependency::Uri),
                 Some(Click::Dialog(_)) => out.push(Dependency::Dialog),
-                Some(Click::OpenFile(_)) => out.push(Dependency::NativeValidation),
                 _ => {}
             }
             match &text.style.hover {

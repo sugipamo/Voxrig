@@ -212,15 +212,43 @@ booleanは元Number.byteValueを使い、未指定とfalseを区別する。NBT 
 公式codecへ182個のwire入力を与え、受理された149値の元contents/style getterと照合した。
 元component.equalsの11,175 pair中、未解決の依存を含まない9,591 pairを内部field keyで照合し、
 残る1,584 pairは比較キーを作らない。selector/score、profile、URI、dialog、入れ子item/entity、
-追加native validationが必要なfieldを明示的な依存として残す。
+追加のconstructor検査が必要なfieldを未完了として残す。
 このキーは完全なconstructor validation、全component/item identity、persistent encoder、cache hash、
-操作の許可を証明しない。特に複数contents候補のcodec fallbackなど完全な構築規則は残作業である。
+操作の許可を証明しない。未解決のselector/profile/URI/dialog/item/entity constructorを含む完全な構築規則は残作業である。
 
 runtimeの小さな色grammarは`text_color_rules-1.21.11.json`、検査値と比較は
 `text_core_cases-1.21.11.json.gz`、元入力/tool/getter/出力のdigestは`text_core_source.json`へ分離する。
 `scripts/export_text_core.py`は未変更公式JARをJVM512 MiB・CPU1で呼び出す。
 保存済みruntimeの`--normalize-only --check`でも生成物を検査できる。
 この段階のstandalone検証は新しいlive Client検証やserver cache検証ではない。
+
+### text constructorの候補選択
+
+元FuzzyCodecは、native mapperの順にcandidateをdecodeし、最初の成功を採用する。
+単に最初にあるkeyを選ぶ規則ではない。contentsはtext→translatable→keybind→score→selector→
+nbt→object、NBT sourceはentity→block→storage、objectはatlas→playerの順を使う。
+`type`・`source`・`object`がある場合はStrictEitherを使い、その明示候補に失敗してもfuzzyへ戻らない。
+未指定の場合に失敗した候補の再帰処理も、同じwork budgetを消費する。
+独自のdepth/work制限はnativeの意味エラーと区別し、fuzzyやlenient optionalでも無視しない。
+制限超過を低優先候補への切替や有効separatorの省略へ変えないことを回帰検査する。
+
+translationのfallbackは元lenient optional fieldで、不正な値を未指定として読む。
+player objectのhatはstrict optional fieldで、不正な指定をdefault trueへ補正しない。
+元text streamが許可しないOPEN_FILE clickは拒否する。
+小さな`text_constructor_rules-1.21.11.json`は実native mapperから取得した順序だけを持つ。
+元codecの成功値・拒否値・比較は`text_constructor_cases-1.21.11.json.gz`、入力/tool/元JAR/
+classpath/raw/final digestは`text_constructor_source.json`へ分ける。
+
+複数候補・逆のkey順・不正な先行候補・明示discriminator・strict/lenient optionalを含む419入力を
+未変更公式codecへ与え、受理された354値の取得済みfieldと照合した。64拒否は内部projectionも拒否し、
+残る1拒否（hover entityのUUID等）は未解決の依存を保持し、比較キーを作らない。
+元component.equalsの62,835組中、依存を含まない41,041組は一致し、21,794組は未解決である。
+これらはcoreの182入力/9,591比較を含む拡張検査で、別々の独立した合計値へ加算しない。
+
+selector/scoreの完全なsyntax/branch構築、profile、URI、dialog、入れ子item/entityが未実装のため、
+それらの候補の妥当性と候補間のfallbackも全条件で一致するとは主張しない。
+内部field projectionを完全なnative constructor検査やitem操作の許可に使わない。
+通常受信の元bytes保持経路、新しいlive gameplay/cache検証の不在、残る全体統合の範囲は同じである。
 
 ## Item比較・persistent hashの基礎
 

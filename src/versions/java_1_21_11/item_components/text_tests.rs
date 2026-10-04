@@ -150,7 +150,6 @@ fn describe(text: &Text, expected: &Json) {
     }
     let click = s.click.as_ref().map(|c| match c {
         Click::OpenUrl(_) => "yf$f",
-        Click::OpenFile(_) => "yf$e",
         Click::RunCommand(_) => "yf$g",
         Click::SuggestCommand(_) => "yf$i",
         Click::ChangePage(_) => "yf$b",
@@ -245,4 +244,95 @@ fn original_text_field_source_and_primitive_color_rules_are_bound() {
     }
     assert_eq!(source["colors"], 16);
     assert_eq!(source["hex_utf16_digits"], 394);
+}
+
+#[test]
+fn original_fuzzy_constructor_order_and_adverse_inputs_match() {
+    let mut bytes = Vec::new();
+    flate2::read::GzDecoder::new(
+        &include_bytes!("../../../../data/client_api/text_constructor_cases-1.21.11.json.gz")[..],
+    )
+    .read_to_end(&mut bytes)
+    .unwrap();
+    let facts: Json = serde_json::from_slice(&bytes).unwrap();
+    let mut values = Vec::new();
+    let mut accepted = 0;
+    let mut rejected = 0;
+    let mut deferred_rejection = 0;
+    for row in facts["cases"].as_array().unwrap() {
+        let root =
+            nbt::decode_unnamed_tag(&hex::decode(row["input_hex"].as_str().unwrap()).unwrap())
+                .unwrap()
+                .unwrap();
+        let projected = project(&root);
+        if row["accepted"] == false {
+            match projected {
+                Err(_) => rejected += 1,
+                Ok(value) => {
+                    assert!(
+                        !value.dependencies().is_empty(),
+                        "unvalidated native rejection {}",
+                        row["case"]
+                    );
+                    assert!(value.modern_field_key().is_none());
+                    deferred_rejection += 1;
+                }
+            }
+            values.push(None);
+        } else {
+            let value = projected.unwrap_or_else(|e| panic!("{}: {e}", row["case"]));
+            describe(&value, &row["fields"]);
+            accepted += 1;
+            values.push(Some(value));
+        }
+    }
+    let mut comparisons = 0;
+    let mut pending = 0;
+    for pair in facts["pairs"].as_array().unwrap() {
+        let a = values[pair["a"].as_u64().unwrap() as usize]
+            .as_ref()
+            .unwrap();
+        let b = values[pair["b"].as_u64().unwrap() as usize]
+            .as_ref()
+            .unwrap();
+        match (a.modern_field_key(), b.modern_field_key()) {
+            (Some(a), Some(b)) => {
+                assert_eq!(a == b, pair["equal"].as_bool().unwrap(), "pair {pair}");
+                comparisons += 1;
+            }
+            _ => pending += 1,
+        }
+    }
+    assert_eq!((accepted, rejected, deferred_rejection), (354, 64, 1));
+    assert_eq!((comparisons, pending), (41041, 21794));
+    assert_eq!(
+        accepted + rejected + deferred_rejection,
+        facts["cases"].as_array().unwrap().len()
+    );
+    assert_eq!(
+        comparisons + pending,
+        facts["pairs"].as_array().unwrap().len()
+    );
+}
+#[test]
+fn original_fuzzy_constructor_rules_and_sources_are_bound() {
+    use sha2::{Digest, Sha256};
+    let source: Json = serde_json::from_str(include_str!(
+        "../../../../data/client_api/text_constructor_source.json"
+    ))
+    .unwrap();
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    for group in ["generators_sha256", "files_sha256"] {
+        for (path, hash) in source[group].as_object().unwrap() {
+            assert_eq!(
+                format!(
+                    "{:x}",
+                    Sha256::digest(std::fs::read(root.join(path)).unwrap())
+                ),
+                hash.as_str().unwrap(),
+                "{path}"
+            );
+        }
+    }
+    assert_eq!(source["cases"], 419);
 }

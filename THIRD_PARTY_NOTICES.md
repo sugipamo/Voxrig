@@ -354,3 +354,12 @@ selectors, profiles, URI, dialog/item/entity references, full constructors,
 persistent encoding and live server caches remain incomplete. Original inputs,
 JAR/mappings/classpath/tools/raw/final digests are recorded. No original method
 bodies or game binaries are distributed, and these facts do not relicense them.
+
+`text_constructor_rules-1.21.11.json`, its compressed cases and source record
+contain observed native fuzzy-mapper order, original constructor decode/getter
+and rejection outputs, and original component comparisons. Owned tools call
+unchanged original bootstrapping/codec/getter methods with pinned inputs;
+bytecode inspection remains local. Factual candidate order does not complete
+complex selector/profile/URI/dialog/item/entity constructors, persistent/cache
+semantics or gameplay support. These facts contain no original method bodies or
+game binaries and do not relicense Minecraft.
