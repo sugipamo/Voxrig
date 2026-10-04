@@ -2,6 +2,160 @@
 use super::{ObservedValue, SessionStamp, SlotKnowledge, received};
 use crate::MinecraftVersion;
 
+/// One close intent, bound to its received connection/world/opening.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+pub struct ContainerCloseId {
+    screen: ScreenId,
+    attempt: u64,
+}
+impl ContainerCloseId {
+    /// Original received opening.
+    pub fn screen(self) -> ScreenId {
+        self.screen
+    }
+    /// Monotonic attempt on this client.
+    pub fn attempt(self) -> u64 {
+        self.attempt
+    }
+}
+/// Close transport facts. Vanilla need not send a close response.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ContainerCloseStage {
+    /// Intent retained before any I/O; do not replay it.
+    Pending,
+    /// Complete close frame written; this is not received server closure.
+    Dispatched,
+    /// A fresh actual close packet for the original opening was also received.
+    ObservedClosed,
+    /// Admission, context, cancellation or delivery needs inspection.
+    RequiresInspection,
+}
+/// Retained close intent, readable after caller cancellation or disconnection.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct ContainerCloseRecord {
+    /// Opaque original attempt; there is no resend method.
+    pub id: ContainerCloseId,
+    /// Coherent received player/cursor baseline captured before I/O.
+    pub initial: super::PlayerObservation,
+    /// Original received screen at the same boundary.
+    pub initial_screen: ContainerScreen,
+    /// Matching received mode at admission.
+    pub mode: super::GameMode,
+    /// True only after a complete frame write.
+    pub dispatched: bool,
+    /// Actual original-opening CLOSE packet ordinal; never synthesized from send.
+    pub server_close_sequence: Option<u64>,
+    /// Persistent uncertainty, if any.
+    pub requires_inspection: Option<String>,
+    /// Transport and received outcome, kept separate.
+    pub stage: ContainerCloseStage,
+}
+impl ContainerCloseRecord {
+    pub(crate) fn unresolved(&self) -> bool {
+        matches!(
+            self.stage,
+            ContainerCloseStage::Pending | ContainerCloseStage::RequiresInspection
+        )
+    }
+    pub(crate) fn inspection(&mut self, reason: impl std::fmt::Display) {
+        if self.unresolved() {
+            self.requires_inspection
+                .get_or_insert_with(|| reason.to_string());
+            self.stage = ContainerCloseStage::RequiresInspection;
+        }
+    }
+    pub(crate) fn sent(&mut self) {
+        self.dispatched = true;
+        if self.requires_inspection.is_none() {
+            self.stage = if self.server_close_sequence.is_some() {
+                ContainerCloseStage::ObservedClosed
+            } else {
+                ContainerCloseStage::Dispatched
+            };
+        }
+    }
+    pub(crate) fn received_close(&mut self, screen: ScreenId, sequence: u64) {
+        if screen == self.id.screen && sequence > self.initial.receive_sequence {
+            self.server_close_sequence.get_or_insert(sequence);
+            if self.dispatched && self.requires_inspection.is_none() {
+                self.stage = ContainerCloseStage::ObservedClosed;
+            }
+        }
+    }
+    pub(crate) fn context_received(
+        &mut self,
+        session: SessionStamp,
+        mode: Option<super::GameMode>,
+        screen: Option<ScreenId>,
+        cursor: Option<&ObservedValue<SlotKnowledge>>,
+    ) {
+        if self.stage == ContainerCloseStage::Pending
+            && (session != self.initial.session
+                || mode != Some(self.mode)
+                || screen != Some(self.id.screen)
+                || !matches!(
+                    cursor,
+                    Some(ObservedValue {
+                        value: SlotKnowledge::Empty,
+                        source: super::ValueSource::Received { .. }
+                    })
+                ))
+        {
+            self.inspection(
+                "close session/mode/opening/cursor context changed before complete dispatch",
+            );
+        }
+    }
+}
+pub(crate) fn prepare_close(
+    initial: super::PlayerObservation,
+    screen: ContainerScreen,
+    requested: ScreenId,
+    mode: super::GameMode,
+    previous: Option<&ContainerCloseRecord>,
+) -> crate::Result<ContainerCloseRecord> {
+    if !matches!(mode, super::GameMode::Survival | super::GameMode::Creative)
+        || initial.game_mode != Some(mode)
+        || initial.pending_dispatch
+        || initial.session != requested.session()
+        || screen.id != requested
+        || initial.inventory.window_id != Some(requested.window_id())
+        || !matches!(
+            initial.inventory.cursor.as_ref(),
+            Some(ObservedValue {
+                value: SlotKnowledge::Empty,
+                source: super::ValueSource::Received { .. },
+            })
+        )
+    {
+        return Err(super::inventory::unavailable(
+            "close requires same live received opening, matching mode and received empty cursor",
+        ));
+    }
+    if previous.is_some_and(|p| p.unresolved() || p.id.screen == requested) {
+        return Err(super::inventory::unavailable(
+            "close already retained; inspect without replay",
+        ));
+    }
+    let attempt = previous
+        .map_or(Some(1), |p| p.id.attempt.checked_add(1))
+        .ok_or_else(|| super::inventory::unavailable("close attempts exhausted"))?;
+    Ok(ContainerCloseRecord {
+        id: ContainerCloseId {
+            screen: requested,
+            attempt,
+        },
+        initial,
+        initial_screen: screen,
+        mode,
+        dispatched: false,
+        server_close_sequence: None,
+        requires_inspection: None,
+        stage: ContainerCloseStage::Pending,
+    })
+}
+
 /// Identity of one received screen opening. Serialized history cannot create a live handle.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct ScreenId {

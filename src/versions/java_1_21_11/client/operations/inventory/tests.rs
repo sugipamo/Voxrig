@@ -1,4 +1,189 @@
 use super::*;
+#[tokio::test]
+async fn common_container_close_refuses_received_nonempty_or_missing_cursor_and_pending_swap() {
+    let mut f = CommonFixture::new().await;
+    let client = f.client();
+    f.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 2, 10, 0])
+        .await;
+    let unknown = client.screen_state().await.unwrap();
+    assert!(unknown.cursor.is_none());
+    assert!(
+        client
+            .survival()
+            .close_container(unknown.screen.unwrap().id)
+            .await
+            .is_err()
+    );
+    assert!(
+        client
+            .survival()
+            .container_close_record()
+            .await
+            .unwrap()
+            .is_none()
+    );
+    let id = f.open_swap_container().await;
+    let mut cursor = Vec::new();
+    put_slot(&mut cursor, &plain("stone", 1));
+    f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+        .await;
+    assert!(client.survival().close_container(id).await.is_err());
+    assert!(
+        client
+            .survival()
+            .container_close_record()
+            .await
+            .unwrap()
+            .is_none()
+    );
+    f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &[0])
+        .await;
+    client
+        .survival()
+        .swap_container_hotbar(id, 0, 0)
+        .await
+        .unwrap();
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap().0,
+        ids::play_serverbound::WINDOW_CLICK
+    );
+    assert!(client.survival().close_container(id).await.is_err());
+    assert!(
+        client
+            .survival()
+            .container_close_record()
+            .await
+            .unwrap()
+            .is_none()
+    );
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn common_container_close_retains_dispatch_and_only_matches_original_opening_reply() {
+    use crate::client::{GameMode as Mode, container::ContainerCloseStage};
+    let mut f = CommonFixture::new().await;
+    let id = f.open_swap_container().await;
+    let client = f.client();
+    let first =
+        crate::client::tests::common_container_close_scenario(&client, Mode::Survival, id).await;
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap(),
+        (ids::play_serverbound::CLOSE_WINDOW, vec![3])
+    );
+    assert_eq!(client.screen_state().await.unwrap().screen.unwrap().id, id);
+    f.receive(ids::play_clientbound::CLOSE_WINDOW, &[4]).await;
+    assert_eq!(
+        client
+            .survival()
+            .container_close_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        ContainerCloseStage::Dispatched
+    );
+    f.receive(ids::play_clientbound::CLOSE_WINDOW, &[3]).await;
+    let observed = client
+        .survival()
+        .container_close_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(observed.stage, ContainerCloseStage::ObservedClosed);
+    assert!(observed.server_close_sequence.unwrap() > first.initial.receive_sequence);
+    let new = f.open_swap_container().await;
+    assert_ne!(new, id);
+    let mut mode = vec![3];
+    mode.extend(1f32.to_be_bytes());
+    f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &mode)
+        .await;
+    let second =
+        crate::client::tests::common_container_close_scenario(&client, Mode::Creative, new).await;
+    assert_eq!(second.id.attempt(), first.id.attempt() + 1);
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap(),
+        (ids::play_serverbound::CLOSE_WINDOW, vec![3])
+    );
+    let newest = f.open_swap_container().await;
+    assert_ne!(newest, new);
+    f.receive(ids::play_clientbound::CLOSE_WINDOW, &[3]).await;
+    assert_eq!(
+        client
+            .creative()
+            .container_close_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        ContainerCloseStage::Dispatched
+    );
+    client.disconnect().await.unwrap();
+    assert_eq!(
+        client
+            .creative()
+            .container_close_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .id,
+        second.id
+    );
+    f.stop().await;
+}
+#[tokio::test]
+async fn common_container_close_cancelled_modern_write_cannot_complete_from_matching_reply() {
+    use crate::client::container::ContainerCloseStage;
+    let mut f = CommonFixture::new().await;
+    let id = f.open_swap_container().await;
+    let client = f.client();
+    let session = f.api.bot.session.clone();
+    let writer = session.writer.lock().await;
+    let ops = client.survival();
+    let waiter = tokio::spawn(async move { ops.close_container(id).await });
+    timeout(Duration::from_secs(1), async {
+        while session.state.try_lock().is_ok() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    waiter.abort();
+    assert!(waiter.await.unwrap_err().is_cancelled());
+    drop(writer);
+    assert!(client.creative().look([0.0, 0.0]).await.is_err());
+    assert!(client.player_state().await.unwrap().pending_dispatch);
+    assert!(client.survival().close_container(id).await.is_err());
+    f.receive(ids::play_clientbound::CLOSE_WINDOW, &[3]).await;
+    let record = client
+        .survival()
+        .container_close_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(!record.dispatched);
+    assert!(record.server_close_sequence.is_some());
+    assert_eq!(record.stage, ContainerCloseStage::RequiresInspection);
+    f.open_swap_container().await;
+    assert!(client.survival().close_container(id).await.is_err());
+    assert!(
+        timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    client.disconnect().await.unwrap();
+    assert_eq!(
+        client
+            .survival()
+            .container_close_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        ContainerCloseStage::RequiresInspection
+    );
+    f.stop().await;
+}
 
 impl CommonFixture {
     async fn open_swap_container(&mut self) -> crate::client::container::ScreenId {

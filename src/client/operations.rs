@@ -41,6 +41,22 @@ pub(crate) enum Action<'a> {
     UseOnBlock([i32; 3], BlockFace, [f32; 3]),
 }
 impl Survival {
+    /// Close one actual opening once. Complete dispatch is not server closure.
+    /// Requires matching received mode and empty cursor; retains intent before I/O.
+    pub async fn close_container(
+        &self,
+        screen: super::container::ScreenId,
+    ) -> Result<super::container::ContainerCloseRecord> {
+        self.client
+            .common_close_container(GameMode::Survival, screen)
+            .await
+    }
+    /// Read retained close dispatch/actual response without replay, including after closure.
+    pub async fn container_close_record(
+        &self,
+    ) -> Result<Option<super::container::ContainerCloseRecord>> {
+        self.client.common_container_close_record().await
+    }
     /// Exchange one constructor-verified storage slot and a hotbar index once.
     /// Requires the same live opening, default received stacks and empty cursor.
     pub async fn swap_container_hotbar(
@@ -181,6 +197,22 @@ impl Survival {
     }
 }
 impl Creative {
+    /// Close one received opening once. This ordinary operation does not change mode.
+    /// Vanilla need not acknowledge it; inspect `dispatched` separately from actual closure.
+    pub async fn close_container(
+        &self,
+        screen: super::container::ScreenId,
+    ) -> Result<super::container::ContainerCloseRecord> {
+        self.client
+            .common_close_container(GameMode::Creative, screen)
+            .await
+    }
+    /// Read the retained close intent, including after caller cancellation/disconnection.
+    pub async fn container_close_record(
+        &self,
+    ) -> Result<Option<super::container::ContainerCloseRecord>> {
+        self.client.common_container_close_record().await
+    }
     /// Ordinary storage exchange; this does not manufacture creative items.
     pub async fn swap_container_hotbar(
         &self,

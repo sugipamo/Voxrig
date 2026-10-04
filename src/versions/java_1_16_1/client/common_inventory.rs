@@ -48,6 +48,19 @@ impl Bot {
     ) -> Result<InventorySwapRecord> {
         let gate = self.coherent_state_gate.lock().await;
         self.common_motion_admission().await?;
+        if let contract::InventorySwapSource::Container { screen } = source {
+            if self
+                .common_container_close
+                .lock()
+                .await
+                .as_ref()
+                .is_some_and(|r| r.id.screen() == screen)
+            {
+                return Err(contract::unavailable(
+                    "container has a retained close intent; old opening cannot be clicked",
+                ));
+            }
+        }
         let revision = self
             .connection
             .motion_admission_revision()
@@ -312,6 +325,212 @@ impl Bot {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn common_container_close_refuses_received_nonempty_or_missing_cursor_and_pending_swap() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_container(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let mut open = vec![3, 2];
+        put_string(&mut open, "{}");
+        bot.apply_packet(0x2e, open).await.unwrap();
+        let unknown = client.screen_state().await.unwrap();
+        assert!(unknown.cursor.is_none());
+        assert!(
+            client
+                .survival()
+                .close_container(unknown.screen.unwrap().id)
+                .await
+                .is_err()
+        );
+        assert!(
+            client
+                .survival()
+                .container_close_record()
+                .await
+                .unwrap()
+                .is_none()
+        );
+        seed_container(&bot).await;
+        let id = client.screen_state().await.unwrap().screen.unwrap().id;
+        let mut cursor = vec![255, 255, 255];
+        write_slot(
+            &mut cursor,
+            Some(&ItemStack {
+                item_id: 1,
+                count: 1,
+                nbt: None,
+            }),
+        );
+        bot.apply_packet(0x16, cursor).await.unwrap();
+        assert!(client.survival().close_container(id).await.is_err());
+        assert!(
+            client
+                .survival()
+                .container_close_record()
+                .await
+                .unwrap()
+                .is_none()
+        );
+        bot.apply_packet(0x16, vec![255, 255, 255, 0])
+            .await
+            .unwrap();
+        client
+            .survival()
+            .swap_container_hotbar(id, 0, 0)
+            .await
+            .unwrap();
+        assert_eq!(packets.recv().await.unwrap().0, 0x09);
+        assert!(client.survival().close_container(id).await.is_err());
+        assert!(
+            client
+                .survival()
+                .container_close_record()
+                .await
+                .unwrap()
+                .is_none()
+        );
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn common_container_close_retains_dispatch_and_only_matches_original_opening_reply() {
+        use api::container::ContainerCloseStage;
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_container(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let id = client.screen_state().await.unwrap().screen.unwrap().id;
+        let first =
+            api::tests::common_container_close_scenario(&client, api::GameMode::Survival, id).await;
+        assert_eq!(packets.recv().await.unwrap(), (0x0a, vec![3]));
+        assert!(bot.open_window_state().await.is_none());
+        // Local closure does not fabricate a received close or erase received screen history.
+        assert_eq!(client.screen_state().await.unwrap().screen.unwrap().id, id);
+        bot.apply_packet(0x13, vec![4]).await.unwrap();
+        assert_eq!(
+            client
+                .survival()
+                .container_close_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            ContainerCloseStage::Dispatched
+        );
+        bot.apply_packet(0x13, vec![3]).await.unwrap();
+        let observed = client
+            .survival()
+            .container_close_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(observed.stage, ContainerCloseStage::ObservedClosed);
+        assert!(observed.server_close_sequence.unwrap() > first.initial.receive_sequence);
+        seed_container(&bot).await;
+        let new = client.screen_state().await.unwrap().screen.unwrap().id;
+        assert_ne!(new, id);
+        let mut mode = vec![3];
+        mode.extend(1f32.to_be_bytes());
+        bot.apply_packet(0x1e, mode).await.unwrap();
+        let second =
+            api::tests::common_container_close_scenario(&client, api::GameMode::Creative, new)
+                .await;
+        assert_eq!(second.id.attempt(), first.id.attempt() + 1);
+        assert_eq!(packets.recv().await.unwrap(), (0x0a, vec![3]));
+        seed_container(&bot).await;
+        let newest = client.screen_state().await.unwrap().screen.unwrap().id;
+        assert_ne!(newest, new);
+        bot.apply_packet(0x13, vec![3]).await.unwrap();
+        // Same numeric window was reopened; its close cannot acknowledge the former opening.
+        assert_eq!(
+            client
+                .creative()
+                .container_close_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            ContainerCloseStage::Dispatched
+        );
+        bot.disconnect().await.unwrap();
+        assert_eq!(
+            client
+                .creative()
+                .container_close_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .id,
+            second.id
+        );
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn common_container_close_cancelled_legacy_waiter_keeps_one_owned_write() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_container(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let id = client.screen_state().await.unwrap().screen.unwrap().id;
+        let writer = bot.writer.lock().await;
+        let ops = client.survival();
+        let waiter = tokio::spawn(async move { ops.close_container(id).await });
+        timeout(Duration::from_secs(1), async {
+            while bot.common_container_close.lock().await.is_none() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        waiter.abort();
+        assert!(waiter.await.unwrap_err().is_cancelled());
+        drop(writer);
+        assert_eq!(
+            timeout(Duration::from_secs(1), packets.recv())
+                .await
+                .unwrap()
+                .unwrap(),
+            (0x0a, vec![3])
+        );
+        let record = client
+            .survival()
+            .container_close_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(record.dispatched);
+        assert_eq!(
+            record.stage,
+            api::container::ContainerCloseStage::Dispatched
+        );
+        assert!(client.survival().close_container(id).await.is_err());
+        assert!(
+            timeout(Duration::from_millis(20), packets.recv())
+                .await
+                .is_err()
+        );
+        bot.disconnect().await.unwrap();
+        assert_eq!(
+            client
+                .survival()
+                .container_close_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            api::container::ContainerCloseStage::Dispatched
+        );
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
     async fn seed_container(bot: &Bot) {
         seed(bot).await;
         let mut open = vec![3, 2];

@@ -1,6 +1,7 @@
 //! Connection lifecycle, protocol events, observations, and player operations.
 
 mod common_api;
+mod common_container;
 mod common_inventory;
 mod common_mining;
 mod common_motion;
@@ -1032,6 +1033,7 @@ pub struct Bot {
     common_mining: Arc<Mutex<Option<common_mining::NativeMiningRun>>>,
     common_placement: Arc<Mutex<Option<common_placement::NativePlacementRun>>>,
     common_inventory_swap: Arc<Mutex<Option<common_inventory::NativeInventorySwap>>>,
+    common_container_close: Arc<Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
     exact_window_barriers: Arc<Mutex<HashMap<(i8, i16), ExactWindowBarrier>>>,
     furnace_window_position: Arc<Mutex<Option<(i8, BlockPos)>>>,
     click_lock: Arc<Mutex<()>>,
@@ -1128,6 +1130,7 @@ impl Bot {
             common_mining: self.common_mining.clone(),
             common_placement: self.common_placement.clone(),
             common_inventory_swap: self.common_inventory_swap.clone(),
+            common_container_close: self.common_container_close.clone(),
             exact_window_barriers: self.exact_window_barriers.clone(),
             furnace_window_position: self.furnace_window_position.clone(),
             click_lock: self.click_lock.clone(),
@@ -1274,6 +1277,7 @@ impl Bot {
             common_mining: Arc::new(Mutex::new(None)),
             common_placement: Arc::new(Mutex::new(None)),
             common_inventory_swap: Arc::new(Mutex::new(None)),
+            common_container_close: Arc::new(Mutex::new(None)),
             exact_window_barriers: Arc::new(Mutex::new(HashMap::new())),
             furnace_window_position: Arc::new(Mutex::new(None)),
             click_lock: Arc::new(Mutex::new(())),
@@ -2014,6 +2018,9 @@ impl Bot {
 
     async fn clear_local_window(&self, window_id: i8) {
         let _coherent_state = self.coherent_state_gate.lock().await;
+        self.clear_local_window_unlocked(window_id).await;
+    }
+    async fn clear_local_window_unlocked(&self, window_id: i8) {
         let mut inventory = self.inventory.write().await;
         if inventory
             .open_window
@@ -4787,7 +4794,15 @@ impl Bot {
                 self.emit(Event::WindowTransaction(transaction));
             }
             0x13 => {
+                if p.len() != 1 {
+                    return Err(crate::Error::new(
+                        crate::ErrorKind::Protocol,
+                        anyhow::anyhow!("invalid close window payload length"),
+                    ));
+                }
                 let window_id = *p.first().context("missing closed window ID")? as i8;
+                self.common_container_close_received(i32::from(window_id), packet_sequence)
+                    .await;
                 let mut inventory = self.inventory.write().await;
                 if inventory
                     .open_window
@@ -5662,6 +5677,7 @@ impl Bot {
         self.common_mining_context_received().await?;
         self.common_placement_context_received().await?;
         self.common_inventory_context_received().await?;
+        self.common_container_close_context_received().await?;
         self.enforce_session_limits().await?;
         Ok(true)
     }

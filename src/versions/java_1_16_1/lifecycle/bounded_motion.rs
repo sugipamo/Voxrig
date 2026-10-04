@@ -3,6 +3,11 @@ use super::*;
 type Admission<T> = Result<T, OperationAdmissionError>;
 
 pub(super) enum MotionCommand {
+    CloseContainer {
+        expected_revision: u64,
+        window: i8,
+        reply: oneshot::Sender<crate::Result<()>>,
+    },
     Revision {
         reply: oneshot::Sender<Admission<u64>>,
     },
@@ -143,6 +148,45 @@ impl MotionGate {
         pending: bool,
     ) -> bool {
         match command {
+            MotionCommand::CloseContainer {
+                expected_revision,
+                window,
+                reply,
+            } => {
+                let admission = self
+                    .can_begin(state, control, pending)
+                    .await
+                    .and_then(|()| {
+                        if window <= 0 || expected_revision != self.normal_revision {
+                            return Err(OperationAdmissionError::InvalidOperation);
+                        }
+                        self.normal_revision = self
+                            .normal_revision
+                            .checked_add(1)
+                            .ok_or(OperationAdmissionError::InvalidOperation)?;
+                        Ok(())
+                    });
+                let result = match admission {
+                    Err(error) => Err(crate::client::inventory::unavailable(format!(
+                        "close admission: {error:?}"
+                    ))),
+                    Ok(()) => {
+                        let mut writer = writer.lock().await;
+                        let compression = writer.compression;
+                        crate::protocol::write_packet(
+                            &mut writer.inner,
+                            compression,
+                            0x0a,
+                            &[window as u8],
+                        )
+                        .await
+                        .map_err(crate::Error::from)
+                    }
+                };
+                let failed_write = admission.is_ok() && result.is_err();
+                let _ = reply.send(result);
+                return failed_write;
+            }
             MotionCommand::Revision { reply } => {
                 let result = self
                     .can_begin(state, control, pending)
@@ -469,6 +513,24 @@ impl MotionGate {
     }
 }
 impl ConnectionActor {
+    pub(crate) async fn bounded_container_close(
+        &self,
+        expected_revision: u64,
+        window: i8,
+    ) -> crate::Result<()> {
+        let (reply, result) = oneshot::channel();
+        self.commands
+            .send(Command::Motion(MotionCommand::CloseContainer {
+                expected_revision,
+                window,
+                reply,
+            }))
+            .await
+            .map_err(|_| crate::client::inventory::unavailable("close actor unavailable"))?;
+        result
+            .await
+            .map_err(|_| crate::client::inventory::unavailable("close actor result unavailable"))?
+    }
     #[cfg(test)]
     pub(crate) async fn begin_inventory_swap(
         &self,

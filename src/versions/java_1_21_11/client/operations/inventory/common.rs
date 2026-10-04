@@ -113,6 +113,15 @@ impl Operations {
     ) -> Result<InventorySwapRecord> {
         let mut state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
+        if state
+            .common_container_close
+            .as_ref()
+            .is_some_and(|r| r.id.screen() == screen)
+        {
+            return Err(contract::unavailable(
+                "container has a retained close intent; old opening cannot be clicked",
+            ));
+        }
         let initial = self.common_player_unlocked(&state)?;
         if state.operations.inventory.unsupported_components
             || state.operations.inventory.pending_swap.is_some()

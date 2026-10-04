@@ -29,6 +29,7 @@ include = [
     "/scripts/VerifyLegacyDryMovement.java",
     "/scripts/VerifyLegacyTargeting.java",
     "/scripts/VerifyLegacyInventorySwap.java",
+    "/scripts/VerifyContainerClose.java",
     "/scripts/ExportMenuLayouts.java",
     "/README.md",
     "/LICENSE",

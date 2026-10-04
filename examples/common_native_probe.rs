@@ -450,8 +450,84 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
     let mut commands = BufReader::new(tokio::io::stdin()).lines();
     let mut opening = None;
     let mut content_sequence = 0;
+    let mut closed_source = None;
     while let Some(command) = commands.next_line().await? {
         match command.as_str() {
+            "container_close_creative" | "container_close_survival" => {
+                use voxrig::client::container::ContainerCloseStage;
+                let mode = if command == "container_close_creative" {
+                    GameMode::Creative
+                } else {
+                    GameMode::Survival
+                };
+                wait_player(client, |p| p.game_mode == Some(mode)).await?;
+                let screen = opening.context("opening missing")?;
+                let before = client.screen_state().await?;
+                let record = if mode == GameMode::Survival {
+                    client.survival().close_container(screen).await?
+                } else {
+                    client.creative().close_container(screen).await?
+                };
+                anyhow::ensure!(
+                    record.dispatched && record.id.screen() == screen,
+                    "close write incomplete"
+                );
+                anyhow::ensure!(
+                    matches!(
+                        record.stage,
+                        ContainerCloseStage::Dispatched | ContainerCloseStage::ObservedClosed
+                    ),
+                    "close uncertain"
+                );
+                anyhow::ensure!(
+                    client.survival().close_container(screen).await.is_err()
+                        && client.creative().close_container(screen).await.is_err(),
+                    "close replay admitted"
+                );
+                anyhow::ensure!(
+                    client
+                        .creative()
+                        .swap_container_hotbar(screen, 0, 0)
+                        .await
+                        .is_err(),
+                    "closed opening clicked"
+                );
+                closed_source = before.screen.as_ref().and_then(|s| s.slots[0].clone());
+                emit(&command, record)?;
+            }
+            "container_closed_change" => {
+                tokio::time::sleep(Duration::from_millis(500)).await;
+                let capture = client.screen_state().await?;
+                if let Some(s) = capture.screen.as_ref() {
+                    anyhow::ensure!(
+                        Some(s.id) == opening && s.slots[0] == closed_source,
+                        "closed screen received live content update"
+                    );
+                }
+                emit(&command, capture)?;
+            }
+            "container_reopen" => {
+                emit(
+                    &command,
+                    client
+                        .creative()
+                        .use_on_block([0, 65, 2], BlockFace::North, [0.5, 0.5, 0.0])
+                        .await?,
+                )?;
+            }
+            "container_reopened" => {
+                let capture = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let capture = client.screen_state().await?;
+                        if capture.screen.as_ref().is_some_and(|s| Some(s.id) != opening && s.full_contents_sequence.is_some()
+                            && matches!(&s.slots[0],Some(v) if matches!(&v.value,SlotKnowledge::Item { item } if item.name=="minecraft:stone" && item.count==11))
+                            && capture.cursor.as_ref().is_some_and(|v| v.value==SlotKnowledge::Empty)) { return Ok::<_,anyhow::Error>(capture); }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                }).await??;
+                opening = capture.screen.as_ref().map(|s| s.id);
+                emit(&command, capture)?;
+            }
             "container_baseline" => {
                 let baseline = wait_player(client, |p| {
                     p.game_mode == Some(GameMode::Creative)
@@ -531,10 +607,20 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 emit(&command, capture)?;
             }
             "container_disconnect" => {
+                let close = client.survival().container_close_record().await?;
                 client.disconnect().await?;
                 anyhow::ensure!(
                     client.screen_state().await.is_err(),
                     "closed screen treated as live"
+                );
+                anyhow::ensure!(
+                    client
+                        .creative()
+                        .container_close_record()
+                        .await?
+                        .map(|r| r.id)
+                        == close.map(|r| r.id),
+                    "close history lost after disconnect"
                 );
                 emit("container_disconnected", serde_json::json!({"closed":true}))?;
                 return Ok(());

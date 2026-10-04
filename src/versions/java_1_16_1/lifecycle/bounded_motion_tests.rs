@@ -1,5 +1,22 @@
 fn swap_comparison() -> crate::versions::java_1_16_1::ItemStack { crate::versions::java_1_16_1::ItemStack { item_id:1,count:3,nbt:None } }
 #[tokio::test]
+async fn common_container_close_actor_validates_revision_and_exclusive_native_owner() {
+    let (actor, mut peer) = actor_fixture().await;
+    actor.mark_ready().await;
+    let revision = actor.motion_admission_revision().await.unwrap();
+    actor.begin_bounded_motion(1,revision).await.unwrap();
+    assert!(actor.bounded_container_close(revision,3).await.is_err());
+    actor.finish_bounded_motion(1).await.unwrap();
+    assert!(actor.bounded_container_close(revision,0).await.is_err());
+    no_packet(&mut peer).await;
+    actor.bounded_container_close(revision,3).await.unwrap();
+    assert_eq!(read_packet(&mut peer,None).await.unwrap(),(0x0a,vec![3]));
+    assert!(actor.bounded_container_close(revision,3).await.is_err());
+    no_packet(&mut peer).await;
+    let next = actor.motion_admission_revision().await.unwrap();
+    assert!(next > revision);
+}
+#[tokio::test]
 async fn bounded_motion_excludes_normal_dispatch_but_preserves_protocol_and_cleanup() {
     let (actor, mut peer) = actor_fixture().await;
     actor.mark_ready().await;

@@ -19,7 +19,7 @@ let latest = survival.inventory_swap_record().await?;
 
 これは在庫・container統合段階の最初の操作である。一般containerのクリック列、split/shift click、
 crafting、装備、一般NBT/components付きstackの操作は後続作業に残る。
-`Feature::InventorySwap`はplayer交換、`Feature::Containers`は既に開いたstorage/hotbar交換のRestricted。一般open/close/クリック列は残る。
+`Feature::InventorySwap`はplayer交換、`Feature::Containers`は既に開いたstorage/hotbar交換とopening-bound closeのRestricted。一般open/クリック列は残る。
 既存のmodern専用`swap_player_hotbar` / `wait_inventory_swap`とlegacy Bot APIも維持する。
 
 ## 開いたstorageとの交換
@@ -39,6 +39,8 @@ source_slotはstorage側のみで、appended player slotは拒否する。hotbar
 constructor確認済みの9 storage menuを対象にするが、serverの操作許可やslot固有の受入れ条件を保証する契約ではない。
 期待する両destinationが実受信されない場合は未解決のまま保持する。特殊slotの個別preflight・一般click列は後続段階で拡張する。
 未解決のcontainer交換とplayer交換は同じcommon ownerを使い、一方を別の入口から迂回しない。
+未解決のcloseも同じadmissionで拒否し、close送信を保持した元のScreenIdにはクリックしない。
+closeのactual receiptとdispatchの区別は[共通container close](common-container-close.md)を参照。
 
 legacyは実window IDの番号poolからactionを確保し、同じwindow/actionの実比較応答を照合する。
 modernは実container revisionを送る。どちらもclicked slot/hotbar mappingはそのopeningから確定し、

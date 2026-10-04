@@ -315,3 +315,15 @@ legacyのfull内容からcursorをEmptyと推定せず、実cursor updateを待�
 共通recordを参照/JSON集計する利用側はこの名前へ移行する。
 modern専用のnative `InventorySwap`/`InventorySwapObservation`の`main_*` fieldは変更していない。
 共通recordとnative専用submissionは別契約で、native waitでcommon ownerを解除しない。
+
+## container closeの共通入口
+
+legacyの`Bot::close_window()`等に代わる共通入口は、modeに合うhandleの`close_container(screen.id)`。
+`ContainerCloseRecord.dispatched`を完全送信の確認に使い、`ObservedClosed`を必ず待つ設計にはしない。
+Vanillaは通常closeをechoしないため、`server_close_sequence == None`でも完全送信は記録できる。
+`Client::screen_state()`は実受信履歴なのでclose送信だけでは元画面を消さない。
+元画面へclick/closeを再送せず、`container_close_record()`で送信不確実性を確認する。
+旧cacheのscreen消去をサーバー側閉鎖確認へ読み替えない。
+新しいOPENを実受信すればその新identityから次操作を明示的に始める。
+empty cursor限定、取消の版別write所有権、player screen再開/open契約の残作業は
+[共通container close](common-container-close.md)を参照。

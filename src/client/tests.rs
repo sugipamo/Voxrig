@@ -1,5 +1,67 @@
 use super::*;
 
+pub(crate) async fn common_container_close_scenario(
+    client: &Client,
+    mode: GameMode,
+    screen: container::ScreenId,
+) -> container::ContainerCloseRecord {
+    let wrong = if mode == GameMode::Survival {
+        client.creative().close_container(screen).await
+    } else {
+        client.survival().close_container(screen).await
+    };
+    assert!(wrong.is_err());
+    let record = if mode == GameMode::Survival {
+        client.survival().close_container(screen).await.unwrap()
+    } else {
+        client.creative().close_container(screen).await.unwrap()
+    };
+    assert_eq!(record.mode, mode);
+    assert_eq!(record.id.screen(), screen);
+    assert_eq!(record.initial_screen.id, screen);
+    assert!(record.dispatched);
+    assert_eq!(record.stage, container::ContainerCloseStage::Dispatched);
+    assert!(record.server_close_sequence.is_none());
+    assert!(record.requires_inspection.is_none());
+    assert!(client.survival().close_container(screen).await.is_err());
+    assert!(client.creative().close_container(screen).await.is_err());
+    assert!(
+        client
+            .survival()
+            .swap_container_hotbar(screen, 0, 0)
+            .await
+            .is_err()
+    );
+    assert!(
+        client
+            .creative()
+            .swap_container_hotbar(screen, 0, 0)
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        client
+            .survival()
+            .container_close_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .id,
+        record.id
+    );
+    assert_eq!(
+        client
+            .creative()
+            .container_close_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .id,
+        record.id
+    );
+    record
+}
+
 pub(crate) async fn common_container_capture_scenario(
     client: &Client,
     full: bool,
@@ -80,6 +142,7 @@ pub(crate) async fn common_swap_start_scenario(
     );
     assert!(record.send.dispatched);
     assert_eq!(record.stage, inventory::InventorySwapStage::Pending);
+    assert!(client.player_state().await.unwrap().pending_dispatch);
     let after = client.player_state().await.unwrap();
     assert_eq!(
         after.inventory.slots[usize::from(main)],
@@ -119,6 +182,7 @@ pub(crate) async fn common_container_swap_start_scenario(
     assert_eq!(record.window_id(), 3);
     assert!(record.send.dispatched);
     assert_eq!(record.stage, inventory::InventorySwapStage::Pending);
+    assert!(client.player_state().await.unwrap().pending_dispatch);
     assert!(
         client
             .survival()

@@ -2,6 +2,7 @@
 //! Static dry-cube standing and bounded survival controls have explicit admission.
 //! General locomotion/pathfinding and complex item components are not inferred.
 //! Mining removal alone does not authorize further mutations on that connection.
+pub(super) mod container;
 mod geometry;
 pub(super) mod inventory;
 pub(super) mod mining;
@@ -652,6 +653,15 @@ impl Operations {
     }
     pub(super) fn mutable(&self, state: &State) -> Result<()> {
         self.ready(state)?;
+        if state
+            .common_container_close
+            .as_ref()
+            .is_some_and(|r| r.unresolved())
+        {
+            return Err(crate::client::inventory::unavailable(
+                "common container close unresolved; inspect without replay",
+            ));
+        }
         if state.common_inventory_swap.as_ref().is_some_and(|s| {
             s.record.stage != crate::client::inventory::InventorySwapStage::ObservedSwapped
         }) {
@@ -945,6 +955,11 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         | input::OPEN_WINDOW
         | input::CLOSE_WINDOW => {
             inventory::receive(&mut next.inventory, id, payload, state.sequence)?;
+            if id == input::CLOSE_WINDOW {
+                // Decode succeeded atomically; original state still identifies the opening.
+                let mut close = Reader::new(payload);
+                container::close_received(state, close.varint()?);
+            }
         }
         _ => return Ok(false),
     }
@@ -1091,6 +1106,13 @@ impl Operations {
             },
             receive_sequence: state.sequence,
             pending_dispatch: self.bot.session.interrupted_packet.load(Ordering::Acquire) >= 0
+                || state
+                    .common_container_close
+                    .as_ref()
+                    .is_some_and(|r| r.unresolved())
+                || state.common_inventory_swap.as_ref().is_some_and(|s| {
+                    s.record.stage != crate::client::inventory::InventorySwapStage::ObservedSwapped
+                })
                 || !inventory.pending_creative.is_empty()
                 || inventory.pending_swap.is_some()
                 || state.motion.position_basis == PositionBasis::PendingSubmission

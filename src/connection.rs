@@ -217,6 +217,26 @@ impl Client {
             Adapter::Java1_21_11(bot) => bot.operations().common_capture(region).await,
         }
     }
+    pub(crate) async fn common_close_container(
+        &self,
+        mode: crate::client::GameMode,
+        screen: crate::client::container::ScreenId,
+    ) -> Result<crate::client::container::ContainerCloseRecord> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_close_container(mode, screen).await,
+            Adapter::Java1_21_11(bot) => {
+                bot.operations().common_close_container(mode, screen).await
+            }
+        }
+    }
+    pub(crate) async fn common_container_close_record(
+        &self,
+    ) -> Result<Option<crate::client::container::ContainerCloseRecord>> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_container_close_record().await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_container_close_record().await,
+        }
+    }
     pub(crate) async fn common_swap_hotbar(
         &self,
         mode: crate::client::GameMode,

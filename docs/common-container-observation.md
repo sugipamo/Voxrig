@@ -66,10 +66,12 @@ numeric IDが同じ場合はnativeの順序付きstreamで新しいOPEN以降に
 `Feature::ContainerObservation`は両版で通常OPEN_WINDOWに対するRestricted。
 modernの専用horse openingやその他特殊UIは後続段階であり、通常menuの観測と混同しない。
 `Feature::Containers`は既に開いたstorageとhotbarのwhole-stack SWAPに対するRestricted。
-専用のopen/close、一般クリック、split/shift、製作、装備は後続実装。
+両modeの`close_container`も実装し、complete dispatchとactual close replyを区別する。
+専用のopen、一般クリック、split/shift、製作、装備は後続実装。
 `swap_container_hotbar(screen.id, slot, hotbar)`と`inventory_swap_record()`は両mode・両版に実装する。
 取消・receipt・I/O前のcaptureは[共通在庫交換](common-inventory-swaps.md)を参照。
-ここでのcreative use-on-blockは既存のinteractionを使ったopening fixtureであり、汎用のcontainer open/close契約ではない。
+ここでのcreative use-on-blockは既存のinteractionを使ったopening fixtureであり、共通container open契約ではない。
+closeの送信では受信screenを消さず、再クリック拒否と履歴は[共通container close](common-container-close.md)で扱う。
 
 legacyは完全なitem NBTを保持する。modernの非default componentのdecoderは残作業であり、
 未対応値をEmptyやdefault itemへ変換しない。unsupported full packetは古いfull-content知識を破棄する。

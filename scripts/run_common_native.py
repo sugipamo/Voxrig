@@ -456,6 +456,19 @@ network-compression-threshold=256
             raise RuntimeError("container observation changed native position")
         report["native_results"]["container_observation"] = {"opened_contents":native_open,"changed_contents":native_changed,"position_before":container_position,"position_after":container_after}
         report["native_results"]["container_swaps"] = {"survival_container":native_empty,"survival_inventory":native_taken,"creative_container":native_returned,"creative_inventory":native_return_inventory,"position_before":container_position,"position_after":container_after}
+        stage(probe,messages,"container_close_creative",report["container_records"])
+        closed_change = ("replaceitem block 0 65 2 container.0 minecraft:stone 11" if version=="1.16.1" else "item replace block 0 65 2 container.0 with minecraft:stone 11")
+        report["container_closed_change"] = rcon.command(closed_change)
+        native_closed_contents = until(lambda: chest_matches(11))
+        stage(probe,messages,"container_closed_change",report["container_records"])
+        stage(probe,messages,"container_reopen",report["container_records"])
+        stage(probe,messages,"container_reopened",report["container_records"])
+        report["container_close_survival_mode"] = rcon.command("gamemode survival UnifiedProbe")
+        stage(probe,messages,"container_close_survival",report["container_records"])
+        close_position = rcon.command("data get entity UnifiedProbe Pos")
+        if close_position != container_position:
+            raise RuntimeError("container close/reopen changed native position")
+        report["native_results"]["container_close"] = {"closed_changed_contents":native_closed_contents,"player_inventory":until(lambda: inventory_matches({9:("minecraft:dirt",2)})),"position_before":container_position,"position_after":close_position,"authority_limits":"RCON verifies contents/inventory/position; same consumer verifies one complete close dispatch, no invented acknowledgement, closed-opening click refusal, and fresh distinct received reopening. No RCON menu-state assertion."}
         stage(probe,messages,"container_disconnect",report["container_records"])
         probe.wait(timeout=10)
         if probe.returncode != 0:

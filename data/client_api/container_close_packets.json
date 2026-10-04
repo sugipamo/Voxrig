@@ -1,0 +1,7 @@
+[
+  {"version":"1.16.1","window_id":3,"payload_hex":"03"},
+  {"version":"1.16.1","window_id":127,"payload_hex":"7f"},
+  {"version":"1.21.11","window_id":3,"payload_hex":"03"},
+  {"version":"1.21.11","window_id":128,"payload_hex":"8001"},
+  {"version":"1.21.11","window_id":32767,"payload_hex":"ffff01"}
+]

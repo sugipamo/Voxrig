@@ -120,6 +120,7 @@ struct State {
     common_placement: Option<operations::placement::CommonPlacementCapture>,
     retired_common_placement: Option<crate::client::survival::PlacementRecord>,
     common_inventory_swap: Option<operations::inventory::common::CommonSwap>,
+    common_container_close: Option<crate::client::container::ContainerCloseRecord>,
     survival_motion: Option<operations::SurvivalMotionRecord>,
     retired_common_motion: Option<crate::client::survival::MotionRecord>,
     recording: Option<recording::Capture>,
@@ -151,6 +152,7 @@ impl Default for State {
             common_placement: None,
             retired_common_placement: None,
             common_inventory_swap: None,
+            common_container_close: None,
             survival_motion: None,
             retired_common_motion: None,
             recording: None,
@@ -195,6 +197,7 @@ impl State {
             operations::placement_context_received(self);
             operations::placement::common_placement_context_received(self);
             operations::inventory::common::context_received(self);
+            operations::container::context_received(self);
             operations::mining::common_mining_context_received(self);
         }
         if let Err(error) = &result {

@@ -245,6 +245,15 @@ pub(super) struct NativeMotionRun {
 impl Bot {
     pub(super) async fn common_motion_pauses_physics(&self) -> bool {
         if self
+            .common_container_close
+            .lock()
+            .await
+            .as_ref()
+            .is_some_and(|r| r.unresolved())
+        {
+            return true;
+        }
+        if self
             .common_inventory_swap
             .lock()
             .await
@@ -267,6 +276,9 @@ impl Bot {
             .is_some_and(|run| !run.record.status.is_continuation_candidate())
     }
     pub(super) async fn interrupt_common_motion(&self, problem: &str) {
+        if let Some(r) = self.common_container_close.lock().await.as_mut() {
+            r.inspection(problem);
+        }
         self.interrupt_common_mining(problem).await;
         self.interrupt_common_placement(problem).await;
         self.interrupt_common_inventory_swap(problem).await;
@@ -278,6 +290,17 @@ impl Bot {
         }
     }
     pub(super) async fn common_motion_admission(&self) -> Result<()> {
+        if self
+            .common_container_close
+            .lock()
+            .await
+            .as_ref()
+            .is_some_and(|r| r.unresolved())
+        {
+            return Err(motion_state(
+                "common container close unresolved; inspect without replay",
+            ));
+        }
         if self
             .common_inventory_swap
             .lock()

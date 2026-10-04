@@ -94,7 +94,7 @@ impl Capabilities {
                 "regular OPEN_WINDOW screens and supported stacks; constructor-verified storage layouts; modern non-default components/special entity windows remain incomplete",
             ),
             Feature::Containers => Support::Restricted(
-                "already-open constructor-verified storage slot/hotbar SWAP; valid default stacks and received empty cursor; two fresh destinations; opening-bound intent; general open/close/clicks remain incomplete",
+                "opening-bound close with received empty cursor, honest dispatch/actual reply; already-open constructor-verified default storage/hotbar SWAP with two fresh destinations; general open/clicks remain incomplete",
             ),
             Feature::SurvivalMovement => Support::Restricted(
                 "1..120 dry walking/jump ticks with released-rest endpoint; retained intent/failure; predicted completion is not received acceptance",
