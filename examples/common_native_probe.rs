@@ -506,6 +506,85 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
     let mut content_sequence = 0;
     while let Some(command) = commands.next_line().await? {
         match command.as_str() {
+            "cursor_close_audit_open_survival" | "cursor_close_audit_open_creative" => {
+                let mode = if command.ends_with("survival") {
+                    GameMode::Survival
+                } else {
+                    GameMode::Creative
+                };
+                wait_player(client, |p| {
+                    p.game_mode == Some(mode)
+                        && p.received_pose
+                            .as_ref()
+                            .is_some_and(|pose| pose.position == [0.5, 65., 0.5])
+                })
+                .await?;
+                wait_barrel_target(client, mode, "false").await?;
+                let record = if mode == GameMode::Survival {
+                    client.survival().open_container([0, 65, 2]).await?
+                } else {
+                    client.creative().open_container([0, 65, 2]).await?
+                };
+                emit(&command, record)?;
+            }
+            "cursor_close_audit_opened" => {
+                emit(&command, wait_container_open(client).await?)?;
+            }
+            "cursor_close_audit_pickup" => {
+                let record = client
+                    .survival()
+                    .container_open_record()
+                    .await?
+                    .context("audit opening absent")?;
+                let source = InventorySource::Container {
+                    screen: record
+                        .observed_screen
+                        .context("audit received screen absent")?
+                        .id,
+                };
+                let pickup = if record.mode == GameMode::Survival {
+                    client
+                        .survival()
+                        .click_inventory(source, 0, InventoryClickButton::Left)
+                        .await?
+                } else {
+                    client
+                        .creative()
+                        .click_inventory(source, 0, InventoryClickButton::Left)
+                        .await?
+                };
+                emit(&command, pickup)?;
+            }
+            "cursor_close_audit_holding" => {
+                let record = wait_pickup(client).await?;
+                anyhow::ensure!(
+                    record.source_receipt.as_ref().unwrap().value == SlotKnowledge::Empty
+                        && stack_count(&record.cursor_receipt.as_ref().unwrap().value) == 5,
+                    "native audit must hold received stone 5"
+                );
+                emit(&command, record)?;
+            }
+            "cursor_close_audit_forced" => {
+                let screen = tokio::time::timeout(Duration::from_secs(10), async {
+                    loop {
+                        let screen = client.screen_state().await?;
+                        if screen.screen.is_none() {
+                            return Ok::<_, anyhow::Error>(screen);
+                        }
+                        tokio::time::sleep(Duration::from_millis(10)).await;
+                    }
+                })
+                .await??;
+                emit(
+                    &command,
+                    serde_json::json!({"screen":screen,"player":client.player_state().await?}),
+                )?;
+            }
+            "cursor_close_audit_disconnect" => {
+                client.disconnect().await?;
+                emit(&command, serde_json::json!({"version":client.version()}))?;
+                return Ok(());
+            }
             "barrel_open_creative" | "barrel_open_survival" => {
                 let mode = if command == "barrel_open_creative" {
                     GameMode::Creative

@@ -30,6 +30,7 @@ include = [
     "/scripts/VerifyLegacyTargeting.java",
     "/scripts/VerifyLegacyInventorySwap.java",
     "/scripts/VerifyContainerClose.java",
+    "/scripts/InspectNativeClose.java",
     "/scripts/ExportMenuLayouts.java",
     "/scripts/ExportStorageOutlines.java",
     "/scripts/ExportRegularClicks.java",

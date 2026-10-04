@@ -2,7 +2,9 @@
 
 `survival.close_container(screen.id)`と`creative.close_container(screen.id)`は、1.16.1と1.21.11で同じ
 `ContainerCloseRecord`を返す。`ScreenId`は現在の実OPENから取得する。mode一致・実empty cursor・未解決操作なしを要求し、
-元のplayer/screenを同じ境界でI/O前に保持してcloseを一度だけ送る。unknown cursorやitem付きcursorでのdrop規則は後続作業。
+元のplayer/screenを同じ境界でI/O前に保持してcloseを一度だけ送る。unknown cursorやitem付きcursorの共通closeは後続作業。
+[カーソルitem付きcloseのnative調査](common-cursor-close-audit.md)でlegacy drop／modern returnの版差を確認したため、
+共通closeは終了前の在庫返却と実受信確認を組み合わせる方針。実装済みのEmpty cursor closeとは区別する。
 
 ```rust,no_run
 use voxrig::client::prelude::*;

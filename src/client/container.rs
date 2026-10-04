@@ -428,3 +428,122 @@ impl ScreenReceipts {
         }
     }
 }
+
+#[cfg(test)]
+mod native_close_audit_tests {
+    use sha2::{Digest, Sha256};
+
+    #[test]
+    fn original_cursor_disposal_has_actual_receipts_and_separate_native_outcomes() {
+        let evidence: serde_json::Value = serde_json::from_str(include_str!(
+            "../../data/client_api/cursor_close_native_evidence.json"
+        ))
+        .unwrap();
+        assert_eq!(evidence["status"], "passed");
+        let runs = evidence["runs"].as_array().unwrap();
+        assert_eq!(runs.len(), 2);
+        assert_eq!(
+            runs[0]["runtime_inputs"]["consumer_binary_sha256"],
+            runs[1]["runtime_inputs"]["consumer_binary_sha256"]
+        );
+        for run in runs {
+            let legacy = run["version"] == "1.16.1";
+            assert_eq!(run["result"], "passed");
+            assert_eq!(run["server_exit_code"], 0);
+            assert_eq!(run["runtime_removed"], true);
+            assert_eq!(run["regression_completed_shift_records"], 9);
+            assert!(run["packet_trace"]["errors"].as_array().unwrap().is_empty());
+            for mode in ["survival", "creative"] {
+                let audit = &run["modes"][mode];
+                let held = &audit["held_cursor_actual"];
+                assert_eq!(held["mode"], mode);
+                assert_eq!(held["stage"], "observed_clicked");
+                assert_eq!(held["send"]["dispatched"], true);
+                assert!(held["requires_inspection"].is_null());
+                let boundary = held["send"]["after_sequence"].as_u64().unwrap();
+                for key in ["source_receipt", "cursor_receipt"] {
+                    let receipt = &held[key];
+                    assert_eq!(receipt["source"]["kind"], "received");
+                    assert!(receipt["source"]["sequence"].as_u64().unwrap() > boundary);
+                }
+                assert_eq!(held["source_receipt"]["value"]["kind"], "empty");
+                assert_eq!(
+                    held["cursor_receipt"]["value"]["item"]["name"],
+                    "minecraft:stone"
+                );
+                assert_eq!(held["cursor_receipt"]["value"]["item"]["count"], 5);
+                assert!(audit["native_forced_close_snapshot"]["screen"]["screen"].is_null());
+                let frames = audit["actual_original_close_frames"].as_array().unwrap();
+                assert_eq!(frames.len(), 1);
+                let frame = &frames[0];
+                assert_eq!(frame["direction"], "clientbound");
+                assert_eq!(frame["phase"], "play");
+                assert_eq!(frame["packet_id"], if legacy { 0x13 } else { 0x11 });
+                let window = held["initial_screen"]["id"]["window"].as_u64().unwrap();
+                assert_eq!(frame["body_hex"], format!("{window:02x}"));
+                let trace = &audit["fresh_audit_connection_trace"];
+                assert_eq!(frame["connection"], trace["connection"]);
+                assert!(
+                    trace["outgoing_close_frames"]
+                        .as_array()
+                        .unwrap()
+                        .is_empty()
+                );
+                let outgoing = trace["serverbound_play_frames"].as_array().unwrap();
+                assert!(
+                    outgoing
+                        .iter()
+                        .all(|f| f["packet_id"] != if legacy { 0x0a } else { 0x12 })
+                );
+                assert_eq!(
+                    outgoing
+                        .iter()
+                        .filter(|f| f["packet_id"] == if legacy { 0x09 } else { 0x11 })
+                        .count(),
+                    1
+                );
+                if legacy {
+                    assert_eq!(audit["native_disposition"], "dropped_item_entity");
+                    assert_eq!(held["legacy_reply"]["accepted"], false);
+                    assert!(held["legacy_reply"]["receive_sequence"].as_u64().unwrap() > boundary);
+                    let entity = audit["native_item_entity"].as_str().unwrap();
+                    assert!(entity.contains("minecraft:stone") && entity.contains("Count: 5b"));
+                    assert!(
+                        !audit["native_inventory"]
+                            .as_str()
+                            .unwrap()
+                            .contains("minecraft:stone")
+                    );
+                    // Last received cursor can remain nonempty even though the
+                    // native server already dropped it; never invent a receipt.
+                    assert_eq!(
+                        audit["native_forced_close_snapshot"]["screen"]["cursor"],
+                        held["cursor_receipt"]
+                    );
+                } else {
+                    assert_eq!(audit["native_disposition"], "returned_to_inventory");
+                    assert!(held["legacy_reply"].is_null());
+                    assert_eq!(audit["native_item_entity"], "Test passed");
+                    let inventory = audit["native_inventory"]["inventory"].as_str().unwrap();
+                    assert!(
+                        inventory.contains("minecraft:stone") && inventory.contains("count: 5")
+                    );
+                }
+            }
+        }
+        let inspector_sha = format!(
+            "{:x}",
+            Sha256::digest(include_bytes!("../../scripts/InspectNativeClose.java"))
+        );
+        for inspection in evidence["bytecode_inspection"].as_array().unwrap() {
+            assert_eq!(inspection["inspection_tool_sha256"], inspector_sha);
+        }
+        let attempts = evidence["earlier_attempts"].as_array().unwrap();
+        assert!(attempts.iter().any(|a| a["result"] == "failed"));
+        assert!(
+            attempts
+                .iter()
+                .all(|a| a["server_exit_code"] == 0 && a["runtime_removed"] == true)
+        );
+    }
+}

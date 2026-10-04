@@ -22,6 +22,7 @@ import threading
 import time
 import urllib.request
 import uuid
+import zlib
 
 REPO = Path(__file__).resolve().parents[1]
 ROOT = REPO / ".local/native-client-unification"
@@ -126,6 +127,145 @@ def matched(response, pattern):
     return response if re.search(pattern, response) else None
 
 
+class PacketTraceProxy:
+    """Byte-for-byte forwarding with read-only compressed-frame diagnostics."""
+    def __init__(self, server_port, version, path):
+        self.server_port, self.version = server_port, version
+        self.listener = socket.socket()
+        self.listener.bind(("127.0.0.1", 0))
+        self.port = self.listener.getsockname()[1]
+        self.listener.listen(4)
+        self.listener.settimeout(0.2)
+        self.lock, self.stop = threading.Lock(), threading.Event()
+        self.frames, self.errors, self.connections, self.workers = [], [], [], []
+        self.log = path.open("w")
+        self.acceptor = threading.Thread(target=self.accept, daemon=True)
+        self.acceptor.start()
+
+    @staticmethod
+    def read_varint_bytes(stream):
+        result = bytearray()
+        for _ in range(5):
+            value = stream.recv(1)
+            if not value:
+                if not result:
+                    return None
+                raise EOFError("partial native frame header")
+            result.extend(value)
+            if not value[0] & 128:
+                return bytes(result)
+        raise ValueError("oversized native VarInt")
+
+    @staticmethod
+    def varint(data):
+        value = 0
+        for index, byte in enumerate(data[:5]):
+            value |= (byte & 127) << (index * 7)
+            if not byte & 128:
+                return value, index + 1
+        raise ValueError("incomplete native VarInt")
+
+    def accept(self):
+        while not self.stop.is_set():
+            try:
+                client, _ = self.listener.accept()
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+            upstream = socket.create_connection(("127.0.0.1", self.server_port), timeout=5)
+            upstream.settimeout(None)
+            client.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            upstream.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            state = {"compression": None, "phase": "handshake", "connection": len(self.connections) + 1}
+            self.connections.append((client, upstream))
+            for source, destination, direction in [(client, upstream, "serverbound"), (upstream, client, "clientbound")]:
+                worker = threading.Thread(target=self.forward, args=(source, destination, direction, state), daemon=True)
+                self.workers.append(worker)
+                worker.start()
+
+    def forward(self, source, destination, direction, state):
+        try:
+            while True:
+                header = self.read_varint_bytes(source)
+                if header is None:
+                    break
+                length, _ = self.varint(header)
+                if not 0 < length <= 8 * 1024 * 1024:
+                    raise ValueError("native frame length outside trace bound")
+                frame = bytearray()
+                while len(frame) < length:
+                    part = source.recv(length - len(frame))
+                    if not part:
+                        raise EOFError("partial native frame body")
+                    frame.extend(part)
+                with self.lock:
+                    decoded = bytes(frame)
+                    if state["compression"] is not None:
+                        expanded, offset = self.varint(decoded)
+                        decoded = zlib.decompress(decoded[offset:]) if expanded else decoded[offset:]
+                        if expanded and len(decoded) != expanded:
+                            raise ValueError("native expanded frame length differs")
+                    packet, offset = self.varint(decoded)
+                    body = decoded[offset:]
+                    record = {"ordinal": len(self.frames) + 1, "connection": state["connection"], "direction": direction, "phase": state["phase"], "packet_id": packet, "body_length": len(body), "wire_sha256": hashlib.sha256(header + frame).hexdigest(), "body_sha256": hashlib.sha256(body).hexdigest()}
+                    if len(body) <= 512:
+                        record["body_hex"] = body.hex()
+                    self.frames.append(record)
+                    self.log.write(json.dumps(record) + "\n")
+                    self.log.flush()
+                    if direction == "serverbound" and state["phase"] == "handshake":
+                        state["phase"] = "login"
+                    elif direction == "clientbound" and state["phase"] == "login":
+                        if packet == 3:
+                            state["compression"], _ = self.varint(body)
+                        elif packet == 2:
+                            state["phase"] = "play" if self.version == "1.16.1" else "await_login_ack"
+                    elif direction == "serverbound" and packet == 3:
+                        if state["phase"] == "await_login_ack":
+                            state["phase"] = "configuration"
+                        elif state["phase"] == "configuration":
+                            state["phase"] = "play"
+                # The exact original framed bytes are forwarded, not the
+                # decoded body; no injection, re-encoding or native prediction.
+                destination.sendall(header + frame)
+        except (OSError, EOFError) as error:
+            if not self.stop.is_set() and not isinstance(error, ConnectionResetError):
+                with self.lock:
+                    self.errors.append(str(error))
+        except BaseException as error:
+            with self.lock:
+                self.errors.append(str(error))
+        finally:
+            try:
+                destination.shutdown(socket.SHUT_WR)
+            except OSError:
+                pass
+
+    def mark(self):
+        with self.lock:
+            return len(self.frames)
+
+    def since(self, boundary):
+        with self.lock:
+            return [dict(frame) for frame in self.frames[boundary:]]
+
+    def close(self):
+        self.stop.set()
+        self.listener.close()
+        for pair in self.connections:
+            for connection in pair:
+                try:
+                    connection.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+                connection.close()
+        self.acceptor.join(timeout=2)
+        for worker in self.workers:
+            worker.join(timeout=2)
+        self.log.close()
+
+
 def outer_snbt_compounds(response):
     """Keep entire inventory entries, including nested default item tags."""
     result, depth, start, quoted, escaped = [], 0, None, False, False
@@ -177,7 +317,7 @@ def stage(probe, messages, name, records, timeout=30, poll=None):
     raise TimeoutError("probe stage timed out: " + name)
 
 
-def run(version, accept_eula, runtime_root=None):
+def run(version, accept_eula, runtime_root=None, runtime_inputs=None):
     if not accept_eula:
         raise RuntimeError("pass --accept-eula when authorized to run the official server")
     jar, source = download(version)
@@ -228,8 +368,10 @@ network-compression-threshold=256
     probe_log = (folder / "probe.jsonl").open("w")
     server = subprocess.Popen(["java", "-XX:ActiveProcessorCount=1", "-Xms256M", "-Xmx1024M", "-jar", str(jar), "nogui"], cwd=folder, stdin=subprocess.PIPE, stdout=server_log, stderr=subprocess.STDOUT, text=True)
     probe, rcon = None, None
+    trace = PacketTraceProxy(port, version, folder / "packet-trace.jsonl")
     report = {"version":version, "run_id":folder.name, "source":source, "server_memory_limit":"1024M", "sync_chunk_writes":False, "result":"running", "scenario_result":"running", "native_results":{}, "client_records":[]}
     report["runtime_parent"] = str(folder.parent)
+    report["runtime_inputs"] = runtime_inputs
     (folder / "process.json").write_text(json.dumps({"server_pid":server.pid, "version":version, "started":time.time()}) + "\n")
     print(version, "server", server.pid, "log", folder, flush=True)
     try:
@@ -259,7 +401,7 @@ network-compression-threshold=256
                 raise RuntimeError("fixture command rejected: " + command + ": " + response)
         for check in ["execute if block 0 65 1 minecraft:stone", "execute if block 1 65 0 minecraft:air"]:
             report.setdefault("fixture_verification", {})[check] = until(lambda: matched(rcon.command(check), "Test passed"))
-        env = dict(os.environ, VOXRIG_MINECRAFT_VERSION=version, VOXRIG_PORT=str(port))
+        env = dict(os.environ, VOXRIG_MINECRAFT_VERSION=version, VOXRIG_PORT=str(trace.port))
         probe = subprocess.Popen([str(REPO / "target/debug/examples/common_native_probe")], cwd=REPO, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
         messages = queue.Queue()
         thread = threading.Thread(target=pump, args=(probe.stdout, messages, probe_log), daemon=True)
@@ -645,6 +787,58 @@ network-compression-threshold=256
         probe.wait(timeout=10)
         if probe.returncode != 0:
             raise RuntimeError("container probe failed after disconnect")
+        forced_close_results = {}
+        report["native_results"]["native_cursor_close_audit"] = forced_close_results
+        report["cursor_close_audit_drop_cleanup"] = rcon.command("kill @e[type=minecraft:item]")
+        for mode in ("survival", "creative"):
+            # A forced native close does not necessarily establish a new
+            # received empty cursor/player UI. Use a fresh real connection,
+            # not a guessed cursor or a bypass of the common open guard.
+            until(lambda:matched(rcon.command("execute unless entity @a[name=UnifiedProbe]"),"Test passed"))
+            probe = subprocess.Popen([str(REPO / "target/debug/examples/common_native_probe")], cwd=REPO, env=dict(env, VOXRIG_NATIVE_SCENARIO="container"), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+            messages = queue.Queue()
+            thread = threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True)
+            thread.start()
+            stage(probe,messages,"container_ready",report["container_records"])
+            report["cursor_close_audit_mode_" + mode] = rcon.command("gamemode " + mode + " UnifiedProbe")
+            report["cursor_close_audit_teleport_" + mode] = rcon.command("tp UnifiedProbe 0.5 65 0.5 0 35")
+            item_fixture = "replaceitem block 0 65 2 container.0 minecraft:stone 5" if version == "1.16.1" else "item replace block 0 65 2 container.0 with minecraft:stone 5"
+            report["cursor_close_audit_fixture_" + mode] = rcon.command(item_fixture)
+            stage(probe,messages,"cursor_close_audit_open_" + mode,report["container_records"])
+            opened = stage(probe,messages,"cursor_close_audit_opened",report["container_records"])["value"]
+            stage(probe,messages,"cursor_close_audit_pickup",report["container_records"])
+            held = stage(probe,messages,"cursor_close_audit_holding",report["container_records"])["value"]
+            audit = {"held_cursor_actual": held}
+            forced_close_results[mode] = audit
+            boundary = trace.mark()
+            report["cursor_close_audit_far_" + mode] = rcon.command("tp UnifiedProbe -7.5 65 -7.5 0 0")
+            closed = stage(probe,messages,"cursor_close_audit_forced",report["container_records"])["value"]
+            audit["native_forced_close_snapshot"] = closed
+            window = opened["observed_screen"]["id"]["window"]
+            incoming_id = 0x13 if version == "1.16.1" else 0x11
+            outgoing_id = 0x0a if version == "1.16.1" else 0x12
+            native_frames = trace.since(boundary)
+            close_frames = [f for f in native_frames if f["direction"] == "clientbound" and f["phase"] == "play" and f["packet_id"] == incoming_id and f.get("body_hex") == bytes([window]).hex()]
+            audit["actual_original_close_frames"] = close_frames
+            if not close_frames:
+                raise RuntimeError("actual original native forced-close packet missing from read-only trace")
+            if any(f["direction"] == "serverbound" and f["phase"] == "play" and f["packet_id"] == outgoing_id for f in native_frames):
+                raise RuntimeError("forced-close audit unexpectedly sent a client close")
+            if version == "1.16.1":
+                item = until(lambda:matched(rcon.command("execute at UnifiedProbe as @e[type=minecraft:item,distance=..3,limit=1,sort=nearest] run data get entity @s"),r'(?s)(?=.*minecraft:stone)(?=.*Count: 5b(?:,|\s|})).*'))
+                inventory_after = until(lambda:inventory_matches({9:("minecraft:dirt",2)}))
+                report["cursor_close_audit_remove_drop_" + mode] = rcon.command("kill @e[type=minecraft:item]")
+            else:
+                inventory_after = until(lambda:inventory_matches({9:("minecraft:dirt",2),0:("minecraft:stone",5)}))
+                item = until(lambda:matched(rcon.command("execute unless entity @e[type=minecraft:item]"),"Test passed"))
+                report["cursor_close_audit_remove_return_" + mode] = rcon.command("clear UnifiedProbe minecraft:stone")
+            audit.update(native_inventory=inventory_after, native_item_entity=item)
+            stage(probe,messages,"cursor_close_audit_disconnect",report["container_records"])
+            probe.wait(timeout=10)
+            if probe.returncode != 0:
+                raise RuntimeError("native forced-close audit failed after disconnect")
+            forced_close_results[mode] = {"held_cursor_actual":held,"native_forced_close_snapshot":closed,"actual_original_close_frames":close_frames,"native_inventory":inventory_after,"native_item_entity":item,"authority_limits":"Server closes original menu when native range fails after an external fixture teleport; read-only trace forwards exact original compressed bytes and records real incoming CLOSE, with no client close submission. Independent RCON distinguishes native legacy dropped cursor from modern returned cursor. This is a native disposal audit, not implementation or completion of common cursor-bearing close."}
+        report["native_results"]["native_cursor_close_audit"] = forced_close_results
         report["scenario_result"] = "passed"
         print(version, "native scenario verified; waiting for clean shutdown", flush=True)
     except BaseException as error:
@@ -687,6 +881,12 @@ network-compression-threshold=256
                     server.wait(timeout=10)
                 except subprocess.TimeoutExpired:
                     server.kill(); server.wait(timeout=5)
+        trace.close()
+        report["packet_trace"] = {"records": len(trace.frames), "errors": trace.errors, "authority_limits": "Read-only byte-for-byte forwarding of original protocol frames; decompression only for diagnostics, no game method/packet replacement."}
+        if trace.errors and report["scenario_result"] == "passed":
+            report["scenario_result"] = "failed"
+            report["result"] = "failed"
+            report["error"] = "native packet trace error: " + repr(trace.errors)
         report["server_exit_code"] = server.returncode
         if report["scenario_result"] == "passed":
             report["result"] = "passed" if server.returncode == 0 else "failed"
@@ -716,9 +916,24 @@ def main():
     args = parser.parse_args()
     if bool(args.version) == args.all:
         parser.error("select exactly one of --version / --all")
+    # Snapshot actual source/data before compilation; do not reconstruct a
+    # successful run's inputs from a later worktree or a rebuilt consumer.
+    paths = subprocess.check_output([
+        "git", "ls-files", "-z", "--", "Cargo.toml", "Cargo.lock", "src", "data",
+        "examples/common_native_probe.rs", "scripts/run_common_native.py",
+    ], cwd=REPO).decode().rstrip("\0").split("\0")
+    runtime_inputs = {
+        "baseline_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO).decode().strip(),
+        "source_sha256": {path: hashlib.sha256((REPO / path).read_bytes()).hexdigest() for path in paths},
+    }
     subprocess.run(["cargo", "build", "--locked", "-j1", "--example", "common_native_probe"], cwd=REPO, env=dict(os.environ, CARGO_BUILD_JOBS="1"), check=True)
+    if any(hashlib.sha256((REPO / path).read_bytes()).hexdigest() != digest
+           for path, digest in runtime_inputs["source_sha256"].items()):
+        raise RuntimeError("native inputs changed during build")
+    runtime_inputs["consumer_binary_sha256"] = hashlib.sha256(
+        (REPO / "target/debug/examples/common_native_probe").read_bytes()).hexdigest()
     for version in VERSIONS if args.all else [args.version]:
-        run(version, args.accept_eula, args.runtime_dir.resolve() if args.runtime_dir else None)
+        run(version, args.accept_eula, args.runtime_dir.resolve() if args.runtime_dir else None, runtime_inputs)
 
 
 if __name__ == "__main__":

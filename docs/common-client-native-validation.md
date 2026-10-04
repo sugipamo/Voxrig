@@ -165,3 +165,18 @@ RCONはstorage/player数量とhead装備を独立して照合し、位置も不�
 slot/cursorの実受信条件は緩和しない。保存済みmodern native player dataも装備形式の独立診断に
 使用した。native入力のsnapshot後に行ったsource互換名のre-export・diagnostic wordingと生成器commentの
 整理は動作を変えず、現在のsourceは別途全テスト・compiler・packageで確認する。
+
+追加のcursor処理調査は`trial-1.16.1-5171bb66` / `trial-1.21.11-fa5a1f79`で成功した。
+同じconsumer binaryで従来の全workflowと各版9件の完了Shift操作を再確認し、
+さらに両modeの新しい実接続でbarrelからstone 5をPICKUPして、範囲外への外部teleport後に
+vanillaが元の画面を閉じるまで観測する。通常の圧縮通信をそのまま転送するreadonly traceには
+元windowの実CLOSEがあり、各調査接続にClient closeの送信はない。
+独立RCONでlegacyのstone 5 item entityと、modernの在庫返却／item entityなしを確認した。
+両JVM exit 0、tmpfs runtime削除済み。元source/dataをbuild前にhashし、実consumer binaryと
+raw report/trace/hashは`data/client_api/cursor_close_native_evidence.json`へ保存した。
+
+初回の強制close後のcursor/UI不足と、同値再受信によるlegacy送信前の誤拒否もfailed runとして残す。
+前者は新しい実接続を使うfixtureへ修正し、後者は受信値とhistory ordinalを分けるlibrary修正を行った。
+実値の競合が復元されても解除しないこと、再受信を送信後の結果として数えないことをtransport試験で確認する。
+この調査はcursor付き共通closeの実装・完了ではない。終了前の実在庫返却／実受信／owned closeを
+次に組み合わせる。範囲と順序は[追加native調査](common-cursor-close-audit.md)を参照。
