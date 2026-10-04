@@ -338,7 +338,7 @@ Vanillaは通常closeをechoしないため、`server_close_sequence == None`で
 元画面へclick/closeを再送せず、`container_close_record()`で送信不確実性を確認する。
 旧cacheのscreen消去をサーバー側閉鎖確認へ読み替えない。
 新しいOPENを実受信すればその新identityから次操作を明示的に始める。
-empty cursor限定、取消の版別write所有権、player screen再開/open契約の残作業は
+実cursor返却、取消後のowned処理、player screen再開/open契約は
 [共通container close](common-container-close.md)を参照。
 
 ## close後のplayer画面とactual player revision
@@ -386,8 +386,9 @@ SWAPのhotbar引数とは異なり、ここはnative screen slot番号を渡す�
 旧native `OperationAdmissionError`には`BoundedInventoryClickInProgress`を追加するため、
 このenumを網羅matchしている利用側は対応するarmを追加する。
 
-default stack、監査済みstorageとplayer main/hotbarを実装対象とする。modern bundle override、
-一般NBT/components、PICKUPのcrafting/result/armor/offhand、cursorを持ったcloseは追加対応を要する。
+default stack、監査済みstorageとplayer main/hotbarを実装対象とする。Leftはlegacy default constructorのNBTを保持して移動し、
+modern default bundleも空きcursor/空きslotとの移動に対応する。bundle内部の収納やRight override、
+一般NBT/components、PICKUPのcrafting/result/armor/offhandは追加対応を要する。cursor付きcloseは下記の共通返却へ移行する。
 詳細は[通常クリック契約](common-inventory-clicks.md)を参照する。
 
 
@@ -402,3 +403,24 @@ sourceは`Player`のslot 5..45か、元の`Container { screen }`のnative screen
 旧native `OperationAdmissionError`を網羅matchする利用側には
 `BoundedInventoryTransferInProgress`のarm追加が必要になる。
 詳しくは[Shift転送契約](common-inventory-transfers.md)を参照する。
+
+## cursor付きcloseと取消後の処理
+
+`close_container(screen.id)`は、実cursorがitemでも十分な既知player main/hotbar容量があれば、返却してから閉じる。
+従来の「nonemptyなら即エラー」を使って呼出側で返却する分岐は不要になる。未知cursor、未解決操作、未検証画面、
+容量不足等は送信前にエラーになる。一般NBT/componentsやbundle内部への収納はこの変更の対象に含めない。
+
+`ContainerCloseStage::ReturningCursor`を追加したため、stageを全分岐している利用側はこのvariantへ対応する。
+`return_plan`はI/O前の返却先とPredicted値、`return_steps`は各PICKUPの実before・送信・実結果を持つ。
+各stepの`InventoryClickId::close()`は親close IDを返す。通常の`inventory_click_record()`は上書きしないため、
+close後の現在cursorは`player_state()`または親recordの最後の実`cursor_receipt`で確認する。
+
+両版とも待機側の取消後もowned返却→実受信→closeは継続し得る。同じscreenのcloseを再呼出して復旧しない。
+`container_close_record()`はwriter待ち中も進捗を返し、timeout・途中の実変化・配信不確実性は最初の理由をinspectionへ残す。
+各返却stepは完全送信後5秒以内の実source/cursorを要求し、legacyはmatching実比較応答も必要。
+未解決recordや値の復元から再試行の許可を作らず、実状態を調査して新しい接続/画面から明示的に再開する。
+
+`dispatched`は全量CLOSEを書いた事実で、返却stepだけの送信やサーバーACKではない。
+`server_close_sequence`は元openingへの新しい実CLOSEだけを示す。無応答の正常vanillaでも`None`のままでよい。
+実positionの同値再受信は履歴ordinalを保存しつつ許可し、modernはteleport確認/position応答の完全送信より前に新しい位置を
+通常操作へ公開しない。契約・native証拠は[共通close](common-container-close.md)を参照。
