@@ -3,6 +3,7 @@ mod capabilities;
 mod config;
 pub mod container;
 mod geometry;
+mod hash_ops;
 pub mod inventory;
 mod item;
 pub mod nbt;

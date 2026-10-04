@@ -313,3 +313,13 @@ no game binaries or method bodies are included.
 original item bytes and source ordinals from sequential vanilla trials in both
 versions/modes, with independent RCON and readonly frames. Run-time input and
 raw-output hashes bind these limited observations; game binaries are excluded.
+
+`data/client_api/item_semantics-*.json.gz` records factual independently decoded
+native item/component comparisons, prototype neutrality, typed persistent hash
+inputs and unchanged hashed-stack codec outputs. Own observation wrappers
+forward factories/builders to original HashOps and compare to unwrapped encoders.
+The supplied HashGenerator composes unchanged typed encoders and original Guava
+native-key caching at the mapped capacity; it is not live ServerPlayer cache
+or synchronizer evidence. Source/request/JAR/mapping/classpath/raw-output hashes
+are recorded in `item_semantics_source.json`. Original binaries, mappings and
+method bodies remain local; these facts do not relicense Minecraft.

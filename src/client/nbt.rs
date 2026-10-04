@@ -403,108 +403,28 @@ fn equivalent(left: &Arc<NbtValue>, right: &Arc<NbtValue>, version: MinecraftVer
     }
 }
 
-// Original HashOps' typed primitive facts, applied to native logical NBT values.
-struct Crc32c(u32);
-impl Crc32c {
-    fn new() -> Self {
-        Self(u32::MAX)
-    }
-    fn byte(&mut self, byte: u8) {
-        self.0 ^= u32::from(byte);
-        for _ in 0..8 {
-            self.0 = (self.0 >> 1) ^ (0x82f63b78 & 0u32.wrapping_sub(self.0 & 1));
-        }
-    }
-    fn bytes(&mut self, bytes: &[u8]) {
-        for byte in bytes {
-            self.byte(*byte);
-        }
-    }
-    fn finish(self) -> u32 {
-        !self.0
-    }
-}
-fn string_hash(value: &NbtString) -> u32 {
-    let mut crc = Crc32c::new();
-    crc.byte(12);
-    crc.bytes(&(value.0.len() as u32).to_le_bytes());
-    for unit in &value.0 {
-        crc.bytes(&unit.to_le_bytes());
-    }
-    crc.finish()
-}
+// Logical decoded NBT selects native typed inputs for the shared HashOps engine.
 fn hash(value: &NbtValue) -> u32 {
-    let mut crc = Crc32c::new();
+    use super::hash_ops::{map, primitive, sequence, string};
     match value {
-        NbtValue::Byte(value) => {
-            crc.byte(6);
-            crc.byte(*value as u8);
-        }
-        NbtValue::Short(value) => {
-            crc.byte(7);
-            crc.bytes(&value.to_le_bytes());
-        }
-        NbtValue::Int(value) => {
-            crc.byte(8);
-            crc.bytes(&value.to_le_bytes());
-        }
-        NbtValue::Long(value) => {
-            crc.byte(9);
-            crc.bytes(&value.to_le_bytes());
-        }
-        NbtValue::Float { bits } => {
-            crc.byte(10);
-            crc.bytes(&bits.to_le_bytes());
-        }
-        NbtValue::Double { bits } => {
-            crc.byte(11);
-            crc.bytes(&bits.to_le_bytes());
-        }
-        NbtValue::String(value) => return string_hash(value),
-        NbtValue::ByteArray(values) => {
-            crc.byte(14);
-            for value in values {
-                crc.byte(*value as u8);
-            }
-            crc.byte(15);
-        }
-        NbtValue::IntArray(values) => {
-            crc.byte(16);
-            for value in values {
-                crc.bytes(&value.to_le_bytes());
-            }
-            crc.byte(17);
-        }
+        NbtValue::Byte(value) => primitive(6, [*value as u8]),
+        NbtValue::Short(value) => primitive(7, value.to_le_bytes()),
+        NbtValue::Int(value) => primitive(8, value.to_le_bytes()),
+        NbtValue::Long(value) => primitive(9, value.to_le_bytes()),
+        NbtValue::Float { bits } => primitive(10, bits.to_le_bytes()),
+        NbtValue::Double { bits } => primitive(11, bits.to_le_bytes()),
+        NbtValue::String(value) => string(&value.0),
+        NbtValue::ByteArray(values) => sequence(14, 15, values.iter().map(|v| *v as u8)),
+        NbtValue::IntArray(values) => sequence(16, 17, values.iter().flat_map(|v| v.to_le_bytes())),
         NbtValue::LongArray(values) => {
-            crc.byte(18);
-            for value in values {
-                crc.bytes(&value.to_le_bytes());
-            }
-            crc.byte(19);
+            sequence(18, 19, values.iter().flat_map(|v| v.to_le_bytes()))
         }
-        NbtValue::List(values) => {
-            crc.byte(4);
-            for value in values {
-                crc.bytes(&hash(value).to_le_bytes());
-            }
-            crc.byte(5);
-        }
-        NbtValue::Compound(values) => {
-            let mut entries = values
-                .entries
-                .iter()
-                .map(|entry| (string_hash(&entry.key), hash(&entry.value)))
-                .collect::<Vec<_>>();
-            entries.sort_unstable();
-            crc.byte(2);
-            for (key, value) in entries {
-                crc.bytes(&key.to_le_bytes());
-                crc.bytes(&value.to_le_bytes());
-            }
-            crc.byte(3);
-        }
+        NbtValue::List(values) => sequence(4, 5, values.iter().flat_map(|v| hash(v).to_le_bytes())),
+        NbtValue::Compound(values) => map(values
+            .entries
+            .iter()
+            .map(|entry| (string(&entry.key.0), hash(&entry.value)))),
     }
-    crc.finish()
 }
 
 #[cfg(test)]

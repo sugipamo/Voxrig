@@ -136,6 +136,37 @@ modern stoneのmax stack size=16を独立RCONへ照合した。受信bytes・元
 readonly frame・実行時入力は`data/client_api/item_properties_native_evidence.json`に保存する。
 実入力は4105a49にstaged変更を加えたもので、実行後のevidence/docsを入力へ付け足さない。
 
+## Item比較・persistent hashの基礎
+
+`item_semantics-*.json.gz`は未変更公式JARで独立にdecodeしたitemの比較結果。
+legacy 4,805件、modern 13,853件についてcountを含むnative比較とcanonical wireを保存する。
+modernでは全104型、4,134件のcomponent値をnative value比較・persistent codec・
+original HashOpsへ通し、5,846 nodeの型付きhash入力を記録した。byte/short/int/long、
+float/doubleの生bits、boolean、UTF-16 string、array、list、mapを区別する。
+wire bytesをCRCへ通した結果ではない。原codecと観測wrapperの成否/hashが同じことも検査する。
+Rustの共通内部hash計算は8,335件の直接・fresh・cache rootと照合し、既存のNBT getterもこの計算を使う。
+fixtureによる値→hash lookupや、任意componentを読む公開hash APIにはしない。
+
+modernの24,789件のprototype同値追加・不存在component削除は、元itemとnative比較が等しい。
+したがって元patch bytesの差だけでitemの意味の不一致を断定できない。
+legacyでは同じbytesを別々にdecodeしてもNaNを含むitemが不一致になり得る。
+modernのcustom_dataではNaN payloadが異なってもnative値は等しく、直接hashは異なる一方、
+native値をkeyにしたcacheは先に計算したhashを返す例を4件保持している。
+CRC一致、native値の等価性、送信するcache hashは別の事実として扱う。
+
+standalone検査は元のtyped encoder・RegistryOps・HashOps・Guava native-key cacheを
+組み合わせた自作HashGeneratorを、元HashedStack creator/matcher/stream codecへ渡す。
+cache容量256は元serverの値へ照合したが、実ServerPlayerのsynchronizer/cacheを実行した証拠ではない。
+prototype内のregistry IDも固定oracle contextのもの。実接続のregistryへ流用しない。
+13件は元persistent encoder/hashed-stack creator自身が拒否した結果を保存する。
+非persistentなmap_post_processing/creative_slot_lockとscalarの範囲外値を含み、成功へ置き換えない。
+
+元JAR/mapping/classpath、request、tool、raw/final出力digestは`item_semantics_source.json`に保存する。
+`scripts/export_item_semantics.py`で両版をJVM512 MiB・CPU1で順に再生成する。
+同じruntime directoryを指定した`--normalize-only --check`で保存出力を照合できる。
+ゲームのJAR/method bodyとruntime worldは配布しない。この検査はgameplayの受理・slot規則を証明しない。
+完全なcomponent意味比較、live registry解決、server cacheとの対応とdata付き操作の実装・検証は続く。
+
 ## Component registry
 
 `Registry::item_component` / `item_component_by_native_id` /
@@ -167,7 +198,8 @@ registry参照は元の数値/inline/tag表現を保持する。
 `ServerRegistryId`をconnection/configurationへ束縛し、再設定後の旧IDを拒否する。
 一般componentのinline/tag表現の解釈やlegacy codecの個別entry resolverは引き続き別作業。
 詳細は[接続先から受信したregistry](common-server-registries.md)を参照。
-prototypeとの統合、一般NBT/text等価性、hash・容量・slot規則と共通property getterは残作業。
+容量・耐久の共通property getterとtyped NBTは実装済み。
+一般component/text等価性、完全なprototype統合、item/cache hashとslot規則は残作業。
 
 この段階は受信・保持を追加する。既存のdefault-onlyクリック/転送/返却/設置等が、
 component付きstackをdefaultと扱うことはない。
