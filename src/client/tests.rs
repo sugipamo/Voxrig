@@ -1,6 +1,29 @@
 use super::*;
 use crate::MinecraftVersion;
 
+/// One version-independent consumer of exact received item data.
+pub(crate) async fn common_item_data_scenario(
+    client: &Client,
+    slot: usize,
+    name: &str,
+    count: u32,
+    data: ItemData,
+) {
+    let first = client.player_state().await.unwrap();
+    let received = first.inventory.slots[slot].as_ref().unwrap();
+    assert!(matches!(received.source, ValueSource::Received { .. }));
+    let SlotKnowledge::Item { item } = &received.value else {
+        panic!("received item")
+    };
+    assert_eq!((item.name.as_str(), item.count), (name, count));
+    assert_eq!(item.data, data);
+    assert_eq!(item.id.version(), first.session.version);
+    assert_eq!(item.id.kind(), registry::RegistryKind::Item);
+    let second = client.player_state().await.unwrap();
+    assert_eq!(second.session, first.session);
+    assert_eq!(second.inventory.slots[slot], first.inventory.slots[slot]);
+}
+
 pub(crate) async fn common_open_start_scenario(
     client: &Client,
     mode: GameMode,

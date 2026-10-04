@@ -175,6 +175,9 @@ impl Bot {
                     nbt: match &item.data {
                         api::ItemData::Default => None,
                         api::ItemData::LegacyNbt { bytes } => Some(bytes.clone()),
+                        api::ItemData::ModernComponents { .. } => {
+                            unreachable!("legacy received stack cannot contain modern components")
+                        }
                     },
                 }),
                 api::SlotKnowledge::Unavailable => unreachable!("validated predecessor"),

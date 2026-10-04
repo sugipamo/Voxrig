@@ -20,6 +20,8 @@ pub use movement::{
     SurvivalMotionStatus, SurvivalMovementPreview, SurvivalScenario, TerminalClearance,
 };
 #[cfg(test)]
+mod component_tests;
+#[cfg(test)]
 mod tests;
 pub use super::loading::{InteractionLoading, LoadingAttempt};
 pub use super::motion::{OwnMotion, PositionBasis, PositionSubmission, ReceivedPose};
@@ -89,6 +91,13 @@ pub enum InventorySlot {
     Item {
         /// Exact item identity and count.
         item: PlainItem,
+    },
+    /// A received stack with a complete supported native component patch.
+    ItemWithComponents {
+        /// Native item identity/count; prototype data is not flattened into this value.
+        item: PlainItem,
+        /// Exact supported values/removals, distinct from a default stack.
+        components: crate::client::ItemComponentPatch,
     },
 }
 /// Received inventory contents; unsupported components invalidate the affected baseline.
@@ -853,18 +862,21 @@ fn slot(r: &mut Reader<'_>) -> anyhow::Result<Option<InventorySlot>> {
         .iter()
         .find(|i| i.id == id)
         .context("unknown item id")?;
-    let added = r.count(256)?;
-    let removed = r.count(256)?;
-    if added != 0 || removed != 0 {
+    let Some(components) = super::super::item_components::read_patch(r)? else {
         return Ok(None);
-    }
-    Ok(Some(InventorySlot::Item {
-        item: PlainItem {
-            name: format!("minecraft:{}", definition.name),
-            item_id: id,
-            count,
+    };
+    let item = PlainItem {
+        name: format!("minecraft:{}", definition.name),
+        item_id: id,
+        count,
+    };
+    Ok(Some(
+        if components.added.is_empty() && components.removed.is_empty() {
+            InventorySlot::Item { item }
+        } else {
+            InventorySlot::ItemWithComponents { item, components }
         },
-    }))
+    ))
 }
 pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Result<bool> {
     use ids::play_clientbound as input;
@@ -1255,7 +1267,7 @@ fn common_slot(slot: &InventorySlot) -> Result<crate::client::SlotKnowledge> {
     Ok(match slot {
         InventorySlot::Unavailable => api::SlotKnowledge::Unavailable,
         InventorySlot::Empty => api::SlotKnowledge::Empty,
-        InventorySlot::Item { item } => {
+        InventorySlot::Item { item } | InventorySlot::ItemWithComponents { item, .. } => {
             let definition =
                 api::registry::Registry::for_version(crate::MinecraftVersion::Java1_21_11)
                     .item_by_native_id(item.item_id)?;
@@ -1268,7 +1280,14 @@ fn common_slot(slot: &InventorySlot) -> Result<crate::client::SlotKnowledge> {
                     id: definition.id,
                     name: definition.name,
                     count,
-                    data: api::ItemData::Default,
+                    data: match slot {
+                        InventorySlot::ItemWithComponents { components, .. } => {
+                            api::ItemData::ModernComponents {
+                                patch: components.clone(),
+                            }
+                        }
+                        _ => api::ItemData::Default,
+                    },
                 },
             }
         }

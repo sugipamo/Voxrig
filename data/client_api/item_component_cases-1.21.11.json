@@ -1,0 +1,5284 @@
+{
+  "failures": [],
+  "mixed": {
+    "added": [
+      {
+        "name": "minecraft:custom_data",
+        "native_id": 0,
+        "value_hex": "0a0900056279746573010000000301020301000b566f7872696750726f6265110a00066e65737465640800036b6579000576616c75650000"
+      },
+      {
+        "name": "minecraft:custom_name",
+        "native_id": 6,
+        "value_hex": "0a080005636f6c6f720003726564080004746578740006566f7872696700"
+      },
+      {
+        "name": "minecraft:damage",
+        "native_id": 3,
+        "value_hex": "07"
+      },
+      {
+        "name": "minecraft:unbreakable",
+        "native_id": 4,
+        "value_hex": ""
+      },
+      {
+        "name": "minecraft:custom_model_data",
+        "native_id": 17,
+        "value_hex": "023fc00000c000000002010001036162630100ff0000"
+      },
+      {
+        "name": "minecraft:block_state",
+        "native_id": 74,
+        "value_hex": "0106666163696e67056e6f727468"
+      }
+    ],
+    "patch_hex": "0601000a0900056279746573010000000301020301000b566f7872696750726f6265110a00066e65737465640800036b6579000576616c75650000060a080005636f6c6f720003726564080004746578740006566f787269670003070411023fc00000c000000002010001036162630100ff00004a0106666163696e67056e6f7274680b",
+    "removed": "minecraft:lore"
+  },
+  "registry": [
+    {
+      "name": "minecraft:custom_data",
+      "native_id": 0,
+      "persistent": true,
+      "stream_codec_class": "aam$10"
+    },
+    {
+      "name": "minecraft:max_stack_size",
+      "native_id": 1,
+      "persistent": true,
+      "stream_codec_class": "aam$32"
+    },
+    {
+      "name": "minecraft:max_damage",
+      "native_id": 2,
+      "persistent": true,
+      "stream_codec_class": "aam$32"
+    },
+    {
+      "name": "minecraft:damage",
+      "native_id": 3,
+      "persistent": true,
+      "stream_codec_class": "aam$32"
+    },
+    {
+      "name": "minecraft:unbreakable",
+      "native_id": 4,
+      "persistent": true,
+      "stream_codec_class": "aao$13"
+    },
+    {
+      "name": "minecraft:use_effects",
+      "native_id": 5,
+      "persistent": true,
+      "stream_codec_class": "aao$19"
+    },
+    {
+      "name": "minecraft:custom_name",
+      "native_id": 6,
+      "persistent": true,
+      "stream_codec_class": "aam$10"
+    },
+    {
+      "name": "minecraft:minimum_attack_charge",
+      "native_id": 7,
+      "persistent": true,
+      "stream_codec_class": "aam$35"
+    },
+    {
+      "name": "minecraft:damage_type",
+      "native_id": 8,
+      "persistent": true,
+      "stream_codec_class": "aao$17"
+    },
+    {
+      "name": "minecraft:item_name",
+      "native_id": 9,
+      "persistent": true,
+      "stream_codec_class": "aam$10"
+    },
+    {
+      "name": "minecraft:item_model",
+      "native_id": 10,
+      "persistent": true,
+      "stream_codec_class": "aao$14"
+    },
+    {
+      "name": "minecraft:lore",
+      "native_id": 11,
+      "persistent": true,
+      "stream_codec_class": "aao$14"
+    },
+    {
+      "name": "minecraft:rarity",
+      "native_id": 12,
+      "persistent": true,
+      "stream_codec_class": "aam$21"
+    },
+    {
+      "name": "minecraft:enchantments",
+      "native_id": 13,
+      "persistent": true,
+      "stream_codec_class": "aao$17"
+    },
+    {
+      "name": "minecraft:can_place_on",
+      "native_id": 14,
+      "persistent": true,
+      "stream_codec_class": "aao$17"
+    },
+    {
+      "name": "minecraft:can_break",
+      "native_id": 15,
+      "persistent": true,
+      "stream_codec_class": "aao$17"
+    },
+    {
+      "name": "minecraft:attribute_modifiers",
+      "native_id": 16,
+      "persistent": true,
+      "stream_codec_class": "aao$17"
+    },
+    {
+      "name": "minecraft:custom_model_data",
+      "native_id": 17,
+      "persistent": true,
+      "stream_codec_class": "aao$2"
+    },
+    {
+      "name": "minecraft:tooltip_display",
+      "native_id": 18,
+      "persistent": true,
+      "stream_codec_class": "aao$18"
+    },
+    {
+      "name": "minecraft:repair_cost",
+      "native_id": 19,
+      "persistent": true,
+      "stream_codec_class": "aam$32"
+    },
+    {
+      "name": "minecraft:creative_slot_lock",
+      "native_id": 20,
+      "persistent": false,
+      "stream_codec_class": "aao$13"
+    },
+    {
+      "name": "minecraft:enchantment_glint_override",
+      "native_id": 21,
+      "persistent": true,
+      "stream_codec_class": "aam$1"
+    },
+    {
+      "name": "minecraft:intangible_projectile",
+      "native_id": 22,
+      "persistent": true,
+      "stream_codec_class": "aam$10"
+    },
+    {
+      "name": "minecraft:food",
+      "native_id": 23,
+      "persistent": true,
+      "stream_codec_class": "aao$19"
+    },
+    {
+      "name": "minecraft:consumable",
+      "native_id": 24,
+      "persistent": true,
+      "stream_codec_class": "aao$3"
+    },
+    {
+      "name": "minecraft:use_remainder",
+      "native_id": 25,
+      "persistent": true,
+      "stream_codec_class": "aao$17"
+    },
+    {
+      "name": "minecraft:use_cooldown",
+      "native_id": 26,
+      "persistent": true,
+      "stream_codec_class": "aao$18"
+    },
+    {
+      "name": "minecraft:damage_resistant",
+      "native_id": 27,
+      "persistent": true,
+      "stream_codec_class": "aao$17"
+    },
+    {
+      "name": "minecraft:tool",
+      "native_id": 28,
+      "persistent": true,
+      "stream_codec_class": "aao$2"
+    },
+    {
+      "name": "minecraft:weapon",
+      "native_id": 29,
+      "persistent": true,
+      "stream_codec_class": "aao$18"
+    },
+    {
+      "name": "minecraft:attack_range",
+      "native_id": 30,
+      "persistent": true,
+      "stream_codec_class": "aao$4"
+    },
+    {
+      "name": "minecraft:enchantable",
+      "native_id": 31,
+      "persistent": true,
+      "stream_codec_class": "aao$17"
+    },
+    {
+      "name": "minecraft:equippable",
+      "native_id": 32,
+      "persistent": true,
+      "stream_codec_class": "aao$9"
+    },
+    {
+      "name": "minecraft:repairable",
+      "native_id": 33,
+      "persistent": true,
+      "stream_codec_class": "aao$17"
+    },
+    {
+      "name": "minecraft:glider",
+      "native_id": 34,
+      "persistent": true,
+      "stream_codec_class": "aao$13"
+    },
+    {
+      "name": "minecraft:tooltip_style",
+      "native_id": 35,
+      "persistent": true,
+      "stream_codec_class": "aao$14"
+    },
+    {
+      "name": "minecraft:death_protection",
+      "native_id": 36,
+      "persistent": true,
+      "stream_codec_class": "aao$17"
+    },
+    {
+      "name": "minecraft:blocks_attacks",
+      "native_id": 37,
+      "persistent": true,
+      "stream_codec_class": "aao$5"
+    },
+    {
+      "name": "minecraft:piercing_weapon",
+      "native_id": 38,
+      "persistent": true,
+      "stream_codec_class": "aao$2"
+    },
+    {
+      "name": "minecraft:kinetic_weapon",
+      "native_id": 39,
+      "persistent": true,
+      "stream_codec_class": "aao$7"
+    },
+    {
+      "name": "minecraft:swing_animation",
+      "native_id": 40,
+      "persistent": true,
+      "stream_codec_class": "aao$18"
+    },
+    {
+      "name": "minecraft:stored_enchantments",
+      "native_id": 41,
+      "persistent": true,
+      "stream_codec_class": "aao$17"
+    },
+    {
+      "name": "minecraft:dyed_color",
+      "native_id": 42,
+      "persistent": true,
+      "stream_codec_class": "aao$17"
+    },
+    {
+      "name": "minecraft:map_color",
+      "native_id": 43,
+      "persistent": true,
+      "stream_codec_class": "aao$14"
+    },
+    {
+      "name": "minecraft:map_id",
+      "native_id": 44,
+      "persistent": true,
+      "stream_codec_class": "aao$14"
+    },
+    {
+      "name": "minecraft:map_decorations",
+      "native_id": 45,
+      "persistent": true,
+      "stream_codec_class": "aam$10"
+    },
+    {
+      "name": "minecraft:map_post_processing",
+      "native_id": 46,
+      "persistent": false,
+      "stream_codec_class": "aam$21"
+    },
+    {
+      "name": "minecraft:charged_projectiles",
+      "native_id": 47,
+      "persistent": true,
+      "stream_codec_class": "aao$14"
+    },
+    {
+      "name": "minecraft:bundle_contents",
+      "native_id": 48,
+      "persistent": true,
+      "stream_codec_class": "aao$14"
+    },
+    {
+      "name": "minecraft:potion_contents",
+      "native_id": 49,
+      "persistent": true,
+      "stream_codec_class": "aao$2"
+    },
+    {
+      "name": "minecraft:potion_duration_scale",
+      "native_id": 50,
+      "persistent": true,
+      "stream_codec_class": "aam$35"
+    },
+    {
+      "name": "minecraft:suspicious_stew_effects",
+      "native_id": 51,
+      "persistent": true,
+      "stream_codec_class": "aao$14"
+    },
+    {
+      "name": "minecraft:writable_book_content",
+      "native_id": 52,
+      "persistent": true,
+      "stream_codec_class": "aao$14"
+    },
+    {
+      "name": "minecraft:written_book_content",
+      "native_id": 53,
+      "persistent": true,
+      "stream_codec_class": "aao$3"
+    },
+    {
+      "name": "minecraft:trim",
+      "native_id": 54,
+      "persistent": true,
+      "stream_codec_class": "aao$18"
+    },
+    {
+      "name": "minecraft:debug_stick_state",
+      "native_id": 55,
+      "persistent": true,
+      "stream_codec_class": "aam$10"
+    },
+    {
+      "name": "minecraft:entity_data",
+      "native_id": 56,
+      "persistent": true,
+      "stream_codec_class": "aao$18"
+    },
+    {
+      "name": "minecraft:bucket_entity_data",
+      "native_id": 57,
+      "persistent": true,
+      "stream_codec_class": "aao$14"
+    },
+    {
+      "name": "minecraft:block_entity_data",
+      "native_id": 58,
+      "persistent": true,
+      "stream_codec_class": "aao$18"
+    },
+    {
+      "name": "minecraft:instrument",
+      "native_id": 59,
+      "persistent": true,
+      "stream_codec_class": "aao$14"
+    },
+    {
+      "name": "minecraft:provides_trim_material",
+      "native_id": 60,
+      "persistent": true,
+      "stream_codec_class": "aao$14"
+    },
+    {
+      "name": "minecraft:ominous_bottle_amplifier",
+      "native_id": 61,
+      "persistent": true,
+      "stream_codec_class": "aao$17"
+    },
+    {
+      "name": "minecraft:jukebox_playable",
+      "native_id": 62,
+      "persistent": true,
+      "stream_codec_class": "aao$17"
+    },
+    {
+      "name": "minecraft:provides_banner_patterns",
+      "native_id": 63,
+      "persistent": true,
+      "stream_codec_class": "aao$14"
+    },
+    {
+      "name": "minecraft:recipes",
+      "native_id": 64,
+      "persistent": true,
+      "stream_codec_class": "aam$10"
+    },
+    {
+      "name": "minecraft:lodestone_tracker",
+      "native_id": 65,
+      "persistent": true,
+      "stream_codec_class": "aao$18"
+    },
+    {
+      "name": "minecraft:firework_explosion",
+      "native_id": 66,
+      "persistent": true,
+      "stream_codec_class": "aao$3"
+    },
+    {
+      "name": "minecraft:fireworks",
+      "native_id": 67,
+      "persistent": true,
+      "stream_codec_class": "aao$18"
+    },
+    {
+      "name": "minecraft:profile",
+      "native_id": 68,
+      "persistent": true,
+      "stream_codec_class": "aao$18"
+    },
+    {
+      "name": "minecraft:note_block_sound",
+      "native_id": 69,
+      "persistent": true,
+      "stream_codec_class": "aao$14"
+    },
+    {
+      "name": "minecraft:banner_patterns",
+      "native_id": 70,
+      "persistent": true,
+      "stream_codec_class": "aao$14"
+    },
+    {
+      "name": "minecraft:base_color",
+      "native_id": 71,
+      "persistent": true,
+      "stream_codec_class": "aam$21"
+    },
+    {
+      "name": "minecraft:pot_decorations",
+      "native_id": 72,
+      "persistent": true,
+      "stream_codec_class": "aao$14"
+    },
+    {
+      "name": "minecraft:container",
+      "native_id": 73,
+      "persistent": true,
+      "stream_codec_class": "aao$14"
+    },
+    {
+      "name": "minecraft:block_state",
+      "native_id": 74,
+      "persistent": true,
+      "stream_codec_class": "aao$14"
+    },
+    {
+      "name": "minecraft:bees",
+      "native_id": 75,
+      "persistent": true,
+      "stream_codec_class": "aao$14"
+    },
+    {
+      "name": "minecraft:lock",
+      "native_id": 76,
+      "persistent": true,
+      "stream_codec_class": "aam$10"
+    },
+    {
+      "name": "minecraft:container_loot",
+      "native_id": 77,
+      "persistent": true,
+      "stream_codec_class": "aam$10"
+    },
+    {
+      "name": "minecraft:break_sound",
+      "native_id": 78,
+      "persistent": true,
+      "stream_codec_class": "aam$24"
+    },
+    {
+      "name": "minecraft:villager/variant",
+      "native_id": 79,
+      "persistent": true,
+      "stream_codec_class": "aam$22"
+    },
+    {
+      "name": "minecraft:wolf/variant",
+      "native_id": 80,
+      "persistent": true,
+      "stream_codec_class": "aam$22"
+    },
+    {
+      "name": "minecraft:wolf/sound_variant",
+      "native_id": 81,
+      "persistent": true,
+      "stream_codec_class": "aam$22"
+    },
+    {
+      "name": "minecraft:wolf/collar",
+      "native_id": 82,
+      "persistent": true,
+      "stream_codec_class": "aam$21"
+    },
+    {
+      "name": "minecraft:fox/variant",
+      "native_id": 83,
+      "persistent": true,
+      "stream_codec_class": "aam$21"
+    },
+    {
+      "name": "minecraft:salmon/size",
+      "native_id": 84,
+      "persistent": true,
+      "stream_codec_class": "aam$21"
+    },
+    {
+      "name": "minecraft:parrot/variant",
+      "native_id": 85,
+      "persistent": true,
+      "stream_codec_class": "aam$21"
+    },
+    {
+      "name": "minecraft:tropical_fish/pattern",
+      "native_id": 86,
+      "persistent": true,
+      "stream_codec_class": "aam$21"
+    },
+    {
+      "name": "minecraft:tropical_fish/base_color",
+      "native_id": 87,
+      "persistent": true,
+      "stream_codec_class": "aam$21"
+    },
+    {
+      "name": "minecraft:tropical_fish/pattern_color",
+      "native_id": 88,
+      "persistent": true,
+      "stream_codec_class": "aam$21"
+    },
+    {
+      "name": "minecraft:mooshroom/variant",
+      "native_id": 89,
+      "persistent": true,
+      "stream_codec_class": "aam$21"
+    },
+    {
+      "name": "minecraft:rabbit/variant",
+      "native_id": 90,
+      "persistent": true,
+      "stream_codec_class": "aam$21"
+    },
+    {
+      "name": "minecraft:pig/variant",
+      "native_id": 91,
+      "persistent": true,
+      "stream_codec_class": "aam$22"
+    },
+    {
+      "name": "minecraft:cow/variant",
+      "native_id": 92,
+      "persistent": true,
+      "stream_codec_class": "aam$22"
+    },
+    {
+      "name": "minecraft:chicken/variant",
+      "native_id": 93,
+      "persistent": true,
+      "stream_codec_class": "aao$17"
+    },
+    {
+      "name": "minecraft:zombie_nautilus/variant",
+      "native_id": 94,
+      "persistent": true,
+      "stream_codec_class": "aao$17"
+    },
+    {
+      "name": "minecraft:frog/variant",
+      "native_id": 95,
+      "persistent": true,
+      "stream_codec_class": "aam$22"
+    },
+    {
+      "name": "minecraft:horse/variant",
+      "native_id": 96,
+      "persistent": true,
+      "stream_codec_class": "aam$21"
+    },
+    {
+      "name": "minecraft:painting/variant",
+      "native_id": 97,
+      "persistent": true,
+      "stream_codec_class": "aam$24"
+    },
+    {
+      "name": "minecraft:llama/variant",
+      "native_id": 98,
+      "persistent": true,
+      "stream_codec_class": "aam$21"
+    },
+    {
+      "name": "minecraft:axolotl/variant",
+      "native_id": 99,
+      "persistent": true,
+      "stream_codec_class": "aam$21"
+    },
+    {
+      "name": "minecraft:cat/variant",
+      "native_id": 100,
+      "persistent": true,
+      "stream_codec_class": "aam$22"
+    },
+    {
+      "name": "minecraft:cat/collar",
+      "native_id": 101,
+      "persistent": true,
+      "stream_codec_class": "aam$21"
+    },
+    {
+      "name": "minecraft:sheep/color",
+      "native_id": 102,
+      "persistent": true,
+      "stream_codec_class": "aam$21"
+    },
+    {
+      "name": "minecraft:shulker/color",
+      "native_id": 103,
+      "persistent": true,
+      "stream_codec_class": "aam$21"
+    }
+  ],
+  "removed": [
+    {
+      "name": "minecraft:custom_data",
+      "native_id": 0,
+      "patch_hex": "000100"
+    },
+    {
+      "name": "minecraft:max_stack_size",
+      "native_id": 1,
+      "patch_hex": "000101"
+    },
+    {
+      "name": "minecraft:max_damage",
+      "native_id": 2,
+      "patch_hex": "000102"
+    },
+    {
+      "name": "minecraft:damage",
+      "native_id": 3,
+      "patch_hex": "000103"
+    },
+    {
+      "name": "minecraft:unbreakable",
+      "native_id": 4,
+      "patch_hex": "000104"
+    },
+    {
+      "name": "minecraft:use_effects",
+      "native_id": 5,
+      "patch_hex": "000105"
+    },
+    {
+      "name": "minecraft:custom_name",
+      "native_id": 6,
+      "patch_hex": "000106"
+    },
+    {
+      "name": "minecraft:minimum_attack_charge",
+      "native_id": 7,
+      "patch_hex": "000107"
+    },
+    {
+      "name": "minecraft:damage_type",
+      "native_id": 8,
+      "patch_hex": "000108"
+    },
+    {
+      "name": "minecraft:item_name",
+      "native_id": 9,
+      "patch_hex": "000109"
+    },
+    {
+      "name": "minecraft:item_model",
+      "native_id": 10,
+      "patch_hex": "00010a"
+    },
+    {
+      "name": "minecraft:lore",
+      "native_id": 11,
+      "patch_hex": "00010b"
+    },
+    {
+      "name": "minecraft:rarity",
+      "native_id": 12,
+      "patch_hex": "00010c"
+    },
+    {
+      "name": "minecraft:enchantments",
+      "native_id": 13,
+      "patch_hex": "00010d"
+    },
+    {
+      "name": "minecraft:can_place_on",
+      "native_id": 14,
+      "patch_hex": "00010e"
+    },
+    {
+      "name": "minecraft:can_break",
+      "native_id": 15,
+      "patch_hex": "00010f"
+    },
+    {
+      "name": "minecraft:attribute_modifiers",
+      "native_id": 16,
+      "patch_hex": "000110"
+    },
+    {
+      "name": "minecraft:custom_model_data",
+      "native_id": 17,
+      "patch_hex": "000111"
+    },
+    {
+      "name": "minecraft:tooltip_display",
+      "native_id": 18,
+      "patch_hex": "000112"
+    },
+    {
+      "name": "minecraft:repair_cost",
+      "native_id": 19,
+      "patch_hex": "000113"
+    },
+    {
+      "name": "minecraft:creative_slot_lock",
+      "native_id": 20,
+      "patch_hex": "000114"
+    },
+    {
+      "name": "minecraft:enchantment_glint_override",
+      "native_id": 21,
+      "patch_hex": "000115"
+    },
+    {
+      "name": "minecraft:intangible_projectile",
+      "native_id": 22,
+      "patch_hex": "000116"
+    },
+    {
+      "name": "minecraft:food",
+      "native_id": 23,
+      "patch_hex": "000117"
+    },
+    {
+      "name": "minecraft:consumable",
+      "native_id": 24,
+      "patch_hex": "000118"
+    },
+    {
+      "name": "minecraft:use_remainder",
+      "native_id": 25,
+      "patch_hex": "000119"
+    },
+    {
+      "name": "minecraft:use_cooldown",
+      "native_id": 26,
+      "patch_hex": "00011a"
+    },
+    {
+      "name": "minecraft:damage_resistant",
+      "native_id": 27,
+      "patch_hex": "00011b"
+    },
+    {
+      "name": "minecraft:tool",
+      "native_id": 28,
+      "patch_hex": "00011c"
+    },
+    {
+      "name": "minecraft:weapon",
+      "native_id": 29,
+      "patch_hex": "00011d"
+    },
+    {
+      "name": "minecraft:attack_range",
+      "native_id": 30,
+      "patch_hex": "00011e"
+    },
+    {
+      "name": "minecraft:enchantable",
+      "native_id": 31,
+      "patch_hex": "00011f"
+    },
+    {
+      "name": "minecraft:equippable",
+      "native_id": 32,
+      "patch_hex": "000120"
+    },
+    {
+      "name": "minecraft:repairable",
+      "native_id": 33,
+      "patch_hex": "000121"
+    },
+    {
+      "name": "minecraft:glider",
+      "native_id": 34,
+      "patch_hex": "000122"
+    },
+    {
+      "name": "minecraft:tooltip_style",
+      "native_id": 35,
+      "patch_hex": "000123"
+    },
+    {
+      "name": "minecraft:death_protection",
+      "native_id": 36,
+      "patch_hex": "000124"
+    },
+    {
+      "name": "minecraft:blocks_attacks",
+      "native_id": 37,
+      "patch_hex": "000125"
+    },
+    {
+      "name": "minecraft:piercing_weapon",
+      "native_id": 38,
+      "patch_hex": "000126"
+    },
+    {
+      "name": "minecraft:kinetic_weapon",
+      "native_id": 39,
+      "patch_hex": "000127"
+    },
+    {
+      "name": "minecraft:swing_animation",
+      "native_id": 40,
+      "patch_hex": "000128"
+    },
+    {
+      "name": "minecraft:stored_enchantments",
+      "native_id": 41,
+      "patch_hex": "000129"
+    },
+    {
+      "name": "minecraft:dyed_color",
+      "native_id": 42,
+      "patch_hex": "00012a"
+    },
+    {
+      "name": "minecraft:map_color",
+      "native_id": 43,
+      "patch_hex": "00012b"
+    },
+    {
+      "name": "minecraft:map_id",
+      "native_id": 44,
+      "patch_hex": "00012c"
+    },
+    {
+      "name": "minecraft:map_decorations",
+      "native_id": 45,
+      "patch_hex": "00012d"
+    },
+    {
+      "name": "minecraft:map_post_processing",
+      "native_id": 46,
+      "patch_hex": "00012e"
+    },
+    {
+      "name": "minecraft:charged_projectiles",
+      "native_id": 47,
+      "patch_hex": "00012f"
+    },
+    {
+      "name": "minecraft:bundle_contents",
+      "native_id": 48,
+      "patch_hex": "000130"
+    },
+    {
+      "name": "minecraft:potion_contents",
+      "native_id": 49,
+      "patch_hex": "000131"
+    },
+    {
+      "name": "minecraft:potion_duration_scale",
+      "native_id": 50,
+      "patch_hex": "000132"
+    },
+    {
+      "name": "minecraft:suspicious_stew_effects",
+      "native_id": 51,
+      "patch_hex": "000133"
+    },
+    {
+      "name": "minecraft:writable_book_content",
+      "native_id": 52,
+      "patch_hex": "000134"
+    },
+    {
+      "name": "minecraft:written_book_content",
+      "native_id": 53,
+      "patch_hex": "000135"
+    },
+    {
+      "name": "minecraft:trim",
+      "native_id": 54,
+      "patch_hex": "000136"
+    },
+    {
+      "name": "minecraft:debug_stick_state",
+      "native_id": 55,
+      "patch_hex": "000137"
+    },
+    {
+      "name": "minecraft:entity_data",
+      "native_id": 56,
+      "patch_hex": "000138"
+    },
+    {
+      "name": "minecraft:bucket_entity_data",
+      "native_id": 57,
+      "patch_hex": "000139"
+    },
+    {
+      "name": "minecraft:block_entity_data",
+      "native_id": 58,
+      "patch_hex": "00013a"
+    },
+    {
+      "name": "minecraft:instrument",
+      "native_id": 59,
+      "patch_hex": "00013b"
+    },
+    {
+      "name": "minecraft:provides_trim_material",
+      "native_id": 60,
+      "patch_hex": "00013c"
+    },
+    {
+      "name": "minecraft:ominous_bottle_amplifier",
+      "native_id": 61,
+      "patch_hex": "00013d"
+    },
+    {
+      "name": "minecraft:jukebox_playable",
+      "native_id": 62,
+      "patch_hex": "00013e"
+    },
+    {
+      "name": "minecraft:provides_banner_patterns",
+      "native_id": 63,
+      "patch_hex": "00013f"
+    },
+    {
+      "name": "minecraft:recipes",
+      "native_id": 64,
+      "patch_hex": "000140"
+    },
+    {
+      "name": "minecraft:lodestone_tracker",
+      "native_id": 65,
+      "patch_hex": "000141"
+    },
+    {
+      "name": "minecraft:firework_explosion",
+      "native_id": 66,
+      "patch_hex": "000142"
+    },
+    {
+      "name": "minecraft:fireworks",
+      "native_id": 67,
+      "patch_hex": "000143"
+    },
+    {
+      "name": "minecraft:profile",
+      "native_id": 68,
+      "patch_hex": "000144"
+    },
+    {
+      "name": "minecraft:note_block_sound",
+      "native_id": 69,
+      "patch_hex": "000145"
+    },
+    {
+      "name": "minecraft:banner_patterns",
+      "native_id": 70,
+      "patch_hex": "000146"
+    },
+    {
+      "name": "minecraft:base_color",
+      "native_id": 71,
+      "patch_hex": "000147"
+    },
+    {
+      "name": "minecraft:pot_decorations",
+      "native_id": 72,
+      "patch_hex": "000148"
+    },
+    {
+      "name": "minecraft:container",
+      "native_id": 73,
+      "patch_hex": "000149"
+    },
+    {
+      "name": "minecraft:block_state",
+      "native_id": 74,
+      "patch_hex": "00014a"
+    },
+    {
+      "name": "minecraft:bees",
+      "native_id": 75,
+      "patch_hex": "00014b"
+    },
+    {
+      "name": "minecraft:lock",
+      "native_id": 76,
+      "patch_hex": "00014c"
+    },
+    {
+      "name": "minecraft:container_loot",
+      "native_id": 77,
+      "patch_hex": "00014d"
+    },
+    {
+      "name": "minecraft:break_sound",
+      "native_id": 78,
+      "patch_hex": "00014e"
+    },
+    {
+      "name": "minecraft:villager/variant",
+      "native_id": 79,
+      "patch_hex": "00014f"
+    },
+    {
+      "name": "minecraft:wolf/variant",
+      "native_id": 80,
+      "patch_hex": "000150"
+    },
+    {
+      "name": "minecraft:wolf/sound_variant",
+      "native_id": 81,
+      "patch_hex": "000151"
+    },
+    {
+      "name": "minecraft:wolf/collar",
+      "native_id": 82,
+      "patch_hex": "000152"
+    },
+    {
+      "name": "minecraft:fox/variant",
+      "native_id": 83,
+      "patch_hex": "000153"
+    },
+    {
+      "name": "minecraft:salmon/size",
+      "native_id": 84,
+      "patch_hex": "000154"
+    },
+    {
+      "name": "minecraft:parrot/variant",
+      "native_id": 85,
+      "patch_hex": "000155"
+    },
+    {
+      "name": "minecraft:tropical_fish/pattern",
+      "native_id": 86,
+      "patch_hex": "000156"
+    },
+    {
+      "name": "minecraft:tropical_fish/base_color",
+      "native_id": 87,
+      "patch_hex": "000157"
+    },
+    {
+      "name": "minecraft:tropical_fish/pattern_color",
+      "native_id": 88,
+      "patch_hex": "000158"
+    },
+    {
+      "name": "minecraft:mooshroom/variant",
+      "native_id": 89,
+      "patch_hex": "000159"
+    },
+    {
+      "name": "minecraft:rabbit/variant",
+      "native_id": 90,
+      "patch_hex": "00015a"
+    },
+    {
+      "name": "minecraft:pig/variant",
+      "native_id": 91,
+      "patch_hex": "00015b"
+    },
+    {
+      "name": "minecraft:cow/variant",
+      "native_id": 92,
+      "patch_hex": "00015c"
+    },
+    {
+      "name": "minecraft:chicken/variant",
+      "native_id": 93,
+      "patch_hex": "00015d"
+    },
+    {
+      "name": "minecraft:zombie_nautilus/variant",
+      "native_id": 94,
+      "patch_hex": "00015e"
+    },
+    {
+      "name": "minecraft:frog/variant",
+      "native_id": 95,
+      "patch_hex": "00015f"
+    },
+    {
+      "name": "minecraft:horse/variant",
+      "native_id": 96,
+      "patch_hex": "000160"
+    },
+    {
+      "name": "minecraft:painting/variant",
+      "native_id": 97,
+      "patch_hex": "000161"
+    },
+    {
+      "name": "minecraft:llama/variant",
+      "native_id": 98,
+      "patch_hex": "000162"
+    },
+    {
+      "name": "minecraft:axolotl/variant",
+      "native_id": 99,
+      "patch_hex": "000163"
+    },
+    {
+      "name": "minecraft:cat/variant",
+      "native_id": 100,
+      "patch_hex": "000164"
+    },
+    {
+      "name": "minecraft:cat/collar",
+      "native_id": 101,
+      "patch_hex": "000165"
+    },
+    {
+      "name": "minecraft:sheep/color",
+      "native_id": 102,
+      "patch_hex": "000166"
+    },
+    {
+      "name": "minecraft:shulker/color",
+      "native_id": 103,
+      "patch_hex": "000167"
+    }
+  ],
+  "samples": [
+    {
+      "name": "minecraft:custom_data",
+      "native_id": 0,
+      "patch_hex": "0100000a0900056279746573010000000301020301000b566f7872696750726f6265110a00066e65737465640800036b6579000576616c75650000",
+      "requested_value": {
+        "VoxrigProbe": 17,
+        "bytes": [
+          1,
+          2,
+          3
+        ],
+        "nested": {
+          "key": "value"
+        }
+      },
+      "value_class": "doe",
+      "value_hex": "0a0900056279746573010000000301020301000b566f7872696750726f6265110a00066e65737465640800036b6579000576616c75650000"
+    },
+    {
+      "name": "minecraft:max_stack_size",
+      "native_id": 1,
+      "patch_hex": "01000101",
+      "requested_value": 1,
+      "value_class": "java.lang.Integer",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:max_stack_size",
+      "native_id": 1,
+      "patch_hex": "01000110",
+      "requested_value": 16,
+      "value_class": "java.lang.Integer",
+      "value_hex": "10"
+    },
+    {
+      "name": "minecraft:max_stack_size",
+      "native_id": 1,
+      "patch_hex": "01000140",
+      "requested_value": 64,
+      "value_class": "java.lang.Integer",
+      "value_hex": "40"
+    },
+    {
+      "name": "minecraft:max_damage",
+      "native_id": 2,
+      "patch_hex": "010002c801",
+      "requested_value": 200,
+      "value_class": "java.lang.Integer",
+      "value_hex": "c801"
+    },
+    {
+      "name": "minecraft:damage",
+      "native_id": 3,
+      "patch_hex": "01000307",
+      "requested_value": 7,
+      "value_class": "java.lang.Integer",
+      "value_hex": "07"
+    },
+    {
+      "name": "minecraft:unbreakable",
+      "native_id": 4,
+      "patch_hex": "010004",
+      "requested_value": {},
+      "value_class": "bhr",
+      "value_hex": ""
+    },
+    {
+      "name": "minecraft:custom_name",
+      "native_id": 6,
+      "patch_hex": "01000608000b566f78726967206e616d65",
+      "requested_value": "Voxrig name",
+      "value_class": "yw",
+      "value_hex": "08000b566f78726967206e616d65"
+    },
+    {
+      "name": "minecraft:custom_name",
+      "native_id": 6,
+      "patch_hex": "0100060a080005636f6c6f720003726564080004746578740006566f7872696700",
+      "requested_value": {
+        "color": "red",
+        "text": "Voxrig"
+      },
+      "value_class": "yw",
+      "value_hex": "0a080005636f6c6f720003726564080004746578740006566f7872696700"
+    },
+    {
+      "name": "minecraft:minimum_attack_charge",
+      "native_id": 7,
+      "patch_hex": "0100073f400000",
+      "requested_value": 0.75,
+      "value_class": "java.lang.Float",
+      "value_hex": "3f400000"
+    },
+    {
+      "name": "minecraft:item_name",
+      "native_id": 9,
+      "patch_hex": "01000908000b4e6174697665206974656d",
+      "requested_value": "Native item",
+      "value_class": "yw",
+      "value_hex": "08000b4e6174697665206974656d"
+    },
+    {
+      "name": "minecraft:item_model",
+      "native_id": 10,
+      "patch_hex": "01000a0f6d696e6563726166743a73746f6e65",
+      "requested_value": "minecraft:stone",
+      "value_class": "amo",
+      "value_hex": "0f6d696e6563726166743a73746f6e65"
+    },
+    {
+      "name": "minecraft:lore",
+      "native_id": 11,
+      "patch_hex": "01000b020800036f6e6508000374776f",
+      "requested_value": [
+        "one",
+        {
+          "text": "two"
+        }
+      ],
+      "value_class": "dop",
+      "value_hex": "020800036f6e6508000374776f"
+    },
+    {
+      "name": "minecraft:rarity",
+      "native_id": 12,
+      "patch_hex": "01000c02",
+      "requested_value": "rare",
+      "value_class": "dmp",
+      "value_hex": "02"
+    },
+    {
+      "name": "minecraft:repair_cost",
+      "native_id": 19,
+      "patch_hex": "01001308",
+      "requested_value": 8,
+      "value_class": "java.lang.Integer",
+      "value_hex": "08"
+    },
+    {
+      "name": "minecraft:creative_slot_lock",
+      "native_id": 20,
+      "patch_hex": "010014",
+      "requested_value": {},
+      "value_class": "bhr",
+      "value_hex": ""
+    },
+    {
+      "name": "minecraft:enchantment_glint_override",
+      "native_id": 21,
+      "patch_hex": "01001500",
+      "requested_value": false,
+      "value_class": "java.lang.Boolean",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:enchantment_glint_override",
+      "native_id": 21,
+      "patch_hex": "01001501",
+      "requested_value": true,
+      "value_class": "java.lang.Boolean",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:intangible_projectile",
+      "native_id": 22,
+      "patch_hex": "0100160a00",
+      "requested_value": {},
+      "value_class": "bhr",
+      "value_hex": "0a00"
+    },
+    {
+      "name": "minecraft:potion_duration_scale",
+      "native_id": 50,
+      "patch_hex": "0100323fc00000",
+      "requested_value": 1.5,
+      "value_class": "java.lang.Float",
+      "value_hex": "3fc00000"
+    },
+    {
+      "name": "minecraft:ominous_bottle_amplifier",
+      "native_id": 61,
+      "patch_hex": "01003d03",
+      "requested_value": 3,
+      "value_class": "dov",
+      "value_hex": "03"
+    },
+    {
+      "name": "minecraft:note_block_sound",
+      "native_id": 69,
+      "patch_hex": "0100451f6d696e6563726166743a626c6f636b2e6e6f74655f626c6f636b2e62656c6c",
+      "requested_value": "minecraft:block.note_block.bell",
+      "value_class": "amo",
+      "value_hex": "1f6d696e6563726166743a626c6f636b2e6e6f74655f626c6f636b2e62656c6c"
+    },
+    {
+      "name": "minecraft:base_color",
+      "native_id": 71,
+      "patch_hex": "0100470e",
+      "requested_value": "red",
+      "value_class": "dkr",
+      "value_hex": "0e"
+    },
+    {
+      "name": "minecraft:block_state",
+      "native_id": 74,
+      "patch_hex": "01004a0106666163696e67056e6f727468",
+      "requested_value": {
+        "facing": "north"
+      },
+      "value_class": "dnw",
+      "value_hex": "0106666163696e67056e6f727468"
+    },
+    {
+      "name": "minecraft:custom_model_data",
+      "native_id": 17,
+      "patch_hex": "010011023fc00000c000000002010001036162630100ff0000",
+      "requested_value": {
+        "colors": [
+          16711680
+        ],
+        "flags": [
+          true,
+          false
+        ],
+        "floats": [
+          1.5,
+          -2.0
+        ],
+        "strings": [
+          "abc"
+        ]
+      },
+      "value_class": "dof",
+      "value_hex": "023fc00000c000000002010001036162630100ff0000"
+    },
+    {
+      "name": "minecraft:tooltip_display",
+      "native_id": 18,
+      "patch_hex": "010012000106",
+      "requested_value": {
+        "hidden_components": [
+          "minecraft:custom_name"
+        ],
+        "hide_tooltip": false
+      },
+      "value_class": "dpd",
+      "value_hex": "000106"
+    },
+    {
+      "name": "minecraft:use_effects",
+      "native_id": 5,
+      "patch_hex": "01000500013e99999a",
+      "requested_value": {
+        "can_sprint": false,
+        "speed_multiplier": 0.3
+      },
+      "value_class": "dph",
+      "value_hex": "00013e99999a"
+    },
+    {
+      "name": "minecraft:glider",
+      "native_id": 34,
+      "patch_hex": "010022",
+      "requested_value": {},
+      "value_class": "bhr",
+      "value_hex": ""
+    },
+    {
+      "name": "minecraft:tooltip_style",
+      "native_id": 35,
+      "patch_hex": "010023106d696e6563726166743a637573746f6d",
+      "requested_value": "minecraft:custom",
+      "value_class": "amo",
+      "value_hex": "106d696e6563726166743a637573746f6d"
+    },
+    {
+      "name": "minecraft:map_id",
+      "native_id": 44,
+      "patch_hex": "01002c7b",
+      "requested_value": 123,
+      "value_class": "fmu",
+      "value_hex": "7b"
+    },
+    {
+      "name": "minecraft:map_color",
+      "native_id": 43,
+      "patch_hex": "01002b00ff0000",
+      "requested_value": 16711680,
+      "value_class": "dot",
+      "value_hex": "00ff0000"
+    },
+    {
+      "name": "minecraft:dyed_color",
+      "native_id": 42,
+      "patch_hex": "01002a0001e240",
+      "requested_value": 123456,
+      "value_class": "doj",
+      "value_hex": "0001e240"
+    },
+    {
+      "name": "minecraft:enchantable",
+      "native_id": 31,
+      "patch_hex": "01001f07",
+      "requested_value": {
+        "value": 7
+      },
+      "value_class": "dsm",
+      "value_hex": "07"
+    },
+    {
+      "name": "minecraft:weapon",
+      "native_id": 29,
+      "patch_hex": "01001d023f400000",
+      "requested_value": {
+        "disable_blocking_for_seconds": 0.75,
+        "item_damage_per_attack": 2
+      },
+      "value_class": "dpj",
+      "value_hex": "023f400000"
+    },
+    {
+      "name": "minecraft:use_cooldown",
+      "native_id": 26,
+      "patch_hex": "01001a3fc00000010f6d696e6563726166743a70726f6265",
+      "requested_value": {
+        "cooldown_group": "minecraft:probe",
+        "seconds": 1.5
+      },
+      "value_class": "dpg",
+      "value_hex": "3fc00000010f6d696e6563726166743a70726f6265"
+    },
+    {
+      "name": "minecraft:map_decorations",
+      "native_id": 45,
+      "patch_hex": "01002d0a00",
+      "requested_value": {},
+      "value_class": "dos",
+      "value_hex": "0a00"
+    },
+    {
+      "name": "minecraft:debug_stick_state",
+      "native_id": 55,
+      "patch_hex": "0100370a00",
+      "requested_value": {},
+      "value_class": "doi",
+      "value_hex": "0a00"
+    },
+    {
+      "name": "minecraft:recipes",
+      "native_id": 64,
+      "patch_hex": "010040090000000000",
+      "requested_value": [],
+      "value_class": "java.util.ImmutableCollections$ListN",
+      "value_hex": "090000000000"
+    },
+    {
+      "name": "minecraft:lock",
+      "native_id": 76,
+      "patch_hex": "01004c0a00",
+      "requested_value": {},
+      "value_class": "cde",
+      "value_hex": "0a00"
+    },
+    {
+      "name": "minecraft:container_loot",
+      "native_id": 77,
+      "patch_hex": "01004d0a04000473656564000000000000007b08000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e00",
+      "requested_value": {
+        "loot_table": "minecraft:chests/simple_dungeon",
+        "seed": 123
+      },
+      "value_class": "doz",
+      "value_hex": "0a04000473656564000000000000007b08000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e00"
+    },
+    {
+      "name": "minecraft:bundle_contents",
+      "native_id": 48,
+      "patch_hex": "01003000",
+      "requested_value": [],
+      "value_class": "dnz",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:axolotl/variant",
+      "native_id": 99,
+      "patch_hex": "01006300",
+      "requested_value": "lucy",
+      "value_class": "ctr$e",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:axolotl/variant",
+      "native_id": 99,
+      "patch_hex": "01006301",
+      "requested_value": "wild",
+      "value_class": "ctr$e",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:axolotl/variant",
+      "native_id": 99,
+      "patch_hex": "01006300",
+      "requested_value": "lucy",
+      "value_class": "ctr$e",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:base_color",
+      "native_id": 71,
+      "patch_hex": "01004700",
+      "requested_value": "white",
+      "value_class": "dkr",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:base_color",
+      "native_id": 71,
+      "patch_hex": "01004701",
+      "requested_value": "orange",
+      "value_class": "dkr",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:base_color",
+      "native_id": 71,
+      "patch_hex": "01004707",
+      "requested_value": "gray",
+      "value_class": "dkr",
+      "value_hex": "07"
+    },
+    {
+      "name": "minecraft:cat/collar",
+      "native_id": 101,
+      "patch_hex": "01006500",
+      "requested_value": "white",
+      "value_class": "dkr",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:cat/collar",
+      "native_id": 101,
+      "patch_hex": "01006501",
+      "requested_value": "orange",
+      "value_class": "dkr",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:cat/collar",
+      "native_id": 101,
+      "patch_hex": "01006507",
+      "requested_value": "gray",
+      "value_class": "dkr",
+      "value_hex": "07"
+    },
+    {
+      "name": "minecraft:fox/variant",
+      "native_id": 83,
+      "patch_hex": "01005300",
+      "requested_value": "red",
+      "value_class": "cvo$v",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:fox/variant",
+      "native_id": 83,
+      "patch_hex": "01005301",
+      "requested_value": "snow",
+      "value_class": "cvo$v",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:fox/variant",
+      "native_id": 83,
+      "patch_hex": "01005300",
+      "requested_value": "red",
+      "value_class": "cvo$v",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:horse/variant",
+      "native_id": 96,
+      "patch_hex": "01006000",
+      "requested_value": "white",
+      "value_class": "cuy",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:horse/variant",
+      "native_id": 96,
+      "patch_hex": "01006001",
+      "requested_value": "creamy",
+      "value_class": "cuy",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:horse/variant",
+      "native_id": 96,
+      "patch_hex": "01006000",
+      "requested_value": "white",
+      "value_class": "cuy",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:llama/variant",
+      "native_id": 98,
+      "patch_hex": "01006200",
+      "requested_value": "creamy",
+      "value_class": "cus$d",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:llama/variant",
+      "native_id": 98,
+      "patch_hex": "01006201",
+      "requested_value": "white",
+      "value_class": "cus$d",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:llama/variant",
+      "native_id": 98,
+      "patch_hex": "01006203",
+      "requested_value": "gray",
+      "value_class": "cus$d",
+      "value_hex": "03"
+    },
+    {
+      "name": "minecraft:map_post_processing",
+      "native_id": 46,
+      "patch_hex": "01002e00",
+      "value_class": "dou",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:map_post_processing",
+      "native_id": 46,
+      "patch_hex": "01002e01",
+      "value_class": "dou",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:map_post_processing",
+      "native_id": 46,
+      "patch_hex": "01002e00",
+      "value_class": "dou",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:mooshroom/variant",
+      "native_id": 89,
+      "patch_hex": "01005900",
+      "requested_value": "red",
+      "value_class": "cuk$a",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:mooshroom/variant",
+      "native_id": 89,
+      "patch_hex": "01005901",
+      "requested_value": "brown",
+      "value_class": "cuk$a",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:mooshroom/variant",
+      "native_id": 89,
+      "patch_hex": "01005901",
+      "requested_value": "brown",
+      "value_class": "cuk$a",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:parrot/variant",
+      "native_id": 85,
+      "patch_hex": "01005500",
+      "requested_value": "red_blue",
+      "value_class": "cwy$b",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:parrot/variant",
+      "native_id": 85,
+      "patch_hex": "01005501",
+      "requested_value": "blue",
+      "value_class": "cwy$b",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:parrot/variant",
+      "native_id": 85,
+      "patch_hex": "01005504",
+      "requested_value": "gray",
+      "value_class": "cwy$b",
+      "value_hex": "04"
+    },
+    {
+      "name": "minecraft:rabbit/variant",
+      "native_id": 90,
+      "patch_hex": "01005a00",
+      "requested_value": "brown",
+      "value_class": "cxh$g",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:rabbit/variant",
+      "native_id": 90,
+      "patch_hex": "01005a01",
+      "requested_value": "white",
+      "value_class": "cxh$g",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:rabbit/variant",
+      "native_id": 90,
+      "patch_hex": "01005a00",
+      "requested_value": "brown",
+      "value_class": "cxh$g",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:rarity",
+      "native_id": 12,
+      "patch_hex": "01000c00",
+      "requested_value": "common",
+      "value_class": "dmp",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:rarity",
+      "native_id": 12,
+      "patch_hex": "01000c01",
+      "requested_value": "uncommon",
+      "value_class": "dmp",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:rarity",
+      "native_id": 12,
+      "patch_hex": "01000c00",
+      "requested_value": "common",
+      "value_class": "dmp",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:salmon/size",
+      "native_id": 84,
+      "patch_hex": "01005400",
+      "requested_value": "small",
+      "value_class": "cvk$a",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:salmon/size",
+      "native_id": 84,
+      "patch_hex": "01005401",
+      "requested_value": "medium",
+      "value_class": "cvk$a",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:salmon/size",
+      "native_id": 84,
+      "patch_hex": "01005402",
+      "requested_value": "large",
+      "value_class": "cvk$a",
+      "value_hex": "02"
+    },
+    {
+      "name": "minecraft:sheep/color",
+      "native_id": 102,
+      "patch_hex": "01006600",
+      "requested_value": "white",
+      "value_class": "dkr",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:sheep/color",
+      "native_id": 102,
+      "patch_hex": "01006601",
+      "requested_value": "orange",
+      "value_class": "dkr",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:sheep/color",
+      "native_id": 102,
+      "patch_hex": "01006607",
+      "requested_value": "gray",
+      "value_class": "dkr",
+      "value_hex": "07"
+    },
+    {
+      "name": "minecraft:shulker/color",
+      "native_id": 103,
+      "patch_hex": "01006700",
+      "requested_value": "white",
+      "value_class": "dkr",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:shulker/color",
+      "native_id": 103,
+      "patch_hex": "01006701",
+      "requested_value": "orange",
+      "value_class": "dkr",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:shulker/color",
+      "native_id": 103,
+      "patch_hex": "01006707",
+      "requested_value": "gray",
+      "value_class": "dkr",
+      "value_hex": "07"
+    },
+    {
+      "name": "minecraft:tropical_fish/base_color",
+      "native_id": 87,
+      "patch_hex": "01005700",
+      "requested_value": "white",
+      "value_class": "dkr",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:tropical_fish/base_color",
+      "native_id": 87,
+      "patch_hex": "01005701",
+      "requested_value": "orange",
+      "value_class": "dkr",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:tropical_fish/base_color",
+      "native_id": 87,
+      "patch_hex": "01005707",
+      "requested_value": "gray",
+      "value_class": "dkr",
+      "value_hex": "07"
+    },
+    {
+      "name": "minecraft:tropical_fish/pattern",
+      "native_id": 86,
+      "patch_hex": "01005600",
+      "requested_value": "kob",
+      "value_class": "cvl$b",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:tropical_fish/pattern",
+      "native_id": 86,
+      "patch_hex": "01005601",
+      "requested_value": "flopper",
+      "value_class": "cvl$b",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:tropical_fish/pattern",
+      "native_id": 86,
+      "patch_hex": "01005600",
+      "requested_value": "kob",
+      "value_class": "cvl$b",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:tropical_fish/pattern_color",
+      "native_id": 88,
+      "patch_hex": "01005800",
+      "requested_value": "white",
+      "value_class": "dkr",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:tropical_fish/pattern_color",
+      "native_id": 88,
+      "patch_hex": "01005801",
+      "requested_value": "orange",
+      "value_class": "dkr",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:tropical_fish/pattern_color",
+      "native_id": 88,
+      "patch_hex": "01005807",
+      "requested_value": "gray",
+      "value_class": "dkr",
+      "value_hex": "07"
+    },
+    {
+      "name": "minecraft:wolf/collar",
+      "native_id": 82,
+      "patch_hex": "01005200",
+      "requested_value": "white",
+      "value_class": "dkr",
+      "value_hex": "00"
+    },
+    {
+      "name": "minecraft:wolf/collar",
+      "native_id": 82,
+      "patch_hex": "01005201",
+      "requested_value": "orange",
+      "value_class": "dkr",
+      "value_hex": "01"
+    },
+    {
+      "name": "minecraft:wolf/collar",
+      "native_id": 82,
+      "patch_hex": "01005207",
+      "requested_value": "gray",
+      "value_class": "dkr",
+      "value_hex": "07"
+    }
+  ],
+  "stacks": [
+    {
+      "actual_patch_hex": "0100000a0900056279746573010000000301020301000b566f7872696750726f6265110a00066e65737465640800036b6579000576616c75650000",
+      "name": "minecraft:custom_data",
+      "native_id": 0,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b03010100000a0900056279746573010000000301020301000b566f7872696750726f6265110a00066e65737465640800036b6579000576616c75650000"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "03010100000a0900056279746573010000000301020301000b566f7872696750726f6265110a00066e65737465640800036b6579000576616c75650000"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "0903010100000a0900056279746573010000000301020301000b566f7872696750726f6265110a00066e65737465640800036b6579000576616c75650000"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100000a0900056279746573010000000301020301000b566f7872696750726f6265110a00066e65737465640800036b6579000576616c7565000000000000000000000000000000000000000000000000000000000000000000000000021c000003010100000a0900056279746573010000000301020301000b566f7872696750726f6265110a00066e65737465640800036b6579000576616c75650000"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e00000000000000000003010100000a0900056279746573010000000301020301000b566f7872696750726f6265110a00066e65737465640800036b6579000576616c756500000000000000000000000000000000000000000000000000000000000000000000000000021c000003010100000a0900056279746573010000000301020301000b566f7872696750726f6265110a00066e65737465640800036b6579000576616c75650000"
+        }
+      ],
+      "requested_value": {
+        "VoxrigProbe": 17,
+        "bytes": [
+          1,
+          2,
+          3
+        ],
+        "nested": {
+          "key": "value"
+        }
+      },
+      "stack_hex": "03010100000a0900056279746573010000000301020301000b566f7872696750726f6265110a00066e65737465640800036b6579000576616c75650000"
+    },
+    {
+      "actual_patch_hex": "01000101",
+      "name": "minecraft:max_stack_size",
+      "native_id": 1,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101000101"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101000101"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101000101"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100010100000000000000000000000000000000000000000000000000000000000000000000021c0000030101000101"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010001010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101000101"
+        }
+      ],
+      "requested_value": 1,
+      "stack_hex": "030101000101"
+    },
+    {
+      "actual_patch_hex": "01000110",
+      "name": "minecraft:max_stack_size",
+      "native_id": 1,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101000110"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101000110"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101000110"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100011000000000000000000000000000000000000000000000000000000000000000000000021c0000030101000110"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010001100000000000000000000000000000000000000000000000000000000000000000000000021c0000030101000110"
+        }
+      ],
+      "requested_value": 16,
+      "stack_hex": "030101000110"
+    },
+    {
+      "actual_patch_hex": "0000",
+      "name": "minecraft:max_stack_size",
+      "native_id": 1,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b03010000"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "03010000"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "0903010000"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f0000000000000000000000000000000000000000000000000000000301000000000000000000000000000000000000000000000000000000000000000000000000021c000003010000"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030100000000000000000000000000000000000000000000000000000000000000000000000000021c000003010000"
+        }
+      ],
+      "requested_value": 64,
+      "stack_hex": "03010000"
+    },
+    {
+      "actual_patch_hex": "010002c801",
+      "name": "minecraft:max_damage",
+      "native_id": 2,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b0301010002c801"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "0301010002c801"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "090301010002c801"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f0000000000000000000000000000000000000000000000000000000301010002c80100000000000000000000000000000000000000000000000000000000000000000000021c00000301010002c801"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010002c8010000000000000000000000000000000000000000000000000000000000000000000000021c00000301010002c801"
+        }
+      ],
+      "requested_value": 200,
+      "stack_hex": "0301010002c801"
+    },
+    {
+      "actual_patch_hex": "01000307",
+      "name": "minecraft:damage",
+      "native_id": 3,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101000307"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101000307"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101000307"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100030700000000000000000000000000000000000000000000000000000000000000000000021c0000030101000307"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010003070000000000000000000000000000000000000000000000000000000000000000000000021c0000030101000307"
+        }
+      ],
+      "requested_value": 7,
+      "stack_hex": "030101000307"
+    },
+    {
+      "actual_patch_hex": "010004",
+      "name": "minecraft:unbreakable",
+      "native_id": 4,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b0301010004"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "0301010004"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "090301010004"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101000400000000000000000000000000000000000000000000000000000000000000000000021c00000301010004"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e00000000000000000003010100040000000000000000000000000000000000000000000000000000000000000000000000021c00000301010004"
+        }
+      ],
+      "requested_value": {},
+      "stack_hex": "0301010004"
+    },
+    {
+      "actual_patch_hex": "01000608000b566f78726967206e616d65",
+      "name": "minecraft:custom_name",
+      "native_id": 6,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101000608000b566f78726967206e616d65"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101000608000b566f78726967206e616d65"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101000608000b566f78726967206e616d65"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101000608000b566f78726967206e616d6500000000000000000000000000000000000000000000000000000000000000000000021c0000030101000608000b566f78726967206e616d65"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101000608000b566f78726967206e616d650000000000000000000000000000000000000000000000000000000000000000000000021c0000030101000608000b566f78726967206e616d65"
+        }
+      ],
+      "requested_value": "Voxrig name",
+      "stack_hex": "030101000608000b566f78726967206e616d65"
+    },
+    {
+      "actual_patch_hex": "0100060a080005636f6c6f720003726564080004746578740006566f7872696700",
+      "name": "minecraft:custom_name",
+      "native_id": 6,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b03010100060a080005636f6c6f720003726564080004746578740006566f7872696700"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "03010100060a080005636f6c6f720003726564080004746578740006566f7872696700"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "0903010100060a080005636f6c6f720003726564080004746578740006566f7872696700"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100060a080005636f6c6f720003726564080004746578740006566f787269670000000000000000000000000000000000000000000000000000000000000000000000021c000003010100060a080005636f6c6f720003726564080004746578740006566f7872696700"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e00000000000000000003010100060a080005636f6c6f720003726564080004746578740006566f78726967000000000000000000000000000000000000000000000000000000000000000000000000021c000003010100060a080005636f6c6f720003726564080004746578740006566f7872696700"
+        }
+      ],
+      "requested_value": {
+        "color": "red",
+        "text": "Voxrig"
+      },
+      "stack_hex": "03010100060a080005636f6c6f720003726564080004746578740006566f7872696700"
+    },
+    {
+      "actual_patch_hex": "0100073f400000",
+      "name": "minecraft:minimum_attack_charge",
+      "native_id": 7,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b03010100073f400000"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "03010100073f400000"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "0903010100073f400000"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100073f40000000000000000000000000000000000000000000000000000000000000000000000000021c000003010100073f400000"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e00000000000000000003010100073f4000000000000000000000000000000000000000000000000000000000000000000000000000021c000003010100073f400000"
+        }
+      ],
+      "requested_value": 0.75,
+      "stack_hex": "03010100073f400000"
+    },
+    {
+      "actual_patch_hex": "01000908000b4e6174697665206974656d",
+      "name": "minecraft:item_name",
+      "native_id": 9,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101000908000b4e6174697665206974656d"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101000908000b4e6174697665206974656d"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101000908000b4e6174697665206974656d"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101000908000b4e6174697665206974656d00000000000000000000000000000000000000000000000000000000000000000000021c0000030101000908000b4e6174697665206974656d"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101000908000b4e6174697665206974656d0000000000000000000000000000000000000000000000000000000000000000000000021c0000030101000908000b4e6174697665206974656d"
+        }
+      ],
+      "requested_value": "Native item",
+      "stack_hex": "030101000908000b4e6174697665206974656d"
+    },
+    {
+      "actual_patch_hex": "0000",
+      "name": "minecraft:item_model",
+      "native_id": 10,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b03010000"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "03010000"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "0903010000"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f0000000000000000000000000000000000000000000000000000000301000000000000000000000000000000000000000000000000000000000000000000000000021c000003010000"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030100000000000000000000000000000000000000000000000000000000000000000000000000021c000003010000"
+        }
+      ],
+      "requested_value": "minecraft:stone",
+      "stack_hex": "03010000"
+    },
+    {
+      "actual_patch_hex": "01000b020800036f6e6508000374776f",
+      "name": "minecraft:lore",
+      "native_id": 11,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101000b020800036f6e6508000374776f"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101000b020800036f6e6508000374776f"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101000b020800036f6e6508000374776f"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101000b020800036f6e6508000374776f00000000000000000000000000000000000000000000000000000000000000000000021c0000030101000b020800036f6e6508000374776f"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101000b020800036f6e6508000374776f0000000000000000000000000000000000000000000000000000000000000000000000021c0000030101000b020800036f6e6508000374776f"
+        }
+      ],
+      "requested_value": [
+        "one",
+        {
+          "text": "two"
+        }
+      ],
+      "stack_hex": "030101000b020800036f6e6508000374776f"
+    },
+    {
+      "actual_patch_hex": "01000c02",
+      "name": "minecraft:rarity",
+      "native_id": 12,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101000c02"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101000c02"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101000c02"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101000c0200000000000000000000000000000000000000000000000000000000000000000000021c0000030101000c02"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101000c020000000000000000000000000000000000000000000000000000000000000000000000021c0000030101000c02"
+        }
+      ],
+      "requested_value": "rare",
+      "stack_hex": "030101000c02"
+    },
+    {
+      "actual_patch_hex": "01001308",
+      "name": "minecraft:repair_cost",
+      "native_id": 19,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101001308"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101001308"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101001308"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100130800000000000000000000000000000000000000000000000000000000000000000000021c0000030101001308"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010013080000000000000000000000000000000000000000000000000000000000000000000000021c0000030101001308"
+        }
+      ],
+      "requested_value": 8,
+      "stack_hex": "030101001308"
+    },
+    {
+      "actual_patch_hex": "010014",
+      "name": "minecraft:creative_slot_lock",
+      "native_id": 20,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b0301010014"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "0301010014"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "090301010014"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101001400000000000000000000000000000000000000000000000000000000000000000000021c00000301010014"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e00000000000000000003010100140000000000000000000000000000000000000000000000000000000000000000000000021c00000301010014"
+        }
+      ],
+      "requested_value": {},
+      "stack_hex": "0301010014"
+    },
+    {
+      "actual_patch_hex": "01001500",
+      "name": "minecraft:enchantment_glint_override",
+      "native_id": 21,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101001500"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101001500"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101001500"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100150000000000000000000000000000000000000000000000000000000000000000000000021c0000030101001500"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010015000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101001500"
+        }
+      ],
+      "requested_value": false,
+      "stack_hex": "030101001500"
+    },
+    {
+      "actual_patch_hex": "01001501",
+      "name": "minecraft:enchantment_glint_override",
+      "native_id": 21,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101001501"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101001501"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101001501"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100150100000000000000000000000000000000000000000000000000000000000000000000021c0000030101001501"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010015010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101001501"
+        }
+      ],
+      "requested_value": true,
+      "stack_hex": "030101001501"
+    },
+    {
+      "actual_patch_hex": "0100160a00",
+      "name": "minecraft:intangible_projectile",
+      "native_id": 22,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b03010100160a00"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "03010100160a00"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "0903010100160a00"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100160a0000000000000000000000000000000000000000000000000000000000000000000000021c000003010100160a00"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e00000000000000000003010100160a000000000000000000000000000000000000000000000000000000000000000000000000021c000003010100160a00"
+        }
+      ],
+      "requested_value": {},
+      "stack_hex": "03010100160a00"
+    },
+    {
+      "actual_patch_hex": "0100323fc00000",
+      "name": "minecraft:potion_duration_scale",
+      "native_id": 50,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b03010100323fc00000"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "03010100323fc00000"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "0903010100323fc00000"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100323fc0000000000000000000000000000000000000000000000000000000000000000000000000021c000003010100323fc00000"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e00000000000000000003010100323fc000000000000000000000000000000000000000000000000000000000000000000000000000021c000003010100323fc00000"
+        }
+      ],
+      "requested_value": 1.5,
+      "stack_hex": "03010100323fc00000"
+    },
+    {
+      "actual_patch_hex": "01003d03",
+      "name": "minecraft:ominous_bottle_amplifier",
+      "native_id": 61,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101003d03"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101003d03"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101003d03"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101003d0300000000000000000000000000000000000000000000000000000000000000000000021c0000030101003d03"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101003d030000000000000000000000000000000000000000000000000000000000000000000000021c0000030101003d03"
+        }
+      ],
+      "requested_value": 3,
+      "stack_hex": "030101003d03"
+    },
+    {
+      "actual_patch_hex": "0100451f6d696e6563726166743a626c6f636b2e6e6f74655f626c6f636b2e62656c6c",
+      "name": "minecraft:note_block_sound",
+      "native_id": 69,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b03010100451f6d696e6563726166743a626c6f636b2e6e6f74655f626c6f636b2e62656c6c"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "03010100451f6d696e6563726166743a626c6f636b2e6e6f74655f626c6f636b2e62656c6c"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "0903010100451f6d696e6563726166743a626c6f636b2e6e6f74655f626c6f636b2e62656c6c"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100451f6d696e6563726166743a626c6f636b2e6e6f74655f626c6f636b2e62656c6c00000000000000000000000000000000000000000000000000000000000000000000021c000003010100451f6d696e6563726166743a626c6f636b2e6e6f74655f626c6f636b2e62656c6c"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e00000000000000000003010100451f6d696e6563726166743a626c6f636b2e6e6f74655f626c6f636b2e62656c6c0000000000000000000000000000000000000000000000000000000000000000000000021c000003010100451f6d696e6563726166743a626c6f636b2e6e6f74655f626c6f636b2e62656c6c"
+        }
+      ],
+      "requested_value": "minecraft:block.note_block.bell",
+      "stack_hex": "03010100451f6d696e6563726166743a626c6f636b2e6e6f74655f626c6f636b2e62656c6c"
+    },
+    {
+      "actual_patch_hex": "0100470e",
+      "name": "minecraft:base_color",
+      "native_id": 71,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b03010100470e"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "03010100470e"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "0903010100470e"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100470e00000000000000000000000000000000000000000000000000000000000000000000021c000003010100470e"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e00000000000000000003010100470e0000000000000000000000000000000000000000000000000000000000000000000000021c000003010100470e"
+        }
+      ],
+      "requested_value": "red",
+      "stack_hex": "03010100470e"
+    },
+    {
+      "actual_patch_hex": "01004a0106666163696e67056e6f727468",
+      "name": "minecraft:block_state",
+      "native_id": 74,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101004a0106666163696e67056e6f727468"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101004a0106666163696e67056e6f727468"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101004a0106666163696e67056e6f727468"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101004a0106666163696e67056e6f72746800000000000000000000000000000000000000000000000000000000000000000000021c0000030101004a0106666163696e67056e6f727468"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101004a0106666163696e67056e6f7274680000000000000000000000000000000000000000000000000000000000000000000000021c0000030101004a0106666163696e67056e6f727468"
+        }
+      ],
+      "requested_value": {
+        "facing": "north"
+      },
+      "stack_hex": "030101004a0106666163696e67056e6f727468"
+    },
+    {
+      "actual_patch_hex": "010011023fc00000c000000002010001036162630100ff0000",
+      "name": "minecraft:custom_model_data",
+      "native_id": 17,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b0301010011023fc00000c000000002010001036162630100ff0000"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "0301010011023fc00000c000000002010001036162630100ff0000"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "090301010011023fc00000c000000002010001036162630100ff0000"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f0000000000000000000000000000000000000000000000000000000301010011023fc00000c000000002010001036162630100ff000000000000000000000000000000000000000000000000000000000000000000000000021c00000301010011023fc00000c000000002010001036162630100ff0000"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010011023fc00000c000000002010001036162630100ff00000000000000000000000000000000000000000000000000000000000000000000000000021c00000301010011023fc00000c000000002010001036162630100ff0000"
+        }
+      ],
+      "requested_value": {
+        "colors": [
+          16711680
+        ],
+        "flags": [
+          true,
+          false
+        ],
+        "floats": [
+          1.5,
+          -2.0
+        ],
+        "strings": [
+          "abc"
+        ]
+      },
+      "stack_hex": "0301010011023fc00000c000000002010001036162630100ff0000"
+    },
+    {
+      "actual_patch_hex": "010012000106",
+      "name": "minecraft:tooltip_display",
+      "native_id": 18,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b0301010012000106"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "0301010012000106"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "090301010012000106"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101001200010600000000000000000000000000000000000000000000000000000000000000000000021c00000301010012000106"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e00000000000000000003010100120001060000000000000000000000000000000000000000000000000000000000000000000000021c00000301010012000106"
+        }
+      ],
+      "requested_value": {
+        "hidden_components": [
+          "minecraft:custom_name"
+        ],
+        "hide_tooltip": false
+      },
+      "stack_hex": "0301010012000106"
+    },
+    {
+      "actual_patch_hex": "01000500013e99999a",
+      "name": "minecraft:use_effects",
+      "native_id": 5,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101000500013e99999a"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101000500013e99999a"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101000500013e99999a"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101000500013e99999a00000000000000000000000000000000000000000000000000000000000000000000021c0000030101000500013e99999a"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101000500013e99999a0000000000000000000000000000000000000000000000000000000000000000000000021c0000030101000500013e99999a"
+        }
+      ],
+      "requested_value": {
+        "can_sprint": false,
+        "speed_multiplier": 0.3
+      },
+      "stack_hex": "030101000500013e99999a"
+    },
+    {
+      "actual_patch_hex": "010022",
+      "name": "minecraft:glider",
+      "native_id": 34,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b0301010022"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "0301010022"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "090301010022"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101002200000000000000000000000000000000000000000000000000000000000000000000021c00000301010022"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e00000000000000000003010100220000000000000000000000000000000000000000000000000000000000000000000000021c00000301010022"
+        }
+      ],
+      "requested_value": {},
+      "stack_hex": "0301010022"
+    },
+    {
+      "actual_patch_hex": "010023106d696e6563726166743a637573746f6d",
+      "name": "minecraft:tooltip_style",
+      "native_id": 35,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b0301010023106d696e6563726166743a637573746f6d"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "0301010023106d696e6563726166743a637573746f6d"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "090301010023106d696e6563726166743a637573746f6d"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f0000000000000000000000000000000000000000000000000000000301010023106d696e6563726166743a637573746f6d00000000000000000000000000000000000000000000000000000000000000000000021c00000301010023106d696e6563726166743a637573746f6d"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010023106d696e6563726166743a637573746f6d0000000000000000000000000000000000000000000000000000000000000000000000021c00000301010023106d696e6563726166743a637573746f6d"
+        }
+      ],
+      "requested_value": "minecraft:custom",
+      "stack_hex": "0301010023106d696e6563726166743a637573746f6d"
+    },
+    {
+      "actual_patch_hex": "01002c7b",
+      "name": "minecraft:map_id",
+      "native_id": 44,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101002c7b"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101002c7b"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101002c7b"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101002c7b00000000000000000000000000000000000000000000000000000000000000000000021c0000030101002c7b"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101002c7b0000000000000000000000000000000000000000000000000000000000000000000000021c0000030101002c7b"
+        }
+      ],
+      "requested_value": 123,
+      "stack_hex": "030101002c7b"
+    },
+    {
+      "actual_patch_hex": "01002b00ff0000",
+      "name": "minecraft:map_color",
+      "native_id": 43,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101002b00ff0000"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101002b00ff0000"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101002b00ff0000"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101002b00ff000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101002b00ff0000"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101002b00ff00000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101002b00ff0000"
+        }
+      ],
+      "requested_value": 16711680,
+      "stack_hex": "030101002b00ff0000"
+    },
+    {
+      "actual_patch_hex": "01002a0001e240",
+      "name": "minecraft:dyed_color",
+      "native_id": 42,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101002a0001e240"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101002a0001e240"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101002a0001e240"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101002a0001e24000000000000000000000000000000000000000000000000000000000000000000000021c0000030101002a0001e240"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101002a0001e2400000000000000000000000000000000000000000000000000000000000000000000000021c0000030101002a0001e240"
+        }
+      ],
+      "requested_value": 123456,
+      "stack_hex": "030101002a0001e240"
+    },
+    {
+      "actual_patch_hex": "01001f07",
+      "name": "minecraft:enchantable",
+      "native_id": 31,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101001f07"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101001f07"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101001f07"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101001f0700000000000000000000000000000000000000000000000000000000000000000000021c0000030101001f07"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101001f070000000000000000000000000000000000000000000000000000000000000000000000021c0000030101001f07"
+        }
+      ],
+      "requested_value": {
+        "value": 7
+      },
+      "stack_hex": "030101001f07"
+    },
+    {
+      "actual_patch_hex": "01001d023f400000",
+      "name": "minecraft:weapon",
+      "native_id": 29,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101001d023f400000"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101001d023f400000"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101001d023f400000"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101001d023f40000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101001d023f400000"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101001d023f4000000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101001d023f400000"
+        }
+      ],
+      "requested_value": {
+        "disable_blocking_for_seconds": 0.75,
+        "item_damage_per_attack": 2
+      },
+      "stack_hex": "030101001d023f400000"
+    },
+    {
+      "actual_patch_hex": "01001a3fc00000010f6d696e6563726166743a70726f6265",
+      "name": "minecraft:use_cooldown",
+      "native_id": 26,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101001a3fc00000010f6d696e6563726166743a70726f6265"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101001a3fc00000010f6d696e6563726166743a70726f6265"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101001a3fc00000010f6d696e6563726166743a70726f6265"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101001a3fc00000010f6d696e6563726166743a70726f626500000000000000000000000000000000000000000000000000000000000000000000021c0000030101001a3fc00000010f6d696e6563726166743a70726f6265"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101001a3fc00000010f6d696e6563726166743a70726f62650000000000000000000000000000000000000000000000000000000000000000000000021c0000030101001a3fc00000010f6d696e6563726166743a70726f6265"
+        }
+      ],
+      "requested_value": {
+        "cooldown_group": "minecraft:probe",
+        "seconds": 1.5
+      },
+      "stack_hex": "030101001a3fc00000010f6d696e6563726166743a70726f6265"
+    },
+    {
+      "actual_patch_hex": "01002d0a00",
+      "name": "minecraft:map_decorations",
+      "native_id": 45,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101002d0a00"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101002d0a00"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101002d0a00"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101002d0a0000000000000000000000000000000000000000000000000000000000000000000000021c0000030101002d0a00"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101002d0a000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101002d0a00"
+        }
+      ],
+      "requested_value": {},
+      "stack_hex": "030101002d0a00"
+    },
+    {
+      "actual_patch_hex": "0100370a00",
+      "name": "minecraft:debug_stick_state",
+      "native_id": 55,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b03010100370a00"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "03010100370a00"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "0903010100370a00"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100370a0000000000000000000000000000000000000000000000000000000000000000000000021c000003010100370a00"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e00000000000000000003010100370a000000000000000000000000000000000000000000000000000000000000000000000000021c000003010100370a00"
+        }
+      ],
+      "requested_value": {},
+      "stack_hex": "03010100370a00"
+    },
+    {
+      "actual_patch_hex": "010040090000000000",
+      "name": "minecraft:recipes",
+      "native_id": 64,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b0301010040090000000000"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "0301010040090000000000"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "090301010040090000000000"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101004009000000000000000000000000000000000000000000000000000000000000000000000000000000021c00000301010040090000000000"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e00000000000000000003010100400900000000000000000000000000000000000000000000000000000000000000000000000000000000021c00000301010040090000000000"
+        }
+      ],
+      "requested_value": [],
+      "stack_hex": "0301010040090000000000"
+    },
+    {
+      "actual_patch_hex": "01004c0a00",
+      "name": "minecraft:lock",
+      "native_id": 76,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101004c0a00"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101004c0a00"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101004c0a00"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101004c0a0000000000000000000000000000000000000000000000000000000000000000000000021c0000030101004c0a00"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101004c0a000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101004c0a00"
+        }
+      ],
+      "requested_value": {},
+      "stack_hex": "030101004c0a00"
+    },
+    {
+      "actual_patch_hex": "01004d0a04000473656564000000000000007b08000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e00",
+      "name": "minecraft:container_loot",
+      "native_id": 77,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101004d0a04000473656564000000000000007b08000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e00"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101004d0a04000473656564000000000000007b08000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e00"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101004d0a04000473656564000000000000007b08000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e00"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101004d0a04000473656564000000000000007b08000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e0000000000000000000000000000000000000000000000000000000000000000000000021c0000030101004d0a04000473656564000000000000007b08000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e00"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101004d0a04000473656564000000000000007b08000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101004d0a04000473656564000000000000007b08000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e00"
+        }
+      ],
+      "requested_value": {
+        "loot_table": "minecraft:chests/simple_dungeon",
+        "seed": 123
+      },
+      "stack_hex": "030101004d0a04000473656564000000000000007b08000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e00"
+    },
+    {
+      "actual_patch_hex": "01003000",
+      "name": "minecraft:bundle_contents",
+      "native_id": 48,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101003000"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101003000"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101003000"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100300000000000000000000000000000000000000000000000000000000000000000000000021c0000030101003000"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010030000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101003000"
+        }
+      ],
+      "requested_value": [],
+      "stack_hex": "030101003000"
+    },
+    {
+      "actual_patch_hex": "01006300",
+      "name": "minecraft:axolotl/variant",
+      "native_id": 99,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101006300"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101006300"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101006300"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100630000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006300"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010063000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006300"
+        }
+      ],
+      "requested_value": "lucy",
+      "stack_hex": "030101006300"
+    },
+    {
+      "actual_patch_hex": "01006301",
+      "name": "minecraft:axolotl/variant",
+      "native_id": 99,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101006301"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101006301"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101006301"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100630100000000000000000000000000000000000000000000000000000000000000000000021c0000030101006301"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010063010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006301"
+        }
+      ],
+      "requested_value": "wild",
+      "stack_hex": "030101006301"
+    },
+    {
+      "actual_patch_hex": "01006300",
+      "name": "minecraft:axolotl/variant",
+      "native_id": 99,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101006300"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101006300"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101006300"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100630000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006300"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010063000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006300"
+        }
+      ],
+      "requested_value": "lucy",
+      "stack_hex": "030101006300"
+    },
+    {
+      "actual_patch_hex": "01004700",
+      "name": "minecraft:base_color",
+      "native_id": 71,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101004700"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101004700"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101004700"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100470000000000000000000000000000000000000000000000000000000000000000000000021c0000030101004700"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010047000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101004700"
+        }
+      ],
+      "requested_value": "white",
+      "stack_hex": "030101004700"
+    },
+    {
+      "actual_patch_hex": "01004701",
+      "name": "minecraft:base_color",
+      "native_id": 71,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101004701"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101004701"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101004701"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100470100000000000000000000000000000000000000000000000000000000000000000000021c0000030101004701"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010047010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101004701"
+        }
+      ],
+      "requested_value": "orange",
+      "stack_hex": "030101004701"
+    },
+    {
+      "actual_patch_hex": "01004707",
+      "name": "minecraft:base_color",
+      "native_id": 71,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101004707"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101004707"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101004707"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100470700000000000000000000000000000000000000000000000000000000000000000000021c0000030101004707"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010047070000000000000000000000000000000000000000000000000000000000000000000000021c0000030101004707"
+        }
+      ],
+      "requested_value": "gray",
+      "stack_hex": "030101004707"
+    },
+    {
+      "actual_patch_hex": "01006500",
+      "name": "minecraft:cat/collar",
+      "native_id": 101,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101006500"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101006500"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101006500"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100650000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006500"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010065000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006500"
+        }
+      ],
+      "requested_value": "white",
+      "stack_hex": "030101006500"
+    },
+    {
+      "actual_patch_hex": "01006501",
+      "name": "minecraft:cat/collar",
+      "native_id": 101,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101006501"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101006501"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101006501"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100650100000000000000000000000000000000000000000000000000000000000000000000021c0000030101006501"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010065010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006501"
+        }
+      ],
+      "requested_value": "orange",
+      "stack_hex": "030101006501"
+    },
+    {
+      "actual_patch_hex": "01006507",
+      "name": "minecraft:cat/collar",
+      "native_id": 101,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101006507"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101006507"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101006507"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100650700000000000000000000000000000000000000000000000000000000000000000000021c0000030101006507"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010065070000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006507"
+        }
+      ],
+      "requested_value": "gray",
+      "stack_hex": "030101006507"
+    },
+    {
+      "actual_patch_hex": "01005300",
+      "name": "minecraft:fox/variant",
+      "native_id": 83,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005300"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005300"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005300"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100530000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005300"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010053000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005300"
+        }
+      ],
+      "requested_value": "red",
+      "stack_hex": "030101005300"
+    },
+    {
+      "actual_patch_hex": "01005301",
+      "name": "minecraft:fox/variant",
+      "native_id": 83,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005301"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005301"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005301"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100530100000000000000000000000000000000000000000000000000000000000000000000021c0000030101005301"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010053010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005301"
+        }
+      ],
+      "requested_value": "snow",
+      "stack_hex": "030101005301"
+    },
+    {
+      "actual_patch_hex": "01005300",
+      "name": "minecraft:fox/variant",
+      "native_id": 83,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005300"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005300"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005300"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100530000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005300"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010053000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005300"
+        }
+      ],
+      "requested_value": "red",
+      "stack_hex": "030101005300"
+    },
+    {
+      "actual_patch_hex": "01006000",
+      "name": "minecraft:horse/variant",
+      "native_id": 96,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101006000"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101006000"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101006000"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100600000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006000"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010060000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006000"
+        }
+      ],
+      "requested_value": "white",
+      "stack_hex": "030101006000"
+    },
+    {
+      "actual_patch_hex": "01006001",
+      "name": "minecraft:horse/variant",
+      "native_id": 96,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101006001"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101006001"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101006001"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100600100000000000000000000000000000000000000000000000000000000000000000000021c0000030101006001"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010060010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006001"
+        }
+      ],
+      "requested_value": "creamy",
+      "stack_hex": "030101006001"
+    },
+    {
+      "actual_patch_hex": "01006000",
+      "name": "minecraft:horse/variant",
+      "native_id": 96,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101006000"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101006000"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101006000"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100600000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006000"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010060000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006000"
+        }
+      ],
+      "requested_value": "white",
+      "stack_hex": "030101006000"
+    },
+    {
+      "actual_patch_hex": "01006200",
+      "name": "minecraft:llama/variant",
+      "native_id": 98,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101006200"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101006200"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101006200"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100620000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006200"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010062000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006200"
+        }
+      ],
+      "requested_value": "creamy",
+      "stack_hex": "030101006200"
+    },
+    {
+      "actual_patch_hex": "01006201",
+      "name": "minecraft:llama/variant",
+      "native_id": 98,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101006201"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101006201"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101006201"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100620100000000000000000000000000000000000000000000000000000000000000000000021c0000030101006201"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010062010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006201"
+        }
+      ],
+      "requested_value": "white",
+      "stack_hex": "030101006201"
+    },
+    {
+      "actual_patch_hex": "01006203",
+      "name": "minecraft:llama/variant",
+      "native_id": 98,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101006203"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101006203"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101006203"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100620300000000000000000000000000000000000000000000000000000000000000000000021c0000030101006203"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010062030000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006203"
+        }
+      ],
+      "requested_value": "gray",
+      "stack_hex": "030101006203"
+    },
+    {
+      "actual_patch_hex": "01002e00",
+      "name": "minecraft:map_post_processing",
+      "native_id": 46,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101002e00"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101002e00"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101002e00"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101002e0000000000000000000000000000000000000000000000000000000000000000000000021c0000030101002e00"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101002e000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101002e00"
+        }
+      ],
+      "stack_hex": "030101002e00"
+    },
+    {
+      "actual_patch_hex": "01002e01",
+      "name": "minecraft:map_post_processing",
+      "native_id": 46,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101002e01"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101002e01"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101002e01"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101002e0100000000000000000000000000000000000000000000000000000000000000000000021c0000030101002e01"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101002e010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101002e01"
+        }
+      ],
+      "stack_hex": "030101002e01"
+    },
+    {
+      "actual_patch_hex": "01002e00",
+      "name": "minecraft:map_post_processing",
+      "native_id": 46,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101002e00"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101002e00"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101002e00"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101002e0000000000000000000000000000000000000000000000000000000000000000000000021c0000030101002e00"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101002e000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101002e00"
+        }
+      ],
+      "stack_hex": "030101002e00"
+    },
+    {
+      "actual_patch_hex": "01005900",
+      "name": "minecraft:mooshroom/variant",
+      "native_id": 89,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005900"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005900"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005900"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100590000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005900"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010059000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005900"
+        }
+      ],
+      "requested_value": "red",
+      "stack_hex": "030101005900"
+    },
+    {
+      "actual_patch_hex": "01005901",
+      "name": "minecraft:mooshroom/variant",
+      "native_id": 89,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005901"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005901"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005901"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100590100000000000000000000000000000000000000000000000000000000000000000000021c0000030101005901"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010059010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005901"
+        }
+      ],
+      "requested_value": "brown",
+      "stack_hex": "030101005901"
+    },
+    {
+      "actual_patch_hex": "01005901",
+      "name": "minecraft:mooshroom/variant",
+      "native_id": 89,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005901"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005901"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005901"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100590100000000000000000000000000000000000000000000000000000000000000000000021c0000030101005901"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010059010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005901"
+        }
+      ],
+      "requested_value": "brown",
+      "stack_hex": "030101005901"
+    },
+    {
+      "actual_patch_hex": "01005500",
+      "name": "minecraft:parrot/variant",
+      "native_id": 85,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005500"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005500"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005500"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100550000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005500"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010055000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005500"
+        }
+      ],
+      "requested_value": "red_blue",
+      "stack_hex": "030101005500"
+    },
+    {
+      "actual_patch_hex": "01005501",
+      "name": "minecraft:parrot/variant",
+      "native_id": 85,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005501"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005501"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005501"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100550100000000000000000000000000000000000000000000000000000000000000000000021c0000030101005501"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010055010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005501"
+        }
+      ],
+      "requested_value": "blue",
+      "stack_hex": "030101005501"
+    },
+    {
+      "actual_patch_hex": "01005504",
+      "name": "minecraft:parrot/variant",
+      "native_id": 85,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005504"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005504"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005504"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100550400000000000000000000000000000000000000000000000000000000000000000000021c0000030101005504"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010055040000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005504"
+        }
+      ],
+      "requested_value": "gray",
+      "stack_hex": "030101005504"
+    },
+    {
+      "actual_patch_hex": "01005a00",
+      "name": "minecraft:rabbit/variant",
+      "native_id": 90,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005a00"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005a00"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005a00"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101005a0000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005a00"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101005a000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005a00"
+        }
+      ],
+      "requested_value": "brown",
+      "stack_hex": "030101005a00"
+    },
+    {
+      "actual_patch_hex": "01005a01",
+      "name": "minecraft:rabbit/variant",
+      "native_id": 90,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005a01"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005a01"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005a01"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101005a0100000000000000000000000000000000000000000000000000000000000000000000021c0000030101005a01"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101005a010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005a01"
+        }
+      ],
+      "requested_value": "white",
+      "stack_hex": "030101005a01"
+    },
+    {
+      "actual_patch_hex": "01005a00",
+      "name": "minecraft:rabbit/variant",
+      "native_id": 90,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005a00"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005a00"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005a00"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101005a0000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005a00"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101005a000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005a00"
+        }
+      ],
+      "requested_value": "brown",
+      "stack_hex": "030101005a00"
+    },
+    {
+      "actual_patch_hex": "0000",
+      "name": "minecraft:rarity",
+      "native_id": 12,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b03010000"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "03010000"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "0903010000"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f0000000000000000000000000000000000000000000000000000000301000000000000000000000000000000000000000000000000000000000000000000000000021c000003010000"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030100000000000000000000000000000000000000000000000000000000000000000000000000021c000003010000"
+        }
+      ],
+      "requested_value": "common",
+      "stack_hex": "03010000"
+    },
+    {
+      "actual_patch_hex": "01000c01",
+      "name": "minecraft:rarity",
+      "native_id": 12,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101000c01"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101000c01"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101000c01"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f000000000000000000000000000000000000000000000000000000030101000c0100000000000000000000000000000000000000000000000000000000000000000000021c0000030101000c01"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030101000c010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101000c01"
+        }
+      ],
+      "requested_value": "uncommon",
+      "stack_hex": "030101000c01"
+    },
+    {
+      "actual_patch_hex": "0000",
+      "name": "minecraft:rarity",
+      "native_id": 12,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b03010000"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "03010000"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "0903010000"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f0000000000000000000000000000000000000000000000000000000301000000000000000000000000000000000000000000000000000000000000000000000000021c000003010000"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e000000000000000000030100000000000000000000000000000000000000000000000000000000000000000000000000021c000003010000"
+        }
+      ],
+      "requested_value": "common",
+      "stack_hex": "03010000"
+    },
+    {
+      "actual_patch_hex": "01005400",
+      "name": "minecraft:salmon/size",
+      "native_id": 84,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005400"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005400"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005400"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100540000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005400"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010054000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005400"
+        }
+      ],
+      "requested_value": "small",
+      "stack_hex": "030101005400"
+    },
+    {
+      "actual_patch_hex": "01005401",
+      "name": "minecraft:salmon/size",
+      "native_id": 84,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005401"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005401"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005401"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100540100000000000000000000000000000000000000000000000000000000000000000000021c0000030101005401"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010054010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005401"
+        }
+      ],
+      "requested_value": "medium",
+      "stack_hex": "030101005401"
+    },
+    {
+      "actual_patch_hex": "01005402",
+      "name": "minecraft:salmon/size",
+      "native_id": 84,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005402"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005402"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005402"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100540200000000000000000000000000000000000000000000000000000000000000000000021c0000030101005402"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010054020000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005402"
+        }
+      ],
+      "requested_value": "large",
+      "stack_hex": "030101005402"
+    },
+    {
+      "actual_patch_hex": "01006600",
+      "name": "minecraft:sheep/color",
+      "native_id": 102,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101006600"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101006600"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101006600"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100660000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006600"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010066000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006600"
+        }
+      ],
+      "requested_value": "white",
+      "stack_hex": "030101006600"
+    },
+    {
+      "actual_patch_hex": "01006601",
+      "name": "minecraft:sheep/color",
+      "native_id": 102,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101006601"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101006601"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101006601"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100660100000000000000000000000000000000000000000000000000000000000000000000021c0000030101006601"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010066010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006601"
+        }
+      ],
+      "requested_value": "orange",
+      "stack_hex": "030101006601"
+    },
+    {
+      "actual_patch_hex": "01006607",
+      "name": "minecraft:sheep/color",
+      "native_id": 102,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101006607"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101006607"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101006607"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100660700000000000000000000000000000000000000000000000000000000000000000000021c0000030101006607"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010066070000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006607"
+        }
+      ],
+      "requested_value": "gray",
+      "stack_hex": "030101006607"
+    },
+    {
+      "actual_patch_hex": "01006700",
+      "name": "minecraft:shulker/color",
+      "native_id": 103,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101006700"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101006700"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101006700"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100670000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006700"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010067000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006700"
+        }
+      ],
+      "requested_value": "white",
+      "stack_hex": "030101006700"
+    },
+    {
+      "actual_patch_hex": "01006701",
+      "name": "minecraft:shulker/color",
+      "native_id": 103,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101006701"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101006701"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101006701"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100670100000000000000000000000000000000000000000000000000000000000000000000021c0000030101006701"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010067010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006701"
+        }
+      ],
+      "requested_value": "orange",
+      "stack_hex": "030101006701"
+    },
+    {
+      "actual_patch_hex": "01006707",
+      "name": "minecraft:shulker/color",
+      "native_id": 103,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101006707"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101006707"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101006707"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100670700000000000000000000000000000000000000000000000000000000000000000000021c0000030101006707"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010067070000000000000000000000000000000000000000000000000000000000000000000000021c0000030101006707"
+        }
+      ],
+      "requested_value": "gray",
+      "stack_hex": "030101006707"
+    },
+    {
+      "actual_patch_hex": "01005700",
+      "name": "minecraft:tropical_fish/base_color",
+      "native_id": 87,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005700"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005700"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005700"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100570000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005700"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010057000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005700"
+        }
+      ],
+      "requested_value": "white",
+      "stack_hex": "030101005700"
+    },
+    {
+      "actual_patch_hex": "01005701",
+      "name": "minecraft:tropical_fish/base_color",
+      "native_id": 87,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005701"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005701"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005701"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100570100000000000000000000000000000000000000000000000000000000000000000000021c0000030101005701"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010057010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005701"
+        }
+      ],
+      "requested_value": "orange",
+      "stack_hex": "030101005701"
+    },
+    {
+      "actual_patch_hex": "01005707",
+      "name": "minecraft:tropical_fish/base_color",
+      "native_id": 87,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005707"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005707"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005707"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100570700000000000000000000000000000000000000000000000000000000000000000000021c0000030101005707"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010057070000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005707"
+        }
+      ],
+      "requested_value": "gray",
+      "stack_hex": "030101005707"
+    },
+    {
+      "actual_patch_hex": "01005600",
+      "name": "minecraft:tropical_fish/pattern",
+      "native_id": 86,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005600"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005600"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005600"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100560000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005600"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010056000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005600"
+        }
+      ],
+      "requested_value": "kob",
+      "stack_hex": "030101005600"
+    },
+    {
+      "actual_patch_hex": "01005601",
+      "name": "minecraft:tropical_fish/pattern",
+      "native_id": 86,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005601"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005601"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005601"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100560100000000000000000000000000000000000000000000000000000000000000000000021c0000030101005601"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010056010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005601"
+        }
+      ],
+      "requested_value": "flopper",
+      "stack_hex": "030101005601"
+    },
+    {
+      "actual_patch_hex": "01005600",
+      "name": "minecraft:tropical_fish/pattern",
+      "native_id": 86,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005600"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005600"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005600"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100560000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005600"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010056000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005600"
+        }
+      ],
+      "requested_value": "kob",
+      "stack_hex": "030101005600"
+    },
+    {
+      "actual_patch_hex": "01005800",
+      "name": "minecraft:tropical_fish/pattern_color",
+      "native_id": 88,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005800"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005800"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005800"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100580000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005800"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010058000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005800"
+        }
+      ],
+      "requested_value": "white",
+      "stack_hex": "030101005800"
+    },
+    {
+      "actual_patch_hex": "01005801",
+      "name": "minecraft:tropical_fish/pattern_color",
+      "native_id": 88,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005801"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005801"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005801"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100580100000000000000000000000000000000000000000000000000000000000000000000021c0000030101005801"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010058010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005801"
+        }
+      ],
+      "requested_value": "orange",
+      "stack_hex": "030101005801"
+    },
+    {
+      "actual_patch_hex": "01005807",
+      "name": "minecraft:tropical_fish/pattern_color",
+      "native_id": 88,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005807"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005807"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005807"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100580700000000000000000000000000000000000000000000000000000000000000000000021c0000030101005807"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010058070000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005807"
+        }
+      ],
+      "requested_value": "gray",
+      "stack_hex": "030101005807"
+    },
+    {
+      "actual_patch_hex": "01005200",
+      "name": "minecraft:wolf/collar",
+      "native_id": 82,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005200"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005200"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005200"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100520000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005200"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010052000000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005200"
+        }
+      ],
+      "requested_value": "white",
+      "stack_hex": "030101005200"
+    },
+    {
+      "actual_patch_hex": "01005201",
+      "name": "minecraft:wolf/collar",
+      "native_id": 82,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005201"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005201"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005201"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100520100000000000000000000000000000000000000000000000000000000000000000000021c0000030101005201"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010052010000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005201"
+        }
+      ],
+      "requested_value": "orange",
+      "stack_hex": "030101005201"
+    },
+    {
+      "actual_patch_hex": "01005207",
+      "name": "minecraft:wolf/collar",
+      "native_id": 82,
+      "packets": [
+        {
+          "class": "adx",
+          "label": "storage_slot",
+          "payload_hex": "0307001b030101005207"
+        },
+        {
+          "class": "agm",
+          "label": "cursor",
+          "payload_hex": "030101005207"
+        },
+        {
+          "class": "agy",
+          "label": "raw_player_slot",
+          "payload_hex": "09030101005207"
+        },
+        {
+          "class": "adv",
+          "label": "storage_full",
+          "payload_hex": "03073f00000000000000000000000000000000000000000000000000000003010100520700000000000000000000000000000000000000000000000000000000000000000000021c0000030101005207"
+        },
+        {
+          "class": "adv",
+          "label": "player_full",
+          "payload_hex": "00072e0000000000000000000301010052070000000000000000000000000000000000000000000000000000000000000000000000021c0000030101005207"
+        }
+      ],
+      "requested_value": "gray",
+      "stack_hex": "030101005207"
+    }
+  ],
+  "version": "1.21.11"
+}

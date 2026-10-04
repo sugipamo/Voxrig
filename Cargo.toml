@@ -33,6 +33,8 @@ include = [
     "/scripts/InspectNativeClose.java",
     "/scripts/ExportCursorReturns.java",
     "/scripts/export_cursor_returns.py",
+    "/scripts/ExportItemComponents.java",
+    "/scripts/export_item_components.py",
     "/scripts/ExportMenuLayouts.java",
     "/scripts/ExportStorageOutlines.java",
     "/scripts/ExportRegularClicks.java",

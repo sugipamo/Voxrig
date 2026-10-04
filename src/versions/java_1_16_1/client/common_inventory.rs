@@ -327,6 +327,66 @@ impl Bot {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn common_item_data_same_consumer_preserves_original_constructor_nbt() {
+        let profiles: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../data/client_api/cursor_return_profiles-1.16.1.json"
+        ))
+        .unwrap();
+        let definition = profiles["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|d| d["name"] == "minecraft:diamond_helmet")
+            .unwrap();
+        let bytes = definition["default_legacy_nbt"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|b| b.as_u64().unwrap() as u8)
+            .collect::<Vec<_>>();
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        for mode in [api::GameMode::Survival, api::GameMode::Creative] {
+            let mut changed = vec![3];
+            changed.extend(
+                (if mode == api::GameMode::Creative {
+                    1_f32
+                } else {
+                    0_f32
+                })
+                .to_be_bytes(),
+            );
+            bot.apply_packet(0x1e, changed).await.unwrap();
+            let mut packet = vec![0];
+            packet.extend(9_i16.to_be_bytes());
+            write_slot(
+                &mut packet,
+                Some(&ItemStack {
+                    item_id: definition["native_id"].as_i64().unwrap() as i32,
+                    count: 1,
+                    nbt: Some(bytes.clone()),
+                }),
+            );
+            bot.apply_packet(0x16, packet).await.unwrap();
+            api::tests::common_item_data_scenario(
+                &client,
+                9,
+                "minecraft:diamond_helmet",
+                1,
+                api::ItemData::LegacyNbt {
+                    bytes: bytes.clone(),
+                },
+            )
+            .await;
+            assert!(packets.try_recv().is_err());
+        }
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
     #[test]
     fn pickup_comparison_encoding_matches_original_native_packet_codec() {
         let cases: serde_json::Value = serde_json::from_str(include_str!(
@@ -1021,6 +1081,9 @@ mod tests {
                 nbt: match &item.data {
                     api::ItemData::Default => None,
                     api::ItemData::LegacyNbt { bytes } => Some(bytes.clone()),
+                    api::ItemData::ModernComponents { .. } => {
+                        unreachable!("legacy received stack cannot contain modern components")
+                    }
                 },
             }),
             _ => unreachable!(),

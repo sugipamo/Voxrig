@@ -61,17 +61,55 @@ pub struct ObservedValue<T> {
     /// Where the value came from.
     pub source: ValueSource,
 }
+/// A complete encoded value of one native item data component.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+pub struct ItemComponent {
+    /// Exact version-bound type, distinct from item or block-state identity.
+    pub definition: super::registry::ItemComponentDefinition,
+    /// Native value bytes, excluding the type ID. Empty is valid for unit components.
+    pub bytes: Vec<u8>,
+}
+/// A lossless native item-component patch against the owning item's prototype.
+/// Lists retain original wire ordering; removed types are not empty values.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct ItemComponentPatch {
+    /// Added or replaced values; an empty list does not mean an empty item.
+    pub added: Vec<ItemComponent>,
+    /// Components explicitly removed from the native item prototype.
+    pub removed: Vec<super::registry::ItemComponentDefinition>,
+}
+impl PartialEq for ItemComponentPatch {
+    fn eq(&self, other: &Self) -> bool {
+        // Native patches are maps/sets. Keep wire order for inspection without
+        // treating a reordered same-value receipt as a changed item.
+        let mut added = self.added.iter().collect::<Vec<_>>();
+        let mut other_added = other.added.iter().collect::<Vec<_>>();
+        added.sort_by_key(|c| c.definition.id.value());
+        other_added.sort_by_key(|c| c.definition.id.value());
+        let mut removed = self.removed.iter().collect::<Vec<_>>();
+        let mut other_removed = other.removed.iter().collect::<Vec<_>>();
+        removed.sort_by_key(|c| c.id.value());
+        other_removed.sort_by_key(|c| c.id.value());
+        added == other_added && removed == other_removed
+    }
+}
+impl Eq for ItemComponentPatch {}
 /// Item data whose interpretation belongs to the owning version.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum ItemData {
-    /// No non-default data.
+    /// No legacy NBT or an empty modern patch; native prototypes may still contain data.
     Default,
     /// Complete legacy NBT, including the root tag byte. Not modern components.
     LegacyNbt {
         /// Native encoded bytes.
         bytes: Vec<u8>,
+    },
+    /// Complete supported modern patch. This is not legacy NBT or a resolved prototype.
+    ModernComponents {
+        /// Added values and explicit removals, including exact encoded native data.
+        patch: ItemComponentPatch,
     },
 }
 /// A common stack identity with lossless supported native data.

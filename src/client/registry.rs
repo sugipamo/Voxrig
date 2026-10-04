@@ -8,6 +8,8 @@ pub enum RegistryKind {
     BlockState,
     /// Item definition, independent of block state IDs.
     Item,
+    /// Item data component type, distinct from item and block-state IDs.
+    ItemComponent,
 }
 /// A validated ID whose version and namespace cannot be discarded accidentally.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
@@ -39,6 +41,14 @@ pub struct ItemDefinition {
     pub name: String,
     /// Native maximum default stack count.
     pub max_stack_size: u32,
+}
+/// A native item-component type bound to its exact adapter registry.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+pub struct ItemComponentDefinition {
+    /// Version and component namespace are retained with the native ID.
+    pub id: RegistryId,
+    /// Namespaced component name.
+    pub name: String,
 }
 /// Read-only access to one explicitly selected registry, also usable before connecting.
 #[derive(Clone, Copy, Debug)]
@@ -126,6 +136,49 @@ impl Registry {
             max_stack_size,
         })
     }
+    /// Resolve an item-component type. Legacy NBT does not have this registry.
+    pub fn item_component(self, name: &str) -> Result<ItemComponentDefinition> {
+        let definitions = self.component_definitions()?;
+        let definition = definitions
+            .iter()
+            .find(|d| d.name == name)
+            .ok_or_else(|| invalid("unknown item component; update Voxrig for new definitions"))?;
+        self.item_component_by_native_id(definition.native_id)
+    }
+    /// Interpret an explicitly native component ID in this version only.
+    pub fn item_component_by_native_id(self, value: i32) -> Result<ItemComponentDefinition> {
+        let definitions = self.component_definitions()?;
+        let definition = definitions
+            .iter()
+            .find(|d| d.native_id == value)
+            .ok_or_else(|| invalid("unknown native item-component ID"))?;
+        Ok(ItemComponentDefinition {
+            id: RegistryId {
+                version: self.version,
+                kind: RegistryKind::ItemComponent,
+                value,
+            },
+            name: definition.name.clone(),
+        })
+    }
+    /// Decode a component identity, rejecting item/block-state and cross-version IDs.
+    pub fn item_component_definition(self, id: RegistryId) -> Result<ItemComponentDefinition> {
+        self.check(id, RegistryKind::ItemComponent)?;
+        self.item_component_by_native_id(id.value)
+    }
+    fn component_definitions(
+        self,
+    ) -> Result<&'static [crate::versions::java_1_21_11::item_components::Definition]> {
+        match self.version {
+            MinecraftVersion::Java1_21_11 => {
+                Ok(crate::versions::java_1_21_11::item_components::definitions())
+            }
+            MinecraftVersion::Java1_16_1 => Err(Error::new(
+                ErrorKind::Unsupported,
+                anyhow::anyhow!("Java 1.16.1 uses legacy NBT, not an item-component registry"),
+            )),
+        }
+    }
     fn check(self, id: RegistryId, kind: RegistryKind) -> Result<()> {
         if id.version != self.version || id.kind != kind {
             return Err(invalid("ID belongs to another version or registry"));
@@ -146,6 +199,38 @@ pub(crate) fn invalid(message: &str) -> Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn component_identities_remain_version_and_namespace_bound() {
+        let modern = Registry::for_version(MinecraftVersion::Java1_21_11);
+        let legacy = Registry::for_version(MinecraftVersion::Java1_16_1);
+        for native in crate::versions::java_1_21_11::item_components::definitions() {
+            let component = modern.item_component(&native.name).unwrap();
+            assert_eq!(component.id.value(), native.native_id);
+            assert_eq!(component.id.kind(), RegistryKind::ItemComponent);
+            assert_eq!(
+                modern.item_component_definition(component.id).unwrap(),
+                component
+            );
+            assert!(modern.item_definition(component.id).is_err());
+            assert!(modern.block_state(component.id).is_err());
+            assert!(legacy.item_component_definition(component.id).is_err());
+        }
+        assert!(modern.item_component("custom_name").is_err());
+        assert!(modern.item_component("minecraft:future_component").is_err());
+        assert!(modern.item_component_by_native_id(104).is_err());
+        assert!(
+            modern
+                .item_component_definition(modern.item("minecraft:stone").unwrap().id)
+                .is_err()
+        );
+        assert_eq!(
+            legacy
+                .item_component("minecraft:custom_name")
+                .unwrap_err()
+                .kind(),
+            ErrorKind::Unsupported
+        );
+    }
     #[test]
     fn identities_cannot_cross_registry_or_version_and_unknowns_fail() {
         let old = Registry::for_version(MinecraftVersion::Java1_16_1);

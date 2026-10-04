@@ -47,7 +47,9 @@ fn inventory_is_received_only_and_unsupported_components_never_become_empty_slot
     }
     let mut unsupported = vec![0, 1];
     put_varint(&mut unsupported, stone);
-    unsupported.extend([1, 0, 0]);
+    // Original native bundle-contents empty-list encoding is complete but
+    // recursive item-component framing is not implemented in this milestone.
+    unsupported.extend([1, 0, 48, 0]);
     receive(
         &mut state,
         ids::play_clientbound::SET_PLAYER_INVENTORY,

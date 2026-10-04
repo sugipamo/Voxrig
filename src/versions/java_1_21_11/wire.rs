@@ -9,6 +9,10 @@ impl<'a> Reader<'a> {
     pub fn new(bytes: &'a [u8]) -> Self {
         Self { bytes }
     }
+    /// Remaining original input, for preserving a bounded decoded field exactly.
+    pub fn remaining(&self) -> &'a [u8] {
+        self.bytes
+    }
     /// Preserve one complete native unnamed NBT field without rendering it.
     pub fn encoded_nbt(&mut self) -> Result<Vec<u8>> {
         let before = self.bytes;

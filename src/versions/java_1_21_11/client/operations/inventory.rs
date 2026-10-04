@@ -94,6 +94,12 @@ fn prepare_with_player_revision(
         return Err(unavailable("swap slot contents unavailable"));
     }
     for stack in [&main_before, &hotbar_before] {
+        if matches!(stack, InventorySlot::ItemWithComponents { .. }) {
+            return Err(crate::Error::new(
+                crate::ErrorKind::Unsupported,
+                anyhow::anyhow!("native default swap does not support component-bearing stacks"),
+            ));
+        }
         if let InventorySlot::Item { item } = stack {
             if items()
                 .iter()
@@ -140,6 +146,12 @@ fn prepare_with_player_revision(
 // belong to click admission; the codec itself also represents overstacks.
 fn put_default_cursor_hash(payload: &mut Vec<u8>, cursor: &InventorySlot) -> Result<()> {
     match cursor {
+        InventorySlot::ItemWithComponents { .. } => {
+            return Err(crate::Error::new(
+                crate::ErrorKind::Unsupported,
+                anyhow::anyhow!("default cursor hash cannot encode a component-bearing stack"),
+            ));
+        }
         InventorySlot::Empty => payload.push(0),
         InventorySlot::Unavailable => {
             return Err(unavailable("actual supported cursor unavailable"));

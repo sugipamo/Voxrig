@@ -46,6 +46,7 @@ pub(super) fn default_left_item(version: MinecraftVersion, item: &ItemStack) -> 
             version == MinecraftVersion::Java1_16_1
                 && profile.default_legacy_nbt.as_ref() == Some(bytes)
         }
+        ItemData::ModernComponents { .. } => false,
     }
 }
 #[cfg(test)]

@@ -258,3 +258,13 @@ dependent block entity shapes are excluded; no native method bodies are shipped.
 independent server RCON observations from sequential official vanilla 1.16.1 and
 1.21.11 trials. Original Rust/Python test tooling and source hashes document the
 limited scenarios. These observations do not relicense Minecraft.
+
+
+The item-component registry and codec fixtures in
+`data/client_api/item_components-1.21.11.json`,
+`item_component_cases-1.21.11.json`, and their source/request metadata are
+original-tooling outputs from the unmodified official Java 1.21.11 server.
+They record registry facts and encoded codec inputs/outputs, not Minecraft
+method bodies or redistributed game JARs. The own reflection wrappers and
+input hashes are identified by `item_component_source.json`; original JARs,
+classpath libraries, mappings and bytecode inspection logs remain local.

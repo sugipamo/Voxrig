@@ -424,3 +424,22 @@ close後の現在cursorは`player_state()`または親recordの最後の実`curs
 `server_close_sequence`は元openingへの新しい実CLOSEだけを示す。無応答の正常vanillaでも`None`のままでよい。
 実positionの同値再受信は履歴ordinalを保存しつつ許可し、modernはteleport確認/position応答の完全送信より前に新しい位置を
 通常操作へ公開しない。契約・native証拠は[共通close](common-container-close.md)を参照。
+
+
+## Item dataの受信拡張
+
+`ItemData::ModernComponents { patch }`、`ItemComponent`、`ItemComponentPatch`と
+`ItemComponentDefinition`を追加した。modernの対応する非default stackは、欠測の代わりに
+元の実受信dataを持つ`SlotKnowledge::Item`になる。追加値bytesと明示的な削除を保持し、
+prototypeが空や、default-only操作に使えるとは扱わない。
+`Default`・`LegacyNbt`の既存値はそのまま。非対応complex componentは引き続き欠測。
+
+`RegistryKind::ItemComponent`を追加したため、このenumを全分岐している利用側は対応を要する。
+`Registry::item_component` / `item_component_by_native_id` / `item_component_definition`で
+版とnamespaceを保持した型を取得する。legacy NBTへcomponent IDを流用しない。
+
+native modern拡張の`operations::InventorySlot`には`ItemWithComponents`が加わる。
+既存の`Item { item: PlainItem }`はcomponent-free stackを表す。
+全分岐を追加し、`ItemWithComponents`を`Item`やEmptyへ落とさない。
+native default SWAP/default cursor hashは非default patchを送信前に拒否する。
+対応範囲・原codecの証拠・次の操作対応は[共通item data](common-item-data.md)を参照。

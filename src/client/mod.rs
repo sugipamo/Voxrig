@@ -15,8 +15,9 @@ pub use capabilities::{Capabilities, Feature, Support};
 pub use config::{ClientLimits, Server};
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
 pub use observation::{
-    Capture, Dimension, GameMode, Health, InventoryObservation, ItemData, ItemStack, ObservedValue,
-    PlayerObservation, ReceivedPose, SessionStamp, SlotKnowledge, ValueSource,
+    Capture, Dimension, GameMode, Health, InventoryObservation, ItemComponent, ItemComponentPatch,
+    ItemData, ItemStack, ObservedValue, PlayerObservation, ReceivedPose, SessionStamp,
+    SlotKnowledge, ValueSource,
 };
 pub(crate) use observation::{LegacyReceipts, legacy_slot, received};
 pub use operations::{Creative, DispatchReceipt, Survival};
@@ -36,14 +37,15 @@ pub mod prelude {
         InventorySwapSource, InventorySwapStage, InventoryTransferId, InventoryTransferRecord,
         InventoryTransferStage,
     };
+    pub use super::registry::{ItemComponentDefinition, Registry, RegistryId, RegistryKind};
     pub use super::survival::{
         BlockTargetHit, BlockTargetObservation, MiningId, MiningRecord, MiningStage, MotionPreview,
         MotionRecord, MotionStatus, PlacementId, PlacementRecord, PlacementStage, SurvivalControl,
         SurvivalInput,
     };
     pub use super::{
-        Client, ClientLimits, ConnectionConfig, Creative, Feature, GameMode, PlayerObservation,
-        Server, Support, Survival,
+        Client, ClientLimits, ConnectionConfig, Creative, Feature, GameMode, ItemComponent,
+        ItemComponentPatch, ItemData, ItemStack, PlayerObservation, Server, Support, Survival,
     };
     pub use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Region, Result};
 }

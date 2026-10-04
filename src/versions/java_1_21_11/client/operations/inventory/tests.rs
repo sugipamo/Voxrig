@@ -872,6 +872,9 @@ fn put_slot(payload: &mut Vec<u8>, value: &InventorySlot) {
             payload.extend([0, 0]);
         }
         InventorySlot::Unavailable => panic!("cannot encode unknown inventory"),
+        InventorySlot::ItemWithComponents { .. } => {
+            panic!("plain fixture helper cannot encode component data")
+        }
     }
 }
 fn full(inventory: &Inventory, revision: i32) -> Vec<u8> {
@@ -919,6 +922,102 @@ struct CommonFixture {
     api: Operations,
     peer: tokio::net::TcpStream,
     receiver: tokio::task::JoinHandle<()>,
+}
+#[tokio::test]
+async fn common_item_data_same_consumer_preserves_native_patch_and_refuses_default_click_before_io()
+{
+    use crate::client::{
+        ItemData,
+        inventory::{InventoryClickButton, InventorySource},
+    };
+    let cases = super::super::component_tests::corpus();
+    let mut fixture = CommonFixture::new().await;
+    let client = fixture.client();
+    for mode in [GameMode::Survival, GameMode::Creative] {
+        let mut packet = vec![3];
+        packet.extend(
+            (if mode == GameMode::Creative {
+                1_f32
+            } else {
+                0_f32
+            })
+            .to_be_bytes(),
+        );
+        fixture
+            .receive(ids::play_clientbound::GAME_STATE_CHANGE, &packet)
+            .await;
+        for name in [
+            "minecraft:custom_data",
+            "minecraft:custom_name",
+            "minecraft:damage",
+        ] {
+            let sample = cases["stacks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|s| s["name"] == name)
+                .unwrap();
+            let full = sample["packets"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|p| p["label"] == "player_full")
+                .unwrap();
+            fixture
+                .receive(
+                    ids::play_clientbound::WINDOW_ITEMS,
+                    &hex::decode(full["payload_hex"].as_str().unwrap()).unwrap(),
+                )
+                .await;
+            let bytes = hex::decode(sample["actual_patch_hex"].as_str().unwrap()).unwrap();
+            let patch = crate::versions::java_1_21_11::item_components::read_patch(
+                &mut Reader::new(&bytes),
+            )
+            .unwrap()
+            .unwrap();
+            crate::client::tests::common_item_data_scenario(
+                &client,
+                9,
+                "minecraft:stone",
+                3,
+                ItemData::ModernComponents { patch },
+            )
+            .await;
+            fixture
+                .receive(ids::play_clientbound::SET_CURSOR_ITEM, &[0])
+                .await;
+            let result = if mode == GameMode::Creative {
+                client
+                    .creative()
+                    .click_inventory(InventorySource::Player, 9, InventoryClickButton::Left)
+                    .await
+            } else {
+                client
+                    .survival()
+                    .click_inventory(InventorySource::Player, 9, InventoryClickButton::Left)
+                    .await
+            };
+            assert_eq!(result.unwrap_err().kind(), crate::ErrorKind::Unsupported);
+            assert!(
+                client
+                    .survival()
+                    .inventory_click_record()
+                    .await
+                    .unwrap()
+                    .is_none()
+            );
+            assert!(
+                timeout(
+                    Duration::from_millis(15),
+                    read_packet(&mut fixture.peer, None)
+                )
+                .await
+                .is_err()
+            );
+        }
+    }
+    drop(client);
+    fixture.stop().await;
 }
 impl CommonFixture {
     async fn new() -> Self {
@@ -1438,9 +1537,20 @@ fn window_changes_and_unsupported_cursor_cannot_restore_stale_swap_authority() {
     )
     .unwrap();
     assert!(prepare(&state.operations.inventory, 42, 10, 9, 0).is_ok());
-    let mut cursor = vec![1];
-    put_varint(&mut cursor, default_item("stone", 1).unwrap().item_id);
-    cursor.extend([1, 0]); // component payload remains deliberately unsupported
+    let cases = super::super::component_tests::corpus();
+    let original = cases["stacks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["name"] == "minecraft:bundle_contents")
+        .unwrap();
+    let packet = original["packets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["label"] == "cursor")
+        .unwrap();
+    let cursor = hex::decode(packet["payload_hex"].as_str().unwrap()).unwrap();
     super::super::receive(&mut state, ids::play_clientbound::SET_CURSOR_ITEM, &cursor).unwrap();
     assert_eq!(
         state.operations.inventory.cursor,
@@ -2700,4 +2810,45 @@ async fn actual_position_is_published_after_teleport_confirmation_before_normal_
         [8.5, 65., 8.5]
     );
     f.stop().await;
+}
+
+#[test]
+fn component_observation_cannot_enter_native_default_swap_or_cursor_hash() {
+    let corpus = super::super::component_tests::corpus();
+    for sample in corpus["stacks"].as_array().unwrap() {
+        if sample["name"] == "minecraft:bundle_contents" {
+            continue;
+        }
+        let bytes = hex::decode(sample["stack_hex"].as_str().unwrap()).unwrap();
+        let value = slot(&mut Reader::new(&bytes)).unwrap().unwrap();
+        if !matches!(value, InventorySlot::ItemWithComponents { .. }) {
+            continue;
+        }
+        let mut state = super::super::component_tests::baseline();
+        let full = sample["packets"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["label"] == "player_full")
+            .unwrap();
+        super::super::receive(
+            &mut state,
+            ids::play_clientbound::WINDOW_ITEMS,
+            &hex::decode(full["payload_hex"].as_str().unwrap()).unwrap(),
+        )
+        .unwrap();
+        state.sequence = 14;
+        super::super::receive(&mut state, ids::play_clientbound::SET_CURSOR_ITEM, &[0]).unwrap();
+        let result = prepare(&state.operations.inventory, 71, 14, 9, 0);
+        assert_eq!(result.unwrap_err().kind(), crate::ErrorKind::Unsupported);
+        assert!(state.operations.inventory.pending_swap.is_none());
+        let mut bytes = vec![41];
+        assert_eq!(
+            put_default_cursor_hash(&mut bytes, &value)
+                .unwrap_err()
+                .kind(),
+            crate::ErrorKind::Unsupported
+        );
+        assert_eq!(bytes, [41]);
+    }
 }
