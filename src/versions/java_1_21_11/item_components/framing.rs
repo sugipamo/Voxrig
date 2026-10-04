@@ -223,7 +223,50 @@ fn read_value(
             }
             Value::Sequence(values)
         }
-        Rule::Forward { child } => read_value(r, *child, budget, child_depth, capture)?,
+        Rule::Forward { child } => {
+            if values::identifier_forward(node, *child, &native.native_class)? {
+                // The native constructor always validates, including when the
+                // caller only needs framing. Capture still avoids a value tree
+                // on normal receipt; the existing string read owns the text.
+                let Node {
+                    rule: Rule::String { maximum },
+                    ..
+                } = schema()
+                    .nodes
+                    .get(*child)
+                    .context("missing Identifier string codec")?
+                else {
+                    bail!("native Identifier child codec changed; update Voxrig");
+                };
+                budget.steps = budget
+                    .steps
+                    .checked_sub(1)
+                    .context("item-component work limit")?;
+                if child_depth > 256 {
+                    bail!("item-component codec depth limit");
+                }
+                let spelling = text(r, *maximum)?;
+                let (namespace, path) = crate::client::identifier::parts(&spelling)?;
+                if capture {
+                    Value::Identifier {
+                        namespace: namespace.to_owned(),
+                        path: path.to_owned(),
+                    }
+                } else {
+                    Value::Unit
+                }
+            } else {
+                let value = read_value(r, *child, budget, child_depth, capture)?;
+                if capture {
+                    Value::Forward {
+                        codec: node,
+                        value: Box::new(value),
+                    }
+                } else {
+                    Value::Unit
+                }
+            }
+        }
         Rule::Boolean => {
             let value = r.bool()?;
             if capture {

@@ -332,3 +332,14 @@ Original JAR/mappings/classpath/tool/raw/final digests bind the limited primitiv
 scope. Typed stream fields are not full native component/text equality, resolved
 live registries, cached item hashes or gameplay support; these facts do not
 relicense Minecraft.
+
+`component_normalization_rules-1.21.11.json`, its compressed cases and source
+record contain factual forward-codec identities, original 1.16.1/1.21.11 resource
+ID constructor/stream outputs and adverse modern text parsing/encoding/equality
+results. Text component comparisons and original ItemStack data/matches results
+remain an oracle for future runtime semantics; conversion/encoding failures are
+identified separately from original stream rejection. UTF-16 diagnostic inputs
+are retained as code units where needed. Original JAR/mapping/classpath/tool/input/
+raw/final digests bind these facts. Native method bodies and inspection logs stay
+local, and no game binaries are distributed or relicensed. These are not complete
+runtime text semantics, inventory authority or live-server cache evidence.

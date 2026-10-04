@@ -166,6 +166,35 @@ runtimeは`component_value_rules-1.21.11.json`の小さな型定義だけを読�
 同じruntime directoryの`--normalize-only --check`で保存出力を照合できる。
 このstandalone検査を新たなlive gameplay/ServerPlayer cache検証とは扱わない。
 
+### Forward codecとIdentifierの正規化
+
+内部treeは308のforward nodeのcodec identityも保持する。fieldを読み取っただけでは、
+それをどのnative constructorが組み立てるか失われるためである。
+通常受信ではこのwrapper/treeも保持しない。未実装constructorを正規化済みとは扱わない。
+
+元Identifier streamのforward nodeは名前空間とpathへ分け、`stone`・`:stone`を
+`minecraft:stone`として読む。不正な文字や複数colonは、treeを作らない受信経路でも拒否する。
+元bytesは省略表記のまま保持する。空pathや`..`等は元factoryが受理するため、追加の変換をしない。
+ASCII全128文字のnamespace/path境界、Unicode、UTF-16の不正surrogateを含む274入力について、
+元1.16.1 ResourceLocation constructorと1.21.11 Identifier streamの受理・補正が一致した。
+この共通内部grammarは名前の解釈だけを行い、registry値や実接続の参照は解決しない。
+
+textは125候補の元NBT変換・stream decode・persistent encodeと、3,486のnative比較を保存した。
+83候補は元codecが受理し、literal/empty、keybind、translate、score、selector、NBT、objectの
+全8contents実装classを含む。失敗にはstream拒否と入力JSON→NBT変換/encodeの失敗があり、
+`failure_stage`で区別する。候補をすべて有効なtextとして扱わない。
+元component比較とItemStackのdata/matches比較では`red`と`#ff5555`が等しく、
+`bold`未指定と`false`は異なる。元persistent encoderは前者の色表記を区別して保持する。
+wire/NBT field一致やcanonical spellingを、そのままnative item identityやcache hashにしない。
+これらは完全なtext/constructor比較の実装用oracleであり、runtimeのtext正規化・操作対応の完了ではない。
+
+runtime定義は小さな`component_normalization_rules-1.21.11.json`だけを読み、
+検査値・比較・forward catalogは`component_normalization_cases-1.21.11.json.gz`へ分離する。
+`scripts/export_component_normalization.py`は公式JARとmappingを照合し、JVM512 MiB・CPU1で
+modern/legacyを順に呼び出す。source recordは入力・tool・raw/final digestを束縛し、
+同じruntime directoryの`--normalize-only --check`で保存出力を確認できる。
+元method body・JAR・bytecode検査ログはlocalに留め、standalone oracleをlive検証へ読み替えない。
+
 ## Item比較・persistent hashの基礎
 
 `item_semantics-*.json.gz`は未変更公式JARで独立にdecodeしたitemの比較結果。

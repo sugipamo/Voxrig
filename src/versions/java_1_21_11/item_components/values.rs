@@ -27,6 +27,16 @@ pub(super) enum Value {
         least: i64,
     },
     String(String),
+    Identifier {
+        namespace: String,
+        path: String,
+    },
+    // Preserve constructor/codec identity until its native normalization is
+    // implemented. Transparent fields alone lose which semantic type they form.
+    Forward {
+        codec: usize,
+        value: Box<Value>,
+    },
     Enumeration {
         codec: usize,
         native_id: i32,
@@ -90,6 +100,33 @@ pub(super) struct ProfileProperty {
 struct Rules {
     enums: Vec<EnumRule>,
     scalars: Vec<ScalarRule>,
+}
+#[derive(Deserialize)]
+struct NormalizationRules {
+    identifiers: Vec<IdentifierRule>,
+}
+#[derive(Deserialize)]
+struct IdentifierRule {
+    node: usize,
+    child: usize,
+    codec_class: String,
+    value_class: String,
+}
+pub(super) fn identifier_forward(node: usize, child: usize, class: &str) -> Result<bool> {
+    static RULES: OnceLock<NormalizationRules> = OnceLock::new();
+    let rules = RULES.get_or_init(|| {
+        serde_json::from_str(include_str!(
+            "../../../../data/client_api/component_normalization_rules-1.21.11.json"
+        ))
+        .expect("pinned original Identifier forward facts")
+    });
+    let Some(rule) = rules.identifiers.iter().find(|r| r.node == node) else {
+        return Ok(false);
+    };
+    if rule.child != child || rule.codec_class != class || rule.value_class != "amo" {
+        bail!("native Identifier composition mismatch; update Voxrig");
+    }
+    Ok(true)
 }
 #[derive(Deserialize)]
 struct EnumRule {
@@ -186,6 +223,147 @@ mod tests {
         let mut bytes = Vec::new();
         flate2::read::GzDecoder::new(&include_bytes!("../../../../data/client_api/component_value_cases-1.21.11.json.gz")[..]).read_to_end(&mut bytes).unwrap();
         serde_json::from_slice(&bytes).unwrap()
+    }
+    fn normalization_facts() -> Json {
+        let mut bytes = Vec::new();
+        flate2::read::GzDecoder::new(
+            &include_bytes!(
+                "../../../../data/client_api/component_normalization_cases-1.21.11.json.gz"
+            )[..],
+        )
+        .read_to_end(&mut bytes)
+        .unwrap();
+        serde_json::from_slice(&bytes).unwrap()
+    }
+    #[test]
+    fn identifier_constructor_normalizes_all_native_spellings_and_rejects_bad_ids() {
+        let facts = normalization_facts();
+        let model = super::super::definitions()
+            .iter()
+            .find(|d| d.name == "minecraft:item_model")
+            .unwrap();
+        for row in facts["identifiers"].as_array().unwrap() {
+            let input = hex::decode(row["input_hex"].as_str().unwrap()).unwrap();
+            let decoded = framing::decode_node(13, &input);
+            assert_eq!(
+                decoded.is_ok(),
+                row["accepted"].as_bool().unwrap(),
+                "{:?}",
+                row["input"]
+            );
+            let mut patch_bytes = Vec::new();
+            for number in [1, 0, model.native_id] {
+                crate::protocol::put_varint(&mut patch_bytes, number);
+            }
+            patch_bytes.extend_from_slice(&input);
+            let patch = super::super::decode_patch(&patch_bytes);
+            assert_eq!(
+                patch.is_ok(),
+                decoded.is_ok(),
+                "normal receive must invoke native ID grammar"
+            );
+            if let Ok(patch) = patch {
+                assert_eq!(
+                    patch.added[0].bytes, input,
+                    "receipt must keep original spelling bytes"
+                );
+            }
+            if let Ok(decoded) = decoded {
+                let Value::Identifier { namespace, path } = &decoded else {
+                    panic!("native Identifier must retain normalized namespace/path")
+                };
+                assert_eq!(namespace.as_str(), row["namespace"].as_str().unwrap());
+                assert_eq!(path.as_str(), row["path"].as_str().unwrap());
+                assert_eq!(
+                    serde_json::to_value(decoded).unwrap(),
+                    serde_json::to_value(
+                        framing::decode_node(
+                            13,
+                            &hex::decode(row["canonical_hex"].as_str().unwrap()).unwrap()
+                        )
+                        .unwrap()
+                    )
+                    .unwrap()
+                );
+            }
+        }
+    }
+    #[test]
+    fn native_text_aliases_prove_wire_fields_are_not_semantic_item_identity() {
+        let facts = normalization_facts();
+        let rows = facts["text"].as_array().unwrap();
+        assert_eq!(rows.len(), 125);
+        let native = definition(6).unwrap();
+        assert_eq!(native.name, "minecraft:custom_name");
+        let mut contents = std::collections::BTreeSet::new();
+        for row in rows.iter().filter(|r| r["accepted"] == true) {
+            let decoded = framing::decode_value(
+                native,
+                &hex::decode(row["input_hex"].as_str().unwrap()).unwrap(),
+            )
+            .unwrap();
+            let Value::Forward { codec, value } = decoded else {
+                panic!("text constructor identity must be retained")
+            };
+            assert_eq!(codec, 7);
+            assert!(matches!(*value, Value::Nbt(Some(_))));
+            contents.insert(row["contents_class"].as_str().unwrap());
+        }
+        assert_eq!(contents.len(), 8); // All original contents implementations, not a runtime semantic implementation.
+        let index = |name| rows.iter().position(|r| r["case"] == name).unwrap();
+        for (left, right, equal) in [
+            ("literal", "record", true),
+            ("color-red", "color-#ff5555", true),
+            ("literal", "bold-false", false),
+        ] {
+            let a = index(left);
+            let b = index(right);
+            let pair = facts["text_pairs"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|p| p["a"] == a.min(b) && p["b"] == a.max(b))
+                .unwrap();
+            assert_eq!(pair["component_equal"], equal);
+            assert_eq!(pair["same_item_data"], equal);
+            assert_eq!(pair["item_matches"], equal);
+            let raw = |i: usize| {
+                framing::decode_value(
+                    native,
+                    &hex::decode(rows[i]["input_hex"].as_str().unwrap()).unwrap(),
+                )
+                .unwrap()
+            };
+            assert_ne!(
+                serde_json::to_value(raw(a)).unwrap(),
+                serde_json::to_value(raw(b)).unwrap()
+            );
+        }
+    }
+    #[test]
+    fn normalization_facts_are_bound_to_original_inputs_and_own_generators() {
+        use sha2::{Digest, Sha256};
+        let source: Json = serde_json::from_str(include_str!(
+            "../../../../data/client_api/component_normalization_source.json"
+        ))
+        .unwrap();
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        for group in ["generators_sha256", "files_sha256"] {
+            for (path, hash) in source[group].as_object().unwrap() {
+                assert_eq!(
+                    format!(
+                        "{:x}",
+                        Sha256::digest(std::fs::read(root.join(path)).unwrap())
+                    ),
+                    hash.as_str().unwrap(),
+                    "{path}"
+                );
+            }
+        }
+        assert_eq!(source["identifier_cases"], 274);
+        assert_eq!(source["forward_nodes"], 308);
+        assert_eq!(source["accepted_text_cases"], 83);
+        assert_eq!(source["text_equality_pairs"], 3486);
     }
     #[test]
     fn every_original_enum_factory_alias_and_fixed_scalar_is_typed_exactly() {

@@ -4,6 +4,7 @@ mod config;
 pub mod container;
 mod geometry;
 mod hash_ops;
+pub(crate) mod identifier;
 pub mod inventory;
 mod item;
 pub mod nbt;
