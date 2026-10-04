@@ -195,6 +195,33 @@ modern/legacyを順に呼び出す。source recordは入力・tool・raw/final d
 同じruntime directoryの`--normalize-only --check`で保存出力を確認できる。
 元method body・JAR・bytecode検査ログはlocalに留め、standalone oracleをlive検証へ読み替えない。
 
+### 共通text fieldモデル
+
+内部の共通textモデルへ8種類のcontents、11個のstyle field、順序付きsiblingsを読み取る。
+modernのtext stream rootを明示的にcaptureした場合だけ生成し、通常受信の元bytes保持経路では生成しない。
+translation引数は元JavaのByte/Short/Integer/Long/Float/Doubleを区別する。
+styleのないliteral引数はstringへまとめるが、`bold: false`等の指定があればtextとして保持する。
+float/double wrapper比較はNaNをまとめ、signed zeroを区別する。UTF-16は単独surrogateも保持する。
+
+色はRGB比較値と元persistent表記を別々に保持する。16個の名前付き色と、実行したJDK
+21.0.12.1の`Character.digit(char, 16)`が受け付ける394 code unitを元入力から固定した。
+shadow RGBAは元Number.floatValue・floor・channel maskに合わせ、範囲外/NaN/infも検査する。
+booleanは元Number.byteValueを使い、未指定とfalseを区別する。NBT contentsのinterpretとseparatorは
+元lenient規則を使う一方、selectorのseparatorはstrictに読む。
+
+公式codecへ182個のwire入力を与え、受理された149値の元contents/style getterと照合した。
+元component.equalsの11,175 pair中、未解決の依存を含まない9,591 pairを内部field keyで照合し、
+残る1,584 pairは比較キーを作らない。selector/score、profile、URI、dialog、入れ子item/entity、
+追加native validationが必要なfieldを明示的な依存として残す。
+このキーは完全なconstructor validation、全component/item identity、persistent encoder、cache hash、
+操作の許可を証明しない。特に複数contents候補のcodec fallbackなど完全な構築規則は残作業である。
+
+runtimeの小さな色grammarは`text_color_rules-1.21.11.json`、検査値と比較は
+`text_core_cases-1.21.11.json.gz`、元入力/tool/getter/出力のdigestは`text_core_source.json`へ分離する。
+`scripts/export_text_core.py`は未変更公式JARをJVM512 MiB・CPU1で呼び出す。
+保存済みruntimeの`--normalize-only --check`でも生成物を検査できる。
+この段階のstandalone検証は新しいlive Client検証やserver cache検証ではない。
+
 ## Item比較・persistent hashの基礎
 
 `item_semantics-*.json.gz`は未変更公式JARで独立にdecodeしたitemの比較結果。

@@ -191,6 +191,22 @@ fn nested_patch(
         Value::Unit
     })
 }
+// Keep large text constructor temporaries out of each recursive grammar frame,
+// including the normal receive path that never captures text.
+#[inline(never)]
+fn capture_text(
+    tag: &std::sync::Arc<crate::client::nbt::NbtValue>,
+) -> Result<super::values::Value> {
+    let fields = super::text::project(tag)?;
+    let dependencies = fields.dependencies();
+    let field_key = fields.modern_field_key().map(Box::new);
+    Ok(super::values::Value::Text {
+        fields: Box::new(fields),
+        dependencies,
+        field_key,
+    })
+}
+
 fn read_value(
     r: &mut Reader<'_>,
     node: usize,
@@ -257,7 +273,12 @@ fn read_value(
                 }
             } else {
                 let value = read_value(r, *child, budget, child_depth, capture)?;
-                if capture {
+                if capture && node == 7 {
+                    let Value::Nbt(Some(tag)) = value else {
+                        bail!("native text constructor requires a non-End NBT value");
+                    };
+                    capture_text(&tag)?
+                } else if capture {
                     Value::Forward {
                         codec: node,
                         value: Box::new(value),

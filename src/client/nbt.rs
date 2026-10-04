@@ -389,7 +389,11 @@ pub(crate) fn decode_unnamed_tag(bytes: &[u8]) -> Result<Option<Arc<NbtValue>>> 
     })()
     .map_err(|e| Error::new(ErrorKind::InvalidInput, e))
 }
-fn equivalent(left: &Arc<NbtValue>, right: &Arc<NbtValue>, version: MinecraftVersion) -> bool {
+pub(crate) fn equivalent(
+    left: &Arc<NbtValue>,
+    right: &Arc<NbtValue>,
+    version: MinecraftVersion,
+) -> bool {
     if Arc::ptr_eq(left, right) {
         return true;
     }

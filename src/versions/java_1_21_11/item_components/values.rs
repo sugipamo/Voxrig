@@ -42,6 +42,11 @@ pub(super) enum Value {
         native_id: i32,
     },
     Nbt(Option<Arc<NbtValue>>),
+    Text {
+        fields: Box<crate::client::text::Text>,
+        dependencies: Vec<crate::client::text::Dependency>,
+        field_key: Option<Box<crate::client::text::FieldKey>>,
+    },
     Sequence(Vec<Value>),
     List(Vec<Value>),
     Map(Vec<(Value, Value)>),
@@ -302,11 +307,16 @@ mod tests {
                 &hex::decode(row["input_hex"].as_str().unwrap()).unwrap(),
             )
             .unwrap();
-            let Value::Forward { codec, value } = decoded else {
-                panic!("text constructor identity must be retained")
+            let Value::Text {
+                fields,
+                dependencies,
+                field_key,
+            } = decoded
+            else {
+                panic!("text constructor fields must be retained")
             };
-            assert_eq!(codec, 7);
-            assert!(matches!(*value, Value::Nbt(Some(_))));
+            assert_eq!(dependencies, fields.dependencies());
+            assert_eq!(field_key.is_some(), dependencies.is_empty());
             contents.insert(row["contents_class"].as_str().unwrap());
         }
         assert_eq!(contents.len(), 8); // All original contents implementations, not a runtime semantic implementation.
@@ -334,10 +344,14 @@ mod tests {
                 )
                 .unwrap()
             };
-            assert_ne!(
-                serde_json::to_value(raw(a)).unwrap(),
-                serde_json::to_value(raw(b)).unwrap()
-            );
+            assert_ne!(rows[a]["input_hex"], rows[b]["input_hex"]);
+            let key = |i| {
+                let Value::Text { field_key, .. } = raw(i) else {
+                    panic!("text field key")
+                };
+                field_key.unwrap()
+            };
+            assert_eq!(key(a) == key(b), equal);
         }
     }
     #[test]

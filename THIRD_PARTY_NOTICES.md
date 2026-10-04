@@ -343,3 +343,14 @@ are retained as code units where needed. Original JAR/mapping/classpath/tool/inp
 raw/final digests bind these facts. Native method bodies and inspection logs stay
 local, and no game binaries are distributed or relicensed. These are not complete
 runtime text semantics, inventory authority or live-server cache evidence.
+
+`text_color_rules-1.21.11.json`, `text_core_cases-1.21.11.json.gz` and their
+source record contain observed original text contents/style fields, numeric
+wrapper classes, component comparisons, native named colors and the running
+JDK Character.digit(char,16) grammar. Owned standalone tools invoke unchanged
+original codecs/getters; original numeric bytecode inspection remains local.
+The shared field model covers a limited dependency-free comparison scope;
+selectors, profiles, URI, dialog/item/entity references, full constructors,
+persistent encoding and live server caches remain incomplete. Original inputs,
+JAR/mappings/classpath/tools/raw/final digests are recorded. No original method
+bodies or game binaries are distributed, and these facts do not relicense them.

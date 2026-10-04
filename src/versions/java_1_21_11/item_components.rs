@@ -5,6 +5,9 @@ use crate::client::{ItemComponent, ItemComponentPatch, registry::Registry};
 use anyhow::{Context, Result, bail};
 use std::{collections::BTreeSet, sync::OnceLock};
 mod framing;
+mod text;
+#[cfg(test)]
+mod text_tests;
 mod values;
 
 #[cfg(test)]

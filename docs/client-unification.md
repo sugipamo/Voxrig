@@ -68,6 +68,7 @@ connection、world generation、receive sequence、cache revisionは別の値で
 - 全104 modern componentのnative値比較・型付きpersistent hash入力・元HashedStack codecをstandalone検査へ保存。共通内部hash計算は8,335 rootで照合しNBT getterへ接続した。完全なcomponent比較や実ServerPlayer cache・data付き操作の統合は続く。
 - 全104型のfield grammarを内部の型付きtreeへ接続し、共通propertyの整数読み取りも統合。通常受信はtreeを保持しない。元enum alias・数値型・全kindのunnamed NBTを検査した。constructor/textの完全正規化・live参照・native比較/cache hashは引き続き実装する。
 - 内部treeは308のforward codec identityも保持し、Identifierの省略名と不正文字を元両版の274入力へ照合。受信時の検査と元bytes保持を両立する。元textの125候補/3,486比較から、色の別表記とboolean未指定の意味差も記録した。完全なtext/component比較は引き続き統合する。
+- 共通内部textモデルに8 contents/11 style fieldを接続。182 wire入力中149 native値のgetterと、依存を含まない9,591比較を照合した。元11,175比較中の残る1,584比較は未解決として保持。完全なconstructor、selector/profile/URI/dialog/item/entity解決、persistent/cacheと操作対応は残る。
 - 在庫や位置の受信はserver内部状態の独立確認ではない。
 
 `DispatchReceipt`は完全なpacket送信のみを表す。protocol ACKや目的達成ではない。
