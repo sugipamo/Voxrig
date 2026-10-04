@@ -136,6 +136,7 @@ struct State {
     reconstruction: Reconstruction,
     observations: observations::RegionCache,
     dimensions: Vec<Dimension>,
+    registries: crate::client::registry::received::ReceivedRegistries,
     position: Option<[f64; 3]>,
     rotation: [f32; 2],
     ready: bool,
@@ -172,6 +173,7 @@ impl Default for State {
             reconstruction: Reconstruction::default(),
             observations: observations::RegionCache::default(),
             dimensions: Vec::new(),
+            registries: Default::default(),
             position: None,
             rotation: [0.0; 2],
             ready: false,
@@ -259,6 +261,20 @@ pub(crate) struct Bot {
 }
 
 impl Bot {
+    pub(crate) async fn common_server_registry_state(
+        &self,
+    ) -> Result<crate::client::registry::ServerRegistryObservation> {
+        let state = self.session.state.lock().await;
+        self.session.check(&state)?;
+        Ok(state.registries.capture(
+            crate::client::SessionStamp {
+                version: MinecraftVersion::Java1_21_11,
+                connection_id: self.session.id,
+                world_generation: state.loading.generation,
+            },
+            state.sequence,
+        ))
+    }
     pub(crate) fn connection_id(&self) -> u64 {
         self.session.id
     }
@@ -667,6 +683,7 @@ fn apply_configuration(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Re
                 bail!("configuration supplied no dimension registry");
             }
             state.phase = Phase::Play;
+            state.registries.finish();
             responses.push((output::FINISH_CONFIGURATION, Vec::new()));
         }
         input::KEEP_ALIVE => {
@@ -693,23 +710,36 @@ fn apply_configuration(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Re
             let name = r.string()?;
             let count = r.count(65_536)?;
             let mut dimensions = Vec::new();
+            let mut entries = Vec::with_capacity(count);
             for _ in 0..count {
-                r.string()?;
+                let entry_name = r.string()?;
                 let present = r.bool()?;
+                if !present {
+                    bail!("registry data omitted despite empty known-packs response");
+                }
+                if r.remaining().first() != Some(&10) {
+                    bail!("registry entry data must be a compound");
+                }
+                let data = r.encoded_nbt()?;
                 if name == "minecraft:dimension_type" {
-                    if !present {
-                        bail!("dimension data omitted despite empty known-packs response");
-                    }
-                    let (min_y, height) = r.dimension_nbt()?;
+                    let (min_y, height) = Reader::new(&data).dimension_nbt()?;
                     dimensions.push(Dimension::new(
                         min_y.context("missing min_y")?,
                         height.context("missing height")?,
                     )?);
-                } else if present {
-                    r.skip_nbt()?;
                 }
+                entries.push(crate::client::registry::ServerRegistryEntry {
+                    name: entry_name,
+                    data,
+                });
             }
             r.end()?;
+            state.registries.modern_registry(
+                name.clone(),
+                entries,
+                state.sequence,
+                payload.len(),
+            )?;
             if name == "minecraft:dimension_type" {
                 state.dimensions = dimensions;
             }
@@ -738,12 +768,16 @@ fn apply_configuration(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Re
             r.end()?;
             state.operations.features = Some(features);
         }
-        // Presentation, tags and cookie storage do not change block-state IDs.
+        input::TAGS => {
+            state
+                .registries
+                .receive_tags(payload, state.sequence, MinecraftVersion::Java1_21_11)?
+        }
+        // Presentation and cookie storage do not change block-state IDs.
         input::CUSTOM_PAYLOAD
         | input::RESET_CHAT
         | input::REMOVE_RESOURCE_PACK
         | input::STORE_COOKIE
-        | input::TAGS
         | input::CUSTOM_REPORT_DETAILS
         | input::SERVER_LINKS
         | input::CLEAR_DIALOG
@@ -981,6 +1015,7 @@ fn apply_play(
             state.ready = false;
             state.position = None;
             state.dimensions.clear();
+            state.registries.reset(state.sequence);
             state.world.reset();
             state.reconstruction = Reconstruction::default();
             state.operations.reset_configuration(state.sequence);
@@ -992,6 +1027,11 @@ fn apply_play(
             responses.push((ids::configuration_serverbound::SETTINGS, settings()));
         }
         input::KICK_DISCONNECT => bail!("server disconnected"),
+        input::TAGS => {
+            state
+                .registries
+                .receive_tags(payload, state.sequence, MinecraftVersion::Java1_21_11)?
+        }
         input::TRANSFER => bail!("server transfer requires a new explicitly configured connection"),
         input::ADD_RESOURCE_PACK => bail!("resource-pack negotiation is unsupported"),
         input::COOKIE_REQUEST => {

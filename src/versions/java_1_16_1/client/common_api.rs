@@ -3,6 +3,26 @@ use super::*;
 use crate::client::{self as api, operations::Action};
 
 impl Bot {
+    pub(crate) async fn common_server_registry_state(
+        &self,
+    ) -> Result<api::registry::ServerRegistryObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::Error::new(
+                crate::ErrorKind::State,
+                anyhow::anyhow!("connection closed"),
+            ));
+        }
+        let receipts = self.common_receipts.lock().await;
+        Ok(receipts.registries.capture(
+            api::SessionStamp {
+                version: crate::MinecraftVersion::Java1_16_1,
+                connection_id: self.connection_id(),
+                world_generation: receipts.generation,
+            },
+            self.protocol_packet_sequence.load(Ordering::Acquire),
+        ))
+    }
     pub(crate) async fn common_screen_state(&self) -> Result<api::container::ScreenObservation> {
         let _gate = self.coherent_state_gate.lock().await;
         let player = self.common_player_unlocked().await?;
@@ -363,6 +383,72 @@ fn common_state(message: &str) -> crate::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn common_server_registries_keep_original_join_codec_and_replace_actual_tags() {
+        let (bot, server, release) =
+            super::super::tests::ready_test_bot(ConnectionOptions::default()).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        assert!(!client.server_registry_state().await.unwrap().complete());
+        let mut join = vec![0; 4];
+        join.extend([0, 255, 0]);
+        let codec = vec![10, 0, 0, 3, 0, 1, b'x', 0, 0, 0, 7, 0];
+        join.extend(&codec);
+        put_string(&mut join, "minecraft:overworld");
+        put_string(&mut join, "minecraft:overworld");
+        bot.apply_packet(0x25, join).await.unwrap();
+        let before = client.server_registry_state().await.unwrap();
+        assert!(before.complete());
+        assert!(before.registries().is_empty());
+        assert_eq!(&**before.legacy_codec().unwrap().value, &codec);
+        assert_eq!(
+            before.legacy_codec().unwrap().source,
+            api::ValueSource::Received { sequence: 1 }
+        );
+        assert!(before.tags().is_none());
+        let mut tags = vec![0, 1];
+        put_string(&mut tags, "example:tag");
+        tags.extend([1, 3, 0, 0]);
+        bot.apply_packet(0x5b, tags).await.unwrap();
+        let captured = client.server_registry_state().await.unwrap();
+        assert_eq!(
+            captured.tags().unwrap().value["minecraft:item"]["example:tag"],
+            [3]
+        );
+        assert_eq!(
+            captured.tags().unwrap().source,
+            api::ValueSource::Received { sequence: 2 }
+        );
+        assert_eq!(captured.stamp(), before.stamp());
+        assert!(captured.bind("minecraft:item", 3).is_err());
+        let mut respawn = Vec::new();
+        put_string(&mut respawn, "minecraft:overworld");
+        put_string(&mut respawn, "minecraft:overworld");
+        respawn.extend([0; 8]);
+        respawn.extend([0, 255, 0, 0, 1]);
+        bot.apply_packet(0x3a, respawn).await.unwrap();
+        let respawned = client.server_registry_state().await.unwrap();
+        assert_eq!(respawned.stamp(), captured.stamp());
+        assert_ne!(
+            respawned.session().world_generation,
+            captured.session().world_generation
+        );
+        assert_eq!(respawned.tags(), captured.tags());
+        bot.apply_packet(0x5b, vec![0; 4]).await.unwrap();
+        assert!(
+            client
+                .server_registry_state()
+                .await
+                .unwrap()
+                .tags()
+                .unwrap()
+                .value
+                .values()
+                .all(std::collections::BTreeMap::is_empty)
+        );
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
     #[tokio::test]
     async fn common_container_receipts_keep_opening_identity_and_ignore_cache_predictions() {
         let (bot, server, release) =

@@ -37,7 +37,10 @@ pub mod prelude {
         InventorySwapSource, InventorySwapStage, InventoryTransferId, InventoryTransferRecord,
         InventoryTransferStage,
     };
-    pub use super::registry::{ItemComponentDefinition, Registry, RegistryId, RegistryKind};
+    pub use super::registry::{
+        ItemComponentDefinition, Registry, RegistryId, RegistryKind, ServerRegistryEntry,
+        ServerRegistryId, ServerRegistryObservation, ServerRegistryStamp, ServerRegistryTags,
+    };
     pub use super::survival::{
         BlockTargetHit, BlockTargetObservation, MiningId, MiningRecord, MiningStage, MotionPreview,
         MotionRecord, MotionStatus, PlacementId, PlacementRecord, PlacementStage, SurvivalControl,

@@ -219,7 +219,7 @@ class PacketTraceProxy:
                     packet, offset = self.varint(decoded)
                     body = decoded[offset:]
                     record = {"ordinal": len(self.frames) + 1, "connection": state["connection"], "direction": direction, "phase": state["phase"], "packet_id": packet, "body_length": len(body), "wire_sha256": hashlib.sha256(header + frame).hexdigest(), "body_sha256": hashlib.sha256(body).hexdigest()}
-                    if len(body) <= 512:
+                    if len(body) <= 512 or (self.version == "1.16.1" and state["phase"] == "play" and direction == "clientbound" and packet == 0x25):
                         record["body_hex"] = body.hex()
                     self.frames.append(record)
                     recorded_ordinal = record["ordinal"]
@@ -298,6 +298,75 @@ class PacketTraceProxy:
         for worker in self.workers:
             worker.join(timeout=2)
         self.log.close()
+
+
+def verify_received_registries(snapshot, player, trace, version):
+    """Check public received data against original forwarded payload hashes/ordinals."""
+    state = snapshot["received"]
+    if not state["complete"] or state["session"] != player["session"] or state["receive_sequence"] < player["receive_sequence"]:
+        raise RuntimeError("registry observation is not bound to the captured player connection")
+    frames = trace.since(0)
+    connection = max(frame["connection"] for frame in frames)
+    received = [frame for frame in frames if frame["connection"] == connection and frame["direction"] == "clientbound" and frame["phase"] in ("configuration", "play")]
+    verified = []
+    def varint(value):
+        out = bytearray()
+        while value >= 128:
+            out.append((value & 127) | 128); value >>= 7
+        out.append(value)
+        return bytes(out)
+    def string(value):
+        data = value.encode("utf-8")
+        return varint(len(data)) + data
+    def packet(source, expected, payload=None):
+        if source["kind"] != "received": raise RuntimeError("registry provenance is not received")
+        frame = received[source["sequence"] - 1]
+        if frame["packet_id"] != expected: raise RuntimeError("registry source ordinal refers to another original packet")
+        if payload is not None and (len(payload) != frame["body_length"] or hashlib.sha256(payload).hexdigest() != frame["body_sha256"]):
+            raise RuntimeError("received registry payload differs from original native frame")
+        verified.append({key: frame[key] for key in ("ordinal", "connection", "phase", "packet_id", "body_length", "body_sha256")})
+        return frame
+    for name, observation in state["registries"].items():
+        entries = observation["value"]
+        payload = string(name) + varint(len(entries))
+        payload += b"".join(string(entry["name"]) + b"\x01" + bytes(entry["data"]) for entry in entries)
+        packet(observation["source"], 7, payload)
+    if state["tags"] is None or state["tag_packet"] is None:
+        raise RuntimeError("original native tag declaration was not retained")
+    tags = state["tag_packet"]
+    if tags["source"] != state["tags"]["source"]: raise RuntimeError("parsed/raw tag provenance differs")
+    expected_tag_packet = 0x5b if version == "1.16.1" else (0x0d if received[tags["source"]["sequence"] - 1]["phase"] == "configuration" else 0x84)
+    packet(tags["source"], expected_tag_packet, bytes(tags["value"]))
+    if version == "1.16.1":
+        if state["registries"] or snapshot["unbreaking"] is not None or state["legacy_codec"] is None:
+            raise RuntimeError("legacy registry observation fabricated a modern entry list")
+        codec = state["legacy_codec"]
+        frame = packet(codec["source"], 0x25)
+        data = bytes.fromhex(frame["body_hex"])
+        count, length = PacketTraceProxy.varint(data[6:]); offset = 6 + length
+        for _ in range(count):
+            size, length = PacketTraceProxy.varint(data[offset:]); offset += length + size
+        raw = bytes(codec["value"])
+        if data[offset:offset + len(raw)] != raw or raw[:1] != b"\x0a":
+            raise RuntimeError("legacy codec differs from original join field")
+    else:
+        if state["legacy_codec"] is not None: raise RuntimeError("modern observation fabricated legacy NBT")
+        binding = snapshot["unbreaking"]
+        if binding["id"]["stamp"] != state["stamp"] or binding["id"]["registry"] != "minecraft:enchantment" or binding["entry"]["name"] != "minecraft:unbreaking":
+            raise RuntimeError("enchantment name does not belong to this live registry")
+        patch = player["inventory"]["slots"][9]["value"]["item"]["data"]["patch"]
+        component = next(c for c in patch["added"] if c["definition"]["name"] == "minecraft:enchantments")
+        raw = bytes(component["bytes"])
+        count, offset = PacketTraceProxy.varint(raw)
+        identity, size = PacketTraceProxy.varint(raw[offset:]); offset += size
+        level, size = PacketTraceProxy.varint(raw[offset:]); offset += size
+        if (count, identity, level, offset) != (1, binding["id"]["value"], 2, len(raw)):
+            raise RuntimeError("actual enchantment component does not reference the live unbreaking ID/level")
+    return {"stamp": state["stamp"], "session": state["session"], "receive_sequence": state["receive_sequence"],
+        "registry_count": len(state["registries"]), "tag_registry_count": len(state["tags"]["value"]),
+        "unbreaking": snapshot["unbreaking"], "verified_original_frames": verified,
+        "observation_sha256": hashlib.sha256(json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+        "authority_limits": "Received configuration entries/raw tags and legacy join codec match original forwarded fields/ordinals. One actual modern enchantment reference resolves against this same connection. General component meaning, prototypes, effective properties and data-bearing actions remain separate work."}
 
 
 def outer_snbt_compounds(response):
@@ -879,6 +948,8 @@ network-compression-threshold=256
                     if not added["minecraft:enchantments"]["bytes"]: return None
                 return player
             result["received"] = until(received_item_data)
+            registry_snapshot = stage(probe, messages, "registry_state", report["container_records"])["value"]
+            result["server_registry"] = verify_received_registries(registry_snapshot, result["received"], trace, version)
             result["position_after"] = rcon.command("data get entity UnifiedProbe Pos")
             result["rotation_after"] = rcon.command("data get entity UnifiedProbe Rotation")
             if result["position_before"] != result["position_after"] or result["rotation_before"] != result["rotation_after"]:

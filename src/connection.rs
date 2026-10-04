@@ -181,6 +181,28 @@ impl Client {
     pub fn registry(&self) -> crate::client::registry::Registry {
         crate::client::registry::Registry::for_version(self.version())
     }
+    /// Capture registries and tags actually received on this connection.
+    /// Static bundled registry IDs and server-assigned configuration IDs are distinct.
+    ///
+    /// ```no_run
+    /// use voxrig::client::prelude::*;
+    /// async fn inspect(client: &Client) -> Result<()> {
+    ///     let state = client.server_registry_state().await?;
+    ///     if client.version() == MinecraftVersion::Java1_21_11 {
+    ///         let id = state.find("minecraft:enchantment", "minecraft:unbreaking")?;
+    ///         assert_eq!(state.resolve(&id)?.name, "minecraft:unbreaking");
+    ///     }
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn server_registry_state(
+        &self,
+    ) -> Result<crate::client::registry::ServerRegistryObservation> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_server_registry_state().await,
+            Adapter::Java1_21_11(bot) => bot.common_server_registry_state().await,
+        }
+    }
     /// Survival-mode handle available on each adapter. Does not change game mode.
     pub fn survival(&self) -> crate::client::Survival {
         crate::client::Survival {

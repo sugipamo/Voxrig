@@ -1,5 +1,10 @@
 //! Names and native IDs bound to the adapter selected at setup.
 use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Result};
+pub(crate) mod received;
+pub use received::{
+    ServerRegistryEntry, ServerRegistryId, ServerRegistryObservation, ServerRegistryStamp,
+    ServerRegistryTags,
+};
 
 /// Registry namespace of a numeric identifier.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]

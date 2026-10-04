@@ -1152,6 +1152,20 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 }
                 emit(&command, record)?;
             }
+            "registry_state" => {
+                let registries = client.server_registry_state().await?;
+                let unbreaking = if client.version() == MinecraftVersion::Java1_21_11 {
+                    let id = registries.find("minecraft:enchantment", "minecraft:unbreaking")?;
+                    let entry = registries.resolve(&id)?;
+                    Some(serde_json::json!({"id": id, "entry": entry}))
+                } else {
+                    None
+                };
+                emit(
+                    &command,
+                    serde_json::json!({"received": registries, "unbreaking": unbreaking}),
+                )?;
+            }
             "transfer_fixture_cleared" => {
                 emit("transfer_fixture_before_wait", client.player_state().await?)?;
                 let result = wait_player(client, |p| {

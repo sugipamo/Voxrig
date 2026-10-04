@@ -14,6 +14,110 @@ fn play_state() -> State {
 }
 
 #[test]
+fn received_registry_and_tag_packets_commit_whole_fields_and_reset_on_reconfiguration() {
+    use crate::client::{SessionStamp, ValueSource};
+    let session = SessionStamp {
+        version: MinecraftVersion::Java1_21_11,
+        connection_id: 8,
+        world_generation: 0,
+    };
+    let mut payload = Vec::new();
+    put_string(&mut payload, "example:registry");
+    payload.push(2);
+    for name in ["example:second", "example:first"] {
+        put_string(&mut payload, name);
+        payload.extend([1, 10, 0]);
+    }
+    for prefix in 0..payload.len() {
+        let mut state = State::default();
+        assert!(
+            state
+                .receive(
+                    ids::configuration_clientbound::REGISTRY_DATA,
+                    &payload[..prefix],
+                    64
+                )
+                .is_err()
+        );
+        assert!(
+            state
+                .registries
+                .capture(session, state.sequence)
+                .registries()
+                .is_empty()
+        );
+    }
+    let mut state = State::default();
+    state
+        .receive(ids::configuration_clientbound::REGISTRY_DATA, &payload, 64)
+        .unwrap();
+    let mut trailing = payload.clone();
+    trailing.push(0);
+    let mut malformed = State::default();
+    assert!(
+        malformed
+            .receive(ids::configuration_clientbound::REGISTRY_DATA, &trailing, 64)
+            .is_err()
+    );
+    assert!(
+        malformed
+            .registries
+            .capture(session, 1)
+            .registries()
+            .is_empty()
+    );
+    let mut omitted = Vec::new();
+    put_string(&mut omitted, "example:registry");
+    omitted.push(1);
+    put_string(&mut omitted, "example:item");
+    omitted.push(0);
+    assert!(
+        State::default()
+            .receive(ids::configuration_clientbound::REGISTRY_DATA, &omitted, 64)
+            .is_err()
+    );
+    let mut tags = vec![1];
+    put_string(&mut tags, "example:registry");
+    tags.push(1);
+    put_string(&mut tags, "example:tag");
+    tags.extend([1, 1]);
+    state
+        .receive(ids::configuration_clientbound::TAGS, &tags, 64)
+        .unwrap();
+    state.registries.finish();
+    state.phase = Phase::Play;
+    let capture = state.registries.capture(session, state.sequence);
+    let id = capture.find("example:registry", "example:first").unwrap();
+    assert_eq!(id.value(), 1);
+    assert_eq!(capture.resolve(&id).unwrap().data, [10, 0]);
+    assert_eq!(
+        capture.tags().unwrap().source,
+        ValueSource::Received { sequence: 2 }
+    );
+    state
+        .receive(ids::play_clientbound::TAGS, &[0], 64)
+        .unwrap();
+    assert!(
+        state
+            .registries
+            .capture(session, 3)
+            .tags()
+            .unwrap()
+            .value
+            .is_empty()
+    );
+    state
+        .receive(ids::play_clientbound::START_CONFIGURATION, &[], 64)
+        .unwrap();
+    let pending = state.registries.capture(session, 4);
+    assert!(!pending.complete());
+    assert!(pending.registries().is_empty());
+    assert!(pending.tags().is_none());
+    assert!(pending.resolve(&id).is_err());
+    assert_eq!(pending.stamp().configuration_generation, 4);
+}
+
+#[test]
 fn initial_zero_tick_step_is_not_a_frozen_world() {
     let mut state = play_state();
     state
@@ -526,6 +630,19 @@ async fn modern_disconnect_and_reconnect_do_not_reuse_world_or_connection_identi
         };
         let first = connect().await.unwrap();
         first.wait_until_ready().await.unwrap();
+        let first_client = crate::Client {
+            adapter: crate::connection::Adapter::Java1_21_11(first.clone()),
+        };
+        let registries = first_client.server_registry_state().await.unwrap();
+        assert!(registries.complete());
+        let dimension = registries
+            .find("minecraft:dimension_type", "minecraft:overworld")
+            .unwrap();
+        assert_eq!(dimension.value(), 0);
+        assert_eq!(
+            registries.registries()["minecraft:dimension_type"].source,
+            crate::client::ValueSource::Received { sequence: 1 }
+        );
         let old = first.observe_region(region).await.unwrap();
         assert_eq!(
             old.blocks[0].state.as_ref().unwrap().name,
@@ -533,8 +650,20 @@ async fn modern_disconnect_and_reconnect_do_not_reuse_world_or_connection_identi
         );
         first.disconnect().await.unwrap();
         assert!(first.observe_region(region).await.is_err());
+        assert!(first_client.server_registry_state().await.is_err());
         let second = connect().await.unwrap();
         second.wait_until_ready().await.unwrap();
+        let second_client = crate::Client {
+            adapter: crate::connection::Adapter::Java1_21_11(second.clone()),
+        };
+        assert!(
+            second_client
+                .server_registry_state()
+                .await
+                .unwrap()
+                .resolve(&dimension)
+                .is_err()
+        );
         let fresh = second.observe_region(region).await.unwrap();
         assert_eq!(
             fresh.blocks[0].state.as_ref().unwrap().name,

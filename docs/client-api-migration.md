@@ -238,6 +238,7 @@ DustRoute: native observation、piston/recovery、照準、配置・除去・取
 | `client.java_1_21_11_operations()`でのcreative基本操作 | `client.creative()`。`set_creative_hotbar`→`set_hotbar`、`dig_creative`→`break_block`。戻り値はDispatchReceipt |
 | PlayerStateを共通playerとして使用 | `client.player_state()`のPlayerObservation。追加検査契約のnative PlayerStateとは区別 |
 | 版なしの`item_id`/`item_name`など | `client.registry()`。整数IDはversion/kind付きRegistryIdとして保持 |
+| vanilla fixtureの動的registry IDを接続先へ流用 | `client.server_registry_state().await?`。受信済みentryから`find`/`bind`し、connection/configuration付きServerRegistryIdを保持。legacy codecの個別解決は後続作業 |
 | 任意のshort item name | 共通APIでは`minecraft:stone`等のnamespaceを明示 |
 
 Client共通入口ではoffline名は3～16のASCII英数字/underscore。不正名・空host/port 0、

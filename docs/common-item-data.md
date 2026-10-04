@@ -70,6 +70,10 @@ bundle/charged projectiles/containerは後続slotまで取り込まず、各入�
 registry参照は元の数値/inline/tag表現を保持する。
 現在の接続のdatapackによる名前・値への解決や、predicate/属性の意味の検証とは別である。
 検証fixtureのvanilla registry IDsを実接続へ注入したり、名前を推測したりしない。
+実受信のentry lookupは`Client::server_registry_state()`に追加した。
+`ServerRegistryId`をconnection/configurationへ束縛し、再設定後の旧IDを拒否する。
+一般componentのinline/tag表現の解釈やlegacy codecの個別entry resolverは引き続き別作業。
+詳細は[接続先から受信したregistry](common-server-registries.md)を参照。
 prototypeとの統合、一般NBT/text等価性、hash・容量・slot規則と共通property getterは残作業。
 
 この段階は受信・保持を追加する。既存のdefault-onlyクリック/転送/返却/設置等が、

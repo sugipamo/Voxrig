@@ -49,6 +49,10 @@ creative.set_hotbar(0, Some(("minecraft:stone", 1))).await?;
 別版や別registryのIDを渡しても同じ整数だからと解釈しない。
 blockは名前と完全propertiesを要求し、itemはnamespaced名とnative stack上限を使用する。
 
+`Client::server_registry_state()`は実接続から受信したregistry/tagを取得する。
+modernのentry/name/native IDはconnectionとconfiguration世代に束縛し、respawnとは寿命を分ける。
+legacyは元join codecとtag宣言を保持する。詳細と残る意味解釈は[受信registry](common-server-registries.md)を参照。
+
 `Client::player_state()`は共通の`PlayerObservation`を返す。
 `Client::capture(region)`はplayer/inventory/受信block領域を同じadapter lock境界で取得する。
 connection、world generation、receive sequence、cache revisionは別の値で、server tickへ読み替えない。

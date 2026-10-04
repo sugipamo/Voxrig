@@ -5068,6 +5068,9 @@ impl Bot {
                 {
                     let mut receipts = self.common_receipts.lock().await;
                     receipts.generation = packet_sequence;
+                    receipts
+                        .registries
+                        .legacy_join(join.registry_codec.clone(), packet_sequence)?;
                     receipts.container = None;
                     receipts.inventory.window_id = None;
                     receipts.inventory.cursor = None;
@@ -5683,7 +5686,13 @@ impl Bot {
                 self.emit(Event::RecipesDeclared);
             }
             0x5b => {
-                **self.tags.write().await = parse_tags(&p)?;
+                let tags = parse_tags(&p)?;
+                self.common_receipts.lock().await.registries.receive_tags(
+                    &p,
+                    packet_sequence,
+                    crate::MinecraftVersion::Java1_16_1,
+                )?;
+                **self.tags.write().await = tags;
                 self.emit(Event::TagsUpdated);
             }
             _ => {}
@@ -8765,7 +8774,7 @@ mod tests {
         join.extend([1, 0]);
         put_varint(&mut join, 1);
         put_string(&mut join, "minecraft:overworld");
-        join.push(0);
+        join.extend([10, 0, 0, 0]); // Complete empty named registry compound.
         put_string(&mut join, "minecraft:overworld");
         put_string(&mut join, "world");
         assert!(bot.apply_packet(0x25, join).await.unwrap());
@@ -8804,7 +8813,7 @@ mod tests {
         join.extend([1, 0]);
         put_varint(&mut join, 1);
         put_string(&mut join, "minecraft:overworld");
-        join.push(0);
+        join.extend([10, 0, 0, 0]); // Complete empty named registry compound.
         put_string(&mut join, "minecraft:overworld");
         put_string(&mut join, "world");
         let request = CoherentObservationRequest {
