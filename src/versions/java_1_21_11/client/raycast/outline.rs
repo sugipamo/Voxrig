@@ -35,6 +35,11 @@ pub(super) fn cast(
     read: impl FnMut([i32; 3]) -> anyhow::Result<NativeBlockState>,
 ) -> anyhow::Result<Option<BlockHit>> {
     crate::client::survival::target::cast(start, end, read, |state| {
+        if let Some(shapes) =
+            crate::client::container::outline::lookup(crate::MinecraftVersion::Java1_21_11, state)
+        {
+            return Ok(shapes);
+        }
         let data = shapes();
         let pair = data.state_shapes[state_id(state)? as usize]
             .ok_or_else(|| anyhow::anyhow!("outline geometry unsupported: {}", state.name))?;

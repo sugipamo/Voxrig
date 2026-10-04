@@ -3,7 +3,8 @@
 Client共通化ブランチでは`Client::survival()` / `Client::creative()`を両版の共通入口とします。
 共通型・受信/予測を区別したcapture・版別registryと移行変更は
 [Client共通化](client-unification.md)を参照してください。
-共通の`Survival::target_block`は限定dry standingから最初のstatic outlineとcaptureを読出します。
+共通の`Survival::target_block` / `Creative::target_block`は限定dry standingから最初のstatic outlineとcaptureを読出します。
+両版の7種類・全102storage state（chestのinset等）も公式JARから取得した形状で扱います。
 queryを採掘/設置の実行許可にしません。[狙い判定の範囲・検証](common-survival-targeting.md)を参照してください。
 共通の`Survival::place_cube`と`placement_record`はdefault cubeの一度の設置と、対象・材料の実受信を両版で保持します。
 native ACKの有無と取消後の未解決状態は[共通設置の契約](common-survival-placement.md)を参照してください。

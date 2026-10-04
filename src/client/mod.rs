@@ -20,6 +20,7 @@ pub use observation::{
 };
 pub(crate) use observation::{LegacyReceipts, legacy_slot, received};
 pub use operations::{Creative, DispatchReceipt, Survival};
+pub use survival::{BlockTargetHit, BlockTargetObservation};
 
 /// Imports for consumers selecting their Minecraft version at setup.
 pub mod prelude {

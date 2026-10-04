@@ -23,13 +23,14 @@ impl CommonOwner {
 impl Bot {
     pub(crate) async fn common_target_block(
         &self,
+        mode: GameMode,
         distance: f64,
     ) -> Result<crate::client::survival::BlockTargetObservation> {
         use crate::client::survival::target;
         target::validate_reach(distance)?;
         let _gate = self.coherent_state_gate.lock().await;
         self.common_motion_admission().await?;
-        self.common_target_unlocked(distance, None).await
+        self.common_target_in_mode(distance, None, mode).await
     }
     pub(super) async fn common_target_unlocked(
         &self,
@@ -44,14 +45,24 @@ impl Bot {
         distance: f64,
         owner: Option<CommonOwner>,
     ) -> Result<crate::client::survival::BlockTargetObservation> {
+        self.common_target_in_mode(distance, owner, GameMode::Survival)
+            .await
+    }
+    pub(super) async fn common_target_in_mode(
+        &self,
+        distance: f64,
+        owner: Option<CommonOwner>,
+        mode: GameMode,
+    ) -> Result<crate::client::survival::BlockTargetObservation> {
         use crate::client::survival::target;
         let preview = self
-            .common_preview_with_owner(
+            .common_preview_in_mode(
                 &[SurvivalControl {
                     yaw: 0.0,
                     input: Default::default(),
                 }],
                 owner,
+                mode,
             )
             .await?;
         let mut eye = preview.initial_frame.position;
@@ -70,7 +81,12 @@ impl Bot {
             |state| {
                 const EMPTY: &[[f64; 6]] = &[];
                 const CUBE: &[[f64; 6]] = &[[0.0, 0.0, 0.0, 1.0, 1.0, 1.0]];
-                if matches!(
+                if let Some(shapes) = crate::client::container::outline::lookup(
+                    crate::MinecraftVersion::Java1_16_1,
+                    state,
+                ) {
+                    Ok(shapes)
+                } else if matches!(
                     state.name.as_str(),
                     "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air"
                 ) {
@@ -125,6 +141,15 @@ impl Bot {
         controls: &[SurvivalControl],
         owner: Option<CommonOwner>,
     ) -> Result<MotionPreview> {
+        self.common_preview_in_mode(controls, owner, GameMode::Survival)
+            .await
+    }
+    async fn common_preview_in_mode(
+        &self,
+        controls: &[SurvivalControl],
+        owner: Option<CommonOwner>,
+        mode: GameMode,
+    ) -> Result<MotionPreview> {
         if self.connection_state() != ConnectionState::Ready {
             return Err(motion_state("connection not ready"));
         }
@@ -155,7 +180,7 @@ impl Bot {
         if initial.pending_dispatch && !owns_operation {
             return Err(motion_state("prior common dispatch unresolved"));
         }
-        if initial.game_mode != Some(GameMode::Survival)
+        if initial.game_mode != Some(mode)
             || !initial
                 .health
                 .as_ref()
@@ -163,7 +188,7 @@ impl Bot {
             || *self.local_pose.lock().await != Some(0)
         {
             return Err(motion_state(
-                "dry preview requires healthy received survival mode and native standing pose",
+                "stationary geometry requires healthy matching received mode and native standing pose",
             ));
         }
         let survival = self.survival.read().await;
@@ -741,6 +766,42 @@ pub(super) mod tests {
                     .set_block_for_test(BlockPos { x, y: 64, z }, 1);
             }
         }
+    }
+    #[tokio::test]
+    async fn both_common_modes_target_every_audited_native_storage_state_without_dispatch() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_motion(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        for (mode, value) in [(GameMode::Survival, 0.0f32), (GameMode::Creative, 1.0f32)] {
+            let mut packet = vec![3];
+            packet.extend(value.to_be_bytes());
+            bot.apply_packet(0x1e, packet).await.unwrap();
+            for state in crate::client::tests::common_storage_target_states(
+                crate::MinecraftVersion::Java1_16_1,
+            ) {
+                let id = crate::versions::java_1_16_1::state_id(&state).unwrap();
+                bot.world
+                    .lock()
+                    .await
+                    .set_block_for_test(BlockPos { x: 8, y: 66, z: 11 }, id);
+                crate::client::tests::common_storage_target_scenario(&client, mode, &state).await;
+            }
+        }
+        assert!(
+            timeout(Duration::from_millis(30), packets.recv())
+                .await
+                .is_err()
+        );
+        bot.survival.write().await.flying = true;
+        assert!(client.creative().target_block(4.5).await.is_err());
+        drop(release);
+        drop(client);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
     }
     #[tokio::test]
     async fn common_target_never_treats_unsupported_or_unloaded_geometry_as_air() {

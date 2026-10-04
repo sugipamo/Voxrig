@@ -419,6 +419,102 @@ async fn position_attempt_retains_receipt_and_cancelled_dispatch_blocks_next_mut
 }
 
 #[tokio::test]
+async fn both_common_modes_target_every_audited_native_storage_state_without_dispatch() {
+    let (session, _, mut peer) = fixture().await;
+    let api = operations(&session);
+    {
+        let mut state = session.state.lock().await;
+        state.identity = Some(LoginIdentity {
+            uuid: [1; 16],
+            name: "StorageTargetProbe".into(),
+            server: crate::Server::default(),
+        });
+        state.phase = Phase::Play;
+        state.ready = true;
+        state.sequence = 10;
+        state.loading = loading::InteractionLoading::completed_fixture();
+        state.operations.reset_world(0).unwrap();
+        state.operations.local_player = operations::LocalPlayerState::spawned(42);
+        state.operations.local_player.velocity = Some(operations::VelocitySample {
+            value: [0.0; 3],
+            receive_sequence: 10,
+        });
+        state.operations.local_player.health = Some(operations::PlayerHealth {
+            health: 20.0,
+            food: 20,
+            saturation: 5.0,
+            receive_sequence: 10,
+        });
+        state.world.select_dimension(
+            "minecraft:overworld".into(),
+            Dimension::new(-64, 384).unwrap(),
+        );
+        state.position = Some([8.5, 65.0, 8.5]);
+        let generation = state.loading.generation;
+        state.motion.receive(operations::ReceivedPose {
+            generation,
+            receive_sequence: 10,
+            position: [8.5, 65.0, 8.5],
+            rotation: [0.0; 2],
+            velocity: Some([0.0; 3]),
+        });
+        for x in 0..16 {
+            for y in 63..72 {
+                for z in 0..16 {
+                    state
+                        .world
+                        .seed_replay_cell([x, y, z], if y == 64 { 1 } else { 0 });
+                }
+            }
+        }
+    }
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    for (mode, value) in [
+        (crate::client::GameMode::Survival, 0.0f32),
+        (crate::client::GameMode::Creative, 1.0f32),
+    ] {
+        let mut packet = vec![3];
+        packet.extend(value.to_be_bytes());
+        {
+            let mut state = session.state.lock().await;
+            operations::receive(
+                &mut state,
+                ids::play_clientbound::GAME_STATE_CHANGE,
+                &packet,
+            )
+            .unwrap();
+        }
+        for state in
+            crate::client::tests::common_storage_target_states(crate::MinecraftVersion::Java1_21_11)
+        {
+            let id = crate::versions::java_1_21_11::state_id(&state).unwrap();
+            session
+                .state
+                .lock()
+                .await
+                .world
+                .seed_replay_cell([8, 66, 11], id);
+            crate::client::tests::common_storage_target_scenario(&client, mode, &state).await;
+        }
+    }
+    assert!(
+        timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+    let mut abilities = vec![6];
+    abilities.extend(0.05f32.to_be_bytes());
+    abilities.extend(0.1f32.to_be_bytes());
+    operations::receive(
+        &mut *session.state.lock().await,
+        ids::play_clientbound::ABILITIES,
+        &abilities,
+    )
+    .unwrap();
+    assert!(client.creative().target_block(4.5).await.is_err());
+}
+
+#[tokio::test]
 async fn common_motion_uses_modern_rules_and_retained_connection_owned_dispatch() {
     let (session, _, mut peer) = fixture().await;
     let api = operations(&session);

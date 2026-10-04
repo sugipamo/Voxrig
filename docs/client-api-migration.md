@@ -2,6 +2,13 @@
 
 利用側のソース公開は不要です。各環境で以下の移行を行い、main上の固定commitまたはreleaseを基準に検証します。
 
+`target_block`はsurvival/creative両handleで同じ`BlockTargetObservation`を返します。
+選んだhandleと受信modeの一致を検査し、active flightは現在未対応です。
+共通型は`client::{BlockTargetHit, BlockTargetObservation}`からもimportでき、従来のsurvival importは同じ型です。
+`Feature::BlockTargeting`は共通queryの対応情報、従来の`SurvivalTargeting`も維持します。
+両版のchest等7種類・全102storage stateを狙えるようになりましたが、採掘/設置の許可や
+共通container openの結果へ読み替えないでください。詳細は[狙い判定](common-survival-targeting.md)を参照。
+
 ## deepplanning派生版から
 
 依存packageを`zen-minecraft-client`から`voxrig`へ変更し、Rustのimportを`voxrig`へ変更します。

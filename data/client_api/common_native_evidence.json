@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "library_baseline_commit": "80ade3c98c725c2ed97438dd11aec692e3a3c18a",
+  "library_baseline_commit": "6b80e7ba7f9f34006d2588741c1eaf9e7d9c43d8",
   "scenario_sources_sha256": {
-    "examples/common_native_probe.rs": "b0af1b824b4b90b235dcbda29841fdda63416c08f30339b809b80d422bf5bfe7",
-    "scripts/run_common_native.py": "4ebb097812b21e1179b4759ef47f039e0e80d6c0bd97b7982b568350dd8d885a"
+    "examples/common_native_probe.rs": "762b90ed74454ca3c93cf7d468a22ecaad3fd530b8dca427b866b7b7f441936b",
+    "scripts/run_common_native.py": "00fd1f313045325bef0aee66aeddb9a94bab375bd7e2cdf2545bb7ec48e12f4f"
   },
-  "scope": "Common creative operations/live-mode rejection; read-only preview/static-outline targeting; finite dry walk/jump with predicted released-rest endpoint; a fresh connection explicitly starts/finishes empty-hand stone mining and receives exact-target air. A third fresh connection places default dirt and receives exact-target dirt and one-material consumption; modern additionally receives a fresh processing ACK. A fourth fresh connection exchanges occupied main/hotbar stacks in survival and then a main stack with an empty hotbar in creative, with two fresh destinations. A fifth fresh connection opens a regular single chest through the existing creative interaction, receives complete contents/cursor/constructor-verified player layout, and receives a fresh same-opening slot update after an independent native change from stone 3 to 7. On that same opening, survival exchanges the received storage stack with an empty hotbar, then creative exchanges it back, with two exact fresh destination receipts and independent native chest/player contents. The common creative handle then closes that original opening once, retains honest dispatch/no synthetic close acknowledgement, and refuses re-close/click. After an external chest change to stone 11, the consumer receives a distinct fresh reopening through the existing creative use-on-block fixture, then closes it once in survival and retains close history after disconnect. On the same Client, a survival default player swap moves dirt 2 from main inventory to the empty hotbar after that no-echo close, with explicit SubmittedClose UI basis and actual player-screen-zero revision on modern; creative swaps it back through the same API. Both require exact fresh destinations and retain actual received window/cursor/revision provenance without synthetic zero/player values. Not tools/general mining, arbitrary placement, general container click/open contracts, nonempty/unknown-cursor close or general player-screen UI/crafting interactions, non-default modern item data/crafting, observer continuation or common recovery parity.",
-  "result_authority": "Vanilla server RCON for creative outcomes, unchanged preview/targeting/mining/placement position, target stone/air/dirt and exact dirt inventory count, occupied/empty player inventory exchange contents, survival chest extraction and creative return (exact Items and player Inventory before/after), unchanged chest-operation position, and actual movement samples/endpoint. Target face/point math separately checked against native JAR methods. Client target receipts/frames and Predicted status are not independent server authority or mutation continuation. Close validation records real complete writes and actual distinct reopening; RCON verifies independently changed chest/player contents and position but supplies no menu-state assertion. Sending close does not establish a received close acknowledgement. Post-close player exchanges are checked independently against native player Inventory/chest Items/unchanged position; explicit SubmittedClose in common capture is not a received active-window or revision claim.",
+  "scope": "A fifth common Client reads the same single-chest static outline in both creative and survival using the shared target_block API; explicit received mode and native state properties, original native inset and North face, separately audited storage shapes/clips, unchanged native Pos/Rotation. Common creative operations/live-mode rejection; read-only preview/static-outline targeting; finite dry walk/jump with predicted released-rest endpoint; a fresh connection explicitly starts/finishes empty-hand stone mining and receives exact-target air. A third fresh connection places default dirt and receives exact-target dirt and one-material consumption; modern additionally receives a fresh processing ACK. A fourth fresh connection exchanges occupied main/hotbar stacks in survival and then a main stack with an empty hotbar in creative, with two fresh destinations. A fifth fresh connection opens a regular single chest through the existing creative interaction, receives complete contents/cursor/constructor-verified player layout, and receives a fresh same-opening slot update after an independent native change from stone 3 to 7. On that same opening, survival exchanges the received storage stack with an empty hotbar, then creative exchanges it back, with two exact fresh destination receipts and independent native chest/player contents. The common creative handle then closes that original opening once, retains honest dispatch/no synthetic close acknowledgement, and refuses re-close/click. After an external chest change to stone 11, the consumer receives a distinct fresh reopening through the existing creative use-on-block fixture, then closes it once in survival and retains close history after disconnect. On the same Client, a survival default player swap moves dirt 2 from main inventory to the empty hotbar after that no-echo close, with explicit SubmittedClose UI basis and actual player-screen-zero revision on modern; creative swaps it back through the same API. Both require exact fresh destinations and retain actual received window/cursor/revision provenance without synthetic zero/player values. Not tools/general mining, arbitrary placement, general container click/open contracts, nonempty/unknown-cursor close or general player-screen UI/crafting interactions, non-default modern item data/crafting, observer continuation or common recovery parity.",
+  "result_authority": "Storage targeting reads native setup pose and actual Client geometry; independent RCON verifies unchanged Pos/Rotation. Shape/face/point is checked separately against original native method fixtures, not a server hit acknowledgement, menu ownership or linked opening result. Vanilla server RCON for creative outcomes, unchanged preview/targeting/mining/placement position, target stone/air/dirt and exact dirt inventory count, occupied/empty player inventory exchange contents, survival chest extraction and creative return (exact Items and player Inventory before/after), unchanged chest-operation position, and actual movement samples/endpoint. Target face/point math separately checked against native JAR methods. Client target receipts/frames and Predicted status are not independent server authority or mutation continuation. Close validation records real complete writes and actual distinct reopening; RCON verifies independently changed chest/player contents and position but supplies no menu-state assertion. Sending close does not establish a received close acknowledgement. Post-close player exchanges are checked independently against native player Inventory/chest Items/unchanged position; explicit SubmittedClose in common capture is not a received active-window or revision claim.",
   "servers_run_sequentially": true,
   "java": "OpenJDK 21.0.12.1",
   "runs": [
     {
       "version": "1.16.1",
-      "run_id": "trial-1.16.1-1c495e58",
+      "run_id": "trial-1.16.1-a5b977d5",
       "source": {
         "version": "1.16.1",
         "metadata_url": "https://piston-meta.mojang.com/v1/packages/54fa3af57d041d2771e66d390197b2c0288e697c/1.16.1.json",
@@ -76,7 +76,7 @@
       "container_fixture_native": "0, 65, 2 has the following block data: [{Slot: 0b, id: \"minecraft:stone\", Count: 3b}]",
       "container_setup": {
         "gamemode creative UnifiedProbe": "",
-        "tp UnifiedProbe 0.5 65 0.5 0 0": "Teleported UnifiedProbe to 0.5, 65.0, 0.5",
+        "tp UnifiedProbe 0.5 65 0.5 0 35": "Teleported UnifiedProbe to 0.5, 65.0, 0.5",
         "clear UnifiedProbe": "Removed 5 items from player UnifiedProbe",
         "replaceitem entity UnifiedProbe inventory.0 minecraft:dirt 2": "Replaced a slot on UnifiedProbe with [Dirt]"
       },
@@ -87,7 +87,7 @@
       "container_close_survival_mode": "Set UnifiedProbe's game mode to Survival Mode",
       "container_player_creative_mode": "Set UnifiedProbe's game mode to Creative Mode",
       "server_exit_code": 0,
-      "raw_report_sha256": "47803c658e2a030bf80ec21c8f2291c780c934297aa8c1492aef911105ba6a97",
+      "raw_report_sha256": "19f7e5e3e01229e56bf91b3ad31b5a78822fe516bc995d6ffa4673e991be67a1",
       "native_results": {
         "inventory": "UnifiedProbe has the following entity data: [{Slot: 1b, id: \"minecraft:stone\", Count: 3b}]",
         "selected_slot": "UnifiedProbe has the following entity data: 1",
@@ -137,19 +137,19 @@
             },
             {
               "position": [
-                0.4004712382245058,
-                65.7531999805212,
-                0.639183249344125
+                0.3503728126546795,
+                66.00133597911214,
+                0.7092420095803049
               ],
-              "response": "UnifiedProbe has the following entity data: [0.4004712382245058d, 65.7531999805212d, 0.639183249344125d]"
+              "response": "UnifiedProbe has the following entity data: [0.3503728126546795d, 66.00133597911214d, 0.7092420095803049d]"
             },
             {
               "position": [
-                0.23012048354184136,
-                66.24918707874468,
-                0.8774055595788233
+                0.29338247031769243,
+                66.16610926093821,
+                0.7889385805633566
               ],
-              "response": "UnifiedProbe has the following entity data: [0.23012048354184136d, 66.24918707874468d, 0.8774055595788233d]"
+              "response": "UnifiedProbe has the following entity data: [0.29338247031769243d, 66.16610926093821d, 0.7889385805633566d]"
             },
             {
               "position": [
@@ -161,11 +161,11 @@
             },
             {
               "position": [
-                0.029110529129244896,
-                65.79673560066871,
-                1.158502381307275
+                0.07249241688964378,
+                66.02442408821369,
+                1.0978361779559829
               ],
-              "response": "UnifiedProbe has the following entity data: [0.029110529129244896d, 65.79673560066871d, 1.158502381307275d]"
+              "response": "UnifiedProbe has the following entity data: [0.07249241688964378d, 66.02442408821369d, 1.0978361779559829d]"
             },
             {
               "position": [
@@ -177,27 +177,27 @@
             },
             {
               "position": [
-                -0.10873198460570008,
+                -0.07898286856348535,
                 65.0,
-                1.3512644394012765
+                1.309662609317117
               ],
-              "response": "UnifiedProbe has the following entity data: [-0.10873198460570008d, 65.0d, 1.3512644394012765d]"
+              "response": "UnifiedProbe has the following entity data: [-0.07898286856348535d, 65.0d, 1.309662609317117d]"
             },
             {
               "position": [
-                -0.12497500385141869,
+                -0.13384369338970264,
                 65.0,
-                1.3739790412655881
+                1.3863812153240473
               ],
-              "response": "UnifiedProbe has the following entity data: [-0.12497500385141869d, 65.0d, 1.3739790412655881d]"
+              "response": "UnifiedProbe has the following entity data: [-0.13384369338970264d, 65.0d, 1.3863812153240473d]"
             },
             {
               "position": [
                 -0.13868599844005214,
                 65.0,
-                1.393152803146504
+                1.3968500905270147
               ],
-              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.393152803146504d]"
+              "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.3968500905270147d]"
             },
             {
               "position": [
@@ -301,6 +301,17 @@
           "creative_empty_swap": "UnifiedProbe has the following entity data: [{Slot: 0b, id: \"minecraft:stone\", Count: 3b}, {Slot: 1b, id: \"minecraft:dirt\", Count: 2b}]",
           "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        },
+        "storage_targeting": {
+          "target": [
+            0,
+            65,
+            2
+          ],
+          "fixture_state": "minecraft:chest[facing=north,type=single,waterlogged=false]",
+          "position": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "rotation": "UnifiedProbe has the following entity data: [0.0f, 35.0f]",
+          "authority_limits": "RCON verifies unchanged native pose and setup fixture; actual targeting face/point is a model checked separately against original native clip methods, not a server hit acknowledgement or linked open result."
         },
         "container_observation": {
           "opened_contents": "0, 65, 2 has the following block data: [{Slot: 0b, id: \"minecraft:stone\", Count: 3b}]",
@@ -408,7 +419,7 @@
             "health": {
               "source": {
                 "kind": "received",
-                "sequence": 34
+                "sequence": 36
               },
               "value": {
                 "food": 20,
@@ -421,7 +432,7 @@
             "position": {
               "source": {
                 "kind": "received",
-                "sequence": 41
+                "sequence": 43
               },
               "value": [
                 0.5,
@@ -429,14 +440,14 @@
                 0.5
               ]
             },
-            "receive_sequence": 42,
+            "receive_sequence": 44,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 41,
+              "receive_sequence": 43,
               "rotation": [
                 0.0,
                 0.0
@@ -463,7 +474,7 @@
               "cursor": {
                 "source": {
                   "kind": "received",
-                  "sequence": 33
+                  "sequence": 35
                 },
                 "value": {
                   "kind": "empty"
@@ -478,7 +489,7 @@
               "selected_slot_value": {
                 "source": {
                   "kind": "received",
-                  "sequence": 32
+                  "sequence": 34
                 },
                 "value": {
                   "kind": "empty"
@@ -510,7 +521,7 @@
               "health": {
                 "source": {
                   "kind": "received",
-                  "sequence": 34
+                  "sequence": 36
                 },
                 "value": {
                   "food": 20,
@@ -523,7 +534,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 41
+                  "sequence": 43
                 },
                 "value": [
                   0.5,
@@ -531,14 +542,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 57,
+              "receive_sequence": 55,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 41,
+                "receive_sequence": 43,
                 "rotation": [
                   0.0,
                   0.0
@@ -564,7 +575,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 33
+                    "sequence": 35
                   },
                   "value": {
                     "kind": "empty"
@@ -604,7 +615,7 @@
               "health": {
                 "source": {
                   "kind": "received",
-                  "sequence": 34
+                  "sequence": 36
                 },
                 "value": {
                   "food": 20,
@@ -624,14 +635,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 76,
+              "receive_sequence": 74,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 41,
+                "receive_sequence": 43,
                 "rotation": [
                   0.0,
                   0.0
@@ -657,7 +668,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 33
+                    "sequence": 35
                   },
                   "value": {
                     "kind": "empty"
@@ -722,7 +733,7 @@
             "health": {
               "source": {
                 "kind": "received",
-                "sequence": 34
+                "sequence": 36
               },
               "value": {
                 "food": 20,
@@ -734,7 +745,7 @@
             "pending_dispatch": false,
             "position": {
               "source": {
-                "kind": "predicted"
+                "kind": "submitted"
               },
               "value": [
                 0.5,
@@ -749,7 +760,7 @@
                 65.0,
                 0.5
               ],
-              "receive_sequence": 41,
+              "receive_sequence": 43,
               "rotation": [
                 0.0,
                 0.0
@@ -775,7 +786,7 @@
               "cursor": {
                 "source": {
                   "kind": "received",
-                  "sequence": 33
+                  "sequence": 35
                 },
                 "value": {
                   "kind": "empty"
@@ -824,7 +835,7 @@
               "health": {
                 "source": {
                   "kind": "received",
-                  "sequence": 34
+                  "sequence": 36
                 },
                 "value": {
                   "food": 20,
@@ -844,14 +855,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 122,
+              "receive_sequence": 113,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 96,
+                "receive_sequence": 94,
                 "rotation": [
                   0.0,
                   0.0
@@ -877,7 +888,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 95
+                    "sequence": 93
                   },
                   "value": {
                     "kind": "empty"
@@ -892,7 +903,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 93
+                    "sequence": 91
                   },
                   "value": {
                     "kind": "empty"
@@ -920,7 +931,7 @@
               "horizontal_margin": 0.0625,
               "status": "admitted"
             },
-            "world_revision": 65,
+            "world_revision": 57,
             "frames_summary": {
               "count": 35,
               "first": {
@@ -1014,7 +1025,7 @@
               "health": {
                 "source": {
                   "kind": "received",
-                  "sequence": 34
+                  "sequence": 36
                 },
                 "value": {
                   "food": 20,
@@ -1034,14 +1045,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 122,
+              "receive_sequence": 113,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 96,
+                "receive_sequence": 94,
                 "rotation": [
                   0.0,
                   0.0
@@ -1067,7 +1078,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 95
+                    "sequence": 93
                   },
                   "value": {
                     "kind": "empty"
@@ -1082,7 +1093,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 93
+                    "sequence": 91
                   },
                   "value": {
                     "kind": "empty"
@@ -1091,7 +1102,7 @@
               }
             },
             "maximum_distance": 4.5,
-            "world_revision": 65
+            "world_revision": 57
           }
         },
         {
@@ -1110,7 +1121,7 @@
                 "health": {
                   "source": {
                     "kind": "received",
-                    "sequence": 34
+                    "sequence": 36
                   },
                   "value": {
                     "food": 20,
@@ -1130,14 +1141,14 @@
                     0.5
                   ]
                 },
-                "receive_sequence": 124,
+                "receive_sequence": 114,
                 "received_pose": {
                   "position": [
                     0.5,
                     65.0,
                     0.5
                   ],
-                  "receive_sequence": 96,
+                  "receive_sequence": 94,
                   "rotation": [
                     0.0,
                     0.0
@@ -1163,7 +1174,7 @@
                   "cursor": {
                     "source": {
                       "kind": "received",
-                      "sequence": 95
+                      "sequence": 93
                     },
                     "value": {
                       "kind": "empty"
@@ -1178,7 +1189,7 @@
                   "selected_slot_value": {
                     "source": {
                       "kind": "received",
-                      "sequence": 93
+                      "sequence": 91
                     },
                     "value": {
                       "kind": "empty"
@@ -1206,7 +1217,7 @@
                 "horizontal_margin": 0.0625,
                 "status": "admitted"
               },
-              "world_revision": 67,
+              "world_revision": 58,
               "frames_summary": {
                 "count": 35,
                 "first": {
@@ -1289,7 +1300,7 @@
                 "health": {
                   "source": {
                     "kind": "received",
-                    "sequence": 34
+                    "sequence": 36
                   },
                   "value": {
                     "food": 20,
@@ -1309,14 +1320,14 @@
                     0.5
                   ]
                 },
-                "receive_sequence": 124,
+                "receive_sequence": 114,
                 "received_pose": {
                   "position": [
                     0.5,
                     65.0,
                     0.5
                   ],
-                  "receive_sequence": 96,
+                  "receive_sequence": 94,
                   "rotation": [
                     0.0,
                     0.0
@@ -1342,7 +1353,7 @@
                   "cursor": {
                     "source": {
                       "kind": "received",
-                      "sequence": 95
+                      "sequence": 93
                     },
                     "value": {
                       "kind": "empty"
@@ -1357,7 +1368,7 @@
                   "selected_slot_value": {
                     "source": {
                       "kind": "received",
-                      "sequence": 93
+                      "sequence": 91
                     },
                     "value": {
                       "kind": "empty"
@@ -1385,7 +1396,7 @@
                 "horizontal_margin": 0.0625,
                 "status": "admitted"
               },
-              "world_revision": 67,
+              "world_revision": 58,
               "frames_summary": {
                 "count": 35,
                 "first": {
@@ -1535,7 +1546,7 @@
             "health": {
               "source": {
                 "kind": "received",
-                "sequence": 118
+                "sequence": 94
               },
               "value": {
                 "food": 20,
@@ -1548,7 +1559,7 @@
             "position": {
               "source": {
                 "kind": "received",
-                "sequence": 131
+                "sequence": 109
               },
               "value": [
                 0.5,
@@ -1556,14 +1567,14 @@
                 0.5
               ]
             },
-            "receive_sequence": 133,
+            "receive_sequence": 115,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 131,
+              "receive_sequence": 109,
               "rotation": [
                 0.0,
                 0.0
@@ -1590,7 +1601,7 @@
               "cursor": {
                 "source": {
                   "kind": "received",
-                  "sequence": 133
+                  "sequence": 111
                 },
                 "value": {
                   "kind": "empty"
@@ -1605,7 +1616,7 @@
               "selected_slot_value": {
                 "source": {
                   "kind": "received",
-                  "sequence": 116
+                  "sequence": 92
                 },
                 "value": {
                   "kind": "empty"
@@ -1644,7 +1655,7 @@
               "health": {
                 "source": {
                   "kind": "received",
-                  "sequence": 118
+                  "sequence": 94
                 },
                 "value": {
                   "food": 20,
@@ -1656,7 +1667,8 @@
               "pending_dispatch": false,
               "position": {
                 "source": {
-                  "kind": "predicted"
+                  "kind": "received",
+                  "sequence": 109
                 },
                 "value": [
                   0.5,
@@ -1664,14 +1676,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 156,
+              "receive_sequence": 125,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 131,
+                "receive_sequence": 109,
                 "rotation": [
                   0.0,
                   0.0
@@ -1697,7 +1709,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 133
+                    "sequence": 111
                   },
                   "value": {
                     "kind": "empty"
@@ -1712,7 +1724,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 116
+                    "sequence": 92
                   },
                   "value": {
                     "kind": "empty"
@@ -1725,7 +1737,7 @@
             "requires_inspection": null,
             "stage": "mining",
             "start": {
-              "after_sequence": 156,
+              "after_sequence": 126,
               "dispatched": true,
               "interaction_sequence": null
             },
@@ -1749,7 +1761,7 @@
             "estimated_wait_ms": 8500,
             "face": "North",
             "finish": {
-              "after_sequence": 166,
+              "after_sequence": 153,
               "dispatched": true,
               "interaction_sequence": null
             },
@@ -1771,7 +1783,7 @@
               "health": {
                 "source": {
                   "kind": "received",
-                  "sequence": 118
+                  "sequence": 94
                 },
                 "value": {
                   "food": 20,
@@ -1783,7 +1795,8 @@
               "pending_dispatch": false,
               "position": {
                 "source": {
-                  "kind": "predicted"
+                  "kind": "received",
+                  "sequence": 109
                 },
                 "value": [
                   0.5,
@@ -1791,14 +1804,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 156,
+              "receive_sequence": 125,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 131,
+                "receive_sequence": 109,
                 "rotation": [
                   0.0,
                   0.0
@@ -1824,7 +1837,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 133
+                    "sequence": 111
                   },
                   "value": {
                     "kind": "empty"
@@ -1839,7 +1852,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 116
+                    "sequence": 92
                   },
                   "value": {
                     "kind": "empty"
@@ -1852,7 +1865,7 @@
               "accepted": true,
               "action": 2,
               "kind": "legacy_reply",
-              "receive_sequence": 167,
+              "receive_sequence": 154,
               "state": {
                 "name": "minecraft:air",
                 "properties": {}
@@ -1861,7 +1874,7 @@
             "requires_inspection": null,
             "stage": "observed_removed",
             "start": {
-              "after_sequence": 156,
+              "after_sequence": 126,
               "dispatched": true,
               "interaction_sequence": null
             },
@@ -1871,7 +1884,7 @@
               3
             ],
             "target_receipt": {
-              "receive_sequence": 167,
+              "receive_sequence": 155,
               "state": {
                 "name": "minecraft:air",
                 "properties": {}
@@ -1891,7 +1904,7 @@
             "estimated_wait_ms": 8500,
             "face": "North",
             "finish": {
-              "after_sequence": 166,
+              "after_sequence": 153,
               "dispatched": true,
               "interaction_sequence": null
             },
@@ -1913,7 +1926,7 @@
               "health": {
                 "source": {
                   "kind": "received",
-                  "sequence": 118
+                  "sequence": 94
                 },
                 "value": {
                   "food": 20,
@@ -1925,7 +1938,8 @@
               "pending_dispatch": false,
               "position": {
                 "source": {
-                  "kind": "predicted"
+                  "kind": "received",
+                  "sequence": 109
                 },
                 "value": [
                   0.5,
@@ -1933,14 +1947,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 156,
+              "receive_sequence": 125,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 131,
+                "receive_sequence": 109,
                 "rotation": [
                   0.0,
                   0.0
@@ -1966,7 +1980,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 133
+                    "sequence": 111
                   },
                   "value": {
                     "kind": "empty"
@@ -1981,7 +1995,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 116
+                    "sequence": 92
                   },
                   "value": {
                     "kind": "empty"
@@ -1994,7 +2008,7 @@
               "accepted": true,
               "action": 2,
               "kind": "legacy_reply",
-              "receive_sequence": 167,
+              "receive_sequence": 154,
               "state": {
                 "name": "minecraft:air",
                 "properties": {}
@@ -2003,7 +2017,7 @@
             "requires_inspection": null,
             "stage": "observed_removed",
             "start": {
-              "after_sequence": 156,
+              "after_sequence": 126,
               "dispatched": true,
               "interaction_sequence": null
             },
@@ -2013,7 +2027,7 @@
               3
             ],
             "target_receipt": {
-              "receive_sequence": 167,
+              "receive_sequence": 155,
               "state": {
                 "name": "minecraft:air",
                 "properties": {}
@@ -2111,7 +2125,7 @@
             "position": {
               "source": {
                 "kind": "received",
-                "sequence": 129
+                "sequence": 130
               },
               "value": [
                 0.5,
@@ -2119,14 +2133,14 @@
                 0.5
               ]
             },
-            "receive_sequence": 137,
+            "receive_sequence": 138,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 129,
+              "receive_sequence": 130,
               "rotation": [
                 0.0,
                 0.0
@@ -2153,7 +2167,7 @@
               "cursor": {
                 "source": {
                   "kind": "received",
-                  "sequence": 131
+                  "sequence": 132
                 },
                 "value": {
                   "kind": "empty"
@@ -2168,7 +2182,7 @@
               "selected_slot_value": {
                 "source": {
                   "kind": "received",
-                  "sequence": 136
+                  "sequence": 137
                 },
                 "value": {
                   "item": {
@@ -2218,7 +2232,7 @@
               },
               "name": "minecraft:dirt"
             },
-            "held_receive_sequence": 136,
+            "held_receive_sequence": 137,
             "id": {
               "attempt": 1,
               "session": {
@@ -2250,7 +2264,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 129
+                  "sequence": 130
                 },
                 "value": [
                   0.5,
@@ -2258,14 +2272,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 137,
+              "receive_sequence": 138,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 129,
+                "receive_sequence": 130,
                 "rotation": [
                   0.0,
                   0.0
@@ -2291,7 +2305,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 131
+                    "sequence": 132
                   },
                   "value": {
                     "kind": "empty"
@@ -2306,7 +2320,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 136
+                    "sequence": 137
                   },
                   "value": {
                     "item": {
@@ -2330,7 +2344,7 @@
             "processing": null,
             "requires_inspection": null,
             "send": {
-              "after_sequence": 137,
+              "after_sequence": 138,
               "dispatched": true,
               "interaction_sequence": null
             },
@@ -2381,7 +2395,7 @@
               },
               "name": "minecraft:dirt"
             },
-            "held_receive_sequence": 136,
+            "held_receive_sequence": 137,
             "id": {
               "attempt": 1,
               "session": {
@@ -2413,7 +2427,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 129
+                  "sequence": 130
                 },
                 "value": [
                   0.5,
@@ -2421,14 +2435,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 137,
+              "receive_sequence": 138,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 129,
+                "receive_sequence": 130,
                 "rotation": [
                   0.0,
                   0.0
@@ -2454,7 +2468,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 131
+                    "sequence": 132
                   },
                   "value": {
                     "kind": "empty"
@@ -2469,7 +2483,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 136
+                    "sequence": 137
                   },
                   "value": {
                     "item": {
@@ -2492,7 +2506,7 @@
             "material_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 141
+                "sequence": 142
               },
               "value": {
                 "item": {
@@ -2513,7 +2527,7 @@
             "processing": null,
             "requires_inspection": null,
             "send": {
-              "after_sequence": 137,
+              "after_sequence": 138,
               "dispatched": true,
               "interaction_sequence": null
             },
@@ -2535,7 +2549,7 @@
             "target_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 139
+                "sequence": 140
               },
               "value": {
                 "name": "minecraft:dirt",
@@ -2573,7 +2587,7 @@
               },
               "name": "minecraft:dirt"
             },
-            "held_receive_sequence": 136,
+            "held_receive_sequence": 137,
             "id": {
               "attempt": 1,
               "session": {
@@ -2605,7 +2619,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 129
+                  "sequence": 130
                 },
                 "value": [
                   0.5,
@@ -2613,14 +2627,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 137,
+              "receive_sequence": 138,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 129,
+                "receive_sequence": 130,
                 "rotation": [
                   0.0,
                   0.0
@@ -2646,7 +2660,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 131
+                    "sequence": 132
                   },
                   "value": {
                     "kind": "empty"
@@ -2661,7 +2675,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 136
+                    "sequence": 137
                   },
                   "value": {
                     "item": {
@@ -2684,7 +2698,7 @@
             "material_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 141
+                "sequence": 142
               },
               "value": {
                 "item": {
@@ -2705,7 +2719,7 @@
             "processing": null,
             "requires_inspection": null,
             "send": {
-              "after_sequence": 137,
+              "after_sequence": 138,
               "dispatched": true,
               "interaction_sequence": null
             },
@@ -2727,7 +2741,7 @@
             "target_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 139
+                "sequence": 140
               },
               "value": {
                 "name": "minecraft:dirt",
@@ -2826,7 +2840,7 @@
             "position": {
               "source": {
                 "kind": "received",
-                "sequence": 131
+                "sequence": 132
               },
               "value": [
                 0.5,
@@ -2841,7 +2855,7 @@
                 65.0,
                 0.5
               ],
-              "receive_sequence": 131,
+              "receive_sequence": 132,
               "rotation": [
                 0.0,
                 0.0
@@ -2868,7 +2882,7 @@
               "cursor": {
                 "source": {
                   "kind": "received",
-                  "sequence": 134
+                  "sequence": 135
                 },
                 "value": {
                   "kind": "empty"
@@ -2883,7 +2897,7 @@
               "selected_slot_value": {
                 "source": {
                   "kind": "received",
-                  "sequence": 136
+                  "sequence": 137
                 },
                 "value": {
                   "item": {
@@ -2911,7 +2925,7 @@
             "hotbar_before": {
               "source": {
                 "kind": "received",
-                "sequence": 136
+                "sequence": 137
               },
               "value": {
                 "item": {
@@ -2962,7 +2976,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 131
+                  "sequence": 132
                 },
                 "value": [
                   0.5,
@@ -2977,7 +2991,7 @@
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 131,
+                "receive_sequence": 132,
                 "rotation": [
                   0.0,
                   0.0
@@ -3004,7 +3018,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 134
+                    "sequence": 135
                   },
                   "value": {
                     "kind": "empty"
@@ -3019,7 +3033,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 136
+                    "sequence": 137
                   },
                   "value": {
                     "item": {
@@ -3067,7 +3081,7 @@
             "source_before": {
               "source": {
                 "kind": "received",
-                "sequence": 135
+                "sequence": 136
               },
               "value": {
                 "item": {
@@ -3097,7 +3111,7 @@
             "hotbar_before": {
               "source": {
                 "kind": "received",
-                "sequence": 136
+                "sequence": 137
               },
               "value": {
                 "item": {
@@ -3168,7 +3182,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 131
+                  "sequence": 132
                 },
                 "value": [
                   0.5,
@@ -3183,7 +3197,7 @@
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 131,
+                "receive_sequence": 132,
                 "rotation": [
                   0.0,
                   0.0
@@ -3210,7 +3224,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 134
+                    "sequence": 135
                   },
                   "value": {
                     "kind": "empty"
@@ -3225,7 +3239,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 136
+                    "sequence": 137
                   },
                   "value": {
                     "item": {
@@ -3278,7 +3292,7 @@
             "source_before": {
               "source": {
                 "kind": "received",
-                "sequence": 135
+                "sequence": 136
               },
               "value": {
                 "item": {
@@ -3367,7 +3381,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 131
+                  "sequence": 132
                 },
                 "value": [
                   0.5,
@@ -3375,14 +3389,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 147,
+              "receive_sequence": 144,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 131,
+                "receive_sequence": 132,
                 "rotation": [
                   0.0,
                   0.0
@@ -3424,7 +3438,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 142
+                    "sequence": 139
                   },
                   "value": {
                     "item": {
@@ -3449,7 +3463,7 @@
             "mode": "creative",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 147,
+              "after_sequence": 144,
               "dispatched": true,
               "legacy_action": 2,
               "legacy_comparison": {
@@ -3472,7 +3486,7 @@
             "source_before": {
               "source": {
                 "kind": "received",
-                "sequence": 141
+                "sequence": 139
               },
               "value": {
                 "item": {
@@ -3511,7 +3525,7 @@
             "hotbar_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 149
+                "sequence": 147
               },
               "value": {
                 "item": {
@@ -3561,7 +3575,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 131
+                  "sequence": 132
                 },
                 "value": [
                   0.5,
@@ -3569,14 +3583,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 147,
+              "receive_sequence": 144,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 131,
+                "receive_sequence": 132,
                 "rotation": [
                   0.0,
                   0.0
@@ -3618,7 +3632,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 142
+                    "sequence": 139
                   },
                   "value": {
                     "item": {
@@ -3642,13 +3656,13 @@
             "legacy_reply": {
               "accepted": false,
               "action": 2,
-              "receive_sequence": 148,
+              "receive_sequence": 146,
               "window_id": 0
             },
             "mode": "creative",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 147,
+              "after_sequence": 144,
               "dispatched": true,
               "legacy_action": 2,
               "legacy_comparison": {
@@ -3671,7 +3685,7 @@
             "source_before": {
               "source": {
                 "kind": "received",
-                "sequence": 141
+                "sequence": 139
               },
               "value": {
                 "item": {
@@ -3692,7 +3706,7 @@
             "source_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 149
+                "sequence": 147
               },
               "value": {
                 "kind": "empty"
@@ -3718,7 +3732,7 @@
             "hotbar_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 149
+                "sequence": 147
               },
               "value": {
                 "item": {
@@ -3768,7 +3782,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 131
+                  "sequence": 132
                 },
                 "value": [
                   0.5,
@@ -3776,14 +3790,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 147,
+              "receive_sequence": 144,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 131,
+                "receive_sequence": 132,
                 "rotation": [
                   0.0,
                   0.0
@@ -3825,7 +3839,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 142
+                    "sequence": 139
                   },
                   "value": {
                     "item": {
@@ -3849,13 +3863,13 @@
             "legacy_reply": {
               "accepted": false,
               "action": 2,
-              "receive_sequence": 148,
+              "receive_sequence": 146,
               "window_id": 0
             },
             "mode": "creative",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 147,
+              "after_sequence": 144,
               "dispatched": true,
               "legacy_action": 2,
               "legacy_comparison": {
@@ -3878,7 +3892,7 @@
             "source_before": {
               "source": {
                 "kind": "received",
-                "sequence": 141
+                "sequence": 139
               },
               "value": {
                 "item": {
@@ -3899,7 +3913,7 @@
             "source_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 149
+                "sequence": 147
               },
               "value": {
                 "kind": "empty"
@@ -3999,7 +4013,7 @@
             "position": {
               "source": {
                 "kind": "received",
-                "sequence": 126
+                "sequence": 127
               },
               "value": [
                 0.5,
@@ -4007,22 +4021,22 @@
                 0.5
               ]
             },
-            "receive_sequence": 131,
+            "receive_sequence": 132,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 126,
+              "receive_sequence": 127,
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ]
             },
             "rotation": [
               0.0,
-              0.0
+              35.0
             ],
             "selected_hotbar": {
               "source": {
@@ -4041,7 +4055,7 @@
               "cursor": {
                 "source": {
                   "kind": "received",
-                  "sequence": 130
+                  "sequence": 131
                 },
                 "value": {
                   "kind": "empty"
@@ -4056,13 +4070,135 @@
               "selected_slot_value": {
                 "source": {
                   "kind": "received",
-                  "sequence": 127
+                  "sequence": 128
                 },
                 "value": {
                   "kind": "empty"
                 }
               }
             }
+          }
+        },
+        {
+          "stage": "container_target_creative",
+          "value": {
+            "eye": [
+              0.5,
+              66.62000000476837,
+              0.5
+            ],
+            "hit": {
+              "distance": 1.9073891917436132,
+              "face": "North",
+              "point": [
+                0.5,
+                65.5260496956682,
+                2.0625
+              ],
+              "position": [
+                0,
+                65,
+                2
+              ],
+              "state": {
+                "name": "minecraft:chest",
+                "properties": {
+                  "facing": "north",
+                  "type": "single",
+                  "waterlogged": "false"
+                }
+              }
+            },
+            "initial": {
+              "dimension": {
+                "height": 256,
+                "min_y": 0,
+                "name": "minecraft:overworld"
+              },
+              "game_mode": "creative",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 120
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "may_fly": true,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 127
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 132,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 127,
+                "rotation": [
+                  0.0,
+                  35.0
+                ]
+              },
+              "rotation": [
+                0.0,
+                35.0
+              ],
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 5
+                },
+                "value": 0
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              },
+              "inventory_excerpt": {
+                "window_id": 0,
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 131
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                "screen_revision": null,
+                "player_screen": {
+                  "kind": "received"
+                },
+                "player_screen_revision": null,
+                "selected_slot": 36,
+                "selected_slot_value": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 128
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                }
+              }
+            },
+            "maximum_distance": 4.5,
+            "world_revision": 98
           }
         },
         {
@@ -4080,18 +4216,18 @@
             "cursor": {
               "source": {
                 "kind": "received",
-                "sequence": 134
+                "sequence": 135
               },
               "value": {
                 "kind": "empty"
               }
             },
             "player_screen": null,
-            "receive_sequence": 138,
+            "receive_sequence": 141,
             "screen": {
-              "full_contents_sequence": 133,
+              "full_contents_sequence": 134,
               "id": {
-                "opened_sequence": 132,
+                "opened_sequence": 133,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -4254,7 +4390,7 @@
               "title": {
                 "source": {
                   "kind": "received",
-                  "sequence": 132
+                  "sequence": 133
                 },
                 "value": {
                   "json": "{\"translate\":\"container.chest\"}",
@@ -4267,7 +4403,7 @@
                   "0": {
                     "source": {
                       "kind": "received",
-                      "sequence": 135
+                      "sequence": 136
                     },
                     "value": {
                       "item": {
@@ -4288,7 +4424,7 @@
                   "27": {
                     "source": {
                       "kind": "received",
-                      "sequence": 136
+                      "sequence": 137
                     },
                     "value": {
                       "item": {
@@ -4309,7 +4445,7 @@
                   "54": {
                     "source": {
                       "kind": "received",
-                      "sequence": 133
+                      "sequence": 134
                     },
                     "value": {
                       "kind": "empty"
@@ -4332,18 +4468,18 @@
             "cursor": {
               "source": {
                 "kind": "received",
-                "sequence": 134
+                "sequence": 135
               },
               "value": {
                 "kind": "empty"
               }
             },
             "player_screen": null,
-            "receive_sequence": 141,
+            "receive_sequence": 142,
             "screen": {
-              "full_contents_sequence": 133,
+              "full_contents_sequence": 134,
               "id": {
-                "opened_sequence": 132,
+                "opened_sequence": 133,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -4506,7 +4642,7 @@
               "title": {
                 "source": {
                   "kind": "received",
-                  "sequence": 132
+                  "sequence": 133
                 },
                 "value": {
                   "json": "{\"translate\":\"container.chest\"}",
@@ -4519,7 +4655,7 @@
                   "0": {
                     "source": {
                       "kind": "received",
-                      "sequence": 140
+                      "sequence": 142
                     },
                     "value": {
                       "item": {
@@ -4540,7 +4676,7 @@
                   "27": {
                     "source": {
                       "kind": "received",
-                      "sequence": 136
+                      "sequence": 137
                     },
                     "value": {
                       "item": {
@@ -4561,7 +4697,7 @@
                   "54": {
                     "source": {
                       "kind": "received",
-                      "sequence": 133
+                      "sequence": 134
                     },
                     "value": {
                       "kind": "empty"
@@ -4578,13 +4714,133 @@
           }
         },
         {
+          "stage": "container_target_survival",
+          "value": {
+            "eye": [
+              0.5,
+              66.62000000476837,
+              0.5
+            ],
+            "hit": {
+              "distance": 1.9073891917436132,
+              "face": "North",
+              "point": [
+                0.5,
+                65.5260496956682,
+                2.0625
+              ],
+              "position": [
+                0,
+                65,
+                2
+              ],
+              "state": {
+                "name": "minecraft:chest",
+                "properties": {
+                  "facing": "north",
+                  "type": "single",
+                  "waterlogged": "false"
+                }
+              }
+            },
+            "initial": {
+              "dimension": {
+                "height": 256,
+                "min_y": 0,
+                "name": "minecraft:overworld"
+              },
+              "game_mode": "survival",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 120
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "may_fly": false,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 127
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 147,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 127,
+                "rotation": [
+                  0.0,
+                  35.0
+                ]
+              },
+              "rotation": [
+                0.0,
+                35.0
+              ],
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 5
+                },
+                "value": 0
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              },
+              "inventory_excerpt": {
+                "window_id": 1,
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 135
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                "screen_revision": null,
+                "player_screen": null,
+                "player_screen_revision": null,
+                "selected_slot": 36,
+                "selected_slot_value": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 134
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                }
+              }
+            },
+            "maximum_distance": 4.5,
+            "world_revision": 100
+          }
+        },
+        {
           "stage": "container_swap_survival",
           "value": {
             "hotbar": 0,
             "hotbar_before": {
               "source": {
                 "kind": "received",
-                "sequence": 133
+                "sequence": 134
               },
               "value": {
                 "kind": "empty"
@@ -4623,7 +4879,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 126
+                  "sequence": 127
                 },
                 "value": [
                   0.5,
@@ -4631,22 +4887,22 @@
                   0.5
                 ]
               },
-              "receive_sequence": 146,
+              "receive_sequence": 147,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 126,
+                "receive_sequence": 127,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -4665,7 +4921,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 134
+                    "sequence": 135
                   },
                   "value": {
                     "kind": "empty"
@@ -4678,7 +4934,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 133
+                    "sequence": 134
                   },
                   "value": {
                     "kind": "empty"
@@ -4687,9 +4943,9 @@
               }
             },
             "initial_screen": {
-              "full_contents_sequence": 133,
+              "full_contents_sequence": 134,
               "id": {
-                "opened_sequence": 132,
+                "opened_sequence": 133,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -4852,7 +5108,7 @@
               "title": {
                 "source": {
                   "kind": "received",
-                  "sequence": 132
+                  "sequence": 133
                 },
                 "value": {
                   "json": "{\"translate\":\"container.chest\"}",
@@ -4865,7 +5121,7 @@
                   "0": {
                     "source": {
                       "kind": "received",
-                      "sequence": 140
+                      "sequence": 142
                     },
                     "value": {
                       "item": {
@@ -4886,7 +5142,7 @@
                   "27": {
                     "source": {
                       "kind": "received",
-                      "sequence": 136
+                      "sequence": 137
                     },
                     "value": {
                       "item": {
@@ -4907,7 +5163,7 @@
                   "54": {
                     "source": {
                       "kind": "received",
-                      "sequence": 133
+                      "sequence": 134
                     },
                     "value": {
                       "kind": "empty"
@@ -4920,7 +5176,7 @@
             "mode": "survival",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 146,
+              "after_sequence": 147,
               "dispatched": true,
               "legacy_action": 1,
               "legacy_comparison": {
@@ -4940,7 +5196,7 @@
             "source": {
               "kind": "container",
               "screen": {
-                "opened_sequence": 132,
+                "opened_sequence": 133,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -4952,7 +5208,7 @@
             "source_before": {
               "source": {
                 "kind": "received",
-                "sequence": 140
+                "sequence": 142
               },
               "value": {
                 "item": {
@@ -4982,7 +5238,7 @@
             "hotbar_before": {
               "source": {
                 "kind": "received",
-                "sequence": 133
+                "sequence": 134
               },
               "value": {
                 "kind": "empty"
@@ -4991,7 +5247,7 @@
             "hotbar_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 148
+                "sequence": 149
               },
               "value": {
                 "item": {
@@ -5041,7 +5297,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 126
+                  "sequence": 127
                 },
                 "value": [
                   0.5,
@@ -5049,22 +5305,22 @@
                   0.5
                 ]
               },
-              "receive_sequence": 146,
+              "receive_sequence": 147,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 126,
+                "receive_sequence": 127,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -5083,7 +5339,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 134
+                    "sequence": 135
                   },
                   "value": {
                     "kind": "empty"
@@ -5096,7 +5352,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 133
+                    "sequence": 134
                   },
                   "value": {
                     "kind": "empty"
@@ -5105,9 +5361,9 @@
               }
             },
             "initial_screen": {
-              "full_contents_sequence": 133,
+              "full_contents_sequence": 134,
               "id": {
-                "opened_sequence": 132,
+                "opened_sequence": 133,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -5270,7 +5526,7 @@
               "title": {
                 "source": {
                   "kind": "received",
-                  "sequence": 132
+                  "sequence": 133
                 },
                 "value": {
                   "json": "{\"translate\":\"container.chest\"}",
@@ -5283,7 +5539,7 @@
                   "0": {
                     "source": {
                       "kind": "received",
-                      "sequence": 140
+                      "sequence": 142
                     },
                     "value": {
                       "item": {
@@ -5304,7 +5560,7 @@
                   "27": {
                     "source": {
                       "kind": "received",
-                      "sequence": 136
+                      "sequence": 137
                     },
                     "value": {
                       "item": {
@@ -5325,7 +5581,7 @@
                   "54": {
                     "source": {
                       "kind": "received",
-                      "sequence": 133
+                      "sequence": 134
                     },
                     "value": {
                       "kind": "empty"
@@ -5337,13 +5593,13 @@
             "legacy_reply": {
               "accepted": false,
               "action": 1,
-              "receive_sequence": 147,
+              "receive_sequence": 148,
               "window_id": 1
             },
             "mode": "survival",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 146,
+              "after_sequence": 147,
               "dispatched": true,
               "legacy_action": 1,
               "legacy_comparison": {
@@ -5363,7 +5619,7 @@
             "source": {
               "kind": "container",
               "screen": {
-                "opened_sequence": 132,
+                "opened_sequence": 133,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -5375,7 +5631,7 @@
             "source_before": {
               "source": {
                 "kind": "received",
-                "sequence": 140
+                "sequence": 142
               },
               "value": {
                 "item": {
@@ -5396,7 +5652,7 @@
             "source_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 148
+                "sequence": 149
               },
               "value": {
                 "kind": "empty"
@@ -5413,7 +5669,7 @@
             "hotbar_before": {
               "source": {
                 "kind": "received",
-                "sequence": 157
+                "sequence": 149
               },
               "value": {
                 "item": {
@@ -5464,7 +5720,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 126
+                  "sequence": 127
                 },
                 "value": [
                   0.5,
@@ -5472,22 +5728,22 @@
                   0.5
                 ]
               },
-              "receive_sequence": 157,
+              "receive_sequence": 154,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 126,
+                "receive_sequence": 127,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -5506,7 +5762,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 149
+                    "sequence": 150
                   },
                   "value": {
                     "kind": "empty"
@@ -5519,7 +5775,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 157
+                    "sequence": 149
                   },
                   "value": {
                     "item": {
@@ -5540,9 +5796,9 @@
               }
             },
             "initial_screen": {
-              "full_contents_sequence": 148,
+              "full_contents_sequence": 149,
               "id": {
-                "opened_sequence": 132,
+                "opened_sequence": 133,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -5705,7 +5961,7 @@
               "title": {
                 "source": {
                   "kind": "received",
-                  "sequence": 132
+                  "sequence": 133
                 },
                 "value": {
                   "json": "{\"translate\":\"container.chest\"}",
@@ -5718,7 +5974,7 @@
                   "0": {
                     "source": {
                       "kind": "received",
-                      "sequence": 156
+                      "sequence": 149
                     },
                     "value": {
                       "kind": "empty"
@@ -5727,7 +5983,7 @@
                   "27": {
                     "source": {
                       "kind": "received",
-                      "sequence": 148
+                      "sequence": 149
                     },
                     "value": {
                       "item": {
@@ -5748,7 +6004,7 @@
                   "54": {
                     "source": {
                       "kind": "received",
-                      "sequence": 157
+                      "sequence": 149
                     },
                     "value": {
                       "item": {
@@ -5773,7 +6029,7 @@
             "mode": "creative",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 157,
+              "after_sequence": 155,
               "dispatched": true,
               "legacy_action": 2,
               "legacy_comparison": {
@@ -5793,7 +6049,7 @@
             "source": {
               "kind": "container",
               "screen": {
-                "opened_sequence": 132,
+                "opened_sequence": 133,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -5805,7 +6061,7 @@
             "source_before": {
               "source": {
                 "kind": "received",
-                "sequence": 156
+                "sequence": 149
               },
               "value": {
                 "kind": "empty"
@@ -5823,7 +6079,7 @@
             "hotbar_before": {
               "source": {
                 "kind": "received",
-                "sequence": 157
+                "sequence": 149
               },
               "value": {
                 "item": {
@@ -5882,7 +6138,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 126
+                  "sequence": 127
                 },
                 "value": [
                   0.5,
@@ -5890,22 +6146,22 @@
                   0.5
                 ]
               },
-              "receive_sequence": 157,
+              "receive_sequence": 154,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 126,
+                "receive_sequence": 127,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -5924,7 +6180,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 149
+                    "sequence": 150
                   },
                   "value": {
                     "kind": "empty"
@@ -5937,7 +6193,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 157
+                    "sequence": 149
                   },
                   "value": {
                     "item": {
@@ -5958,9 +6214,9 @@
               }
             },
             "initial_screen": {
-              "full_contents_sequence": 148,
+              "full_contents_sequence": 149,
               "id": {
-                "opened_sequence": 132,
+                "opened_sequence": 133,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -6123,7 +6379,7 @@
               "title": {
                 "source": {
                   "kind": "received",
-                  "sequence": 132
+                  "sequence": 133
                 },
                 "value": {
                   "json": "{\"translate\":\"container.chest\"}",
@@ -6136,7 +6392,7 @@
                   "0": {
                     "source": {
                       "kind": "received",
-                      "sequence": 156
+                      "sequence": 149
                     },
                     "value": {
                       "kind": "empty"
@@ -6145,7 +6401,7 @@
                   "27": {
                     "source": {
                       "kind": "received",
-                      "sequence": 148
+                      "sequence": 149
                     },
                     "value": {
                       "item": {
@@ -6166,7 +6422,7 @@
                   "54": {
                     "source": {
                       "kind": "received",
-                      "sequence": 157
+                      "sequence": 149
                     },
                     "value": {
                       "item": {
@@ -6196,7 +6452,7 @@
             "mode": "creative",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 157,
+              "after_sequence": 155,
               "dispatched": true,
               "legacy_action": 2,
               "legacy_comparison": {
@@ -6216,7 +6472,7 @@
             "source": {
               "kind": "container",
               "screen": {
-                "opened_sequence": 132,
+                "opened_sequence": 133,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -6228,7 +6484,7 @@
             "source_before": {
               "source": {
                 "kind": "received",
-                "sequence": 156
+                "sequence": 149
               },
               "value": {
                 "kind": "empty"
@@ -6266,7 +6522,7 @@
             "id": {
               "attempt": 1,
               "screen": {
-                "opened_sequence": 132,
+                "opened_sequence": 133,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -6298,7 +6554,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 126
+                  "sequence": 127
                 },
                 "value": [
                   0.5,
@@ -6313,15 +6569,15 @@
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 126,
+                "receive_sequence": 127,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -6364,7 +6620,7 @@
             "initial_screen": {
               "full_contents_sequence": 159,
               "id": {
-                "opened_sequence": 132,
+                "opened_sequence": 133,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -6527,7 +6783,7 @@
               "title": {
                 "source": {
                   "kind": "received",
-                  "sequence": 132
+                  "sequence": 133
                 },
                 "value": {
                   "json": "{\"translate\":\"container.chest\"}",
@@ -6614,7 +6870,7 @@
               "close": {
                 "attempt": 1,
                 "screen": {
-                  "opened_sequence": 132,
+                  "opened_sequence": 133,
                   "session": {
                     "connection_id": 1,
                     "version": "Java1_16_1",
@@ -6625,11 +6881,11 @@
               },
               "kind": "submitted_close"
             },
-            "receive_sequence": 164,
+            "receive_sequence": 165,
             "screen": {
               "full_contents_sequence": 159,
               "id": {
-                "opened_sequence": 132,
+                "opened_sequence": 133,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -6792,7 +7048,7 @@
               "title": {
                 "source": {
                   "kind": "received",
-                  "sequence": 132
+                  "sequence": 133
                 },
                 "value": {
                   "json": "{\"translate\":\"container.chest\"}",
@@ -6809,7 +7065,7 @@
                     },
                     "value": {
                       "item": {
-                        "count": 7,
+                        "count": 11,
                         "data": {
                           "kind": "default"
                         },
@@ -6878,18 +7134,18 @@
             "cursor": {
               "source": {
                 "kind": "received",
-                "sequence": 167
+                "sequence": 168
               },
               "value": {
                 "kind": "empty"
               }
             },
             "player_screen": null,
-            "receive_sequence": 171,
+            "receive_sequence": 172,
             "screen": {
-              "full_contents_sequence": 166,
+              "full_contents_sequence": 167,
               "id": {
-                "opened_sequence": 165,
+                "opened_sequence": 166,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -7052,7 +7308,7 @@
               "title": {
                 "source": {
                   "kind": "received",
-                  "sequence": 165
+                  "sequence": 166
                 },
                 "value": {
                   "json": "{\"translate\":\"container.chest\"}",
@@ -7065,7 +7321,7 @@
                   "0": {
                     "source": {
                       "kind": "received",
-                      "sequence": 168
+                      "sequence": 169
                     },
                     "value": {
                       "item": {
@@ -7086,7 +7342,7 @@
                   "27": {
                     "source": {
                       "kind": "received",
-                      "sequence": 169
+                      "sequence": 170
                     },
                     "value": {
                       "item": {
@@ -7107,7 +7363,7 @@
                   "54": {
                     "source": {
                       "kind": "received",
-                      "sequence": 166
+                      "sequence": 167
                     },
                     "value": {
                       "kind": "empty"
@@ -7130,7 +7386,7 @@
             "id": {
               "attempt": 2,
               "screen": {
-                "opened_sequence": 165,
+                "opened_sequence": 166,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -7162,7 +7418,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 126
+                  "sequence": 127
                 },
                 "value": [
                   0.5,
@@ -7170,22 +7426,22 @@
                   0.5
                 ]
               },
-              "receive_sequence": 176,
+              "receive_sequence": 175,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 126,
+                "receive_sequence": 127,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -7204,7 +7460,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 167
+                    "sequence": 168
                   },
                   "value": {
                     "kind": "empty"
@@ -7217,7 +7473,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 166
+                    "sequence": 167
                   },
                   "value": {
                     "kind": "empty"
@@ -7226,9 +7482,9 @@
               }
             },
             "initial_screen": {
-              "full_contents_sequence": 166,
+              "full_contents_sequence": 167,
               "id": {
-                "opened_sequence": 165,
+                "opened_sequence": 166,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -7391,7 +7647,7 @@
               "title": {
                 "source": {
                   "kind": "received",
-                  "sequence": 165
+                  "sequence": 166
                 },
                 "value": {
                   "json": "{\"translate\":\"container.chest\"}",
@@ -7404,7 +7660,7 @@
                   "0": {
                     "source": {
                       "kind": "received",
-                      "sequence": 168
+                      "sequence": 169
                     },
                     "value": {
                       "item": {
@@ -7425,7 +7681,7 @@
                   "27": {
                     "source": {
                       "kind": "received",
-                      "sequence": 169
+                      "sequence": 170
                     },
                     "value": {
                       "item": {
@@ -7446,7 +7702,7 @@
                   "54": {
                     "source": {
                       "kind": "received",
-                      "sequence": 166
+                      "sequence": 167
                     },
                     "value": {
                       "kind": "empty"
@@ -7468,7 +7724,7 @@
             "hotbar_before": {
               "source": {
                 "kind": "received",
-                "sequence": 166
+                "sequence": 167
               },
               "value": {
                 "kind": "empty"
@@ -7507,7 +7763,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 126
+                  "sequence": 127
                 },
                 "value": [
                   0.5,
@@ -7515,22 +7771,22 @@
                   0.5
                 ]
               },
-              "receive_sequence": 176,
+              "receive_sequence": 177,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 126,
+                "receive_sequence": 127,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -7549,7 +7805,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 167
+                    "sequence": 168
                   },
                   "value": {
                     "kind": "empty"
@@ -7560,7 +7816,7 @@
                   "close": {
                     "attempt": 2,
                     "screen": {
-                      "opened_sequence": 165,
+                      "opened_sequence": 166,
                       "session": {
                         "connection_id": 1,
                         "version": "Java1_16_1",
@@ -7576,7 +7832,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 166
+                    "sequence": 167
                   },
                   "value": {
                     "kind": "empty"
@@ -7589,7 +7845,7 @@
             "mode": "survival",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 176,
+              "after_sequence": 177,
               "dispatched": true,
               "legacy_action": 1,
               "legacy_comparison": {
@@ -7612,7 +7868,7 @@
             "source_before": {
               "source": {
                 "kind": "received",
-                "sequence": 169
+                "sequence": 170
               },
               "value": {
                 "item": {
@@ -7642,7 +7898,7 @@
             "hotbar_before": {
               "source": {
                 "kind": "received",
-                "sequence": 166
+                "sequence": 167
               },
               "value": {
                 "kind": "empty"
@@ -7651,7 +7907,7 @@
             "hotbar_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 180
+                "sequence": 181
               },
               "value": {
                 "item": {
@@ -7701,7 +7957,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 126
+                  "sequence": 127
                 },
                 "value": [
                   0.5,
@@ -7709,22 +7965,22 @@
                   0.5
                 ]
               },
-              "receive_sequence": 176,
+              "receive_sequence": 177,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 126,
+                "receive_sequence": 127,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -7743,7 +7999,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 167
+                    "sequence": 168
                   },
                   "value": {
                     "kind": "empty"
@@ -7754,7 +8010,7 @@
                   "close": {
                     "attempt": 2,
                     "screen": {
-                      "opened_sequence": 165,
+                      "opened_sequence": 166,
                       "session": {
                         "connection_id": 1,
                         "version": "Java1_16_1",
@@ -7770,7 +8026,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 166
+                    "sequence": 167
                   },
                   "value": {
                     "kind": "empty"
@@ -7782,13 +8038,13 @@
             "legacy_reply": {
               "accepted": false,
               "action": 1,
-              "receive_sequence": 179,
+              "receive_sequence": 180,
               "window_id": 0
             },
             "mode": "survival",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 176,
+              "after_sequence": 177,
               "dispatched": true,
               "legacy_action": 1,
               "legacy_comparison": {
@@ -7811,7 +8067,7 @@
             "source_before": {
               "source": {
                 "kind": "received",
-                "sequence": 169
+                "sequence": 170
               },
               "value": {
                 "item": {
@@ -7832,7 +8088,7 @@
             "source_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 180
+                "sequence": 181
               },
               "value": {
                 "kind": "empty"
@@ -7900,7 +8156,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 126
+                  "sequence": 127
                 },
                 "value": [
                   0.5,
@@ -7915,15 +8171,15 @@
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 126,
+                "receive_sequence": 127,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -7942,7 +8198,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 181
+                    "sequence": 182
                   },
                   "value": {
                     "kind": "empty"
@@ -7953,7 +8209,7 @@
                   "close": {
                     "attempt": 2,
                     "screen": {
-                      "opened_sequence": 165,
+                      "opened_sequence": 166,
                       "session": {
                         "connection_id": 1,
                         "version": "Java1_16_1",
@@ -8094,7 +8350,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 126
+                  "sequence": 127
                 },
                 "value": [
                   0.5,
@@ -8109,15 +8365,15 @@
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 126,
+                "receive_sequence": 127,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -8136,7 +8392,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 181
+                    "sequence": 182
                   },
                   "value": {
                     "kind": "empty"
@@ -8147,7 +8403,7 @@
                   "close": {
                     "attempt": 2,
                     "screen": {
-                      "opened_sequence": 165,
+                      "opened_sequence": 166,
                       "session": {
                         "connection_id": 1,
                         "version": "Java1_16_1",
@@ -8257,7 +8513,7 @@
     },
     {
       "version": "1.21.11",
-      "run_id": "trial-1.21.11-ded3c592",
+      "run_id": "trial-1.21.11-2cd4a0c8",
       "source": {
         "version": "1.21.11",
         "metadata_url": "https://piston-meta.mojang.com/v1/packages/4f6bd9388f12e9d7adc2ded64acba66212d60521/1.21.11.json",
@@ -8321,7 +8577,7 @@
       "container_fixture_native": "0, 65, 2 has the following block data: [{count: 3, Slot: 0b, id: \"minecraft:stone\"}]",
       "container_setup": {
         "gamemode creative UnifiedProbe": "",
-        "tp UnifiedProbe 0.5 65 0.5 0 0": "Teleported UnifiedProbe to 0.500000, 65.000000, 0.500000",
+        "tp UnifiedProbe 0.5 65 0.5 0 35": "Teleported UnifiedProbe to 0.500000, 65.000000, 0.500000",
         "clear UnifiedProbe": "Removed 5 item(s) from player UnifiedProbe",
         "item replace entity UnifiedProbe inventory.0 with minecraft:dirt 2": "Replaced a slot on UnifiedProbe with [Dirt]"
       },
@@ -8332,7 +8588,7 @@
       "container_close_survival_mode": "Set UnifiedProbe's game mode to Survival Mode",
       "container_player_creative_mode": "Set UnifiedProbe's game mode to Creative Mode",
       "server_exit_code": 0,
-      "raw_report_sha256": "b66b860b96587684dacf9bc1edd2927e16f71035c4e75153527b782e35d01255",
+      "raw_report_sha256": "797ce9db578cc33c03f7922fb413f7950dcd8ac02cdbd9b4edd341d3ce122af7",
       "native_results": {
         "inventory": "UnifiedProbe has the following entity data: [{count: 3, Slot: 1b, id: \"minecraft:stone\"}]",
         "selected_slot": "UnifiedProbe has the following entity data: 1",
@@ -8430,11 +8686,11 @@
             },
             {
               "position": [
-                -0.12497500385141869,
+                -0.10873198460570008,
                 65.0,
-                1.3739790412655881
+                1.3512644394012765
               ],
-              "response": "UnifiedProbe has the following entity data: [-0.12497500385141869d, 65.0d, 1.3739790412655881d]"
+              "response": "UnifiedProbe has the following entity data: [-0.10873198460570008d, 65.0d, 1.3512644394012765d]"
             },
             {
               "position": [
@@ -8443,6 +8699,14 @@
                 1.393152803146504
               ],
               "response": "UnifiedProbe has the following entity data: [-0.13868599844005214d, 65.0d, 1.393152803146504d]"
+            },
+            {
+              "position": [
+                -0.14132989730463877,
+                65.0,
+                1.3968500905270147
+              ],
+              "response": "UnifiedProbe has the following entity data: [-0.14132989730463877d, 65.0d, 1.3968500905270147d]"
             },
             {
               "position": [
@@ -8546,6 +8810,17 @@
           "creative_empty_swap": "UnifiedProbe has the following entity data: [{count: 3, Slot: 0b, id: \"minecraft:stone\"}, {count: 2, Slot: 1b, id: \"minecraft:dirt\"}]",
           "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        },
+        "storage_targeting": {
+          "target": [
+            0,
+            65,
+            2
+          ],
+          "fixture_state": "minecraft:chest[facing=north,type=single,waterlogged=false]",
+          "position": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "rotation": "UnifiedProbe has the following entity data: [0.0f, 35.0f]",
+          "authority_limits": "RCON verifies unchanged native pose and setup fixture; actual targeting face/point is a model checked separately against original native clip methods, not a server hit acknowledgement or linked open result."
         },
         "container_observation": {
           "opened_contents": "0, 65, 2 has the following block data: [{count: 3, Slot: 0b, id: \"minecraft:stone\"}]",
@@ -9019,7 +9294,7 @@
                 0.5
               ]
             },
-            "receive_sequence": 146,
+            "receive_sequence": 144,
             "received_pose": {
               "position": [
                 0.5,
@@ -9100,7 +9375,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 149
+                  "sequence": 147
                 },
                 "value": [
                   0.5,
@@ -9108,14 +9383,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 149,
+              "receive_sequence": 147,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 149,
+                "receive_sequence": 147,
                 "rotation": [
                   0.0,
                   0.0
@@ -9154,7 +9429,7 @@
                 "player_screen_revision": {
                   "source": {
                     "kind": "received",
-                    "sequence": 148
+                    "sequence": 146
                   },
                   "value": 3
                 },
@@ -9162,7 +9437,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 147
+                    "sequence": 145
                   },
                   "value": {
                     "kind": "empty"
@@ -9297,7 +9572,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 149
+                  "sequence": 147
                 },
                 "value": [
                   0.5,
@@ -9305,14 +9580,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 149,
+              "receive_sequence": 147,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 149,
+                "receive_sequence": 147,
                 "rotation": [
                   0.0,
                   0.0
@@ -9351,7 +9626,7 @@
                 "player_screen_revision": {
                   "source": {
                     "kind": "received",
-                    "sequence": 148
+                    "sequence": 146
                   },
                   "value": 3
                 },
@@ -9359,7 +9634,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 147
+                    "sequence": 145
                   },
                   "value": {
                     "kind": "empty"
@@ -9400,7 +9675,7 @@
                 "position": {
                   "source": {
                     "kind": "received",
-                    "sequence": 149
+                    "sequence": 147
                   },
                   "value": [
                     0.5,
@@ -9408,14 +9683,14 @@
                     0.5
                   ]
                 },
-                "receive_sequence": 149,
+                "receive_sequence": 148,
                 "received_pose": {
                   "position": [
                     0.5,
                     65.0,
                     0.5
                   ],
-                  "receive_sequence": 149,
+                  "receive_sequence": 147,
                   "rotation": [
                     0.0,
                     0.0
@@ -9454,7 +9729,7 @@
                   "player_screen_revision": {
                     "source": {
                       "kind": "received",
-                      "sequence": 148
+                      "sequence": 146
                     },
                     "value": 3
                   },
@@ -9462,7 +9737,7 @@
                   "selected_slot_value": {
                     "source": {
                       "kind": "received",
-                      "sequence": 147
+                      "sequence": 145
                     },
                     "value": {
                       "kind": "empty"
@@ -9586,7 +9861,7 @@
                 "position": {
                   "source": {
                     "kind": "received",
-                    "sequence": 149
+                    "sequence": 147
                   },
                   "value": [
                     0.5,
@@ -9594,14 +9869,14 @@
                     0.5
                   ]
                 },
-                "receive_sequence": 149,
+                "receive_sequence": 148,
                 "received_pose": {
                   "position": [
                     0.5,
                     65.0,
                     0.5
                   ],
-                  "receive_sequence": 149,
+                  "receive_sequence": 147,
                   "rotation": [
                     0.0,
                     0.0
@@ -9640,7 +9915,7 @@
                   "player_screen_revision": {
                     "source": {
                       "kind": "received",
-                      "sequence": 148
+                      "sequence": 146
                     },
                     "value": 3
                   },
@@ -9648,7 +9923,7 @@
                   "selected_slot_value": {
                     "source": {
                       "kind": "received",
-                      "sequence": 147
+                      "sequence": 145
                     },
                     "value": {
                       "kind": "empty"
@@ -9784,7 +10059,7 @@
                 1.3968500905270147
               ]
             },
-            "receive_sequence": 65,
+            "receive_sequence": 66,
             "received_pose": {
               "position": [
                 -0.14132989730463877,
@@ -10495,7 +10770,7 @@
                 0.5
               ]
             },
-            "receive_sequence": 92,
+            "receive_sequence": 78,
             "received_pose": {
               "position": [
                 0.5,
@@ -11520,7 +11795,7 @@
             "source_before": {
               "source": {
                 "kind": "received",
-                "sequence": 85
+                "sequence": 74
               },
               "value": {
                 "item": {
@@ -11721,7 +11996,7 @@
             "source_before": {
               "source": {
                 "kind": "received",
-                "sequence": 85
+                "sequence": 74
               },
               "value": {
                 "item": {
@@ -12362,7 +12637,7 @@
                 0.5
               ]
             },
-            "receive_sequence": 66,
+            "receive_sequence": 65,
             "received_pose": {
               "position": [
                 0.5,
@@ -12463,7 +12738,7 @@
             "position": {
               "source": {
                 "kind": "received",
-                "sequence": 67
+                "sequence": 68
               },
               "value": [
                 0.5,
@@ -12471,22 +12746,22 @@
                 0.5
               ]
             },
-            "receive_sequence": 71,
+            "receive_sequence": 82,
             "received_pose": {
               "position": [
                 0.5,
                 65.0,
                 0.5
               ],
-              "receive_sequence": 67,
+              "receive_sequence": 68,
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ]
             },
             "rotation": [
               0.0,
-              0.0
+              35.0
             ],
             "selected_hotbar": {
               "source": {
@@ -12518,7 +12793,7 @@
               "player_screen_revision": {
                 "source": {
                   "kind": "received",
-                  "sequence": 71
+                  "sequence": 72
                 },
                 "value": 5
               },
@@ -12526,13 +12801,141 @@
               "selected_slot_value": {
                 "source": {
                   "kind": "received",
-                  "sequence": 68
+                  "sequence": 69
                 },
                 "value": {
                   "kind": "empty"
                 }
               }
             }
+          }
+        },
+        {
+          "stage": "container_target_creative",
+          "value": {
+            "eye": [
+              0.5,
+              66.62000000476837,
+              0.5
+            ],
+            "hit": {
+              "distance": 1.9073891917436132,
+              "face": "North",
+              "point": [
+                0.5,
+                65.5260496956682,
+                2.0625
+              ],
+              "position": [
+                0,
+                65,
+                2
+              ],
+              "state": {
+                "name": "minecraft:chest",
+                "properties": {
+                  "facing": "north",
+                  "type": "single",
+                  "waterlogged": "false"
+                }
+              }
+            },
+            "initial": {
+              "dimension": {
+                "height": 384,
+                "min_y": -64,
+                "name": "minecraft:overworld"
+              },
+              "game_mode": "creative",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 53
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "may_fly": true,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 68
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 82,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 68,
+                "rotation": [
+                  0.0,
+                  35.0
+                ]
+              },
+              "rotation": [
+                0.0,
+                35.0
+              ],
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 32
+                },
+                "value": 0
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              },
+              "inventory_excerpt": {
+                "window_id": 0,
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 49
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                "screen_revision": 5,
+                "player_screen": {
+                  "kind": "received"
+                },
+                "player_screen_revision": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 72
+                  },
+                  "value": 5
+                },
+                "selected_slot": 36,
+                "selected_slot_value": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 69
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                }
+              }
+            },
+            "maximum_distance": 4.5,
+            "world_revision": 18
           }
         },
         {
@@ -12550,18 +12953,18 @@
             "cursor": {
               "source": {
                 "kind": "received",
-                "sequence": 85
+                "sequence": 95
               },
               "value": {
                 "kind": "empty"
               }
             },
             "player_screen": null,
-            "receive_sequence": 99,
+            "receive_sequence": 95,
             "screen": {
-              "full_contents_sequence": 85,
+              "full_contents_sequence": 95,
               "id": {
-                "opened_sequence": 84,
+                "opened_sequence": 94,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_21_11",
@@ -12723,14 +13126,14 @@
               "revision": {
                 "source": {
                   "kind": "received",
-                  "sequence": 85
+                  "sequence": 95
                 },
                 "value": 1
               },
               "title": {
                 "source": {
                   "kind": "received",
-                  "sequence": 84
+                  "sequence": 94
                 },
                 "value": {
                   "bytes": [
@@ -12775,7 +13178,7 @@
                   "0": {
                     "source": {
                       "kind": "received",
-                      "sequence": 85
+                      "sequence": 95
                     },
                     "value": {
                       "item": {
@@ -12796,7 +13199,7 @@
                   "27": {
                     "source": {
                       "kind": "received",
-                      "sequence": 85
+                      "sequence": 95
                     },
                     "value": {
                       "item": {
@@ -12817,7 +13220,7 @@
                   "54": {
                     "source": {
                       "kind": "received",
-                      "sequence": 85
+                      "sequence": 95
                     },
                     "value": {
                       "kind": "empty"
@@ -12840,18 +13243,18 @@
             "cursor": {
               "source": {
                 "kind": "received",
-                "sequence": 85
+                "sequence": 95
               },
               "value": {
                 "kind": "empty"
               }
             },
             "player_screen": null,
-            "receive_sequence": 110,
+            "receive_sequence": 120,
             "screen": {
-              "full_contents_sequence": 85,
+              "full_contents_sequence": 95,
               "id": {
-                "opened_sequence": 84,
+                "opened_sequence": 94,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_21_11",
@@ -13013,14 +13416,14 @@
               "revision": {
                 "source": {
                   "kind": "received",
-                  "sequence": 100
+                  "sequence": 110
                 },
                 "value": 2
               },
               "title": {
                 "source": {
                   "kind": "received",
-                  "sequence": 84
+                  "sequence": 94
                 },
                 "value": {
                   "bytes": [
@@ -13065,7 +13468,7 @@
                   "0": {
                     "source": {
                       "kind": "received",
-                      "sequence": 100
+                      "sequence": 110
                     },
                     "value": {
                       "item": {
@@ -13086,7 +13489,7 @@
                   "27": {
                     "source": {
                       "kind": "received",
-                      "sequence": 85
+                      "sequence": 95
                     },
                     "value": {
                       "item": {
@@ -13107,7 +13510,7 @@
                   "54": {
                     "source": {
                       "kind": "received",
-                      "sequence": 85
+                      "sequence": 95
                     },
                     "value": {
                       "kind": "empty"
@@ -13124,13 +13527,139 @@
           }
         },
         {
+          "stage": "container_target_survival",
+          "value": {
+            "eye": [
+              0.5,
+              66.62000000476837,
+              0.5
+            ],
+            "hit": {
+              "distance": 1.9073891917436132,
+              "face": "North",
+              "point": [
+                0.5,
+                65.5260496956682,
+                2.0625
+              ],
+              "position": [
+                0,
+                65,
+                2
+              ],
+              "state": {
+                "name": "minecraft:chest",
+                "properties": {
+                  "facing": "north",
+                  "type": "single",
+                  "waterlogged": "false"
+                }
+              }
+            },
+            "initial": {
+              "dimension": {
+                "height": 384,
+                "min_y": -64,
+                "name": "minecraft:overworld"
+              },
+              "game_mode": "survival",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 53
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "may_fly": false,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 68
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 135,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 68,
+                "rotation": [
+                  0.0,
+                  35.0
+                ]
+              },
+              "rotation": [
+                0.0,
+                35.0
+              ],
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 32
+                },
+                "value": 0
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              },
+              "inventory_excerpt": {
+                "window_id": 1,
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 95
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                "screen_revision": null,
+                "player_screen": null,
+                "player_screen_revision": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 72
+                  },
+                  "value": 5
+                },
+                "selected_slot": 36,
+                "selected_slot_value": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 95
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                }
+              }
+            },
+            "maximum_distance": 4.5,
+            "world_revision": 52
+          }
+        },
+        {
           "stage": "container_swap_survival",
           "value": {
             "hotbar": 0,
             "hotbar_before": {
               "source": {
                 "kind": "received",
-                "sequence": 85
+                "sequence": 95
               },
               "value": {
                 "kind": "empty"
@@ -13169,7 +13698,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 67
+                  "sequence": 68
                 },
                 "value": [
                   0.5,
@@ -13177,22 +13706,22 @@
                   0.5
                 ]
               },
-              "receive_sequence": 115,
+              "receive_sequence": 135,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 67,
+                "receive_sequence": 68,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -13211,7 +13740,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 85
+                    "sequence": 95
                   },
                   "value": {
                     "kind": "empty"
@@ -13222,7 +13751,7 @@
                 "player_screen_revision": {
                   "source": {
                     "kind": "received",
-                    "sequence": 71
+                    "sequence": 72
                   },
                   "value": 5
                 },
@@ -13230,7 +13759,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 85
+                    "sequence": 95
                   },
                   "value": {
                     "kind": "empty"
@@ -13239,9 +13768,9 @@
               }
             },
             "initial_screen": {
-              "full_contents_sequence": 85,
+              "full_contents_sequence": 95,
               "id": {
-                "opened_sequence": 84,
+                "opened_sequence": 94,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_21_11",
@@ -13403,14 +13932,14 @@
               "revision": {
                 "source": {
                   "kind": "received",
-                  "sequence": 100
+                  "sequence": 110
                 },
                 "value": 2
               },
               "title": {
                 "source": {
                   "kind": "received",
-                  "sequence": 84
+                  "sequence": 94
                 },
                 "value": {
                   "bytes": [
@@ -13455,7 +13984,7 @@
                   "0": {
                     "source": {
                       "kind": "received",
-                      "sequence": 100
+                      "sequence": 110
                     },
                     "value": {
                       "item": {
@@ -13476,7 +14005,7 @@
                   "27": {
                     "source": {
                       "kind": "received",
-                      "sequence": 85
+                      "sequence": 95
                     },
                     "value": {
                       "item": {
@@ -13497,7 +14026,7 @@
                   "54": {
                     "source": {
                       "kind": "received",
-                      "sequence": 85
+                      "sequence": 95
                     },
                     "value": {
                       "kind": "empty"
@@ -13510,7 +14039,7 @@
             "mode": "survival",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 115,
+              "after_sequence": 135,
               "dispatched": true,
               "legacy_action": null,
               "legacy_comparison": null,
@@ -13519,7 +14048,7 @@
             "source": {
               "kind": "container",
               "screen": {
-                "opened_sequence": 84,
+                "opened_sequence": 94,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_21_11",
@@ -13531,7 +14060,7 @@
             "source_before": {
               "source": {
                 "kind": "received",
-                "sequence": 100
+                "sequence": 110
               },
               "value": {
                 "item": {
@@ -13561,7 +14090,7 @@
             "hotbar_before": {
               "source": {
                 "kind": "received",
-                "sequence": 85
+                "sequence": 95
               },
               "value": {
                 "kind": "empty"
@@ -13570,7 +14099,7 @@
             "hotbar_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 127
+                "sequence": 138
               },
               "value": {
                 "item": {
@@ -13620,7 +14149,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 67
+                  "sequence": 68
                 },
                 "value": [
                   0.5,
@@ -13628,22 +14157,22 @@
                   0.5
                 ]
               },
-              "receive_sequence": 115,
+              "receive_sequence": 135,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 67,
+                "receive_sequence": 68,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -13662,7 +14191,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 85
+                    "sequence": 95
                   },
                   "value": {
                     "kind": "empty"
@@ -13673,7 +14202,7 @@
                 "player_screen_revision": {
                   "source": {
                     "kind": "received",
-                    "sequence": 71
+                    "sequence": 72
                   },
                   "value": 5
                 },
@@ -13681,7 +14210,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 85
+                    "sequence": 95
                   },
                   "value": {
                     "kind": "empty"
@@ -13690,9 +14219,9 @@
               }
             },
             "initial_screen": {
-              "full_contents_sequence": 85,
+              "full_contents_sequence": 95,
               "id": {
-                "opened_sequence": 84,
+                "opened_sequence": 94,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_21_11",
@@ -13854,14 +14383,14 @@
               "revision": {
                 "source": {
                   "kind": "received",
-                  "sequence": 100
+                  "sequence": 110
                 },
                 "value": 2
               },
               "title": {
                 "source": {
                   "kind": "received",
-                  "sequence": 84
+                  "sequence": 94
                 },
                 "value": {
                   "bytes": [
@@ -13906,7 +14435,7 @@
                   "0": {
                     "source": {
                       "kind": "received",
-                      "sequence": 100
+                      "sequence": 110
                     },
                     "value": {
                       "item": {
@@ -13927,7 +14456,7 @@
                   "27": {
                     "source": {
                       "kind": "received",
-                      "sequence": 85
+                      "sequence": 95
                     },
                     "value": {
                       "item": {
@@ -13948,7 +14477,7 @@
                   "54": {
                     "source": {
                       "kind": "received",
-                      "sequence": 85
+                      "sequence": 95
                     },
                     "value": {
                       "kind": "empty"
@@ -13961,7 +14490,7 @@
             "mode": "survival",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 115,
+              "after_sequence": 135,
               "dispatched": true,
               "legacy_action": null,
               "legacy_comparison": null,
@@ -13970,7 +14499,7 @@
             "source": {
               "kind": "container",
               "screen": {
-                "opened_sequence": 84,
+                "opened_sequence": 94,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_21_11",
@@ -13982,7 +14511,7 @@
             "source_before": {
               "source": {
                 "kind": "received",
-                "sequence": 100
+                "sequence": 110
               },
               "value": {
                 "item": {
@@ -14003,7 +14532,7 @@
             "source_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 126
+                "sequence": 137
               },
               "value": {
                 "kind": "empty"
@@ -14020,7 +14549,7 @@
             "hotbar_before": {
               "source": {
                 "kind": "received",
-                "sequence": 127
+                "sequence": 138
               },
               "value": {
                 "item": {
@@ -14071,7 +14600,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 67
+                  "sequence": 68
                 },
                 "value": [
                   0.5,
@@ -14079,22 +14608,22 @@
                   0.5
                 ]
               },
-              "receive_sequence": 143,
+              "receive_sequence": 144,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 67,
+                "receive_sequence": 68,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -14113,7 +14642,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 85
+                    "sequence": 95
                   },
                   "value": {
                     "kind": "empty"
@@ -14124,7 +14653,7 @@
                 "player_screen_revision": {
                   "source": {
                     "kind": "received",
-                    "sequence": 71
+                    "sequence": 72
                   },
                   "value": 5
                 },
@@ -14132,7 +14661,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 127
+                    "sequence": 138
                   },
                   "value": {
                     "item": {
@@ -14153,9 +14682,9 @@
               }
             },
             "initial_screen": {
-              "full_contents_sequence": 85,
+              "full_contents_sequence": 95,
               "id": {
-                "opened_sequence": 84,
+                "opened_sequence": 94,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_21_11",
@@ -14317,14 +14846,14 @@
               "revision": {
                 "source": {
                   "kind": "received",
-                  "sequence": 127
+                  "sequence": 138
                 },
                 "value": 4
               },
               "title": {
                 "source": {
                   "kind": "received",
-                  "sequence": 84
+                  "sequence": 94
                 },
                 "value": {
                   "bytes": [
@@ -14369,7 +14898,7 @@
                   "0": {
                     "source": {
                       "kind": "received",
-                      "sequence": 126
+                      "sequence": 137
                     },
                     "value": {
                       "kind": "empty"
@@ -14378,7 +14907,7 @@
                   "27": {
                     "source": {
                       "kind": "received",
-                      "sequence": 85
+                      "sequence": 95
                     },
                     "value": {
                       "item": {
@@ -14399,7 +14928,7 @@
                   "54": {
                     "source": {
                       "kind": "received",
-                      "sequence": 127
+                      "sequence": 138
                     },
                     "value": {
                       "item": {
@@ -14424,7 +14953,7 @@
             "mode": "creative",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 143,
+              "after_sequence": 144,
               "dispatched": true,
               "legacy_action": null,
               "legacy_comparison": null,
@@ -14433,7 +14962,7 @@
             "source": {
               "kind": "container",
               "screen": {
-                "opened_sequence": 84,
+                "opened_sequence": 94,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_21_11",
@@ -14445,7 +14974,7 @@
             "source_before": {
               "source": {
                 "kind": "received",
-                "sequence": 126
+                "sequence": 137
               },
               "value": {
                 "kind": "empty"
@@ -14463,7 +14992,7 @@
             "hotbar_before": {
               "source": {
                 "kind": "received",
-                "sequence": 127
+                "sequence": 138
               },
               "value": {
                 "item": {
@@ -14522,7 +15051,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 67
+                  "sequence": 68
                 },
                 "value": [
                   0.5,
@@ -14530,22 +15059,22 @@
                   0.5
                 ]
               },
-              "receive_sequence": 143,
+              "receive_sequence": 144,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 67,
+                "receive_sequence": 68,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -14564,7 +15093,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 85
+                    "sequence": 95
                   },
                   "value": {
                     "kind": "empty"
@@ -14575,7 +15104,7 @@
                 "player_screen_revision": {
                   "source": {
                     "kind": "received",
-                    "sequence": 71
+                    "sequence": 72
                   },
                   "value": 5
                 },
@@ -14583,7 +15112,7 @@
                 "selected_slot_value": {
                   "source": {
                     "kind": "received",
-                    "sequence": 127
+                    "sequence": 138
                   },
                   "value": {
                     "item": {
@@ -14604,9 +15133,9 @@
               }
             },
             "initial_screen": {
-              "full_contents_sequence": 85,
+              "full_contents_sequence": 95,
               "id": {
-                "opened_sequence": 84,
+                "opened_sequence": 94,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_21_11",
@@ -14768,14 +15297,14 @@
               "revision": {
                 "source": {
                   "kind": "received",
-                  "sequence": 127
+                  "sequence": 138
                 },
                 "value": 4
               },
               "title": {
                 "source": {
                   "kind": "received",
-                  "sequence": 84
+                  "sequence": 94
                 },
                 "value": {
                   "bytes": [
@@ -14820,7 +15349,7 @@
                   "0": {
                     "source": {
                       "kind": "received",
-                      "sequence": 126
+                      "sequence": 137
                     },
                     "value": {
                       "kind": "empty"
@@ -14829,7 +15358,7 @@
                   "27": {
                     "source": {
                       "kind": "received",
-                      "sequence": 85
+                      "sequence": 95
                     },
                     "value": {
                       "item": {
@@ -14850,7 +15379,7 @@
                   "54": {
                     "source": {
                       "kind": "received",
-                      "sequence": 127
+                      "sequence": 138
                     },
                     "value": {
                       "item": {
@@ -14875,7 +15404,7 @@
             "mode": "creative",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 143,
+              "after_sequence": 144,
               "dispatched": true,
               "legacy_action": null,
               "legacy_comparison": null,
@@ -14884,7 +15413,7 @@
             "source": {
               "kind": "container",
               "screen": {
-                "opened_sequence": 84,
+                "opened_sequence": 94,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_21_11",
@@ -14896,7 +15425,7 @@
             "source_before": {
               "source": {
                 "kind": "received",
-                "sequence": 126
+                "sequence": 137
               },
               "value": {
                 "kind": "empty"
@@ -14934,7 +15463,7 @@
             "id": {
               "attempt": 1,
               "screen": {
-                "opened_sequence": 84,
+                "opened_sequence": 94,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_21_11",
@@ -14966,7 +15495,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 67
+                  "sequence": 68
                 },
                 "value": [
                   0.5,
@@ -14974,22 +15503,22 @@
                   0.5
                 ]
               },
-              "receive_sequence": 147,
+              "receive_sequence": 146,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 67,
+                "receive_sequence": 68,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -15008,7 +15537,7 @@
                 "cursor": {
                   "source": {
                     "kind": "received",
-                    "sequence": 85
+                    "sequence": 95
                   },
                   "value": {
                     "kind": "empty"
@@ -15019,7 +15548,7 @@
                 "player_screen_revision": {
                   "source": {
                     "kind": "received",
-                    "sequence": 71
+                    "sequence": 72
                   },
                   "value": 5
                 },
@@ -15036,9 +15565,9 @@
               }
             },
             "initial_screen": {
-              "full_contents_sequence": 85,
+              "full_contents_sequence": 95,
               "id": {
-                "opened_sequence": 84,
+                "opened_sequence": 94,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_21_11",
@@ -15207,7 +15736,7 @@
               "title": {
                 "source": {
                   "kind": "received",
-                  "sequence": 84
+                  "sequence": 94
                 },
                 "value": {
                   "bytes": [
@@ -15273,7 +15802,7 @@
                   "27": {
                     "source": {
                       "kind": "received",
-                      "sequence": 85
+                      "sequence": 95
                     },
                     "value": {
                       "item": {
@@ -15316,7 +15845,7 @@
             "cursor": {
               "source": {
                 "kind": "received",
-                "sequence": 85
+                "sequence": 95
               },
               "value": {
                 "kind": "empty"
@@ -15326,7 +15855,7 @@
               "close": {
                 "attempt": 1,
                 "screen": {
-                  "opened_sequence": 84,
+                  "opened_sequence": 94,
                   "session": {
                     "connection_id": 1,
                     "version": "Java1_21_11",
@@ -15339,9 +15868,9 @@
             },
             "receive_sequence": 150,
             "screen": {
-              "full_contents_sequence": 85,
+              "full_contents_sequence": 95,
               "id": {
-                "opened_sequence": 84,
+                "opened_sequence": 94,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_21_11",
@@ -15510,7 +16039,7 @@
               "title": {
                 "source": {
                   "kind": "received",
-                  "sequence": 84
+                  "sequence": 94
                 },
                 "value": {
                   "bytes": [
@@ -15576,7 +16105,7 @@
                   "27": {
                     "source": {
                       "kind": "received",
-                      "sequence": 85
+                      "sequence": 95
                     },
                     "value": {
                       "item": {
@@ -15635,7 +16164,7 @@
               }
             },
             "player_screen": null,
-            "receive_sequence": 157,
+            "receive_sequence": 158,
             "screen": {
               "full_contents_sequence": 153,
               "id": {
@@ -15950,7 +16479,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 67
+                  "sequence": 68
                 },
                 "value": [
                   0.5,
@@ -15958,22 +16487,22 @@
                   0.5
                 ]
               },
-              "receive_sequence": 162,
+              "receive_sequence": 163,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 67,
+                "receive_sequence": 68,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -16003,7 +16532,7 @@
                 "player_screen_revision": {
                   "source": {
                     "kind": "received",
-                    "sequence": 71
+                    "sequence": 72
                   },
                   "value": 5
                 },
@@ -16339,7 +16868,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 67
+                  "sequence": 68
                 },
                 "value": [
                   0.5,
@@ -16347,22 +16876,22 @@
                   0.5
                 ]
               },
-              "receive_sequence": 162,
+              "receive_sequence": 163,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 67,
+                "receive_sequence": 68,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -16406,7 +16935,7 @@
                 "player_screen_revision": {
                   "source": {
                     "kind": "received",
-                    "sequence": 71
+                    "sequence": 72
                   },
                   "value": 5
                 },
@@ -16427,7 +16956,7 @@
             "mode": "survival",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 162,
+              "after_sequence": 163,
               "dispatched": true,
               "legacy_action": null,
               "legacy_comparison": null,
@@ -16528,7 +17057,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 67
+                  "sequence": 68
                 },
                 "value": [
                   0.5,
@@ -16536,22 +17065,22 @@
                   0.5
                 ]
               },
-              "receive_sequence": 162,
+              "receive_sequence": 163,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 67,
+                "receive_sequence": 68,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -16595,7 +17124,7 @@
                 "player_screen_revision": {
                   "source": {
                     "kind": "received",
-                    "sequence": 71
+                    "sequence": 72
                   },
                   "value": 5
                 },
@@ -16616,7 +17145,7 @@
             "mode": "survival",
             "requires_inspection": null,
             "send": {
-              "after_sequence": 162,
+              "after_sequence": 163,
               "dispatched": true,
               "legacy_action": null,
               "legacy_comparison": null,
@@ -16717,7 +17246,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 67
+                  "sequence": 68
                 },
                 "value": [
                   0.5,
@@ -16732,15 +17261,15 @@
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 67,
+                "receive_sequence": 68,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -16868,7 +17397,7 @@
             "hotbar_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 177
+                "sequence": 175
               },
               "value": {
                 "kind": "empty"
@@ -16906,7 +17435,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 67
+                  "sequence": 68
                 },
                 "value": [
                   0.5,
@@ -16921,15 +17450,15 @@
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 67,
+                "receive_sequence": 68,
                 "rotation": [
                   0.0,
-                  0.0
+                  35.0
                 ]
               },
               "rotation": [
                 0.0,
-                0.0
+                35.0
               ],
               "selected_hotbar": {
                 "source": {
@@ -17027,7 +17556,7 @@
             "source_receipt": {
               "source": {
                 "kind": "received",
-                "sequence": 176
+                "sequence": 174
               },
               "value": {
                 "item": {
@@ -17061,7 +17590,7 @@
   "motion_implementation_sha256": {
     "src/client/survival/model.rs": "5142678df9a4936000f5c83c1864b7fd00bd63d1be7fc553a1673baee6ca1592",
     "src/client/survival/motion.rs": "edee38d19269693f7a7ca194a980b61a92aaa4ab24914c5500b5be88c1dd022a",
-    "src/versions/java_1_16_1/client/common_motion.rs": "7df341b334b51cf08f54b12ca9d73b7f58f9c5adf805662e98d012805c13bf6b",
+    "src/versions/java_1_16_1/client/common_motion.rs": "93ede4528af47b0b17b998ebce9fe0aed5ad719c8fceb3a5cd470a0689962924",
     "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "cad82ae736b3b91c242e989de22c171a426806a1129e3698d5d8bb5fcfb6c797",
     "src/versions/java_1_21_11/client/operations/movement/control.rs": "5827110068926d9c17fc40e41f8dadbcee6ccf9738f865d05ceb8e33d0f0a228",
     "src/versions/java_1_16_1/client.rs": "87418c7bf3e2515847c871198290db7b64d3c59985c2f6e38d7d4ba8813dd3ce",
@@ -17069,13 +17598,13 @@
     "src/versions/java_1_21_11/client.rs": "1f77972b6f2c3a3d03d60c3d35f3d62c7a97b21657d01d927de8342cf46b0db3"
   },
   "targeting_implementation_sha256": {
-    "src/client/survival/target.rs": "cf0a0be4a204b7fc78895c9bcd3ddfbcdc52cfe683b7bf12c632d5cc2349d816",
-    "src/client/operations.rs": "143276c57947ef84bcb5a878abf740c248665c6cf58e7bb1b2ab9be53b6ee7a2",
-    "src/connection.rs": "ca06e58030a576b1f8e813247c9abdca39dce31c52fcef61f07a41e04dfb77d2",
-    "src/versions/java_1_16_1/client/common_motion.rs": "7df341b334b51cf08f54b12ca9d73b7f58f9c5adf805662e98d012805c13bf6b",
-    "src/versions/java_1_21_11/client/operations/movement.rs": "011c5867d0455f39f46982ea206d85df67f3b57d36a54fe4ef6ec6f15ba8a0eb",
+    "src/client/survival/target.rs": "433b7c0e184a1d1b5832749c6625d6eb02cbea10876dc0e964eea397a7e261b4",
+    "src/client/operations.rs": "bdb88e411a4612ecb71e5c2dd4eec5b66ce1da1451156174a78eca3087d84aca",
+    "src/connection.rs": "8663c774b84cf9d7a09d7ce5df75c23c0bcc8be336e07119401b04834f8426ea",
+    "src/versions/java_1_16_1/client/common_motion.rs": "93ede4528af47b0b17b998ebce9fe0aed5ad719c8fceb3a5cd470a0689962924",
+    "src/versions/java_1_21_11/client/operations/movement.rs": "e2708443cfddd47fe212b3aecdb8a789e0e86c432c5bbbe9e3183f54a7038174",
     "src/versions/java_1_21_11/client/raycast.rs": "97e95b79b4e0a26a0e442cb60ea81eaa97ebb66adf45ef3dc50e9e4d4440c7c6",
-    "src/versions/java_1_21_11/client/raycast/outline.rs": "5db754a463fe6e484594b5b8e2daf6ecca69da22459093086118b07b336fc17d"
+    "src/versions/java_1_21_11/client/raycast/outline.rs": "93f4d6742058139500401dfeba9b838becd23c142c284f1be5fc4652c176c5c5"
   },
   "targeting_native_method_oracles": {
     "1.16.1": {
@@ -17092,19 +17621,19 @@
   },
   "mining_implementation_sha256": {
     "src/client/survival/mining.rs": "96c2588f3e21f4e9cb86dab1aab9cf8662f9b986c5bd96aadcb1f83924291347",
-    "src/client/operations.rs": "143276c57947ef84bcb5a878abf740c248665c6cf58e7bb1b2ab9be53b6ee7a2",
-    "src/client/capabilities.rs": "ab658ac92d7440ba6ad8129bee2e6559e1cd40eabf5dab7c18dcd14d99f08f30",
-    "src/connection.rs": "ca06e58030a576b1f8e813247c9abdca39dce31c52fcef61f07a41e04dfb77d2",
+    "src/client/operations.rs": "bdb88e411a4612ecb71e5c2dd4eec5b66ce1da1451156174a78eca3087d84aca",
+    "src/client/capabilities.rs": "c6402f84e64a2355694f51a417c449870c11409c388aa48ca8524d4ea949b2e8",
+    "src/connection.rs": "8663c774b84cf9d7a09d7ce5df75c23c0bcc8be336e07119401b04834f8426ea",
     "src/versions/java_1_16_1/client.rs": "87418c7bf3e2515847c871198290db7b64d3c59985c2f6e38d7d4ba8813dd3ce",
     "src/versions/java_1_16_1/client/common_mining.rs": "ef4a1f26555a8040c58596191027157b96ac9244cdb731cfc6428e82aaf032e4",
-    "src/versions/java_1_16_1/client/common_motion.rs": "7df341b334b51cf08f54b12ca9d73b7f58f9c5adf805662e98d012805c13bf6b",
+    "src/versions/java_1_16_1/client/common_motion.rs": "93ede4528af47b0b17b998ebce9fe0aed5ad719c8fceb3a5cd470a0689962924",
     "src/versions/java_1_16_1/lifecycle.rs": "76e9d32d7687c8ebb993c2eb64898065ddfdd59d18f673290635e166c94e35d6",
     "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "cad82ae736b3b91c242e989de22c171a426806a1129e3698d5d8bb5fcfb6c797",
     "src/versions/java_1_16_1/world.rs": "d1451ea09a36c27df09b44861bd2ca715f6e61ec08726caa0ccd251f4072f3df",
     "src/versions/java_1_21_11/client.rs": "1f77972b6f2c3a3d03d60c3d35f3d62c7a97b21657d01d927de8342cf46b0db3",
     "src/versions/java_1_21_11/client/operations.rs": "8aa946c14bf9ce2c8641ddf381fbc03ca827cbd228782000114806a818ae81fb",
     "src/versions/java_1_21_11/client/operations/mining.rs": "458c08568388035610223d21134e890152a98c6f9f0c7f9ed3250dfdff8a8339",
-    "src/versions/java_1_21_11/client/operations/movement.rs": "011c5867d0455f39f46982ea206d85df67f3b57d36a54fe4ef6ec6f15ba8a0eb"
+    "src/versions/java_1_21_11/client/operations/movement.rs": "e2708443cfddd47fe212b3aecdb8a789e0e86c432c5bbbe9e3183f54a7038174"
   },
   "failed_mining_stage_trials": [
     {
@@ -17139,14 +17668,14 @@
   "placement_implementation_sha256": {
     "src/client/survival/placement.rs": "615da875af2b620d08bc06b5c41683d9852b56f79f0b929e9b5ead8ef147b74a",
     "src/client/observation.rs": "f6872b698f3199ca15614355977e502f9f945c3087ca3c8dd4b71c961efd95d4",
-    "src/client/operations.rs": "143276c57947ef84bcb5a878abf740c248665c6cf58e7bb1b2ab9be53b6ee7a2",
-    "src/client/capabilities.rs": "ab658ac92d7440ba6ad8129bee2e6559e1cd40eabf5dab7c18dcd14d99f08f30",
-    "src/client/mod.rs": "9a7f15cf13f0a5610ee1eddd6f176e4ddacd9a85056ff3e4aa00465d654f85a6",
+    "src/client/operations.rs": "bdb88e411a4612ecb71e5c2dd4eec5b66ce1da1451156174a78eca3087d84aca",
+    "src/client/capabilities.rs": "c6402f84e64a2355694f51a417c449870c11409c388aa48ca8524d4ea949b2e8",
+    "src/client/mod.rs": "8b2972ce28dd8e04114484b9aa1feca8d13b5dc63e9065e4b2ff8f1b6a0c8ffb",
     "src/client/survival.rs": "7be78a0216b2ecfa94e4816bdd49500f116f91538853a789dce1655ca5aeb4e5",
-    "src/connection.rs": "ca06e58030a576b1f8e813247c9abdca39dce31c52fcef61f07a41e04dfb77d2",
+    "src/connection.rs": "8663c774b84cf9d7a09d7ce5df75c23c0bcc8be336e07119401b04834f8426ea",
     "src/versions/java_1_16_1/client.rs": "87418c7bf3e2515847c871198290db7b64d3c59985c2f6e38d7d4ba8813dd3ce",
     "src/versions/java_1_16_1/client/common_placement.rs": "bc897ce7cda4fbd818d97c356eb1c4ac0dddf377c4a6a1fdf7d32547fa699e1a",
-    "src/versions/java_1_16_1/client/common_motion.rs": "7df341b334b51cf08f54b12ca9d73b7f58f9c5adf805662e98d012805c13bf6b",
+    "src/versions/java_1_16_1/client/common_motion.rs": "93ede4528af47b0b17b998ebce9fe0aed5ad719c8fceb3a5cd470a0689962924",
     "src/versions/java_1_16_1/inventory.rs": "fc1abbb539ce5ebb66455a032702e50d074b8070308e2d52c1a48f362393aaf9",
     "src/versions/java_1_16_1/lifecycle.rs": "76e9d32d7687c8ebb993c2eb64898065ddfdd59d18f673290635e166c94e35d6",
     "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "cad82ae736b3b91c242e989de22c171a426806a1129e3698d5d8bb5fcfb6c797",
@@ -17178,14 +17707,14 @@
   },
   "inventory_implementation_sha256": {
     "src/client/inventory.rs": "079c3c10ef9d6886fde37eaf6eb6f1e8174aa8a81b7baebcc435969a23d162b5",
-    "src/client/mod.rs": "9a7f15cf13f0a5610ee1eddd6f176e4ddacd9a85056ff3e4aa00465d654f85a6",
-    "src/client/operations.rs": "143276c57947ef84bcb5a878abf740c248665c6cf58e7bb1b2ab9be53b6ee7a2",
-    "src/client/capabilities.rs": "ab658ac92d7440ba6ad8129bee2e6559e1cd40eabf5dab7c18dcd14d99f08f30",
+    "src/client/mod.rs": "8b2972ce28dd8e04114484b9aa1feca8d13b5dc63e9065e4b2ff8f1b6a0c8ffb",
+    "src/client/operations.rs": "bdb88e411a4612ecb71e5c2dd4eec5b66ce1da1451156174a78eca3087d84aca",
+    "src/client/capabilities.rs": "c6402f84e64a2355694f51a417c449870c11409c388aa48ca8524d4ea949b2e8",
     "src/client/observation.rs": "f6872b698f3199ca15614355977e502f9f945c3087ca3c8dd4b71c961efd95d4",
-    "src/connection.rs": "ca06e58030a576b1f8e813247c9abdca39dce31c52fcef61f07a41e04dfb77d2",
+    "src/connection.rs": "8663c774b84cf9d7a09d7ce5df75c23c0bcc8be336e07119401b04834f8426ea",
     "src/versions/java_1_16_1/client.rs": "87418c7bf3e2515847c871198290db7b64d3c59985c2f6e38d7d4ba8813dd3ce",
     "src/versions/java_1_16_1/client/common_inventory.rs": "fbcc76fed5647e7949f789083e62806a4e2d93af21581af04a8feba6d7f401df",
-    "src/versions/java_1_16_1/client/common_motion.rs": "7df341b334b51cf08f54b12ca9d73b7f58f9c5adf805662e98d012805c13bf6b",
+    "src/versions/java_1_16_1/client/common_motion.rs": "93ede4528af47b0b17b998ebce9fe0aed5ad719c8fceb3a5cd470a0689962924",
     "src/versions/java_1_16_1/inventory.rs": "fc1abbb539ce5ebb66455a032702e50d074b8070308e2d52c1a48f362393aaf9",
     "src/versions/java_1_16_1/lifecycle.rs": "76e9d32d7687c8ebb993c2eb64898065ddfdd59d18f673290635e166c94e35d6",
     "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "cad82ae736b3b91c242e989de22c171a426806a1129e3698d5d8bb5fcfb6c797",
@@ -17292,39 +17821,50 @@
     }
   ],
   "container_implementation_sha256": {
-    "examples/common_native_probe.rs": "b0af1b824b4b90b235dcbda29841fdda63416c08f30339b809b80d422bf5bfe7",
-    "scripts/run_common_native.py": "4ebb097812b21e1179b4759ef47f039e0e80d6c0bd97b7982b568350dd8d885a",
-    "scripts/ExportMenuLayouts.java": "5267bd8b15e01b8bb2492b42546e5e6963a402b9dd6bfbf9d1dc7440e4116fc0",
-    "src/client/container.rs": "ff90b7f243e5ef94e586f0286d7cfd5c248ab18baf821924be592a288415b06d",
-    "src/client/observation.rs": "f6872b698f3199ca15614355977e502f9f945c3087ca3c8dd4b71c961efd95d4",
-    "src/client/capabilities.rs": "ab658ac92d7440ba6ad8129bee2e6559e1cd40eabf5dab7c18dcd14d99f08f30",
-    "src/client/mod.rs": "9a7f15cf13f0a5610ee1eddd6f176e4ddacd9a85056ff3e4aa00465d654f85a6",
-    "src/client/tests.rs": "ba716d885a6728fc295cf188cfae95896e437678216fda2bbbe7c418a06b28e0",
-    "src/connection.rs": "ca06e58030a576b1f8e813247c9abdca39dce31c52fcef61f07a41e04dfb77d2",
-    "src/versions/java_1_16_1/client.rs": "87418c7bf3e2515847c871198290db7b64d3c59985c2f6e38d7d4ba8813dd3ce",
-    "src/versions/java_1_16_1/client/common_api.rs": "bc9416544ef8cb0f96b9ab673b91795cf829deae593836b719878ab224951e39",
-    "src/versions/java_1_21_11/client/operations.rs": "8aa946c14bf9ce2c8641ddf381fbc03ca827cbd228782000114806a818ae81fb",
-    "src/versions/java_1_21_11/client/operations/inventory.rs": "bbb5abe3d9c6d1787e6bf3fa72be81cce2e1597dcdca726a897519c9f785f59c",
-    "src/versions/java_1_21_11/client/operations/inventory/tests.rs": "c3f3f621d72d0cd742e283f52a8b7a34599f1953a7e277a8cb63dbbd6b1ee507",
-    "src/versions/java_1_21_11/client/operations/tests.rs": "1a81a211a2ccba6e42bb0e6fc05bd3eb1edb1ecc59c67ccdc6de9f814c5bdfcd",
-    "src/versions/java_1_21_11/wire.rs": "5c80f55a641b5ebd5feb0a0e8adbec3dbb189f727f9c485679ab57969100304c",
+    "data/client_api/container_close_packets.json": "521af67af23adeaad7980e7dca4535d4a5097b5bec325162ae55005235587067",
+    "data/client_api/legacy_inventory_swap_packets.json": "73b7573912ca821b518385fb6a256f13183bea665f6d6884dd11eb508bcdc688",
     "data/client_api/menus-1.16.1.json": "6f24bb20bffee0b0e6207640f5cb4308302b010883da5fdbfe15839f7939d4cd",
     "data/client_api/menus-1.21.11.json": "203c3ccc2a5c6206cbaef4fd4d48bdc2f3bf283fb8de815df412d6b90d91c9ca",
+    "data/client_api/storage_outline_rays-1.16.1.json.gz": "79330dfe1a9a0315eb4532ed5552085077d2a1ba5288da9850ec6b2147be46b4",
+    "data/client_api/storage_outline_rays-1.21.11.json.gz": "79330dfe1a9a0315eb4532ed5552085077d2a1ba5288da9850ec6b2147be46b4",
+    "data/client_api/storage_outline_source.json": "eaab9a1a97ada364f5f34042b6a7f9e977eaf5cf6095e4573182db930ad68783",
+    "data/client_api/storage_outlines-1.16.1.json": "e5e93a03c3dac0a318f29eb74a26d0b910b58a8ce3924b7fec77fb321e8e3e9d",
+    "data/client_api/storage_outlines-1.21.11.json": "8181669f1c98d417b12f0bf95871165a4cae4361a9276649df80245f1b7d0555",
+    "examples/common_native_probe.rs": "762b90ed74454ca3c93cf7d468a22ecaad3fd530b8dca427b866b7b7f441936b",
+    "scripts/ExportMenuLayouts.java": "5267bd8b15e01b8bb2492b42546e5e6963a402b9dd6bfbf9d1dc7440e4116fc0",
+    "scripts/ExportStorageOutlines.java": "4a955ab691785e74c42cf3e555b1b5e8af65b283bd195546ce023523b3618b65",
+    "scripts/VerifyContainerClose.java": "ba029e150b90306498e5071d436194ae7d0c88fa7d0898ab099fdfab47555a92",
+    "scripts/VerifyLegacyInventorySwap.java": "ff5dea28f27873058fdad19af2485dfcc75d14a034c5346fd86ec57036e06697",
+    "scripts/run_common_native.py": "00fd1f313045325bef0aee66aeddb9a94bab375bd7e2cdf2545bb7ec48e12f4f",
+    "src/client/capabilities.rs": "c6402f84e64a2355694f51a417c449870c11409c388aa48ca8524d4ea949b2e8",
+    "src/client/container.rs": "8bc02e4c974e3f0c6fabf55633a856a35e59b2525adecb3508a6b246590be2ae",
+    "src/client/container/outline.rs": "cc5b0d705e01ce8095db46ef4f461a2b9fd01164b7a86919ea15ffaf737de5c5",
     "src/client/inventory.rs": "079c3c10ef9d6886fde37eaf6eb6f1e8174aa8a81b7baebcc435969a23d162b5",
-    "src/client/operations.rs": "143276c57947ef84bcb5a878abf740c248665c6cf58e7bb1b2ab9be53b6ee7a2",
+    "src/client/mod.rs": "8b2972ce28dd8e04114484b9aa1feca8d13b5dc63e9065e4b2ff8f1b6a0c8ffb",
+    "src/client/observation.rs": "f6872b698f3199ca15614355977e502f9f945c3087ca3c8dd4b71c961efd95d4",
+    "src/client/operations.rs": "bdb88e411a4612ecb71e5c2dd4eec5b66ce1da1451156174a78eca3087d84aca",
+    "src/client/survival/target.rs": "433b7c0e184a1d1b5832749c6625d6eb02cbea10876dc0e964eea397a7e261b4",
+    "src/client/tests.rs": "20326baa1a63aa73605aaaaa26ed3b571fdefd61f639221ab09c2bf4207ce802",
+    "src/connection.rs": "8663c774b84cf9d7a09d7ce5df75c23c0bcc8be336e07119401b04834f8426ea",
+    "src/versions/java_1_16_1/client.rs": "87418c7bf3e2515847c871198290db7b64d3c59985c2f6e38d7d4ba8813dd3ce",
+    "src/versions/java_1_16_1/client/common_api.rs": "bc9416544ef8cb0f96b9ab673b91795cf829deae593836b719878ab224951e39",
+    "src/versions/java_1_16_1/client/common_container.rs": "49342442f46a8897c1ae9ea7f716436458e04f92ae8d2fee1a431d4ec357161b",
     "src/versions/java_1_16_1/client/common_inventory.rs": "fbcc76fed5647e7949f789083e62806a4e2d93af21581af04a8feba6d7f401df",
+    "src/versions/java_1_16_1/client/common_motion.rs": "93ede4528af47b0b17b998ebce9fe0aed5ad719c8fceb3a5cd470a0689962924",
     "src/versions/java_1_16_1/lifecycle.rs": "76e9d32d7687c8ebb993c2eb64898065ddfdd59d18f673290635e166c94e35d6",
     "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "cad82ae736b3b91c242e989de22c171a426806a1129e3698d5d8bb5fcfb6c797",
     "src/versions/java_1_16_1/lifecycle/bounded_motion_tests.rs": "48aa1138d2b4a95c14a3da96fad797f1e0be526c15e8ed5f191ea91cf94e9ae5",
-    "src/versions/java_1_21_11/client/operations/inventory/common.rs": "fb902b0619893c9b75309098421d2b471393573d680ee19475ca85fea6e2517a",
-    "scripts/VerifyLegacyInventorySwap.java": "ff5dea28f27873058fdad19af2485dfcc75d14a034c5346fd86ec57036e06697",
-    "data/client_api/legacy_inventory_swap_packets.json": "73b7573912ca821b518385fb6a256f13183bea665f6d6884dd11eb508bcdc688",
-    "src/versions/java_1_16_1/client/common_container.rs": "49342442f46a8897c1ae9ea7f716436458e04f92ae8d2fee1a431d4ec357161b",
-    "src/versions/java_1_16_1/client/common_motion.rs": "7df341b334b51cf08f54b12ca9d73b7f58f9c5adf805662e98d012805c13bf6b",
     "src/versions/java_1_21_11/client.rs": "1f77972b6f2c3a3d03d60c3d35f3d62c7a97b21657d01d927de8342cf46b0db3",
+    "src/versions/java_1_21_11/client/operations.rs": "8aa946c14bf9ce2c8641ddf381fbc03ca827cbd228782000114806a818ae81fb",
     "src/versions/java_1_21_11/client/operations/container.rs": "21674553c2aaf917ee2ea7100f13e3fd4fde86ab755691546747f6f8c80771fa",
-    "data/client_api/container_close_packets.json": "521af67af23adeaad7980e7dca4535d4a5097b5bec325162ae55005235587067",
-    "scripts/VerifyContainerClose.java": "ba029e150b90306498e5071d436194ae7d0c88fa7d0898ab099fdfab47555a92"
+    "src/versions/java_1_21_11/client/operations/inventory.rs": "bbb5abe3d9c6d1787e6bf3fa72be81cce2e1597dcdca726a897519c9f785f59c",
+    "src/versions/java_1_21_11/client/operations/inventory/common.rs": "fb902b0619893c9b75309098421d2b471393573d680ee19475ca85fea6e2517a",
+    "src/versions/java_1_21_11/client/operations/inventory/tests.rs": "c3f3f621d72d0cd742e283f52a8b7a34599f1953a7e277a8cb63dbbd6b1ee507",
+    "src/versions/java_1_21_11/client/operations/movement.rs": "e2708443cfddd47fe212b3aecdb8a789e0e86c432c5bbbe9e3183f54a7038174",
+    "src/versions/java_1_21_11/client/operations/tests.rs": "1a81a211a2ccba6e42bb0e6fc05bd3eb1edb1ecc59c67ccdc6de9f814c5bdfcd",
+    "src/versions/java_1_21_11/client/outbound/tests.rs": "effb068ef439e75916615fc05f713c20197d7bc98f0342acdac339ab25c7ecd2",
+    "src/versions/java_1_21_11/client/raycast/outline.rs": "93f4d6742058139500401dfeba9b838becd23c142c284f1be5fc4652c176c5c5",
+    "src/versions/java_1_21_11/wire.rs": "5c80f55a641b5ebd5feb0a0e8adbec3dbb189f727f9c485679ab57969100304c"
   },
   "native_menu_layout_oracle": {
     "verifier": "scripts/ExportMenuLayouts.java",
@@ -17442,5 +17982,58 @@
       "raw_report_sha256": "3f365f50d1c36e1bb67f20285f9be0bceb4eb290d29cad6df8b05f216bcc0b23",
       "reason": "Probe asserted unchanged entire observed slot after a complete close write and independent RCON change. Actual delayed receipts are not forbidden by write completion, and RCON handling is not ordered by that write. It failed on legacy before the new post-close player-swap stage. Whether the value or its ordinal changed was not captured. Corrected the fixture to retain actual received history, verify submitted-close UI/re-click refusal, then independently verify actual default player exchanges; no gameplay/receipt guard weakened."
     }
-  ]
+  ],
+  "storage_targeting_implementation_sha256": {
+    "data/client_api/container_close_packets.json": "521af67af23adeaad7980e7dca4535d4a5097b5bec325162ae55005235587067",
+    "data/client_api/legacy_inventory_swap_packets.json": "73b7573912ca821b518385fb6a256f13183bea665f6d6884dd11eb508bcdc688",
+    "data/client_api/menus-1.16.1.json": "6f24bb20bffee0b0e6207640f5cb4308302b010883da5fdbfe15839f7939d4cd",
+    "data/client_api/menus-1.21.11.json": "203c3ccc2a5c6206cbaef4fd4d48bdc2f3bf283fb8de815df412d6b90d91c9ca",
+    "data/client_api/storage_outline_rays-1.16.1.json.gz": "79330dfe1a9a0315eb4532ed5552085077d2a1ba5288da9850ec6b2147be46b4",
+    "data/client_api/storage_outline_rays-1.21.11.json.gz": "79330dfe1a9a0315eb4532ed5552085077d2a1ba5288da9850ec6b2147be46b4",
+    "data/client_api/storage_outline_source.json": "eaab9a1a97ada364f5f34042b6a7f9e977eaf5cf6095e4573182db930ad68783",
+    "data/client_api/storage_outlines-1.16.1.json": "e5e93a03c3dac0a318f29eb74a26d0b910b58a8ce3924b7fec77fb321e8e3e9d",
+    "data/client_api/storage_outlines-1.21.11.json": "8181669f1c98d417b12f0bf95871165a4cae4361a9276649df80245f1b7d0555",
+    "examples/common_native_probe.rs": "762b90ed74454ca3c93cf7d468a22ecaad3fd530b8dca427b866b7b7f441936b",
+    "scripts/ExportMenuLayouts.java": "5267bd8b15e01b8bb2492b42546e5e6963a402b9dd6bfbf9d1dc7440e4116fc0",
+    "scripts/ExportStorageOutlines.java": "4a955ab691785e74c42cf3e555b1b5e8af65b283bd195546ce023523b3618b65",
+    "scripts/VerifyContainerClose.java": "ba029e150b90306498e5071d436194ae7d0c88fa7d0898ab099fdfab47555a92",
+    "scripts/VerifyLegacyInventorySwap.java": "ff5dea28f27873058fdad19af2485dfcc75d14a034c5346fd86ec57036e06697",
+    "scripts/run_common_native.py": "00fd1f313045325bef0aee66aeddb9a94bab375bd7e2cdf2545bb7ec48e12f4f",
+    "src/client/capabilities.rs": "c6402f84e64a2355694f51a417c449870c11409c388aa48ca8524d4ea949b2e8",
+    "src/client/container.rs": "8bc02e4c974e3f0c6fabf55633a856a35e59b2525adecb3508a6b246590be2ae",
+    "src/client/container/outline.rs": "cc5b0d705e01ce8095db46ef4f461a2b9fd01164b7a86919ea15ffaf737de5c5",
+    "src/client/inventory.rs": "079c3c10ef9d6886fde37eaf6eb6f1e8174aa8a81b7baebcc435969a23d162b5",
+    "src/client/mod.rs": "8b2972ce28dd8e04114484b9aa1feca8d13b5dc63e9065e4b2ff8f1b6a0c8ffb",
+    "src/client/observation.rs": "f6872b698f3199ca15614355977e502f9f945c3087ca3c8dd4b71c961efd95d4",
+    "src/client/operations.rs": "bdb88e411a4612ecb71e5c2dd4eec5b66ce1da1451156174a78eca3087d84aca",
+    "src/client/survival/target.rs": "433b7c0e184a1d1b5832749c6625d6eb02cbea10876dc0e964eea397a7e261b4",
+    "src/client/tests.rs": "20326baa1a63aa73605aaaaa26ed3b571fdefd61f639221ab09c2bf4207ce802",
+    "src/connection.rs": "8663c774b84cf9d7a09d7ce5df75c23c0bcc8be336e07119401b04834f8426ea",
+    "src/versions/java_1_16_1/client.rs": "87418c7bf3e2515847c871198290db7b64d3c59985c2f6e38d7d4ba8813dd3ce",
+    "src/versions/java_1_16_1/client/common_api.rs": "bc9416544ef8cb0f96b9ab673b91795cf829deae593836b719878ab224951e39",
+    "src/versions/java_1_16_1/client/common_container.rs": "49342442f46a8897c1ae9ea7f716436458e04f92ae8d2fee1a431d4ec357161b",
+    "src/versions/java_1_16_1/client/common_inventory.rs": "fbcc76fed5647e7949f789083e62806a4e2d93af21581af04a8feba6d7f401df",
+    "src/versions/java_1_16_1/client/common_motion.rs": "93ede4528af47b0b17b998ebce9fe0aed5ad719c8fceb3a5cd470a0689962924",
+    "src/versions/java_1_16_1/lifecycle.rs": "76e9d32d7687c8ebb993c2eb64898065ddfdd59d18f673290635e166c94e35d6",
+    "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "cad82ae736b3b91c242e989de22c171a426806a1129e3698d5d8bb5fcfb6c797",
+    "src/versions/java_1_16_1/lifecycle/bounded_motion_tests.rs": "48aa1138d2b4a95c14a3da96fad797f1e0be526c15e8ed5f191ea91cf94e9ae5",
+    "src/versions/java_1_21_11/client.rs": "1f77972b6f2c3a3d03d60c3d35f3d62c7a97b21657d01d927de8342cf46b0db3",
+    "src/versions/java_1_21_11/client/operations.rs": "8aa946c14bf9ce2c8641ddf381fbc03ca827cbd228782000114806a818ae81fb",
+    "src/versions/java_1_21_11/client/operations/container.rs": "21674553c2aaf917ee2ea7100f13e3fd4fde86ab755691546747f6f8c80771fa",
+    "src/versions/java_1_21_11/client/operations/inventory.rs": "bbb5abe3d9c6d1787e6bf3fa72be81cce2e1597dcdca726a897519c9f785f59c",
+    "src/versions/java_1_21_11/client/operations/inventory/common.rs": "fb902b0619893c9b75309098421d2b471393573d680ee19475ca85fea6e2517a",
+    "src/versions/java_1_21_11/client/operations/inventory/tests.rs": "c3f3f621d72d0cd742e283f52a8b7a34599f1953a7e277a8cb63dbbd6b1ee507",
+    "src/versions/java_1_21_11/client/operations/movement.rs": "e2708443cfddd47fe212b3aecdb8a789e0e86c432c5bbbe9e3183f54a7038174",
+    "src/versions/java_1_21_11/client/operations/tests.rs": "1a81a211a2ccba6e42bb0e6fc05bd3eb1edb1ecc59c67ccdc6de9f814c5bdfcd",
+    "src/versions/java_1_21_11/client/outbound/tests.rs": "effb068ef439e75916615fc05f713c20197d7bc98f0342acdac339ab25c7ecd2",
+    "src/versions/java_1_21_11/client/raycast/outline.rs": "93f4d6742058139500401dfeba9b838becd23c142c284f1be5fc4652c176c5c5",
+    "src/versions/java_1_21_11/wire.rs": "5c80f55a641b5ebd5feb0a0e8adbec3dbb189f727f9c485679ab57969100304c"
+  },
+  "storage_targeting_native_oracle": {
+    "manifest": "data/client_api/storage_outline_source.json",
+    "manifest_sha256": "eaab9a1a97ada364f5f34042b6a7f9e977eaf5cf6095e4573182db930ad68783",
+    "states_per_version": 102,
+    "native_clips_per_version": 8976,
+    "scope": "Original unmodified official 1.16.1/1.21.11 JARs. Seven state-only storage blocks; complete properties, outline/auxiliary; both directions, inset/edge/inside/diagonal and far world coordinates. Animated/world-dependent shapes and native open semantics are not inferred from static targeting."
+  }
 }

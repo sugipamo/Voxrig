@@ -31,6 +31,7 @@ include = [
     "/scripts/VerifyLegacyInventorySwap.java",
     "/scripts/VerifyContainerClose.java",
     "/scripts/ExportMenuLayouts.java",
+    "/scripts/ExportStorageOutlines.java",
     "/README.md",
     "/LICENSE",
     "/THIRD_PARTY_NOTICES.md",

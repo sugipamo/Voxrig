@@ -431,9 +431,13 @@ network-compression-threshold=256
         thread.start()
         stage(probe,messages,"container_ready",report["container_records"])
         player_command = ("replaceitem entity UnifiedProbe inventory.0 minecraft:dirt 2" if version=="1.16.1" else "item replace entity UnifiedProbe inventory.0 with minecraft:dirt 2")
-        report["container_setup"] = {command:rcon.command(command) for command in ["gamemode creative UnifiedProbe","tp UnifiedProbe 0.5 65 0.5 0 0","clear UnifiedProbe",player_command]}
+        report["container_setup"] = {command:rcon.command(command) for command in ["gamemode creative UnifiedProbe","tp UnifiedProbe 0.5 65 0.5 0 35","clear UnifiedProbe",player_command]}
         stage(probe,messages,"container_baseline",report["container_records"])
         container_position = rcon.command("data get entity UnifiedProbe Pos")
+        container_rotation = rcon.command("data get entity UnifiedProbe Rotation")
+        stage(probe,messages,"container_target_creative",report["container_records"])
+        if rcon.command("data get entity UnifiedProbe Pos") != container_position or rcon.command("data get entity UnifiedProbe Rotation") != container_rotation:
+            raise RuntimeError("read-only creative storage targeting changed native pose")
         stage(probe,messages,"container_open",report["container_records"])
         stage(probe,messages,"container_observed",report["container_records"])
         native_open = until(lambda: chest_matches(3))
@@ -442,6 +446,10 @@ network-compression-threshold=256
         native_changed = until(lambda: chest_matches(7))
         stage(probe,messages,"container_changed",report["container_records"])
         report["container_survival_mode"] = rcon.command("gamemode survival UnifiedProbe")
+        stage(probe,messages,"container_target_survival",report["container_records"])
+        if rcon.command("data get entity UnifiedProbe Pos") != container_position or rcon.command("data get entity UnifiedProbe Rotation") != container_rotation:
+            raise RuntimeError("read-only survival storage targeting changed native pose")
+        report["native_results"]["storage_targeting"] = {"target":[0,65,2],"fixture_state":"minecraft:chest[facing=north,type=single,waterlogged=false]","position":container_position,"rotation":container_rotation,"authority_limits":"RCON verifies unchanged native pose and setup fixture; actual targeting face/point is a model checked separately against original native clip methods, not a server hit acknowledgement or linked open result."}
         stage(probe,messages,"container_swap_survival",report["container_records"])
         stage(probe,messages,"container_swap_taken",report["container_records"])
         native_empty = until(lambda: matched(rcon.command("data get block 0 65 2 Items"),r"\[\]"))

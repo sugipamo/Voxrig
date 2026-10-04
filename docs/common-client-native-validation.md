@@ -37,6 +37,7 @@ JVMを回収してから`.local/native-client-unification/`へ記録とworldを�
 | survivalのoccupied player swap | main stone 3 / hotbar dirt 2を交換し、両slotのfresh受信とRCONのslot/item/countを照合 |
 | creativeのempty hotbar swap | 同じ接続で受信mode変更後にmain dirt 2を空hotbarへ交換し、両slotのfresh受信とRCONのslot/item/count、位置不変を照合 |
 | container画面の実内容 | 新しい接続でcreative interactionからsingle chestを開き、stone 3とplayer dirt 2のslot対応、cursor/full contentsを共通APIで観測 |
+| 両modeのstorage狙い判定 | 同じtarget_blockでsingle chestのnative inset/North面を読む。RCON Pos/Rotation不変を照合。面/交点は別の公式JAR oracleによるmodel検証で、server hit ACKではない |
 | 開いたcontainerへの外部変更 | RCONでchest slot 0をstone 7へ変更し、同じopeningに新しいslot受信が届くこと、native items/位置不変を独立照合 |
 | survivalのstorage取出し | 同じopeningのstone 7を空hotbarへSWAPし、両fresh receiptと独立RCONの空container/stone hotbarを照合 |
 | creativeのstorageへ戻す操作 | 同じopeningでmodeの実受信後にstone 7を戻し、両fresh receiptと独立RCONのcontainer/player contents・位置不変を照合 |

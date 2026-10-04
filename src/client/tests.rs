@@ -1,4 +1,5 @@
 use super::*;
+use crate::MinecraftVersion;
 
 pub(crate) async fn common_closed_player_screen_scenario(
     client: &Client,
@@ -374,6 +375,63 @@ pub(crate) async fn common_target_scenario(client: &Client) {
             crate::ErrorKind::InvalidInput
         );
     }
+    let after = client.player_state().await.unwrap();
+    assert_eq!(before.position, after.position);
+    assert_eq!(before.received_pose, after.received_pose);
+    assert_eq!(before.rotation, after.rotation);
+    assert_eq!(before.receive_sequence, after.receive_sequence);
+    assert_eq!(before.pending_dispatch, after.pending_dispatch);
+}
+
+pub(crate) fn common_storage_target_states(
+    version: MinecraftVersion,
+) -> Vec<crate::NativeBlockState> {
+    let text = match version {
+        MinecraftVersion::Java1_16_1 => {
+            include_str!("../../data/client_api/storage_outlines-1.16.1.json")
+        }
+        MinecraftVersion::Java1_21_11 => {
+            include_str!("../../data/client_api/storage_outlines-1.21.11.json")
+        }
+    };
+    let value: serde_json::Value = serde_json::from_str(text).unwrap();
+    value["states"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| serde_json::from_value(s["state"].clone()).unwrap())
+        .collect()
+}
+// Identical public consumer for both adapters/modes. The host seeds the complete
+// native state at [8,66,11], with dry floor/standing eye and a +Z rotation.
+pub(crate) async fn common_storage_target_scenario(
+    client: &Client,
+    mode: GameMode,
+    state: &crate::NativeBlockState,
+) {
+    let before = client.player_state().await.unwrap();
+    let query = match mode {
+        GameMode::Survival => {
+            assert!(client.creative().target_block(4.5).await.is_err());
+            client.survival().target_block(4.5).await.unwrap()
+        }
+        GameMode::Creative => {
+            assert!(client.survival().target_block(4.5).await.is_err());
+            client.creative().target_block(4.5).await.unwrap()
+        }
+        _ => panic!("fixture mode"),
+    };
+    assert_eq!(query.initial.session, before.session);
+    assert_eq!(query.initial.game_mode, Some(mode));
+    assert_eq!(query.initial.position, before.position);
+    assert_eq!(query.initial.received_pose, before.received_pose);
+    let hit = query.hit.unwrap();
+    assert_eq!(hit.position, [8, 66, 11]);
+    assert_eq!(&hit.state, state);
+    assert_eq!(hit.face, BlockFace::North);
+    assert!((hit.point[0] - 8.5).abs() < 1e-12);
+    assert!((hit.point[1] - query.eye[1]).abs() < 1e-12);
+    assert!((11.0..=11.5).contains(&hit.point[2]));
     let after = client.player_state().await.unwrap();
     assert_eq!(before.position, after.position);
     assert_eq!(before.received_pose, after.received_pose);

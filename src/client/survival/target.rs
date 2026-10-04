@@ -16,7 +16,7 @@ pub struct BlockTargetHit {
     /// Model distance from the captured player's native standing eye.
     pub distance: f64,
 }
-/// Own-player capture and a bounded dry-standing outline query at one boundary.
+/// Own-player capture and a bounded mode-checked dry-standing outline query at one boundary.
 /// Not a reusable mining/placement plan or a server hit receipt.
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct BlockTargetObservation {

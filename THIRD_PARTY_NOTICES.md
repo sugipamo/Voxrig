@@ -225,6 +225,13 @@ mapping names identify the inspected methods. Source/verifier/output hashes and
 scope are retained in their adjacent source records and the common-survival docs.
 No game JAR, mappings or decompiled source is redistributed.
 
+`data/client_api/storage_outlines-*.json` and `storage_outline_rays-*.json.gz`
+are factual numeric observations from unchanged official 1.16.1 and 1.21.11
+state-only shape and clip methods. Original `scripts/ExportStorageOutlines.java`
+enumerates complete storage properties and calls native `BlockGetter.clip`.
+The source record pins input/output/tool hashes and scope. Animated or world-
+dependent block entity shapes are excluded; no native method bodies are shipped.
+
 `data/client_api/common_native_evidence.json` contains local common-Client and
 independent server RCON observations from sequential official vanilla 1.16.1 and
 1.21.11 trials. Original Rust/Python test tooling and source hashes document the

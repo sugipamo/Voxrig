@@ -91,6 +91,9 @@ canonical moduleは`client::survival::checked`、旧`checked_survival`は互換a
 両版で実行中の競合操作を拒否し、位置補正・impulse・変更/失敗を保持する。
 詳細と制約は[共通Survivalの移動](common-survival-motion.md)を参照する。
 `Survival::target_block`は同じ境界のcaptureと最初のstatic outlineを両版で返す。
+`Creative::target_block`も同じ型・shape・版選択を使い、受信creative modeを検査する。
+両版とも7種類・全102storage stateのoutline/auxiliaryを公式JARへ照合し、chestのinset等を扱う。
+共通container openのgeometryの前提を実装したもので、openの送信/結果確認自体は後続となる。
 視線/traversal kernelを共有し、shapeは各版で検証したデータから選ぶ。採掘・設置の実行許可ではない。
 範囲と独立native oracleは[共通Survivalのブロック狙い判定](common-survival-targeting.md)を参照する。
 

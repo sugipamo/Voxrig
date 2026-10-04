@@ -62,6 +62,7 @@ fn terminal_clearance(state: &impl GeometryView, frame: &PredictedMotionFrame) -
 impl Operations {
     pub(crate) async fn common_target_block(
         &self,
+        mode: crate::client::GameMode,
         distance: f64,
     ) -> Result<crate::client::survival::BlockTargetObservation> {
         use crate::client::survival::target;
@@ -73,19 +74,39 @@ impl Operations {
                 "prior dispatch unresolved; inspect retained record",
             ));
         }
-        let native = preview(
-            &mut state,
+        self.common_target_unlocked(&mut state, mode, distance)
+    }
+    pub(super) fn common_target_unlocked(
+        &self,
+        state: &mut State,
+        mode: crate::client::GameMode,
+        distance: f64,
+    ) -> Result<crate::client::survival::BlockTargetObservation> {
+        use crate::client::survival::target;
+        if state.operations.game_mode != Some(mode) {
+            return Err(invalid(
+                "stationary geometry requires matching received mode",
+            ));
+        }
+        let native = survival::context(
+            state,
             self.bot.session.id,
             self.bot.session.started.elapsed().as_millis() as u64 / 50,
-            &[SurvivalControl {
-                yaw: 0.0,
-                input: Default::default(),
-            }],
         )?;
-        let initial = self.common_player_unlocked(&state)?;
+        validate_initial(&native)?;
+        let initial = self.common_player_unlocked(state)?;
+        if !initial
+            .health
+            .as_ref()
+            .is_some_and(|h| h.value.health > 0.0)
+        {
+            return Err(invalid(
+                "stationary geometry requires received healthy player",
+            ));
+        }
         target::validate_rotation(initial.rotation)?;
-        let eye = native.initial.eye_position;
-        let hit = super::super::raycast::stationary_outline_hit(&state, eye, distance)?;
+        let eye = native.eye_position;
+        let hit = super::super::raycast::stationary_outline_hit(state, eye, distance)?;
         let vector = target::direction(crate::MinecraftVersion::Java1_21_11, initial.rotation);
         let length = vector.iter().map(|v| v * v).sum::<f64>().sqrt();
         let hit = hit.map(|hit| crate::client::survival::BlockTargetHit {

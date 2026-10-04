@@ -1,6 +1,8 @@
-# 共通Survivalのブロック狙い判定
+# 共通Clientのブロック狙い判定
 
 `Client::survival().target_block(maximum_distance)`は両版で同じ`BlockTargetObservation`を返す。
+`Client::creative().target_block(...)`も同じ型とstatic outlineを使い、受信creative modeを検査する。
+共通型は`client::{BlockTargetHit, BlockTargetObservation}`からもimportできる。従来のsurvival importは同じ型。
 接続時に版を選び、consumerに版別のraycast型を持たせない。
 これは現在の視点から最初に当たる静的block outlineを読む操作で、採掘・設置を送信しない。
 
@@ -17,7 +19,8 @@ if let Some(hit) = observation.hit {
 
 `maximum_distance`は有限、正、4.5block以下を要求する。既定のsurvival reachに限定し、
 reachを変更する属性・effect、fluid、entityの選択は扱わない。
-healthy survival・通常立位・静止・native defaultの移動条件と既知のdry支持を確認する。
+healthyな受信modeとhandleの一致・通常立位・静止・native defaultの移動条件と既知のdry支持を確認する。
+creativeでもactive flightからのqueryは現在未対応で、modeを変更したりsurvivalとして扱ったりしない。
 実行中/未解決の移動や操作、欠測pose、動くgeometry、未ロード範囲、未対応形状をエラーにする。
 `None`は利用可能な全query範囲に静的outlineのhitがなかった場合だけ返す。
 未知blockや欠測chunkをairへ変換しない。
@@ -37,12 +40,18 @@ hitは受信geometryから選んだclient modelの結果であり、serverのtar
 DDAによるcell順序、同時crossingの優先順、VoxelShapeの交差、inside判定、auxiliary shapeの面上書きを
 共通kernelへ移した。collision boxへのfallbackや近傍blockのprotrusion追加はしない。
 
-1.16.1は現段階でdry移動でも検証した12素材とair類のoutlineに限定する。
+1.16.1はdry移動でも検証した12素材とair類に加え、下記7種類のstorage outlineを扱う。
 全property variantのnative outline/auxiliary shapeを確認し、grass_blockのsnowy両状態も含む。
 1.21.11は既存の静的outlineデータとreconstructionの欠測/移動判定をそのまま接続する。
+両版ともchest/trapped_chest/barrel/hopper/dispenser/dropper/ender_chestの全102stateを
+未改変公式JARから取得した[storage形状](../data/client_api/storage_outline_source.json)へ接続する。
+chestの1/16 inset、double-chestのtype/facing、hopperのoutlineとauxiliaryの違いもnative由来。
+block名だけで立方体へ変換せず、完全なpropertiesと版を一致させる。
+animated shulkerやworld/block-entity依存形状はこのstate-only表に含めない。
 通常立位の支持周辺は両版ともdry cubeに限定するため、任意形状上での立位対応とは別である。
-`Feature::SurvivalTargeting`はこの制約を含むRestrictedとして返す。
-広いlegacy outline対応と採掘・設置の実行・観測の共通化は引き続き残作業である。
+`Feature::BlockTargeting`と従来の`Feature::SurvivalTargeting`はこの制約を含むRestrictedを返す。
+storageを狙えることは、その画面が開く、接続されたdouble chestがある、lockや上の障害物がない等の証明ではない。
+共通container openの送信・received outcome照合、広いlegacy outline対応、広い採掘・設置条件は残作業である。
 
 ## 独立した検証
 
@@ -77,3 +86,31 @@ legacyでは未対応block/未ロードchunk/非有限rotation/mode違反の拒�
 [共通native runner](common-client-native-validation.md)でも同じqueryを公式vanilla両版へ実行する。
 RCONは選ばれた対象の実際のstoneと、query前後の実際のPosが変わらないことを確認する。
 面/交点計算のoracleは上記native method fixtureであり、RCONのblock確認をserverのhit判定と扱わない。
+
+## Storageの独立した検証
+
+[ExportStorageOutlines.java](../scripts/ExportStorageOutlines.java)は両版の未改変公式JARを使用し、
+全102stateのoutline/auxiliaryと各8,976件のnative `BlockGetter.clip OUTLINE/NONE`を取得する。
+軸の往復、inset/edge、内部始点、対角線、原点周辺とworld境界付近の座標を含む。
+bytecode監査ではchest/hopperはstate propertyからshapeを選び、ender chestは定数、
+barrel/dispenser/dropperはbaseのfull cube/empty auxiliaryであることを確認した。
+animated shulkerはentityの状態が必要なため今回の静的表から除外する。
+JAR/version照合、generator/output hashと監査bytecodeのhashはsource recordに保存する。
+
+```bash
+java -XX:ActiveProcessorCount=1 -Xmx1024M -cp /path/to/1.16.1-server.jar \
+  /path/to/Voxrig/scripts/ExportStorageOutlines.java 1.16.1 /path/to/legacy-raw.json
+# modernのclasspathには展開済みnative server JARとlibrariesを含める。
+java -XX:ActiveProcessorCount=1 -Xmx1024M -cp "$VOXRIG_STORAGE_CLASSPATH" \
+  /path/to/Voxrig/scripts/ExportStorageOutlines.java 1.21.11 /path/to/modern-raw.json
+```
+
+生成JSONの`states`を`storage_outlines-{version}.json`へ、`rays`をdeterministic gzip
+（mtime 0）へ保存する。再生成は同じ版・SHA-1照合した入力を使用し、hashも更新する。
+world/serverは起動せず、native data carrierと単一cellのBlockGetterから元のclip methodを呼ぶ。
+Rustの期待値を生成する方法は用いない。
+
+同じcommon consumerを両adapter・両modeへ通し、全102stateのfirst hit/面/完全properties、
+mode違反とactive flight拒否、queryでpacketやpose変更がないことを検証する。
+native runnerはcreativeとsurvivalで同じsingle chestを読み、North面のinset交点と
+RCONのPos/Rotation不変を照合する。これは共通openの結果確認とは別のread-only検証である。

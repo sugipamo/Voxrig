@@ -452,6 +452,46 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
     let mut content_sequence = 0;
     while let Some(command) = commands.next_line().await? {
         match command.as_str() {
+            "container_target_creative" | "container_target_survival" => {
+                let mode = if command == "container_target_creative" {
+                    GameMode::Creative
+                } else {
+                    GameMode::Survival
+                };
+                wait_player(client, |p| p.game_mode == Some(mode)).await?;
+                let query = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let result = if mode == GameMode::Creative {
+                            client.creative().target_block(4.5).await
+                        } else {
+                            client.survival().target_block(4.5).await
+                        };
+                        if let Ok(query) = result {
+                            if query
+                                .hit
+                                .as_ref()
+                                .is_some_and(|hit| hit.position == [0, 65, 2])
+                            {
+                                return Ok::<_, anyhow::Error>(query);
+                            }
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                let hit = query.hit.as_ref().context("storage hit missing")?;
+                anyhow::ensure!(
+                    hit.state.name == "minecraft:chest"
+                        && hit.face == BlockFace::North
+                        && (hit.point[2] - 2.0625).abs() < 1e-9,
+                    "native inset chest outline differs"
+                );
+                anyhow::ensure!(
+                    query.initial.game_mode == Some(mode),
+                    "targeting mode differs"
+                );
+                emit(&command, query)?;
+            }
             "container_player_swap_survival" | "container_player_swap_creative" => {
                 let mode = if command == "container_player_swap_survival" {
                     GameMode::Survival

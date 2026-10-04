@@ -146,7 +146,9 @@ impl Survival {
         maximum_distance: f64,
     ) -> Result<super::survival::BlockTargetObservation> {
         super::survival::target::validate_reach(maximum_distance)?;
-        self.client.survival_block_target(maximum_distance).await
+        self.client
+            .common_block_target(GameMode::Survival, maximum_distance)
+            .await
     }
     /// Forecast bounded walking/jump controls against one captured dry-cube world.
     /// Uses version-specific native defaults and current stationary admission.
@@ -197,6 +199,18 @@ impl Survival {
     }
 }
 impl Creative {
+    /// Read the first audited static outline from a coherent dry-standing capture.
+    /// Checks received creative mode; no flight, mutation or open result is implied.
+    /// Shares native shape selection with Survival::target_block, reach <=4.5.
+    pub async fn target_block(
+        &self,
+        maximum_distance: f64,
+    ) -> Result<super::survival::BlockTargetObservation> {
+        super::survival::target::validate_reach(maximum_distance)?;
+        self.client
+            .common_block_target(GameMode::Creative, maximum_distance)
+            .await
+    }
     /// Close one received opening once. This ordinary operation does not change mode.
     /// Vanilla need not acknowledge it; inspect `dispatched` separately from actual closure.
     pub async fn close_container(

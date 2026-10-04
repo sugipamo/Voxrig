@@ -27,6 +27,8 @@ pub enum Feature {
     PlayerObservation,
     /// Mode-checked look and hotbar selection.
     BasicControls,
+    /// Same static outline query on survival and creative handles.
+    BlockTargeting,
     /// First static block outline from a coherent dry-standing capture.
     SurvivalTargeting,
     /// Read-only bounded walking/jump model preview under dry standing defaults.
@@ -75,8 +77,8 @@ impl Capabilities {
             Feature::CreativeControls => Support::Restricted(
                 "default items; permitted flight steps <=4 blocks; loaded reachable targets",
             ),
-            Feature::SurvivalTargeting => Support::Restricted(
-                "dry stationary normal survival posture; default reach <=4.5; known static outlines; legacy audited passive full cubes",
+            Feature::BlockTargeting | Feature::SurvivalTargeting => Support::Restricted(
+                "healthy dry stationary normal posture, matching handle mode; reach <=4.5; audited static outlines; legacy passive full cubes and seven storage blocks; animated/world-dependent shapes remain incomplete",
             ),
             Feature::SurvivalPreview => Support::Restricted(
                 "read-only 1..120 walking/jump inputs; healthy stationary normal survival posture; native defaults; loaded dry full cubes",

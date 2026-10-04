@@ -325,13 +325,14 @@ impl Client {
             Adapter::Java1_21_11(bot) => bot.operations().common_mining_record().await,
         }
     }
-    pub(crate) async fn survival_block_target(
+    pub(crate) async fn common_block_target(
         &self,
+        mode: crate::client::GameMode,
         distance: f64,
     ) -> Result<crate::client::survival::BlockTargetObservation> {
         match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_target_block(distance).await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_target_block(distance).await,
+            Adapter::Java1_16_1(bot) => bot.common_target_block(mode, distance).await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_target_block(mode, distance).await,
         }
     }
     pub(crate) async fn preview_survival_path(
