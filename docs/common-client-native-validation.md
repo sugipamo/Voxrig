@@ -191,6 +191,18 @@ RCONは個数保持、dropなし、空で閉じたbarrel、位置・向き不変
 両JVM exit 0でtmpfs runtimeを削除した。raw hashとactual input/binary snapshot、結果は
 [cursor return native evidence](../data/client_api/cursor_return_native_evidence.json)に保持した。
 
+## 名前付きitem dataの受信
+
+続いて両版のsurvival/creativeで、名前付きstoneとcustom markerを元サーバーに外部設定し、
+同じ共通Clientの実受信slotを確認した。1.16.1のNBTと1.21.11のcomponent patchは
+受信dataとして保持し、サーバーの独立RCON値と一致する。操作結果ではなく受信の検証である。
+初回の切断時traceエラーを保存した上で、共通protocol送信のheader/bodyを一つのbufferに
+まとめ、両版の全scenarioを再実行してexit 0・trace errorなしを確認した。
+明示した切断後に転送できない完全なclientbound frameは未配達として記録し、
+途中frameと送信側の失敗は失敗のまま扱う。最終試験ではこの未配達もなかった。
+範囲・再現手順と残作業は[共通item data](common-item-data.md)、実行時の入力hashと
+以前の失敗は[item data native evidence](../data/client_api/item_data_native_evidence.json)を参照。
+
 追加試験は同値pose再受信の誤拒否と、modernの新しいposition公開がteleport確認より先だった競合を発見した。
 前者は同じ実位置・向きを比較して履歴ordinalを保持し、後者はoriginal確認/position応答の完全送信までstate lockを保持する。
 writerを止めたtransport回帰試験でnormal lookが確認packetを追い越さないことを確認する。

@@ -268,3 +268,10 @@ They record registry facts and encoded codec inputs/outputs, not Minecraft
 method bodies or redistributed game JARs. The own reflection wrappers and
 input hashes are identified by `item_component_source.json`; original JARs,
 classpath libraries, mappings and bytecode inspection logs remain local.
+
+`data/client_api/item_data_native_evidence.json` records actual common-Client
+observations and independent RCON facts from sequential unmodified vanilla
+1.16.1/1.21.11 trials. Recorded wire values, run-time input digests and earlier
+failed attempts document the limited named-item/custom-data reception scope.
+Original game binaries, libraries, method bodies and disposable worlds are
+excluded from the package; these facts do not relicense Minecraft.

@@ -80,11 +80,30 @@ component付きitemの操作、任意legacy NBTの操作、crafting等は後続�
 475 clientbound packet往復と複数型のmixed patchを保存する。
 候補JSONは公式persistent codecでnative値に変換し、transient enumは元のby-ID関数で取得する。
 codecは元のdecode/reencodeで全bytes一致と末尾消費を確認する。
-game method、JAR、codecを置き換えない。実サーバーでの新component workflowの証拠とは区別する。
+game method、JAR、codecを置き換えない。codec往復と、下記の実サーバー上の受信workflowは別の証拠。
 
 Rust側では52型の値と全removal/mixed patchを照合し、470対応packetについて
 player/storage slot・後続item・cursor・元の受信ordinalと全prefix/trailing拒否を検査する。
 別の共通Client consumerはlegacy NBTとmodern patchを同じ公開読み出しで検査する。
+
+未変更vanilla 1.16.1・1.21.11を順に起動し、両版のsurvival/creativeで名前付きstoneを
+同じ公開Clientから観測した。外部fixtureの後にbaselineを超える実受信slot ordinal、
+同じsession/world、名前・個数・`VoxrigProbe` markerを確認する。
+modernは元の`custom_data`/`custom_name` patch、legacyは元NBTを保持する。
+RCONが個数・名前・markerを独立に照合し、位置/回転は不変、readonly traceには
+外向きclick/CLOSE/creative-slot変更がない。
+実受信packetをRustのpatch decoderでも読み直し、共通観測との全bytes一致を検査する。
+元report/trace/logと実行前source/binary hashは
+[`item_data_native_evidence.json`](../data/client_api/item_data_native_evidence.json)に保存した。
+実行後に追加したevidence/tests/docsを実行入力へ後付けしない。
+
+初回のmodern実行は切断時にheaderのみの不完全な送信frameを検出し、失敗として保存した。
+短いprotocol応答のheaderと本文を一つのbufferで送るよう修正し、最終の両版は
+trace errorなし・JVM exit 0で完了した。これはTCP送信をatomicとする保証ではなく、
+途中送信や取消の不確実性は従来どおり保持する。
+明示した切断後の完全なclientbound frameを転送できない場合は「元frameは完全・未配達」と
+記録する。途中frame・送信側の失敗・要求外の切断は引き続き検証エラーになる。
+この境界は自作socket試験で検査し、最終実ゲーム試験には未配達frameもなかった。
 
 再生成は一つのJVMずつ、heap 512 MiB・CPU 1で実行する。
 

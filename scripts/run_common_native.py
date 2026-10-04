@@ -138,6 +138,8 @@ class PacketTraceProxy:
         self.listener.settimeout(0.2)
         self.lock, self.stop = threading.Lock(), threading.Event()
         self.frames, self.errors, self.connections, self.workers = [], [], [], []
+        self.error_contexts, self.terminal_events = [], []
+        self.connection_states, self.terminal_deliveries = [], []
         self.log = path.open("w")
         self.acceptor = threading.Thread(target=self.accept, daemon=True)
         self.acceptor.start()
@@ -179,16 +181,24 @@ class PacketTraceProxy:
             upstream.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             state = {"compression": None, "phase": "handshake", "connection": len(self.connections) + 1}
             self.connections.append((client, upstream))
+            with self.lock:
+                self.connection_states.append(state)
             for source, destination, direction in [(client, upstream, "serverbound"), (upstream, client, "clientbound")]:
                 worker = threading.Thread(target=self.forward, args=(source, destination, direction, state), daemon=True)
                 self.workers.append(worker)
                 worker.start()
 
     def forward(self, source, destination, direction, state):
+        header, length, frame, recorded_ordinal = None, None, bytearray(), None
         try:
             while True:
+                header, length, frame, recorded_ordinal = None, None, bytearray(), None
                 header = self.read_varint_bytes(source)
                 if header is None:
+                    with self.lock:
+                        state["clean_eof_" + direction] = True
+                        self.terminal_events.append({"connection":state["connection"],"direction":direction,
+                            "phase":state["phase"],"after_frame_ordinal":len(self.frames),"kind":"clean_eof"})
                     break
                 length, _ = self.varint(header)
                 if not 0 < length <= 8 * 1024 * 1024:
@@ -212,6 +222,7 @@ class PacketTraceProxy:
                     if len(body) <= 512:
                         record["body_hex"] = body.hex()
                     self.frames.append(record)
+                    recorded_ordinal = record["ordinal"]
                     self.log.write(json.dumps(record) + "\n")
                     self.log.flush()
                     if direction == "serverbound" and state["phase"] == "handshake":
@@ -232,7 +243,20 @@ class PacketTraceProxy:
         except (OSError, EOFError) as error:
             if not self.stop.is_set() and not isinstance(error, ConnectionResetError):
                 with self.lock:
-                    self.errors.append(str(error))
+                    context = {"error":str(error),"connection":state["connection"],
+                        "direction":direction,"phase":state["phase"],"after_frame_ordinal":len(self.frames),
+                        "recorded_frame_ordinal":recorded_ordinal,"disconnect_requested":state.get("disconnect_requested",False),
+                        "expected_body_length":length,"received_body_length":len(frame),
+                        "partial_wire_sha256":hashlib.sha256((header or b"")+frame).hexdigest(),
+                        "opposite_clean_eof":state.get("clean_eof_"+("clientbound" if direction=="serverbound" else "serverbound"),False)}
+                    if (direction == "clientbound" and isinstance(error,BrokenPipeError)
+                            and state.get("disconnect_requested",False) and recorded_ordinal is not None):
+                        context.update(source_frame_complete=True, delivered=False,
+                            authority_limits="Original complete native frame after this connection's explicitly requested Client disconnect; no Client receipt or complete delivery is inferred.")
+                        self.terminal_deliveries.append(context)
+                    else:
+                        self.errors.append(str(error))
+                        self.error_contexts.append(context)
         except BaseException as error:
             with self.lock:
                 self.errors.append(str(error))
@@ -245,6 +269,16 @@ class PacketTraceProxy:
     def mark(self):
         with self.lock:
             return len(self.frames)
+
+    def expect_disconnect(self):
+        """Scope terminal delivery diagnostics to the actual requested connection."""
+        with self.lock:
+            if not self.connection_states:
+                raise RuntimeError("disconnect requested without a traced connection")
+            state = self.connection_states[-1]
+            state["disconnect_requested"] = True
+            self.terminal_events.append({"connection":state["connection"],"direction":"caller",
+                "phase":state["phase"],"after_frame_ordinal":len(self.frames),"kind":"disconnect_requested"})
 
     def since(self, boundary):
         with self.lock:
@@ -476,6 +510,7 @@ network-compression-threshold=256
         if all(abs(actual[axis] - 0.5) < 0.1 for axis in (0,2)):
             raise RuntimeError("native horizontal walking displacement was not observed")
         report["native_results"]["survival_motion"] = {"samples": positions, "predicted_endpoint": expected, "native_endpoint": actual}
+        trace.expect_disconnect()
         stage(probe, messages, "disconnect", report["client_records"])
         probe.wait(timeout=10)
         if probe.returncode != 0:
@@ -514,6 +549,7 @@ network-compression-threshold=256
             "position_after": after_mining, "stage": completed["stage"],
             "continuation_validated": completed["continuation_validated"],
         }
+        trace.expect_disconnect()
         stage(probe, messages, "mining_disconnect", report["mining_records"])
         probe.wait(timeout=10)
         if probe.returncode != 0:
@@ -544,6 +580,7 @@ network-compression-threshold=256
         if after_placement != placement_position:
             raise RuntimeError("stationary placement changed native position")
         report["native_results"]["survival_placement"] = {"native_target": native_placed, "native_material": native_material, "position_before": placement_position, "position_after": after_placement}
+        trace.expect_disconnect()
         stage(probe, messages, "placement_disconnect", report["placement_records"])
         probe.wait(timeout=10)
         if probe.returncode != 0:
@@ -599,6 +636,7 @@ network-compression-threshold=256
         if after_swap != swap_position:
             raise RuntimeError("ordinary inventory exchanges changed native position")
         report["native_results"]["inventory_swaps"] = {"survival_occupied_swap": first_inventory, "creative_empty_swap": second_inventory, "position_before": swap_position, "position_after": after_swap}
+        trace.expect_disconnect()
         stage(probe, messages, "swap_disconnect", report["inventory_records"])
         probe.wait(timeout=10)
         if probe.returncode != 0:
@@ -783,6 +821,64 @@ network-compression-threshold=256
         barrel_position=rcon.command("data get entity UnifiedProbe Pos")
         if barrel_position!=container_position:raise RuntimeError("barrel activation changed native position")
         report["native_results"]["barrel_activation"]={"modes":barrel_results,"player_inventory":until(lambda:inventory_matches({9:("minecraft:dirt",2)})),"position_before":container_position,"position_after":barrel_position,"authority_limits":"Native RCON verifies real barrel open/closed boolean and unchanged stone 5 contents/player inventory/pose. Same Client independently receives matching menus/full/cursor/modern processing and actual open flag cache. Open-property transitions are outline/menu-compatible, not a target-linked acknowledgement or menu ownership proof."}
+        # The existing read-only command emits the same public PlayerObservation
+        # on both adapters. Only external fixture syntax is version-specific.
+        item_data_results = {}
+        report["native_results"]["item_data_observation"] = item_data_results
+        for mode, count, marker in [("survival", 7, 17), ("creative", 8, 18)]:
+            baseline = stage(probe, messages, "transfer_fixture_cleared", report["container_records"])["value"]
+            observed_name = "VoxrigData" + mode.capitalize()
+            result = {"baseline": baseline, "fixture": {}, "name": observed_name, "marker": marker, "count": count}
+            item_data_results[mode] = result
+            boundary = trace.mark()
+            result["position_before"] = rcon.command("data get entity UnifiedProbe Pos")
+            result["rotation_before"] = rcon.command("data get entity UnifiedProbe Rotation")
+            result["fixture"]["mode"] = rcon.command("gamemode " + mode + " UnifiedProbe")
+            result["fixture"]["clear"] = rcon.command("clear UnifiedProbe")
+            command = (f'replaceitem entity UnifiedProbe inventory.0 minecraft:stone{{VoxrigProbe:{marker},display:{{Name:\'{{"text":"{observed_name}"}}\'}}}} {count}'
+                       if version == "1.16.1" else
+                       f'item replace entity UnifiedProbe inventory.0 with minecraft:stone[custom_data={{VoxrigProbe:{marker}}},custom_name={{text:"{observed_name}"}}] {count}')
+            result["fixture"]["item"] = rcon.command(command)
+            result["native_inventory"] = until(lambda: inventory_matches({9:("minecraft:stone",count)}))
+            path = "tag" if version == "1.16.1" else 'components."minecraft:custom_data"'
+            result["native_marker"] = until(lambda:matched(rcon.command(f'data get entity UnifiedProbe Inventory[{{Slot:9b}}].{path}.VoxrigProbe'),rf'\b{marker}\b'))
+            name_path = "tag.display.Name" if version == "1.16.1" else 'components."minecraft:custom_name"'
+            result["native_name"] = until(lambda:matched(rcon.command(f'data get entity UnifiedProbe Inventory[{{Slot:9b}}].{name_path}'),observed_name))
+            marker_key = b"VoxrigProbe"
+            encoded_marker = bytes([3])+len(marker_key).to_bytes(2,"big")+marker_key+marker.to_bytes(4,"big",signed=True)
+            def received_item_data():
+                player = stage(probe, messages, "transfer_fixture_cleared", report["container_records"])["value"]
+                slot = player["inventory"]["slots"][9]
+                if player["game_mode"] != mode or slot is None or slot["source"]["kind"] != "received" or slot["source"]["sequence"] <= baseline["receive_sequence"]:
+                    return None
+                value = slot["value"]
+                if value["kind"] != "item" or value["item"]["name"] != "minecraft:stone" or value["item"]["count"] != count:
+                    return None
+                data = value["item"]["data"]
+                if version == "1.16.1":
+                    if data["kind"] != "legacy_nbt": return None
+                    encoded = bytes(data["bytes"])
+                    if encoded_marker not in encoded or observed_name.encode() not in encoded: return None
+                else:
+                    if data["kind"] != "modern_components": return None
+                    patch = data["patch"]
+                    added = {c["definition"]["name"]:c for c in patch["added"]}
+                    if set(added) != {"minecraft:custom_data", "minecraft:custom_name"} or patch["removed"]: return None
+                    if encoded_marker not in bytes(added["minecraft:custom_data"]["bytes"]) or observed_name.encode() not in bytes(added["minecraft:custom_name"]["bytes"]): return None
+                return player
+            result["received"] = until(received_item_data)
+            result["position_after"] = rcon.command("data get entity UnifiedProbe Pos")
+            result["rotation_after"] = rcon.command("data get entity UnifiedProbe Rotation")
+            if result["position_before"] != result["position_after"] or result["rotation_before"] != result["rotation_after"]:
+                raise RuntimeError("item-data observation changed native pose")
+            result["frames"] = [f for f in trace.since(boundary) if f["phase"] == "play"]
+            mutation_ids = (0x09,0x0a,0x27) if version == "1.16.1" else (0x11,0x12,0x37)
+            if any(f["direction"] == "serverbound" and f["packet_id"] in mutation_ids for f in result["frames"]):
+                raise RuntimeError("read-only item-data observation wrote inventory/close frames")
+            result["authority_limits"] = "Same public Client observation receives fresh exact item identity/count and original legacy NBT or modern custom_data/custom_name patch, separately confirmed by native RCON fields and unchanged pose. Read-only original frames contain no outgoing click/close/creative-slot mutation. This does not establish component-bearing item operations or arbitrary component parity."
+            result["fixture"]["clear_after"] = rcon.command("clear UnifiedProbe")
+            result["fixture"]["restore"] = rcon.command("replaceitem entity UnifiedProbe inventory.0 minecraft:dirt 2" if version == "1.16.1" else "item replace entity UnifiedProbe inventory.0 with minecraft:dirt 2")
+        trace.expect_disconnect()
         stage(probe,messages,"container_disconnect",report["container_records"])
         probe.wait(timeout=10)
         if probe.returncode != 0:
@@ -835,6 +931,7 @@ network-compression-threshold=256
                 result["fixture"]["clear_after"] = rcon.command("clear UnifiedProbe")
                 command = ("replaceitem entity UnifiedProbe inventory.0 minecraft:dirt 2" if version == "1.16.1" else "item replace entity UnifiedProbe inventory.0 with minecraft:dirt 2")
                 result["fixture"][command] = rcon.command(command)
+                trace.expect_disconnect()
                 stage(probe,messages,"cursor_close_audit_disconnect",report["container_records"])
                 probe.wait(timeout=10)
                 if probe.returncode != 0:
@@ -885,6 +982,7 @@ network-compression-threshold=256
                 item = until(lambda:matched(rcon.command("execute unless entity @e[type=minecraft:item]"),"Test passed"))
                 report["cursor_close_audit_remove_return_" + mode] = rcon.command("clear UnifiedProbe minecraft:stone")
             audit.update(native_inventory=inventory_after, native_item_entity=item)
+            trace.expect_disconnect()
             stage(probe,messages,"cursor_close_audit_disconnect",report["container_records"])
             probe.wait(timeout=10)
             if probe.returncode != 0:
@@ -934,7 +1032,10 @@ network-compression-threshold=256
                 except subprocess.TimeoutExpired:
                     server.kill(); server.wait(timeout=5)
         trace.close()
-        report["packet_trace"] = {"records": len(trace.frames), "errors": trace.errors, "authority_limits": "Read-only byte-for-byte forwarding of original protocol frames; decompression only for diagnostics, no game method/packet replacement."}
+        report["packet_trace"] = {"records": len(trace.frames), "errors": trace.errors,
+            "error_contexts":trace.error_contexts,"terminal_events":trace.terminal_events,
+            "terminal_deliveries":trace.terminal_deliveries,
+            "authority_limits": "Read-only byte-for-byte forwarding of original protocol frames; decompression only for diagnostics, no game method/packet replacement. Trace errors remain failures; terminal context does not fabricate a complete frame."}
         if trace.errors and report["scenario_result"] == "passed":
             report["scenario_result"] = "failed"
             report["result"] = "failed"

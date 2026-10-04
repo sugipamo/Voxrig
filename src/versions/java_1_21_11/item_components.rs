@@ -5,6 +5,9 @@ use crate::client::{ItemComponent, ItemComponentPatch, registry::Registry};
 use anyhow::{Context, Result, bail};
 use std::{collections::BTreeSet, sync::OnceLock};
 
+#[cfg(test)]
+mod native_evidence_tests;
+
 #[derive(serde::Deserialize)]
 pub(crate) struct Definition {
     pub(crate) name: String,
