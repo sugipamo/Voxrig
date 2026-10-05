@@ -370,6 +370,78 @@ pub(crate) fn decode(bytes: &[u8], version: MinecraftVersion) -> Result<NbtData>
     })()
     .map_err(|e| Error::new(ErrorKind::InvalidInput, e))
 }
+/// Extract legacy dimension codec entries while preserving each original compound payload.
+/// This projects the native dimension list; it does not validate all DimensionType fields.
+pub(crate) struct EncodedCompoundEntry {
+    pub name: String,
+    pub data: Vec<u8>,
+}
+pub(crate) fn legacy_dimension_entries(
+    bytes: &[u8],
+) -> anyhow::Result<Option<Vec<EncodedCompoundEntry>>> {
+    if bytes.len() > 64 * 1024 * 1024 {
+        bail!("registry NBT exceeds byte budget");
+    }
+    let mut decoder = Decoder {
+        rest: bytes,
+        nodes: MAX_NODES - 1,
+        version: MinecraftVersion::Java1_16_1,
+    };
+    if decoder.byte()? != 10 {
+        bail!("legacy registry codec root must be a named compound");
+    }
+    decoder.string()?;
+    let dimension = NbtString::from_text("dimension");
+    let mut latest = None;
+    loop {
+        let kind = decoder.byte()?;
+        if kind == 0 {
+            break;
+        }
+        let key = decoder.string()?;
+        let before = decoder.rest;
+        decoder.value(kind, 1)?;
+        if key == dimension {
+            latest = Some((kind, &before[..before.len() - decoder.rest.len()]));
+        }
+    }
+    if !decoder.rest.is_empty() {
+        bail!("trailing legacy registry codec bytes");
+    }
+    // CompoundTag uses the last value for a duplicate key, including an earlier
+    // value of a different type. Interpret only the final dimension field.
+    let Some((kind, payload)) = latest else {
+        return Ok(None);
+    };
+    if kind != 9 {
+        bail!("legacy dimension registry must be a list");
+    }
+    let mut decoder = Decoder {
+        rest: payload,
+        nodes: MAX_NODES - 1,
+        version: MinecraftVersion::Java1_16_1,
+    };
+    let item = decoder.byte()?;
+    let count = decoder.count(1)?;
+    if (item != 10 && !(count == 0 && item == 0)) || count > decoder.nodes {
+        bail!("invalid legacy dimension registry list");
+    }
+    let mut entries = Vec::with_capacity(count);
+    for _ in 0..count {
+        let before = decoder.rest;
+        let value = decoder.value(10, 2)?;
+        let name = value
+            .as_compound()
+            .and_then(|value| value.get("name"))
+            .and_then(NbtValue::as_string)
+            .context("legacy dimension entry needs a String name")?
+            .text()?;
+        let mut data = vec![10];
+        data.extend_from_slice(&before[..before.len() - decoder.rest.len()]);
+        entries.push(EncodedCompoundEntry { name, data });
+    }
+    Ok(Some(entries))
+}
 /// Logical modern unnamed Tag, including the explicit EndTag sentinel.
 /// Component text/codec normalization is separate from this NBT interpretation.
 pub(crate) fn decode_unnamed_tag(bytes: &[u8]) -> Result<Option<Arc<NbtValue>>> {

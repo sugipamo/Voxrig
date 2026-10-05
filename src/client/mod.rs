@@ -57,8 +57,9 @@ pub mod prelude {
     };
     pub use super::nbt::{NbtCompound, NbtData, NbtEntry, NbtString, NbtValue};
     pub use super::registry::{
-        ItemComponentDefinition, Registry, RegistryId, RegistryKind, ServerRegistryEntry,
-        ServerRegistryId, ServerRegistryObservation, ServerRegistryStamp, ServerRegistryTags,
+        BuiltinRegistryId, ItemComponentDefinition, Registry, RegistryEntryId, RegistryId,
+        RegistryKind, ServerRegistryEntry, ServerRegistryId, ServerRegistryObservation,
+        ServerRegistryStamp, ServerRegistryTags,
     };
     pub use super::survival::{
         BlockTargetHit, BlockTargetObservation, MiningId, MiningRecord, MiningStage, MotionPreview,

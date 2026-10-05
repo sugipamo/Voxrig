@@ -1,6 +1,6 @@
 # 接続先から受信したregistry
 
-`client.registry()`はVoxrigに同梱した版別のblock-state/item/component型を検索する。
+`client.registry()`はVoxrigに同梱した版別のblock-state/item/component型と固定registry entryを検索する。
 `client.server_registry_state().await?`は現在の接続で実際に受信したregistryとtagを取得する。
 両者の数値IDは別の型で保持する。block tagのmemberもblock-state IDへ読み替えない。
 
@@ -15,11 +15,8 @@ use voxrig::client::prelude::*;
 
 async fn inspect(client: &Client) -> Result<()> {
     let received = client.server_registry_state().await?;
-    if client.version() == MinecraftVersion::Java1_21_11 {
-        let id = received.find("minecraft:enchantment", "minecraft:unbreaking")?;
-        let entry = received.resolve(&id)?;
-        println!("{} = {} ({} NBT bytes)", entry.name, id.value(), entry.data.len());
-    }
+    let id = received.find_entry("minecraft:enchantment", "minecraft:unbreaking")?;
+    println!("{} = {}", received.entry_name(&id)?, id.value());
     Ok(())
 }
 ```
@@ -30,7 +27,11 @@ respawnだけではregistryを置き換えないため、world generationとconf
 保存済みsnapshotは当時のimmutableな観測であり、現在の接続の操作権限ではない。
 
 1.16.1ではjoinに含まれる完全なnamed NBT codecを`legacy_codec()`に受信ordinal付きで保持する。
-この段階ではcodec内の個別entryへの共通resolverは提供しない。modern entry listを捏造しない。
+その`dimension` listから、元の順序で`minecraft:dimension_type`の個別entryを取得する。
+各entryの元compound payloadをunnamed root byte付きで保持し、inlineの`name`も省略しない。
+取得・名前検査が全て成功してからconfigurationを置き換えるため、失敗時に部分更新しない。
+dimensionがないcodecは生データのみ保持し、個別entryは利用不能とする。標準値で補わない。
+これはDimensionType全fieldのcodec妥当性やworld参加条件の検証とは区別する。
 両版のtag宣言は、版固有のouter formatを解析した`tags()`と元packet全体の`tag_packet()`に保持する。
 宣言済みの空tag/registryは空として残し、未受信は`None`とする。
 新しいtag packetは宣言全体を置き換え、再設定は旧entry/tagを全て破棄する。
@@ -42,7 +43,18 @@ tagは合計65,536件・1,048,576 member、各tagは65,536 memberまでとする
 snapshotはimmutableなentry/tag領域を共有し、観測のたびにNBT全体をコピーしない。
 
 公式vanilla oracleの133 registryはfixtureの事実であり、このAPIに投入しない。
-実接続がentry listを送っていないregistryは解決できない。item等の静的registryは従来の`Registry`で扱う。
+動的registryは実接続がentryを送っていなければ解決できない。
+`Registry::builtin_id`/`builtin_id_by_native_id`/`builtin_name`は元の固定registry rootだけを検索する。
+`BuiltinRegistryId`は版・registry名・数値IDを保持する。block entryはblock-state IDと別の種類である。
+legacyの固定registryは47、modernは95。modernの動的registryは38あり、同期対象は23だけである。
+同期されない15 registryにも、fixtureのentryを投入しない。
+
+`find_entry`/`bind_entry`は固定・動的を分類し、共通の`RegistryEntryId`を返す。
+legacyのenchantmentは固定、modernのenchantmentは実受信configurationのentryとして扱う。
+固定entryは異なる接続でも同じ版の固定rootに属し、動的entryは接続・configurationが異なれば別IDとなる。
+`entry_name`は所有範囲を検査する。固定registryへの非標準なserver entry宣言は、固定値と混ぜず拒否する。
+任意のitem bytesが指定した接続から来たことを、この明示的ID bindingだけで証明したとは扱わない。
+tagやinline holderのnative equals・item全体の意味比較には別途そのfieldと所有範囲の検証が必要である。
 inline holderやtag式、一般componentの意味・prototype・NBT/text等価性・hash・容量/slot規則は後続作業。
 entry lookupの追加だけでdata付きitem操作を許可することはない。
 

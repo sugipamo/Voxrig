@@ -51,7 +51,11 @@ blockは名前と完全propertiesを要求し、itemはnamespaced名とnative st
 
 `Client::server_registry_state()`は実接続から受信したregistry/tagを取得する。
 modernのentry/name/native IDはconnectionとconfiguration世代に束縛し、respawnとは寿命を分ける。
-legacyは元join codecとtag宣言を保持する。詳細と残る意味解釈は[受信registry](common-server-registries.md)を参照。
+legacyは元join codecとtag宣言を保持し、dimension listの個別entryも元順序・元compound bytesで取得する。
+固定registry entryは版とregistry名、動的entryは接続とconfigurationの所有情報を保持する。
+`find_entry`/`bind_entry`/`entry_name`は両版で同じ検索APIとなる。
+modernの動的vanilla IDを未受信のregistryへ補わない。
+詳細と残るitem/holder/tagの意味解釈は[受信registry](common-server-registries.md)を参照。
 
 `Client::player_state()`は共通の`PlayerObservation`を返す。
 `Client::capture(region)`はplayer/inventory/受信block領域を同じadapter lock境界で取得する。

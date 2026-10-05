@@ -15,12 +15,26 @@ async fn main() -> Result<()> {
         config.version,
         config.version.protocol()
     );
+    let registry = Registry::for_version(config.version);
+    let block = registry.builtin_id("minecraft:block", "minecraft:stone")?;
+    println!(
+        "{} block entry = {}",
+        registry.builtin_name(&block)?,
+        block.value()
+    );
     if std::env::args().any(|arg| arg == "--check") {
         println!("Setup valid; no network connection opened");
         return Ok(());
     }
     let client = Client::connect(config).await?;
     client.wait_until_ready().await?;
+    let registries = client.server_registry_state().await?;
+    let enchantment = registries.find_entry("minecraft:enchantment", "minecraft:unbreaking")?;
+    println!(
+        "{} entry = {}",
+        registries.entry_name(&enchantment)?,
+        enchantment.value()
+    );
     println!(
         "{}",
         serde_json::to_string_pretty(&client.player_state().await?)

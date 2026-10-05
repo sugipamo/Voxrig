@@ -1,6 +1,8 @@
 //! Names and native IDs bound to the adapter selected at setup.
 use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Result};
+mod catalog;
 pub(crate) mod received;
+pub use catalog::{BuiltinRegistryId, RegistryEntryId};
 pub use received::{
     ServerRegistryEntry, ServerRegistryId, ServerRegistryObservation, ServerRegistryStamp,
     ServerRegistryTags,

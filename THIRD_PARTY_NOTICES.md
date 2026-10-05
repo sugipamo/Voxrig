@@ -426,6 +426,14 @@ method bodies and runtime logs remain local and are not distributed or relicense
 These field observations do not establish native whole-item equality, live
 registry ownership, persistent/server cache semantics or slot admission.
 
+`registry_catalog/cases/source` contain observed original builtin root entry
+names/IDs, modern registry synchronization classification and the legacy
+RegistryAccess codec plus decoded dimension entry getters. Runtime catalogs
+exclude dynamic vanilla entry IDs. Owned tools call unchanged original methods;
+original JAR/mapping/classpath/JDK/tool/raw/final hashes bind the facts. Original
+binaries and method bodies are not distributed or relicensed. The facts do not
+establish whole component/holder/tag equality, server cache or gameplay admission.
+
 `book_constructor_rules/cases/source` contain observed original writable/written
 book and enchantability stream acceptance, raw/filtered getter fields, nested text
 getters, original encode outputs and native value.equals. Owned tools call

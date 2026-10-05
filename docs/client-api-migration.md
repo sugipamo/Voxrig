@@ -1,5 +1,12 @@
 # 0.2 client APIへの移行
 
+registry entryの共通検索は`server_registry_state().await?`から
+`find_entry(registry, name)`/`bind_entry(registry, native_id)`で行い、`entry_name(&id)`で解決する。
+`RegistryEntryId`が版・registry名・固定/実受信の所有範囲を保持するので、数値だけを保存しない。
+legacyのenchantmentは固定、modernはserver設定に属するが、検索側のversion分岐は不要である。
+固定値だけを検索する場合は`client.registry().builtin_id(...)`を使う。
+legacyのdimension codecは個別entryも取得できる。新旧とも未受信の動的entryは利用不能のまま扱う。
+
 利用側のソース公開は不要です。各環境で以下の移行を行い、main上の固定commitまたはreleaseを基準に検証します。
 
 `target_block`はsurvival/creative両handleで同じ`BlockTargetObservation`を返します。

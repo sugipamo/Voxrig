@@ -1,5 +1,5 @@
 //! Server-supplied registries and tags, scoped to one configuration of one connection.
-use super::invalid;
+use super::{Registry, RegistryEntryId, catalog, invalid};
 use crate::client::{ObservedValue, SessionStamp, received};
 use crate::{MinecraftVersion, Result};
 use anyhow::{Context, bail};
@@ -43,7 +43,8 @@ impl ServerRegistryId {
 pub struct ServerRegistryEntry {
     /// Namespaced key received from this server.
     pub name: String,
-    /// Exact unnamed compound NBT, including the root byte. No rendering or prototype defaults.
+    /// Exact unnamed compound NBT, including the root byte. Legacy dimension entries
+    /// retain their inline name field. No rendering or prototype defaults.
     pub data: Vec<u8>,
 }
 
@@ -81,7 +82,7 @@ impl ServerRegistryObservation {
     pub fn complete(&self) -> bool {
         self.complete
     }
-    /// Exact received modern entry lists and their own packet ordinals.
+    /// Received modern lists or the legacy codec's dimension list, with packet ordinals.
     pub fn registries(&self) -> &BTreeMap<String, ObservedValue<Arc<Vec<ServerRegistryEntry>>>> {
         &self.registries
     }
@@ -95,7 +96,7 @@ impl ServerRegistryObservation {
         self.tag_packet.as_ref()
     }
     /// Original named NBT registry codec from a legacy join. Not modern registry-data packets.
-    /// Individual legacy codec entry interpretation is not yet provided by this API.
+    /// Individual legacy dimension entries are also available through the common resolver.
     pub fn legacy_codec(&self) -> Option<&ObservedValue<Arc<Vec<u8>>>> {
         self.legacy_codec.as_ref()
     }
@@ -133,6 +134,66 @@ impl ServerRegistryObservation {
             ));
         }
         self.entry(&id.registry, id.value)
+    }
+    /// Bind a numeric registry entry using its builtin or actually received owner.
+    /// Missing dynamic registries are never filled from vanilla defaults.
+    /// This explicitly binds an ID; it does not prove provenance of arbitrary item bytes.
+    pub fn bind_entry(&self, registry: &str, value: i32) -> Result<RegistryEntryId> {
+        if !self.complete {
+            return Err(invalid("registry configuration is not complete"));
+        }
+        if catalog::is_builtin(self.stamp.version, registry)? {
+            self.check_builtin(registry)?;
+            Registry::for_version(self.stamp.version)
+                .builtin_id_by_native_id(registry, value)
+                .map(RegistryEntryId::Builtin)
+        } else {
+            self.bind(registry, value).map(RegistryEntryId::Server)
+        }
+    }
+    /// Find an entry by name through the same API on both selected versions.
+    pub fn find_entry(&self, registry: &str, name: &str) -> Result<RegistryEntryId> {
+        if !self.complete {
+            return Err(invalid("registry configuration is not complete"));
+        }
+        if catalog::is_builtin(self.stamp.version, registry)? {
+            self.check_builtin(registry)?;
+            Registry::for_version(self.stamp.version)
+                .builtin_id(registry, name)
+                .map(RegistryEntryId::Builtin)
+        } else {
+            self.find(registry, name).map(RegistryEntryId::Server)
+        }
+    }
+    /// Resolve a builtin version or the exact received connection/configuration owner.
+    pub fn entry_name(&self, id: &RegistryEntryId) -> Result<&str> {
+        if !self.complete || id.version() != self.stamp.version {
+            return Err(invalid(
+                "registry entry belongs to another version or incomplete configuration",
+            ));
+        }
+        match id {
+            RegistryEntryId::Builtin(id) => {
+                self.check_builtin(id.registry())?;
+                Registry::for_version(self.stamp.version).builtin_name(id)
+            }
+            RegistryEntryId::Server(id) => {
+                if catalog::is_builtin(self.stamp.version, id.registry())? {
+                    return Err(invalid(
+                        "builtin registry entry cannot use a server-assigned identity",
+                    ));
+                }
+                Ok(&self.resolve(id)?.name)
+            }
+        }
+    }
+    fn check_builtin(&self, registry: &str) -> Result<()> {
+        if self.registries.contains_key(registry) {
+            return Err(invalid(
+                "server supplied entries for a builtin registry; update Voxrig for this protocol",
+            ));
+        }
+        Ok(())
     }
     fn entry(&self, registry: &str, value: i32) -> Result<&ServerRegistryEntry> {
         if !self.complete {
@@ -212,10 +273,30 @@ impl ReceivedRegistries {
         if codec.len() > MAX_BYTES {
             bail!("legacy registry codec limit exceeded");
         }
-        self.reset(sequence);
-        self.bytes = codec.len();
-        self.legacy_codec = Some(received(Arc::new(codec), sequence));
-        self.finish();
+        let entries = crate::client::nbt::legacy_dimension_entries(&codec)?;
+        // Parse/validate into a new state so a malformed join cannot destroy the
+        // preceding immutable configuration or leave partially applied entries.
+        let mut replacement = Self::default();
+        replacement.reset(sequence);
+        if let Some(entries) = entries {
+            replacement.modern_registry(
+                "minecraft:dimension_type".into(),
+                entries
+                    .into_iter()
+                    .map(|entry| ServerRegistryEntry {
+                        name: entry.name,
+                        data: entry.data,
+                    })
+                    .collect(),
+                sequence,
+                codec.len(),
+            )?;
+        } else {
+            replacement.bytes = codec.len();
+        }
+        replacement.legacy_codec = Some(received(Arc::new(codec), sequence));
+        replacement.finish();
+        *self = replacement;
         Ok(())
     }
     pub fn receive_tags(
