@@ -62,6 +62,9 @@ def free_port():
 class Rcon:
     def __init__(self, port, password):
         self.stream = socket.create_connection(("127.0.0.1", port), timeout=3)
+        # Commands can await the isolated CPU-one server's tick/save queue.
+        # Wait for the original response; never retry a possibly applied command.
+        self.stream.settimeout(10)
         self.serial = 1
         self.send(3, password)
         for _ in range(4):
@@ -1027,6 +1030,17 @@ network-compression-threshold=256
             if any(f["direction"] == "serverbound" and f["packet_id"] in mutation_ids for f in result["frames"]):
                 raise RuntimeError("read-only item-data observation wrote inventory/close frames")
             result["authority_limits"] = "Same public Client observation receives fresh exact item identity/count and original legacy NBT or modern custom-data/name, nested named item, registry-referencing enchantment and book patch. Independent RCON fields confirm values and unchanged pose. Read-only original frames contain no outgoing click/close/creative-slot mutation. Raw reference retention does not resolve arbitrary live registry bindings or authorize component-bearing gameplay."
+            pickup_boundary = trace.mark()
+            data_pickup = {"client":stage(probe, messages, "item_data_pickup_" + mode, report["container_records"])["value"]}
+            result["data_pickup"] = data_pickup
+            data_pickup["native_restored_inventory"] = until(lambda: inventory_matches({9:("minecraft:stone",count)}))
+            data_pickup["native_restored_marker"] = until(lambda:matched(rcon.command(f'data get entity UnifiedProbe Inventory[{{Slot:9b}}].{path}.VoxrigProbe'),rf'\b{marker}\b'))
+            data_pickup["native_restored_name"] = until(lambda:matched(rcon.command(f'data get entity UnifiedProbe Inventory[{{Slot:9b}}].{name_path}'),observed_name))
+            data_pickup["frames"] = [f for f in trace.since(pickup_boundary) if f["phase"] == "play"]
+            clicks = [f for f in data_pickup["frames"] if f["direction"] == "serverbound" and f["packet_id"] == (0x09 if version == "1.16.1" else 0x11)]
+            if len(clicks) != 3 or not data_pickup["client"]["native_data_equivalent"]:
+                raise RuntimeError("data PICKUP did not preserve fields across exactly3 explicit clicks")
+            data_pickup["authority_limits"] = "Same public mode handle performs split/one-place/all-return. Each fresh source/cursor packet matches native data fields and explicit counts; original server inventory/name/marker confirm restored state. Modern deliberate revision mismatch requests full actual resync; empty comparison marker is not a cursor receipt or computed item hash."
             swap_boundary = trace.mark()
             data_swap = {"client": stage(probe, messages, "item_data_swap_" + mode, report["container_records"])["value"]}
             result["data_swap"] = data_swap
@@ -1155,7 +1169,10 @@ network-compression-threshold=256
             if any(f["direction"] == "serverbound" and f["phase"] == "play" and f["packet_id"] == outgoing_id for f in native_frames):
                 raise RuntimeError("forced-close audit unexpectedly sent a client close")
             if version == "1.16.1":
-                item = until(lambda:matched(rcon.command("execute at UnifiedProbe as @e[type=minecraft:item,distance=..3,limit=1,sort=nearest] run data get entity @s"),r'(?s)(?=.*minecraft:stone)(?=.*Count: 5b(?:,|\s|})).*'))
+                # The isolated world contains no other stone drops. The item can
+                # fall away from the teleported creative player before RCON
+                # observes it; location is not part of the disposal assertion.
+                item = until(lambda:matched(rcon.command('execute as @e[type=minecraft:item,nbt={Item:{id:"minecraft:stone",Count:5b}},limit=1] run data get entity @s'),r'(?s)(?=.*minecraft:stone)(?=.*Count: 5b(?:,|\s|})).*'))
                 inventory_after = until(lambda:inventory_matches({9:("minecraft:dirt",2)}))
                 report["cursor_close_audit_remove_drop_" + mode] = rcon.command("kill @e[type=minecraft:item]")
             else:

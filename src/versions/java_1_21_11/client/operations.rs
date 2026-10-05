@@ -997,7 +997,32 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         | input::SET_CURSOR_ITEM
         | input::OPEN_WINDOW
         | input::CLOSE_WINDOW => {
-            inventory::receive(&mut next.inventory, id, payload, state.sequence)?;
+            let player_access_after_close =
+                state.common_container_close.as_ref().is_some_and(|close| {
+                    let mut session = close.initial.session;
+                    session.world_generation = state.loading.generation;
+                    matches!(
+                        crate::client::container::player_screen_access(
+                            session,
+                            state.operations.inventory.window_id,
+                            state
+                                .operations
+                                .inventory
+                                .container
+                                .as_ref()
+                                .map(|s| s.capture(session).id),
+                            Some(close),
+                        ),
+                        Some(crate::client::container::PlayerScreenAccess::SubmittedClose { .. })
+                    )
+                });
+            inventory::receive(
+                &mut next.inventory,
+                id,
+                payload,
+                state.sequence,
+                player_access_after_close,
+            )?;
             if id == input::CLOSE_WINDOW {
                 // Decode succeeded atomically; original state still identifies the opening.
                 let mut close = Reader::new(payload);

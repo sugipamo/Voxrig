@@ -102,7 +102,7 @@ pub(crate) fn legacy_comparison_supported(stack: &crate::versions::java_1_16_1::
         && stack
             .nbt
             .as_ref()
-            .is_none_or(|nbt| route.default_legacy_nbt.as_ref() == Some(nbt))
+            .is_none_or(|nbt| crate::client::nbt::decode(nbt, MinecraftVersion::Java1_16_1).is_ok())
 }
 fn capacity(version: MinecraftVersion, menu: &str, index: usize, item: &ItemStack) -> Result<u32> {
     let max = super::slot_policy::default_item_capacity(version, item.id.value(), &item.name)

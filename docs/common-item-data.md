@@ -40,6 +40,10 @@ receiptの取得だけではdata付き操作の許可やnative意味比較を証
 公開の`ItemStack`から比較の所有情報を作り直すことはできない。readonlyの比較であり、
 slot受入規則、操作の成功、server synchronizer/cacheのhashを表さない。
 
+`native_data_equivalent(&other)`は同じ所有条件でitem種別とnative dataを比較し、外側stackのcountだけを
+除く。split後のmetadata保持を検査する際に使える。bundleなど入れ子itemのcountはdataの一部として
+比較する。このgetter自体はstackの結合許可やslot受入れの判定ではない。
+
 ```rust,no_run
 use voxrig::client::prelude::*;
 # async fn compare(client: &Client) -> Result<()> {

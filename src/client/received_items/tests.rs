@@ -300,6 +300,7 @@ fn received_modern_item_comparison_applies_prototypes_removals_and_context_guard
     let equivalent = inventory_for(explicit, 21, 13);
     let a = default.slot(9).unwrap().unwrap().item().unwrap();
     let b = equivalent.slot(9).unwrap().unwrap().item().unwrap();
+    assert!(a.native_data_equivalent(&b).unwrap());
     assert_ne!(a.stack(), b.stack());
     assert!(a.native_equivalent(&b).unwrap());
     let mut removed = base.clone();
@@ -317,6 +318,10 @@ fn received_modern_item_comparison_applies_prototypes_removals_and_context_guard
     let mut changed = base.clone();
     changed.count = 3;
     let changed = inventory_for(changed, 21, 13);
+    assert!(
+        a.native_data_equivalent(&changed.slot(9).unwrap().unwrap().item().unwrap())
+            .unwrap()
+    );
     assert!(
         !a.native_equivalent(&changed.slot(9).unwrap().unwrap().item().unwrap())
             .unwrap()
@@ -435,6 +440,10 @@ fn received_item_comparison_resolves_hover_counts_and_custom_dialog_registry_nam
     state.inventory.slots[11] = Some(observation(stack(field("hover-item-count")), 14));
     let received = capture(state.clone(), registries().capture(state.session, 20)).unwrap();
     let a = received.slot(9).unwrap().unwrap().item().unwrap();
+    assert!(
+        !a.native_data_equivalent(&received.slot(11).unwrap().unwrap().item().unwrap())
+            .unwrap()
+    );
     assert!(
         a.native_equivalent(&received.slot(10).unwrap().unwrap().item().unwrap())
             .unwrap()

@@ -1,16 +1,16 @@
 //! Semantic predecessors retained with their actual registry capture.
 use super::*;
-use crate::client::{item_semantics, registry::ServerRegistryObservation};
+use crate::client::{ItemStack, item_semantics, registry::ServerRegistryObservation};
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
-enum Stack {
+pub(super) enum Stack {
     Empty,
     Legacy(item_semantics::LegacyItem),
     Modern(item_semantics::Item),
 }
 impl Stack {
-    fn read(value: &SlotKnowledge, owner: &ServerRegistryObservation) -> Result<Self> {
+    pub(super) fn read(value: &SlotKnowledge, owner: &ServerRegistryObservation) -> Result<Self> {
         Ok(match value {
             SlotKnowledge::Empty => Self::Empty,
             SlotKnowledge::Item { item } => match owner.session().version {
@@ -25,7 +25,7 @@ impl Stack {
             SlotKnowledge::Unavailable => return Err(unavailable("swap item unavailable")),
         })
     }
-    fn matches(&self, other: &Self, shared: bool) -> bool {
+    pub(super) fn matches(&self, other: &Self, shared: bool) -> bool {
         match (self, other) {
             (Self::Empty, Self::Empty) => true,
             (Self::Legacy(a), Self::Legacy(b)) => a.matches(b, shared),
@@ -33,7 +33,17 @@ impl Stack {
             _ => false,
         }
     }
-    fn uses_tags(&self) -> bool {
+    fn same_data(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Empty, Self::Empty) => true,
+            (Self::Legacy(a), Self::Legacy(b)) => a.same_data(b, false),
+            (Self::Modern(a), Self::Modern(b)) => {
+                a.native_id == b.native_id && a.components == b.components
+            }
+            _ => false,
+        }
+    }
+    pub(super) fn uses_tags(&self) -> bool {
         matches!(self, Self::Modern(v) if v.components.values().any(item_semantics::Component::uses_tags))
     }
 }
@@ -103,6 +113,72 @@ impl SwapData {
         Ok((
             actual_key.matches(before_key, actual.source == before.source),
             actual_key.matches(after_key, false),
+        ))
+    }
+}
+
+/// Immutable semantic context shared by predictions and later actual receipts.
+#[derive(Clone, Debug)]
+pub(crate) struct ItemContext {
+    owner: Arc<ServerRegistryObservation>,
+}
+impl ItemContext {
+    pub(super) fn new(
+        owner: ServerRegistryObservation,
+        initial: &PlayerObservation,
+    ) -> Result<Self> {
+        if owner.session() != initial.session
+            || owner.receive_sequence() != initial.receive_sequence
+        {
+            return Err(unavailable(
+                "item registries and inventory capture disagree",
+            ));
+        }
+        Ok(Self {
+            owner: Arc::new(owner),
+        })
+    }
+    pub(super) fn predecessor(&self, value: &ObservedValue<SlotKnowledge>) -> Result<()> {
+        if !matches!(value.source, ValueSource::Received { sequence } if sequence <= self.owner.receive_sequence() && sequence >= self.owner.stamp().configuration_generation)
+        {
+            return Err(unavailable(
+                "item predecessor outside registry configuration",
+            ));
+        }
+        self.key(&value.value)?;
+        Ok(())
+    }
+    pub(super) fn key(&self, value: &SlotKnowledge) -> Result<Stack> {
+        Stack::read(value, &self.owner)
+    }
+    pub(super) fn same_data(&self, a: &ItemStack, b: &ItemStack) -> Result<bool> {
+        Ok(self
+            .key(&SlotKnowledge::Item { item: a.clone() })?
+            .same_data(&self.key(&SlotKnowledge::Item { item: b.clone() })?))
+    }
+    pub(super) fn classify(
+        &self,
+        actual: &ObservedValue<SlotKnowledge>,
+        before: &ObservedValue<SlotKnowledge>,
+        after: &SlotKnowledge,
+        current: &ServerRegistryObservation,
+    ) -> Result<(bool, bool)> {
+        if current.stamp() != self.owner.stamp() {
+            return Err(unavailable("item registry configuration changed"));
+        }
+        let actual_key = Stack::read(&actual.value, current)?;
+        let before_key = self.key(&before.value)?;
+        let after_key = self.key(after)?;
+        if (actual_key.uses_tags() || before_key.uses_tags() || after_key.uses_tags())
+            && self.owner.tags().map(|v| &v.source) != current.tags().map(|v| &v.source)
+        {
+            return Err(unavailable(
+                "item named-holder lifetime across tag reload is unresolved",
+            ));
+        }
+        Ok((
+            actual_key.matches(&before_key, actual.source == before.source),
+            actual_key.matches(&after_key, false),
         ))
     }
 }

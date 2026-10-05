@@ -373,6 +373,7 @@ pub(super) fn receive(
     id: i32,
     payload: &[u8],
     sequence: u64,
+    player_access_after_close: bool,
 ) -> anyhow::Result<()> {
     use ids::play_clientbound as input;
     let mut r = Reader::new(payload);
@@ -435,7 +436,7 @@ pub(super) fn receive(
                 inventory.player_revision = Some(crate::client::received(revision, sequence));
                 inventory.slots = slots;
                 inventory.slot_sequences.fill(Some(sequence));
-                if inventory.window_id.is_none_or(|w| w == 0) {
+                if inventory.window_id.is_none_or(|w| w == 0) || player_access_after_close {
                     inventory.window_id = Some(0);
                     inventory.screen_revision = Some(revision);
                     inventory.cursor = cursor;

@@ -76,7 +76,7 @@ impl Survival {
         self.client.common_container_close_record().await
     }
     /// One ordinary left/right click of player slots 9..44 or the same storage opening.
-    /// Requires received default predecessors; retains intent and separate prediction before I/O.
+    /// Requires received predecessors with resolved native data; retains separate prediction before I/O.
     pub async fn click_inventory(
         &self,
         source: super::inventory::InventoryClickSource,
@@ -300,7 +300,7 @@ impl Creative {
         self.client.common_container_close_record().await
     }
     /// One ordinary left/right click of player slots 9..44 or the same storage opening.
-    /// Requires received default predecessors; retains intent and separate prediction before I/O.
+    /// Requires received predecessors with resolved native data; retains separate prediction before I/O.
     pub async fn click_inventory(
         &self,
         source: super::inventory::InventoryClickSource,

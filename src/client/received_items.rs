@@ -233,6 +233,16 @@ impl<'a> ReceivedItem<'a> {
     /// }
     /// ```
     pub fn native_equivalent(&self, other: &ReceivedItem<'_>) -> Result<bool> {
+        self.compare(other, true)
+    }
+    /// Compare native item type and data while ignoring only the outer stack count.
+    /// Nested item counts remain part of their data. This does not prove slot
+    /// acceptance, stackability or permission to merge/mutate an inventory.
+    /// Registry and named-tag lifetime requirements are the same as native_equivalent.
+    pub fn native_data_equivalent(&self, other: &ReceivedItem<'_>) -> Result<bool> {
+        self.compare(other, false)
+    }
+    fn compare(&self, other: &ReceivedItem<'_>, include_count: bool) -> Result<bool> {
         if self.registry_state().stamp() != other.registry_state().stamp() {
             return Err(invalid(
                 "item comparison requires the same registry configuration",
@@ -264,7 +274,11 @@ impl<'a> ReceivedItem<'a> {
                             "native named-holder lifetime across tag reloads is not yet verified"
                         );
                     }
-                    Ok(left == right)
+                    Ok(if include_count {
+                        left == right
+                    } else {
+                        left.native_id == right.native_id && left.components == right.components
+                    })
                 };
                 compare().map_err(|error| Error::new(ErrorKind::Unsupported, error))
             }
@@ -274,7 +288,11 @@ impl<'a> ReceivedItem<'a> {
                 let shared = self.receipt.location == other.receipt.location
                     && self.receive_sequence() == other.receive_sequence()
                     && self.registry_state().session() == other.registry_state().session();
-                Ok(left.matches(&right, shared))
+                Ok(if include_count {
+                    left.matches(&right, shared)
+                } else {
+                    left.same_data(&right, shared)
+                })
             }
         }
     }

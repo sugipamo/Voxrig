@@ -59,7 +59,21 @@ impl Bot {
             .container
             .as_ref()
             .map(|s| s.capture(initial.session));
-        let record = click::prepare(initial, mode, source, slot, button, attempt, screen)?;
+        let registries = self
+            .common_receipts
+            .lock()
+            .await
+            .registries
+            .capture(initial.session, initial.receive_sequence);
+        let record = click::prepare_received(
+            (initial, registries),
+            mode,
+            source,
+            slot,
+            button,
+            attempt,
+            screen,
+        )?;
         {
             let inventory = self.inventory.read().await;
             if inventory
@@ -287,7 +301,13 @@ impl Bot {
         let complete = {
             let mut guard = self.common_inventory_click.lock().await;
             let record = &mut guard.as_mut().expect("retained").record;
-            click::receive(record, &current, screen.as_ref());
+            let registries = self
+                .common_receipts
+                .lock()
+                .await
+                .registries
+                .capture(current.session, current.receive_sequence);
+            click::receive_with_registries(record, &current, screen.as_ref(), &registries);
             if native_conflict {
                 record.inspection("legacy click cache/ownership context changed");
             }

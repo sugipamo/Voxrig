@@ -297,4 +297,6 @@ Text内のitem hoverとdialog参照も受信所有情報付き比較へ接続し
 在庫SWAPのdata付きstack受付と結果比較を両版へ接続した。legacy比較packetにNBTを保持し、
 modernは元prototype/patchの実効容量を使う。保持したregistryとtyped native fieldでfreshな両destinationを
 照合し、configuration/tag sourceの変更や意味解決の失敗をinspectionとして残す。
-通常PICKUP/QUICK_MOVE/cursor・製作/一般装備や後続の統合範囲は継続する。
+通常PICKUPも受信NBT/components付きstackのsplit・1個置く・全返却へ接続した。
+modernは送信revisionを明示して完全再同期を要求し、実source/cursorのfresh受信で結果を検査する。
+data付きQUICK_MOVE/cursor付きclose・製作/一般装備や後続の統合範囲は継続する。

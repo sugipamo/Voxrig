@@ -2961,3 +2961,154 @@ async fn data_swap_refuses_effective_overstack_and_latches_changed_component_rec
     assert_eq!(retained.stage, InventorySwapStage::RequiresInspection);
     f.stop().await;
 }
+
+#[tokio::test]
+async fn data_pickup_same_consumer_both_modes_keeps_data_and_requires_fresh_resync_cursor() {
+    use crate::client::{
+        GameMode as Mode,
+        inventory::{
+            InventoryClickButton as Button, InventoryClickSource as Source,
+            InventoryClickStage as Stage,
+        },
+    };
+    let mut f = CommonFixture::new().await;
+    f.api.bot.session.state.lock().await.registries.finish();
+    let client = f.client();
+    for mode in [Mode::Survival, Mode::Creative] {
+        let mut packet = vec![3];
+        packet.extend((if mode == Mode::Creative { 1f32 } else { 0f32 }).to_be_bytes());
+        f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &packet)
+            .await;
+        f.slot(9, component_swap_item(7, 16, true)).await;
+        let original = client.received_inventory().await.unwrap();
+        for (button, source_count, cursor_count) in [
+            (Button::Right, 3, 4),
+            (Button::Right, 4, 3),
+            (Button::Left, 7, 0),
+        ] {
+            let record = crate::client::tests::common_pickup_start_scenario(
+                &client,
+                mode,
+                Source::Player,
+                9,
+                button,
+            )
+            .await;
+            assert!(record.send.request_full_resync);
+            assert_ne!(
+                record.send.sent_screen_revision,
+                record.send.screen_revision
+            );
+            let (id, payload) = read_packet(&mut f.peer, None).await.unwrap();
+            assert_eq!(id, ids::play_serverbound::WINDOW_CLICK);
+            assert_eq!(payload, super::click::payload(&record).unwrap());
+            assert_eq!(payload.last(), Some(&0)); // resync marker, not actual data cursor hash
+            f.slot(9, component_swap_item(source_count, 16, false))
+                .await;
+            assert_eq!(
+                client
+                    .survival()
+                    .inventory_click_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .stage,
+                Stage::Pending
+            );
+            let mut cursor = Vec::new();
+            put_slot(
+                &mut cursor,
+                &if cursor_count == 0 {
+                    InventorySlot::Empty
+                } else {
+                    component_swap_item(cursor_count, 16, false)
+                },
+            );
+            f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+                .await;
+            crate::client::tests::common_data_pickup_complete_scenario(
+                &client,
+                record.id,
+                &original,
+                (source_count as u32, cursor_count as u32),
+            )
+            .await;
+        }
+    }
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn data_pickup_player_full_resync_cursor_requires_completed_matching_close() {
+    let mut f = CommonFixture::new().await;
+    let opening = f.open_swap_container().await;
+    let client = f.client();
+    let packet = {
+        let mut inventory = f
+            .api
+            .bot
+            .session
+            .state
+            .lock()
+            .await
+            .operations
+            .inventory
+            .clone();
+        inventory.slots.fill(InventorySlot::Empty);
+        inventory.cursor = plain("stone", 4);
+        full(&inventory, 130)
+    };
+    // A player-menu packet must not replace an active foreign menu's cursor.
+    f.receive(ids::play_clientbound::WINDOW_ITEMS, &packet)
+        .await;
+    assert_eq!(
+        client.screen_state().await.unwrap().cursor.unwrap().value,
+        crate::client::SlotKnowledge::Empty
+    );
+    client.survival().close_container(opening).await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    f.api
+        .bot
+        .session
+        .state
+        .lock()
+        .await
+        .common_container_close
+        .as_mut()
+        .unwrap()
+        .dispatched = false;
+    f.receive(ids::play_clientbound::WINDOW_ITEMS, &packet)
+        .await;
+    assert_eq!(
+        client.screen_state().await.unwrap().cursor.unwrap().value,
+        crate::client::SlotKnowledge::Empty
+    );
+    f.api
+        .bot
+        .session
+        .state
+        .lock()
+        .await
+        .common_container_close
+        .as_mut()
+        .unwrap()
+        .dispatched = true;
+    f.receive(ids::play_clientbound::WINDOW_ITEMS, &packet)
+        .await;
+    let actual = client.received_inventory().await.unwrap();
+    assert_eq!(actual.cursor().unwrap().item().unwrap().stack().count, 4);
+    assert_eq!(
+        client.player_state().await.unwrap().inventory.window_id,
+        Some(0)
+    );
+    // A later opening cannot reuse the old close's admission.
+    let next = f.open_swap_container().await;
+    assert_ne!(next, opening);
+    f.receive(ids::play_clientbound::WINDOW_ITEMS, &packet)
+        .await;
+    assert_eq!(
+        client.screen_state().await.unwrap().cursor.unwrap().value,
+        crate::client::SlotKnowledge::Empty
+    );
+    f.stop().await;
+}

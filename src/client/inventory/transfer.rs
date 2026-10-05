@@ -275,6 +275,8 @@ pub(crate) fn prepare(
             legacy_action: None,
             legacy_comparison: None,
             screen_revision: revision,
+            sent_screen_revision: revision,
+            request_full_resync: false,
             dispatched: false,
         },
         legacy_return_prediction: if initial.session.version == MinecraftVersion::Java1_16_1 {

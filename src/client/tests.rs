@@ -1186,3 +1186,45 @@ pub(crate) async fn common_data_swap_completed_scenario(
     }
     record
 }
+
+/// Data-preserving split/merge consumer, shared by both actual adapter fixtures.
+pub(crate) async fn common_data_pickup_complete_scenario(
+    client: &Client,
+    id: inventory::InventoryClickId,
+    original: &ReceivedInventory,
+    counts: (u32, u32),
+) {
+    let record = client
+        .survival()
+        .inventory_click_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(record.id, id);
+    assert_eq!(
+        record.stage,
+        inventory::InventoryClickStage::ObservedClicked,
+        "{:?}",
+        record.requires_inspection
+    );
+    let after = client.received_inventory().await.unwrap();
+    let original = original.slot(9).unwrap().unwrap().item().unwrap();
+    for (slot, count, diagnostic) in [
+        (
+            after.slot(9).unwrap().unwrap(),
+            counts.0,
+            &record.source_receipt,
+        ),
+        (after.cursor().unwrap(), counts.1, &record.cursor_receipt),
+    ] {
+        assert!(slot.receive_sequence() > record.send.after_sequence);
+        assert_eq!(slot.value(), &diagnostic.as_ref().unwrap().value);
+        if count == 0 {
+            assert_eq!(slot.value(), &SlotKnowledge::Empty);
+        } else {
+            let item = slot.item().unwrap();
+            assert_eq!(item.stack().count, count);
+            assert!(original.native_data_equivalent(&item).unwrap());
+        }
+    }
+}

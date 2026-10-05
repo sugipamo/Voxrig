@@ -14,8 +14,10 @@ empty sentinelの容量値をitem容量に読み替えない。
 `Survival::click_inventory` / `Creative::click_inventory`は同じ引数・recordで通常PICKUPを実装する。
 `InventoryClickSource::Player`はcanonical player screen slot 9..44、`Container { screen }`は
 元の受信済みopeningのstorageと付属player slotを指定する。native slot番号であり、hotbar indexではない。
-元opening、実mode、完全なdefault source/cursor、版別slot条件を送信前に検査する。
-未知item、上限超過、任意NBT/componentsは送信前に拒否する。Leftの空きcursor/空きslotとの移動は、
+元opening、実mode、受信済みsource/cursor、版別slot条件を送信前に検査する。
+通常PICKUPの既知itemではlegacy NBTとmodern componentsも保持する。受信と同時に保存したregistryで
+意味を解決し、実効item容量を検査する。未知item、容量超過、未解決dataや特殊item overrideは送信前に拒否する。
+Leftの空きcursor/空きslotとの移動は、
 元JARで照合したdefault constructorのlegacy NBTもそのまま保持する。modern default bundleのLeft移動も
 空きcursor/空きslotとの境界に限って認める。bundle内部への収納、Right overrideは後続作業。
 Shift転送は[共通転送API](common-inventory-transfers.md)で別途実装する。PICKUPのcrafting/result/armor/offhandは追加対応を要する。cursor付きcloseは[返却とclose](common-container-close.md)で別に実装する。
@@ -65,7 +67,7 @@ PICKUPの実操作前countが有効な変更10,540 / 10,994ケースは、すべ
 
 shulker box slotは17種類のshulker box itemを拒否する。playerに付属する通常slotはこの制限を持たない。
 slotのnative基本容量はlegacy 64、modern 99であり、共通の定数64へ丸めない。
-実stackには別のitem容量も適用する。default容量を超えたcountや容量を変えるcomponentsを通常stackへ補完しない。
+実stackには別のitem容量も適用する。data付きstackはprototype/patchから実効容量を求める。容量を超えるcountを切り詰めて受付しない。
 modernの17種類のbundleはitem自身がPICKUPをoverrideするので、通常PICKUPの計算対象へ混ぜない。
 SWAPはこのitem overrideを実行しないため、bundleの通常クリックとwhole SWAPは別の条件になる。
 
@@ -77,7 +79,19 @@ modernは予測cursor hashが実結果と一致するとcursor更新を省略す
 特に全量を戻してEmptyになる時、Empty hashを送るだけでは実Empty受信の根拠を得られない。
 実操作前cursorを比較値にし、実cursor更新を求める。default stackのhash codecはnative holder ID/countと
 空patch追加・削除から成り、native HashGeneratorがcomponent hashを要求しないことも確認した。
-既存SWAPのEmpty hashも同じ検証済みencoderへ揃えた。通常PICKUPも実predecessorのhashを同じencoderへ渡す。
+既存SWAPのEmpty hashも同じ検証済みencoderへ揃えた。default通常PICKUPは実predecessorのhashを同じencoderへ渡す。
+
+data付きmodern PICKUPは、未実装のcomponent/cache hashを捏造せず、受信revisionと異なるrevisionで
+完全再同期を要求する。`send.screen_revision`は実受信値、`send.sent_screen_revision`は実送信値、
+`send.request_full_resync`はこの要求を表す。この時のEmpty比較markerは実cursorの値・hashではない。
+要求の送信だけで成功とはせず、sourceとcursorそれぞれのfresh実受信を必須とする。
+サーバーrevisionが途中で変わって再同期されない場合はPendingのまま待ち、自動再送しない。
+legacyは元のNBTを保持した比較値と実comparison replyで既存の再同期を使う。
+
+データ付き結果の照合はcountとnative fieldを別々に行う。元NBTのkey順や明示default componentが
+受信で正規化されてもtyped意味が同じなら一致する。configuration/tag所有が変わったり、
+意味解決ができなかった場合は`RequiresInspection`へ保持する。QUICK_MOVE、cursor付きclose、
+特殊item・crafting/result/equipment slotの一般data対応は後続作業。
 
 ## 再生成
 
@@ -115,3 +129,7 @@ close後のplayer main/hotbarの取り出し・1個置く・返却・元在庫�
 `data/client_api/ordinary_pickup_native_evidence.json`に8完了recordずつ、実行時input・raw hashと
 独立RCON結果を保持する。両JVMはexit 0、tmpfs runtimeは削除済み。RCONはslot数量・位置を照合し、
 cursor/menu所有は実packet以上の根拠を作らない。過去のfailed native履歴は元のevidenceへ保持する。
+
+modernでは元openingのclose送信が完了している場合、実player screen zeroの全量packetに
+含まれるcursorも取り込む。未完了closeや別の新openingへこの許可を持ち越さない。
+この全量packetが届くまでは、ローカルcloseだけで実player screenやEmpty cursorを作らない。

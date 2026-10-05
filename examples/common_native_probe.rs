@@ -1152,6 +1152,92 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 }
                 emit(&command, record)?;
             }
+            "item_data_pickup_survival" | "item_data_pickup_creative" => {
+                let original = client.received_inventory().await?;
+                let original_item = original
+                    .slot(9)?
+                    .and_then(|s| s.item())
+                    .context("data click source missing")?;
+                let total = original_item.stack().count;
+                let mut records = Vec::new();
+                for (button, source_count, cursor_count) in [
+                    (InventoryClickButton::Right, total / 2, total.div_ceil(2)),
+                    (
+                        InventoryClickButton::Right,
+                        total / 2 + 1,
+                        total.div_ceil(2) - 1,
+                    ),
+                    (InventoryClickButton::Left, total, 0),
+                ] {
+                    let record = if command.ends_with("survival") {
+                        client
+                            .survival()
+                            .click_inventory(InventoryClickSource::Player, 9, button)
+                            .await?
+                    } else {
+                        client
+                            .creative()
+                            .click_inventory(InventoryClickSource::Player, 9, button)
+                            .await?
+                    };
+                    let completed = tokio::time::timeout(Duration::from_secs(15), async {
+                        loop {
+                            let current = client
+                                .survival()
+                                .inventory_click_record()
+                                .await?
+                                .context("data click record missing")?;
+                            anyhow::ensure!(
+                                current.id == record.id && current.requires_inspection.is_none(),
+                                "data click interrupted: {:?}",
+                                current.requires_inspection
+                            );
+                            if current.stage == InventoryClickStage::ObservedClicked {
+                                return Ok::<_, anyhow::Error>(current);
+                            }
+                            tokio::time::sleep(Duration::from_millis(25)).await;
+                        }
+                    })
+                    .await??;
+                    let actual = client.received_inventory().await?;
+                    for (slot, expected_count, diagnostic) in [
+                        (
+                            actual.slot(9)?.context("data source receipt missing")?,
+                            source_count,
+                            completed.source_receipt.as_ref(),
+                        ),
+                        (
+                            actual.cursor().context("data cursor receipt missing")?,
+                            cursor_count,
+                            completed.cursor_receipt.as_ref(),
+                        ),
+                    ] {
+                        anyhow::ensure!(
+                            slot.receive_sequence() > completed.send.after_sequence
+                                && diagnostic.is_some_and(|v| &v.value == slot.value()),
+                            "data click outcome lacks fresh actual receipt"
+                        );
+                        if expected_count == 0 {
+                            anyhow::ensure!(
+                                slot.value() == &SlotKnowledge::Empty,
+                                "data cursor did not empty"
+                            );
+                        } else {
+                            let item = slot.item().context("data item missing")?;
+                            anyhow::ensure!(
+                                item.stack().count == expected_count
+                                    && original_item.native_data_equivalent(&item)?,
+                                "data click changed fields/count"
+                            );
+                        }
+                    }
+                    records.push(completed);
+                }
+                emit(
+                    &command,
+                    serde_json::json!({"records":records,"native_data_equivalent":true,"restored_count":total}),
+                )?;
+            }
             "item_data_swap_survival"
             | "item_data_swap_creative"
             | "item_data_return_survival"

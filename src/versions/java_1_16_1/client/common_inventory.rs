@@ -1786,6 +1786,101 @@ mod tests {
         drop(bot);
         server.await.unwrap();
     }
+    #[tokio::test]
+    async fn data_pickup_same_consumer_both_modes_keeps_nbt_cursor_and_actual_legacy_reply() {
+        use api::inventory::{
+            InventoryClickButton as Button, InventoryClickSource as Source,
+            InventoryClickStage as Stage,
+        };
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let registry = api::registry::Registry::for_version(crate::MinecraftVersion::Java1_16_1);
+        let item = registry.item("minecraft:stone").unwrap();
+        let value = |count| {
+            if count == 0 {
+                api::SlotKnowledge::Empty
+            } else {
+                api::SlotKnowledge::Item {
+                    item: api::ItemStack {
+                        id: item.id,
+                        name: item.name.clone(),
+                        count,
+                        data: api::ItemData::LegacyNbt {
+                            bytes: hex::decode("0a0000030001610000000700").unwrap(),
+                        },
+                    },
+                }
+            }
+        };
+        for mode in [api::GameMode::Survival, api::GameMode::Creative] {
+            let mut packet = vec![3];
+            packet.extend(
+                (if mode == api::GameMode::Creative {
+                    1f32
+                } else {
+                    0f32
+                })
+                .to_be_bytes(),
+            );
+            bot.apply_packet(0x1e, packet).await.unwrap();
+            slot(&bot, 9, &value(7), false).await;
+            let original = client.received_inventory().await.unwrap();
+            for (button, source_count, cursor_count) in [
+                (Button::Right, 3, 4),
+                (Button::Right, 4, 3),
+                (Button::Left, 7, 0),
+            ] {
+                let record = api::tests::common_pickup_start_scenario(
+                    &client,
+                    mode,
+                    Source::Player,
+                    9,
+                    button,
+                )
+                .await;
+                assert!(!record.send.request_full_resync);
+                assert_eq!(packets.recv().await.unwrap().0, 0x09);
+                slot(&bot, 9, &value(source_count), false).await;
+                let mut cursor = vec![255, 255, 255];
+                let cursor_stack = if cursor_count == 0 {
+                    None
+                } else {
+                    Some(ItemStack {
+                        item_id: item.id.value(),
+                        count: cursor_count as i8,
+                        nbt: Some(hex::decode("0a0000030001610000000700").unwrap()),
+                    })
+                };
+                write_slot(&mut cursor, cursor_stack.as_ref());
+                bot.apply_packet(0x16, cursor).await.unwrap();
+                assert_eq!(
+                    client
+                        .survival()
+                        .inventory_click_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .stage,
+                    Stage::Pending
+                );
+                ack(&bot, record.send.legacy_action.unwrap(), false).await;
+                assert_eq!(packets.recv().await.unwrap().0, 0x07);
+                api::tests::common_data_pickup_complete_scenario(
+                    &client,
+                    record.id,
+                    &original,
+                    (source_count, cursor_count),
+                )
+                .await;
+            }
+        }
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
     async fn seed(bot: &Bot) {
         super::super::common_motion::tests::seed_motion(bot).await;
         let mut slots = vec![0, 0, 46];

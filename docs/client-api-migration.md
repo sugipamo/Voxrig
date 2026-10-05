@@ -306,7 +306,7 @@ main screen slot 9..35とhotbar index 0..8の通常交換は、modeに合うhand
 解決できるlegacy NBT/modern component付きstackにも同じAPIを使い、実効容量と受信registryを検査する。
 結果の成功判定は元bytesの一致ではなく、fresh receiptのnative field比較を使う。実クリック後のnegative比較応答はnative resyncを表し、rollbackと扱わない。
 modernの画面revisionとlegacyのtransaction番号を共通の成功ACKとして扱わない。
-完了後の次操作は新しいbaselineから開始する。crafting・data付きPICKUP/QUICK_MOVE/cursorはこの操作だけで対応済みにはならない。
+完了後の次操作は新しいbaselineから開始する。crafting・data付きQUICK_MOVE/cursor付きcloseはこの操作だけで対応済みにはならない。
 前提・取消・履歴と検証は[共通在庫交換](common-inventory-swaps.md)を参照。
 
 storage交換はnative slotの受入れ条件も送信前に検査する。shulker boxへのshulker box収納は
@@ -400,9 +400,12 @@ SWAPのhotbar引数とは異なり、ここはnative screen slot番号を渡す�
 旧native `OperationAdmissionError`には`BoundedInventoryClickInProgress`を追加するため、
 このenumを網羅matchしている利用側は対応するarmを追加する。
 
-default stack、監査済みstorageとplayer main/hotbarを実装対象とする。Leftはlegacy default constructorのNBTを保持して移動し、
+通常PICKUPの既知itemは、受信legacy NBT/modern components付きでも、監査済みstorageとplayer main/hotbarで使用できる。
+実効容量と元receiptのregistryを使い、予測を実受信へ昇格しない。modern data付き操作の
+`send.sent_screen_revision`は再同期用であり、実受信`screen_revision`と区別する。
+Leftはlegacy default constructorのNBTを保持して移動し、
 modern default bundleも空きcursor/空きslotとの移動に対応する。bundle内部の収納やRight override、
-一般NBT/components、PICKUPのcrafting/result/armor/offhandは追加対応を要する。cursor付きcloseは下記の共通返却へ移行する。
+未解決data・特殊item override、PICKUPのcrafting/result/armor/offhandは追加対応を要する。cursor付きcloseは下記の共通返却へ移行する。
 詳細は[通常クリック契約](common-inventory-clicks.md)を参照する。
 
 

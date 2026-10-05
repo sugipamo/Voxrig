@@ -77,6 +77,11 @@ pub struct InventoryClickSend {
     pub legacy_comparison: Option<SlotKnowledge>,
     /// Actual modern UI revision, absent on legacy.
     pub screen_revision: Option<i32>,
+    /// Revision actually encoded in the command; distinct from the received revision.
+    pub sent_screen_revision: Option<i32>,
+    /// Request a native full screen/cursor update using a revision mismatch.
+    /// An empty cursor comparison in this mode is a resync marker, never a receipt.
+    pub request_full_resync: bool,
     /// A complete frame write, not acceptance.
     pub dispatched: bool,
 }
@@ -95,6 +100,8 @@ pub enum InventoryClickStage {
 /// One retained ordinary click, accessible after cancellation/disconnection.
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct InventoryClickRecord {
+    #[serde(skip)]
+    pub(crate) item_context: Option<std::sync::Arc<super::data::ItemContext>>,
     /// Original opaque identity.
     pub id: InventoryClickId,
     /// Coherent received baseline before I/O.
@@ -192,6 +199,51 @@ pub(crate) fn prepare(
     attempt: u64,
     screen: Option<ContainerScreen>,
 ) -> Result<InventoryClickRecord> {
+    prepare_inner(
+        (initial, None),
+        mode,
+        source,
+        source_slot,
+        button,
+        attempt,
+        screen,
+    )
+}
+pub(crate) fn prepare_received(
+    capture: (
+        PlayerObservation,
+        crate::client::registry::ServerRegistryObservation,
+    ),
+    mode: GameMode,
+    source: InventoryClickSource,
+    source_slot: u16,
+    button: InventoryClickButton,
+    attempt: u64,
+    screen: Option<ContainerScreen>,
+) -> Result<InventoryClickRecord> {
+    prepare_inner(
+        (capture.0, Some(capture.1)),
+        mode,
+        source,
+        source_slot,
+        button,
+        attempt,
+        screen,
+    )
+}
+fn prepare_inner(
+    capture: (
+        PlayerObservation,
+        Option<crate::client::registry::ServerRegistryObservation>,
+    ),
+    mode: GameMode,
+    source: InventoryClickSource,
+    source_slot: u16,
+    button: InventoryClickButton,
+    attempt: u64,
+    screen: Option<ContainerScreen>,
+) -> Result<InventoryClickRecord> {
+    let (initial, registries) = capture;
     if attempt == 0
         || initial.pending_dispatch
         || initial.game_mode != Some(mode)
@@ -290,14 +342,36 @@ pub(crate) fn prepare(
     let source_before =
         received_value(slots.get(usize::from(source_slot)).and_then(Option::as_ref))?;
     let cursor_before = received_value(initial.inventory.cursor.as_ref())?;
-    let (expected_source, expected_cursor) = super::slot_policy::pickup(
-        initial.session.version,
-        menu,
-        usize::from(source_slot),
-        button,
-        &source_before.value,
-        &cursor_before.value,
-    )?;
+    let has_data = [&source_before, &cursor_before].iter().any(|v| {
+        matches!(&v.value, SlotKnowledge::Item {item} if item.data != crate::client::ItemData::Default)
+    });
+    let item_context = if let (true, Some(registries)) = (has_data, registries) {
+        let context = super::data::ItemContext::new(registries, &initial)?;
+        context.predecessor(&source_before)?;
+        context.predecessor(&cursor_before)?;
+        Some(std::sync::Arc::new(context))
+    } else {
+        None
+    };
+    let (expected_source, expected_cursor) = if let Some(context) = &item_context {
+        super::slot_policy::pickup_with_data(
+            initial.session.version,
+            menu,
+            usize::from(source_slot),
+            button,
+            (&source_before.value, &cursor_before.value),
+            context,
+        )?
+    } else {
+        super::slot_policy::pickup(
+            initial.session.version,
+            menu,
+            usize::from(source_slot),
+            button,
+            &source_before.value,
+            &cursor_before.value,
+        )?
+    };
     if expected_source == source_before.value && expected_cursor == cursor_before.value {
         return Err(crate::client::registry::invalid(
             "ordinary click would have no effect; no packet submitted",
@@ -313,7 +387,17 @@ pub(crate) fn prepare(
             source: ValueSource::Predicted,
         },
     };
+    let request_full_resync =
+        item_context.is_some() && initial.session.version == MinecraftVersion::Java1_21_11;
+    let sent_screen_revision = revision.map(|v| {
+        if request_full_resync {
+            if v == 0 { 1 } else { 0 }
+        } else {
+            v
+        }
+    });
     Ok(InventoryClickRecord {
+        item_context,
         id: InventoryClickId {
             session: initial.session,
             attempt,
@@ -324,6 +408,8 @@ pub(crate) fn prepare(
             legacy_action: None,
             legacy_comparison: None,
             screen_revision: revision,
+            sent_screen_revision,
+            request_full_resync,
             dispatched: false,
         },
         initial,
@@ -442,6 +528,22 @@ pub(crate) fn receive(
     current: &PlayerObservation,
     screen: Option<&ContainerScreen>,
 ) {
+    receive_inner(record, current, screen, None);
+}
+pub(crate) fn receive_with_registries(
+    record: &mut InventoryClickRecord,
+    current: &PlayerObservation,
+    screen: Option<&ContainerScreen>,
+    registries: &crate::client::registry::ServerRegistryObservation,
+) {
+    receive_inner(record, current, screen, Some(registries));
+}
+fn receive_inner(
+    record: &mut InventoryClickRecord,
+    current: &PlayerObservation,
+    screen: Option<&ContainerScreen>,
+    registries: Option<&crate::client::registry::ServerRegistryObservation>,
+) {
     if !record.unresolved() {
         return;
     }
@@ -461,35 +563,58 @@ pub(crate) fn receive(
     for (value, before, after, receipt) in [
         (
             values[0],
-            &record.source_before.value,
+            &record.source_before,
             &record.prediction.source.value,
             &mut record.source_receipt,
         ),
         (
             values[1],
-            &record.cursor_before.value,
+            &record.cursor_before,
             &record.prediction.cursor.value,
             &mut record.cursor_receipt,
         ),
     ] {
-        let Some(value) = value.filter(|v| {
-            matches!(v.source, ValueSource::Received { .. })
-                && (&v.value == before || &v.value == after)
-        }) else {
+        let Some(value) = value.filter(|v| matches!(v.source, ValueSource::Received { .. })) else {
             record
                 .requires_inspection
-                .get_or_insert_with(|| "click predecessor/outcome unavailable or conflicts".into());
+                .get_or_insert_with(|| "click receipt unavailable".into());
             continue;
+        };
+        let classification = if let Some(context) = &record.item_context {
+            registries
+                .filter(|r| {
+                    r.session() == current.session
+                        && r.receive_sequence() == current.receive_sequence
+                })
+                .ok_or_else(|| unavailable("coherent click registry capture unavailable"))
+                .and_then(|owner| context.classify(value, before, after, owner))
+        } else {
+            Ok((value.value == before.value, &value.value == after))
+        };
+        let (matches_before, matches_after) = match classification {
+            Ok(v) if v.0 || v.1 => v,
+            Ok(_) => {
+                record
+                    .requires_inspection
+                    .get_or_insert_with(|| "click native item fields conflict".into());
+                continue;
+            }
+            Err(e) => {
+                record
+                    .requires_inspection
+                    .get_or_insert_with(|| e.to_string());
+                continue;
+            }
         };
         let ValueSource::Received { sequence } = value.source else {
             unreachable!()
         };
         if sequence > record.send.after_sequence {
-            if !record.send.dispatched && &value.value != before {
+            if !record.send.dispatched && !matches_before {
                 record
                     .requires_inspection
                     .get_or_insert_with(|| "click values changed before complete dispatch".into());
-            } else if &value.value == after {
+            } else if matches_after {
                 receipt.get_or_insert_with(|| value.clone());
             } else if receipt.is_some() {
                 record.requires_inspection.get_or_insert_with(|| {

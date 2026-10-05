@@ -70,7 +70,10 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
             .container
             .as_ref()
             .map(|s| s.capture(current.session));
-        click::receive(&mut record, &current, screen.as_ref());
+        let registries = state
+            .registries
+            .capture(current.session, current.receive_sequence);
+        click::receive_with_registries(&mut record, &current, screen.as_ref(), &registries);
         if inventory.pending_swap.is_some()
             || inventory.unsupported_components
             || !inventory.pending_creative.is_empty()
@@ -88,8 +91,8 @@ pub(in crate::versions::java_1_21_11::client::operations) fn payload(
 ) -> Result<Vec<u8>> {
     let revision = record
         .send
-        .screen_revision
-        .ok_or_else(|| contract::unavailable("actual click screen revision unavailable"))?;
+        .sent_screen_revision
+        .ok_or_else(|| contract::unavailable("click command screen revision unavailable"))?;
     let mut payload = Vec::new();
     put_varint(&mut payload, record.window_id());
     put_varint(&mut payload, revision);
@@ -97,6 +100,12 @@ pub(in crate::versions::java_1_21_11::client::operations) fn payload(
     payload.extend([record.button.native(), 0, 0]); // button, PICKUP, empty changed map
     // Send actual cursor predecessor, not predicted after-click hash. This
     // retains native before values, forcing actual changed source/cursor receipts.
+    if record.send.request_full_resync {
+        // Native revision mismatch applies this click once, then sends full
+        // actual contents/cursor. Empty is an explicit resync comparison marker.
+        put_default_cursor_hash(&mut payload, &InventorySlot::Empty)?;
+        return Ok(payload);
+    }
     let cursor = match &record.cursor_before.value {
         api::SlotKnowledge::Empty => InventorySlot::Empty,
         api::SlotKnowledge::Item { item } => InventorySlot::Item {
@@ -153,7 +162,18 @@ impl Operations {
             .as_ref()
             .map_or(Some(1), |s| s.id.attempt().checked_add(1))
             .ok_or_else(|| contract::unavailable("inventory click attempts exhausted"))?;
-        let record = click::prepare(initial, mode, source, slot, button, attempt, screen)?;
+        let registries = state
+            .registries
+            .capture(initial.session, initial.receive_sequence);
+        let record = click::prepare_received(
+            (initial, registries),
+            mode,
+            source,
+            slot,
+            button,
+            attempt,
+            screen,
+        )?;
         let bytes = payload(&record)?;
         state.common_inventory_click = Some(record);
         let result = self

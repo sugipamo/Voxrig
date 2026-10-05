@@ -84,6 +84,41 @@ pub(crate) fn pickup(
     source: &SlotKnowledge,
     cursor: &SlotKnowledge,
 ) -> Result<(SlotKnowledge, SlotKnowledge)> {
+    pickup_inner(
+        version,
+        menu_name,
+        source_slot,
+        button,
+        (source, cursor),
+        None,
+    )
+}
+pub(super) fn pickup_with_data(
+    version: MinecraftVersion,
+    menu_name: &str,
+    source_slot: usize,
+    button: super::InventoryClickButton,
+    values: (&SlotKnowledge, &SlotKnowledge),
+    context: &super::data::ItemContext,
+) -> Result<(SlotKnowledge, SlotKnowledge)> {
+    pickup_inner(
+        version,
+        menu_name,
+        source_slot,
+        button,
+        values,
+        Some(context),
+    )
+}
+fn pickup_inner(
+    version: MinecraftVersion,
+    menu_name: &str,
+    source_slot: usize,
+    button: super::InventoryClickButton,
+    values: (&SlotKnowledge, &SlotKnowledge),
+    context: Option<&super::data::ItemContext>,
+) -> Result<(SlotKnowledge, SlotKnowledge)> {
+    let (source, cursor) = values;
     use crate::client::{ItemData, registry::Registry};
     let profiles = profiles(version);
     let slot = profiles
@@ -122,16 +157,22 @@ pub(crate) fn pickup(
                     .ok_or_else(|| {
                         crate::client::registry::invalid("native PICKUP item identity unavailable")
                     })?;
-                if item.id != definition.id
-                    || item.count == 0
-                    || item.count > profile.maximum_stack_size
-                {
+                let maximum_stack_size = if context.is_some() {
+                    u32::try_from(item.properties()?.max_stack_size).map_err(|_| {
+                        crate::client::registry::invalid("invalid effective PICKUP capacity")
+                    })?
+                } else {
+                    profile.maximum_stack_size
+                };
+                if item.id != definition.id || item.count == 0 || item.count > maximum_stack_size {
                     return Err(crate::client::registry::invalid(
                         "PICKUP requires valid version-bound item counts",
                     ));
                 }
-                if (item.data != ItemData::Default || !profile.ordinary_pickup)
-                    && !(left_boundary && super::return_policy::default_left_item(version, item))
+                if (context.is_none() && item.data != ItemData::Default || !profile.ordinary_pickup)
+                    && !(context.is_none()
+                        && left_boundary
+                        && super::return_policy::default_left_item(version, item))
                 {
                     return Err(crate::Error::new(
                         crate::ErrorKind::Unsupported,
@@ -140,7 +181,7 @@ pub(crate) fn pickup(
                         ),
                     ));
                 }
-                Ok(Some(profile.maximum_stack_size))
+                Ok(Some(maximum_stack_size))
             }
         }
     };
@@ -181,9 +222,13 @@ pub(crate) fn pickup(
                     )
                 }
                 SlotKnowledge::Item { item: existing } => {
-                    let same = existing.id == incoming.id
-                        && existing.name == incoming.name
-                        && existing.data == incoming.data;
+                    let same = if let Some(context) = context {
+                        context.same_data(existing, incoming)?
+                    } else {
+                        existing.id == incoming.id
+                            && existing.name == incoming.name
+                            && existing.data == incoming.data
+                    };
                     if same && may_place {
                         let room = capacity.saturating_sub(existing.count);
                         let take = incoming
