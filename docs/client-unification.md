@@ -220,6 +220,15 @@ opaque/hierarchical・server/registry authority・percent case等の元比較を
 残るfont/click/hover/dialog/item/entity constructor、一般item意味比較と操作の統合は継続する。
 詳細は[共通item data](common-item-data.md)を参照。
 
+### book constructorの内部共通化
+
+modernのwritable/written bookを共通内部fieldへ接続し、rawとfilteredの値・有無を保持する。
+written pageの両方から未解決のitem/dialog依存を伝播する。
+enchantableの正数制約とwritten generation 0〜3は通常受信へも適用する。
+118入力・71受理値・2,556組の元比較に一致する。writableの100ページ制限をwrittenへ流用しない。
+legacy book・lore・一般item/prototypeとdata付き操作、元の全統合範囲は継続する。
+詳細は[共通item data](common-item-data.md)を参照。
+
 ### clickとentity tooltipの内部共通化
 
 modernのrun/suggest commandを元CHAT_STRINGへ合わせ、clipboardと区別した。

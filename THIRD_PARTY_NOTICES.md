@@ -406,6 +406,17 @@ local and are not distributed or relicensed. These facts do not establish live
 entity lookup, tooltip/UI execution, legacy event parity, persistent/cache hash
 semantics or gameplay admission.
 
+`book_constructor_rules/cases/source` contain observed original writable/written
+book and enchantability stream acceptance, raw/filtered getter fields, nested text
+getters, original encode outputs and native value.equals. Owned tools call
+unchanged original codecs and constructors. The observer's JSON transport escapes
+UTF-16 units without changing native text values. Original JAR/mapping/classpath/
+JDK/tool/request/raw/final hashes bind these observations. Original binaries,
+method bodies and inspection logs remain local and are not distributed or
+relicensed. These facts do not establish legacy book parity, lore derived styles,
+live registry binding, full item/prototype comparison, persistent/server cache
+semantics or gameplay admission.
+
 `enchantment_constructor_rules/cases/source` record observed original stream
 acceptance, effective reference/level map entries, original encode outputs and
 native value.equals under the recorded vanilla registry context. Owned tools

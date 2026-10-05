@@ -524,3 +524,31 @@ JVM512MiB/CPU1で一つずつ実行し、保存rawとの照合は`--normalize-on
 意味比較を保証しない。元74 value classの確認ではbundle/container/use-remainder等が
 入れ子ItemStack専用の比較を使う。これらのprototype適用・実registry解決と一般data付き操作、
 残る全体統合は引き続き対応する。
+
+### bookとenchantability constructorの共通内部field
+
+modernのwritable/written bookを共通内部の`Filtered<T>`へ読み取る。
+rawとfilteredの有無・値を別に保持し、同じ値のfilteredが存在する場合も省略しない。
+written bookはtitle、author、generation、各text page、resolvedを保持する。
+rawとfilteredの両pageからitem/dialog依存を伝播し、未解決の依存があればfield比較を作らない。
+比較可能な場合もwhole item/prototype比較やserver cacheの証明とは区別する。
+
+元streamはwritable page 1,024 UTF-16単位・100ページ、written title 32 UTF-16単位を検査する。
+written page数にはwritableと同じ100ページ制限を加えない。元codecは101ページも受理する。
+written generationは0〜3、enchantableの値は正数でなければ拒否する。
+この2つのconstructor制約は通常受信へも適用し、検査に必要な整数だけを取得する。
+通常受信で本の全Value treeを作らず、元patch bytesと実受信sourceを保持する。
+通常受信での全nested text constructor検証は別の残作業として扱う。
+
+未変更の元codecで118入力・71受理値を実行し、raw/filtered getter・text getter・元encode結果と
+2,556組のequalsへ照合した。各scalar・長さ・ページ数境界、空値/filtered有無、Unicode/NUL、
+text NBTの単独サロゲート、非canonical varint、各位置の切断と末尾byteを含む。
+`book_constructor_rules/cases/source`には規則・圧縮検査値・source hashを保存する。
+探索toolの最初の出力は単独サロゲートのUTF-8保存で失敗したため、tool側のJSON transportを
+UTF-16単位のASCII escapeへ修正し、元codecで再取得した。元の拒否例として数えない。
+
+再生成は`scripts/export_book_constructors.py`を既存と同じ3 path引数で実行する。
+JVM512MiB/CPU1で一つずつ実行し、保存rawの照合は`--normalize-only --check`。
+元JAR/mapping/classpath/JDK/tool/request/raw/finalをhashへ束縛する。
+legacy book、loreの派生style、実registry解決、全item/prototype比較、persistent/cache、
+一般data付き操作と元の全統合範囲は引き続き対応する。

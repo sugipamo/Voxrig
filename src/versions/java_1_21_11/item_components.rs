@@ -5,6 +5,9 @@ use crate::client::{ItemComponent, ItemComponentPatch, registry::Registry};
 use anyhow::{Context, Result, bail};
 use std::{collections::BTreeSet, sync::OnceLock};
 #[cfg(test)]
+mod book_tests;
+mod books;
+#[cfg(test)]
 mod click_constructor_tests;
 #[cfg(test)]
 mod enchantment_tests;

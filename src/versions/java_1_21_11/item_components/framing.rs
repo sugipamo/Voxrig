@@ -288,16 +288,42 @@ fn read_value(
         .context("invalid pinned codec node")?;
     let decoded = match &native.rule {
         Rule::Sequence { children } => {
+            if node == 529 && (native.native_class != "aao$3" || children != &[530, 14, 2, 533, 5])
+            {
+                bail!("native written book constructor composition changed; update Voxrig");
+            }
             let mut values = Vec::new();
-            for &child in children {
-                let value = read_value(r, child, budget, child_depth, capture)?;
+            let mut generation = None;
+            for (index, &child) in children.iter().enumerate() {
+                // Even framing-only receipt must run the scalar constructor
+                // check. Capture just that field, retaining no page Value tree.
+                let generation_field = node == 529 && index == 2;
+                let value = read_value(r, child, budget, child_depth, capture || generation_field)?;
+                if generation_field {
+                    let Value::Integer(value) = &value else {
+                        bail!("native written book generation required");
+                    };
+                    generation = Some(*value);
+                }
                 if capture {
                     values.push(value);
                 }
             }
+            if let Some(generation) = generation {
+                crate::client::books::validate_generation(generation)?;
+            }
             let value = Value::Sequence(values);
             if capture && node == 583 {
                 Value::Profile(super::profile::from_fields(&value)?)
+            } else if capture && node == 529 {
+                let fields = super::books::written(value)?;
+                let dependencies = fields.dependencies();
+                let field_key = fields.field_comparison().map(Box::new);
+                Value::WrittenBook {
+                    fields,
+                    dependencies,
+                    field_key,
+                }
             } else {
                 value
             }
@@ -336,6 +362,20 @@ fn read_value(
                 }
             } else if node == 18 {
                 read_enchantments(r, *child, &native.native_class, budget, depth, capture)?
+            } else if node == 468 {
+                if native.native_class != "aao$17" || *child != 2 {
+                    bail!("native enchantability constructor composition changed; update Voxrig");
+                }
+                let Value::Integer(value) = read_value(r, *child, budget, child_depth, true)?
+                else {
+                    bail!("native enchantability integer required");
+                };
+                let fields = crate::client::books::Enchantability::new(value)?;
+                if capture {
+                    Value::Enchantability(fields)
+                } else {
+                    Value::Unit
+                }
             } else {
                 let value = read_value(r, *child, budget, child_depth, capture)?;
                 if capture && node == 7 {
@@ -343,6 +383,13 @@ fn read_value(
                         bail!("native text constructor requires a non-End NBT value");
                     };
                     capture_text(&tag)?
+                } else if capture && node == 524 {
+                    if native.native_class != "aao$14" || *child != 525 {
+                        bail!(
+                            "native writable book constructor composition changed; update Voxrig"
+                        );
+                    }
+                    Value::WritableBook(super::books::writable(value)?)
                 } else if capture {
                     Value::Forward {
                         codec: node,

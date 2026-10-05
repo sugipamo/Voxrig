@@ -55,6 +55,8 @@ include = [
     "/scripts/export_uris.py",
     "/scripts/ExportEnchantmentConstructors.java",
     "/scripts/export_enchantment_constructors.py",
+    "/scripts/ExportBookConstructors.java",
+    "/scripts/export_book_constructors.py",
     "/scripts/ExportEntityTooltips.java",
     "/scripts/export_entity_tooltips.py",
     "/scripts/ExportClickConstructors.java",

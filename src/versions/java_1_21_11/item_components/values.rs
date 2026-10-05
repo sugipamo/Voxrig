@@ -49,6 +49,13 @@ pub(super) enum Value {
     },
     Profile(Box<crate::client::profile::Profile>),
     Enchantments(crate::client::enchantments::Enchantments),
+    Enchantability(crate::client::books::Enchantability),
+    WritableBook(crate::client::books::WritableBook),
+    WrittenBook {
+        fields: Box<crate::client::books::WrittenBook>,
+        dependencies: Vec<crate::client::text::Dependency>,
+        field_key: Option<Box<crate::client::books::WrittenFields>>,
+    },
     Sequence(Vec<Value>),
     List(Vec<Value>),
     Map(Vec<(Value, Value)>),

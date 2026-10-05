@@ -1,4 +1,5 @@
 //! Common client entry points and data. Wire formats and physics belong to adapters.
+pub(crate) mod books;
 mod capabilities;
 mod config;
 pub(crate) mod constructor;
