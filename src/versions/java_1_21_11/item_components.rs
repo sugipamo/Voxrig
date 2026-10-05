@@ -7,6 +7,8 @@ use std::{collections::BTreeSet, sync::OnceLock};
 #[cfg(test)]
 mod click_constructor_tests;
 #[cfg(test)]
+mod enchantment_tests;
+#[cfg(test)]
 mod entity_tooltip_tests;
 mod framing;
 mod profile;

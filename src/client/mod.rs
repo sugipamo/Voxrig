@@ -3,6 +3,7 @@ mod capabilities;
 mod config;
 pub(crate) mod constructor;
 pub mod container;
+pub(crate) mod enchantments;
 mod geometry;
 mod hash_ops;
 pub(crate) mod identifier;

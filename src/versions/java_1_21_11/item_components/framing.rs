@@ -207,6 +207,64 @@ fn capture_text(
     })
 }
 
+// Both enchantment roots use this same constructor. Keep only the effective
+// reference/level map on the framing path, rather than allocating a Value tree.
+fn read_enchantments(
+    r: &mut Reader<'_>,
+    child: usize,
+    class: &str,
+    budget: &mut Budget,
+    depth: usize,
+    capture: bool,
+) -> Result<super::values::Value> {
+    let Node {
+        rule: Rule::Map {
+            key,
+            value,
+            maximum,
+        },
+        ..
+    } = &schema().nodes[child]
+    else {
+        bail!("native enchantment map codec changed; update Voxrig");
+    };
+    if class != "aao$17"
+        || child != 19
+        || *key != 20
+        || *value != 2
+        || !matches!(&schema().nodes[*key].rule, Rule::Registry { registry } if registry == "minecraft:enchantment")
+        || !matches!(&schema().nodes[*value].rule, Rule::Varint)
+    {
+        bail!("native enchantment constructor composition changed; update Voxrig");
+    }
+    if depth + 1 > 256 {
+        bail!("item-component codec depth limit");
+    }
+    budget.steps = budget
+        .steps
+        .checked_sub(1)
+        .context("item-component work limit")?;
+    let mut levels = BTreeMap::new();
+    for _ in 0..r.count((*maximum).min(65_536))? {
+        if depth + 2 > 256 {
+            bail!("item-component codec depth limit");
+        }
+        budget.steps = budget
+            .steps
+            .checked_sub(2)
+            .context("item-component work limit")?;
+        let key = reference(r, "minecraft:enchantment")?;
+        let level = r.varint()?;
+        levels.insert(key, level);
+    }
+    let fields = crate::client::enchantments::Enchantments::from_entries(levels)?;
+    Ok(if capture {
+        super::values::Value::Enchantments(fields)
+    } else {
+        super::values::Value::Unit
+    })
+}
+
 fn read_value(
     r: &mut Reader<'_>,
     node: usize,
@@ -276,6 +334,8 @@ fn read_value(
                 } else {
                     Value::Unit
                 }
+            } else if node == 18 {
+                read_enchantments(r, *child, &native.native_class, budget, depth, capture)?
             } else {
                 let value = read_value(r, *child, budget, child_depth, capture)?;
                 if capture && node == 7 {

@@ -405,3 +405,13 @@ bind these facts. Original method bodies, binaries and inspection logs remain
 local and are not distributed or relicensed. These facts do not establish live
 entity lookup, tooltip/UI execution, legacy event parity, persistent/cache hash
 semantics or gameplay admission.
+
+`enchantment_constructor_rules/cases/source` record observed original stream
+acceptance, effective reference/level map entries, original encode outputs and
+native value.equals under the recorded vanilla registry context. Owned tools
+call unchanged original codecs and getters; stream-map iteration order is not a
+stable canonical byte identity. Original JAR/mapping/classpath/JDK/tool/request/
+raw/final hashes bind these facts. Native binaries, method bodies and inspection
+logs remain local and are not distributed or relicensed. This does not establish
+live registry binding, complete item/prototype equality, persistent/server cache
+semantics or gameplay admission.

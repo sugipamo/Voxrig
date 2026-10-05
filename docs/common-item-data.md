@@ -495,3 +495,32 @@ profileのstrict numeric UUIDとselectorのUUID判定も同じ内部処理を使
 hashへ束縛し、ゲーム/JDK method bodyやbinaryは配布しない。
 これはtooltip表示、world entityの検索、legacyのevent互換、persistent/cache hash、
 新しい実ゲーム操作の証拠ではない。一般item/dialogと残る全体統合は継続する。
+
+### enchantment constructorの共通内部field
+
+modernのenchantments/stored_enchantmentsは同じ元constructorを使う。
+stream mapの重複referenceは最後の値を残し、その実効mapに対してlevel 0〜255を検査する。
+無効levelが後続の有効値で上書きされた場合は受理し、最後の値が無効なら拒否する。
+level 0の存在も保持し、未指定へ置き換えない。通常受信とfield取得の両方へこの規則を適用した。
+通常受信は全Value treeを作らず、検査に必要なreference/level mapだけを一時保持する。
+元patchのbytesと順序、実受信sourceは変えない。
+
+未変更公式codecの92入力・54受理値の実効map、元encoder出力と1,485組のequalsへ一致した。
+2種類のcomponent、負数・境界・重複と順序・非canonical varintを含む。
+component一値の観測wrapperは末尾byteも拒否し、これは元constructorの範囲検査と区別する。
+fieldsのreferenceは当該vanilla oracleのregistry contextに属する。
+実接続のregistry解決、全item/prototype比較、persistent/cache hashや在庫操作の許可へ使わない。
+新しいlive gameplay検証は含まない。
+
+元map encoderの出力順は再decodeによるmap容量の変化で変わる場合がある。
+観測toolは一回の元encodeを記録し、bytesの固定順や繰り返しencodeの不変性を要求しない。
+元method/binary/bytecodeは配布せず、規則・圧縮検査値・source hashを
+`enchantment_constructor_rules/cases/source`へ分ける。
+再生成は`scripts/export_enchantment_constructors.py`を既存と同じ3 path引数で実行する。
+JVM512MiB/CPU1で一つずつ実行し、保存rawとの照合は`--normalize-only --check`。
+
+さらに保存済みの全104型・4,134 component値について、入力と元再エンコードのtyped fieldが
+一致することを継続検査する。これはfield projectionの試験であり、全component/itemの
+意味比較を保証しない。元74 value classの確認ではbundle/container/use-remainder等が
+入れ子ItemStack専用の比較を使う。これらのprototype適用・実registry解決と一般data付き操作、
+残る全体統合は引き続き対応する。

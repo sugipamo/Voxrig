@@ -229,3 +229,11 @@ profile/selectorと共通のUUID処理を使う。表示名内のitem/dialog依�
 既存拡張text検査の65拒否すべてが一致する。これは内部constructor統合であり、
 一般item操作・live cache・crafting/entity/context/recovery等の全体統合は継続する。
 詳細は[共通item data](common-item-data.md)を参照。
+
+### enchantment constructorの内部共通化
+
+modernのenchantments/stored_enchantmentsを共通内部mapへ接続した。
+重複keyを最後の値へまとめてからlevel 0〜255を検査し、通常受信でも同じ規則を使う。
+92入力・54受理値・1,485元比較に一致し、全104型・4,134値のtyped field往復も継続検査する。
+実registry binding・全item/prototype比較・一般data付き在庫操作と元の全統合範囲は継続する。
+詳細は[共通item data](common-item-data.md)を参照。

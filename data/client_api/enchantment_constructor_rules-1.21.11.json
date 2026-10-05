@@ -1,0 +1,10 @@
+{
+  "duplicate_keys": "last_wins",
+  "level_maximum": 255,
+  "level_minimum": 0,
+  "registry": "minecraft:enchantment",
+  "schema_forward_node": 18,
+  "schema_key_node": 20,
+  "schema_map_node": 19,
+  "schema_value_node": 2
+}

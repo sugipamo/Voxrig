@@ -48,6 +48,7 @@ pub(super) enum Value {
         field_key: Option<Box<crate::client::text::FieldKey>>,
     },
     Profile(Box<crate::client::profile::Profile>),
+    Enchantments(crate::client::enchantments::Enchantments),
     Sequence(Vec<Value>),
     List(Vec<Value>),
     Map(Vec<(Value, Value)>),
@@ -521,5 +522,48 @@ mod tests {
         assert_eq!(source["enums"], 19);
         assert_eq!(source["scalar_nodes"], 5);
         assert_eq!(source["unnamed_tags"], 20);
+    }
+}
+
+#[cfg(test)]
+mod native_constructor_projection_tests {
+    use super::super::{definitions, framing};
+    use std::{collections::BTreeSet, io::Read};
+    #[test]
+    fn original_all_component_canonical_streams_preserve_typed_constructor_fields() {
+        let mut bytes = Vec::new();
+        flate2::read::GzDecoder::new(
+            &include_bytes!("../../../../data/client_api/item_semantics-1.21.11.json.gz")[..],
+        )
+        .read_to_end(&mut bytes)
+        .unwrap();
+        let source: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        let rows = source["components"].as_array().unwrap();
+        let mut components = BTreeSet::new();
+        for row in rows {
+            let native = definitions()
+                .iter()
+                .find(|d| d.name == row["component"])
+                .unwrap();
+            let input = framing::decode_value(
+                native,
+                &hex::decode(row["input_hex"].as_str().unwrap()).unwrap(),
+            )
+            .unwrap();
+            let canonical = framing::decode_value(
+                native,
+                &hex::decode(row["canonical_hex"].as_str().unwrap()).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(
+                serde_json::to_value(input).unwrap(),
+                serde_json::to_value(canonical).unwrap(),
+                "{} {}",
+                row["component"],
+                row["case"]
+            );
+            components.insert(native.name.as_str());
+        }
+        assert_eq!((rows.len(), components.len()), (4134, 104));
     }
 }
