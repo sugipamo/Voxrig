@@ -41,7 +41,7 @@ fn profiles(version: MinecraftVersion) -> &'static Profiles {
         }),
     }
 }
-fn validate(
+pub(super) fn validate(
     version: MinecraftVersion,
     value: &SlotKnowledge,
     context: Option<&super::data::ItemContext>,

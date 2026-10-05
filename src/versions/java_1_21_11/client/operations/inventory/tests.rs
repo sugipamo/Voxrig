@@ -3214,6 +3214,93 @@ async fn data_transfer_fresh_capacity_conflict_stays_latched_after_correct_data_
 }
 
 #[tokio::test]
+async fn held_cursor_transfer_same_consumer_modes_requests_real_resync_and_preserves_normalized_cursor()
+ {
+    use crate::client::{
+        GameMode as Mode, ItemData, SlotKnowledge,
+        inventory::{InventorySource as Source, InventoryTransferStage as Stage},
+    };
+    for mode in [Mode::Survival, Mode::Creative] {
+        let mut f = CommonFixture::new().await;
+        crate::client::inventory::armor_tests::install(
+            &mut f.api.bot.session.state.lock().await.registries,
+            MinecraftVersion::Java1_21_11,
+            None,
+        );
+        if mode == Mode::Creative {
+            let mut p = vec![3];
+            p.extend(1f32.to_be_bytes());
+            f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &p)
+                .await;
+        }
+        let held = |reversed| {
+            let SlotKnowledge::Item { item } =
+                crate::client::inventory::held_cursor_tests::data_cursor(
+                    MinecraftVersion::Java1_21_11,
+                    reversed,
+                )
+            else {
+                unreachable!()
+            };
+            let ItemData::ModernComponents { patch } = item.data else {
+                unreachable!()
+            };
+            InventorySlot::ItemWithComponents {
+                item: PlainItem {
+                    name: item.name,
+                    item_id: item.id.value(),
+                    count: item.count as i32,
+                },
+                components: patch,
+            }
+        };
+        f.slot(9, plain("stone", 7)).await;
+        f.slot(36, InventorySlot::Empty).await;
+        let mut cursor = Vec::new();
+        put_slot(&mut cursor, &held(false));
+        f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+            .await;
+        let client = f.client();
+        let before = client.received_inventory().await.unwrap();
+        let record =
+            crate::client::tests::common_transfer_start_scenario(&client, mode, Source::Player, 9)
+                .await;
+        assert!(record.send.request_full_resync);
+        assert_ne!(
+            record.send.screen_revision,
+            record.send.sent_screen_revision
+        );
+        assert_eq!(
+            read_packet(&mut f.peer, None).await.unwrap(),
+            (
+                ids::play_serverbound::WINDOW_CLICK,
+                vec![0, 0, 0, 9, 0, 1, 0, 0]
+            )
+        );
+        cursor.clear();
+        put_slot(&mut cursor, &held(true));
+        f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+            .await;
+        f.slot(9, InventorySlot::Empty).await;
+        assert_eq!(
+            client
+                .survival()
+                .inventory_transfer_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            Stage::Pending
+        );
+        f.slot(36, plain("stone", 7)).await;
+        crate::client::tests::common_held_cursor_transfer_complete_scenario(
+            &client, record.id, &before,
+        )
+        .await;
+        f.stop().await;
+    }
+}
+#[tokio::test]
 async fn armor_transfer_same_consumer_modes_preserves_data_and_requires_both_actual_slots() {
     use crate::client::{
         GameMode as Mode, ItemData, SlotKnowledge,

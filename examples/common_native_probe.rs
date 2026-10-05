@@ -1180,6 +1180,206 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 }
                 emit(&command, record)?;
             }
+
+            "held_cursor_take_survival"
+            | "held_cursor_take_creative"
+            | "held_cursor_restore_survival"
+            | "held_cursor_restore_creative" => {
+                let restoring = command.starts_with("held_cursor_restore");
+                let original = client.received_inventory().await?;
+                let original_item = if restoring {
+                    original.cursor().and_then(|s| s.item())
+                } else {
+                    original.slot(9)?.and_then(|s| s.item())
+                }
+                .context("held item missing")?;
+                anyhow::ensure!(
+                    original_item.stack().name == "minecraft:diamond_helmet"
+                        && original_item.stack().count == 1,
+                    "held fixture differs"
+                );
+                let source = if restoring { 10 } else { 9 };
+                let sent = if command.ends_with("survival") {
+                    client
+                        .survival()
+                        .click_inventory(
+                            InventoryClickSource::Player,
+                            source,
+                            InventoryClickButton::Left,
+                        )
+                        .await?
+                } else {
+                    client
+                        .creative()
+                        .click_inventory(
+                            InventoryClickSource::Player,
+                            source,
+                            InventoryClickButton::Left,
+                        )
+                        .await?
+                };
+                let complete = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let r = client
+                            .survival()
+                            .inventory_click_record()
+                            .await?
+                            .context("held click missing")?;
+                        anyhow::ensure!(
+                            r.id == sent.id && r.requires_inspection.is_none(),
+                            "held click interrupted: {:?}",
+                            r.requires_inspection
+                        );
+                        if r.stage == InventoryClickStage::ObservedClicked {
+                            return Ok::<_, anyhow::Error>(r);
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                let actual = client.received_inventory().await?;
+                let actual_source = actual
+                    .slot(source.into())?
+                    .context("held click source missing")?;
+                let actual_cursor = actual.cursor().context("held click cursor missing")?;
+                for (slot, receipt) in [
+                    (&actual_source, complete.source_receipt.as_ref()),
+                    (&actual_cursor, complete.cursor_receipt.as_ref()),
+                ] {
+                    anyhow::ensure!(
+                        slot.receive_sequence() > complete.send.after_sequence
+                            && receipt.is_some_and(|r| &r.value == slot.value()),
+                        "held click lacks actual fresh outcomes"
+                    );
+                }
+                let destination = if restoring {
+                    &actual_source
+                } else {
+                    &actual_cursor
+                };
+                let emptied = if restoring {
+                    &actual_cursor
+                } else {
+                    &actual_source
+                };
+                anyhow::ensure!(
+                    emptied.value() == &SlotKnowledge::Empty
+                        && original_item.native_equivalent(
+                            &destination.item().context("held destination missing")?
+                        )?,
+                    "held click changed item or left predecessor"
+                );
+                emit(
+                    &command,
+                    serde_json::json!({"record":complete,"native_equivalent":true,"holding":!restoring}),
+                )?;
+            }
+            "held_cursor_transfer_survival" | "held_cursor_transfer_creative" => {
+                let original = client.received_inventory().await?;
+                let held = original
+                    .cursor()
+                    .and_then(|s| s.item())
+                    .context("held transfer cursor missing")?;
+                let source = original
+                    .slot(9)?
+                    .and_then(|s| s.item())
+                    .context("held transfer source missing")?;
+                anyhow::ensure!(
+                    source.stack().name == "minecraft:dirt" && source.stack().count == 7,
+                    "held transfer source differs"
+                );
+                let destination = (36..45)
+                    .find(|&i| {
+                        original
+                            .slot(i)
+                            .ok()
+                            .flatten()
+                            .is_some_and(|s| s.value() == &SlotKnowledge::Empty)
+                    })
+                    .context("held transfer destination unavailable")?;
+                let sent = if command.ends_with("survival") {
+                    client
+                        .survival()
+                        .transfer_inventory(InventorySource::Player, 9)
+                        .await?
+                } else {
+                    client
+                        .creative()
+                        .transfer_inventory(InventorySource::Player, 9)
+                        .await?
+                };
+                let complete = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let r = client
+                            .survival()
+                            .inventory_transfer_record()
+                            .await?
+                            .context("held transfer missing")?;
+                        anyhow::ensure!(
+                            r.id == sent.id && r.requires_inspection.is_none(),
+                            "held transfer interrupted: {:?}",
+                            r.requires_inspection
+                        );
+                        if r.stage == InventoryTransferStage::ObservedTransferred {
+                            return Ok::<_, anyhow::Error>(r);
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                let actual = client.received_inventory().await?;
+                for index in [9, destination] {
+                    let slot = actual
+                        .slot(index)?
+                        .context("held transfer changed slot missing")?;
+                    let change = complete
+                        .changed_slots
+                        .iter()
+                        .find(|c| c.player_slot == Some(index))
+                        .context("held transfer planned change missing")?;
+                    anyhow::ensure!(
+                        slot.receive_sequence() > complete.send.after_sequence
+                            && change
+                                .receipt
+                                .as_ref()
+                                .is_some_and(|r| &r.value == slot.value()),
+                        "held transfer lacks fresh actual slot"
+                    );
+                    if index == 9 {
+                        anyhow::ensure!(
+                            slot.value() == &SlotKnowledge::Empty,
+                            "held source not empty"
+                        );
+                    } else {
+                        anyhow::ensure!(
+                            source.native_equivalent(&slot.item().context("held dirt missing")?)?,
+                            "held transfer changed source item"
+                        );
+                    }
+                }
+                let cursor = actual
+                    .cursor()
+                    .context("held transfer cursor inspection missing")?;
+                anyhow::ensure!(
+                    held.native_equivalent(&cursor.item().context("held transfer lost cursor")?)?
+                        && complete
+                            .cursor_inspected
+                            .as_ref()
+                            .is_some_and(|r| &r.value == cursor.value()),
+                    "held transfer changed carried item"
+                );
+                if complete.initial.session.version == MinecraftVersion::Java1_21_11 {
+                    anyhow::ensure!(
+                        complete.send.request_full_resync
+                            && complete.send.sent_screen_revision != complete.send.screen_revision,
+                        "data cursor did not request actual full resync"
+                    );
+                }
+                emit(
+                    &command,
+                    serde_json::json!({"record":complete,"destination":destination,"cursor_native_equivalent":true,"source_native_equivalent":true}),
+                )?;
+            }
             "item_data_pickup_survival" | "item_data_pickup_creative" => {
                 let original = client.received_inventory().await?;
                 let original_item = original

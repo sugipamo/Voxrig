@@ -3,6 +3,8 @@
 pub(crate) mod armor_tests;
 pub(crate) mod click;
 mod data;
+#[cfg(test)]
+pub(crate) mod held_cursor_tests;
 pub(crate) use data::ItemContext;
 pub(crate) mod return_policy;
 pub(crate) mod slot_policy;

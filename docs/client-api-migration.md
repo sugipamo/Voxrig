@@ -416,7 +416,10 @@ sourceは`Player`のslot 5..45か、元の`Container { screen }`のnative screen
 通常PICKUPの`InventoryClickSource`は`InventorySource`と同一型の互換aliasで、importを共通名へ移せる。
 装備先やdestination順序はnativeが決めるため、利用側が固定destinationを渡さない。
 `inventory_transfer_record()`の`ObservedTransferred`を待ち、全changed slotsのfresh実受信を確認する。
-転送で変化しない空cursorのordinalは元の受信を保持し、新規packet受信を主張しない。
+カーソルに通常itemを持っていても転送でき、数量・dataを保持する。転送で変化しないcursorの
+ordinalは実受信のまま保持し、新規packet受信を主張しない。cursorだけにdataがある場合も
+受信registryで意味を解決する。modernのdata付きcursorはfull再同期を明示的に要求し、Empty比較markerを
+実カーソルとして扱わない。数量・data・registryの変化が検出されたらinspectionへ進む。
 通常source/destinationの受信NBT/componentsも、元registryの意味と実効容量を検査して使用する。
 dataの表現が正規化されても同じnative fieldなら一致する。modernの変更した`equippable`も
 実効装備先とarmorの許可対象から振り分ける。data付き装備済みarmorも取り出せる。survivalは束縛の制限を適用し、creativeは元ゲームのmode判定に従って取り出す。modernの制限効果は受信enchantment定義に従う。

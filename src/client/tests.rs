@@ -1037,6 +1037,13 @@ pub(crate) async fn common_transfer_start_scenario(
     source: inventory::InventorySource,
     slot: u16,
 ) -> inventory::InventoryTransferRecord {
+    let before_cursor = client
+        .player_state()
+        .await
+        .unwrap()
+        .inventory
+        .cursor
+        .unwrap();
     let record = match mode {
         GameMode::Survival => client
             .survival()
@@ -1052,7 +1059,7 @@ pub(crate) async fn common_transfer_start_scenario(
     };
     assert!(record.send.dispatched);
     assert_eq!(record.stage, inventory::InventoryTransferStage::Pending);
-    assert_eq!(record.cursor_before.value, SlotKnowledge::Empty);
+    assert_eq!(record.cursor_before, before_cursor);
     assert!(!record.changed_slots.is_empty());
     for change in &record.changed_slots {
         assert!(matches!(change.before.source, ValueSource::Received { .. }));
@@ -1287,6 +1294,50 @@ pub(crate) async fn common_data_transfer_complete_from_scenario(
         &record.cursor_before
     );
     record
+}
+
+pub(crate) async fn common_held_cursor_transfer_complete_scenario(
+    client: &Client,
+    id: inventory::InventoryTransferId,
+    before: &ReceivedInventory,
+) {
+    let record = client
+        .survival()
+        .inventory_transfer_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(record.id, id);
+    assert_eq!(
+        record.stage,
+        inventory::InventoryTransferStage::ObservedTransferred
+    );
+    assert!(record.requires_inspection.is_none());
+    let actual = client.received_inventory().await.unwrap();
+    let original = before.slot(9).unwrap().unwrap().item().unwrap();
+    for index in [9, 36] {
+        let slot = actual.slot(index).unwrap().unwrap();
+        let change = record
+            .changed_slots
+            .iter()
+            .find(|s| s.player_slot == Some(index))
+            .unwrap();
+        assert!(slot.receive_sequence() > record.send.after_sequence);
+        assert_eq!(change.receipt.as_ref().unwrap().value, *slot.value());
+        if index == 9 {
+            assert_eq!(*slot.value(), SlotKnowledge::Empty);
+        } else {
+            assert!(original.native_equivalent(&slot.item().unwrap()).unwrap());
+        }
+    }
+    let held = before.cursor().unwrap().item().unwrap();
+    let cursor = actual.cursor().unwrap();
+    assert!(held.native_equivalent(&cursor.item().unwrap()).unwrap());
+    assert_eq!(
+        record.cursor_inspected.as_ref().unwrap().value,
+        *cursor.value()
+    );
+    assert!(record.cursor_before.value != SlotKnowledge::Empty);
 }
 
 pub(crate) async fn common_data_cursor_close_complete_scenario(

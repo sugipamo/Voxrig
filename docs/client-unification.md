@@ -307,5 +307,7 @@ modernの変更したequippable routingとarmorのallowed_entitiesを実効compo
 各stepでdataの正規化を許容し、実Emptyを確認してからCLOSEを一度送る。
 data付き装備済みarmorの取り出しも両版に接続した。survivalの束縛制限とcreativeの取り出しを区別し、
 modernは受信enchantmentの制限効果を解決する。
-非空cursor QUICK_MOVE、特殊item override・製作/一般装備や
+カーソルに通常itemを持ったQUICK_MOVEも両版へ接続した。cursorのみのdataも保持したregistryで
+意味比較し、modernのdata付きcursorは送信revisionを分けてfull実受信を要求する。
+特殊item override・製作/一般装備や
 後続の統合範囲は継続する。

@@ -87,7 +87,7 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
 pub(super) fn payload(record: &InventoryTransferRecord) -> Result<Vec<u8>> {
     let revision = record
         .send
-        .screen_revision
+        .sent_screen_revision
         .ok_or_else(|| contract::unavailable("actual transfer screen revision unavailable"))?;
     let mut payload = Vec::new();
     put_varint(&mut payload, record.window_id());
@@ -95,7 +95,13 @@ pub(super) fn payload(record: &InventoryTransferRecord) -> Result<Vec<u8>> {
     payload.extend((record.source_slot as i16).to_be_bytes());
     payload.extend([0, 1, 0]); // button, QUICK_MOVE, empty changed map
     // Leave native remote slots at their received predecessors with an empty changed map.
-    // QUICK_MOVE keeps the actual empty cursor; no fresh cursor update is claimed.
+    // QUICK_MOVE preserves the received cursor. For data-bearing cursors use
+    // an explicit different revision to obtain real full contents/cursor; this
+    // Empty comparison marker is neither a cursor value nor a native data hash.
+    if record.send.request_full_resync {
+        put_default_cursor_hash(&mut payload, &InventorySlot::Empty)?;
+        return Ok(payload);
+    }
     let cursor = match &record.cursor_before.value {
         api::SlotKnowledge::Empty => InventorySlot::Empty,
         api::SlotKnowledge::Item { item } => InventorySlot::Item {
@@ -154,8 +160,16 @@ impl Operations {
         let registries = state
             .registries
             .capture(initial.session, initial.receive_sequence);
-        let record =
+        let mut record =
             transfer::prepare_received((initial, registries), mode, source, slot, attempt, screen)?;
+        if matches!(&record.cursor_before.value, api::SlotKnowledge::Item { item } if item.data != api::ItemData::Default)
+        {
+            record.send.request_full_resync = true;
+            record.send.sent_screen_revision = record
+                .send
+                .screen_revision
+                .map(|v| if v == 0 { 1 } else { 0 });
+        }
         let bytes = payload(&record)?;
         state.common_inventory_transfer = Some(record);
         let result = self

@@ -69,7 +69,7 @@ pub struct InventoryTransferRecord {
     pub initial_screen: Option<ContainerScreen>,
     /// Source UI's actual predecessors; missing slots never imply empty.
     pub before_slots: Vec<Option<ObservedValue<SlotKnowledge>>>,
-    /// Original received empty cursor; QUICK_MOVE never moves it.
+    /// Original received cursor; ordinary QUICK_MOVE preserves it.
     pub cursor_before: ObservedValue<SlotKnowledge>,
     /// Latest actual unchanged-cursor inspection; may retain an older ordinal.
     /// A fresh cursor update is not claimed or required for an unchanged cursor.
@@ -250,11 +250,6 @@ fn prepare_inner(
             )
         }
     };
-    if cursor.value != SlotKnowledge::Empty {
-        return Err(unavailable(
-            "ordinary shift transfer requires received empty cursor",
-        ));
-    }
     if initial.session.version == MinecraftVersion::Java1_21_11 && revision.is_none() {
         return Err(unavailable("actual transfer UI revision unavailable"));
     }
@@ -271,7 +266,7 @@ fn prepare_inner(
                 .map_or(SlotKnowledge::Unavailable, |v| v.value.clone())
         })
         .collect();
-    let has_data = values.iter().any(|v| matches!(v, SlotKnowledge::Item {item} if item.data != crate::client::ItemData::Default));
+    let has_data = values.iter().chain(std::iter::once(&cursor.value)).any(|v| matches!(v, SlotKnowledge::Item {item} if item.data != crate::client::ItemData::Default));
     let item_context = if let (true, Some(registries)) = (has_data, registries) {
         let context = super::data::ItemContext::new(registries, &initial)?;
         for value in before
@@ -286,6 +281,11 @@ fn prepare_inner(
     } else {
         None
     };
+    transfer_policy::validate(
+        initial.session.version,
+        &cursor.value,
+        item_context.as_deref(),
+    )?;
     let calculated = if let Some(context) = &item_context {
         transfer_policy::calculate_with_data(
             initial.session.version,
@@ -483,7 +483,20 @@ pub(crate) fn validate_predecessors(
             return Err(unavailable("transfer predecessor changed before I/O"));
         }
     }
-    if !super::same_received_value(current.inventory.cursor.as_ref(), &record.cursor_before) {
+    let cursor = known(current.inventory.cursor.as_ref())?;
+    let unchanged = if let Some(context) = &record.item_context {
+        context
+            .classify(
+                &cursor,
+                &record.cursor_before,
+                &record.cursor_before.value,
+                registries,
+            )?
+            .0
+    } else {
+        super::same_received_value(Some(&cursor), &record.cursor_before)
+    };
+    if !unchanged {
         return Err(unavailable("transfer cursor changed before I/O"));
     }
     Ok(())
@@ -520,12 +533,34 @@ fn receive_inner(
             return;
         }
     };
-    match known(current.inventory.cursor.as_ref()) {
-        Ok(cursor) if cursor.value == record.cursor_before.value => {
-            record.cursor_inspected = Some(cursor)
+    let inspected = known(current.inventory.cursor.as_ref()).and_then(|cursor| {
+        let unchanged = if let Some(context) = &record.item_context {
+            let owner = registries
+                .filter(|r| {
+                    r.session() == current.session
+                        && r.receive_sequence() == current.receive_sequence
+                })
+                .ok_or_else(|| unavailable("coherent transfer cursor registries unavailable"))?;
+            context
+                .classify(
+                    &cursor,
+                    &record.cursor_before,
+                    &record.cursor_before.value,
+                    owner,
+                )?
+                .0
+        } else {
+            cursor.value == record.cursor_before.value
+        };
+        if !unchanged {
+            return Err(unavailable("transfer cursor changed"));
         }
-        _ => {
-            record.inspection("transfer cursor changed/became unavailable");
+        Ok(cursor)
+    });
+    match inspected {
+        Ok(cursor) => record.cursor_inspected = Some(cursor),
+        Err(e) => {
+            record.inspection(e);
             return;
         }
     }
@@ -680,6 +715,109 @@ mod tests {
     fn receive_after(record: &mut InventoryTransferRecord, sequence: u64) {
         let current = after(record, sequence);
         receive(record, &current, None);
+    }
+
+    #[test]
+    fn held_cursor_transfer_accepts_native_normalization_and_latches_item_or_registry_change() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            for mode in [GameMode::Survival, GameMode::Creative] {
+                let mut initial = fixture(version, false).initial;
+                initial.game_mode = Some(mode);
+                initial.inventory.cursor = Some(received(
+                    super::super::held_cursor_tests::data_cursor(version, false),
+                    10,
+                ));
+                let mut registry = crate::client::registry::received::ReceivedRegistries::default();
+                registry.reset(1);
+                super::super::armor_tests::install(&mut registry, version, None);
+                let owner = registry.capture(initial.session, initial.receive_sequence);
+                let mut record =
+                    prepare_received((initial, owner), mode, InventorySource::Player, 9, 1, None)
+                        .unwrap();
+                let mut current = record.initial.clone();
+                current.receive_sequence = 11;
+                current.inventory.cursor = Some(received(
+                    super::super::held_cursor_tests::data_cursor(version, true),
+                    11,
+                ));
+                validate_predecessors(
+                    &record,
+                    &current,
+                    None,
+                    &registry.capture(current.session, 11),
+                )
+                .unwrap();
+                record.send.dispatched = true;
+                for change in &record.changed_slots {
+                    current.inventory.slots[usize::from(change.slot)] =
+                        Some(received(change.prediction.value.clone(), 12));
+                }
+                current.receive_sequence = 12;
+                receive_with_registries(
+                    &mut record,
+                    &current,
+                    None,
+                    &registry.capture(current.session, 12),
+                );
+                assert!(record.requires_inspection.is_none());
+                assert!(record.cursor_inspected.is_some());
+                assert!(record.changed_slots.iter().all(|s| s.receipt.is_some()));
+                assert_eq!(record.ready(), version == MinecraftVersion::Java1_21_11);
+                let mut config_conflict = record.clone();
+                registry.reset(2);
+                registry.finish();
+                receive_with_registries(
+                    &mut config_conflict,
+                    &current,
+                    None,
+                    &registry.capture(current.session, 12),
+                );
+                assert_eq!(
+                    config_conflict.stage,
+                    InventoryTransferStage::RequiresInspection
+                );
+                registry.reset(1);
+                super::super::armor_tests::install(&mut registry, version, None);
+                let SlotKnowledge::Item { item } =
+                    &mut current.inventory.cursor.as_mut().unwrap().value
+                else {
+                    unreachable!()
+                };
+                item.count += 1;
+                current.receive_sequence = 13;
+                current.inventory.cursor.as_mut().unwrap().source =
+                    ValueSource::Received { sequence: 13 };
+                assert!(
+                    validate_predecessors(
+                        &record,
+                        &current,
+                        None,
+                        &registry.capture(current.session, 13)
+                    )
+                    .is_err()
+                );
+                receive_with_registries(
+                    &mut record,
+                    &current,
+                    None,
+                    &registry.capture(current.session, 13),
+                );
+                assert_eq!(record.stage, InventoryTransferStage::RequiresInspection);
+                assert!(!record.ready());
+                current.receive_sequence = 14;
+                current.inventory.cursor = Some(received(
+                    super::super::held_cursor_tests::data_cursor(version, false),
+                    14,
+                ));
+                receive_with_registries(
+                    &mut record,
+                    &current,
+                    None,
+                    &registry.capture(current.session, 14),
+                );
+                assert_eq!(record.stage, InventoryTransferStage::RequiresInspection);
+            }
+        }
     }
     #[test]
     fn transfer_partial_capacity_requires_all_fresh_changed_slots_full_write_and_reply() {

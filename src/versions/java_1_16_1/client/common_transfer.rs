@@ -135,7 +135,8 @@ impl Bot {
                         .as_ref()
                         .map_or(0, |s| i32::from(s.id))
                         != record.window_id()
-                    || api::legacy_slot(inventory.cursor.as_ref())? != record.cursor_before.value
+                    || current.inventory.cursor.as_ref().map(|v| &v.value)
+                        != Some(&api::legacy_slot(inventory.cursor.as_ref())?)
                 {
                     return Err(contract::unavailable(
                         "legacy transfer cache/owner changed before I/O",

@@ -2248,6 +2248,89 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn held_cursor_transfer_same_consumer_modes_preserves_normalized_cursor_and_actual_reply()
+    {
+        use contract::{InventorySource as Source, InventoryTransferStage as Stage};
+        for mode in [api::GameMode::Survival, api::GameMode::Creative] {
+            let (bot, mut packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            seed(&bot).await;
+            if mode == api::GameMode::Creative {
+                let mut p = vec![3];
+                p.extend(1f32.to_be_bytes());
+                bot.apply_packet(0x1e, p).await.unwrap();
+            }
+            let registry =
+                api::registry::Registry::for_version(crate::MinecraftVersion::Java1_16_1);
+            let definition = registry.item("minecraft:stone").unwrap();
+            let source = api::SlotKnowledge::Item {
+                item: api::ItemStack {
+                    id: definition.id,
+                    name: definition.name,
+                    count: 7,
+                    data: api::ItemData::Default,
+                },
+            };
+            transfer_value(&bot, 0, 9, &source).await;
+            transfer_value(&bot, 0, 36, &api::SlotKnowledge::Empty).await;
+            transfer_value(
+                &bot,
+                255,
+                -1,
+                &api::inventory::held_cursor_tests::data_cursor(
+                    crate::MinecraftVersion::Java1_16_1,
+                    false,
+                ),
+            )
+            .await;
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            let before = client.received_inventory().await.unwrap();
+            let record =
+                api::tests::common_transfer_start_scenario(&client, mode, Source::Player, 9).await;
+            assert_eq!(packets.recv().await.unwrap().0, 0x09);
+            transfer_value(
+                &bot,
+                255,
+                -1,
+                &api::inventory::held_cursor_tests::data_cursor(
+                    crate::MinecraftVersion::Java1_16_1,
+                    true,
+                ),
+            )
+            .await;
+            transfer_value(&bot, 0, 9, &api::SlotKnowledge::Empty).await;
+            assert_eq!(
+                client
+                    .survival()
+                    .inventory_transfer_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .stage,
+                Stage::Pending
+            );
+            transfer_value(&bot, 0, 36, &source).await;
+            assert_eq!(
+                client
+                    .survival()
+                    .inventory_transfer_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .stage,
+                Stage::Pending
+            );
+            ack(&bot, record.send.legacy_action.unwrap(), false).await;
+            assert_eq!(packets.recv().await.unwrap().0, 0x07);
+            api::tests::common_held_cursor_transfer_complete_scenario(&client, record.id, &before)
+                .await;
+            drop(client);
+            let _ = release.send(());
+            drop(bot);
+            server.await.unwrap();
+        }
+    }
+    #[tokio::test]
     async fn armor_transfer_same_consumer_modes_preserves_data_and_waits_for_native_reply() {
         use contract::{InventorySource as Source, InventoryTransferStage as Stage};
         for mode in [api::GameMode::Survival, api::GameMode::Creative] {

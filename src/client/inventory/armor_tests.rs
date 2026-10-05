@@ -143,7 +143,10 @@ fn name(out: &mut Vec<u8>, value: &str) {
     put(out, value.len() as u32);
     out.extend(value.as_bytes());
 }
-fn context(version: MinecraftVersion, entries: Option<Vec<ServerRegistryEntry>>) -> ItemContext {
+pub(crate) fn context(
+    version: MinecraftVersion,
+    entries: Option<Vec<ServerRegistryEntry>>,
+) -> ItemContext {
     let mut received = crate::client::registry::received::ReceivedRegistries::default();
     received.reset(1);
     install(&mut received, version, entries);

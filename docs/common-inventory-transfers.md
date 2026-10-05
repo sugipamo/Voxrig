@@ -18,7 +18,7 @@ armor 5..8、main 9..35、hotbar 36..44、offhand 45である。crafting/result�
 数字が同じwindowでも新しいopeningの`ScreenId`は元の操作を引き継がない。
 従来の`InventoryClickSource`は同じ型の互換aliasで、通常PICKUPにも`InventorySource`を使える。
 
-実mode、元UI、全transfer対象slotの受信済みbaseline、空cursor、版別item/slot容量と
+実mode、元UI、全transfer対象slotの受信済みbaseline、実受信cursor、版別item/slot容量と
 acceptanceを検査する。modernは実受信revision、legacyは共有action poolの一意なactionを使う。
 完全なno-echo close後は、元close/sessionに束縛した明示的なlocal player UIを使う。
 未知item、無効count、欠測、未解決data、何も変わらない転送は送信前に拒否する。
@@ -31,9 +31,10 @@ modernは実効`equippable`の追加・変更・削除から装備先を選ぶ�
 別に`allowed_entities`を検査し、直接listと実受信のnamed tagを扱う。offhandのnative受入れ規則も
 区別する。装備先が埋まっている場合はmain/hotbarへ進み、空でも受入れを拒否するarmorなら
 装備を成立したと予測しない。BODY/SADDLEはplayer UIのarmorへ読み替えない。
-default以外の装備済みarmorを取り出す規則は追加対応を要する。legacy constructorの`Damage=0`など、
-既存のitem別default事実に一致する装備と返却は引き続き対応する。crafting/result/一般装備操作・
-非空cursor付きQUICK_MOVEは後続作業。
+data付き装備済みarmorも取り出せる。survivalでは束縛の制限を適用し、creativeでは元ゲームの
+mode判定に従って取り出す。legacyのlevel getterとmodernの受信enchantment効果を区別する。
+カーソルに通常itemを持った状態でもQUICK_MOVEを送れ、その数量・dataは保持する。
+crafting/result/一般装備操作は後続作業。
 
 storageからplayerへの順序は逆順、付属playerからstorageは正順である。
 player mainからhotbar、hotbarからmainはそれぞれ正順。nativeが装備先を持つitemは空の対応slotへ
@@ -48,14 +49,16 @@ QUICK_MOVEをoverrideしないため、通常転送とPICKUPの条件は異な�
 `InventoryTransferRecord`はI/O前の受信済み全slot/cursor、別の`Predicted`結果、実受信結果を保持する。
 `changed_slots`のsource/destすべてに送信境界より新しい実packet受信と、数量/native fieldの一致が必要で、
 予測を在庫へ書き込まない。source/dest以外の受信slotもnative意味で検査し、configuration/tag所有変更や
-未解決dataを競合として保持する。変化しない空cursorは実観測を検査するが、新しいcursor packetは
+未解決dataを競合として保持する。変化しないcursorは実観測とnative item同値を検査するが、新しいcursor packetは
 nativeが送らないことがある。`cursor_inspected`はその元の実受信ordinalを保持し、新規受信と扱わない。
 
 legacyのnative returnは最初のroundで完全に移るならEmpty、partial/internal round後は
 元roundのpredecessorになる。独立native oracleでこの値も照合する。異なる実比較値を1回のpacketへ
 載せてfull resyncを求め、元window/actionのfreshな実replyと全destinationを待つ。
 false comparison replyはgameplay rollbackではない。modernは予測changed mapを送らず、
-受信baselineと空cursor hashを使って実changed slotsを要求する。
+受信baselineとdefault cursorのnative比較値を使って実changed slotsを要求する。
+data付きcursorでは、保存した実revisionと異なる送信revisionを明示してfull contents/cursorを要求する。
+この場合のEmpty比較markerを実カーソル値・カーソルhash・受信証拠として扱わない。
 
 `inventory_transfer_record()`の`ObservedTransferred`を確認してから次へ進む。
 送信取消、world/mode/selection/元openingの変化、unplanned slot/cursorの変更、完了前の復元は
@@ -120,6 +123,22 @@ modernは受信したenchantment registryの`minecraft:prevent_armor_change`効�
 Damage=7・marker=992を独立して照合し、拒否時のクリック送信がないこともtraceで確認した。
 旧版の前ケースのstackはhotbarに実転送して対照として保持し、`/clear`から空receiptを推測しない。
 両JVMはexit0で、実行時の全runtime source/dataと同一consumer binaryのhashを保持する。
+
+
+保持中cursorの転送は`export_held_cursor_transfers.py`で同じ引数を使って再生成する。
+両版720件ずつ、playerと全9storage menu、両方向・両mode、空/部分merge/blocked destination、
+空/stone/dirt/default helmet/data付きenchantment helmetのカーソルを照合する。
+元menuの全slot結果はEmptyカーソルの対照と一致し、各ケースのカーソルは保持された。
+cursorだけにdataがある場合も保持したregistryで意味を解決し、送信前と受信後の数量・data変化、
+configuration変更はinspectionに残す。NBTのcompound順やdefault componentの明示を同値として扱う。
+
+実接続は`trial-1.16.1-f61ddc3f` / `trial-1.21.11-cffc14b9`で両modeとも成功した。
+共通PICKUPでDamage=7・enchantment・marker=992付きhelmetを保持し、別のdirt7個をQUICK_MOVEし、
+共通PICKUPでhelmetをslot10へ返却した。転送4回と取り出し/返却8クリックで、実slot/cursor受信と
+旧版の実比較応答を確認した。RCONはmenu cursorを直接取得できないため、在庫数量と返却後の
+Damage/markerを独立して照合した。両JVMはexit0で、同じconsumer binaryとruntime source/data hashを保持する。
+実接続後に変更したのは`operations.rs`のAPI説明2行と`capabilities.rs`の条件文4件だけで、
+feature/support区分や通信・操作・受信処理は保持した。元の実行snapshotとこの説明変更を区別して記録する。
 
 
 共通ClientのShift転送の実接続runは`trial-1.16.1-841caa80` /

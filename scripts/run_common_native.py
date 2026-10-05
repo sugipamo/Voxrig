@@ -1173,6 +1173,38 @@ network-compression-threshold=256
                 raise RuntimeError("armor extraction lacks one completed metadata-preserving transfer")
             armor["authority_limits"] = "Same common Client modes extract received damaged enchanted armor with fresh source/destination and independent native RCON counts/marker/damage. Survival binding refusal sends no click; creative bypass preserves that same item. Legacy completion additionally requires actual native comparison reply."
 
+
+            held_transfer = {"fixture": {}}
+            result["held_cursor_transfer"] = held_transfer
+            held_boundary = trace.mark()
+            held_transfer["take"] = stage(probe, messages, "held_cursor_take_" + mode, report["container_records"])["value"]
+            held_transfer["native_holding_inventory"] = until(lambda: inventory_matches(armor_control))
+            held_transfer["fixture"]["source"] = rcon.command("replaceitem entity UnifiedProbe inventory.0 minecraft:dirt 7" if version == "1.16.1" else "item replace entity UnifiedProbe inventory.0 with minecraft:dirt 7")
+            held_transfer["native_before"] = until(lambda: inventory_matches({**armor_control,9:("minecraft:dirt",7)}))
+            def received_held_source():
+                player = stage(probe, messages, "armor_fixture_state", report["container_records"])["value"]
+                source = player["inventory"]["slots"][9]
+                cursor = player["inventory"]["cursor"]
+                if player["game_mode"] != mode or source is None or source["source"]["kind"] != "received" or source["source"]["sequence"] <= held_transfer["take"]["record"]["send"]["after_sequence"]:
+                    return None
+                value = source["value"]
+                if value["kind"] != "item" or value["item"]["name"] != "minecraft:dirt" or value["item"]["count"] != 7 or cursor is None or cursor["source"]["kind"] != "received" or cursor["value"]["kind"] != "item" or cursor["value"]["item"]["name"] != "minecraft:diamond_helmet" or cursor["value"]["item"]["count"] != 1:
+                    return None
+                return player
+            held_transfer["received_before"] = until(received_held_source)
+            held_transfer["client"] = stage(probe, messages, "held_cursor_transfer_" + mode, report["container_records"])["value"]
+            held_destination = held_transfer["client"]["destination"] - 36
+            held_native = {**armor_control,held_destination:("minecraft:dirt",7)}
+            held_transfer["native_after"] = until(lambda: inventory_matches(held_native))
+            held_transfer["restore"] = stage(probe, messages, "held_cursor_restore_" + mode, report["container_records"])["value"]
+            held_transfer["native_restored"] = until(lambda: inventory_matches({**held_native,10:("minecraft:diamond_helmet",1)}))
+            held_transfer["native_restored_marker"] = until(lambda: matched(rcon.command('data get entity UnifiedProbe ' + armor_data_path.replace('Slot:9b', 'Slot:10b')), r'\b992\b'))
+            held_transfer["native_restored_damage"] = until(lambda: matched(rcon.command('data get entity UnifiedProbe ' + armor_damage_path.replace('Slot:9b', 'Slot:10b')), r'\b7\b'))
+            held_transfer["frames"] = [f for f in trace.since(held_boundary) if f["phase"] == "play"]
+            if len([f for f in held_transfer["frames"] if f["direction"] == "serverbound" and f["packet_id"] == (0x09 if version == "1.16.1" else 0x11)]) != 3 or not held_transfer["client"]["cursor_native_equivalent"]:
+                raise RuntimeError("held cursor take/transfer/restore lacks three complete native clicks")
+            held_transfer["authority_limits"] = "Same common Client takes damaged enchanted armor to received cursor, transfers a separate stack while preserving that cursor, then restores the carried item. Actual slot/cursor/reply receipts and independent native RCON inventory/counts/restored damage/marker are checked. RCON cannot directly read menu cursor; restored native item provides separate end-to-end metadata evidence. Legacy control stack is retained."
+
             result["fixture"]["clear_after"] = rcon.command("clear UnifiedProbe")
             result["fixture"]["restore"] = rcon.command("replaceitem entity UnifiedProbe inventory.0 minecraft:dirt 2" if version == "1.16.1" else "item replace entity UnifiedProbe inventory.0 with minecraft:dirt 2")
         trace.expect_disconnect()

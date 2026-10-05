@@ -94,19 +94,19 @@ impl Capabilities {
                 "healthy dry standing; default passive cubes; first-outline support/face; fresh target and one-material receipts; modern processing ACK also required",
             ),
             Feature::InventorySwap => Support::Restricted(
-                "player main slots 9..35 and hotbar 0..8; received player UI or explicit complete local close; modern actual player revision; default stacks/received empty cursor/two fresh destinations; native legacy resync/comparison response",
+                "player main slots 9..35 and hotbar 0..8; received player UI or explicit complete local close; resolved NBT/components and effective capacity; received empty cursor/two fresh destinations; native legacy resync/comparison response",
             ),
             Feature::InventoryClick => Support::Restricted(
-                "ordinary default-item PICKUP; player slots 9..44 or same audited storage opening including appended player; separate prediction and fresh source/cursor receipts; modern bundle PICKUP override/general item data/special PICKUP slots remain incomplete",
+                "ordinary PICKUP with resolved NBT/components; player slots 9..44 or same audited storage opening including appended player; separate prediction and fresh source/cursor receipts; modern bundle PICKUP override, unresolved item semantics and special PICKUP slots remain incomplete",
             ),
             Feature::InventoryTransfer => Support::Restricted(
-                "one ordinary native QUICK_MOVE; player slots 5..45 or same audited storage opening; native default data including exact legacy constructor NBT; empty actual cursor, full write/all fresh changed slots/legacy reply; partial capacity and armor/offhand destination rules",
+                "one ordinary native QUICK_MOVE; player slots 5..45 or same audited storage opening; resolved NBT/components and native effective capacity; preserve known received cursor; full write/all fresh changed slots/legacy reply; mode-specific armor pickup and effective equipment routing",
             ),
             Feature::ContainerObservation => Support::Restricted(
                 "regular OPEN_WINDOW screens and constructor-verified storage layouts; lossless modern component boundaries, common custom metadata and effective scalar item properties; general component semantics and special entity windows remain incomplete",
             ),
             Feature::Containers => Support::Restricted(
-                "empty-hand audited storage activation with distinct dispatch/OPEN/full/cursor/modern processing facts; opening-bound close with observed default cursor return; constructor-verified default SWAP/PICKUP/QUICK_MOVE with separately received destinations; general UI/special clicks/data-bearing actions remain incomplete",
+                "empty-hand audited storage activation with distinct dispatch/OPEN/full/cursor/modern processing facts; opening-bound close with observed resolved-data cursor return; constructor-verified SWAP/PICKUP/QUICK_MOVE with separately received outcomes; general UI/special clicks and unresolved item semantics remain incomplete",
             ),
             Feature::SurvivalMovement => Support::Restricted(
                 "1..120 dry walking/jump ticks with released-rest endpoint; retained intent/failure; predicted completion is not received acceptance",
