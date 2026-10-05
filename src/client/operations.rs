@@ -95,7 +95,7 @@ impl Survival {
     }
     /// Shift-transfer one received source using native destination order, once.
     /// Player slots 5..45 include armor/offhand; storage uses the same original opening.
-    /// Default data and empty cursor are required. All changed-slot receipts are separate from predictions.
+    /// Resolved native data and empty cursor are required; changed-slot receipts are separate from predictions.
     pub async fn transfer_inventory(
         &self,
         source: super::inventory::InventorySource,
@@ -319,7 +319,7 @@ impl Creative {
     }
     /// Shift-transfer one received source using native destination order, once.
     /// Player slots 5..45 include armor/offhand; storage uses the same original opening.
-    /// Default data and empty cursor are required. All changed-slot receipts are separate from predictions.
+    /// Resolved native data and empty cursor are required; changed-slot receipts are separate from predictions.
     pub async fn transfer_inventory(
         &self,
         source: super::inventory::InventorySource,

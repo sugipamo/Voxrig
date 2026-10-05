@@ -3112,3 +3112,191 @@ async fn data_pickup_player_full_resync_cursor_requires_completed_matching_close
     );
     f.stop().await;
 }
+
+#[tokio::test]
+async fn data_transfer_same_consumer_both_modes_partial_merge_and_split_return_preserves_data() {
+    use crate::client::{
+        GameMode as Mode,
+        inventory::{InventorySource as Source, InventoryTransferStage as Stage},
+    };
+    for mode in [Mode::Survival, Mode::Creative] {
+        let mut f = CommonFixture::new().await;
+        f.api.bot.session.state.lock().await.registries.finish();
+        if mode == Mode::Creative {
+            let mut p = vec![3];
+            p.extend(1f32.to_be_bytes());
+            f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &p)
+                .await;
+        }
+        f.slot(9, component_swap_item(7, 16, true)).await;
+        f.slot(36, component_swap_item(12, 16, false)).await;
+        for i in 37..45 {
+            f.slot(i, plain("dirt", 64)).await;
+        }
+        let client = f.client();
+        let original = client.received_inventory().await.unwrap();
+        for (source, updates, expected) in [
+            (9, vec![(9, 3), (36, 16)], vec![(9, 3), (36, 16)]),
+            (
+                36,
+                vec![(36, 0), (9, 16), (10, 3)],
+                vec![(36, 0), (9, 16), (10, 3)],
+            ),
+        ] {
+            let record = crate::client::tests::common_transfer_start_scenario(
+                &client,
+                mode,
+                Source::Player,
+                source,
+            )
+            .await;
+            let (id, packet) = read_packet(&mut f.peer, None).await.unwrap();
+            assert_eq!(id, ids::play_serverbound::WINDOW_CLICK);
+            assert_eq!(packet, super::transfer::payload(&record).unwrap());
+            assert!(!record.send.request_full_resync);
+            for (ordinal, (slot, count)) in updates.iter().enumerate() {
+                f.slot(
+                    *slot,
+                    if *count == 0 {
+                        InventorySlot::Empty
+                    } else {
+                        component_swap_item(*count, 16, false)
+                    },
+                )
+                .await;
+                if ordinal + 1 < updates.len() {
+                    assert_eq!(
+                        client
+                            .survival()
+                            .inventory_transfer_record()
+                            .await
+                            .unwrap()
+                            .unwrap()
+                            .stage,
+                        Stage::Pending
+                    );
+                }
+            }
+            crate::client::tests::common_data_transfer_complete_scenario(
+                &client, record.id, &original, &expected,
+            )
+            .await;
+        }
+        f.stop().await;
+    }
+}
+#[tokio::test]
+async fn data_transfer_fresh_capacity_conflict_stays_latched_after_correct_data_returns() {
+    use crate::client::inventory::{InventorySource as Source, InventoryTransferStage as Stage};
+    let mut f = CommonFixture::new().await;
+    f.api.bot.session.state.lock().await.registries.finish();
+    f.slot(9, component_swap_item(7, 16, true)).await;
+    let client = f.client();
+    let record = client
+        .survival()
+        .transfer_inventory(Source::Player, 9)
+        .await
+        .unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    f.slot(36, component_swap_item(7, 15, false)).await;
+    f.slot(36, component_swap_item(7, 16, false)).await;
+    f.slot(9, InventorySlot::Empty).await;
+    let actual = client
+        .survival()
+        .inventory_transfer_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(actual.id, record.id);
+    assert_eq!(actual.stage, Stage::RequiresInspection);
+    assert!(actual.requires_inspection.is_some());
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn data_transfer_damage_stackability_and_modified_equipment_route_refuse_without_intent() {
+    use crate::client::{ItemComponent, inventory::InventorySource as Source, registry::Registry};
+    let mut f = CommonFixture::new().await;
+    f.api.bot.session.state.lock().await.registries.finish();
+    let registry = Registry::for_version(MinecraftVersion::Java1_21_11);
+    let damaged = |count| {
+        let InventorySlot::ItemWithComponents {
+            item,
+            mut components,
+        } = component_swap_item(count, 16, false)
+        else {
+            unreachable!()
+        };
+        for (name, value) in [("minecraft:max_damage", 16), ("minecraft:damage", 7)] {
+            components.added.push(ItemComponent {
+                definition: registry.item_component(name).unwrap(),
+                bytes: vec![value],
+            });
+        }
+        InventorySlot::ItemWithComponents { item, components }
+    };
+    f.slot(9, damaged(7)).await;
+    f.slot(36, damaged(12)).await;
+    for slot in 37..45 {
+        f.slot(slot, plain("dirt", 64)).await;
+    }
+    let client = f.client();
+    let received = client.received_inventory().await.unwrap();
+    let properties = received
+        .slot(9)
+        .unwrap()
+        .unwrap()
+        .item()
+        .unwrap()
+        .stack()
+        .properties()
+        .unwrap();
+    assert!(properties.damaged && !properties.stackable);
+    let error = client
+        .survival()
+        .transfer_inventory(Source::Player, 9)
+        .await
+        .unwrap_err();
+    assert_eq!(error.kind(), crate::ErrorKind::InvalidInput);
+    assert!(error.to_string().contains("no effect"));
+    f.slot(
+        9,
+        InventorySlot::ItemWithComponents {
+            item: PlainItem {
+                name: "minecraft:carved_pumpkin".into(),
+                item_id: registry
+                    .item("minecraft:carved_pumpkin")
+                    .unwrap()
+                    .id
+                    .value(),
+                count: 7,
+            },
+            components: crate::client::ItemComponentPatch {
+                added: vec![],
+                removed: vec![registry.item_component("minecraft:equippable").unwrap()],
+            },
+        },
+    )
+    .await;
+    let error = client
+        .survival()
+        .transfer_inventory(Source::Player, 9)
+        .await
+        .unwrap_err();
+    assert_eq!(error.kind(), crate::ErrorKind::Unsupported);
+    assert!(error.to_string().contains("modified equippable"), "{error}");
+    assert!(
+        client
+            .survival()
+            .inventory_transfer_record()
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.stop().await;
+}

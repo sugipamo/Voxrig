@@ -1238,6 +1238,91 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                     serde_json::json!({"records":records,"native_data_equivalent":true,"restored_count":total}),
                 )?;
             }
+            "item_data_transfer_survival" | "item_data_transfer_creative" => {
+                let original = client.received_inventory().await?;
+                let original_item = original
+                    .slot(9)?
+                    .and_then(|s| s.item())
+                    .context("data transfer source missing")?;
+                let total = original_item.stack().count;
+                let mut records = Vec::new();
+                for (source, expected) in [(9, [(9, 0), (36, total)]), (36, [(9, total), (36, 0)])]
+                {
+                    let intent = if command.ends_with("survival") {
+                        client
+                            .survival()
+                            .transfer_inventory(InventorySource::Player, source)
+                            .await?
+                    } else {
+                        client
+                            .creative()
+                            .transfer_inventory(InventorySource::Player, source)
+                            .await?
+                    };
+                    let completed = tokio::time::timeout(Duration::from_secs(15), async {
+                        loop {
+                            let current = client
+                                .survival()
+                                .inventory_transfer_record()
+                                .await?
+                                .context("data transfer record missing")?;
+                            anyhow::ensure!(
+                                current.id == intent.id && current.requires_inspection.is_none(),
+                                "data transfer interrupted: {:?}",
+                                current.requires_inspection
+                            );
+                            if current.stage == InventoryTransferStage::ObservedTransferred {
+                                return Ok::<_, anyhow::Error>(current);
+                            }
+                            tokio::time::sleep(Duration::from_millis(25)).await;
+                        }
+                    })
+                    .await??;
+                    let actual = client.received_inventory().await?;
+                    for (index, expected_count) in expected {
+                        let slot = actual
+                            .slot(index)?
+                            .context("data transfer actual slot missing")?;
+                        let change = completed
+                            .changed_slots
+                            .iter()
+                            .find(|c| c.player_slot == Some(index))
+                            .context("data transfer change missing")?;
+                        anyhow::ensure!(
+                            slot.receive_sequence() > completed.send.after_sequence
+                                && change
+                                    .receipt
+                                    .as_ref()
+                                    .is_some_and(|r| &r.value == slot.value()),
+                            "data transfer lacks fresh actual outcome"
+                        );
+                        if expected_count == 0 {
+                            anyhow::ensure!(
+                                slot.value() == &SlotKnowledge::Empty,
+                                "data transfer source did not empty"
+                            );
+                        } else {
+                            let item = slot.item().context("data transfer item missing")?;
+                            anyhow::ensure!(
+                                item.stack().count == expected_count
+                                    && original_item.native_data_equivalent(&item)?,
+                                "data transfer changed fields/count"
+                            );
+                        }
+                    }
+                    anyhow::ensure!(
+                        actual
+                            .cursor()
+                            .is_some_and(|s| s.value() == &SlotKnowledge::Empty),
+                        "QUICK_MOVE changed empty cursor"
+                    );
+                    records.push(completed);
+                }
+                emit(
+                    &command,
+                    serde_json::json!({"records":records,"native_data_equivalent":true,"restored_count":total}),
+                )?;
+            }
             "item_data_swap_survival"
             | "item_data_swap_creative"
             | "item_data_return_survival"

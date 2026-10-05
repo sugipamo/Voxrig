@@ -68,7 +68,10 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
             .container
             .as_ref()
             .map(|s| s.capture(current.session));
-        transfer::receive(&mut record, &current, screen.as_ref());
+        let registries = state
+            .registries
+            .capture(current.session, current.receive_sequence);
+        transfer::receive_with_registries(&mut record, &current, screen.as_ref(), &registries);
         if inventory.pending_swap.is_some()
             || inventory.unsupported_components
             || !inventory.pending_creative.is_empty()
@@ -148,7 +151,11 @@ impl Operations {
             .as_ref()
             .map_or(Some(1), |s| s.id.attempt().checked_add(1))
             .ok_or_else(|| contract::unavailable("inventory transfer attempts exhausted"))?;
-        let record = transfer::prepare(initial, mode, source, slot, attempt, screen)?;
+        let registries = state
+            .registries
+            .capture(initial.session, initial.receive_sequence);
+        let record =
+            transfer::prepare_received((initial, registries), mode, source, slot, attempt, screen)?;
         let bytes = payload(&record)?;
         state.common_inventory_transfer = Some(record);
         let result = self

@@ -21,9 +21,16 @@ armor 5..8、main 9..35、hotbar 36..44、offhand 45である。crafting/result�
 実mode、元UI、全transfer対象slotの受信済みbaseline、空cursor、版別item/slot容量と
 acceptanceを検査する。modernは実受信revision、legacyは共有action poolの一意なactionを使う。
 完全なno-echo close後は、元close/sessionに束縛した明示的なlocal player UIを使う。
-未知item、無効count、欠測、特殊item data、何も変わらない転送は送信前に拒否する。
-現状のitem dataはdefaultのみ。ただし旧版でnative constructorが付ける正確なNBT
-（防具などの`Damage=0`）はitem別事実に照合して、元byte列を保持する。任意NBTの一般対応ではない。
+未知item、無効count、欠測、未解決data、何も変わらない転送は送信前に拒否する。
+通常source/destinationのlegacy NBTとmodern componentsも保持し、受信と同時に保存したregistryで
+意味を解決する。容量はdefault値へ戻さず、そのstackの実効値を使う。結合にはnativeのstackable判定と
+item種別/dataの同値を要求する。外側の数量差だけを除き、入れ子item/countなどのdataは比較する。
+結合先が同じ意味の別表現を持つ場合は、結合先のdataを保持して数量を増やす。
+
+装備先componentがdefaultと異なるmodern stackのroutingと、default以外の装備済みarmorを取り出す
+規則は追加対応を要し、元default profileへ読み替えない。legacy constructorの`Damage=0`など、
+既存のitem別default事実に一致する装備と返却は引き続き対応する。crafting/result/一般装備操作・
+非空cursor付きQUICK_MOVEは後続作業。
 
 storageからplayerへの順序は逆順、付属playerからstorageは正順である。
 player mainからhotbar、hotbarからmainはそれぞれ正順。nativeが装備先を持つitemは空の対応slotへ
@@ -36,8 +43,9 @@ shulker-in-shulkerはnative受入れ条件で拒否する。modern bundleはPICK
 QUICK_MOVEをoverrideしないため、通常転送とPICKUPの条件は異なる。
 
 `InventoryTransferRecord`はI/O前の受信済み全slot/cursor、別の`Predicted`結果、実受信結果を保持する。
-`changed_slots`のsource/destすべてに送信境界より新しいexactな実packet受信が必要で、
-予測を在庫へ書き込まない。変化しない空cursorは実観測を検査するが、新しいcursor packetは
+`changed_slots`のsource/destすべてに送信境界より新しい実packet受信と、数量/native fieldの一致が必要で、
+予測を在庫へ書き込まない。source/dest以外の受信slotもnative意味で検査し、configuration/tag所有変更や
+未解決dataを競合として保持する。変化しない空cursorは実観測を検査するが、新しいcursor packetは
 nativeが送らないことがある。`cursor_inspected`はその元の実受信ordinalを保持し、新規受信と扱わない。
 
 legacyのnative returnは最初のroundで完全に移るならEmpty、partial/internal round後は

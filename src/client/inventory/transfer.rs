@@ -53,6 +53,8 @@ pub enum InventoryTransferStage {
 /// One retained ordinary shift transfer, including partial destination capacity.
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct InventoryTransferRecord {
+    #[serde(skip)]
+    item_context: Option<std::sync::Arc<super::data::ItemContext>>,
     /// Original opaque identity.
     pub id: InventoryTransferId,
     /// Coherent received player baseline before I/O.
@@ -121,6 +123,7 @@ fn known(value: Option<&ObservedValue<SlotKnowledge>>) -> Result<ObservedValue<S
         .cloned()
         .ok_or_else(|| unavailable("complete received transfer predecessor unavailable"))
 }
+#[cfg(test)]
 pub(crate) fn prepare(
     initial: PlayerObservation,
     mode: GameMode,
@@ -129,6 +132,40 @@ pub(crate) fn prepare(
     attempt: u64,
     screen: Option<ContainerScreen>,
 ) -> Result<InventoryTransferRecord> {
+    prepare_inner((initial, None), mode, source, slot, attempt, screen)
+}
+pub(crate) fn prepare_received(
+    state: (
+        PlayerObservation,
+        crate::client::registry::ServerRegistryObservation,
+    ),
+    mode: GameMode,
+    source: InventorySource,
+    slot: u16,
+    attempt: u64,
+    screen: Option<ContainerScreen>,
+) -> Result<InventoryTransferRecord> {
+    prepare_inner(
+        (state.0, Some(state.1)),
+        mode,
+        source,
+        slot,
+        attempt,
+        screen,
+    )
+}
+fn prepare_inner(
+    state: (
+        PlayerObservation,
+        Option<crate::client::registry::ServerRegistryObservation>,
+    ),
+    mode: GameMode,
+    source: InventorySource,
+    slot: u16,
+    attempt: u64,
+    screen: Option<ContainerScreen>,
+) -> Result<InventoryTransferRecord> {
+    let (initial, registries) = state;
     if attempt == 0
         || initial.pending_dispatch
         || initial.game_mode != Some(mode)
@@ -234,8 +271,32 @@ pub(crate) fn prepare(
                 .map_or(SlotKnowledge::Unavailable, |v| v.value.clone())
         })
         .collect();
-    let calculated =
-        transfer_policy::calculate(initial.session.version, menu, usize::from(slot), &values)?;
+    let has_data = values.iter().any(|v| matches!(v, SlotKnowledge::Item {item} if item.data != crate::client::ItemData::Default));
+    let item_context = if let (true, Some(registries)) = (has_data, registries) {
+        let context = super::data::ItemContext::new(registries, &initial)?;
+        for value in before
+            .iter()
+            .flatten()
+            .filter(|v| v.value != SlotKnowledge::Unavailable)
+        {
+            context.predecessor(value)?;
+        }
+        context.predecessor(&cursor)?;
+        Some(std::sync::Arc::new(context))
+    } else {
+        None
+    };
+    let calculated = if let Some(context) = &item_context {
+        transfer_policy::calculate_with_data(
+            initial.session.version,
+            menu,
+            usize::from(slot),
+            &values,
+            context,
+        )?
+    } else {
+        transfer_policy::calculate(initial.session.version, menu, usize::from(slot), &values)?
+    };
     let mut changed = Vec::new();
     for (index, after) in calculated.slots.into_iter().enumerate() {
         if values[index] == after {
@@ -266,6 +327,7 @@ pub(crate) fn prepare(
         ));
     }
     Ok(InventoryTransferRecord {
+        item_context,
         id: InventoryTransferId {
             session: initial.session,
             attempt,
@@ -387,10 +449,65 @@ pub(crate) fn source_slots<'a>(
     }
     Ok(slots)
 }
+pub(crate) fn validate_predecessors(
+    record: &InventoryTransferRecord,
+    current: &PlayerObservation,
+    screen: Option<&ContainerScreen>,
+    registries: &crate::client::registry::ServerRegistryObservation,
+) -> Result<()> {
+    let slots = source_slots(record, current, screen)?;
+    if registries.session() != current.session
+        || registries.receive_sequence() != current.receive_sequence
+    {
+        return Err(unavailable(
+            "coherent transfer registries unavailable before I/O",
+        ));
+    }
+    for (index, before) in record.before_slots.iter().enumerate() {
+        let Some(before) = before
+            .as_ref()
+            .filter(|v| v.value != SlotKnowledge::Unavailable)
+        else {
+            continue;
+        };
+        let actual = known(slots.get(index).and_then(Option::as_ref))?;
+        let unchanged = if let Some(context) = &record.item_context {
+            context
+                .classify(&actual, before, &before.value, registries)?
+                .0
+        } else {
+            super::same_received_value(Some(&actual), before)
+        };
+        if !unchanged {
+            return Err(unavailable("transfer predecessor changed before I/O"));
+        }
+    }
+    if !super::same_received_value(current.inventory.cursor.as_ref(), &record.cursor_before) {
+        return Err(unavailable("transfer cursor changed before I/O"));
+    }
+    Ok(())
+}
+#[cfg(test)]
 pub(crate) fn receive(
     record: &mut InventoryTransferRecord,
     current: &PlayerObservation,
     screen: Option<&ContainerScreen>,
+) {
+    receive_inner(record, current, screen, None)
+}
+pub(crate) fn receive_with_registries(
+    record: &mut InventoryTransferRecord,
+    current: &PlayerObservation,
+    screen: Option<&ContainerScreen>,
+    registries: &crate::client::registry::ServerRegistryObservation,
+) {
+    receive_inner(record, current, screen, Some(registries))
+}
+fn receive_inner(
+    record: &mut InventoryTransferRecord,
+    current: &PlayerObservation,
+    screen: Option<&ContainerScreen>,
+    registries: Option<&crate::client::registry::ServerRegistryObservation>,
 ) {
     if !record.unresolved() {
         return;
@@ -422,28 +539,56 @@ pub(crate) fn receive(
             .get(index)
             .and_then(Option::as_ref)
             .filter(|v| matches!(v.source, ValueSource::Received { .. }));
-        if let Some(change) = record
+        let change = record
             .changed_slots
             .iter_mut()
-            .find(|s| usize::from(s.slot) == index)
-        {
-            let Some(actual) =
-                actual.filter(|v| v.value == before.value || v.value == change.prediction.value)
-            else {
-                record.requires_inspection.get_or_insert_with(|| {
-                    "transfer source/destination conflicts or unavailable".into()
-                });
+            .find(|s| usize::from(s.slot) == index);
+        let after = change
+            .as_ref()
+            .map_or(&before.value, |s| &s.prediction.value);
+        let classification = actual
+            .ok_or_else(|| unavailable("transfer actual slot unavailable"))
+            .and_then(|actual| {
+                if let Some(context) = &record.item_context {
+                    registries
+                        .filter(|r| {
+                            r.session() == current.session
+                                && r.receive_sequence() == current.receive_sequence
+                        })
+                        .ok_or_else(|| {
+                            unavailable("coherent transfer registry capture unavailable")
+                        })
+                        .and_then(|r| context.classify(actual, before, after, r))
+                } else {
+                    Ok((actual.value == before.value, &actual.value == after))
+                }
+            });
+        let (matches_before, matches_after) = match classification {
+            Ok(v) if v.0 || v.1 => v,
+            Ok(_) => {
+                record
+                    .requires_inspection
+                    .get_or_insert_with(|| "transfer native item fields conflict".into());
                 continue;
-            };
+            }
+            Err(e) => {
+                record
+                    .requires_inspection
+                    .get_or_insert_with(|| e.to_string());
+                continue;
+            }
+        };
+        if let Some(change) = change {
+            let actual = actual.expect("classified received slot");
             let ValueSource::Received { sequence } = actual.source else {
                 unreachable!()
             };
             if sequence > record.send.after_sequence {
-                if !record.send.dispatched && actual.value != before.value {
+                if !record.send.dispatched && !matches_before {
                     record
                         .requires_inspection
                         .get_or_insert_with(|| "transfer changed before full dispatch".into());
-                } else if actual.value == change.prediction.value {
+                } else if matches_after {
                     change.receipt.get_or_insert_with(|| actual.clone());
                 } else if change.receipt.is_some() {
                     record.requires_inspection.get_or_insert_with(|| {
@@ -451,7 +596,7 @@ pub(crate) fn receive(
                     });
                 }
             }
-        } else if actual.is_none_or(|v| v.value != before.value) {
+        } else if !matches_before {
             record
                 .requires_inspection
                 .get_or_insert_with(|| "unplanned transfer slot changed/became unavailable".into());

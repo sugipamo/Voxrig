@@ -57,7 +57,14 @@ impl Bot {
             .container
             .as_ref()
             .map(|s| s.capture(initial.session));
-        let record = transfer::prepare(initial, mode, source, slot, attempt, screen)?;
+        let registries = self
+            .common_receipts
+            .lock()
+            .await
+            .registries
+            .capture(initial.session, initial.receive_sequence);
+        let record =
+            transfer::prepare_received((initial, registries), mode, source, slot, attempt, screen)?;
         {
             let inventory = self.inventory.read().await;
             if inventory
@@ -113,29 +120,13 @@ impl Bot {
                 .container
                 .as_ref()
                 .map(|s| s.capture(current.session));
-            let slots = transfer::source_slots(&record, &current, screen.as_ref())?;
-            if record
-                .before_slots
-                .iter()
-                .enumerate()
-                .any(|(index, before)| {
-                    before
-                        .as_ref()
-                        .filter(|v| v.value != api::SlotKnowledge::Unavailable)
-                        .is_some_and(|before| {
-                            !contract::same_received_value(
-                                slots.get(index).and_then(Option::as_ref),
-                                before,
-                            )
-                        })
-                })
-                || !contract::same_received_value(
-                    current.inventory.cursor.as_ref(),
-                    &record.cursor_before,
-                )
-            {
-                return Err(contract::unavailable("transfer capture changed before I/O"));
-            }
+            let registries = self
+                .common_receipts
+                .lock()
+                .await
+                .registries
+                .capture(current.session, current.receive_sequence);
+            transfer::validate_predecessors(&record, &current, screen.as_ref(), &registries)?;
             {
                 let inventory = self.inventory.read().await;
                 if !inventory.pending_clicks.is_empty()
@@ -300,7 +291,13 @@ impl Bot {
         let complete = {
             let mut guard = self.common_inventory_transfer.lock().await;
             let record = &mut guard.as_mut().expect("retained").record;
-            transfer::receive(record, &current, screen.as_ref());
+            let registries = self
+                .common_receipts
+                .lock()
+                .await
+                .registries
+                .capture(current.session, current.receive_sequence);
+            transfer::receive_with_registries(record, &current, screen.as_ref(), &registries);
             if native_conflict {
                 record.inspection("legacy transfer cache/ownership context changed");
             }

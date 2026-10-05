@@ -1228,3 +1228,48 @@ pub(crate) async fn common_data_pickup_complete_scenario(
         }
     }
 }
+
+pub(crate) async fn common_data_transfer_complete_scenario(
+    client: &Client,
+    id: inventory::InventoryTransferId,
+    original: &ReceivedInventory,
+    expected: &[(usize, u32)],
+) -> inventory::InventoryTransferRecord {
+    let record = client
+        .survival()
+        .inventory_transfer_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(record.id, id);
+    assert_eq!(
+        record.stage,
+        inventory::InventoryTransferStage::ObservedTransferred,
+        "{record:#?}"
+    );
+    assert!(record.requires_inspection.is_none());
+    let actual = client.received_inventory().await.unwrap();
+    let original = original.slot(9).unwrap().unwrap().item().unwrap();
+    for &(index, count) in expected {
+        let slot = actual.slot(index).unwrap().unwrap();
+        let change = record
+            .changed_slots
+            .iter()
+            .find(|s| s.player_slot == Some(index))
+            .unwrap();
+        assert!(slot.receive_sequence() > record.send.after_sequence);
+        assert_eq!(change.receipt.as_ref().unwrap().value, *slot.value());
+        if count == 0 {
+            assert_eq!(*slot.value(), SlotKnowledge::Empty);
+        } else {
+            let item = slot.item().unwrap();
+            assert_eq!(item.stack().count, count);
+            assert!(original.native_data_equivalent(&item).unwrap());
+        }
+    }
+    assert_eq!(
+        record.cursor_inspected.as_ref().unwrap(),
+        &record.cursor_before
+    );
+    record
+}

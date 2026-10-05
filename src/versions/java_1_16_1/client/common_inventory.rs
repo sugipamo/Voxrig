@@ -2242,4 +2242,97 @@ mod tests {
             .unwrap()
             .unwrap();
     }
+    #[tokio::test]
+    async fn data_transfer_same_consumer_both_modes_partial_merge_and_split_return_preserves_nbt() {
+        use contract::{InventorySource as Source, InventoryTransferStage as Stage};
+        for mode in [api::GameMode::Survival, api::GameMode::Creative] {
+            let (bot, mut packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            seed(&bot).await;
+            if mode == api::GameMode::Creative {
+                let mut p = vec![3];
+                p.extend(1f32.to_be_bytes());
+                bot.apply_packet(0x1e, p).await.unwrap();
+            }
+            let stone = api::registry::Registry::for_version(crate::MinecraftVersion::Java1_16_1)
+                .item("minecraft:stone")
+                .unwrap();
+            let value = |count| {
+                if count == 0 {
+                    api::SlotKnowledge::Empty
+                } else {
+                    api::SlotKnowledge::Item {
+                        item: api::ItemStack {
+                            id: stone.id,
+                            name: stone.name.clone(),
+                            count,
+                            data: api::ItemData::LegacyNbt {
+                                bytes: hex::decode("0a0000030001610000000700").unwrap(),
+                            },
+                        },
+                    }
+                }
+            };
+            transfer_value(&bot, 0, 9, &value(7)).await;
+            transfer_value(&bot, 0, 36, &value(60)).await;
+            for i in 37..45 {
+                transfer_value(
+                    &bot,
+                    0,
+                    i,
+                    &api::legacy_slot(Some(&ItemStack {
+                        item_id: 9,
+                        count: 64,
+                        nbt: None,
+                    }))
+                    .unwrap(),
+                )
+                .await;
+            }
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            let original = client.received_inventory().await.unwrap();
+            for (source, updates, expected) in [
+                (9, vec![(9, 3), (36, 64)], vec![(9, 3), (36, 64)]),
+                (
+                    36,
+                    vec![(36, 0), (9, 64), (10, 3)],
+                    vec![(36, 0), (9, 64), (10, 3)],
+                ),
+            ] {
+                let record = api::tests::common_transfer_start_scenario(
+                    &client,
+                    mode,
+                    Source::Player,
+                    source,
+                )
+                .await;
+                let (packet, _) = packets.recv().await.unwrap();
+                assert_eq!(packet, 0x09);
+                for (slot, count) in updates {
+                    transfer_value(&bot, 0, slot, &value(count)).await;
+                }
+                assert_eq!(
+                    client
+                        .survival()
+                        .inventory_transfer_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .stage,
+                    Stage::Pending
+                );
+                ack(&bot, record.send.legacy_action.unwrap(), false).await;
+                let (packet, _) = packets.recv().await.unwrap();
+                assert_eq!(packet, 0x07);
+                api::tests::common_data_transfer_complete_scenario(
+                    &client, record.id, &original, &expected,
+                )
+                .await;
+            }
+            drop(client);
+            let _ = release.send(());
+            drop(bot);
+            server.await.unwrap();
+        }
+    }
 }

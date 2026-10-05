@@ -1,4 +1,4 @@
-//! Original default QUICK_MOVE routes; the model never modifies received slots.
+//! Original QUICK_MOVE routes; the model never modifies received slots.
 use super::{SlotKnowledge, unavailable};
 use crate::client::{ItemData, ItemStack, registry::Registry};
 use crate::{MinecraftVersion, Result};
@@ -41,7 +41,11 @@ fn profiles(version: MinecraftVersion) -> &'static Profiles {
         }),
     }
 }
-fn validate(version: MinecraftVersion, value: &SlotKnowledge) -> Result<()> {
+fn validate(
+    version: MinecraftVersion,
+    value: &SlotKnowledge,
+    context: Option<&super::data::ItemContext>,
+) -> Result<()> {
     match value {
         SlotKnowledge::Empty => Ok(()),
         SlotKnowledge::Unavailable => {
@@ -51,21 +55,43 @@ fn validate(version: MinecraftVersion, value: &SlotKnowledge) -> Result<()> {
             let definition = Registry::for_version(version).item(&item.name)?;
             if definition.id != item.id
                 || item.count == 0
-                || super::slot_policy::default_item_capacity(version, item.id.value(), &item.name)
-                    .is_none_or(|max| item.count > max)
+                || item.count > maximum(version, item, context)?
             {
                 return Err(crate::client::registry::invalid(
                     "transfer requires valid version-bound default counts",
                 ));
             }
-            if !default_data(version, item) {
+            if context.is_none() && !default_data(version, item) {
                 return Err(crate::Error::new(
                     crate::ErrorKind::Unsupported,
                     anyhow::anyhow!("transfer model requires default item data"),
                 ));
             }
+            if let Some(context) = context {
+                if !context.default_transfer_equipment(item)? {
+                    return Err(crate::Error::new(
+                        crate::ErrorKind::Unsupported,
+                        anyhow::anyhow!(
+                            "modified equippable QUICK_MOVE routing remains unimplemented"
+                        ),
+                    ));
+                }
+            }
             Ok(())
         }
+    }
+}
+fn maximum(
+    version: MinecraftVersion,
+    item: &ItemStack,
+    context: Option<&super::data::ItemContext>,
+) -> Result<u32> {
+    if context.is_some() {
+        u32::try_from(item.properties()?.max_stack_size)
+            .map_err(|e| crate::Error::new(crate::ErrorKind::InvalidInput, e))
+    } else {
+        super::slot_policy::default_item_capacity(version, item.id.value(), &item.name)
+            .ok_or_else(|| unavailable("native transfer item capacity unavailable"))
     }
 }
 fn default_data(version: MinecraftVersion, item: &ItemStack) -> bool {
@@ -104,9 +130,14 @@ pub(crate) fn legacy_comparison_supported(stack: &crate::versions::java_1_16_1::
             .as_ref()
             .is_none_or(|nbt| crate::client::nbt::decode(nbt, MinecraftVersion::Java1_16_1).is_ok())
 }
-fn capacity(version: MinecraftVersion, menu: &str, index: usize, item: &ItemStack) -> Result<u32> {
-    let max = super::slot_policy::default_item_capacity(version, item.id.value(), &item.name)
-        .ok_or_else(|| unavailable("native transfer item capacity unavailable"))?;
+fn capacity(
+    version: MinecraftVersion,
+    menu: &str,
+    index: usize,
+    item: &ItemStack,
+    context: Option<&super::data::ItemContext>,
+) -> Result<u32> {
+    let max = maximum(version, item, context)?;
     let base = if menu == "minecraft:player" && matches!(index, 5..=8 | 45) {
         profiles(version)
             .equipment_slots
@@ -177,6 +208,24 @@ pub(super) fn calculate(
     source: usize,
     before: &[SlotKnowledge],
 ) -> Result<Prediction> {
+    calculate_inner(version, menu, source, before, None)
+}
+pub(super) fn calculate_with_data(
+    version: MinecraftVersion,
+    menu: &str,
+    source: usize,
+    before: &[SlotKnowledge],
+    context: &super::data::ItemContext,
+) -> Result<Prediction> {
+    calculate_inner(version, menu, source, before, Some(context))
+}
+fn calculate_inner(
+    version: MinecraftVersion,
+    menu: &str,
+    source: usize,
+    before: &[SlotKnowledge],
+    context: Option<&super::data::ItemContext>,
+) -> Result<Prediction> {
     let storage = if menu == "minecraft:player" {
         if before.len() != 46 || !(5..=45).contains(&source) {
             return Err(crate::client::registry::invalid(
@@ -194,7 +243,7 @@ pub(super) fn calculate(
         }
         Some(n)
     };
-    validate(version, &before[source])?;
+    validate(version, &before[source], context)?;
     let mut result = Prediction {
         slots: before.to_vec(),
         legacy_return: SlotKnowledge::Empty,
@@ -207,6 +256,16 @@ pub(super) fn calculate(
         .iter()
         .find(|r| r.native_id == original.id.value() && r.name == original.name)
         .ok_or_else(|| unavailable("native default transfer route unavailable; update Voxrig"))?;
+    if context.is_some()
+        && storage.is_none()
+        && (5..=8).contains(&source)
+        && !default_data(version, original)
+    {
+        return Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("data-bearing equipped-item pickup rules remain unimplemented"),
+        ));
+    }
     let may_pickup = if storage.is_none() && matches!(source, 5..=8 | 45) {
         profiles(version)
             .equipment_slots
@@ -230,7 +289,7 @@ pub(super) fn calculate(
             None => {
                 let equipment = route.preferred_equipment_slot;
                 if let Some(slot) = equipment {
-                    validate(version, &result.slots[slot])?;
+                    validate(version, &result.slots[slot], context)?;
                     if result.slots[slot] == SlotKnowledge::Empty {
                         vec![slot]
                     } else if (9..=35).contains(&source) {
@@ -250,23 +309,30 @@ pub(super) fn calculate(
             }
         };
         for &index in &destinations {
-            validate(version, &result.slots[index])?;
+            validate(version, &result.slots[index], context)?;
         }
         let start = remaining;
-        if super::slot_policy::default_item_capacity(version, original.id.value(), &original.name)
-            .expect("validated")
-            > 1
-        {
+        let stackable = if context.is_some() {
+            original.properties()?.stackable
+        } else {
+            maximum(version, original, context)? > 1
+        };
+        if stackable {
             for &index in &destinations {
                 if remaining == 0 {
                     break;
                 }
                 if let SlotKnowledge::Item { item } = &result.slots[index] {
-                    if same(original, item) {
-                        let room =
-                            capacity(version, menu, index, original)?.saturating_sub(item.count);
+                    let same_data = if let Some(context) = context {
+                        context.same_data(original, item)?
+                    } else {
+                        same(original, item)
+                    };
+                    if same_data {
+                        let room = capacity(version, menu, index, original, context)?
+                            .saturating_sub(item.count);
                         let amount = remaining.min(room);
-                        result.slots[index] = counted(original, item.count + amount);
+                        result.slots[index] = counted(item, item.count + amount);
                         remaining -= amount;
                     }
                 }
@@ -277,7 +343,7 @@ pub(super) fn calculate(
                 if result.slots[index] == SlotKnowledge::Empty
                     && may_place(version, menu, index, original)?
                 {
-                    let amount = remaining.min(capacity(version, menu, index, original)?);
+                    let amount = remaining.min(capacity(version, menu, index, original, context)?);
                     result.slots[index] = counted(original, amount);
                     remaining -= amount;
                     break; // Original moveItemStackTo stops at its first eligible empty slot.

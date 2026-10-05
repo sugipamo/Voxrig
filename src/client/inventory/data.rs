@@ -156,6 +156,22 @@ impl ItemContext {
             .key(&SlotKnowledge::Item { item: a.clone() })?
             .same_data(&self.key(&SlotKnowledge::Item { item: b.clone() })?))
     }
+    /// Frozen routing profiles remain valid only with the native default equip component.
+    pub(super) fn default_transfer_equipment(&self, item: &ItemStack) -> Result<bool> {
+        let Stack::Modern(actual) = self.key(&SlotKnowledge::Item { item: item.clone() })? else {
+            return Ok(true);
+        };
+        let mut default = item.clone();
+        default.data = crate::client::ItemData::Default;
+        let Stack::Modern(prototype) = self.key(&SlotKnowledge::Item { item: default })? else {
+            unreachable!()
+        };
+        let id = crate::client::registry::Registry::for_version(item.id.version())
+            .item_component("minecraft:equippable")?
+            .id
+            .value();
+        Ok(actual.components.get(&id) == prototype.components.get(&id))
+    }
     pub(super) fn classify(
         &self,
         actual: &ObservedValue<SlotKnowledge>,

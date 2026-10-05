@@ -1041,6 +1041,17 @@ network-compression-threshold=256
             if len(clicks) != 3 or not data_pickup["client"]["native_data_equivalent"]:
                 raise RuntimeError("data PICKUP did not preserve fields across exactly3 explicit clicks")
             data_pickup["authority_limits"] = "Same public mode handle performs split/one-place/all-return. Each fresh source/cursor packet matches native data fields and explicit counts; original server inventory/name/marker confirm restored state. Modern deliberate revision mismatch requests full actual resync; empty comparison marker is not a cursor receipt or computed item hash."
+            transfer_boundary = trace.mark()
+            data_transfer = {"client":stage(probe, messages, "item_data_transfer_" + mode, report["container_records"])["value"]}
+            result["data_transfer"] = data_transfer
+            data_transfer["native_restored_inventory"] = until(lambda: inventory_matches({9:("minecraft:stone",count)}))
+            data_transfer["native_restored_marker"] = until(lambda:matched(rcon.command(f'data get entity UnifiedProbe Inventory[{{Slot:9b}}].{path}.VoxrigProbe'),rf'\b{marker}\b'))
+            data_transfer["native_restored_name"] = until(lambda:matched(rcon.command(f'data get entity UnifiedProbe Inventory[{{Slot:9b}}].{name_path}'),observed_name))
+            data_transfer["frames"] = [f for f in trace.since(transfer_boundary) if f["phase"] == "play"]
+            clicks = [f for f in data_transfer["frames"] if f["direction"] == "serverbound" and f["packet_id"] == (0x09 if version == "1.16.1" else 0x11)]
+            if len(clicks) != 2 or not data_transfer["client"]["native_data_equivalent"]:
+                raise RuntimeError("data QUICK_MOVE did not preserve fields across exactly2 explicit transfers")
+            data_transfer["authority_limits"] = "Same public mode handle moves data-bearing stack to hotbar and returns it. Fresh changed source/destination packets match independent counts and native data fields; original RCON confirms restored inventory/name/marker. Cursor remains actually empty; QUICK_MOVE does not require a synthesized fresh cursor receipt. Modified equippable routing and nondefault equipped-item pickup rules remain pending."
             swap_boundary = trace.mark()
             data_swap = {"client": stage(probe, messages, "item_data_swap_" + mode, report["container_records"])["value"]}
             result["data_swap"] = data_swap

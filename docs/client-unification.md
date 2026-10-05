@@ -299,4 +299,7 @@ modernは元prototype/patchの実効容量を使う。保持したregistryとtyp
 照合し、configuration/tag sourceの変更や意味解決の失敗をinspectionとして残す。
 通常PICKUPも受信NBT/components付きstackのsplit・1個置く・全返却へ接続した。
 modernは送信revisionを明示して完全再同期を要求し、実source/cursorのfresh受信で結果を検査する。
-data付きQUICK_MOVE/cursor付きclose・製作/一般装備や後続の統合範囲は継続する。
+通常QUICK_MOVEも受信NBT/components付きstackの実効容量・stackable/data同値判定へ接続した。
+全changed slotsのfresh実受信と、保持したregistryの意味で完了を検査する。
+変更されたequippable routing・非defaultの装備済みarmorの取り出し・非空cursor QUICK_MOVE、
+data付きcursor close・製作/一般装備や後続の統合範囲は継続する。
