@@ -164,21 +164,89 @@ impl ItemContext {
     ) -> Result<bool> {
         Ok(self.key(a)?.matches(&self.key(b)?, shared))
     }
-    /// Frozen routing profiles remain valid only with the native default equip component.
-    pub(super) fn default_transfer_equipment(&self, item: &ItemStack) -> Result<bool> {
+    /// Native player-menu routing uses the effective component's slot, separately
+    /// from ArmorSlot's allowed-entity predicate. BODY/SADDLE do not route into UI armor.
+    pub(super) fn transfer_equipment_slot(&self, item: &ItemStack) -> Result<Option<usize>> {
+        Ok(self.equipment(item)?.and_then(|(slot, _)| match slot {
+            1..=4 => Some(9 - slot as usize),
+            5 => Some(45),
+            _ => None,
+        }))
+    }
+    pub(super) fn equipment_may_place(&self, item: &ItemStack, slot: usize) -> Result<bool> {
+        if slot == 45 {
+            return Ok(true); // Native offhand slot accepts any valid item.
+        }
+        Ok(self
+            .equipment(item)?
+            .is_some_and(|(native_slot, allowed)| (9 - slot) as i32 == native_slot && allowed))
+    }
+    fn equipment(&self, item: &ItemStack) -> Result<Option<(i32, bool)>> {
+        use item_semantics::Component as C;
         let Stack::Modern(actual) = self.key(&SlotKnowledge::Item { item: item.clone() })? else {
-            return Ok(true);
-        };
-        let mut default = item.clone();
-        default.data = crate::client::ItemData::Default;
-        let Stack::Modern(prototype) = self.key(&SlotKnowledge::Item { item: default })? else {
-            unreachable!()
+            return Err(unavailable(
+                "effective equipment query requires modern item",
+            ));
         };
         let id = crate::client::registry::Registry::for_version(item.id.version())
             .item_component("minecraft:equippable")?
             .id
             .value();
-        Ok(actual.components.get(&id) == prototype.components.get(&id))
+        let Some(C::Sequence(fields)) = actual.components.get(&id) else {
+            return if actual.components.contains_key(&id) {
+                Err(unavailable("equippable constructor fields unavailable"))
+            } else {
+                Ok(None)
+            };
+        };
+        let [
+            C::Enumeration(470, slot),
+            _,
+            _,
+            _,
+            C::Optional(entities),
+            _,
+            _,
+            _,
+            _,
+            _,
+            _,
+        ] = fields.as_slice()
+        else {
+            return Err(unavailable("equippable constructor shape unavailable"));
+        };
+        let player: item_semantics::Entry = self
+            .owner
+            .find_entry("minecraft:entity_type", "minecraft:player")?
+            .into();
+        let allowed = match entities.as_deref() {
+            None => true,
+            Some(C::HolderList(registry, entries)) if registry == "minecraft:entity_type" => {
+                entries.iter().any(
+                    |entry| matches!(entry, C::Registry(id) | C::Reference(id) if id == &player),
+                )
+            }
+            Some(C::Tag {
+                registry,
+                name,
+                owner,
+            }) if registry == "minecraft:entity_type"
+                && *owner
+                    == (
+                        self.owner.stamp().connection_id,
+                        self.owner.stamp().configuration_generation,
+                    ) =>
+            {
+                self.owner
+                    .tags()
+                    .and_then(|tags| tags.value.get(registry))
+                    .and_then(|tags| tags.get(name))
+                    .ok_or_else(|| unavailable("equipment entity tag was not received"))?
+                    .contains(&player.native_id)
+            }
+            _ => return Err(unavailable("equipment entity set constructor unavailable")),
+        };
+        Ok(Some((*slot, allowed)))
     }
     pub(crate) fn classify(
         &self,

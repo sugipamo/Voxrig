@@ -67,16 +67,6 @@ fn validate(
                     anyhow::anyhow!("transfer model requires default item data"),
                 ));
             }
-            if let Some(context) = context {
-                if !context.default_transfer_equipment(item)? {
-                    return Err(crate::Error::new(
-                        crate::ErrorKind::Unsupported,
-                        anyhow::anyhow!(
-                            "modified equippable QUICK_MOVE routing remains unimplemented"
-                        ),
-                    ));
-                }
-            }
             Ok(())
         }
     }
@@ -155,8 +145,14 @@ fn may_place(
     menu: &str,
     index: usize,
     item: &ItemStack,
+    context: Option<&super::data::ItemContext>,
 ) -> Result<bool> {
     if menu == "minecraft:player" && matches!(index, 5..=8 | 45) {
+        if version == MinecraftVersion::Java1_21_11 {
+            if let Some(context) = context {
+                return context.equipment_may_place(item, index);
+            }
+        }
         Ok(profiles(version)
             .equipment_slots
             .iter()
@@ -287,7 +283,15 @@ fn calculate_inner(
             Some(n) => (0..n).collect(),
             None if (5..=8).contains(&source) => (9..45).collect(),
             None => {
-                let equipment = route.preferred_equipment_slot;
+                let equipment = if version == MinecraftVersion::Java1_21_11 {
+                    if let Some(context) = context {
+                        context.transfer_equipment_slot(original)?
+                    } else {
+                        route.preferred_equipment_slot
+                    }
+                } else {
+                    route.preferred_equipment_slot
+                };
                 if let Some(slot) = equipment {
                     validate(version, &result.slots[slot], context)?;
                     if result.slots[slot] == SlotKnowledge::Empty {
@@ -341,7 +345,7 @@ fn calculate_inner(
         if remaining > 0 {
             for &index in &destinations {
                 if result.slots[index] == SlotKnowledge::Empty
-                    && may_place(version, menu, index, original)?
+                    && may_place(version, menu, index, original, context)?
                 {
                     let amount = remaining.min(capacity(version, menu, index, original, context)?);
                     result.slots[index] = counted(original, amount);
@@ -366,6 +370,192 @@ fn calculate_inner(
 mod tests {
     use super::*;
     use std::io::Read;
+    fn modern_wire(hex_value: &str) -> SlotKnowledge {
+        let bytes = hex::decode(hex_value).unwrap();
+        let mut rest = bytes.as_slice();
+        let mut varint = || {
+            let mut value = 0;
+            for shift in (0..35).step_by(7) {
+                let byte = rest[0];
+                rest = &rest[1..];
+                value |= i32::from(byte & 127) << shift;
+                if byte & 128 == 0 {
+                    return value;
+                }
+            }
+            panic!("invalid native oracle VarInt");
+        };
+        let count = varint();
+        if count == 0 {
+            assert!(rest.is_empty());
+            return SlotKnowledge::Empty;
+        }
+        let id = varint();
+        let definition = Registry::for_version(MinecraftVersion::Java1_21_11)
+            .item_by_native_id(id)
+            .unwrap();
+        let patch = crate::versions::java_1_21_11::item_components::decode_patch(rest).unwrap();
+        SlotKnowledge::Item {
+            item: ItemStack {
+                id: definition.id,
+                name: definition.name,
+                count: count.try_into().unwrap(),
+                data: if patch.added.is_empty() && patch.removed.is_empty() {
+                    ItemData::Default
+                } else {
+                    ItemData::ModernComponents { patch }
+                },
+            },
+        }
+    }
+    #[test]
+    fn modified_equipment_transfer_matches_actual_native_routes_and_slot_acceptance() {
+        use crate::client::{InventoryObservation, PlayerObservation, SessionStamp};
+        let mut bytes = Vec::new();
+        flate2::read::GzDecoder::new(
+            &include_bytes!("../../../data/client_api/equipment_transfer_cases-1.21.11.json.gz")[..],
+        )
+        .read_to_end(&mut bytes)
+        .unwrap();
+        let facts: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        let cases = facts["cases"].as_array().unwrap();
+        assert_eq!(cases.len(), 648);
+        let session = SessionStamp {
+            version: MinecraftVersion::Java1_21_11,
+            connection_id: 42,
+            world_generation: 1,
+        };
+        let initial = PlayerObservation {
+            session,
+            receive_sequence: 10,
+            pending_dispatch: false,
+            dimension: None,
+            position: None,
+            received_pose: None,
+            rotation: [0., 0.],
+            game_mode: None,
+            may_fly: None,
+            health: None,
+            selected_hotbar: None,
+            inventory: InventoryObservation {
+                slots: vec![],
+                cursor: None,
+                window_id: None,
+                player_screen: None,
+                screen_revision: None,
+                player_screen_revision: None,
+                local_cache: None,
+            },
+        };
+        let mut registries = crate::client::registry::received::ReceivedRegistries::default();
+        registries.reset(1);
+        registries.finish();
+        // These declarations come from the same native loaded lookup as the menu.
+        fn put_int(out: &mut Vec<u8>, mut value: u32) {
+            loop {
+                let byte = (value & 127) as u8;
+                value >>= 7;
+                out.push(byte | if value == 0 { 0 } else { 128 });
+                if value == 0 {
+                    break;
+                }
+            }
+        }
+        fn put_name(out: &mut Vec<u8>, name: &str) {
+            put_int(out, name.len() as u32);
+            out.extend(name.as_bytes());
+        }
+        let tags = facts["builtin_tags"].as_object().unwrap();
+        let mut packet = Vec::new();
+        put_int(&mut packet, tags.len() as u32);
+        let registry = Registry::for_version(session.version);
+        for (group, names) in tags {
+            put_name(&mut packet, group);
+            let names = names.as_object().unwrap();
+            put_int(&mut packet, names.len() as u32);
+            for (name, members) in names {
+                put_name(&mut packet, name);
+                let members = members.as_array().unwrap();
+                put_int(&mut packet, members.len() as u32);
+                for member in members {
+                    put_int(
+                        &mut packet,
+                        registry
+                            .builtin_id(group, member.as_str().unwrap())
+                            .unwrap()
+                            .value() as u32,
+                    );
+                }
+            }
+        }
+        registries
+            .receive_tags(&packet, 2, session.version)
+            .unwrap();
+        let context =
+            super::super::data::ItemContext::new(registries.capture(session, 10), &initial)
+                .unwrap();
+        for (index, case) in cases.iter().enumerate() {
+            let values = |field: &str| {
+                case[field]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| modern_wire(v.as_str().unwrap()))
+                    .collect::<Vec<_>>()
+            };
+            let before = values("before");
+            let after = values("after");
+            let source = case["request"]["slot"].as_u64().unwrap() as usize;
+            let SlotKnowledge::Item { item } = &before[source] else {
+                panic!("original source empty");
+            };
+            for (i, slot) in [5, 6, 7, 8, 45].into_iter().enumerate() {
+                assert_eq!(
+                    context.equipment_may_place(item, slot).unwrap(),
+                    case["equipment_acceptance"][i].as_bool().unwrap(),
+                    "acceptance case {index}, slot {slot}"
+                );
+            }
+            let prediction = calculate_with_data(
+                session.version,
+                "minecraft:player",
+                source,
+                &before,
+                &context,
+            )
+            .unwrap();
+            for (slot, (expected, actual)) in prediction.slots.iter().zip(&after).enumerate() {
+                assert!(
+                    context.equivalent_values(expected, actual, false).unwrap(),
+                    "native route case {index}, slot {slot}: {:?}, expected {expected:?}, actual {actual:?}",
+                    case["request"]
+                );
+            }
+            assert_eq!(case["cursor_hex"], "00");
+        }
+    }
+    #[test]
+    fn modified_equipment_transfer_evidence_binds_owned_tools_and_native_outputs() {
+        use sha2::{Digest, Sha256};
+        let source: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../data/client_api/equipment_transfer_source.json"
+        ))
+        .unwrap();
+        assert_eq!(source["cases"], 648);
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        for object in [&source["generators_sha256"], &source["files_sha256"]] {
+            for (path, hash) in object.as_object().unwrap() {
+                assert_eq!(
+                    format!(
+                        "{:x}",
+                        Sha256::digest(std::fs::read(root.join(path)).unwrap())
+                    ),
+                    hash.as_str().unwrap(),
+                    "{path}"
+                );
+            }
+        }
+    }
     fn values(version: MinecraftVersion, array: &serde_json::Value) -> Vec<SlotKnowledge> {
         array
             .as_array()

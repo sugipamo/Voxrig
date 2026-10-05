@@ -3214,7 +3214,111 @@ async fn data_transfer_fresh_capacity_conflict_stays_latched_after_correct_data_
 }
 
 #[tokio::test]
-async fn data_transfer_damage_stackability_and_modified_equipment_route_refuse_without_intent() {
+async fn modified_equipment_transfer_same_consumer_both_modes_requires_each_actual_destination() {
+    use crate::client::{
+        GameMode as Mode,
+        inventory::{InventorySource as Source, InventoryTransferStage as Stage},
+        registry::Registry,
+    };
+    use std::io::Read;
+    let mut bytes = Vec::new();
+    flate2::read::GzDecoder::new(
+        &include_bytes!(
+            "../../../../../../data/client_api/equipment_transfer_cases-1.21.11.json.gz"
+        )[..],
+    )
+    .read_to_end(&mut bytes)
+    .unwrap();
+    let cases: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let native = cases["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| {
+            let request = &case["request"];
+            request["item"] == "minecraft:stone"
+                && request["slot"] == 9
+                && request["occupied"] == false
+                && request["components"]["minecraft:equippable"]
+                    == serde_json::json!({"slot":"head"})
+        })
+        .unwrap();
+    let wire = hex::decode(native["input_hex"].as_str().unwrap()).unwrap();
+    let mut reader = crate::versions::java_1_21_11::wire::Reader::new(&wire);
+    assert_eq!(reader.varint().unwrap(), 3);
+    let item_id = reader.varint().unwrap();
+    let patch = crate::versions::java_1_21_11::item_components::read_patch(&mut reader)
+        .unwrap()
+        .unwrap();
+    reader.end().unwrap();
+    let item = |count| InventorySlot::ItemWithComponents {
+        item: PlainItem {
+            name: Registry::for_version(MinecraftVersion::Java1_21_11)
+                .item_by_native_id(item_id)
+                .unwrap()
+                .name,
+            item_id,
+            count,
+        },
+        components: patch.clone(),
+    };
+    for mode in [Mode::Survival, Mode::Creative] {
+        let mut f = CommonFixture::new().await;
+        f.api.bot.session.state.lock().await.registries.finish();
+        if mode == Mode::Creative {
+            let mut p = vec![3];
+            p.extend(1f32.to_be_bytes());
+            f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &p)
+                .await;
+        }
+        f.slot(9, item(3)).await;
+        f.slot(36, InventorySlot::Empty).await;
+        let client = f.client();
+        let before = client.received_inventory().await.unwrap();
+        let record =
+            crate::client::tests::common_transfer_start_scenario(&client, mode, Source::Player, 9)
+                .await;
+        assert_eq!(record.changed_slots.len(), 3);
+        let (id, packet) = read_packet(&mut f.peer, None).await.unwrap();
+        assert_eq!(id, ids::play_serverbound::WINDOW_CLICK);
+        assert_eq!(packet, super::transfer::payload(&record).unwrap());
+        for (ordinal, slot) in [5, 9, 36].into_iter().enumerate() {
+            f.slot(
+                slot,
+                match slot {
+                    5 => item(1),
+                    9 => InventorySlot::Empty,
+                    36 => item(2),
+                    _ => unreachable!(),
+                },
+            )
+            .await;
+            if ordinal < 2 {
+                assert_eq!(
+                    client
+                        .survival()
+                        .inventory_transfer_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .stage,
+                    Stage::Pending
+                );
+            }
+        }
+        crate::client::tests::common_data_transfer_complete_scenario(
+            &client,
+            record.id,
+            &before,
+            &[(5, 1), (9, 0), (36, 2)],
+        )
+        .await;
+        f.stop().await;
+    }
+}
+
+#[tokio::test]
+async fn data_transfer_damage_stackability_and_removed_equipment_obey_native_no_effect() {
     use crate::client::{ItemComponent, inventory::InventorySource as Source, registry::Registry};
     let mut f = CommonFixture::new().await;
     f.api.bot.session.state.lock().await.registries.finish();
@@ -3283,8 +3387,9 @@ async fn data_transfer_damage_stackability_and_modified_equipment_route_refuse_w
         .transfer_inventory(Source::Player, 9)
         .await
         .unwrap_err();
-    assert_eq!(error.kind(), crate::ErrorKind::Unsupported);
-    assert!(error.to_string().contains("modified equippable"), "{error}");
+    // Removed equippable routes to the full hotbar rather than the empty head slot.
+    assert_eq!(error.kind(), crate::ErrorKind::InvalidInput);
+    assert!(error.to_string().contains("no effect"), "{error}");
     assert!(
         client
             .survival()

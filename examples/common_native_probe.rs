@@ -1266,7 +1266,10 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                     serde_json::json!({"records":records,"native_data_equivalent":true,"restored_count":total}),
                 )?;
             }
-            "item_data_transfer_survival" | "item_data_transfer_creative" => {
+            "item_data_transfer_survival"
+            | "item_data_transfer_creative"
+            | "item_equipment_transfer_survival"
+            | "item_equipment_transfer_creative" => {
                 let original = client.received_inventory().await?;
                 let original_item = original
                     .slot(9)?
@@ -1274,8 +1277,16 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                     .context("data transfer source missing")?;
                 let total = original_item.stack().count;
                 let mut records = Vec::new();
-                for (source, expected) in [(9, [(9, 0), (36, total)]), (36, [(9, total), (36, 0)])]
-                {
+                let steps = if command.starts_with("item_equipment_transfer") {
+                    anyhow::ensure!(total == 3, "equipment fixture count differs");
+                    vec![(9, vec![(9, 0), (5, 1), (36, 2)])]
+                } else {
+                    vec![
+                        (9, vec![(9, 0), (36, total)]),
+                        (36, vec![(9, total), (36, 0)]),
+                    ]
+                };
+                for (source, expected) in steps {
                     let intent = if command.ends_with("survival") {
                         client
                             .survival()

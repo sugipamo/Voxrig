@@ -1082,6 +1082,38 @@ network-compression-threshold=256
                 raise RuntimeError("data return did not complete exactly one explicit click")
             data_swap["return_frames"] = return_frames
 
+            if version == "1.21.11":
+                equipment = {"fixture": {}}
+                result["modified_equipment_transfer"] = equipment
+                equipment["fixture"]["clear"] = rcon.command("clear UnifiedProbe")
+                equipment_baseline = stage(probe, messages, "transfer_fixture_cleared", report["container_records"])["value"]
+                equipment["fixture"]["item"] = rcon.command('item replace entity UnifiedProbe inventory.0 with minecraft:stone[equippable={slot:"head",allowed_entities:["minecraft:player"]},custom_data={VoxrigEquipmentProbe:41}] 3')
+                equipment["native_before"] = until(lambda: inventory_matches({9:("minecraft:stone",3)}))
+                def received_equipment():
+                    player = stage(probe, messages, "transfer_fixture_cleared", report["container_records"])["value"]
+                    slot = player["inventory"]["slots"][9]
+                    if player["game_mode"] != mode or slot is None or slot["source"]["kind"] != "received" or slot["source"]["sequence"] <= equipment_baseline["receive_sequence"]:
+                        return None
+                    value = slot["value"]
+                    if value["kind"] != "item" or value["item"]["count"] != 3 or value["item"]["name"] != "minecraft:stone":
+                        return None
+                    data = value["item"]["data"]
+                    if data["kind"] != "modern_components" or "minecraft:equippable" not in {c["definition"]["name"] for c in data["patch"]["added"]}:
+                        return None
+                    return player
+                equipment["received_before"] = until(received_equipment)
+                equipment_boundary = trace.mark()
+                equipment["client"] = stage(probe, messages, "item_equipment_transfer_" + mode, report["container_records"])["value"]
+                equipment["native_after"] = until(lambda: inventory_matches({103:("minecraft:stone",1),0:("minecraft:stone",2)}))
+                equipment["native_head_marker"] = until(lambda: matched(rcon.command('data get entity UnifiedProbe equipment.head.components."minecraft:custom_data".VoxrigEquipmentProbe'), r'\b41\b'))
+                equipment["native_hotbar_marker"] = until(lambda: matched(rcon.command('data get entity UnifiedProbe Inventory[{Slot:0b}].components."minecraft:custom_data".VoxrigEquipmentProbe'), r'\b41\b'))
+                equipment["native_head_equippable"] = until(lambda: matched(rcon.command('data get entity UnifiedProbe equipment.head.components."minecraft:equippable"'), r'head'))
+                equipment["frames"] = [f for f in trace.since(equipment_boundary) if f["phase"] == "play"]
+                clicks = [f for f in equipment["frames"] if f["direction"] == "serverbound" and f["packet_id"] == 0x11]
+                if len(clicks) != 1 or not equipment["client"]["native_data_equivalent"]:
+                    raise RuntimeError("modified equipment did not complete one transfer preserving actual data")
+                equipment["authority_limits"] = "Effective equippable routes a received stone stack to head1/hotbar2 through the same public mode handle. Fresh changed-slot receipts and native fields/counts are checked; independent original RCON verifies head/hotbar data. This does not verify nondefault armor extraction or arbitrary item activation."
+
             result["fixture"]["clear_after"] = rcon.command("clear UnifiedProbe")
             result["fixture"]["restore"] = rcon.command("replaceitem entity UnifiedProbe inventory.0 minecraft:dirt 2" if version == "1.16.1" else "item replace entity UnifiedProbe inventory.0 with minecraft:dirt 2")
         trace.expect_disconnect()

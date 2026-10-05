@@ -27,8 +27,11 @@ acceptanceを検査する。modernは実受信revision、legacyは共有action p
 item種別/dataの同値を要求する。外側の数量差だけを除き、入れ子item/countなどのdataは比較する。
 結合先が同じ意味の別表現を持つ場合は、結合先のdataを保持して数量を増やす。
 
-装備先componentがdefaultと異なるmodern stackのroutingと、default以外の装備済みarmorを取り出す
-規則は追加対応を要し、元default profileへ読み替えない。legacy constructorの`Damage=0`など、
+modernは実効`equippable`の追加・変更・削除から装備先を選ぶ。armor slotの受入れは装備先選択と
+別に`allowed_entities`を検査し、直接listと実受信のnamed tagを扱う。offhandのnative受入れ規則も
+区別する。装備先が埋まっている場合はmain/hotbarへ進み、空でも受入れを拒否するarmorなら
+装備を成立したと予測しない。BODY/SADDLEはplayer UIのarmorへ読み替えない。
+default以外の装備済みarmorを取り出す規則は追加対応を要する。legacy constructorの`Damage=0`など、
 既存のitem別default事実に一致する装備と返却は引き続き対応する。crafting/result/一般装備操作・
 非空cursor付きQUICK_MOVEは後続作業。
 
@@ -82,6 +85,20 @@ JVMは1つずつ、heap512MiB/CPU1で実行する。profilesにdefault itemの97
 要求sourceとnative setter後の実sourceを区別する。Rust予測は全11,226件の実全slot結果と
 legacy returnに一致する。source JSONは元配布物・生成器・raw・出力のhashを保持する。
 公式JAR、mapping、classやruntimeはpackageへ含めない。
+
+変更したmodern装備先の検査は`export_equipment_transfers.py`で別に再生成する。
+引数は上の生成器と同じで、`equipment_transfer_cases-1.21.11.json.gz`と
+`equipment_transfer_source.json`へ保存する。全8装備先、追加/変更/削除、許可対象の欠落・空list・
+player/cow list・named tag、装備占有、armorへの1個と残量の別slotへの移動、main/hotbar sourceの
+648ケースで元のslot受入れと全slot結果を照合する。item/entity tag宣言も同じ元registry lookupから
+取得する。このprimitive検査は実接続の受信・mode・取消を証明するものではない。
+
+変更したequippableの実接続検査は`trial-1.21.11-e2341241`で両modeとも成功した。
+受信したstone3個にhead装備先とplayer許可を追加し、共通APIの1回の転送でhead1個/hotbar2個に
+分ける。3つのchanged slotすべてにfresh実受信を要求し、同じmetadataと数量を照合した。
+元serverのRCONもhead/hotbarの数量、equippable、custom-data markerを独立して確認した。
+既存の両版nativeシナリオも同じ入力snapshotで成功し、両JVMは正常終了した。
+非defaultの装備済みarmorの取り出しや任意item activationの実装完了を意味しない。
 
 
 共通ClientのShift転送の実接続runは`trial-1.16.1-841caa80` /
