@@ -1235,6 +1235,16 @@ pub(crate) async fn common_data_transfer_complete_scenario(
     original: &ReceivedInventory,
     expected: &[(usize, u32)],
 ) -> inventory::InventoryTransferRecord {
+    common_data_transfer_complete_from_scenario(client, id, original, 9, expected).await
+}
+
+pub(crate) async fn common_data_transfer_complete_from_scenario(
+    client: &Client,
+    id: inventory::InventoryTransferId,
+    original: &ReceivedInventory,
+    original_slot: usize,
+    expected: &[(usize, u32)],
+) -> inventory::InventoryTransferRecord {
     let record = client
         .survival()
         .inventory_transfer_record()
@@ -1249,7 +1259,12 @@ pub(crate) async fn common_data_transfer_complete_scenario(
     );
     assert!(record.requires_inspection.is_none());
     let actual = client.received_inventory().await.unwrap();
-    let original = original.slot(9).unwrap().unwrap().item().unwrap();
+    let original = original
+        .slot(original_slot)
+        .unwrap()
+        .unwrap()
+        .item()
+        .unwrap();
     for &(index, count) in expected {
         let slot = actual.slot(index).unwrap().unwrap();
         let change = record

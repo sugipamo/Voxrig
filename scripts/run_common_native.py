@@ -1114,6 +1114,65 @@ network-compression-threshold=256
                     raise RuntimeError("modified equipment did not complete one transfer preserving actual data")
                 equipment["authority_limits"] = "Effective equippable routes a received stone stack to head1/hotbar2 through the same public mode handle. Fresh changed-slot receipts and native fields/counts are checked; independent original RCON verifies head/hotbar data. This does not verify nondefault armor extraction or arbitrary item activation."
 
+
+            armor = {"fixture": {}}
+            result["armor_transfer"] = armor
+            if version == "1.16.1":
+                # Retain the earlier stack as a control in hotbar after moving
+                # it through actual common transfer receipts. Original /clear
+                # does not always emit fresh receipts after comparison resync.
+                armor["fixture"]["evacuated"] = stage(probe, messages, "item_data_evacuate_" + mode, report["container_records"])["value"]
+            else:
+                armor["fixture"]["clear"] = rcon.command("clear UnifiedProbe")
+            armor_control = {0:("minecraft:stone",count)} if version == "1.16.1" else {}
+            armor_baseline = stage(probe, messages, "armor_fixture_state", report["container_records"])["value"]
+            enchantment = "binding_curse" if mode == "creative" else "unbreaking"
+            armor_marker = 992
+            armor_command = (
+                'replaceitem entity UnifiedProbe armor.head minecraft:diamond_helmet{Damage:7,VoxrigArmorProbe:992,Enchantments:[{id:"minecraft:' + enchantment + '",lvl:1s}]} 1'
+                if version == "1.16.1" else
+                'item replace entity UnifiedProbe armor.head with minecraft:diamond_helmet[damage=7,custom_data={VoxrigArmorProbe:992},enchantments={"minecraft:' + enchantment + '":1}] 1'
+            )
+            armor["fixture"]["item"] = rcon.command(armor_command)
+            armor["native_before"] = until(lambda: inventory_matches({**armor_control,103:("minecraft:diamond_helmet",1)}))
+            armor_key = b"VoxrigArmorProbe"
+            armor_bytes = bytes([3])+len(armor_key).to_bytes(2,"big")+armor_key+armor_marker.to_bytes(4,"big",signed=True)
+            def received_armor(expected_mode):
+                player = stage(probe, messages, "armor_fixture_state", report["container_records"])["value"]
+                slot = player["inventory"]["slots"][5]
+                main = player["inventory"]["slots"][9]
+                if player["game_mode"] != expected_mode or slot is None or slot["source"]["kind"] != "received" or slot["source"]["sequence"] <= armor_baseline["receive_sequence"] or main is None or main["value"]["kind"] != "empty":
+                    return None
+                value = slot["value"]
+                if value["kind"] != "item" or value["item"]["name"] != "minecraft:diamond_helmet" or value["item"]["count"] != 1:
+                    return None
+                data = value["item"]["data"]
+                raw = bytes(data["bytes"]) if version == "1.16.1" else next((bytes(c["bytes"]) for c in data["patch"]["added"] if c["definition"]["name"] == "minecraft:custom_data"), b"")
+                return player if armor_bytes in raw else None
+            armor["received_before"] = until(lambda: received_armor(mode))
+            if mode == "creative":
+                armor["survival_mode"] = rcon.command("gamemode survival UnifiedProbe")
+                until(lambda: received_armor("survival"))
+                refusal_boundary = trace.mark()
+                armor["survival_refusal"] = stage(probe, messages, "item_armor_refuse", report["container_records"])["value"]
+                armor["refusal_frames"] = [f for f in trace.since(refusal_boundary) if f["phase"] == "play"]
+                if any(f["direction"] == "serverbound" and f["packet_id"] == (0x09 if version == "1.16.1" else 0x11) for f in armor["refusal_frames"]):
+                    raise RuntimeError("survival binding armor refusal sent a click")
+                armor["native_after_refusal"] = until(lambda: inventory_matches({**armor_control,103:("minecraft:diamond_helmet",1)}))
+                armor["creative_mode"] = rcon.command("gamemode creative UnifiedProbe")
+                until(lambda: received_armor("creative"))
+            armor_boundary = trace.mark()
+            armor["client"] = stage(probe, messages, "item_armor_transfer_" + mode, report["container_records"])["value"]
+            armor["native_after"] = until(lambda: inventory_matches({**armor_control,9:("minecraft:diamond_helmet",1)}))
+            armor_data_path = 'Inventory[{Slot:9b}].tag.VoxrigArmorProbe' if version == "1.16.1" else 'Inventory[{Slot:9b}].components."minecraft:custom_data".VoxrigArmorProbe'
+            armor_damage_path = 'Inventory[{Slot:9b}].tag.Damage' if version == "1.16.1" else 'Inventory[{Slot:9b}].components."minecraft:damage"'
+            armor["native_marker"] = until(lambda: matched(rcon.command('data get entity UnifiedProbe ' + armor_data_path), r'\b992\b'))
+            armor["native_damage"] = until(lambda: matched(rcon.command('data get entity UnifiedProbe ' + armor_damage_path), r'\b7\b'))
+            armor["frames"] = [f for f in trace.since(armor_boundary) if f["phase"] == "play"]
+            if len([f for f in armor["frames"] if f["direction"] == "serverbound" and f["packet_id"] == (0x09 if version == "1.16.1" else 0x11)]) != 1 or not armor["client"]["native_data_equivalent"]:
+                raise RuntimeError("armor extraction lacks one completed metadata-preserving transfer")
+            armor["authority_limits"] = "Same common Client modes extract received damaged enchanted armor with fresh source/destination and independent native RCON counts/marker/damage. Survival binding refusal sends no click; creative bypass preserves that same item. Legacy completion additionally requires actual native comparison reply."
+
             result["fixture"]["clear_after"] = rcon.command("clear UnifiedProbe")
             result["fixture"]["restore"] = rcon.command("replaceitem entity UnifiedProbe inventory.0 minecraft:dirt 2" if version == "1.16.1" else "item replace entity UnifiedProbe inventory.0 with minecraft:dirt 2")
         trace.expect_disconnect()

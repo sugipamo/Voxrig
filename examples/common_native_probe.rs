@@ -1266,18 +1266,56 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                     serde_json::json!({"records":records,"native_data_equivalent":true,"restored_count":total}),
                 )?;
             }
+            "armor_fixture_state" => {
+                emit(&command, client.player_state().await?)?;
+            }
+            "item_armor_refuse" => {
+                let before = client.survival().inventory_transfer_record().await?;
+                let error = client
+                    .survival()
+                    .transfer_inventory(InventorySource::Player, 5)
+                    .await
+                    .unwrap_err();
+                anyhow::ensure!(
+                    error.kind() == voxrig::ErrorKind::InvalidInput
+                        && error.to_string().contains("no effect"),
+                    "armor refusal was not native no-effect: {error}"
+                );
+                let after = client.survival().inventory_transfer_record().await?;
+                anyhow::ensure!(
+                    before.as_ref().map(|r| r.id) == after.as_ref().map(|r| r.id),
+                    "armor refusal created an intent"
+                );
+                emit(
+                    &command,
+                    serde_json::json!({"refused_before_send":true,"error":error.to_string()}),
+                )?;
+            }
             "item_data_transfer_survival"
             | "item_data_transfer_creative"
             | "item_equipment_transfer_survival"
-            | "item_equipment_transfer_creative" => {
+            | "item_equipment_transfer_creative"
+            | "item_armor_transfer_survival"
+            | "item_armor_transfer_creative"
+            | "item_data_evacuate_survival"
+            | "item_data_evacuate_creative" => {
                 let original = client.received_inventory().await?;
                 let original_item = original
-                    .slot(9)?
+                    .slot(if command.starts_with("item_armor_transfer") {
+                        5
+                    } else {
+                        9
+                    })?
                     .and_then(|s| s.item())
                     .context("data transfer source missing")?;
                 let total = original_item.stack().count;
                 let mut records = Vec::new();
-                let steps = if command.starts_with("item_equipment_transfer") {
+                let steps = if command.starts_with("item_data_evacuate") {
+                    vec![(9, vec![(9, 0), (36, total)])]
+                } else if command.starts_with("item_armor_transfer") {
+                    anyhow::ensure!(total == 1, "armor fixture count differs");
+                    vec![(5, vec![(5, 0), (9, 1)])]
+                } else if command.starts_with("item_equipment_transfer") {
                     anyhow::ensure!(total == 3, "equipment fixture count differs");
                     vec![(9, vec![(9, 0), (5, 1), (36, 2)])]
                 } else {

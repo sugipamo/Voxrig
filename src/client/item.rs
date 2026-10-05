@@ -302,7 +302,7 @@ impl ItemStack {
 // Original legacy numeric NBT getters use signed-width narrowing, and their float
 // conversion uses Java's saturating cast followed by Mth.floor's wrapping decrement.
 // This coercion is deliberately separate from NbtValue's strict typed accessors.
-fn legacy_int(value: &NbtValue) -> i32 {
+pub(crate) fn legacy_int(value: &NbtValue) -> i32 {
     match value {
         NbtValue::Byte(v) => i32::from(*v),
         NbtValue::Short(v) => i32::from(*v),

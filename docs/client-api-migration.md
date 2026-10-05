@@ -419,7 +419,7 @@ sourceは`Player`のslot 5..45か、元の`Container { screen }`のnative screen
 転送で変化しない空cursorのordinalは元の受信を保持し、新規packet受信を主張しない。
 通常source/destinationの受信NBT/componentsも、元registryの意味と実効容量を検査して使用する。
 dataの表現が正規化されても同じnative fieldなら一致する。modernの変更した`equippable`も
-実効装備先とarmorの許可対象から振り分ける。非defaultの装備済みarmorの取り出しは追加対応を要する。
+実効装備先とarmorの許可対象から振り分ける。data付き装備済みarmorも取り出せる。survivalは束縛の制限を適用し、creativeは元ゲームのmode判定に従って取り出す。modernの制限効果は受信enchantment定義に従う。
 旧native `OperationAdmissionError`を網羅matchする利用側には
 `BoundedInventoryTransferInProgress`のarm追加が必要になる。
 詳しくは[Shift転送契約](common-inventory-transfers.md)を参照する。

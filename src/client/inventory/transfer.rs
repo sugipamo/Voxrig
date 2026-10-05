@@ -292,6 +292,7 @@ fn prepare_inner(
             menu,
             usize::from(slot),
             &values,
+            mode,
             context,
         )?
     } else {

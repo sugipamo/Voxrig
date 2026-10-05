@@ -305,5 +305,7 @@ modernの変更したequippable routingとarmorのallowed_entitiesを実効compo
 直接list・受信named tag、装備占有時の振り分け、armorへの1個と残りのmain/hotbar転送を区別する。
 通常itemのdata付きcursor closeも、registry付き計画・step準備・実source/cursor受信へ接続した。
 各stepでdataの正規化を許容し、実Emptyを確認してからCLOSEを一度送る。
-非defaultの装備済みarmorの取り出し・非空cursor QUICK_MOVE、特殊item override・製作/一般装備や
+data付き装備済みarmorの取り出しも両版に接続した。survivalの束縛制限とcreativeの取り出しを区別し、
+modernは受信enchantmentの制限効果を解決する。
+非空cursor QUICK_MOVE、特殊item override・製作/一般装備や
 後続の統合範囲は継続する。

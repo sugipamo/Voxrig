@@ -2246,6 +2246,88 @@ mod tests {
             .unwrap()
             .unwrap();
     }
+
+    #[tokio::test]
+    async fn armor_transfer_same_consumer_modes_preserves_data_and_waits_for_native_reply() {
+        use contract::{InventorySource as Source, InventoryTransferStage as Stage};
+        for mode in [api::GameMode::Survival, api::GameMode::Creative] {
+            for binding in [false, true] {
+                let (bot, mut packets, release, server) =
+                    super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+                seed(&bot).await;
+                if mode == api::GameMode::Creative {
+                    let mut p = vec![3];
+                    p.extend(1f32.to_be_bytes());
+                    bot.apply_packet(0x1e, p).await.unwrap();
+                }
+                let value = api::inventory::armor_tests::fixture(
+                    crate::MinecraftVersion::Java1_16_1,
+                    binding,
+                );
+                transfer_value(&bot, 0, 5, &value).await;
+                transfer_value(&bot, 0, 9, &api::SlotKnowledge::Empty).await;
+                let client = crate::Client::from_java_1_16_1(bot.clone());
+                let before = client.received_inventory().await.unwrap();
+                if binding && mode == api::GameMode::Survival {
+                    let error = client
+                        .survival()
+                        .transfer_inventory(Source::Player, 5)
+                        .await
+                        .unwrap_err();
+                    assert_eq!(error.kind(), crate::ErrorKind::InvalidInput);
+                    assert!(error.to_string().contains("no effect"));
+                    assert!(
+                        client
+                            .survival()
+                            .inventory_transfer_record()
+                            .await
+                            .unwrap()
+                            .is_none()
+                    );
+                    assert!(
+                        timeout(Duration::from_millis(15), packets.recv())
+                            .await
+                            .is_err()
+                    );
+                } else {
+                    let record = api::tests::common_transfer_start_scenario(
+                        &client,
+                        mode,
+                        Source::Player,
+                        5,
+                    )
+                    .await;
+                    assert_eq!(packets.recv().await.unwrap().0, 0x09);
+                    transfer_value(&bot, 0, 5, &api::SlotKnowledge::Empty).await;
+                    transfer_value(&bot, 0, 9, &value).await;
+                    assert_eq!(
+                        client
+                            .survival()
+                            .inventory_transfer_record()
+                            .await
+                            .unwrap()
+                            .unwrap()
+                            .stage,
+                        Stage::Pending
+                    );
+                    ack(&bot, record.send.legacy_action.unwrap(), false).await;
+                    assert_eq!(packets.recv().await.unwrap().0, 0x07);
+                    api::tests::common_data_transfer_complete_from_scenario(
+                        &client,
+                        record.id,
+                        &before,
+                        5,
+                        &[(5, 0), (9, 1)],
+                    )
+                    .await;
+                }
+                drop(client);
+                let _ = release.send(());
+                drop(bot);
+                server.await.unwrap();
+            }
+        }
+    }
     #[tokio::test]
     async fn data_transfer_same_consumer_both_modes_partial_merge_and_split_return_preserves_nbt() {
         use contract::{InventorySource as Source, InventoryTransferStage as Stage};

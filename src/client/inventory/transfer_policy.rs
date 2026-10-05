@@ -204,22 +204,31 @@ pub(super) fn calculate(
     source: usize,
     before: &[SlotKnowledge],
 ) -> Result<Prediction> {
-    calculate_inner(version, menu, source, before, None)
+    calculate_inner(
+        version,
+        menu,
+        source,
+        before,
+        crate::client::GameMode::Survival,
+        None,
+    )
 }
 pub(super) fn calculate_with_data(
     version: MinecraftVersion,
     menu: &str,
     source: usize,
     before: &[SlotKnowledge],
+    mode: crate::client::GameMode,
     context: &super::data::ItemContext,
 ) -> Result<Prediction> {
-    calculate_inner(version, menu, source, before, Some(context))
+    calculate_inner(version, menu, source, before, mode, Some(context))
 }
 fn calculate_inner(
     version: MinecraftVersion,
     menu: &str,
     source: usize,
     before: &[SlotKnowledge],
+    mode: crate::client::GameMode,
     context: Option<&super::data::ItemContext>,
 ) -> Result<Prediction> {
     let storage = if menu == "minecraft:player" {
@@ -252,15 +261,12 @@ fn calculate_inner(
         .iter()
         .find(|r| r.native_id == original.id.value() && r.name == original.name)
         .ok_or_else(|| unavailable("native default transfer route unavailable; update Voxrig"))?;
-    if context.is_some()
-        && storage.is_none()
-        && (5..=8).contains(&source)
-        && !default_data(version, original)
-    {
-        return Err(crate::Error::new(
-            crate::ErrorKind::Unsupported,
-            anyhow::anyhow!("data-bearing equipped-item pickup rules remain unimplemented"),
-        ));
+    if storage.is_none() && (5..=8).contains(&source) {
+        if let Some(context) = context {
+            if !context.armor_may_pickup(original, mode)? {
+                return Ok(result);
+            }
+        }
     }
     let may_pickup = if storage.is_none() && matches!(source, 5..=8 | 45) {
         profiles(version)
@@ -521,6 +527,7 @@ mod tests {
                 "minecraft:player",
                 source,
                 &before,
+                crate::client::GameMode::Survival,
                 &context,
             )
             .unwrap();

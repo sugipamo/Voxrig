@@ -90,6 +90,8 @@ include = [
     "/scripts/export_inventory_transfers.py",
     "/scripts/ExportEquipmentTransfers.java",
     "/scripts/export_equipment_transfers.py",
+    "/scripts/ExportArmorTransfers.java",
+    "/scripts/export_armor_transfers.py",
     "/README.md",
     "/LICENSE",
     "/THIRD_PARTY_NOTICES.md",

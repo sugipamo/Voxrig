@@ -98,7 +98,28 @@ player/cow list・named tag、装備占有、armorへの1個と残量の別slot�
 分ける。3つのchanged slotすべてにfresh実受信を要求し、同じmetadataと数量を照合した。
 元serverのRCONもhead/hotbarの数量、equippable、custom-data markerを独立して確認した。
 既存の両版nativeシナリオも同じ入力snapshotで成功し、両JVMは正常終了した。
-非defaultの装備済みarmorの取り出しや任意item activationの実装完了を意味しない。
+このrunの検証範囲は変更したequippableの装備先への転送。装備済みarmorの取り出しは下記で別に検証する。
+
+
+装備済みarmorのdata付きQUICK_MOVEも両版の共通Clientへ接続した。
+`survival().transfer_inventory(InventorySource::Player, 5)`などは束縛の制限を適用し、
+`creative()`は元ゲームのcreative判定に従って取り出せる。拒否は送信前に`InvalidInput`で返し、
+intentを作成しない。legacyは最初に一致した束縛IDと元の数値getterでlevelを判定する。
+modernは受信したenchantment registryの`minecraft:prevent_armor_change`効果を使い、
+名称やlevelだけで決めない。stored_enchantmentsはこの判定に使わない。
+
+`export_armor_transfers.py`は同じ引数で再生成でき、旧版276件・新版156件の実mayPickupと
+全46slot結果を保存する。両mode、armor4slotとmain/offhand対照、旧版の数値型・非有限値・
+省略namespace・重複の順序、新版の実enchantment/stored_enchantmentとlevelを含む。
+この純粋なmenu試験のmetadata照合はcompoundのwire順を無視し、数値型と浮動小数点bitsを保持する。
+独立したネットワーク受信間のNaN等値判定を変更しない。共通consumerの試験は両版・両modeで、
+送信前拒否、sourceとdestinationのfresh実受信、旧版の実比較応答待ちを確認する。
+
+実接続は`trial-1.16.1-490c41f0` / `trial-1.21.11-2c9973b6`で、
+両mode計4回の装備取り出しとサバイバルでの束縛拒否2件が成功した。元serverのRCONで数量・
+Damage=7・marker=992を独立して照合し、拒否時のクリック送信がないこともtraceで確認した。
+旧版の前ケースのstackはhotbarに実転送して対照として保持し、`/clear`から空receiptを推測しない。
+両JVMはexit0で、実行時の全runtime source/dataと同一consumer binaryのhashを保持する。
 
 
 共通ClientのShift転送の実接続runは`trial-1.16.1-841caa80` /

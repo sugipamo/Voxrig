@@ -3214,6 +3214,105 @@ async fn data_transfer_fresh_capacity_conflict_stays_latched_after_correct_data_
 }
 
 #[tokio::test]
+async fn armor_transfer_same_consumer_modes_preserves_data_and_requires_both_actual_slots() {
+    use crate::client::{
+        GameMode as Mode, ItemData, SlotKnowledge,
+        inventory::{InventorySource as Source, InventoryTransferStage as Stage},
+    };
+    for mode in [Mode::Survival, Mode::Creative] {
+        for binding in [false, true] {
+            let mut f = CommonFixture::new().await;
+            crate::client::inventory::armor_tests::install(
+                &mut f.api.bot.session.state.lock().await.registries,
+                MinecraftVersion::Java1_21_11,
+                None,
+            );
+            if mode == Mode::Creative {
+                let mut p = vec![3];
+                p.extend(1f32.to_be_bytes());
+                f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &p)
+                    .await;
+            }
+            let SlotKnowledge::Item { item } = crate::client::inventory::armor_tests::fixture(
+                MinecraftVersion::Java1_21_11,
+                binding,
+            ) else {
+                panic!("missing native helmet")
+            };
+            let ItemData::ModernComponents { patch } = item.data else {
+                panic!("missing native components")
+            };
+            let value = InventorySlot::ItemWithComponents {
+                item: PlainItem {
+                    name: item.name,
+                    item_id: item.id.value(),
+                    count: 1,
+                },
+                components: patch,
+            };
+            f.slot(5, value.clone()).await;
+            f.slot(9, InventorySlot::Empty).await;
+            let client = f.client();
+            let before = client.received_inventory().await.unwrap();
+            if binding && mode == Mode::Survival {
+                let error = client
+                    .survival()
+                    .transfer_inventory(Source::Player, 5)
+                    .await
+                    .unwrap_err();
+                assert_eq!(error.kind(), crate::ErrorKind::InvalidInput);
+                assert!(error.to_string().contains("no effect"));
+                assert!(
+                    client
+                        .survival()
+                        .inventory_transfer_record()
+                        .await
+                        .unwrap()
+                        .is_none()
+                );
+                assert!(
+                    timeout(Duration::from_millis(15), read_packet(&mut f.peer, None))
+                        .await
+                        .is_err()
+                );
+            } else {
+                let record = crate::client::tests::common_transfer_start_scenario(
+                    &client,
+                    mode,
+                    Source::Player,
+                    5,
+                )
+                .await;
+                assert_eq!(
+                    read_packet(&mut f.peer, None).await.unwrap().0,
+                    ids::play_serverbound::WINDOW_CLICK
+                );
+                f.slot(5, InventorySlot::Empty).await;
+                assert_eq!(
+                    client
+                        .survival()
+                        .inventory_transfer_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .stage,
+                    Stage::Pending
+                );
+                f.slot(9, value).await;
+                crate::client::tests::common_data_transfer_complete_from_scenario(
+                    &client,
+                    record.id,
+                    &before,
+                    5,
+                    &[(5, 0), (9, 1)],
+                )
+                .await;
+            }
+            f.stop().await;
+        }
+    }
+}
+#[tokio::test]
 async fn modified_equipment_transfer_same_consumer_both_modes_requires_each_actual_destination() {
     use crate::client::{
         GameMode as Mode,

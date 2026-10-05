@@ -1,4 +1,6 @@
 //! Received ordinary player/container exchanges; no click prediction is receive evidence.
+#[cfg(test)]
+pub(crate) mod armor_tests;
 pub(crate) mod click;
 mod data;
 pub(crate) use data::ItemContext;

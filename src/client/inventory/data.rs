@@ -164,6 +164,86 @@ impl ItemContext {
     ) -> Result<bool> {
         Ok(self.key(a)?.matches(&self.key(b)?, shared))
     }
+    /// Original armor slots allow creative pickup, otherwise use the owning
+    /// version's actual enchantment predicate. Stored enchantments do not apply.
+    pub(super) fn armor_may_pickup(&self, item: &ItemStack, mode: GameMode) -> Result<bool> {
+        use item_semantics::Component as C;
+        if mode == GameMode::Creative {
+            return Ok(true);
+        }
+        match self.key(&SlotKnowledge::Item { item: item.clone() })? {
+            Stack::Empty => Ok(true),
+            Stack::Legacy(stack) => {
+                let entries = stack
+                    .tag
+                    .as_deref()
+                    .and_then(crate::client::nbt::NbtValue::as_compound)
+                    .and_then(|tag| tag.get("Enchantments"))
+                    .and_then(crate::client::nbt::NbtValue::as_list);
+                for entry in entries.into_iter().flatten() {
+                    let Some(entry) = entry.as_compound() else {
+                        continue;
+                    };
+                    let Some(id) = entry
+                        .get("id")
+                        .and_then(crate::client::nbt::NbtValue::as_string)
+                    else {
+                        continue;
+                    };
+                    if ["minecraft:binding_curse", "binding_curse", ":binding_curse"]
+                        .into_iter()
+                        .any(|name| id.utf16().iter().copied().eq(name.encode_utf16()))
+                    {
+                        // Native helper returns the first matching ID, including
+                        // zero/negative/non-numeric levels, rather than searching later entries.
+                        let level = entry.get("lvl").map_or(0, crate::client::item::legacy_int);
+                        return Ok(level <= 0);
+                    }
+                }
+                Ok(true)
+            }
+            Stack::Modern(stack) => {
+                let id = crate::client::registry::Registry::for_version(item.id.version())
+                    .item_component("minecraft:enchantments")?
+                    .id
+                    .value();
+                let Some(C::Enchantments(entries)) = stack.components.get(&id) else {
+                    return if stack.components.contains_key(&id) {
+                        Err(unavailable("armor enchantment constructor unavailable"))
+                    } else {
+                        Ok(true)
+                    };
+                };
+                for entry in entries.keys() {
+                    if entry.registry != "minecraft:enchantment"
+                        || entry.owner
+                            != Some((
+                                self.owner.stamp().connection_id,
+                                self.owner.stamp().configuration_generation,
+                            ))
+                    {
+                        return Err(unavailable(
+                            "armor enchantment registry ownership disagrees",
+                        ));
+                    }
+                    let id = self.owner.bind("minecraft:enchantment", entry.native_id)?;
+                    let definition = self.owner.resolve(&id)?;
+                    let root = crate::client::nbt::decode(&definition.data, item.id.version())?;
+                    if let Some(effects) = root.root().get("effects") {
+                        let effects = effects.as_compound().ok_or_else(|| {
+                            unavailable("armor enchantment effects are not a compound")
+                        })?;
+                        // Native has() checks effect presence for every map entry,
+                        // independently of the enchantment's level on this item.
+                        if effects.get("minecraft:prevent_armor_change").is_some() {
+                            return Ok(false);
+                        }
+                    }
+                }
+                Ok(true)
+            }
+        }
+    }
     /// Native player-menu routing uses the effective component's slot, separately
     /// from ArmorSlot's allowed-entity predicate. BODY/SADDLE do not route into UI armor.
     pub(super) fn transfer_equipment_slot(&self, item: &ItemStack) -> Result<Option<usize>> {
