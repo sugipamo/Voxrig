@@ -373,3 +373,15 @@ in the facts; comparison normalization is not persistent encoding or hash eviden
 Original JAR/mapping/classpath/tool/input/raw/final digests bind the facts.
 Native method bodies and binaries remain local and are not distributed or
 relicensed. Persistent/cache semantics and gameplay admission remain incomplete.
+
+`selector_rules-1.21.11.json`, its compressed cases and source record contain
+observed original selector option/type/character grammar, constructor cursors,
+text/score fields, profile presence-byte outputs and original equality pairs.
+Owned standalone tools call unchanged original bootstrapping/codecs/parsers/getters.
+Compiled selector fields remain diagnostic facts, not live entity-query execution.
+`character_names-21.0.12.1.json.gz` contains observed Character.getName/codePointOf
+names and uppercase folds from the recorded JDK, bound to executable/modules hashes.
+SNBT applies its own ASCII spelling gate after trimming; these facts are not JDK
+method bodies or modules. Original game/JDK binaries, methods and inspection logs
+remain local and are not distributed or relicensed. Full constructors, legacy
+selector semantics, persistent/cache and gameplay admission remain incomplete.

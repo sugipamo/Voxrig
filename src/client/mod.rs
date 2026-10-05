@@ -1,6 +1,7 @@
 //! Common client entry points and data. Wire formats and physics belong to adapters.
 mod capabilities;
 mod config;
+pub(crate) mod constructor;
 pub mod container;
 mod geometry;
 mod hash_ops;
@@ -12,6 +13,8 @@ mod observation;
 pub(crate) mod operations;
 pub(crate) mod profile;
 pub mod registry;
+pub(crate) mod selector;
+pub(crate) mod selector_snbt;
 pub mod survival;
 #[cfg(test)]
 pub(crate) mod tests;

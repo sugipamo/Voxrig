@@ -6,7 +6,7 @@ use crate::client::{
 use serde_json::{Value as Json, json};
 use std::io::Read;
 
-fn fields(profile: &Profile) -> Json {
+pub(super) fn fields(profile: &Profile) -> Json {
     let mut value = match &profile.kind {
         Kind::DynamicName { name } => {
             json!({"class":"doy$a", "left":true,"name":name,"properties":[]})

@@ -15,7 +15,7 @@ fn facts() -> Json {
     .unwrap();
     serde_json::from_slice(&bytes).unwrap()
 }
-fn describe(text: &Text, expected: &Json) {
+pub(super) fn describe(text: &Text, expected: &Json) {
     let body = &expected["body"];
     match &text.contents {
         Contents::Literal { text } => {
@@ -78,7 +78,12 @@ fn describe(text: &Text, expected: &Json) {
             }
         }
         Contents::Score { name, objective } => {
-            assert_eq!(serde_json::to_value(name).unwrap(), body["name"]);
+            let (pattern, selector) = match name {
+                crate::client::text::ScoreName::Selector(v) => (&v.0, true),
+                crate::client::text::ScoreName::Literal(v) => (v, false),
+            };
+            assert_eq!(serde_json::to_value(pattern).unwrap(), body["name"]);
+            assert_eq!(body["name_is_selector"], selector);
             assert_eq!(serde_json::to_value(objective).unwrap(), body["objective"]);
         }
         Contents::Nbt {
@@ -219,7 +224,7 @@ fn native_getter_fields_and_context_free_comparisons_match_original_text_values(
             _ => pending += 1,
         }
     }
-    assert_eq!((comparisons, pending), (9870, 1305));
+    assert_eq!((comparisons, pending), (10585, 590));
 }
 #[test]
 fn original_text_field_source_and_primitive_color_rules_are_bound() {
@@ -303,7 +308,7 @@ fn original_fuzzy_constructor_order_and_adverse_inputs_match() {
         }
     }
     assert_eq!((accepted, rejected, deferred_rejection), (354, 64, 1));
-    assert_eq!((comparisons, pending), (45451, 17384));
+    assert_eq!((comparisons, pending), (61425, 1410));
     assert_eq!(
         accepted + rejected + deferred_rejection,
         facts["cases"].as_array().unwrap().len()

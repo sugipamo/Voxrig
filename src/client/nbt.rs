@@ -9,6 +9,10 @@ use std::{collections::BTreeMap, sync::Arc};
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct NbtString(Vec<u16>);
 impl NbtString {
+    #[cfg(test)]
+    pub(crate) fn from_units(units: Vec<u16>) -> Self {
+        Self(units)
+    }
     pub(crate) fn from_text(value: &str) -> Self {
         Self(value.encode_utf16().collect())
     }

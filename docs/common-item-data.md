@@ -210,11 +210,11 @@ booleanは元Number.byteValueを使い、未指定とfalseを区別する。NBT 
 元lenient規則を使う一方、selectorのseparatorはstrictに読む。
 
 公式codecへ182個のwire入力を与え、受理された149値の元contents/style getterと照合した。
-元component.equalsの11,175 pair中、未解決の依存を含まない9,870 pairを内部field keyで照合し、
-残る1,305 pairは比較キーを作らない。selector/score、URI、dialog、入れ子item/entity、
+元component.equalsの11,175 pair中、未解決の依存を含まない10,585 pairを内部field keyで照合し、
+残る590 pairは比較キーを作らない。URI、dialog、入れ子item/entity、
 追加のconstructor検査が必要なfieldを未完了として残す。
 このキーは完全なconstructor validation、全component/item identity、persistent encoder、cache hash、
-操作の許可を証明しない。未解決のselector/URI/dialog/item/entity constructorを含む完全な構築規則は残作業である。
+操作の許可を証明しない。未解決のURI/dialog/item/entity constructorを含む完全な構築規則は残作業である。
 
 runtimeの小さな色grammarは`text_color_rules-1.21.11.json`、検査値と比較は
 `text_core_cases-1.21.11.json.gz`、元入力/tool/getter/出力のdigestは`text_core_source.json`へ分離する。
@@ -242,10 +242,10 @@ classpath/raw/final digestは`text_constructor_source.json`へ分ける。
 複数候補・逆のkey順・不正な先行候補・明示discriminator・strict/lenient optionalを含む419入力を
 未変更公式codecへ与え、受理された354値の取得済みfieldと照合した。64拒否は内部projectionも拒否し、
 残る1拒否（hover entityのUUID等）は未解決の依存を保持し、比較キーを作らない。
-元component.equalsの62,835組中、依存を含まない45,451組は一致し、17,384組は未解決である。
-これらはcoreの182入力/9,870比較を含む拡張検査で、別々の独立した合計値へ加算しない。
+元component.equalsの62,835組中、依存を含まない61,425組は一致し、1,410組は未解決である。
+これらはcoreの182入力/10,585比較を含む拡張検査で、別々の独立した合計値へ加算しない。
 
-selector/scoreの完全なsyntax/branch構築、URI、dialog、入れ子item/entityが未実装のため、
+URI、dialog、入れ子item/entityの完全な構築が未実装のため、
 それらの候補の妥当性と候補間のfallbackも全条件で一致するとは主張しない。
 内部field projectionを完全なnative constructor検査やitem操作の許可に使わない。
 通常受信の元bytes保持経路、新しいlive gameplay/cache検証の不在、残る全体統合の範囲は同じである。
@@ -269,7 +269,7 @@ componentのboolean streamは元ByteBufと同じく0以外をtrueとし、モデ
 未変更公式codecでNBT/通信の324入力を検査し、253受理値の全constructor fieldと
 32,131組の元profile.equalsを照合した。正規化した通信で元codec自身が等価とした値も照合する。
 単独surrogateを含む2値は元通信往復で等価にならないことを記録し、正常往復として扱わない。
-textの比較範囲は上記の9,870組/45,451組へ広がった。以前の検査と重複するため加算しない。
+textの比較範囲は上記の10,585組/61,425組へ広がった。以前の検査と重複するため加算しない。
 
 `profile_rules-1.21.11.json`は元name/modelの小さなgrammar、`profile_cases-1.21.11.json.gz`は
 入力・結果・比較、`profile_source.json`は元JAR/mapping/classpath/tool/raw/finalのdigestを保持する。
@@ -277,6 +277,34 @@ owned `scripts/export_profiles.py`はJVM512 MiB・CPU1で実行し、保存runti
 `--normalize-only --check`でも確認できる。通常受信でprofile modelを生成しない。
 online profile/skin解決、persistent encoder、server cache、legacy profile等価判定、
 data付きitemの操作許可や新たなlive gameplay検証はこの段階に含まれず、全体の統合は継続中である。
+
+### selector constructorとscoreの共通化
+
+modern textのselector patternを共通の内部constructorへ読み取る。元の21 options、適用順序と
+重複条件、player name/UUID、範囲、scores/advancements、SNBT predicateのsyntaxを検査する。
+scoreの名前は元constructorと同じく、selectorとして成功した値とliteralへ戻る値を区別する。
+比較は元SelectorPattern.equalsが使うraw UTF-16 patternを保持し、解析後のpredicateを比較キーへ混ぜない。
+元parserは入力末尾までの消費を要求しないため、消費cursorも元値へ照合する。
+selector失敗時の下位fuzzy候補への切替を検査し、独自work/depth制限は切替で隠さない。
+
+未変更公式codec/parserへ1,955入力を与え、998受理値と498,501組の元equalsを照合した。
+selector、text、非canonical booleanを含むprofileの検査を含むため、上記のtext/profile比較へ加算しない。
+optional/either/profile署名のpresence byteも元ByteBufと同じく0以外をtrueとして読む。
+元getterから得た他のcompiled selector fieldはoracleへ残すが、entity queryの実行は未実装である。
+
+SNBTは元のquoted escape、数値suffix/base/空白、typed array、bool/uuid operationを検査する。
+名前付きescape用の288,767 character namesと10 Unicode uppercase foldは、実行したJDK
+21.0.12.1から取得した事実として固定する。SNBTでは前後のcontrol空白をtrimした後に
+ASCII文字・数字・hyphen・spaceだけを許可する。JDK自体のUnicode fold受理と混同しない。
+名前catalogは該当escapeの内部検査時だけ読み取り、通常受信では構築しない。
+
+`selector_rules-1.21.11.json`は小さなgrammarと元builtin entity type一覧、圧縮casesは入力・結果・
+比較、source recordは元JAR/mapping/classpath/tool/request/raw/final digestを持つ。
+`character_names-21.0.12.1.json.gz`とsource recordはJDK実行ファイル/modules/tool/raw/finalへ束縛する。
+owned exporterはJVM512 MiB・CPU1で実行し、保存runtimeの`--normalize-only --check`でも確認できる。
+ゲームのmethod body・JAR・JDK modules・inspection logは配布しない。
+legacy selector、実world/entity解決、persistent/hash/cache、公開操作の許可や新しいlive gameplayの
+証拠にはならず、残る全機能の統合は継続する。
 
 ## Item比較・persistent hashの基礎
 

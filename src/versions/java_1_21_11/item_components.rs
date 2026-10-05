@@ -8,6 +8,8 @@ mod framing;
 mod profile;
 #[cfg(test)]
 mod profile_tests;
+#[cfg(test)]
+mod selector_tests;
 mod text;
 #[cfg(test)]
 mod text_tests;

@@ -202,3 +202,11 @@ modernのprofile componentとtextのplayer objectは共通の内部constructor f
 NBT/通信の異なる名前制限、full/partialの種類、propertiesの順番・重複・署名、skin patchを保持し、
 公式codecの324入力・253受理値・32,131組の比較へ照合した。公開操作の拡大やskin解決は行わず、
 一般item data・persistent/cache・残る全機能の統合は継続する。詳細は[共通item data](common-item-data.md)を参照。
+
+### selector fieldの内部共通化
+
+modern textのselectorとscoreを共通内部constructorへ接続した。元21 options、raw UTF-16と
+消費cursor、scoreのselector/literal分岐、SNBT predicate grammarを検査し、1,955入力・998受理値・
+498,501組の元比較に一致した。text coreの比較は10,585組、拡張constructorの比較は61,425組へ広がった。
+これらは重複するため加算しない。entity query実行、URI/dialog/item/entityの完全な構築、
+一般item操作と残る全体統合は継続する。詳細は[共通item data](common-item-data.md)を参照。

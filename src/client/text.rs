@@ -26,11 +26,11 @@ pub(crate) enum Contents {
         arguments: Vec<Argument>,
     },
     Selector {
-        pattern: NbtString,
+        pattern: super::selector::Pattern,
         separator: Option<Box<Text>>,
     },
     Score {
-        name: NbtString,
+        name: ScoreName,
         objective: NbtString,
     },
     Nbt {
@@ -47,6 +47,12 @@ pub(crate) enum Contents {
         profile: Box<super::profile::Profile>,
         hat: bool,
     },
+}
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+pub(crate) enum ScoreName {
+    Selector(super::selector::Pattern),
+    Literal(NbtString),
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
@@ -127,6 +133,8 @@ enum ContentsKey {
         separator: Option<Box<FieldKey>>,
         source: NbtSource,
     },
+    Selector(super::selector::Pattern, Option<Box<FieldKey>>),
+    Score(ScoreName, NbtString),
     Sprite(Identifier, Identifier),
     PlayerSprite(Box<super::profile::Profile>, bool),
 }
@@ -210,7 +218,6 @@ pub(crate) enum Hover {
 /// entity bindings cannot be replaced with raw NBT/string/CRC equality.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 pub(crate) enum Dependency {
-    Selector,
     Uri,
     Dialog,
     Item,
@@ -221,13 +228,10 @@ impl Text {
         fn visit(text: &Text, out: &mut Vec<Dependency>) {
             use Contents::*;
             match &text.contents {
-                Selector { separator, .. } => {
-                    out.push(Dependency::Selector);
-                    if let Some(value) = separator {
-                        visit(value, out);
-                    }
-                }
-                Score { .. } => out.push(Dependency::Selector),
+                Selector {
+                    separator: Some(value),
+                    ..
+                } => visit(value, out),
                 Translate { arguments, .. } => {
                     for value in arguments {
                         if let Argument::Text(value) = value {
@@ -304,7 +308,13 @@ impl Text {
                 Contents::PlayerSprite { profile, hat } => {
                     ContentsKey::PlayerSprite(profile.clone(), *hat)
                 }
-                _ => unreachable!("dependency-free text cannot contain unresolved contents"),
+                Contents::Selector { pattern, separator } => ContentsKey::Selector(
+                    pattern.clone(),
+                    separator.as_ref().map(|v| Box::new(key(v))),
+                ),
+                Contents::Score { name, objective } => {
+                    ContentsKey::Score(name.clone(), objective.clone())
+                }
             };
             let s = &text.style;
             let click = s.click.as_ref().map(|c| match c {

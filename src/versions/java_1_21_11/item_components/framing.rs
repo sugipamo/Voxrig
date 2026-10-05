@@ -345,7 +345,7 @@ fn read_value(
             }
         }
         Rule::Optional { child } => {
-            let present = r.bool()?;
+            let present = r.u8()? != 0;
             let value = if present {
                 Some(read_value(r, *child, budget, child_depth, capture)?)
             } else {
@@ -383,7 +383,7 @@ fn read_value(
             Value::Map(entries)
         }
         Rule::Either { left, right } => {
-            let left_side = r.bool()?;
+            let left_side = r.u8()? != 0;
             let child = if left_side { left } else { right };
             let value = read_value(r, *child, budget, child_depth, capture)?;
             if capture {
@@ -466,7 +466,7 @@ fn read_value(
             for _ in 0..r.count(65_536)? {
                 let name = text(r, 64)?;
                 let value = text(r, 32_767)?;
-                let signature = if r.bool()? {
+                let signature = if r.u8()? != 0 {
                     Some(text(r, 1024)?)
                 } else {
                     None

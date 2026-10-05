@@ -24,14 +24,7 @@ fn color_rules() -> &'static ColorRules {
     })
 }
 
-#[derive(Debug)]
-struct ReadLimit(&'static str);
-impl std::fmt::Display for ReadLimit {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(self.0)
-    }
-}
-impl std::error::Error for ReadLimit {}
+use crate::client::constructor::Limit as ReadLimit;
 
 pub(super) fn project(value: &Arc<NbtValue>) -> Result<Text> {
     let mut budget = 65_536;
@@ -176,7 +169,7 @@ fn read_contents(
             keybind: string(fields, "keybind")?.clone(),
         },
         "selector" => Contents::Selector {
-            pattern: string(fields, "selector")?.clone(),
+            pattern: crate::client::selector::parse(string(fields, "selector")?, budget)?.0,
             separator: strict_separator(fields, budget, depth)?,
         },
         "score" => {
@@ -185,7 +178,13 @@ fn read_contents(
                 .and_then(NbtValue::as_compound)
                 .context("native score contents must be a compound")?;
             Contents::Score {
-                name: string(fields, "name")?.clone(),
+                name: match crate::client::selector::parse(string(fields, "name")?, budget) {
+                    Ok((pattern, _)) => crate::client::text::ScoreName::Selector(pattern),
+                    Err(error) if error.downcast_ref::<ReadLimit>().is_some() => return Err(error),
+                    Err(_) => {
+                        crate::client::text::ScoreName::Literal(string(fields, "name")?.clone())
+                    }
+                },
                 objective: string(fields, "objective")?.clone(),
             }
         }
@@ -567,5 +566,42 @@ mod tests {
             read(&root, &mut budget, 0).unwrap().contents,
             Contents::Translate { .. }
         ));
+    }
+}
+
+#[cfg(test)]
+mod selector_limit_tests {
+    use super::*;
+    use std::io::Read;
+    #[test]
+    fn native_valid_selectors_cannot_become_literal_score_or_lower_fuzzy_candidate_on_limit() {
+        let mut bytes = Vec::new();
+        flate2::read::GzDecoder::new(
+            &include_bytes!("../../../../data/client_api/selector_cases-1.21.11.json.gz")[..],
+        )
+        .read_to_end(&mut bytes)
+        .unwrap();
+        let facts: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        for kind in ["fuzzy-nbt-", "score-"] {
+            let row = facts["cases"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|row| {
+                    row["case"].as_str().unwrap().starts_with(kind)
+                        && row["accepted"] == true
+                        && (row["fields"]["body"]["pattern"] == "@a"
+                            || row["fields"]["body"]["name"] == "@a")
+                })
+                .unwrap();
+            let value = crate::client::nbt::decode_unnamed_tag(
+                &hex::decode(row["input_hex"].as_str().unwrap()).unwrap(),
+            )
+            .unwrap()
+            .unwrap();
+            let error = read(&value, &mut 1, 0).unwrap_err();
+            assert!(error.downcast_ref::<ReadLimit>().is_some(), "{error}");
+            assert!(project(&value).unwrap().modern_field_key().is_some());
+        }
     }
 }
