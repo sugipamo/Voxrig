@@ -51,6 +51,8 @@ include = [
     "/scripts/export_character_names.py",
     "/scripts/ExportSelectors.java",
     "/scripts/export_selectors.py",
+    "/scripts/ExportUris.java",
+    "/scripts/export_uris.py",
     "/scripts/ExportProfiles.java",
     "/scripts/export_profiles.py",
     "/scripts/ExportTextConstructors.java",

@@ -210,11 +210,11 @@ booleanは元Number.byteValueを使い、未指定とfalseを区別する。NBT 
 元lenient規則を使う一方、selectorのseparatorはstrictに読む。
 
 公式codecへ182個のwire入力を与え、受理された149値の元contents/style getterと照合した。
-元component.equalsの11,175 pair中、未解決の依存を含まない10,585 pairを内部field keyで照合し、
-残る590 pairは比較キーを作らない。URI、dialog、入れ子item/entity、
+元component.equalsの11,175 pair中、未解決の依存を含まない10,731 pairを内部field keyで照合し、
+残る444 pairは比較キーを作らない。dialog、入れ子item/entity、
 追加のconstructor検査が必要なfieldを未完了として残す。
 このキーは完全なconstructor validation、全component/item identity、persistent encoder、cache hash、
-操作の許可を証明しない。未解決のURI/dialog/item/entity constructorを含む完全な構築規則は残作業である。
+操作の許可を証明しない。未解決のdialog/item/entity constructorを含む完全な構築規則は残作業である。
 
 runtimeの小さな色grammarは`text_color_rules-1.21.11.json`、検査値と比較は
 `text_core_cases-1.21.11.json.gz`、元入力/tool/getter/出力のdigestは`text_core_source.json`へ分離する。
@@ -242,10 +242,10 @@ classpath/raw/final digestは`text_constructor_source.json`へ分ける。
 複数候補・逆のkey順・不正な先行候補・明示discriminator・strict/lenient optionalを含む419入力を
 未変更公式codecへ与え、受理された354値の取得済みfieldと照合した。64拒否は内部projectionも拒否し、
 残る1拒否（hover entityのUUID等）は未解決の依存を保持し、比較キーを作らない。
-元component.equalsの62,835組中、依存を含まない61,425組は一致し、1,410組は未解決である。
-これらはcoreの182入力/10,585比較を含む拡張検査で、別々の独立した合計値へ加算しない。
+元component.equalsの62,835組中、依存を含まない61,776組は一致し、1,059組は未解決である。
+これらはcoreの182入力/10,731比較を含む拡張検査で、別々の独立した合計値へ加算しない。
 
-URI、dialog、入れ子item/entityの完全な構築が未実装のため、
+dialog、入れ子item/entityの完全な構築が未実装のため、
 それらの候補の妥当性と候補間のfallbackも全条件で一致するとは主張しない。
 内部field projectionを完全なnative constructor検査やitem操作の許可に使わない。
 通常受信の元bytes保持経路、新しいlive gameplay/cache検証の不在、残る全体統合の範囲は同じである。
@@ -269,7 +269,7 @@ componentのboolean streamは元ByteBufと同じく0以外をtrueとし、モデ
 未変更公式codecでNBT/通信の324入力を検査し、253受理値の全constructor fieldと
 32,131組の元profile.equalsを照合した。正規化した通信で元codec自身が等価とした値も照合する。
 単独surrogateを含む2値は元通信往復で等価にならないことを記録し、正常往復として扱わない。
-textの比較範囲は上記の10,585組/61,425組へ広がった。以前の検査と重複するため加算しない。
+現在のtextの比較範囲は上記の10,731組/61,776組へ広がった。以前の検査と重複するため加算しない。
 
 `profile_rules-1.21.11.json`は元name/modelの小さなgrammar、`profile_cases-1.21.11.json.gz`は
 入力・結果・比較、`profile_source.json`は元JAR/mapping/classpath/tool/raw/finalのdigestを保持する。
@@ -305,6 +305,34 @@ owned exporterはJVM512 MiB・CPU1で実行し、保存runtimeの`--normalize-on
 ゲームのmethod body・JAR・JDK modules・inspection logは配布しない。
 legacy selector、実world/entity解決、persistent/hash/cache、公開操作の許可や新しいlive gameplayの
 証拠にはならず、残る全機能の統合は継続する。
+
+### URL constructorの共通化
+
+modern textのopen_url clickを共通の内部URI constructorへ読み取る。
+未変更公式codecが使うJDK URIのraw UTF-16、scheme-specific part、opaque/hierarchical、
+authority、user info、host、port、path、query、fragmentを保持する。
+元codecの許可schemeはhttp/httpsで、host必須のHTTP接続用URLに置き換えない。
+opaque URIやregistry authorityも元codecが受理する場合には保持する。
+
+比較は元URI.equalsへ合わせ、scheme/hostのASCII case、percent escapeのhex case、
+server portの数値を区別して扱う。registry authorityの文字case、pathのdot segment、
+未指定と空文字、非escapeの文字とpercent表記、IPv6の表記差は同一へ潰さない。
+比較キーはraw getterの表記を上書きせず、persistent encoderやhashへ使わない。
+
+未変更公式URI/text codecへ1,810入力を与え、1,089受理値のgetter・入れ子click routeと
+593,505組の元URI/component.equalsを照合した。ASCII・Unicode・単独surrogate、
+IPv4/IPv6/scope、port、percent escapeと、hover/translation/selector separator/sibling/
+lenient NBT separatorを含む。上記のtext検査と重複するため合計へ加算しない。
+独自work制限はURLやlenient NBT separatorで隠さず、typed limitとして伝播する。
+
+`uri_rules-1.21.11.json`は元ASCII mask・非ASCII exclusion・許可schemeの小さなgrammar、
+圧縮casesは入力・getter・比較、source recordは元JAR/mapping/classpath/JDK executable/
+modules/tool/request/raw/finalのdigestを持つ。owned exporterはJVM512 MiB・CPU1で実行し、
+保存runtimeの`--normalize-only --check`でも確認する。module openingは観測用reflectionだけで、
+元codec/parserのmethodを置き換えない。元のmethod body・ゲーム/JDK binaries・inspection logは配布しない。
+通常受信ではURI modelを構築しない。URLを開く処理、DNS/HTTP接続、legacy URIの等価判定、
+persistent/cache、公開item操作や新たなlive gameplay検証はこの段階の証拠に含めない。
+残るconstructorと一般item/操作の全体統合は継続中である。
 
 ## Item比較・persistent hashの基礎
 

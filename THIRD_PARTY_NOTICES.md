@@ -385,3 +385,13 @@ SNBT applies its own ASCII spelling gate after trimming; these facts are not JDK
 method bodies or modules. Original game/JDK binaries, methods and inspection logs
 remain local and are not distributed or relicensed. Full constructors, legacy
 selector semantics, persistent/cache and gameplay admission remain incomplete.
+
+`uri_rules-1.21.11.json`, its compressed cases and source record contain observed
+original URI ASCII masks, non-ASCII exclusions, allowed schemes, native raw UTF-16
+getter fields, nested text click routes and URI/component.equals results. Owned
+standalone tools invoke unchanged original Minecraft codecs and JDK constructors.
+Module opening enables read-only reflection, not method replacement. Original
+JAR/mappings/classpath/JDK executable/modules/tools/input/raw/final hashes bind
+the observations. Original methods, game/JDK binaries and inspection logs remain
+local and are not distributed or relicensed. These facts do not prove URL opening,
+DNS/HTTP access, legacy URI parity, persistent/cache semantics or gameplay admission.

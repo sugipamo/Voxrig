@@ -19,6 +19,7 @@ pub mod survival;
 #[cfg(test)]
 pub(crate) mod tests;
 pub(crate) mod text;
+pub(crate) mod uri;
 pub use crate::connection::{Client, ConnectionConfig, Observation, ObservedBlock, Region};
 pub use capabilities::{Capabilities, Feature, Support};
 pub use config::{ClientLimits, Server};

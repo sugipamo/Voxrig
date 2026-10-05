@@ -210,3 +210,12 @@ modern textのselectorとscoreを共通内部constructorへ接続した。元21 
 498,501組の元比較に一致した。text coreの比較は10,585組、拡張constructorの比較は61,425組へ広がった。
 これらは重複するため加算しない。entity query実行、URI/dialog/item/entityの完全な構築、
 一般item操作と残る全体統合は継続する。詳細は[共通item data](common-item-data.md)を参照。
+
+### URL fieldの内部共通化
+
+modern open_url clickを共通内部URI constructorへ接続した。raw UTF-16と元URI getter、
+opaque/hierarchical・server/registry authority・percent case等の元比較を保持する。
+1,810入力・1,089受理値・593,505組の元比較へ照合し、現在のtext core比較は10,731組、
+拡張constructor比較は61,776組になった。通常受信はbytesを保持し、URLを開く処理は行わない。
+残るfont/click/hover/dialog/item/entity constructor、一般item意味比較と操作の統合は継続する。
+詳細は[共通item data](common-item-data.md)を参照。

@@ -13,6 +13,8 @@ mod selector_tests;
 mod text;
 #[cfg(test)]
 mod text_tests;
+#[cfg(test)]
+mod uri_tests;
 mod values;
 
 #[cfg(test)]

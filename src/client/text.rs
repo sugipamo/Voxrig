@@ -156,6 +156,7 @@ struct StyleKey {
 }
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 enum ClickKey {
+    OpenUrl(Box<super::uri::Uri>),
     RunCommand(NbtString),
     SuggestCommand(NbtString),
     ChangePage(i32),
@@ -194,7 +195,7 @@ pub(crate) struct Color {
 #[derive(Clone, Debug, Serialize)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub(crate) enum Click {
-    OpenUrl(NbtString),
+    OpenUrl(Box<super::uri::Uri>),
     RunCommand(NbtString),
     SuggestCommand(NbtString),
     ChangePage(i32),
@@ -214,11 +215,10 @@ pub(crate) enum Hover {
 }
 
 /// These fields still require native constructor/context work. No blanket Eq is
-/// implemented for this model: URI, selectors, nested items/dialogs and
+/// implemented for this model: nested items/dialogs and
 /// entity bindings cannot be replaced with raw NBT/string/CRC equality.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 pub(crate) enum Dependency {
-    Uri,
     Dialog,
     Item,
     Entity,
@@ -245,10 +245,8 @@ impl Text {
                 } => visit(value, out),
                 _ => {}
             }
-            match &text.style.click {
-                Some(Click::OpenUrl(_)) => out.push(Dependency::Uri),
-                Some(Click::Dialog(_)) => out.push(Dependency::Dialog),
-                _ => {}
+            if let Some(Click::Dialog(_)) = &text.style.click {
+                out.push(Dependency::Dialog);
             }
             match &text.style.hover {
                 Some(Hover::Text(value)) => visit(value, out),
@@ -318,6 +316,7 @@ impl Text {
             };
             let s = &text.style;
             let click = s.click.as_ref().map(|c| match c {
+                Click::OpenUrl(v) => ClickKey::OpenUrl(v.clone()),
                 Click::RunCommand(v) => ClickKey::RunCommand(v.clone()),
                 Click::SuggestCommand(v) => ClickKey::SuggestCommand(v.clone()),
                 Click::ChangePage(v) => ClickKey::ChangePage(*v),

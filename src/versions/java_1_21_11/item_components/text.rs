@@ -317,7 +317,10 @@ fn style(fields: &NbtCompound, budget: &mut usize, depth: usize) -> Result<Style
     };
     let color = optional_string(fields, "color")?.map(color).transpose()?;
     let shadow_color = fields.get("shadow_color").map(shadow).transpose()?;
-    let click = fields.get("click_event").map(click).transpose()?;
+    let click = fields
+        .get("click_event")
+        .map(|v| click(v, budget))
+        .transpose()?;
     let hover = fields
         .get("hover_event")
         .map(|v| hover(v, budget, depth))
@@ -434,7 +437,7 @@ fn shadow(value: &NbtValue) -> Result<i32> {
     }
     Ok(((color[3] << 24) | (color[0] << 16) | (color[1] << 8) | color[2]) as i32)
 }
-fn click(value: &NbtValue) -> Result<Click> {
+fn click(value: &NbtValue, budget: &mut usize) -> Result<Click> {
     let fields = value
         .as_compound()
         .context("native click event must be a compound")?;
@@ -442,7 +445,10 @@ fn click(value: &NbtValue) -> Result<Click> {
         .text()
         .map_err(|e| anyhow::anyhow!(e.to_string()))?;
     Ok(match kind.as_str() {
-        "open_url" => Click::OpenUrl(string(fields, "url")?.clone()),
+        "open_url" => Click::OpenUrl(Box::new(crate::client::uri::parse(
+            string(fields, "url")?,
+            budget,
+        )?)),
         "open_file" => bail!("native text stream forbids OPEN_FILE click events"),
         "run_command" => Click::RunCommand(string(fields, "command")?.clone()),
         "suggest_command" => Click::SuggestCommand(string(fields, "command")?.clone()),
@@ -602,6 +608,45 @@ mod selector_limit_tests {
             let error = read(&value, &mut 1, 0).unwrap_err();
             assert!(error.downcast_ref::<ReadLimit>().is_some(), "{error}");
             assert!(project(&value).unwrap().modern_field_key().is_some());
+        }
+    }
+}
+
+#[cfg(test)]
+mod uri_limit_tests {
+    use super::*;
+    use std::io::Read;
+    #[test]
+    fn native_valid_uri_limit_propagates_through_click_and_lenient_nbt_separator() {
+        let mut bytes = Vec::new();
+        flate2::read::GzDecoder::new(
+            &include_bytes!("../../../../data/client_api/uri_cases-1.21.11.json.gz")[..],
+        )
+        .read_to_end(&mut bytes)
+        .unwrap();
+        let facts: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        for (prefix, nodes) in [("text-direct-", 1usize), ("text-nbt-", 2usize)] {
+            let row = facts["cases"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|row| {
+                    row["case"].as_str().unwrap().starts_with(prefix)
+                        && row["accepted"] == true
+                        && !row["uri_clicks"].as_array().unwrap().is_empty()
+                })
+                .unwrap();
+            let uri = row["uri_clicks"][0]["fields"]["raw"].as_str().unwrap();
+            let root = crate::client::nbt::decode_unnamed_tag(
+                &hex::decode(row["input_hex"].as_str().unwrap()).unwrap(),
+            )
+            .unwrap()
+            .unwrap();
+            let mut budget = uri.encode_utf16().count() + nodes - 1;
+            let error = read(&root, &mut budget, 0).unwrap_err();
+            assert!(error.downcast_ref::<ReadLimit>().is_some(), "{error}");
+            assert_eq!(error.to_string(), "URI constructor work limit");
+            assert!(project(&root).unwrap().modern_field_key().is_some());
         }
     }
 }
