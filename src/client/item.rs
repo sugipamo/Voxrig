@@ -32,6 +32,7 @@ struct Defaults {
 #[derive(serde::Deserialize)]
 struct PrototypeField {
     name: String,
+    native_id: i32,
     value_hex: String,
 }
 #[derive(serde::Deserialize)]
@@ -42,8 +43,6 @@ struct DefaultItem {
     properties: ItemProperties,
     #[serde(default)]
     normalizes_damage_on_read: bool,
-    #[serde(default)]
-    property_components: BTreeMap<String, serde_json::Value>,
     #[serde(default)]
     prototype_values: Vec<usize>,
 }
@@ -67,6 +66,78 @@ fn defaults(version: MinecraftVersion) -> &'static Defaults {
 }
 fn invalid(message: &str) -> Error {
     Error::new(ErrorKind::InvalidInput, anyhow::anyhow!("{message}"))
+}
+struct ModernPrototypes {
+    values: Vec<super::ItemComponent>,
+    items: BTreeMap<i32, Vec<usize>>,
+}
+pub(crate) fn modern_prototype_components(
+    native_id: i32,
+) -> anyhow::Result<impl Iterator<Item = &'static super::ItemComponent>> {
+    use anyhow::Context;
+    static PROTOTYPES: OnceLock<std::result::Result<ModernPrototypes, String>> = OnceLock::new();
+    let prototypes = PROTOTYPES.get_or_init(|| {
+        let load = || -> anyhow::Result<ModernPrototypes> {
+            let source = defaults(MinecraftVersion::Java1_21_11);
+            let registry = Registry::for_version(MinecraftVersion::Java1_21_11);
+            let values = source
+                .prototype_values
+                .iter()
+                .map(|field| {
+                    let definition = registry.item_component_by_native_id(field.native_id)?;
+                    anyhow::ensure!(
+                        definition.name == field.name,
+                        "prototype component name mismatch"
+                    );
+                    Ok(super::ItemComponent {
+                        definition,
+                        bytes: prototype_bytes(&field.value_hex)?,
+                    })
+                })
+                .collect::<anyhow::Result<Vec<_>>>()?;
+            let mut items = BTreeMap::new();
+            for item in &source.defaults {
+                if item.represents_empty {
+                    continue;
+                }
+                let mut ids = std::collections::BTreeSet::new();
+                for &index in &item.prototype_values {
+                    let value = values.get(index).context("invalid prototype field index")?;
+                    anyhow::ensure!(
+                        ids.insert(value.definition.id.value()),
+                        "duplicate prototype field"
+                    );
+                }
+                anyhow::ensure!(
+                    items
+                        .insert(item.native_id, item.prototype_values.clone())
+                        .is_none(),
+                    "duplicate prototype item"
+                );
+            }
+            Ok(ModernPrototypes { values, items })
+        };
+        load().map_err(|error| format!("{error:#}"))
+    });
+    let prototypes = prototypes
+        .as_ref()
+        .map_err(|error| anyhow::anyhow!("{error}"))?;
+    let indices = prototypes
+        .items
+        .get(&native_id)
+        .context("missing native item prototype; update Voxrig")?;
+    Ok(indices.iter().map(|&index| &prototypes.values[index]))
+}
+fn prototype_bytes(value: &str) -> anyhow::Result<Vec<u8>> {
+    anyhow::ensure!(value.len() % 2 == 0, "invalid prototype byte length");
+    value
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|pair| {
+            let pair = std::str::from_utf8(pair)?;
+            Ok(u8::from_str_radix(pair, 16)?)
+        })
+        .collect()
 }
 pub(crate) fn modern_weight_defaults(
     native_id: i32,
@@ -161,42 +232,27 @@ impl ItemStack {
                 MinecraftVersion::Java1_21_11,
                 ItemData::Default | ItemData::ModernComponents { .. },
             ) => {
-                let mut fields = default.property_components.clone();
-                if let ItemData::ModernComponents { patch } = &self.data {
+                let patch = if let ItemData::ModernComponents { patch } = &self.data {
                     crate::versions::java_1_21_11::item_components::validate_patch(patch)
                         .map_err(|e| Error::new(ErrorKind::InvalidInput, e))?;
-                    for value in &patch.added {
-                        let name = value.definition.name.as_str();
-                        match name {
-                            "minecraft:max_stack_size"
-                            | "minecraft:max_damage"
-                            | "minecraft:damage" => {
-                                let decoded =
-                                    crate::versions::java_1_21_11::item_components::scalar_value(
-                                        value,
-                                    )
-                                    .map_err(|e| Error::new(ErrorKind::InvalidInput, e))?;
-                                fields.insert(name.to_owned(), decoded.into());
-                            }
-                            "minecraft:unbreakable" => {
-                                fields.insert(name.to_owned(), true.into());
-                            }
-                            _ => {}
-                        }
-                    }
-                    for value in &patch.removed {
-                        fields.remove(value.name.as_str());
-                    }
-                }
-                let number = |name: &str, fallback: i32| {
-                    fields
-                        .get(name)
-                        .and_then(serde_json::Value::as_i64)
-                        .map_or(fallback, |v| v as i32)
+                    Some(patch)
+                } else {
+                    None
                 };
-                let max_stack_size = number("minecraft:max_stack_size", 1);
-                let max_damage = number("minecraft:max_damage", 0);
-                let damage = number("minecraft:damage", 0);
+                let prototype = super::modern_prototype_components(self.id.value())
+                    .map_err(|e| Error::new(ErrorKind::InvalidInput, e))?;
+                let fields =
+                    super::item_components::ComponentFields::apply(version, prototype, patch)
+                        .map_err(|e| Error::new(ErrorKind::InvalidInput, e))?;
+                let number = |name: &str, fallback: i32| -> Result<i32> {
+                    fields.get(name).map_or(Ok(fallback), |value| {
+                        crate::versions::java_1_21_11::item_components::scalar_value(value)
+                            .map_err(|e| Error::new(ErrorKind::InvalidInput, e))
+                    })
+                };
+                let max_stack_size = number("minecraft:max_stack_size", 1)?;
+                let max_damage = number("minecraft:max_damage", 0)?;
+                let damage = number("minecraft:damage", 0)?;
                 // Native clamp uses ordered branches even when max_damage is negative.
                 let damage = if damage < 0 {
                     0
@@ -205,9 +261,9 @@ impl ItemStack {
                 } else {
                     damage
                 };
-                let damageable = fields.contains_key("minecraft:max_damage")
-                    && fields.contains_key("minecraft:damage")
-                    && !fields.contains_key("minecraft:unbreakable");
+                let damageable = fields.get("minecraft:max_damage").is_some()
+                    && fields.get("minecraft:damage").is_some()
+                    && fields.get("minecraft:unbreakable").is_none();
                 let damaged = damageable && damage > 0;
                 Ok(ItemProperties {
                     max_stack_size,

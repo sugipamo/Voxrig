@@ -147,6 +147,12 @@ NotImplementedはVoxrig側の不足であって、ゲームに存在しないと
 
 ## 検証
 
+prototype・patchの実効component適用は共通内部処理へまとめた。
+通常のitem property取得もこの処理を使う。公式ItemStackの追加・削除後のiteratorと、
+38,218入力・全104型・3,694値の構造を照合する。
+値の元byte列と受信sourceを保持し、native equals・live registry・server cacheや
+一般data付き操作の完成とは区別する。詳しい契約は`common-item-data.md`を参照する。
+
 同じconsumer scenarioを両adapterのnative packet fixtureへ通す。版別のbootstrapはfixtureが担当し、
 consumer部分にMinecraftVersion分岐を置かない。mode違反、範囲外pitch/flight、受信されていない在庫、
 取消後の再送、cache予測混入、cursor根拠の取り違え、誤ったregistry identityを検査する。

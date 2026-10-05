@@ -417,6 +417,15 @@ inputs, JAR/mapping/classpath/JDK/tool/request/raw/final hashes bind these facts
 Whole Rust item/component comparison, live registry context, persistent/server
 cache and gameplay admission remain separate obligations.
 
+`effective_item_component_cases/source` record unchanged original ItemStack
+stream decoding, count/empty getters, its effective component iterator and
+one-time component stream encodings after prototype/patch application.
+Original JAR/mapping/classpath/JDK/tool/request/raw/final hashes bind the facts.
+Owned observers call original methods without replacement. Original binaries,
+method bodies and runtime logs remain local and are not distributed or relicensed.
+These field observations do not establish native whole-item equality, live
+registry ownership, persistent/server cache semantics or slot admission.
+
 `book_constructor_rules/cases/source` contain observed original writable/written
 book and enchantability stream acceptance, raw/filtered getter fields, nested text
 getters, original encode outputs and native value.equals. Owned tools call

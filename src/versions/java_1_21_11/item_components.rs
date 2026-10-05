@@ -10,6 +10,8 @@ mod books;
 #[cfg(test)]
 mod click_constructor_tests;
 #[cfg(test)]
+mod effective_tests;
+#[cfg(test)]
 mod enchantment_tests;
 #[cfg(test)]
 mod entity_tooltip_tests;

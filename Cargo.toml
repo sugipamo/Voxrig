@@ -61,6 +61,8 @@ include = [
     "/scripts/export_fraction_constructors.py",
     "/scripts/ExportNestedItemConstructors.java",
     "/scripts/export_nested_item_constructors.py",
+    "/scripts/ExportEffectiveItemComponents.java",
+    "/scripts/export_effective_item_components.py",
     "/scripts/ExportEntityTooltips.java",
     "/scripts/export_entity_tooltips.py",
     "/scripts/ExportClickConstructors.java",

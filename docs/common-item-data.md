@@ -553,6 +553,31 @@ JVM512MiB/CPU1で一つずつ実行し、保存rawの照合は`--normalize-only 
 legacy book、loreの派生style、実registry解決、全item/prototype比較、persistent/cache、
 一般data付き操作と元の全統合範囲は引き続き対応する。
 
+### prototypeとpatchから実効component fieldを組み立てる共通処理
+
+共通内部の`ComponentFields`は、版・component種類・名前を検査したうえで、
+itemのprototypeへ追加値を上書きし、明示したcomponentを削除する。
+prototypeにないcomponentの削除は実効fieldを変えない。
+値はprototypeまたはpatchの元byte列を参照し、元patchや受信sourceを書き換えない。
+通常の`ItemStack::properties()`もこの処理から容量・耐久値・componentの存在を取得する。
+prototypeの3,490値を一度だけ読み込み、1,505 itemの関連付けを保持する。
+
+未変更の公式ItemStackを使い、全item/prototype検査入力と全104型のcomponent入力から
+38,218個の異なるitem入力について、追加・削除後の実効component iteratorを観測した。
+検査値のpoolは3,694値。count/空判定、componentの種類・存在、各codecのtyped fieldを照合する。
+構造の照合に用いるJSONは検査用であり、native equalsや本番の意味比較には使わない。
+
+検査toolの最初の2回は`getPrototype`と`getComponents`のgetter取り違えを含んでいた。
+公式mappingに従い実効値のgetterへ修正し、全入力を実行し直した結果を保存する。
+取り違えた取得結果は成功した実効field検証に数えない。
+再生成は`scripts/export_effective_item_components.py`を既存と同じ3 path引数で実行する。
+元JAR/mapping/classpath/JDK/tool/request/raw/finalをhashへ束縛し、
+`effective_item_component_cases/source`へ検査値とsourceを分離する。
+
+この処理はregistry参照を解決しない。prototype内のvanilla IDを実受信registryへ挿入しない。
+全item/componentの意味比較、接続・configurationが所有する参照、persistent/cache、
+一般data付き操作と元の全統合範囲は引き続き対応する。
+
 ### 入れ子itemとbundle constructorの共通内部field
 
 modernのcontainer、charged_projectiles、use_remainder、bundleの入れ子itemを、
