@@ -222,6 +222,28 @@ impl Client {
             Adapter::Java1_21_11(bot) => bot.operations().common_player_state().await,
         }
     }
+    /// Capture actual inventory receipts and their registry owner together.
+    /// Retain this immutable value when inspecting server-assigned IDs in item
+    /// data; separately captured registries can belong to a later configuration.
+    /// Local inventory predictions are excluded.
+    ///
+    /// ```no_run
+    /// use voxrig::client::prelude::*;
+    /// async fn inspect(client: &Client) -> Result<()> {
+    ///     let inventory = client.received_inventory().await?;
+    ///     if let Some(item) = inventory.slot(9)?.and_then(ReceivedSlot::item) {
+    ///         let id = item.registry_state().find_entry("minecraft:item", &item.stack().name)?;
+    ///         println!("{}: {}", item.registry_state().entry_name(&id)?, item.stack().count);
+    ///     }
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn received_inventory(&self) -> Result<crate::client::ReceivedInventory> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_received_inventory().await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_received_inventory().await,
+        }
+    }
     /// Actual open-container contents and cursor at one native capture boundary.
     /// Numeric window IDs may be reused; use the session-bound screen identity.
     pub async fn screen_state(&self) -> Result<crate::client::container::ScreenObservation> {

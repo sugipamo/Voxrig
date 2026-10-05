@@ -17,6 +17,7 @@ pub mod nbt;
 mod observation;
 pub(crate) mod operations;
 pub(crate) mod profile;
+mod received_items;
 pub mod registry;
 pub(crate) mod selector;
 pub(crate) mod selector_snbt;
@@ -39,6 +40,7 @@ pub use observation::{
 };
 pub(crate) use observation::{LegacyReceipts, legacy_slot, received};
 pub use operations::{Creative, DispatchReceipt, Survival};
+pub use received_items::{ReceivedInventory, ReceivedItem, ReceivedSlot};
 pub use survival::{BlockTargetHit, BlockTargetObservation};
 
 /// Imports for consumers selecting their Minecraft version at setup.
@@ -68,8 +70,8 @@ pub mod prelude {
     };
     pub use super::{
         Client, ClientLimits, ConnectionConfig, Creative, Feature, GameMode, ItemComponent,
-        ItemComponentPatch, ItemData, ItemProperties, ItemStack, PlayerObservation, Server,
-        Support, Survival,
+        ItemComponentPatch, ItemData, ItemProperties, ItemStack, PlayerObservation,
+        ReceivedInventory, ReceivedItem, ReceivedSlot, Server, Support, Survival,
     };
     pub use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Region, Result};
 }

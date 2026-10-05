@@ -265,3 +265,13 @@ modernのenchantments/stored_enchantmentsを共通内部mapへ接続した。
 92入力・54受理値・1,485元比較に一致し、全104型・4,134値のtyped field往復も継続検査する。
 実registry binding・全item/prototype比較・一般data付き在庫操作と元の全統合範囲は継続する。
 詳細は[共通item data](common-item-data.md)を参照。
+
+### 受信itemとregistry所有情報の同時取得
+
+`Client::received_inventory()`は両adapterで実受信slot/cursorとregistryを同じロック境界から取得する。
+公開constructorのない`ReceivedInventory` / `ReceivedSlot` / `ReceivedItem`は元item bytes・packet ordinal・
+接続/world/configurationを読み取り専用で保持する。legacyのlocal cache/physics取得を必要とせず、
+JSONに大きいregistry payloadをslotごとに複製しない。
+同じitem bytesでも再設定でIDの所有者が変わるpacket検査と、TCP再接続・legacy cache予測の
+検査を行う。一般component/item意味比較と元の全統合範囲は継続する。
+詳細は[共通item data](common-item-data.md)を参照。

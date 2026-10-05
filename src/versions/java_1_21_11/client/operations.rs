@@ -1052,6 +1052,21 @@ impl Operations {
         let state = self.bot.session.state.lock().await;
         self.common_player_unlocked(&state)
     }
+    pub(crate) async fn common_received_inventory(
+        &self,
+    ) -> Result<crate::client::ReceivedInventory> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let registries = state
+            .registries
+            .capture(player.session, player.receive_sequence);
+        crate::client::ReceivedInventory::capture(
+            player.session,
+            player.receive_sequence,
+            &player.inventory,
+            registries,
+        )
+    }
     pub(crate) async fn common_capture(
         &self,
         region: crate::Region,

@@ -1,6 +1,100 @@
 use super::*;
 
 #[test]
+fn received_item_registry_owner_survives_native_reconfiguration_packet_reset() {
+    use crate::client::{ReceivedInventory, registry::Registry};
+    let registry = Registry::for_version(MinecraftVersion::Java1_21_11);
+    let stone = registry.item("minecraft:stone").unwrap();
+    let enchantments = registry.item_component("minecraft:enchantments").unwrap();
+    let mut slot = vec![0, 2]; // hotbar index zero, count two
+    put_varint(&mut slot, stone.id.value());
+    slot.extend([1, 0]);
+    put_varint(&mut slot, enchantments.id.value());
+    slot.extend([1, 0, 2]); // one enchantment, received registry ID zero, level two
+    let declared = |names: [&str; 2]| {
+        let mut payload = Vec::new();
+        put_string(&mut payload, "minecraft:enchantment");
+        payload.push(2);
+        for name in names {
+            put_string(&mut payload, name);
+            payload.extend([1, 10, 0]);
+        }
+        payload
+    };
+    let capture = |state: &State| {
+        let player = common_player_in_state(state, 7, false).unwrap();
+        ReceivedInventory::capture(
+            player.session,
+            state.sequence,
+            &player.inventory,
+            state.registries.capture(player.session, state.sequence),
+        )
+        .unwrap()
+    };
+    let mut state = State::default();
+    state
+        .receive(
+            ids::configuration_clientbound::REGISTRY_DATA,
+            &declared(["example:first", "example:second"]),
+            64,
+        )
+        .unwrap();
+    state.registries.finish();
+    state.phase = Phase::Play;
+    state
+        .receive(ids::play_clientbound::SET_PLAYER_INVENTORY, &slot, 64)
+        .unwrap();
+    let old = capture(&state);
+    let old_item = old.slot(36).unwrap().unwrap().item().unwrap();
+    let old_id = old_item
+        .registry_state()
+        .bind_entry("minecraft:enchantment", 0)
+        .unwrap();
+    assert_eq!(
+        old_item.registry_state().entry_name(&old_id).unwrap(),
+        "example:first"
+    );
+    state
+        .receive(ids::play_clientbound::START_CONFIGURATION, &[], 64)
+        .unwrap();
+    let resetting = capture(&state);
+    assert!(!resetting.registry_state().complete());
+    assert!(resetting.slots().iter().all(Option::is_none));
+    assert!(resetting.cursor().is_none());
+    assert_eq!(old_item.stack().count, 2);
+    assert!(old_item.registry_state().entry_name(&old_id).is_ok());
+    state
+        .receive(
+            ids::configuration_clientbound::REGISTRY_DATA,
+            &declared(["example:second", "example:first"]),
+            64,
+        )
+        .unwrap();
+    state.registries.finish();
+    state.phase = Phase::Play;
+    state
+        .receive(ids::play_clientbound::SET_PLAYER_INVENTORY, &slot, 64)
+        .unwrap();
+    let new = capture(&state);
+    let new_item = new.slot(36).unwrap().unwrap().item().unwrap();
+    assert_eq!(old_item.stack(), new_item.stack()); // same bytes, different owner
+    assert!(new_item.registry_state().entry_name(&old_id).is_err());
+    let new_id = new_item
+        .registry_state()
+        .bind_entry("minecraft:enchantment", 0)
+        .unwrap();
+    assert_eq!(
+        new_item.registry_state().entry_name(&new_id).unwrap(),
+        "example:second"
+    );
+    assert_ne!(old_id, new_id);
+    assert_eq!(
+        old_item.registry_state().entry_name(&old_id).unwrap(),
+        "example:first"
+    );
+}
+
+#[test]
 fn inventory_is_received_only_and_recursive_components_never_become_empty_slots() {
     let mut state = State {
         sequence: 9,

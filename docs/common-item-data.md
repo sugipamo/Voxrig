@@ -4,6 +4,35 @@
 setupで選んだ版のID・名前・count・実受信dataを保持する。同じ公開型を両版で使う。
 未知・未対応dataをEmptyやdefault itemへ置き換えない。
 
+registryを参照するitemの検査には`Client::received_inventory()`を使う。
+両adapterは実受信slot・cursorとregistryを同じロック境界で取得する。
+`ReceivedInventory` / `ReceivedSlot` / `ReceivedItem`はClientだけが生成でき、
+stack bytes、受信packet ordinal、接続・world・configurationの所有情報を読み取り専用で保持する。
+予測やcompatibility cacheは含めない。legacyではcacheの変換やphysicsの取得にも依存しない。
+slotの`None`は未受信、`SlotKnowledge::Empty`は明示的な空を意味する。
+itemの有無は`ReceivedSlot::item()`で検査する。
+
+```rust,no_run
+use voxrig::client::prelude::*;
+# async fn inspect(client: &Client) -> Result<()> {
+let inventory = client.received_inventory().await?;
+if let Some(item) = inventory.slot(9)?.and_then(ReceivedSlot::item) {
+    println!("{} x{} received at {}", item.stack().name, item.stack().count,
+        item.receive_sequence());
+    let entry = item.registry_state().find_entry("minecraft:item", &item.stack().name)?;
+    println!("{}", item.registry_state().entry_name(&entry)?);
+}
+# Ok(())
+# }
+```
+
+取得後にClientが再接続・再設定しても古い値とregistryは変わらない。
+再設定後のslotを古いconfigurationへ束縛したり、別途取得した最新registryを過去のitemへ
+付け替えたりしない。capture ordinalは全slotがそのpacketで更新されたことを意味しない。
+JSONは診断用であり、receiptへ戻すdeserialize/公開constructorは提供しない。
+大きいregistry payloadはinventory全体に一度だけ出力し、各slotには所有stampを出力する。
+これは一般component/itemのnative意味比較やdata付き操作の許可を完了するAPIではない。
+
 `ItemData`の意味は次のとおり。
 
 - `Default`: legacyのNBTがない、またはmodernの追加/削除patchが空。

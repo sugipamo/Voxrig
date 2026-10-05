@@ -43,6 +43,24 @@ impl Bot {
         let _gate = self.coherent_state_gate.lock().await;
         self.common_player_unlocked().await
     }
+    pub(crate) async fn common_received_inventory(&self) -> Result<api::ReceivedInventory> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::Error::new(
+                crate::ErrorKind::State,
+                anyhow::anyhow!("connection closed"),
+            ));
+        }
+        let receipts = self.common_receipts.lock().await;
+        let session = api::SessionStamp {
+            version: crate::MinecraftVersion::Java1_16_1,
+            connection_id: self.connection_id(),
+            world_generation: receipts.generation,
+        };
+        let sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
+        let registries = receipts.registries.capture(session, sequence);
+        api::ReceivedInventory::capture(session, sequence, &receipts.inventory, registries)
+    }
     pub(super) async fn common_player_unlocked(&self) -> Result<api::PlayerObservation> {
         if self.is_stopped() {
             return Err(crate::Error::new(
@@ -625,6 +643,28 @@ mod tests {
         );
         assert!(state.inventory.cursor.is_none());
         assert!(state.health.is_none());
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let receipts = client.received_inventory().await.unwrap();
+        let received = receipts.slot(9).unwrap().unwrap().item().unwrap();
+        assert_eq!(received.stack().name, "minecraft:stone");
+        assert_eq!(received.stack().count, 2);
+        assert_eq!(received.registry_state().session(), receipts.session());
+        assert!(received.receive_sequence() <= receipts.receive_sequence());
+        assert!(receipts.cursor().is_none());
+        assert!(receipts.slot(10).unwrap().unwrap().item().is_none());
+        assert!(receipts.slot(46).is_err());
+        bot.common_receipts.lock().await.inventory.slots[9] = None;
+        assert_eq!(received.stack().count, 2);
+        assert!(
+            client
+                .received_inventory()
+                .await
+                .unwrap()
+                .slot(9)
+                .unwrap()
+                .is_none()
+        );
+        drop(client);
         release.send(()).unwrap();
         drop(bot);
         server.await.unwrap();

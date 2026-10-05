@@ -2,6 +2,8 @@
 
 `client.registry()`はVoxrigに同梱した版別のblock-state/item/component型と固定registry entryを検索する。
 `client.server_registry_state().await?`は現在の接続で実際に受信したregistryとtagを取得する。
+itemと所有情報を同時に取得する場合は`client.received_inventory().await?`を使い、
+そのslot/itemの`registry_state()`を参照する。別々のcaptureは再設定境界をまたぐ可能性がある。
 両者の数値IDは別の型で保持する。block tagのmemberもblock-state IDへ読み替えない。
 
 1.21.11ではconfigurationのregistry-data packetごとに名前、entry順序、完全なunnamed compound NBT、

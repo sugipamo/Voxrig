@@ -605,6 +605,30 @@ async fn modern_disconnect_and_reconnect_do_not_reuse_world_or_connection_identi
                 .await
                 .unwrap();
             let position = vec![0; 61]; // teleport varint, six doubles, two floats, flags
+            let mut inventory = vec![0, 0, 46];
+            for slot in 0..46 {
+                if slot == 9 {
+                    put_varint(&mut inventory, 3 - i32::from(block_id));
+                    let stone = crate::client::registry::Registry::for_version(
+                        MinecraftVersion::Java1_21_11,
+                    )
+                    .item("minecraft:stone")
+                    .unwrap();
+                    put_varint(&mut inventory, stone.id.value());
+                    inventory.extend([0, 0]);
+                } else {
+                    inventory.push(0);
+                }
+            }
+            inventory.push(0); // explicit empty cursor
+            write_packet(
+                &mut stream,
+                None,
+                ids::play_clientbound::WINDOW_ITEMS,
+                &inventory,
+            )
+            .await
+            .unwrap();
             write_packet(
                 &mut stream,
                 None,
@@ -639,6 +663,12 @@ async fn modern_disconnect_and_reconnect_do_not_reuse_world_or_connection_identi
             .find("minecraft:dimension_type", "minecraft:overworld")
             .unwrap();
         assert_eq!(dimension.value(), 0);
+        let inventory = first_client.received_inventory().await.unwrap();
+        let old_item = inventory.slot(9).unwrap().unwrap().item().unwrap();
+        assert_eq!(old_item.stack().count, 2);
+        assert_eq!(old_item.stack().name, "minecraft:stone");
+        assert!(inventory.cursor().unwrap().item().is_none());
+        assert_eq!(old_item.registry_state().session(), inventory.session());
         assert_eq!(
             registries.registries()["minecraft:dimension_type"].source,
             crate::client::ValueSource::Received { sequence: 1 }
@@ -651,6 +681,8 @@ async fn modern_disconnect_and_reconnect_do_not_reuse_world_or_connection_identi
         first.disconnect().await.unwrap();
         assert!(first.observe_region(region).await.is_err());
         assert!(first_client.server_registry_state().await.is_err());
+        assert!(first_client.received_inventory().await.is_err());
+        assert!(old_item.registry_state().resolve(&dimension).is_ok());
         let second = connect().await.unwrap();
         second.wait_until_ready().await.unwrap();
         let second_client = crate::Client {
@@ -665,6 +697,29 @@ async fn modern_disconnect_and_reconnect_do_not_reuse_world_or_connection_identi
                 .is_err()
         );
         let fresh = second.observe_region(region).await.unwrap();
+        let fresh_inventory = second_client.received_inventory().await.unwrap();
+        assert_eq!(
+            fresh_inventory
+                .slot(9)
+                .unwrap()
+                .unwrap()
+                .item()
+                .unwrap()
+                .stack()
+                .count,
+            3
+        );
+        assert!(
+            fresh_inventory
+                .registry_state()
+                .resolve(&dimension)
+                .is_err()
+        );
+        assert_ne!(
+            fresh_inventory.session().connection_id,
+            inventory.session().connection_id
+        );
+        assert_eq!(old_item.stack().count, 2);
         assert_eq!(
             fresh.blocks[0].state.as_ref().unwrap().name,
             "minecraft:air"
