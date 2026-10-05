@@ -89,11 +89,8 @@ pub(super) enum Value {
         native_id: i32,
         value: Box<Value>,
     },
-    Item {
-        count: i32,
-        native_id: Option<i32>,
-        patch: Option<Box<Value>>,
-    },
+    Item(crate::client::item_constructor::Item<Box<Value>>),
+    Bundle(Box<crate::client::item_constructor::Bundle<Box<Value>>>),
     Patch {
         added: Vec<(i32, Value)>,
         removed: Vec<i32>,

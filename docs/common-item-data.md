@@ -552,3 +552,37 @@ JVM512MiB/CPU1で一つずつ実行し、保存rawの照合は`--normalize-only 
 元JAR/mapping/classpath/JDK/tool/request/raw/finalをhashへ束縛する。
 legacy book、loreの派生style、実registry解決、全item/prototype比較、persistent/cache、
 一般data付き操作と元の全統合範囲は引き続き対応する。
+
+### 入れ子itemとbundle constructorの共通内部field
+
+modernのcontainer、charged_projectiles、use_remainder、bundleの入れ子itemを、
+版と種類を保持した`RegistryId`、signed i32 count、adapterが所有するpatchの共通内部型へ接続した。
+optional item codecはcountが0以下なら空itemになり、airも空として読む。
+nonempty codecはどちらも拒否する。元count getterとencoderでこの差を確認した。
+containerの末尾空slotを省略せず、listの長さと位置を保持する。元patch bytesと実受信sourceは保持する。
+
+bundleは各itemのprototypeへ追加・削除を適用した重量fieldを読む。
+入れ子bundleがあればcontents重量に1/16を加え、なければ非空のbeesは1、それ以外は1/max_stack_size。
+各重量にcountを掛け、list順に加算する。bundle/beesの元prototypeはすべて空listであり、
+bundle componentの存在自体を保持する。max_stack_sizeの削除は元getterのfallback 1を使う。
+容量0や最小i32を一律拒否せず、この分岐を適用した後に元Fractionの算術を検査する。
+
+共通内部Fractionは元factoryの分子・分母表現を保持する。
+元equalsは有理数としての等価性とは異なる。符号変更・ゼロ分母、乗算・加算のi32 overflowと
+中間計算、元の約分規則を680入力・454受理値・103,285組のequalsへ照合した。
+元のApache Commons libraryは公式server bundle内の未変更JARを用いる。
+
+入れ子constructorは425入力・364受理値で、通常受信とfield取得の受理判定、
+count/空item/listの元getter、元再encode、bundleの分子・分母へ一致した。
+prototype同値patch、容量とcount境界、field順、追加・削除、蜂のみ、入れ子bundle、算術overflow、
+切断/末尾byteを含む。通常受信は重量に必要な3種類のfieldだけを保持し、全Value treeを作らない。
+既存のdepth/work/byte限界も保つ。このresource limitは元constructorの制約と区別する。
+
+`fraction_constructor_rules/cases/source`と`nested_item_constructor_rules/cases/source`へ
+規則・圧縮検査値・source hashを分ける。元の全component.equals 66,430組も後続比較の証拠として
+保存するが、Rustのwhole item/component比較が実装済みだとは扱わない。
+再生成は`scripts/export_fraction_constructors.py`と`scripts/export_nested_item_constructors.py`を
+既存と同じ3 path引数で一つずつ実行する。保存rawの照合は`--normalize-only --check`。
+元JAR/mapping/classpath/JDK/tool/request/raw/finalへ束縛し、元method/binary/bytecodeは配布しない。
+一般item/prototype意味比較・実registry解決・全component constructor・persistent/cache・
+一般data付き操作と元の全統合範囲は引き続き対応する。

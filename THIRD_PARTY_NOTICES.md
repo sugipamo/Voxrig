@@ -406,6 +406,17 @@ local and are not distributed or relicensed. These facts do not establish live
 entity lookup, tooltip/UI execution, legacy event parity, persistent/cache hash
 semantics or gameplay admission.
 
+`fraction_constructor_rules/cases/source` record observed factory, arithmetic,
+numerator/denominator and equals behavior of the unchanged Apache Commons Fraction
+library in the original server bundle. The Rust bounded arithmetic is owned code;
+original library binaries and method bodies are not distributed or relicensed.
+`nested_item_constructor_rules/cases/source` record original nested item codec
+acceptance, count/empty/property getters, original encode outputs, list lengths,
+bundle Fraction/selected fields and native component.equals. Original prototype
+inputs, JAR/mapping/classpath/JDK/tool/request/raw/final hashes bind these facts.
+Whole Rust item/component comparison, live registry context, persistent/server
+cache and gameplay admission remain separate obligations.
+
 `book_constructor_rules/cases/source` contain observed original writable/written
 book and enchantability stream acceptance, raw/filtered getter fields, nested text
 getters, original encode outputs and native value.equals. Owned tools call

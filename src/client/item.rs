@@ -26,6 +26,13 @@ pub struct ItemProperties {
 #[derive(serde::Deserialize)]
 struct Defaults {
     defaults: Vec<DefaultItem>,
+    #[serde(default)]
+    prototype_values: Vec<PrototypeField>,
+}
+#[derive(serde::Deserialize)]
+struct PrototypeField {
+    name: String,
+    value_hex: String,
 }
 #[derive(serde::Deserialize)]
 struct DefaultItem {
@@ -37,6 +44,8 @@ struct DefaultItem {
     normalizes_damage_on_read: bool,
     #[serde(default)]
     property_components: BTreeMap<String, serde_json::Value>,
+    #[serde(default)]
+    prototype_values: Vec<usize>,
 }
 fn defaults(version: MinecraftVersion) -> &'static Defaults {
     static LEGACY: OnceLock<Defaults> = OnceLock::new();
@@ -58,6 +67,42 @@ fn defaults(version: MinecraftVersion) -> &'static Defaults {
 }
 fn invalid(message: &str) -> Error {
     Error::new(ErrorKind::InvalidInput, anyhow::anyhow!("{message}"))
+}
+pub(crate) fn modern_weight_defaults(
+    native_id: i32,
+) -> anyhow::Result<super::item_constructor::WeightFields> {
+    use anyhow::{Context, bail};
+    let source = defaults(MinecraftVersion::Java1_21_11);
+    let item = source
+        .defaults
+        .iter()
+        .find(|item| item.native_id == native_id && !item.represents_empty)
+        .context("missing native item weight prototype; update Voxrig")?;
+    let mut fields = super::item_constructor::WeightFields {
+        max_stack_size: item.properties.max_stack_size,
+        bundle: None,
+        has_bees: false,
+    };
+    for &index in &item.prototype_values {
+        let field = source
+            .prototype_values
+            .get(index)
+            .context("invalid native prototype index")?;
+        if matches!(
+            field.name.as_str(),
+            "minecraft:bundle_contents" | "minecraft:bees"
+        ) {
+            // Every original prototype of these two types is an empty list.
+            // A future nonempty prototype requires decoding its full fields.
+            if field.value_hex != "00" {
+                bail!("native nonempty weight prototype requires Voxrig update");
+            }
+            if field.name == "minecraft:bundle_contents" {
+                fields.bundle = Some(super::fraction::Fraction::ZERO);
+            }
+        }
+    }
+    Ok(fields)
 }
 impl ItemStack {
     /// Read effective native stack/durability properties through the same API on both versions.

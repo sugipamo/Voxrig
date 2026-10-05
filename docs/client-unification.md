@@ -220,6 +220,15 @@ opaque/hierarchical・server/registry authority・percent case等の元比較を
 残るfont/click/hover/dialog/item/entity constructor、一般item意味比較と操作の統合は継続する。
 詳細は[共通item data](common-item-data.md)を参照。
 
+### 入れ子itemとbundle constructorの内部共通化
+
+modernの入れ子itemを共通内部型へ接続し、optional/nonemptyの空itemの差とcontainerの空slotを保持する。
+bundleはprototypeへの追加・削除、入れ子bundle・蜂・容量の分岐とchecked Fraction計算を適用する。
+通常受信は全Value treeを作らず、必要なfieldだけを読む。
+Fractionの680入力・103,285比較と、入れ子constructorの425入力・364受理値の受信/getter/重量へ一致した。
+全item/prototype比較とlive context、一般data付き操作、元の全統合範囲は継続する。
+詳細は[共通item data](common-item-data.md)を参照。
+
 ### book constructorの内部共通化
 
 modernのwritable/written bookを共通内部fieldへ接続し、rawとfilteredの値・有無を保持する。

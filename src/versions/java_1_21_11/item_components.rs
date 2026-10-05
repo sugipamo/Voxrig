@@ -14,6 +14,8 @@ mod enchantment_tests;
 #[cfg(test)]
 mod entity_tooltip_tests;
 mod framing;
+#[cfg(test)]
+mod nested_item_tests;
 mod profile;
 #[cfg(test)]
 mod profile_tests;

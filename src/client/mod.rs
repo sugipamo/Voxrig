@@ -5,11 +5,13 @@ mod config;
 pub(crate) mod constructor;
 pub mod container;
 pub(crate) mod enchantments;
+pub(crate) mod fraction;
 mod geometry;
 mod hash_ops;
 pub(crate) mod identifier;
 pub mod inventory;
 mod item;
+pub(crate) mod item_constructor;
 pub mod nbt;
 mod observation;
 pub(crate) mod operations;
@@ -28,6 +30,7 @@ pub use capabilities::{Capabilities, Feature, Support};
 pub use config::{ClientLimits, Server};
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
 pub use item::ItemProperties;
+pub(crate) use item::modern_weight_defaults;
 pub use observation::{
     Capture, Dimension, GameMode, Health, InventoryObservation, ItemComponent, ItemComponentPatch,
     ItemData, ItemStack, ObservedValue, PlayerObservation, ReceivedPose, SessionStamp,

@@ -1,0 +1,9 @@
+{
+  "comparison": "value.equals;retain returned numerator/denominator representation",
+  "factory": "getFraction(int,int)",
+  "library": "original bundled org.apache.commons.lang3.math.Fraction",
+  "operations": [
+    "add",
+    "multiplyBy"
+  ]
+}

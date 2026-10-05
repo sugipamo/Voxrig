@@ -107,6 +107,16 @@ impl Budget {
         }
         Ok(())
     }
+    fn enter(&mut self, r: &Reader<'_>, depth: usize) -> Result<()> {
+        if depth > 256 {
+            bail!("item-component codec depth limit");
+        }
+        self.steps = self
+            .steps
+            .checked_sub(1)
+            .context("item-component work limit")?;
+        self.check(r)
+    }
 }
 pub(super) fn value(
     r: &mut Reader<'_>,
@@ -153,6 +163,7 @@ fn nested_patch(
     budget: &mut Budget,
     depth: usize,
     capture: bool,
+    mut weight: Option<&mut crate::client::item_constructor::WeightFields>,
 ) -> Result<super::values::Value> {
     use super::values::Value;
     let added_count = r.count(definitions().len())?;
@@ -169,7 +180,39 @@ fn nested_patch(
         if !seen.insert(id) {
             bail!("duplicate nested item-component type");
         }
-        let value = read_value(r, root(native)?, budget, depth + 1, capture)?;
+        let value = if let Some(fields) = weight.as_deref_mut() {
+            match native.name.as_str() {
+                "minecraft:max_stack_size" => {
+                    let value = read_value(r, root(native)?, budget, depth + 1, true)?;
+                    let Value::Integer(size) = &value else {
+                        bail!("native stack size integer required");
+                    };
+                    fields.max_stack_size = *size;
+                    value
+                }
+                "minecraft:bundle_contents" => {
+                    if root(native)? != 513 {
+                        bail!("native bundle root changed; update Voxrig");
+                    }
+                    budget.enter(r, depth + 1)?;
+                    let (value, contents) = read_bundle(r, budget, depth + 1, capture)?;
+                    fields.bundle = Some(contents);
+                    value
+                }
+                "minecraft:bees" => {
+                    if root(native)? != 614 {
+                        bail!("native bee root changed; update Voxrig");
+                    }
+                    budget.enter(r, depth + 1)?;
+                    let (value, present) = read_bees(r, budget, depth + 1, capture)?;
+                    fields.has_bees = present;
+                    value
+                }
+                _ => read_value(r, root(native)?, budget, depth + 1, capture)?,
+            }
+        } else {
+            read_value(r, root(native)?, budget, depth + 1, capture)?
+        };
         if capture {
             added.push((id, value));
         }
@@ -179,6 +222,14 @@ fn nested_patch(
         definition(id)?;
         if !seen.insert(id) {
             bail!("duplicate nested item-component type");
+        }
+        if let Some(fields) = weight.as_deref_mut() {
+            match definition(id)?.name.as_str() {
+                "minecraft:max_stack_size" => fields.max_stack_size = 1,
+                "minecraft:bundle_contents" => fields.bundle = None,
+                "minecraft:bees" => fields.has_bees = false,
+                _ => {}
+            }
         }
         if capture {
             removed.push(id);
@@ -190,6 +241,170 @@ fn nested_patch(
     } else {
         Value::Unit
     })
+}
+
+fn read_item(
+    r: &mut Reader<'_>,
+    budget: &mut Budget,
+    depth: usize,
+    capture: bool,
+    nonempty: bool,
+    weight_needed: bool,
+) -> Result<(
+    super::values::Value,
+    Option<crate::client::item_constructor::WeightFields>,
+)> {
+    use super::values::Value;
+    use crate::client::item_constructor::Item;
+    let count = r.varint()?;
+    if count <= 0 {
+        if nonempty {
+            bail!("empty nested native item is not allowed");
+        }
+        return Ok((
+            if capture {
+                Value::Item(Item::empty())
+            } else {
+                Value::Unit
+            },
+            None,
+        ));
+    }
+    let id = r.varint()?;
+    let definition =
+        crate::client::registry::Registry::for_version(crate::MinecraftVersion::Java1_21_11)
+            .item_by_native_id(id)?;
+    if nonempty && id == 0 {
+        bail!("empty air stack in nonempty nested item codec");
+    }
+    let mut weight = if weight_needed {
+        Some(crate::client::modern_weight_defaults(id)?)
+    } else {
+        None
+    };
+    let patch = nested_patch(r, budget, depth + 1, capture, weight.as_mut())?;
+    let fields = if id == 0 {
+        Item::empty()
+    } else {
+        Item {
+            count,
+            native_id: Some(definition.id),
+            patch: if capture { Some(Box::new(patch)) } else { None },
+        }
+    };
+    Ok((
+        if capture {
+            Value::Item(fields)
+        } else {
+            Value::Unit
+        },
+        weight,
+    ))
+}
+
+// These helpers receive an already charged Forward root. On normal receipt,
+// retain just constructor arithmetic inputs, never the complete patch/value tree.
+fn read_bundle(
+    r: &mut Reader<'_>,
+    budget: &mut Budget,
+    depth: usize,
+    capture: bool,
+) -> Result<(super::values::Value, crate::client::fraction::Fraction)> {
+    use super::values::Value;
+    use crate::client::{fraction::Fraction, item_constructor::Bundle};
+    let source = schema();
+    if source.nodes[513].native_class != "aao$14"
+        || !matches!(source.nodes[513].rule, Rule::Forward { child: 514 })
+    {
+        bail!("native bundle constructor composition changed; update Voxrig");
+    }
+    let Rule::List {
+        child: 454,
+        maximum,
+    } = source.nodes[514].rule
+    else {
+        bail!("native bundle list codec changed; update Voxrig");
+    };
+    if source.nodes[454].native_class != "dlt$2"
+        || !matches!(source.nodes[454].rule, Rule::Item { nonempty: true })
+    {
+        bail!("native bundle item codec changed; update Voxrig");
+    }
+    budget.enter(r, depth + 1)?;
+    let mut items = Vec::new();
+    let mut total = Fraction::ZERO;
+    for _ in 0..r.count(maximum.min(65_536))? {
+        budget.enter(r, depth + 2)?;
+        let before = r.remaining();
+        let (item, fields) = read_item(r, budget, depth + 2, capture, true, true)?;
+        // The native nonempty codec's positive count is the first VarInt.
+        let count = Reader::new(before).varint()?;
+        total = total.add(
+            fields
+                .context("missing native bundle weight fields")?
+                .weight(count)?,
+        )?;
+        if capture {
+            let Value::Item(item) = item else {
+                bail!("native bundle item fields required");
+            };
+            items.push(item);
+        }
+    }
+    budget.check(r)?;
+    Ok((
+        if capture {
+            Value::Bundle(Box::new(Bundle {
+                items,
+                weight: total,
+            }))
+        } else {
+            Value::Unit
+        },
+        total,
+    ))
+}
+fn read_bees(
+    r: &mut Reader<'_>,
+    budget: &mut Budget,
+    depth: usize,
+    capture: bool,
+) -> Result<(super::values::Value, bool)> {
+    use super::values::Value;
+    let source = schema();
+    if source.nodes[614].native_class != "aao$14"
+        || !matches!(source.nodes[614].rule, Rule::Forward { child: 615 })
+    {
+        bail!("native bee constructor composition changed; update Voxrig");
+    }
+    let Rule::List {
+        child: 616,
+        maximum,
+    } = source.nodes[615].rule
+    else {
+        bail!("native bee list codec changed; update Voxrig");
+    };
+    budget.enter(r, depth + 1)?;
+    let count = r.count(maximum.min(65_536))?;
+    let mut entries = Vec::new();
+    for _ in 0..count {
+        let value = read_value(r, 616, budget, depth + 2, capture)?;
+        if capture {
+            entries.push(value);
+        }
+    }
+    budget.check(r)?;
+    Ok((
+        if capture {
+            Value::Forward {
+                codec: 614,
+                value: Box::new(Value::List(entries)),
+            }
+        } else {
+            Value::Unit
+        },
+        count != 0,
+    ))
 }
 // Keep large text constructor temporaries out of each recursive grammar frame,
 // including the normal receive path that never captures text.
@@ -273,14 +488,7 @@ fn read_value(
     capture: bool,
 ) -> Result<super::values::Value> {
     use super::values::{self, ProfileProperty, Value};
-    if depth > 256 {
-        bail!("item-component codec depth limit");
-    }
-    budget.steps = budget
-        .steps
-        .checked_sub(1)
-        .context("item-component work limit")?;
-    budget.check(r)?;
+    budget.enter(r, depth)?;
     let child_depth = depth + 1;
     let native = schema()
         .nodes
@@ -376,6 +584,8 @@ fn read_value(
                 } else {
                     Value::Unit
                 }
+            } else if node == 513 {
+                read_bundle(r, budget, depth, capture)?.0
             } else {
                 let value = read_value(r, *child, budget, child_depth, capture)?;
                 if capture && node == 7 {
@@ -601,32 +811,8 @@ fn read_value(
                 Value::Unit
             }
         }
-        Rule::Item { nonempty } => {
-            let count = r.varint()?;
-            if count < 0 || (*nonempty && count == 0) {
-                bail!("invalid nested native item count");
-            }
-            let (native_id, patch) = if count != 0 {
-                let id = r.varint()?;
-                if *nonempty && id == 0 {
-                    bail!("empty air stack in nonempty nested item codec");
-                }
-                crate::client::registry::Registry::for_version(
-                    crate::MinecraftVersion::Java1_21_11,
-                )
-                .item_by_native_id(id)?;
-                let patch = nested_patch(r, budget, child_depth, capture)?;
-                (Some(id), if capture { Some(Box::new(patch)) } else { None })
-            } else {
-                (None, None)
-            };
-            Value::Item {
-                count,
-                native_id,
-                patch,
-            }
-        }
-        Rule::Patch => nested_patch(r, budget, child_depth, capture)?,
+        Rule::Item { nonempty } => read_item(r, budget, depth, capture, *nonempty, false)?.0,
+        Rule::Patch => nested_patch(r, budget, child_depth, capture, None)?,
         Rule::Dispatch { branched, variants } => {
             let left = if *branched { Some(r.bool()?) } else { None };
             let tag = r.varint()?;
