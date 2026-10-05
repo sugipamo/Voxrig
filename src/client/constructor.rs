@@ -39,3 +39,16 @@ pub(crate) fn chat_string(
     }
     Ok(value.clone())
 }
+
+/// Missing semantic support is never a proven native constructor rejection.
+#[derive(Debug)]
+pub(crate) struct Unresolved(pub &'static str);
+impl std::fmt::Display for Unresolved {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0)
+    }
+}
+impl std::error::Error for Unresolved {}
+pub(crate) fn preserve(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<Limit>().is_some() || error.downcast_ref::<Unresolved>().is_some()
+}

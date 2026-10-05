@@ -88,3 +88,11 @@ impl WrittenBook {
         })
     }
 }
+
+impl WrittenFields {
+    pub(crate) fn uses_tags(&self) -> bool {
+        self.pages.iter().any(|page| {
+            page.raw.uses_tags() || page.filtered.as_ref().is_some_and(FieldKey::uses_tags)
+        })
+    }
+}

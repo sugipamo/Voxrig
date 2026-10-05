@@ -390,3 +390,110 @@ fn received_item_native_comparison_blocks_unverified_named_holder_reload_lifetim
             .unwrap()
     );
 }
+
+#[test]
+fn received_item_comparison_resolves_hover_counts_and_custom_dialog_registry_names() {
+    use std::io::Read;
+    let registry = Registry::for_version(MinecraftVersion::Java1_21_11);
+    let stone = registry.item("minecraft:stone").unwrap();
+    let name = registry.item_component("minecraft:custom_name").unwrap();
+    let mut bytes = Vec::new();
+    flate2::read::GzDecoder::new(
+        include_bytes!("../../../data/client_api/text_dependency_cases-1.21.11.json.gz").as_slice(),
+    )
+    .read_to_end(&mut bytes)
+    .unwrap();
+    let facts: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let field = |case: &str| {
+        let row = facts["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["case"] == case)
+            .unwrap();
+        hex::decode(row["input_hex"].as_str().unwrap()).unwrap()
+    };
+    let stack = |bytes| SlotKnowledge::Item {
+        item: ItemStack {
+            id: stone.id,
+            name: stone.name.clone(),
+            count: 1,
+            data: ItemData::ModernComponents {
+                patch: crate::client::ItemComponentPatch {
+                    added: vec![crate::client::ItemComponent {
+                        definition: name.clone(),
+                        bytes,
+                    }],
+                    removed: vec![],
+                },
+            },
+        },
+    };
+    let mut state = player(registry.version(), 20);
+    state.inventory.slots[9] = Some(observation(stack(field("hover-item")), 12));
+    state.inventory.slots[10] = Some(observation(stack(field("item-count-5-3ff33333")), 13));
+    state.inventory.slots[11] = Some(observation(stack(field("hover-item-count")), 14));
+    let received = capture(state.clone(), registries().capture(state.session, 20)).unwrap();
+    let a = received.slot(9).unwrap().unwrap().item().unwrap();
+    assert!(
+        a.native_equivalent(&received.slot(10).unwrap().unwrap().item().unwrap())
+            .unwrap()
+    );
+    assert!(
+        !a.native_equivalent(&received.slot(11).unwrap().unwrap().item().unwrap())
+            .unwrap()
+    );
+    fn string(out: &mut Vec<u8>, value: &str) {
+        out.extend_from_slice(&(value.len() as u16).to_be_bytes());
+        out.extend_from_slice(value.as_bytes());
+    }
+    let dialog = |value: &str| {
+        let mut out = vec![10, 8];
+        string(&mut out, "text");
+        string(&mut out, "Voxrig");
+        out.push(10);
+        string(&mut out, "click_event");
+        out.push(8);
+        string(&mut out, "action");
+        string(&mut out, "show_dialog");
+        out.push(8);
+        string(&mut out, "dialog");
+        string(&mut out, value);
+        out.extend_from_slice(&[0, 0]);
+        out
+    };
+    let mut owners = ReceivedRegistries::default();
+    owners.reset(10);
+    owners
+        .modern_registry(
+            "minecraft:dialog".into(),
+            vec![
+                ServerRegistryEntry {
+                    name: "example:first".into(),
+                    data: vec![10, 0],
+                },
+                ServerRegistryEntry {
+                    name: "example:second".into(),
+                    data: vec![10, 0],
+                },
+            ],
+            11,
+            0,
+        )
+        .unwrap();
+    owners.finish();
+    state.inventory.slots[9] = Some(observation(stack(dialog("example:first")), 12));
+    state.inventory.slots[10] = Some(observation(stack(dialog("example:second")), 13));
+    state.inventory.slots[11] = Some(observation(stack(dialog("example:missing")), 14));
+    let received = capture(state.clone(), owners.capture(state.session, 20)).unwrap();
+    let a = received.slot(9).unwrap().unwrap().item().unwrap();
+    assert!(a.native_equivalent(&a).unwrap());
+    assert!(
+        !a.native_equivalent(&received.slot(10).unwrap().unwrap().item().unwrap())
+            .unwrap()
+    );
+    assert!(
+        a.native_equivalent(&received.slot(11).unwrap().unwrap().item().unwrap())
+            .is_err()
+    );
+}

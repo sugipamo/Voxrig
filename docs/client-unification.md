@@ -287,3 +287,9 @@ lookup/streamのobject共有と未宣言tag拒否を別々に確認する。
 任意のtext内item/dialog・tag再読込のlookup寿命・server cache/slot規則と一般操作、
 元のmovement/context/記録/再構成/復旧/UI/vehicle/manager統合は継続する。
 詳細は[共通item data](common-item-data.md)を参照。
+
+Text内のitem hoverとdialog参照も受信所有情報付き比較へ接続した。
+元NBTからconstructorを再構成し、入れ子の既知の拒否をfuzzy/strict/lenientへ伝播する。
+未実装constructorをfallbackで隠さない。入れ子textと本のpageにも同じ処理を適用する。
+507入力の元getter/canonical/equalsを保持し、413値・85,491比較と90拒否が一致する。
+任意persistent componentとinline dialog、一般item操作/cacheや後続の広い統合範囲は引き続き実装する。

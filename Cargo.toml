@@ -45,6 +45,8 @@ include = [
     "/scripts/export_component_value_rules.py",
     "/scripts/ExportComponentNormalization.java",
     "/scripts/ExportResourceIdentifiers.java",
+    "/scripts/ExportTextDependencies.java",
+    "/scripts/export_text_dependencies.py",
     "/scripts/ExportTextCore.java",
     "/scripts/export_text_core.py",
     "/scripts/ExportCharacterNames.java",

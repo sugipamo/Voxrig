@@ -49,7 +49,7 @@ fn collect_tags(value: &Json, tags: &mut BTreeMap<String, BTreeSet<String>>) {
         _ => {}
     }
 }
-fn fixture() -> ServerRegistryObservation {
+pub(super) fn fixture() -> ServerRegistryObservation {
     // The following vanilla IDs and accepted tag names are native test inputs,
     // never runtime defaults. Empty tag membership is deliberate: named-set
     // equals uses the cached lookup object rather than its current members.
@@ -488,7 +488,7 @@ fn original_compound_component_decoders_reject_end_and_scalar_roots() {
     }
 }
 
-fn item_key(
+pub(super) fn item_key(
     bytes: &[u8],
     owner: &ServerRegistryObservation,
 ) -> crate::client::item_semantics::Item {

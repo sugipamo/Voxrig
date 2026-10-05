@@ -463,3 +463,10 @@ raw/final hashes bind these facts. Native binaries, method bodies and inspection
 logs remain local and are not distributed or relicensed. This does not establish
 live registry binding, complete item/prototype equality, persistent/server cache
 semantics or gameplay admission.
+
+The text dependency facts in `data/client_api/text_dependency_*` are produced by
+owned observers calling unchanged original text/item/dialog codecs, constructor
+fields, encoders and equality. The retained facts bind tool sources, requests,
+original JAR/mappings/classpath and JDK bytes. Original game method bodies,
+bytecode inspection logs and runtime binaries are not distributed. These facts
+do not attest a live server cache, inventory admission or gameplay result.

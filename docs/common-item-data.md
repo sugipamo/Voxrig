@@ -686,3 +686,23 @@ prototype同値patch、容量とcount境界、field順、追加・削除、蜂�
 元の1.21.11の4種類のcompound component codecについて、End・整数・空compoundの12入力も固定しています。Endと整数は受信時に拒否し、空compoundは受理します。nullable NBTの未検証のconstructorは比較APIで明示的なエラーになります。
 
 Tag参照を含むitemは、比較する両receiptのtag受信sourceが一致することも要求します。再読込をまたぐnamed-holderのobject寿命が未検証のため、この場合はエラーです。Tag参照のないitemにはこの制限を適用しません。
+
+### Text内のitem/dialogとconstructorの再構成
+
+受信itemの比較では、item hoverのid・count・prototypeと、受信configurationに属するdialog参照も解決する。
+countは元のNBT constructorのNumber.intValueと1..99のlenient optionalに従い、不正値は1になる。
+この規則はitemの通信codecの非正countによるEmpty化とは別である。
+item hoverのpersistent patchは、現在max_stack_size・damageと空compoundの削除値を実装する。
+その他のpersistent component constructorとinline dialogは不足として明示的なエラーを返す。
+
+Textの内部モデルは元NBTを保持し、所有情報が必要な比較時に元constructorの順序で再構成する。
+入れ子item/dialogの失敗は、その時点でstrict/fuzzy/lenientの規則へ戻す。
+NBT textのlenient separatorは、元codecが拒否するitemを含む場合には捨てる。
+一方、Voxrigの未実装constructorやresource limitを元codecの拒否として扱い、separatorを捨てたり
+別のfuzzy候補へ切り替えて比較成功にしたりしない。本のraw/filtered pageも元sourceから同じ解決を行う。
+
+新しい元codec検査は507入力中417受理、90拒否と87,153組の元equalsを保持する。
+413値・85,491組の比較が一致し、未実装persistent constructorを含む2入力とinline notice dialogの2入力は
+比較未対応のまま保持する。旧text constructor入力も含むため、以前の件数へ加算しない。
+元getterによるhover itemの実効通信表現と、元textのcanonical encodeも比較へ照合する。
+この検査は実server cacheやアイテム操作の完了を意味しない。

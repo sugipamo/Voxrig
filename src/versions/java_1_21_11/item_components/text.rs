@@ -30,7 +30,28 @@ pub(super) fn project(value: &Arc<NbtValue>) -> Result<Text> {
     let mut budget = 65_536;
     read(value, &mut budget, 0)
 }
+pub(super) trait Resolver {
+    fn charge(&mut self) -> Result<()>;
+    fn item(&mut self, value: &NbtValue, depth: usize) -> Result<Hover>;
+    fn dialog(&mut self, value: &NbtValue, depth: usize) -> Result<Click>;
+}
+type Dependencies<'a> = Option<&'a mut dyn Resolver>;
+pub(super) fn project_bound(value: &Arc<NbtValue>, resolver: &mut dyn Resolver) -> Result<Text> {
+    read_inner(value, &mut 65_536, 0, &mut Some(resolver))
+}
 fn read(value: &Arc<NbtValue>, budget: &mut usize, depth: usize) -> Result<Text> {
+    read_inner(value, budget, depth, &mut None)
+}
+fn read_inner(
+    value: &Arc<NbtValue>,
+    budget: &mut usize,
+    depth: usize,
+    resolver: &mut Dependencies<'_>,
+) -> Result<Text> {
+    if let Some(context) = resolver.as_deref_mut() {
+        context.charge()?;
+    }
+
     if depth > 64 {
         return Err(ReadLimit("text constructor depth limit").into());
     }
@@ -39,6 +60,7 @@ fn read(value: &Arc<NbtValue>, budget: &mut usize, depth: usize) -> Result<Text>
         .ok_or(ReadLimit("text constructor work limit"))?;
     match &**value {
         NbtValue::String(text) => Ok(Text {
+            source: Some(value.clone()),
             contents: Contents::Literal { text: text.clone() },
             style: Style::default(),
             siblings: Vec::new(),
@@ -47,17 +69,20 @@ fn read(value: &Arc<NbtValue>, budget: &mut usize, depth: usize) -> Result<Text>
             let (first, rest) = values
                 .split_first()
                 .context("native text list must be nonempty")?;
-            let mut result = read(first, budget, depth + 1)?;
+            let mut result = read_inner(first, budget, depth + 1, resolver)?;
+            result.source = Some(value.clone());
             for value in rest {
-                result.siblings.push(read(value, budget, depth + 1)?);
+                result
+                    .siblings
+                    .push(read_inner(value, budget, depth + 1, resolver)?);
             }
             Ok(result)
         }
         NbtValue::Compound(fields) => {
             let contents = dispatch(fields, "type", &constructor_rules().contents, |kind| {
-                read_contents(fields, kind, budget, depth)
+                read_contents(fields, kind, budget, depth, resolver)
             })?;
-            let style = style(fields, budget, depth)?;
+            let style = style(fields, budget, depth, resolver)?;
             let mut siblings = Vec::new();
             if let Some(extra) = fields.get("extra") {
                 let values = extra
@@ -67,10 +92,11 @@ fn read(value: &Arc<NbtValue>, budget: &mut usize, depth: usize) -> Result<Text>
                     bail!("native extra list must be nonempty");
                 }
                 for value in values {
-                    siblings.push(read(value, budget, depth + 1)?);
+                    siblings.push(read_inner(value, budget, depth + 1, resolver)?);
                 }
             }
             Ok(Text {
+                source: Some(value.clone()),
                 contents,
                 style,
                 siblings,
@@ -115,7 +141,7 @@ fn dispatch<T>(
     for kind in kinds {
         match decode(kind) {
             Ok(value) => return Ok(value),
-            Err(error) if error.downcast_ref::<ReadLimit>().is_some() => return Err(error),
+            Err(error) if crate::client::constructor::preserve(&error) => return Err(error),
             Err(_) => {}
         }
     }
@@ -127,6 +153,7 @@ fn read_contents(
     kind: &str,
     budget: &mut usize,
     depth: usize,
+    resolver: &mut Dependencies<'_>,
 ) -> Result<Contents> {
     Ok(match kind {
         "text" => Contents::Literal {
@@ -144,7 +171,7 @@ fn read_contents(
                     } else if let NbtValue::String(value) = &**value {
                         arguments.push(Argument::String(value.clone()));
                     } else {
-                        let value = read(value, budget, depth + 1)?;
+                        let value = read_inner(value, budget, depth + 1, resolver)?;
                         match &value.contents {
                             Contents::Literal { text }
                                 if empty_style(&value.style) && value.siblings.is_empty() =>
@@ -170,7 +197,7 @@ fn read_contents(
         },
         "selector" => Contents::Selector {
             pattern: crate::client::selector::parse(string(fields, "selector")?, budget)?.0,
-            separator: strict_separator(fields, budget, depth)?,
+            separator: strict_separator(fields, budget, depth, resolver)?,
         },
         "score" => {
             let fields = fields
@@ -180,7 +207,9 @@ fn read_contents(
             Contents::Score {
                 name: match crate::client::selector::parse(string(fields, "name")?, budget) {
                     Ok((pattern, _)) => crate::client::text::ScoreName::Selector(pattern),
-                    Err(error) if error.downcast_ref::<ReadLimit>().is_some() => return Err(error),
+                    Err(error) if crate::client::constructor::preserve(&error) => {
+                        return Err(error);
+                    }
                     Err(_) => {
                         crate::client::text::ScoreName::Literal(string(fields, "name")?.clone())
                     }
@@ -200,7 +229,7 @@ fn read_contents(
             Contents::Nbt {
                 path: string(fields, "nbt")?.clone(),
                 interpret: fields.get("interpret").and_then(boolean).unwrap_or(false),
-                separator: separator(fields, budget, depth)?,
+                separator: separator(fields, budget, depth, resolver)?,
                 source,
             }
         }
@@ -231,15 +260,20 @@ fn read_contents(
         _ => bail!("unknown native text contents; update Voxrig"),
     })
 }
-fn separator(fields: &NbtCompound, budget: &mut usize, depth: usize) -> Result<Option<Box<Text>>> {
+fn separator(
+    fields: &NbtCompound,
+    budget: &mut usize,
+    depth: usize,
+    resolver: &mut Dependencies<'_>,
+) -> Result<Option<Box<Text>>> {
     let Some(value) = fields.get("separator") else {
         return Ok(None);
     };
     // Native lenient optional ignores semantic decode errors. Our resource limit
     // is not such an error: never silently discard a valid, expensive separator.
-    match read(&Arc::new(value.clone()), budget, depth + 1) {
+    match read_inner(&Arc::new(value.clone()), budget, depth + 1, resolver) {
         Ok(value) => Ok(Some(Box::new(value))),
-        Err(error) if error.downcast_ref::<ReadLimit>().is_some() => Err(error),
+        Err(error) if crate::client::constructor::preserve(&error) => Err(error),
         Err(_) => Ok(None),
     }
 }
@@ -247,10 +281,13 @@ fn strict_separator(
     fields: &NbtCompound,
     budget: &mut usize,
     depth: usize,
+    resolver: &mut Dependencies<'_>,
 ) -> Result<Option<Box<Text>>> {
     fields
         .get("separator")
-        .map(|value| read(&Arc::new(value.clone()), budget, depth + 1).map(Box::new))
+        .map(|value| {
+            read_inner(&Arc::new(value.clone()), budget, depth + 1, resolver).map(Box::new)
+        })
         .transpose()
 }
 fn argument_number(value: &NbtValue) -> Option<Number> {
@@ -294,7 +331,7 @@ fn float_number(value: &NbtValue) -> Option<f32> {
         _ => return None,
     })
 }
-fn integer(value: &NbtValue) -> Option<i32> {
+pub(super) fn integer(value: &NbtValue) -> Option<i32> {
     Some(match value {
         NbtValue::Byte(v) => i32::from(*v),
         NbtValue::Short(v) => i32::from(*v),
@@ -308,7 +345,12 @@ fn integer(value: &NbtValue) -> Option<i32> {
 fn boolean(value: &NbtValue) -> Option<bool> {
     integer(value).map(|n| n as i8 != 0)
 }
-fn style(fields: &NbtCompound, budget: &mut usize, depth: usize) -> Result<Style> {
+fn style(
+    fields: &NbtCompound,
+    budget: &mut usize,
+    depth: usize,
+    resolver: &mut Dependencies<'_>,
+) -> Result<Style> {
     let flag = |name| {
         fields
             .get(name)
@@ -319,11 +361,11 @@ fn style(fields: &NbtCompound, budget: &mut usize, depth: usize) -> Result<Style
     let shadow_color = fields.get("shadow_color").map(shadow).transpose()?;
     let click = fields
         .get("click_event")
-        .map(|v| click(v, budget))
+        .map(|v| click(v, budget, depth, resolver))
         .transpose()?;
     let hover = fields
         .get("hover_event")
-        .map(|v| hover(v, budget, depth))
+        .map(|v| hover(v, budget, depth, resolver))
         .transpose()?;
     Ok(Style {
         color,
@@ -437,7 +479,12 @@ fn shadow(value: &NbtValue) -> Result<i32> {
     }
     Ok(((color[3] << 24) | (color[0] << 16) | (color[1] << 8) | color[2]) as i32)
 }
-fn click(value: &NbtValue, budget: &mut usize) -> Result<Click> {
+fn click(
+    value: &NbtValue,
+    budget: &mut usize,
+    depth: usize,
+    resolver: &mut Dependencies<'_>,
+) -> Result<Click> {
     let fields = value
         .as_compound()
         .context("native click event must be a compound")?;
@@ -473,16 +520,22 @@ fn click(value: &NbtValue, budget: &mut usize) -> Result<Click> {
             id: identifier(string(fields, "id")?)?,
             payload: fields.get("payload").map(|v| Arc::new(v.clone())),
         },
-        "show_dialog" => Click::Dialog(Arc::new(
-            fields
-                .get("dialog")
-                .context("native dialog required")?
-                .clone(),
-        )),
+        "show_dialog" => {
+            let value = fields.get("dialog").context("native dialog required")?;
+            match resolver.as_deref_mut() {
+                Some(context) => context.dialog(value, depth)?,
+                None => Click::Dialog(Arc::new(value.clone())),
+            }
+        }
         _ => bail!("unknown native click action; update Voxrig"),
     })
 }
-fn hover(value: &NbtValue, budget: &mut usize, depth: usize) -> Result<Hover> {
+fn hover(
+    value: &NbtValue,
+    budget: &mut usize,
+    depth: usize,
+    resolver: &mut Dependencies<'_>,
+) -> Result<Hover> {
     let fields = value
         .as_compound()
         .context("native hover event must be a compound")?;
@@ -492,9 +545,17 @@ fn hover(value: &NbtValue, budget: &mut usize, depth: usize) -> Result<Hover> {
     Ok(match kind.as_str() {
         "show_text" => {
             let value = fields.get("value").context("native hover text required")?;
-            Hover::Text(Box::new(read(&Arc::new(value.clone()), budget, depth + 1)?))
+            Hover::Text(Box::new(read_inner(
+                &Arc::new(value.clone()),
+                budget,
+                depth + 1,
+                resolver,
+            )?))
         }
-        "show_item" => Hover::Item(Arc::new(value.clone())),
+        "show_item" => match resolver.as_deref_mut() {
+            Some(context) => context.item(value, depth)?,
+            None => Hover::Item(Arc::new(value.clone())),
+        },
         "show_entity" => {
             #[derive(serde::Deserialize)]
             struct Rules {
@@ -524,7 +585,9 @@ fn hover(value: &NbtValue, budget: &mut usize, depth: usize) -> Result<Hover> {
             };
             let name = fields
                 .get("name")
-                .map(|v| read(&Arc::new(v.clone()), budget, depth + 1).map(Box::new))
+                .map(|v| {
+                    read_inner(&Arc::new(v.clone()), budget, depth + 1, resolver).map(Box::new)
+                })
                 .transpose()?;
             Hover::Entity(Box::new(EntityTooltip {
                 entity_type,

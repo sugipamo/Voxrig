@@ -1,6 +1,7 @@
 //! Typed item/component comparison fields. No JSON, wire-byte or CRC equality.
 use super::{books, fraction::Fraction, nbt, profile, registry::RegistryId, text};
 use crate::MinecraftVersion;
+use serde::Serialize;
 use std::{collections::BTreeMap, sync::Arc};
 
 #[derive(Clone, Debug)]
@@ -41,7 +42,8 @@ impl LegacyItem {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
+#[serde(transparent)]
 pub(crate) struct ModernNbt(pub Arc<nbt::NbtValue>);
 impl PartialEq for ModernNbt {
     fn eq(&self, other: &Self) -> bool {
@@ -50,7 +52,7 @@ impl PartialEq for ModernNbt {
 }
 impl Eq for ModernNbt {}
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub(crate) struct Entry {
     pub version: u8,
     pub registry: String,
@@ -72,7 +74,7 @@ impl From<super::registry::RegistryEntryId> for Entry {
         }
     }
 }
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub(crate) enum MapKey {
     Integer(i32),
     String(String),
@@ -80,7 +82,7 @@ pub(crate) enum MapKey {
     Entry(Entry),
     Forward(usize, Box<MapKey>),
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub(crate) struct Item {
     pub count: i32,
     pub native_id: Option<RegistryId>,
@@ -96,7 +98,7 @@ impl Item {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub(crate) enum Component {
     Unit,
     Boolean(bool),
@@ -156,6 +158,8 @@ impl Component {
             Self::Item(v) => v.components.values().any(Self::uses_tags),
             Self::Bundle(v, _) => v.iter().any(|v| v.components.values().any(Self::uses_tags)),
             Self::Patch(v) => v.values().flatten().any(Self::uses_tags),
+            Self::Text(v) => v.uses_tags(),
+            Self::WrittenBook(v) => v.uses_tags(),
             Self::Unit
             | Self::Boolean(_)
             | Self::Integer(_)
@@ -167,12 +171,10 @@ impl Component {
             | Self::Identifier(_, _)
             | Self::Enumeration(_, _)
             | Self::Nbt(_)
-            | Self::Text(_)
             | Self::Profile(_)
             | Self::Enchantments(_)
             | Self::Enchantability(_)
             | Self::WritableBook(_)
-            | Self::WrittenBook(_)
             | Self::Registry(_)
             | Self::Reference(_)
             | Self::ProfileProperties(_) => false,

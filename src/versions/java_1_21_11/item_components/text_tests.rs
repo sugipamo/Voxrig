@@ -159,7 +159,7 @@ pub(super) fn describe(text: &Text, expected: &Json) {
         Click::ChangePage(_) => "yf$b",
         Click::Copy(_) => "yf$c",
         Click::Custom { .. } => "yf$d",
-        Click::Dialog(_) => "yf$h",
+        Click::Dialog(_) | Click::BoundDialog(_) => "yf$h",
     });
     assert_eq!(
         serde_json::to_value(click).unwrap(),
@@ -167,7 +167,7 @@ pub(super) fn describe(text: &Text, expected: &Json) {
     );
     let hover = s.hover.as_ref().map(|h| match h {
         Hover::Text(_) => "yo$e",
-        Hover::Item(_) => "yo$d",
+        Hover::Item(_) | Hover::BoundItem(_) => "yo$d",
         Hover::Entity(_) => "yo$c",
     });
     assert_eq!(

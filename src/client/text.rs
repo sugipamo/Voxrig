@@ -7,6 +7,8 @@ use std::sync::Arc;
 
 #[derive(Clone, Debug, Serialize)]
 pub(crate) struct Text {
+    #[serde(skip)]
+    pub source: Option<Arc<NbtValue>>,
     pub contents: Contents,
     pub style: Style,
     pub siblings: Vec<Text>,
@@ -156,11 +158,13 @@ struct StyleKey {
 }
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 enum HoverKey {
+    Item(Box<super::item_semantics::Item>),
     Text(Box<FieldKey>),
     Entity(Identifier, [i32; 4], Option<Box<FieldKey>>),
 }
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 enum ClickKey {
+    Dialog(super::item_semantics::Entry),
     OpenUrl(Box<super::uri::Uri>),
     RunCommand(NbtString),
     SuggestCommand(NbtString),
@@ -210,12 +214,14 @@ pub(crate) enum Click {
         payload: Option<Arc<NbtValue>>,
     },
     Dialog(Arc<NbtValue>),
+    BoundDialog(super::item_semantics::Entry),
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub(crate) enum Hover {
     Text(Box<Text>),
     Item(Arc<NbtValue>),
+    BoundItem(Box<super::item_semantics::Item>),
     Entity(Box<EntityTooltip>),
 }
 
@@ -267,7 +273,7 @@ impl Text {
                         visit(name, out);
                     }
                 }
-                None => {}
+                Some(Hover::BoundItem(_)) | None => {}
             }
             for value in &text.siblings {
                 visit(value, out);
@@ -336,6 +342,7 @@ impl Text {
                 Click::SuggestCommand(v) => ClickKey::SuggestCommand(v.clone()),
                 Click::ChangePage(v) => ClickKey::ChangePage(*v),
                 Click::Copy(v) => ClickKey::Copy(v.clone()),
+                Click::BoundDialog(v) => ClickKey::Dialog(v.clone()),
                 Click::Custom { id, payload } => {
                     ClickKey::Custom(id.clone(), payload.clone().map(ModernPayloadKey))
                 }
@@ -343,6 +350,7 @@ impl Text {
             });
             let hover = s.hover.as_ref().map(|h| match h {
                 Hover::Text(t) => HoverKey::Text(Box::new(key(t))),
+                Hover::BoundItem(v) => HoverKey::Item(v.clone()),
                 Hover::Entity(v) => HoverKey::Entity(
                     v.entity_type.clone(),
                     v.uuid,
@@ -371,5 +379,39 @@ impl Text {
             }
         }
         Some(key(self))
+    }
+}
+
+impl FieldKey {
+    pub(crate) fn uses_tags(&self) -> bool {
+        let contents = match &self.contents {
+            ContentsKey::Translate { arguments, .. } => arguments
+                .iter()
+                .any(|v| matches!(v, ArgumentKey::Text(t) if t.uses_tags())),
+            ContentsKey::Nbt { separator, .. } | ContentsKey::Selector(_, separator) => {
+                separator.as_deref().is_some_and(Self::uses_tags)
+            }
+            _ => false,
+        };
+        let hover = match &self.style.hover {
+            Some(HoverKey::Item(v)) => v
+                .components
+                .values()
+                .any(super::item_semantics::Component::uses_tags),
+            Some(HoverKey::Text(v)) => v.uses_tags(),
+            Some(HoverKey::Entity(_, _, name)) => name.as_deref().is_some_and(Self::uses_tags),
+            None => false,
+        };
+        contents || hover || self.siblings.iter().any(Self::uses_tags)
+    }
+}
+
+#[cfg(test)]
+impl FieldKey {
+    pub(crate) fn hover_item(&self) -> Option<&super::item_semantics::Item> {
+        match &self.style.hover {
+            Some(HoverKey::Item(value)) => Some(value),
+            _ => None,
+        }
     }
 }

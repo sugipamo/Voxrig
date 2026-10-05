@@ -27,6 +27,9 @@ mod profile_tests;
 #[cfg(test)]
 mod selector_tests;
 mod text;
+mod text_dependencies;
+#[cfg(test)]
+mod text_dependency_tests;
 #[cfg(test)]
 mod text_tests;
 #[cfg(test)]
