@@ -219,3 +219,13 @@ opaque/hierarchical・server/registry authority・percent case等の元比較を
 拡張constructor比較は61,776組になった。通常受信はbytesを保持し、URLを開く処理は行わない。
 残るfont/click/hover/dialog/item/entity constructor、一般item意味比較と操作の統合は継続する。
 詳細は[共通item data](common-item-data.md)を参照。
+
+### clickとentity tooltipの内部共通化
+
+modernのrun/suggest commandを元CHAT_STRINGへ合わせ、clipboardと区別した。
+page/custom payload/font/NBT sourceを含む697入力・583受理値・170,236比較に一致する。
+entity tooltipのbuiltin type・UUID・strict optional nameは355入力・94受理値・4,465比較に一致し、
+profile/selectorと共通のUUID処理を使う。表示名内のitem/dialog依存と処理制限は伝播する。
+既存拡張text検査の65拒否すべてが一致する。これは内部constructor統合であり、
+一般item操作・live cache・crafting/entity/context/recovery等の全体統合は継続する。
+詳細は[共通item data](common-item-data.md)を参照。

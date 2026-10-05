@@ -211,10 +211,10 @@ booleanは元Number.byteValueを使い、未指定とfalseを区別する。NBT 
 
 公式codecへ182個のwire入力を与え、受理された149値の元contents/style getterと照合した。
 元component.equalsの11,175 pair中、未解決の依存を含まない10,731 pairを内部field keyで照合し、
-残る444 pairは比較キーを作らない。dialog、入れ子item/entity、
+残る444 pairは比較キーを作らない。dialog、入れ子item、
 追加のconstructor検査が必要なfieldを未完了として残す。
 このキーは完全なconstructor validation、全component/item identity、persistent encoder、cache hash、
-操作の許可を証明しない。未解決のdialog/item/entity constructorを含む完全な構築規則は残作業である。
+操作の許可を証明しない。未解決のdialog/item constructorを含む完全な構築規則は残作業である。
 
 runtimeの小さな色grammarは`text_color_rules-1.21.11.json`、検査値と比較は
 `text_core_cases-1.21.11.json.gz`、元入力/tool/getter/出力のdigestは`text_core_source.json`へ分離する。
@@ -240,12 +240,12 @@ player objectのhatはstrict optional fieldで、不正な指定をdefault true�
 classpath/raw/final digestは`text_constructor_source.json`へ分ける。
 
 複数候補・逆のkey順・不正な先行候補・明示discriminator・strict/lenient optionalを含む419入力を
-未変更公式codecへ与え、受理された354値の取得済みfieldと照合した。64拒否は内部projectionも拒否し、
-残る1拒否（hover entityのUUID等）は未解決の依存を保持し、比較キーを作らない。
+未変更公式codecへ与え、受理された354値の取得済みfieldと照合した。65拒否は内部projectionも拒否する。
+以前保留したhover entityの不正UUIDも、下記の元codec検査に基づき拒否する。
 元component.equalsの62,835組中、依存を含まない61,776組は一致し、1,059組は未解決である。
 これらはcoreの182入力/10,731比較を含む拡張検査で、別々の独立した合計値へ加算しない。
 
-dialog、入れ子item/entityの完全な構築が未実装のため、
+dialog、入れ子itemの完全な構築が未実装のため、
 それらの候補の妥当性と候補間のfallbackも全条件で一致するとは主張しない。
 内部field projectionを完全なnative constructor検査やitem操作の許可に使わない。
 通常受信の元bytes保持経路、新しいlive gameplay/cache検証の不在、残る全体統合の範囲は同じである。
@@ -468,3 +468,30 @@ PYTHONDONTWRITEBYTECODE=1 python3 scripts/export_item_component_schema.py \
   --modern-classpath-file .local/integration-validation/client-api-unification/storage-outline-modern-classpath.txt \
   --runtime-output .local/integration-validation/client-api-unification/item-data-schema-oracle/current
 ```
+
+### clickとentity tooltipの内部共通化
+
+modernのrun_command/suggest_commandは元CHAT_STRINGのUTF-16規則を使い、
+0〜31、127、167のcode unitを拒否する。clipboard/literalへこの制限を流用しない。
+change_pageのNumber.intValueと正整数制限、customのResourceLocationと任意のNBT payloadも保持する。
+payload比較は既存modern NBTの型・NaN・compound規則を使う。
+fontとNBT sourceのResourceLocation/元文字列、入れ子clickのgetterも元codecへ照合した。
+697入力・583受理値・170,236組のcomponent.equalsが一致する。
+`click_constructor_rules/cases/source`に規則・圧縮検査値・元入力hashを分ける。
+
+show_entityはbuiltin entity type、4-word UUID、任意の表示名を共通内部fieldへ読み取る。
+UUIDの数値array/listとJDK UUID.fromStringの代替codecを区別し、短いgroup・正符号・
+元Character.digit・groupのmaskも保持する。dashlessのauthlib形式は受け付けない。
+profileのstrict numeric UUIDとselectorのUUID判定も同じ内部処理を使うが、受付形式は変えない。
+表示名はstrict optionalであり、不正なcomponentを省略せず拒否する。
+355入力・94受理値のgetter/再帰する表示名・4,465組のcomponent.equalsが一致する。
+`entity_tooltip_rules/cases/source`へ元builtin catalog・圧縮検査値・元入力hashを保存する。
+表示名の処理制限を伝播し、入れ子item/dialogの未解決依存があれば比較キーを作らない。
+この依存伝播のモデル試験は、元codec比較と別に扱う。
+
+再生成は`scripts/export_click_constructors.py`と`scripts/export_entity_tooltips.py`を使う。
+既存と同じdownloads/modern-classpath-file/runtime-outputを指定し、JVM512MiB・CPU1で一つずつ実行する。
+保存rawとの照合は`--normalize-only --check`。元JAR/JDK・classpath・tool・request・raw・finalを
+hashへ束縛し、ゲーム/JDK method bodyやbinaryは配布しない。
+これはtooltip表示、world entityの検索、legacyのevent互換、persistent/cache hash、
+新しい実ゲーム操作の証拠ではない。一般item/dialogと残る全体統合は継続する。

@@ -307,7 +307,7 @@ fn original_fuzzy_constructor_order_and_adverse_inputs_match() {
             _ => pending += 1,
         }
     }
-    assert_eq!((accepted, rejected, deferred_rejection), (354, 64, 1));
+    assert_eq!((accepted, rejected, deferred_rejection), (354, 65, 0));
     assert_eq!((comparisons, pending), (61776, 1059));
     assert_eq!(
         accepted + rejected + deferred_rejection,

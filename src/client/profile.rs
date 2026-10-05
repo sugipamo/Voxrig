@@ -158,7 +158,7 @@ pub(crate) fn from_nbt(value: &NbtValue) -> Result<Profile> {
             Ok::<_, anyhow::Error>(name.clone())
         })
         .transpose()?;
-    let id = fields.get("id").map(uuid).transpose()?;
+    let id = fields.get("id").map(super::uuid::from_nbt).transpose()?;
     let properties = fields
         .get("properties")
         .map(properties)
@@ -247,30 +247,4 @@ fn properties(value: &NbtValue) -> Result<Vec<Group>> {
         }
     }
     Ok(groups(entries))
-}
-fn integer(value: &NbtValue) -> Result<i32> {
-    Ok(match value {
-        NbtValue::Byte(value) => i32::from(*value),
-        NbtValue::Short(value) => i32::from(*value),
-        NbtValue::Int(value) => *value,
-        NbtValue::Long(value) => *value as i32,
-        NbtValue::Float { bits } => f32::from_bits(*bits) as i32,
-        NbtValue::Double { bits } => f64::from_bits(*bits) as i32,
-        _ => bail!("native UUID words must be numeric"),
-    })
-}
-fn uuid(value: &NbtValue) -> Result<[i32; 4]> {
-    let words: Vec<_> = match value {
-        NbtValue::IntArray(values) => values.clone(),
-        NbtValue::ByteArray(values) => values.iter().map(|n| i32::from(*n)).collect(),
-        NbtValue::LongArray(values) => values.iter().map(|n| *n as i32).collect(),
-        NbtValue::List(values) => values
-            .iter()
-            .map(|value| integer(value))
-            .collect::<Result<_>>()?,
-        _ => bail!("native profile UUID requires numeric array/list"),
-    };
-    words
-        .try_into()
-        .map_err(|_| anyhow::anyhow!("native UUID requires 4 words"))
 }

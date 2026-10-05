@@ -4,6 +4,10 @@ use super::wire::Reader;
 use crate::client::{ItemComponent, ItemComponentPatch, registry::Registry};
 use anyhow::{Context, Result, bail};
 use std::{collections::BTreeSet, sync::OnceLock};
+#[cfg(test)]
+mod click_constructor_tests;
+#[cfg(test)]
+mod entity_tooltip_tests;
 mod framing;
 mod profile;
 #[cfg(test)]

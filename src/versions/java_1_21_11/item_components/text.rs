@@ -450,8 +450,14 @@ fn click(value: &NbtValue, budget: &mut usize) -> Result<Click> {
             budget,
         )?)),
         "open_file" => bail!("native text stream forbids OPEN_FILE click events"),
-        "run_command" => Click::RunCommand(string(fields, "command")?.clone()),
-        "suggest_command" => Click::SuggestCommand(string(fields, "command")?.clone()),
+        "run_command" => Click::RunCommand(crate::client::constructor::chat_string(
+            string(fields, "command")?,
+            budget,
+        )?),
+        "suggest_command" => Click::SuggestCommand(crate::client::constructor::chat_string(
+            string(fields, "command")?,
+            budget,
+        )?),
         "copy_to_clipboard" => Click::Copy(string(fields, "value")?.clone()),
         "change_page" => {
             let value = fields
@@ -489,7 +495,43 @@ fn hover(value: &NbtValue, budget: &mut usize, depth: usize) -> Result<Hover> {
             Hover::Text(Box::new(read(&Arc::new(value.clone()), budget, depth + 1)?))
         }
         "show_item" => Hover::Item(Arc::new(value.clone())),
-        "show_entity" => Hover::Entity(Arc::new(value.clone())),
+        "show_entity" => {
+            #[derive(serde::Deserialize)]
+            struct Rules {
+                entity_types: Vec<String>,
+            }
+            static TYPES: OnceLock<Rules> = OnceLock::new();
+            let types = TYPES.get_or_init(|| {
+                serde_json::from_str(include_str!(
+                    "../../../../data/client_api/entity_tooltip_rules-1.21.11.json"
+                ))
+                .expect("pinned native builtin entity type catalog")
+            });
+            let entity_type = identifier(string(fields, "id")?)?;
+            if !types
+                .entity_types
+                .contains(&format!("{}:{}", entity_type.namespace, entity_type.path))
+            {
+                bail!("unknown native entity tooltip type; update Voxrig");
+            }
+            let value = fields
+                .get("uuid")
+                .context("native entity tooltip UUID required")?;
+            let uuid = match value {
+                NbtValue::String(v) => crate::client::uuid::from_string(v.utf16())
+                    .context("invalid native entity tooltip UUID string")?,
+                _ => crate::client::uuid::from_nbt(value)?,
+            };
+            let name = fields
+                .get("name")
+                .map(|v| read(&Arc::new(v.clone()), budget, depth + 1).map(Box::new))
+                .transpose()?;
+            Hover::Entity(Box::new(EntityTooltip {
+                entity_type,
+                uuid,
+                name,
+            }))
+        }
         _ => bail!("unknown native hover action; update Voxrig"),
     })
 }
@@ -648,5 +690,92 @@ mod uri_limit_tests {
             assert_eq!(error.to_string(), "URI constructor work limit");
             assert!(project(&root).unwrap().modern_field_key().is_some());
         }
+    }
+}
+
+#[cfg(test)]
+mod chat_limit_tests {
+    use super::*;
+    use std::io::Read;
+    #[test]
+    fn native_valid_command_limits_cannot_be_hidden_in_lenient_nbt_separator() {
+        let mut bytes = Vec::new();
+        flate2::read::GzDecoder::new(
+            &include_bytes!("../../../../data/client_api/click_constructor_cases-1.21.11.json.gz")
+                [..],
+        )
+        .read_to_end(&mut bytes)
+        .unwrap();
+        let facts: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        for (case, nodes) in [
+            ("run_command-scalar-1", 1usize),
+            ("nested-run_command-nbt-0", 2usize),
+        ] {
+            let row = facts["cases"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|r| r["case"] == case)
+                .unwrap();
+            assert_eq!(row["accepted"], true);
+            let command = row["clicks"][0]["fields"]["command"].as_str().unwrap();
+            let root = crate::client::nbt::decode_unnamed_tag(
+                &hex::decode(row["input_hex"].as_str().unwrap()).unwrap(),
+            )
+            .unwrap()
+            .unwrap();
+            let mut budget = command.encode_utf16().count() + nodes - 1;
+            let error = read(&root, &mut budget, 0).unwrap_err();
+            assert!(error.downcast_ref::<ReadLimit>().is_some(), "{error}");
+            assert_eq!(error.to_string(), "chat constructor work limit");
+            assert!(project(&root).unwrap().modern_field_key().is_some());
+        }
+    }
+}
+
+#[cfg(test)]
+mod entity_limit_tests {
+    use super::*;
+    use std::io::Read;
+    #[test]
+    fn entity_names_propagate_limits_and_nested_unresolved_dependencies() {
+        let mut bytes = Vec::new();
+        flate2::read::GzDecoder::new(
+            &include_bytes!("../../../../data/client_api/entity_tooltip_cases-1.21.11.json.gz")[..],
+        )
+        .read_to_end(&mut bytes)
+        .unwrap();
+        let facts: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        let row = facts["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["case"] == "name-8")
+            .unwrap();
+        assert_eq!(row["accepted"], true);
+        let root = crate::client::nbt::decode_unnamed_tag(
+            &hex::decode(row["input_hex"].as_str().unwrap()).unwrap(),
+        )
+        .unwrap()
+        .unwrap();
+        let error = read(&root, &mut 7, 0).unwrap_err();
+        assert!(error.downcast_ref::<ReadLimit>().is_some());
+        assert_eq!(error.to_string(), "chat constructor work limit");
+        let mut value = project(&root).unwrap();
+        assert!(value.modern_field_key().is_some());
+        // Dependency propagation is a model invariant, separate from the native
+        // constructor oracle. An unresolved nested item/dialog cannot become a
+        // complete equality key through its outer entity tooltip.
+        let Some(Hover::Entity(entity)) = &mut value.style.hover else {
+            panic!("native entity tooltip missing")
+        };
+        let name = entity.name.as_mut().unwrap();
+        name.style.hover = Some(Hover::Item(root.clone()));
+        name.style.click = Some(Click::Dialog(root));
+        assert_eq!(
+            value.dependencies(),
+            vec![Dependency::Dialog, Dependency::Item]
+        );
+        assert!(value.modern_field_key().is_none());
     }
 }

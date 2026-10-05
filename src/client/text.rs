@@ -1,4 +1,4 @@
-//! Shared, internal text constructor fields. Registry/item/dialog/URI
+//! Shared, internal text constructor fields. Registry/item/dialog
 //! dependencies are explicit. A retained dependency is never a native equality
 //! result, persistent hash or authority to perform an item operation.
 use super::nbt::{NbtString, NbtValue};
@@ -150,9 +150,14 @@ struct StyleKey {
     shadow_color: Option<i32>,
     flags: [Option<bool>; 5],
     click: Option<ClickKey>,
-    hover: Option<Box<FieldKey>>,
+    hover: Option<HoverKey>,
     insertion: Option<NbtString>,
     font: Option<Identifier>,
+}
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+enum HoverKey {
+    Text(Box<FieldKey>),
+    Entity(Identifier, [i32; 4], Option<Box<FieldKey>>),
 }
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 enum ClickKey {
@@ -211,17 +216,23 @@ pub(crate) enum Click {
 pub(crate) enum Hover {
     Text(Box<Text>),
     Item(Arc<NbtValue>),
-    Entity(Arc<NbtValue>),
+    Entity(Box<EntityTooltip>),
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct EntityTooltip {
+    pub entity_type: Identifier,
+    pub uuid: [i32; 4],
+    pub name: Option<Box<Text>>,
 }
 
 /// These fields still require native constructor/context work. No blanket Eq is
 /// implemented for this model: nested items/dialogs and
-/// entity bindings cannot be replaced with raw NBT/string/CRC equality.
+/// other contextual bindings cannot be replaced with raw NBT/string/CRC equality.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 pub(crate) enum Dependency {
     Dialog,
     Item,
-    Entity,
 }
 impl Text {
     pub(crate) fn dependencies(&self) -> Vec<Dependency> {
@@ -251,7 +262,11 @@ impl Text {
             match &text.style.hover {
                 Some(Hover::Text(value)) => visit(value, out),
                 Some(Hover::Item(_)) => out.push(Dependency::Item),
-                Some(Hover::Entity(_)) => out.push(Dependency::Entity),
+                Some(Hover::Entity(value)) => {
+                    if let Some(name) = &value.name {
+                        visit(name, out);
+                    }
+                }
                 None => {}
             }
             for value in &text.siblings {
@@ -327,7 +342,12 @@ impl Text {
                 _ => unreachable!("unresolved click dependency"),
             });
             let hover = s.hover.as_ref().map(|h| match h {
-                Hover::Text(t) => Box::new(key(t)),
+                Hover::Text(t) => HoverKey::Text(Box::new(key(t))),
+                Hover::Entity(v) => HoverKey::Entity(
+                    v.entity_type.clone(),
+                    v.uuid,
+                    v.name.as_ref().map(|v| Box::new(key(v))),
+                ),
                 _ => unreachable!("unresolved hover dependency"),
             });
             FieldKey {

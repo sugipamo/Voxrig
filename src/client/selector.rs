@@ -320,49 +320,7 @@ fn boolean(r: &mut Reader<'_>) -> Result<()> {
     Ok(())
 }
 pub(crate) fn uuid_name(units: &[u16]) -> bool {
-    if units.len() > 36 {
-        return false;
-    }
-    #[derive(Deserialize)]
-    struct Digits {
-        hex_utf16_digits: std::collections::BTreeMap<String, u8>,
-    }
-    static DIGITS: OnceLock<std::collections::BTreeMap<u16, u8>> = OnceLock::new();
-    let digits = DIGITS.get_or_init(|| {
-        let facts: Digits = serde_json::from_str(include_str!(
-            "../../data/client_api/text_color_rules-1.21.11.json"
-        ))
-        .expect("pinned JDK hex digit grammar");
-        facts
-            .hex_utf16_digits
-            .into_iter()
-            .map(|(u, n)| (u.parse().unwrap(), n))
-            .collect()
-    });
-    let parts: Vec<_> = units.split(|u| *u == 45).collect();
-    if parts.len() != 5 {
-        return false;
-    }
-    parts.into_iter().all(|part| {
-        let part = part.strip_prefix(&[43]).unwrap_or(part);
-        if part.is_empty() {
-            return false;
-        }
-        let mut number = 0i64;
-        for unit in part {
-            let Some(digit) = digits.get(unit) else {
-                return false;
-            };
-            let Some(next) = number
-                .checked_mul(16)
-                .and_then(|n| n.checked_add(i64::from(*digit)))
-            else {
-                return false;
-            };
-            number = next;
-        }
-        true
-    })
+    super::uuid::from_string(units).is_some()
 }
 pub(crate) fn parse(value: &NbtString, budget: &mut usize) -> Result<(Pattern, usize)> {
     let mut r = Reader {

@@ -395,3 +395,13 @@ JAR/mappings/classpath/JDK executable/modules/tools/input/raw/final hashes bind
 the observations. Original methods, game/JDK binaries and inspection logs remain
 local and are not distributed or relicensed. These facts do not prove URL opening,
 DNS/HTTP access, legacy URI parity, persistent/cache semantics or gameplay admission.
+
+`click_constructor_rules/cases/source` and `entity_tooltip_rules/cases/source`
+record observed original chat character exclusions, builtin entity type names,
+NBT stream acceptance, native constructor/getter fields and component.equals.
+Owned standalone tools call unchanged original codecs and JDK UUID constructors.
+Original JAR/mapping/classpath/JDK executable/modules/tool/input/raw/final hashes
+bind these facts. Original method bodies, binaries and inspection logs remain
+local and are not distributed or relicensed. These facts do not establish live
+entity lookup, tooltip/UI execution, legacy event parity, persistent/cache hash
+semantics or gameplay admission.
