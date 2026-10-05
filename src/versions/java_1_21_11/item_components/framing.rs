@@ -568,6 +568,23 @@ fn read_value(
                 } else {
                     Value::Unit
                 }
+            } else if node == 0 || node == 39 {
+                // CustomData and COMPOUND_TAG require an actual compound. The
+                // original codecs reject both End and scalar roots, including
+                // while only determining the packet field boundary.
+                let value = read_value(r, *child, budget, child_depth, true)?;
+                if !matches!(&value, Value::Nbt(Some(tag)) if matches!(tag.as_ref(), crate::client::nbt::NbtValue::Compound(_)))
+                {
+                    bail!("native compound component constructor requires compound NBT");
+                }
+                if capture {
+                    Value::Forward {
+                        codec: node,
+                        value: Box::new(value),
+                    }
+                } else {
+                    Value::Unit
+                }
             } else if node == 18 {
                 read_enchantments(r, *child, &native.native_class, budget, depth, capture)?
             } else if node == 468 {

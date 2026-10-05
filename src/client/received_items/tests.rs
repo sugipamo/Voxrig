@@ -176,3 +176,217 @@ fn capture(
         registries,
     )
 }
+
+fn inventory_for(item: ItemStack, sequence: u64, packet: u64) -> ReceivedInventory {
+    let version = item.id.version();
+    let mut player = player(version, sequence);
+    player.inventory.slots[9] = Some(observation(
+        SlotKnowledge::Item { item: item.clone() },
+        packet,
+    ));
+    player.inventory.slots[10] = Some(observation(
+        SlotKnowledge::Item { item: item.clone() },
+        packet,
+    ));
+    player.inventory.cursor = Some(observation(SlotKnowledge::Item { item }, packet));
+    let mut registries = registries();
+    if version == MinecraftVersion::Java1_16_1 {
+        registries = ReceivedRegistries::default();
+        let data: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../data/client_api/registry_catalog_cases-1.16.1.json"
+        ))
+        .unwrap();
+        registries
+            .legacy_join(
+                hex::decode(data["legacy_builtin_codec_hex"].as_str().unwrap()).unwrap(),
+                10,
+            )
+            .unwrap();
+    }
+    let received = registries.capture(player.session, sequence);
+    capture(player, received).unwrap()
+}
+
+#[test]
+fn received_item_native_comparison_uses_decoded_fields_and_exact_receipt_location() {
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        let registry = Registry::for_version(version);
+        let stone = registry.item("minecraft:stone").unwrap();
+        let make = |value: u32| {
+            let mut bytes = vec![10];
+            if version == MinecraftVersion::Java1_16_1 {
+                bytes.extend([0, 0]);
+            }
+            bytes.extend([5, 0, 1, b'x']);
+            bytes.extend(value.to_be_bytes());
+            bytes.push(0);
+            ItemStack {
+                id: stone.id,
+                name: stone.name.clone(),
+                count: 2,
+                data: match version {
+                    MinecraftVersion::Java1_16_1 => ItemData::LegacyNbt { bytes },
+                    MinecraftVersion::Java1_21_11 => ItemData::ModernComponents {
+                        patch: crate::client::ItemComponentPatch {
+                            added: vec![crate::client::ItemComponent {
+                                definition: registry
+                                    .item_component("minecraft:custom_data")
+                                    .unwrap(),
+                                bytes,
+                            }],
+                            removed: vec![],
+                        },
+                    },
+                },
+            }
+        };
+        let first = inventory_for(make(f32::NAN.to_bits()), 20, 12);
+        let later = inventory_for(make(f32::NAN.to_bits()), 21, 12);
+        let distinct = inventory_for(make(f32::NAN.to_bits()), 21, 13);
+        let a = first.slot(9).unwrap().unwrap().item().unwrap();
+        assert!(
+            a.native_equivalent(&later.slot(9).unwrap().unwrap().item().unwrap())
+                .unwrap()
+        );
+        let modern = version == MinecraftVersion::Java1_21_11;
+        assert_eq!(
+            a.native_equivalent(&first.slot(10).unwrap().unwrap().item().unwrap())
+                .unwrap(),
+            modern
+        );
+        assert_eq!(
+            a.native_equivalent(&first.cursor().unwrap().item().unwrap())
+                .unwrap(),
+            modern
+        );
+        assert_eq!(
+            a.native_equivalent(&distinct.slot(9).unwrap().unwrap().item().unwrap())
+                .unwrap(),
+            modern
+        );
+        let finite = inventory_for(make(1.0f32.to_bits()), 21, 13);
+        let b = finite.slot(9).unwrap().unwrap().item().unwrap();
+        assert!(!a.native_equivalent(&b).unwrap());
+        assert!(
+            b.native_equivalent(&finite.slot(10).unwrap().unwrap().item().unwrap())
+                .unwrap()
+        );
+        let clone = first.slot(9).unwrap().unwrap().clone();
+        assert!(a.native_equivalent(&clone.item().unwrap()).unwrap());
+    }
+}
+
+#[test]
+fn received_modern_item_comparison_applies_prototypes_removals_and_context_guards() {
+    let registry = Registry::for_version(MinecraftVersion::Java1_21_11);
+    let stone = registry.item("minecraft:stone").unwrap();
+    let base = ItemStack {
+        id: stone.id,
+        name: stone.name,
+        count: 2,
+        data: ItemData::Default,
+    };
+    let default = inventory_for(base.clone(), 20, 12);
+    let mut explicit = base.clone();
+    explicit.data = ItemData::ModernComponents {
+        patch: crate::client::ItemComponentPatch {
+            added: vec![crate::client::ItemComponent {
+                definition: registry.item_component("minecraft:max_stack_size").unwrap(),
+                bytes: vec![0xc0, 0],
+            }],
+            removed: vec![],
+        },
+    };
+    let equivalent = inventory_for(explicit, 21, 13);
+    let a = default.slot(9).unwrap().unwrap().item().unwrap();
+    let b = equivalent.slot(9).unwrap().unwrap().item().unwrap();
+    assert_ne!(a.stack(), b.stack());
+    assert!(a.native_equivalent(&b).unwrap());
+    let mut removed = base.clone();
+    removed.data = ItemData::ModernComponents {
+        patch: crate::client::ItemComponentPatch {
+            added: vec![],
+            removed: vec![registry.item_component("minecraft:max_stack_size").unwrap()],
+        },
+    };
+    let removed = inventory_for(removed, 21, 13);
+    assert!(
+        !a.native_equivalent(&removed.slot(9).unwrap().unwrap().item().unwrap())
+            .unwrap()
+    );
+    let mut changed = base.clone();
+    changed.count = 3;
+    let changed = inventory_for(changed, 21, 13);
+    assert!(
+        !a.native_equivalent(&changed.slot(9).unwrap().unwrap().item().unwrap())
+            .unwrap()
+    );
+    let mut player = player(registry.version(), 20);
+    player.session.connection_id += 1;
+    player.inventory.slots[9] = Some(observation(SlotKnowledge::Item { item: base }, 12));
+    let foreign = capture(player.clone(), registries().capture(player.session, 20)).unwrap();
+    assert!(
+        a.native_equivalent(&foreign.slot(9).unwrap().unwrap().item().unwrap())
+            .is_err()
+    );
+}
+
+#[test]
+fn received_item_native_comparison_blocks_unverified_named_holder_reload_lifetimes() {
+    let registry = Registry::for_version(MinecraftVersion::Java1_21_11);
+    let stone = registry.item("minecraft:stone").unwrap();
+    let mut stack = ItemStack {
+        id: stone.id,
+        name: stone.name,
+        count: 1,
+        data: ItemData::Default,
+    };
+    let mut state = player(registry.version(), 20);
+    state.inventory.slots[10] = Some(observation(
+        SlotKnowledge::Item {
+            item: stack.clone(),
+        },
+        13,
+    ));
+    stack.data = ItemData::ModernComponents {
+        patch: crate::client::ItemComponentPatch {
+            added: vec![crate::client::ItemComponent {
+                definition: registry.item_component("minecraft:can_break").unwrap(),
+                bytes: hex::decode(
+                    "0101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500000000",
+                )
+                .unwrap(),
+            }],
+            removed: vec![],
+        },
+    };
+    state.inventory.slots[9] = Some(observation(SlotKnowledge::Item { item: stack }, 13));
+    let mut owners = registries();
+    let mut tags = vec![1];
+    crate::protocol::put_string(&mut tags, "minecraft:block");
+    tags.push(1);
+    crate::protocol::put_string(&mut tags, "minecraft:mineable/pickaxe");
+    tags.push(0);
+    owners.receive_tags(&tags, 12, registry.version()).unwrap();
+    let before = capture(state.clone(), owners.capture(state.session, 20)).unwrap();
+    owners.receive_tags(&tags, 21, registry.version()).unwrap();
+    state.receive_sequence = 22;
+    let after = capture(state.clone(), owners.capture(state.session, 22)).unwrap();
+    let a = before.slot(9).unwrap().unwrap().item().unwrap();
+    let b = after.slot(9).unwrap().unwrap().item().unwrap();
+    assert!(a.native_equivalent(&a).unwrap());
+    assert_eq!(
+        a.native_equivalent(&b).unwrap_err().kind(),
+        ErrorKind::Unsupported
+    );
+    assert!(
+        before
+            .slot(10)
+            .unwrap()
+            .unwrap()
+            .item()
+            .unwrap()
+            .native_equivalent(&after.slot(10).unwrap().unwrap().item().unwrap())
+            .unwrap()
+    );
+}

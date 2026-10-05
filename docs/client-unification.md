@@ -275,3 +275,15 @@ JSONに大きいregistry payloadをslotごとに複製しない。
 同じitem bytesでも再設定でIDの所有者が変わるpacket検査と、TCP再接続・legacy cache予測の
 検査を行う。一般component/item意味比較と元の全統合範囲は継続する。
 詳細は[共通item data](common-item-data.md)を参照。
+
+### 受信itemの型付き比較
+
+両版の`ReceivedItem::native_equivalent`は元wire/JSON/CRCの比較を使わず、
+legacy NBT constructorとmodern prototype/patchの実効値へ接続する。
+実受信registry ownerへ束縛したfield比較と、同じdecoded receiptの位置を保持する。
+保存済み元JVM corpusのlegacy4,805/modern13,853 item、modern全104型/4,134 component、
+24,789 prototype操作・66,430 nested比較へ一致する。新しいholder/tag observerは
+lookup/streamのobject共有と未宣言tag拒否を別々に確認する。
+任意のtext内item/dialog・tag再読込のlookup寿命・server cache/slot規則と一般操作、
+元のmovement/context/記録/再構成/復旧/UI/vehicle/manager統合は継続する。
+詳細は[共通item data](common-item-data.md)を参照。

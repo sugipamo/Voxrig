@@ -65,6 +65,8 @@ include = [
     "/scripts/export_effective_item_components.py",
     "/scripts/ExportRegistryCatalog.java",
     "/scripts/export_registry_catalog.py",
+    "/scripts/ExportHolderComparison.java",
+    "/scripts/export_holder_comparison.py",
     "/scripts/ExportEntityTooltips.java",
     "/scripts/export_entity_tooltips.py",
     "/scripts/ExportClickConstructors.java",

@@ -31,7 +31,49 @@ if let Some(item) = inventory.slot(9)?.and_then(ReceivedSlot::item) {
 付け替えたりしない。capture ordinalは全slotがそのpacketで更新されたことを意味しない。
 JSONは診断用であり、receiptへ戻すdeserialize/公開constructorは提供しない。
 大きいregistry payloadはinventory全体に一度だけ出力し、各slotには所有stampを出力する。
-これは一般component/itemのnative意味比較やdata付き操作の許可を完了するAPIではない。
+receiptの取得だけではdata付き操作の許可やnative意味比較を証明しない。
+
+## 受信itemの比較
+
+`ReceivedItem::native_equivalent(&other)`は両版でcount・item種別・native dataを比較する。
+同じconnection/configurationのreceiptに限定し、別の所有者を持つ値はエラーにする。
+公開の`ItemStack`から比較の所有情報を作り直すことはできない。readonlyの比較であり、
+slot受入規則、操作の成功、server synchronizer/cacheのhashを表さない。
+
+```rust,no_run
+use voxrig::client::prelude::*;
+# async fn compare(client: &Client) -> Result<()> {
+let inventory = client.received_inventory().await?;
+if let (Some(a), Some(b)) = (
+    inventory.slot(9)?.and_then(ReceivedSlot::item),
+    inventory.slot(10)?.and_then(ReceivedSlot::item),
+) {
+    println!("same native stack: {}", a.native_equivalent(&b)?);
+}
+# Ok(())
+# }
+```
+
+legacyはitem constructorによるDamageのInt化・clamp・欠落時の挿入を行ってからNBTを比較する。
+元bytesは変更しない。同じpacket・player slot/cursor・sessionのreceiptは同じdecoded値の
+共有情報を保持し、別slot・cursor・別packetのNaNを同じbytesだからと同一にしない。
+入力4,805件・3,595同値グループと独立decodeのnative比較へ一致した。
+
+modernは1,505 itemのprototypeへ追加/削除patchを適用し、全fieldを型付き値へ変換する。
+Mapの重複keyは最後を使い、map順序は比較しない。list順序・数値wrapper・codec/constructor・
+NBT・text/profile/book・nested item/count・bundle Fractionを保持する。registry参照はそのreceiptの
+builtin版または実受信ownerへ束縛し、tagには実際に宣言された名前付き集合を要求する。
+JSON、元wire bytes、CRCを本番の比較値には使わない。
+
+固定した元codec corpusの全104型・4,134 component入力・2,313,719比較、
+13,853 item入力・12,723同値グループ・24,789 prototype操作、入れ子componentの66,430比較へ一致した。
+original holder/holder-setの42値・903比較も追加し、stream/lookupの741比較を共通の参照・tag keyへ
+照合した。独立したemptyNamed factoryは別objectであり、未宣言tagのstream decodeは元が拒否する。
+これらは元JVM/保存済みcorpusと合成packet/TCPの試験であり、新たな実vanillaサーバーの試験ではない。
+
+任意のtext内item/dialog constructor、tag再読込のlookup寿命、一般data付き在庫操作、
+実server cache/slot規則は引き続き対応が必要。未解決constructorや不足したregistry/tagは
+明示的なエラーにし、同じ・異なるitemと推測しない。corpus照合を未制限な全入力対応とは扱わない。
 
 `ItemData`の意味は次のとおり。
 
@@ -640,3 +682,7 @@ prototype同値patch、容量とcount境界、field順、追加・削除、蜂�
 元JAR/mapping/classpath/JDK/tool/request/raw/finalへ束縛し、元method/binary/bytecodeは配布しない。
 一般item/prototype意味比較・実registry解決・全component constructor・persistent/cache・
 一般data付き操作と元の全統合範囲は引き続き対応する。
+
+元の1.21.11の4種類のcompound component codecについて、End・整数・空compoundの12入力も固定しています。Endと整数は受信時に拒否し、空compoundは受理します。nullable NBTの未検証のconstructorは比較APIで明示的なエラーになります。
+
+Tag参照を含むitemは、比較する両receiptのtag受信sourceが一致することも要求します。再読込をまたぐnamed-holderのobject寿命が未検証のため、この場合はエラーです。Tag参照のないitemにはこの制限を適用しません。

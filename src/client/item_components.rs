@@ -54,7 +54,6 @@ impl<'a> ComponentFields<'a> {
             .find(|field| field.definition.name == name)
             .copied()
     }
-    #[cfg(test)]
     pub(crate) fn iter(&self) -> impl Iterator<Item = &'a ItemComponent> + '_ {
         self.fields.values().copied()
     }

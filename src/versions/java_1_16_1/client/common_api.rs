@@ -648,6 +648,7 @@ mod tests {
         let received = receipts.slot(9).unwrap().unwrap().item().unwrap();
         assert_eq!(received.stack().name, "minecraft:stone");
         assert_eq!(received.stack().count, 2);
+        assert!(received.native_equivalent(&received).unwrap());
         assert_eq!(received.registry_state().session(), receipts.session());
         assert!(received.receive_sequence() <= receipts.receive_sequence());
         assert!(receipts.cursor().is_none());

@@ -159,6 +159,9 @@ pub struct NbtData {
     persistent_crc32c: Option<u32>,
 }
 impl NbtData {
+    pub(crate) fn item_root(&self) -> Arc<NbtValue> {
+        Arc::clone(&self.root)
+    }
     /// Native version controlling NBT comparison and list interpretation.
     pub fn version(&self) -> MinecraftVersion {
         self.version
@@ -472,6 +475,17 @@ pub(crate) fn equivalent(
     right: &Arc<NbtValue>,
     version: MinecraftVersion,
 ) -> bool {
+    equivalent_receipt(left, right, version, false)
+}
+
+// Only sealed item receipts may restore identity for the same decoded native
+// slot/cursor object across captures. Equal bytes from distinct receipts do not.
+pub(crate) fn equivalent_receipt(
+    left: &Arc<NbtValue>,
+    right: &Arc<NbtValue>,
+    version: MinecraftVersion,
+    shared_receipt: bool,
+) -> bool {
     if Arc::ptr_eq(left, right) {
         return true;
     }
@@ -481,13 +495,19 @@ pub(crate) fn equivalent(
         (NbtValue::Int(a), NbtValue::Int(b)) => a == b,
         (NbtValue::Long(a), NbtValue::Long(b)) => a == b,
         (NbtValue::Float { bits: a }, NbtValue::Float { bits: b }) => {
-            a == b && (version == MinecraftVersion::Java1_21_11 || !f32::from_bits(*a).is_nan())
+            a == b
+                && (version == MinecraftVersion::Java1_21_11
+                    || shared_receipt
+                    || !f32::from_bits(*a).is_nan())
                 || version == MinecraftVersion::Java1_21_11
                     && f32::from_bits(*a).is_nan()
                     && f32::from_bits(*b).is_nan()
         }
         (NbtValue::Double { bits: a }, NbtValue::Double { bits: b }) => {
-            a == b && (version == MinecraftVersion::Java1_21_11 || !f64::from_bits(*a).is_nan())
+            a == b
+                && (version == MinecraftVersion::Java1_21_11
+                    || shared_receipt
+                    || !f64::from_bits(*a).is_nan())
                 || version == MinecraftVersion::Java1_21_11
                     && f64::from_bits(*a).is_nan()
                     && f64::from_bits(*b).is_nan()
@@ -497,17 +517,37 @@ pub(crate) fn equivalent(
         (NbtValue::IntArray(a), NbtValue::IntArray(b)) => a == b,
         (NbtValue::LongArray(a), NbtValue::LongArray(b)) => a == b,
         (NbtValue::List(a), NbtValue::List(b)) => {
-            a.len() == b.len() && a.iter().zip(b).all(|(a, b)| equivalent(a, b, version))
+            a.len() == b.len()
+                && a.iter()
+                    .zip(b)
+                    .all(|(a, b)| equivalent_receipt(a, b, version, shared_receipt))
         }
         (NbtValue::Compound(a), NbtValue::Compound(b)) => {
             a.entries.len() == b.entries.len()
-                && a.entries
-                    .iter()
-                    .zip(&b.entries)
-                    .all(|(a, b)| a.key == b.key && equivalent(&a.value, &b.value, version))
+                && a.entries.iter().zip(&b.entries).all(|(a, b)| {
+                    a.key == b.key
+                        && equivalent_receipt(&a.value, &b.value, version, shared_receipt)
+                })
         }
         _ => false,
     }
+}
+
+pub(crate) fn item_damage(root: Option<Arc<NbtValue>>, damage: i32) -> Arc<NbtValue> {
+    let key = NbtString::from_text("Damage");
+    let mut entries = root
+        .as_ref()
+        .and_then(|v| v.as_compound())
+        .map_or_else(Vec::new, |v| v.entries.clone());
+    let entry = NbtEntry {
+        key: key.clone(),
+        value: Arc::new(NbtValue::Int(damage)),
+    };
+    match entries.binary_search_by(|v| v.key.cmp(&key)) {
+        Ok(index) => entries[index] = entry,
+        Err(index) => entries.insert(index, entry),
+    }
+    Arc::new(NbtValue::Compound(NbtCompound { entries }))
 }
 
 // Logical decoded NBT selects native typed inputs for the shared HashOps engine.

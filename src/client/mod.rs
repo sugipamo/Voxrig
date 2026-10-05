@@ -13,6 +13,7 @@ pub mod inventory;
 mod item;
 pub(crate) mod item_components;
 pub(crate) mod item_constructor;
+pub(crate) mod item_semantics;
 pub mod nbt;
 mod observation;
 pub(crate) mod operations;

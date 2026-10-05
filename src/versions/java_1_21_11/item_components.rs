@@ -9,6 +9,9 @@ mod book_tests;
 mod books;
 #[cfg(test)]
 mod click_constructor_tests;
+pub(crate) mod comparison;
+#[cfg(test)]
+mod comparison_tests;
 #[cfg(test)]
 mod effective_tests;
 #[cfg(test)]

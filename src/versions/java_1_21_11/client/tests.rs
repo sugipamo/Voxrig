@@ -667,6 +667,7 @@ async fn modern_disconnect_and_reconnect_do_not_reuse_world_or_connection_identi
         let old_item = inventory.slot(9).unwrap().unwrap().item().unwrap();
         assert_eq!(old_item.stack().count, 2);
         assert_eq!(old_item.stack().name, "minecraft:stone");
+        assert!(old_item.native_equivalent(&old_item).unwrap());
         assert!(inventory.cursor().unwrap().item().is_none());
         assert_eq!(old_item.registry_state().session(), inventory.session());
         assert_eq!(

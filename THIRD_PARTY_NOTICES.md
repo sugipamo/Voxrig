@@ -434,6 +434,15 @@ original JAR/mapping/classpath/JDK/tool/raw/final hashes bind the facts. Origina
 binaries and method bodies are not distributed or relicensed. The facts do not
 establish whole component/holder/tag equality, server cache or gameplay admission.
 
+`holder_comparison_cases/source` contain observed unchanged original holder and
+holder-set constructor/lookup/stream behavior and equality. Two original mapped
+registries register the same original enchantment values in reversed ID order.
+Facts distinguish cached named lookup objects, independent emptyNamed factories,
+and missing-tag stream rejection. JAR/mapping/classpath/JDK/helper/raw/final hashes
+bind the observations. No original binaries, method bodies, or inspection logs
+are distributed or relicensed. These facts do not establish tag-reload lifetime,
+server cache/slot admission, or general gameplay acceptance.
+
 `book_constructor_rules/cases/source` contain observed original writable/written
 book and enchantability stream acceptance, raw/filtered getter fields, nested text
 getters, original encode outputs and native value.equals. Owned tools call

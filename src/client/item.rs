@@ -64,6 +64,24 @@ fn defaults(version: MinecraftVersion) -> &'static Defaults {
         }),
     }
 }
+pub(crate) fn legacy_constructor_tag(item: &ItemStack) -> Result<Option<std::sync::Arc<NbtValue>>> {
+    if item.id.version() != MinecraftVersion::Java1_16_1 {
+        return Err(invalid("legacy item belongs to another version"));
+    }
+    let properties = item.properties()?;
+    let default = defaults(MinecraftVersion::Java1_16_1)
+        .defaults
+        .iter()
+        .find(|d| d.native_id == item.id.value() && d.name == item.name && !d.represents_empty)
+        .ok_or_else(|| invalid("legacy constructor facts unavailable; update Voxrig"))?;
+    let root = item.custom_data()?.map(|v| v.item_root());
+    Ok(if default.normalizes_damage_on_read {
+        Some(super::nbt::item_damage(root, properties.damage))
+    } else {
+        root
+    })
+}
+
 fn invalid(message: &str) -> Error {
     Error::new(ErrorKind::InvalidInput, anyhow::anyhow!("{message}"))
 }

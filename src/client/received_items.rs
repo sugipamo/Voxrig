@@ -56,7 +56,9 @@ impl ReceivedInventory {
             ));
         }
         let registries = Arc::new(registries);
-        let receipt = |observed: super::ObservedValue<SlotKnowledge>| -> Result<ReceivedSlot> {
+        let receipt = |observed: super::ObservedValue<SlotKnowledge>,
+                       location|
+         -> Result<ReceivedSlot> {
             let ValueSource::Received { sequence } = observed.source else {
                 return Err(invalid("inventory value is not a received slot"));
             };
@@ -82,15 +84,25 @@ impl ReceivedInventory {
                 value: observed.value,
                 receive_sequence: sequence,
                 registries: Arc::clone(&registries),
+                location,
             })
         };
         let slots = inventory
             .slots
             .iter()
             .cloned()
-            .map(|value| value.map(receipt).transpose())
+            .enumerate()
+            .map(|(slot, value)| {
+                value
+                    .map(|v| receipt(v, ReceiptLocation::PlayerSlot(slot)))
+                    .transpose()
+            })
             .collect::<Result<_>>()?;
-        let cursor = inventory.cursor.clone().map(receipt).transpose()?;
+        let cursor = inventory
+            .cursor
+            .clone()
+            .map(|v| receipt(v, ReceiptLocation::Cursor))
+            .transpose()?;
         Ok(Self {
             session,
             receive_sequence,
@@ -107,6 +119,12 @@ pub struct ReceivedSlot {
     value: SlotKnowledge,
     receive_sequence: u64,
     registries: Arc<ServerRegistryObservation>,
+    location: ReceiptLocation,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ReceiptLocation {
+    PlayerSlot(usize),
+    Cursor,
 }
 impl std::fmt::Debug for ReceivedSlot {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -192,6 +210,74 @@ impl std::fmt::Debug for ReceivedItem<'_> {
     }
 }
 impl<'a> ReceivedItem<'a> {
+    /// Compare count, item type and effective native component values within
+    /// the same registry configuration. Raw bytes and persistent hashes are not
+    /// item equality. Unverified constructors return an explicit error.
+    /// Legacy NBT constructor coercions and modern prototype/patch values use
+    /// their own native rules. Matching decoded source/location preserves legacy
+    /// NaN identity across captures; distinct receipts stay independently decoded.
+    /// Items containing named tags also require the same received tag source;
+    /// named-holder identity across tag reloads is not yet verified.
+    ///
+    /// ```no_run
+    /// use voxrig::client::prelude::*;
+    /// async fn compare(client: &Client) -> Result<()> {
+    ///     let inventory = client.received_inventory().await?;
+    ///     if let (Some(a), Some(b)) = (
+    ///         inventory.slot(9)?.and_then(ReceivedSlot::item),
+    ///         inventory.slot(10)?.and_then(ReceivedSlot::item),
+    ///     ) {
+    ///         println!("same native stack: {}", a.native_equivalent(&b)?);
+    ///     }
+    ///     Ok(())
+    /// }
+    /// ```
+    pub fn native_equivalent(&self, other: &ReceivedItem<'_>) -> Result<bool> {
+        if self.registry_state().stamp() != other.registry_state().stamp() {
+            return Err(invalid(
+                "item comparison requires the same registry configuration",
+            ));
+        }
+        match self.item.id.version() {
+            crate::MinecraftVersion::Java1_21_11 => {
+                let compare = || -> anyhow::Result<bool> {
+                    let left = crate::versions::java_1_21_11::item_components::comparison::stack(
+                        self.item,
+                        self.registry_state(),
+                    )?;
+                    let right = crate::versions::java_1_21_11::item_components::comparison::stack(
+                        other.item,
+                        other.registry_state(),
+                    )?;
+                    if (left
+                        .components
+                        .values()
+                        .any(super::item_semantics::Component::uses_tags)
+                        || right
+                            .components
+                            .values()
+                            .any(super::item_semantics::Component::uses_tags))
+                        && self.registry_state().tags().map(|v| &v.source)
+                            != other.registry_state().tags().map(|v| &v.source)
+                    {
+                        anyhow::bail!(
+                            "native named-holder lifetime across tag reloads is not yet verified"
+                        );
+                    }
+                    Ok(left == right)
+                };
+                compare().map_err(|error| Error::new(ErrorKind::Unsupported, error))
+            }
+            crate::MinecraftVersion::Java1_16_1 => {
+                let left = super::item_semantics::LegacyItem::stack(self.item)?;
+                let right = super::item_semantics::LegacyItem::stack(other.item)?;
+                let shared = self.receipt.location == other.receipt.location
+                    && self.receive_sequence() == other.receive_sequence()
+                    && self.registry_state().session() == other.registry_state().session();
+                Ok(left.matches(&right, shared))
+            }
+        }
+    }
     /// Exact version-bound stack and original data bytes.
     pub fn stack(&self) -> &'a ItemStack {
         self.item
