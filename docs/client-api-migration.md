@@ -302,9 +302,11 @@ cursorやactive windowを更新したことにもならない。詳細は[共通
 main screen slot 9..35とhotbar index 0..8の通常交換は、modeに合うhandleの`swap_hotbar`を一度だけ呼ぶ。
 結果はどちらのhandleからも`inventory_swap_record()`で読み出せる。`Pending`でも再送しない。
 共通`InventorySwapId`とmodern専用`InventorySwap`は別契約で、nativeのwait APIへ共通recordを渡さない。
-default stack・実受信empty cursor/両slot・player screenを要求し、legacyではmatching比較応答も照合する。実クリック後のnegative比較応答はnative resyncを表し、rollbackと扱わない。
+実受信empty cursor/両slot・player screenを要求し、legacyではmatching比較応答も照合する。
+解決できるlegacy NBT/modern component付きstackにも同じAPIを使い、実効容量と受信registryを検査する。
+結果の成功判定は元bytesの一致ではなく、fresh receiptのnative field比較を使う。実クリック後のnegative比較応答はnative resyncを表し、rollbackと扱わない。
 modernの画面revisionとlegacyのtransaction番号を共通の成功ACKとして扱わない。
-完了後の次操作は新しいbaselineから開始する。container/crafting/general item dataはこの操作だけで対応済みにはならない。
+完了後の次操作は新しいbaselineから開始する。crafting・data付きPICKUP/QUICK_MOVE/cursorはこの操作だけで対応済みにはならない。
 前提・取消・履歴と検証は[共通在庫交換](common-inventory-swaps.md)を参照。
 
 storage交換はnative slotの受入れ条件も送信前に検査する。shulker boxへのshulker box収納は

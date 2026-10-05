@@ -127,7 +127,7 @@ OPENにはblock座標がなく、受信したmatching screenをtarget由来の�
 legacyの特殊なraw inventory更新も公式実装へ照合し、hotbar/armor/offhandの画面番号へ正しく変換する。
 詳細は[共通Survivalの設置](common-survival-placement.md)を参照する。
 
-両modeの`swap_hotbar`と`inventory_swap_record`はdefault player stackを共通のopaque attempt/recordで交換する。
+両modeの`swap_hotbar`と`inventory_swap_record`は、解決できるNBT/components付きplayer stackも共通のopaque attempt/recordで交換する。
 元の両slotの実受信をI/O前に保持し、両方の新しいdestination、legacyの比較応答、modernの画面revisionを区別する。
 legacyはnativeの更新抑止を避けるfull resyncを一度のクリックで要求し、negative比較応答をrollbackへ読み替えない。
 取消・途中の競合・閉じた接続の診断を保持する。一般containerの実装完了にはしない。
@@ -293,3 +293,8 @@ Text内のitem hoverとdialog参照も受信所有情報付き比較へ接続し
 未実装constructorをfallbackで隠さない。入れ子textと本のpageにも同じ処理を適用する。
 507入力の元getter/canonical/equalsを保持し、413値・85,491比較と90拒否が一致する。
 任意persistent componentとinline dialog、一般item操作/cacheや後続の広い統合範囲は引き続き実装する。
+
+在庫SWAPのdata付きstack受付と結果比較を両版へ接続した。legacy比較packetにNBTを保持し、
+modernは元prototype/patchの実効容量を使う。保持したregistryとtyped native fieldでfreshな両destinationを
+照合し、configuration/tag sourceの変更や意味解決の失敗をinspectionとして残す。
+通常PICKUP/QUICK_MOVE/cursor・製作/一般装備や後続の統合範囲は継続する。

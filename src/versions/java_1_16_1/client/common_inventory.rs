@@ -93,8 +93,14 @@ impl Bot {
             .container
             .as_ref()
             .map(|s| s.capture(initial.session));
-        let record = contract::prepare_source(
-            initial,
+        let registries = self
+            .common_receipts
+            .lock()
+            .await
+            .registries
+            .capture(initial.session, initial.receive_sequence);
+        let record = contract::prepare_received_source(
+            (initial, registries),
             mode,
             source,
             slot,
@@ -195,7 +201,15 @@ impl Bot {
                     ItemStack {
                         item_id: comparison.id.value(),
                         count: comparison.count as i8,
-                        nbt: None,
+                        nbt: match &comparison.data {
+                            api::ItemData::Default => None,
+                            api::ItemData::LegacyNbt { bytes } => Some(bytes.clone()),
+                            _ => {
+                                return Err(contract::unavailable(
+                                    "legacy swap comparison contains foreign item data",
+                                ));
+                            }
+                        },
                     },
                 )
                 .await?;
@@ -294,7 +308,13 @@ impl Bot {
         let complete = {
             let mut guard = self.common_inventory_swap.lock().await;
             let record = &mut guard.as_mut().expect("retained").record;
-            contract::receive(record, &current, screen.as_ref());
+            let registries = self
+                .common_receipts
+                .lock()
+                .await
+                .registries
+                .capture(current.session, current.receive_sequence);
+            contract::receive_with_registries(record, &current, screen.as_ref(), &registries);
             if native_conflict {
                 contract::inspection(record, "legacy inventory cache/click context changed");
             }
@@ -1698,6 +1718,74 @@ mod tests {
         drop(bot);
         server.await.unwrap();
     }
+    #[tokio::test]
+    async fn data_swap_same_consumer_preserves_nbt_in_both_modes_and_legacy_comparison_payload() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let registry = api::registry::Registry::for_version(crate::MinecraftVersion::Java1_16_1);
+        let definition = registry.item("minecraft:stone").unwrap();
+        // Original named compound with one int field, preserved by ordinary codecs.
+        let nbt = hex::decode("0a0000030001610000000700").unwrap();
+        let value = api::SlotKnowledge::Item {
+            item: api::ItemStack {
+                id: definition.id,
+                name: definition.name,
+                count: 3,
+                data: api::ItemData::LegacyNbt { bytes: nbt.clone() },
+            },
+        };
+        for mode in [api::GameMode::Survival, api::GameMode::Creative] {
+            let mut packet = vec![3];
+            packet.extend(
+                (if mode == api::GameMode::Creative {
+                    1f32
+                } else {
+                    0f32
+                })
+                .to_be_bytes(),
+            );
+            bot.apply_packet(0x1e, packet).await.unwrap();
+            slot(&bot, 9, &value, false).await;
+            let before = client.received_inventory().await.unwrap();
+            let record = api::tests::common_swap_start_scenario(&client, mode, 9, 0).await;
+            let (id, payload) = packets.recv().await.unwrap();
+            assert_eq!(id, 0x09);
+            assert!(payload.ends_with(&nbt));
+            assert_eq!(
+                record.send.legacy_comparison.as_ref().unwrap().data,
+                api::ItemData::LegacyNbt { bytes: nbt.clone() }
+            );
+            slot(&bot, 9, &record.hotbar_before.value, false).await;
+            api::tests::common_swap_pending_scenario(&client).await;
+            slot(&bot, 36, &record.source_before.value, false).await;
+            api::tests::common_swap_pending_scenario(&client).await;
+            ack(&bot, record.send.legacy_action.unwrap(), false).await;
+            assert_eq!(packets.recv().await.unwrap().0, 0x07);
+            api::tests::common_data_swap_completed_scenario(&client, record.id, &before).await;
+            // Give the next iteration a distinct hotbar destination.
+            let dirt = registry.item("minecraft:dirt").unwrap();
+            slot(
+                &bot,
+                36,
+                &api::SlotKnowledge::Item {
+                    item: api::ItemStack {
+                        id: dirt.id,
+                        name: dirt.name,
+                        count: 2,
+                        data: api::ItemData::Default,
+                    },
+                },
+                false,
+            )
+            .await;
+        }
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
     async fn seed(bot: &Bot) {
         super::super::common_motion::tests::seed_motion(bot).await;
         let mut slots = vec![0, 0, 46];
@@ -1730,7 +1818,11 @@ mod tests {
             api::SlotKnowledge::Item { item } => Some(ItemStack {
                 item_id: item.id.value(),
                 count: item.count as i8,
-                nbt: None,
+                nbt: match &item.data {
+                    api::ItemData::Default => None,
+                    api::ItemData::LegacyNbt { bytes } => Some(bytes.clone()),
+                    _ => panic!("foreign fixture data"),
+                },
             }),
             _ => panic!("fixture slot"),
         };

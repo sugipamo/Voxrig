@@ -112,7 +112,7 @@ impl Survival {
         self.client.common_inventory_transfer_record().await
     }
     /// Exchange one constructor-verified storage slot and a hotbar index once.
-    /// Requires the same live opening, default received stacks and empty cursor.
+    /// Requires the same live opening, resolved received stacks and empty cursor.
     pub async fn swap_container_hotbar(
         &self,
         screen: super::container::ScreenId,
@@ -124,7 +124,7 @@ impl Survival {
             .await
     }
     /// Exchange main screen slot 9..35 and hotbar index 0..8 once.
-    /// Uses complete received default stacks/cursor; retains intent before I/O.
+    /// Uses complete received stacks and empty cursor; retains registry ownership before I/O.
     pub async fn swap_hotbar(
         &self,
         main_slot: u8,
@@ -347,7 +347,7 @@ impl Creative {
             .common_swap_container_hotbar(GameMode::Creative, screen, slot, hotbar)
             .await
     }
-    /// Exchange complete received default player stacks once in creative mode.
+    /// Exchange complete received player stacks once in creative mode.
     /// This ordinary inventory click does not create items or change mode.
     pub async fn swap_hotbar(
         &self,

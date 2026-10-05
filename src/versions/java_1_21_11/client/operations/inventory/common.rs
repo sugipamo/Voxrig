@@ -59,7 +59,15 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
             .container
             .as_ref()
             .map(|s| s.capture(current.session));
-        contract::receive(&mut common.record, &current, screen.as_ref());
+        let registries = state
+            .registries
+            .capture(current.session, current.receive_sequence);
+        contract::receive_with_registries(
+            &mut common.record,
+            &current,
+            screen.as_ref(),
+            &registries,
+        );
         if inventory.pending_swap.as_ref() != common.submission.as_ref()
             || inventory.unsupported_components
             || !inventory.pending_creative.is_empty()
@@ -93,20 +101,32 @@ impl Operations {
             .as_ref()
             .map_or(Some(1), |s| s.record.id.attempt().checked_add(1))
             .ok_or_else(|| contract::unavailable("inventory attempts exhausted"))?;
-        let record = contract::prepare(initial, mode, main, hotbar, attempt)?;
+        let registries = state
+            .registries
+            .capture(initial.session, initial.receive_sequence);
+        let record = contract::prepare_received_source(
+            (initial, registries),
+            mode,
+            contract::InventorySwapSource::PlayerMain,
+            u16::from(main),
+            hotbar,
+            attempt,
+            None,
+        )?;
         let after_close = match record.initial.inventory.player_screen {
             Some(api::container::PlayerScreenAccess::SubmittedClose { .. }) => {
                 record.send.screen_revision
             }
             _ => None,
         };
-        let (submission, payload) = prepare_with_player_revision(
+        let (submission, payload) = prepare_with_item_data(
             &state.operations.inventory,
             self.bot.session.id,
             state.sequence,
             main,
             hotbar,
             after_close,
+            true,
         )?;
         state.operations.inventory.pending_swap = Some(submission.clone());
         state.common_inventory_swap = Some(CommonSwap {
@@ -159,8 +179,11 @@ impl Operations {
             .as_ref()
             .map_or(Some(1), |s| s.record.id.attempt().checked_add(1))
             .ok_or_else(|| contract::unavailable("inventory attempts exhausted"))?;
-        let record = contract::prepare_source(
-            initial,
+        let registries = state
+            .registries
+            .capture(initial.session, initial.receive_sequence);
+        let record = contract::prepare_received_source(
+            (initial, registries),
             mode,
             contract::InventorySwapSource::Container { screen },
             slot,
@@ -201,7 +224,9 @@ impl Operations {
         let ready = state.common_inventory_swap.as_ref().is_some_and(|common| {
             contract::destinations_ready(&common.record)
                 && common.submission.as_ref().is_none_or(|submission| {
-                    observed(&state.operations.inventory, submission, state.sequence).is_some()
+                    common.record.item_data.is_some()
+                        || observed(&state.operations.inventory, submission, state.sequence)
+                            .is_some()
                         || matches!(
                             common.record.initial.inventory.player_screen,
                             Some(api::container::PlayerScreenAccess::SubmittedClose { .. })

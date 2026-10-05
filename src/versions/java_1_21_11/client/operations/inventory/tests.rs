@@ -872,8 +872,18 @@ fn put_slot(payload: &mut Vec<u8>, value: &InventorySlot) {
             payload.extend([0, 0]);
         }
         InventorySlot::Unavailable => panic!("cannot encode unknown inventory"),
-        InventorySlot::ItemWithComponents { .. } => {
-            panic!("plain fixture helper cannot encode component data")
+        InventorySlot::ItemWithComponents { item, components } => {
+            put_varint(payload, item.count);
+            put_varint(payload, item.item_id);
+            put_varint(payload, components.added.len() as i32);
+            put_varint(payload, components.removed.len() as i32);
+            for field in &components.added {
+                put_varint(payload, field.definition.id.value());
+                payload.extend(&field.bytes);
+            }
+            for field in &components.removed {
+                put_varint(payload, field.id.value());
+            }
         }
     }
 }
@@ -2849,4 +2859,105 @@ fn component_observation_cannot_enter_native_default_swap_or_cursor_hash() {
         );
         assert_eq!(bytes, [41]);
     }
+}
+
+fn component_swap_item(count: i32, capacity: i32, extra: bool) -> InventorySlot {
+    use crate::client::{ItemComponent, ItemComponentPatch, registry::Registry};
+    let registry = Registry::for_version(MinecraftVersion::Java1_21_11);
+    let mut bytes = Vec::new();
+    put_varint(&mut bytes, capacity);
+    let mut added = vec![ItemComponent {
+        definition: registry.item_component("minecraft:max_stack_size").unwrap(),
+        bytes,
+    }];
+    if extra {
+        // Explicit prototype value; native equivalent to its omission.
+        added.push(ItemComponent {
+            definition: registry.item_component("minecraft:rarity").unwrap(),
+            bytes: vec![0],
+        });
+    }
+    InventorySlot::ItemWithComponents {
+        item: PlainItem {
+            name: "minecraft:stone".into(),
+            item_id: registry.item("minecraft:stone").unwrap().id.value(),
+            count,
+        },
+        components: ItemComponentPatch {
+            added,
+            removed: vec![],
+        },
+    }
+}
+#[tokio::test]
+async fn data_swap_same_consumer_preserves_components_capacity_and_canonical_receipts_in_both_modes()
+ {
+    use crate::client::GameMode as Mode;
+    let mut f = CommonFixture::new().await;
+    f.api.bot.session.state.lock().await.registries.finish();
+    let client = f.client();
+    for mode in [Mode::Survival, Mode::Creative] {
+        let mut packet = vec![3];
+        packet.extend((if mode == Mode::Creative { 1f32 } else { 0f32 }).to_be_bytes());
+        f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &packet)
+            .await;
+        // A real received70-count stack is valid with capacity99, beyond default64.
+        f.slot(9, component_swap_item(70, 99, true)).await;
+        f.slot(36, plain("dirt", 12)).await;
+        let before = client.received_inventory().await.unwrap();
+        let record = crate::client::tests::common_swap_start_scenario(&client, mode, 9, 0).await;
+        let (id, payload) = read_packet(&mut f.peer, None).await.unwrap();
+        assert_eq!(id, ids::play_serverbound::WINDOW_CLICK);
+        assert!(payload.ends_with(&[0, 9, 0, 2, 0, 0]));
+        f.slot(9, plain("dirt", 12)).await;
+        crate::client::tests::common_swap_pending_scenario(&client).await;
+        f.slot(36, component_swap_item(70, 99, false)).await;
+        let complete =
+            crate::client::tests::common_data_swap_completed_scenario(&client, record.id, &before)
+                .await;
+        assert_ne!(
+            complete.hotbar_receipt.unwrap().value,
+            record.source_before.value
+        );
+    }
+    f.stop().await;
+}
+#[tokio::test]
+async fn data_swap_refuses_effective_overstack_and_latches_changed_component_receipts() {
+    use crate::client::inventory::InventorySwapStage;
+    let mut f = CommonFixture::new().await;
+    f.api.bot.session.state.lock().await.registries.finish();
+    let client = f.client();
+    f.slot(9, component_swap_item(3, 2, false)).await;
+    assert!(client.survival().swap_hotbar(9, 0).await.is_err());
+    assert!(
+        timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.slot(9, component_swap_item(2, 2, false)).await;
+    let record = client.survival().swap_hotbar(9, 0).await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    f.slot(36, component_swap_item(2, 3, false)).await;
+    assert_eq!(
+        client
+            .survival()
+            .inventory_swap_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        InventorySwapStage::RequiresInspection
+    );
+    f.slot(36, component_swap_item(2, 2, false)).await;
+    f.slot(9, plain("dirt", 12)).await;
+    let retained = client
+        .survival()
+        .inventory_swap_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(retained.id, record.id);
+    assert_eq!(retained.stage, InventorySwapStage::RequiresInspection);
+    f.stop().await;
 }

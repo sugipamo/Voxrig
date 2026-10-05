@@ -300,6 +300,52 @@ class PacketTraceProxy:
         self.log.close()
 
 
+def legacy_codec_dimensions(raw):
+    """Independently retain named dimension-list compound spans from original JOIN NBT."""
+    offset = 0
+    def take(size):
+        nonlocal offset
+        if size < 0 or offset + size > len(raw):
+            raise ValueError("truncated native registry NBT")
+        value = raw[offset:offset + size]; offset += size
+        return value
+    def string():
+        return take(struct.unpack(">H", take(2))[0])
+    def value(kind, depth=0):
+        if depth > 64: raise ValueError("native registry NBT nesting")
+        start = offset
+        if kind in (1, 2, 3, 4, 5, 6):
+            result = take({1:1,2:2,3:4,4:8,5:4,6:8}[kind])
+        elif kind == 8:
+            result = string()
+        elif kind in (7, 11, 12):
+            count = struct.unpack(">i", take(4))[0]
+            result = take(count * {7:1,11:4,12:8}[kind])
+        elif kind == 9:
+            child = take(1)[0]; count = struct.unpack(">i", take(4))[0]
+            if not 0 <= count <= len(raw): raise ValueError("native registry list count")
+            result = [value(child, depth + 1) for _ in range(count)]
+        elif kind == 10:
+            result = {}
+            while (child := take(1)[0]) != 0:
+                name = string()
+                result[name] = value(child, depth + 1)
+        else:
+            raise ValueError("invalid native registry NBT type")
+        return (kind, result, start, offset)
+    if take(1) != b"\x0a": raise ValueError("native registry root must be named compound")
+    string(); root = value(10)
+    if offset != len(raw): raise ValueError("trailing native registry NBT")
+    dimensions = root[1].get(b"dimension")
+    if dimensions is None: return None
+    if dimensions[0] != 9: raise ValueError("native dimension declaration must be list")
+    entries = []
+    for kind, compound, start, end in dimensions[1]:
+        if kind != 10 or compound[b"name"][0] != 8: raise ValueError("native dimension entry")
+        entries.append({"name":compound[b"name"][1].decode("ascii"), "data":list(b"\x0a" + raw[start:end])})
+    return entries
+
+
 def verify_received_registries(snapshot, player, trace, version):
     """Check public received data against original forwarded payload hashes/ordinals."""
     state = snapshot["received"]
@@ -326,7 +372,7 @@ def verify_received_registries(snapshot, player, trace, version):
             raise RuntimeError("received registry payload differs from original native frame")
         verified.append({key: frame[key] for key in ("ordinal", "connection", "phase", "packet_id", "body_length", "body_sha256")})
         return frame
-    for name, observation in state["registries"].items():
+    for name, observation in (state["registries"].items() if version != "1.16.1" else []):
         entries = observation["value"]
         payload = string(name) + varint(len(entries))
         payload += b"".join(string(entry["name"]) + b"\x01" + bytes(entry["data"]) for entry in entries)
@@ -338,7 +384,7 @@ def verify_received_registries(snapshot, player, trace, version):
     expected_tag_packet = 0x5b if version == "1.16.1" else (0x0d if received[tags["source"]["sequence"] - 1]["phase"] == "configuration" else 0x84)
     packet(tags["source"], expected_tag_packet, bytes(tags["value"]))
     if version == "1.16.1":
-        if state["registries"] or snapshot["unbreaking"] is not None or state["legacy_codec"] is None:
+        if set(state["registries"]) - {"minecraft:dimension_type"} or snapshot["unbreaking"] is not None or state["legacy_codec"] is None:
             raise RuntimeError("legacy registry observation fabricated a modern entry list")
         codec = state["legacy_codec"]
         frame = packet(codec["source"], 0x25)
@@ -349,6 +395,12 @@ def verify_received_registries(snapshot, player, trace, version):
         raw = bytes(codec["value"])
         if data[offset:offset + len(raw)] != raw or raw[:1] != b"\x0a":
             raise RuntimeError("legacy codec differs from original join field")
+        dimensions = legacy_codec_dimensions(raw)
+        declaration = state["registries"].get("minecraft:dimension_type")
+        if dimensions is None:
+            if declaration is not None: raise RuntimeError("legacy dimension declaration fabricated")
+        elif declaration is None or declaration["source"] != codec["source"] or declaration["value"] != dimensions:
+            raise RuntimeError("legacy dimension names/order/compound bytes differ from original join codec")
     else:
         if state["legacy_codec"] is not None: raise RuntimeError("modern observation fabricated legacy NBT")
         binding = snapshot["unbreaking"]
@@ -975,6 +1027,36 @@ network-compression-threshold=256
             if any(f["direction"] == "serverbound" and f["packet_id"] in mutation_ids for f in result["frames"]):
                 raise RuntimeError("read-only item-data observation wrote inventory/close frames")
             result["authority_limits"] = "Same public Client observation receives fresh exact item identity/count and original legacy NBT or modern custom-data/name, nested named item, registry-referencing enchantment and book patch. Independent RCON fields confirm values and unchanged pose. Read-only original frames contain no outgoing click/close/creative-slot mutation. Raw reference retention does not resolve arbitrary live registry bindings or authorize component-bearing gameplay."
+            swap_boundary = trace.mark()
+            data_swap = {"client": stage(probe, messages, "item_data_swap_" + mode, report["container_records"])["value"]}
+            result["data_swap"] = data_swap
+            data_swap["native_inventory"] = until(lambda: inventory_matches({0:("minecraft:stone",count)}))
+            data_swap["native_marker"] = until(lambda:matched(rcon.command(f'data get entity UnifiedProbe Inventory[{{Slot:0b}}].{path}.VoxrigProbe'),rf'\b{marker}\b'))
+            data_swap["native_name"] = until(lambda:matched(rcon.command(f'data get entity UnifiedProbe Inventory[{{Slot:0b}}].{name_path}'),observed_name))
+            data_swap["native_property_value"] = until(lambda:matched(rcon.command(f'data get entity UnifiedProbe Inventory[{{Slot:0b}}].{property_path}'),rf'\b{expected_property_value}\b'))
+            if version == "1.21.11":
+                component_path = 'Inventory[{Slot:0b}].components.'
+                data_swap["native_nested_marker"] = until(lambda:matched(rcon.command('data get entity UnifiedProbe '+component_path+'"minecraft:bundle_contents"[0].components."minecraft:custom_data".VoxrigNestedProbe'),r'\b19\b'))
+                data_swap["native_enchantment"] = until(lambda:matched(rcon.command('data get entity UnifiedProbe '+component_path+'"minecraft:enchantments"."minecraft:unbreaking"'),r'\b2\b'))
+                data_swap["native_book"] = until(lambda:matched(rcon.command('data get entity UnifiedProbe '+component_path+'"minecraft:written_book_content"'), 'ComplexProbe'))
+            data_swap["frames"] = [f for f in trace.since(swap_boundary) if f["phase"] == "play"]
+            clicks = [f for f in data_swap["frames"] if f["direction"] == "serverbound" and f["packet_id"] == (0x09 if version == "1.16.1" else 0x11)]
+            if len(clicks) != 1 or not data_swap["client"]["native_item_equivalent"]:
+                raise RuntimeError("data swap did not complete exactly one click with native item equivalence")
+            data_swap["authority_limits"] = "Same public mode handle exchanges received data-bearing player stack once. Fresh destination receipts and owning registries establish native semantic item equivalence; independent original-server RCON confirms destination/count/name/custom marker/property and modern nested/enchantment/book data. No predicted hashes or cache receipts establish outcome."
+            # Return through a second explicit SWAP and actual resync, rather than
+            # inferring a hotbar clear from RCON: legacy /clear did not transmit a
+            # fresh screen36 receipt after this data-bearing exchange.
+            return_boundary = trace.mark()
+            data_swap["returned"] = stage(probe, messages, "item_data_return_" + mode, report["container_records"])["value"]
+            data_swap["native_returned_inventory"] = until(lambda: inventory_matches({9:("minecraft:stone",count)}))
+            data_swap["native_returned_marker"] = until(lambda:matched(rcon.command(f'data get entity UnifiedProbe Inventory[{{Slot:9b}}].{path}.VoxrigProbe'),rf'\b{marker}\b'))
+            return_frames = [f for f in trace.since(return_boundary) if f["phase"] == "play"]
+            return_clicks = [f for f in return_frames if f["direction"] == "serverbound" and f["packet_id"] == (0x09 if version == "1.16.1" else 0x11)]
+            if len(return_clicks) != 1 or not data_swap["returned"]["native_item_equivalent"]:
+                raise RuntimeError("data return did not complete exactly one explicit click")
+            data_swap["return_frames"] = return_frames
+
             result["fixture"]["clear_after"] = rcon.command("clear UnifiedProbe")
             result["fixture"]["restore"] = rcon.command("replaceitem entity UnifiedProbe inventory.0 minecraft:dirt 2" if version == "1.16.1" else "item replace entity UnifiedProbe inventory.0 with minecraft:dirt 2")
         trace.expect_disconnect()
@@ -1171,7 +1253,7 @@ def main():
     # Snapshot actual source/data before compilation; do not reconstruct a
     # successful run's inputs from a later worktree or a rebuilt consumer.
     paths = subprocess.check_output([
-        "git", "ls-files", "-z", "--", "Cargo.toml", "Cargo.lock", "src", "data",
+        "git", "ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", "Cargo.toml", "Cargo.lock", "src", "data",
         "examples/common_native_probe.rs", "scripts/run_common_native.py",
     ], cwd=REPO).decode().rstrip("\0").split("\0")
     runtime_inputs = {

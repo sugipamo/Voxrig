@@ -1152,6 +1152,43 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 }
                 emit(&command, record)?;
             }
+            "item_data_swap_survival"
+            | "item_data_swap_creative"
+            | "item_data_return_survival"
+            | "item_data_return_creative" => {
+                let before = client.received_inventory().await?;
+                let returning = command.starts_with("item_data_return");
+                let record = if command.ends_with("survival") {
+                    client.survival().swap_hotbar(9, 0).await?
+                } else {
+                    client.creative().swap_hotbar(9, 0).await?
+                };
+                anyhow::ensure!(record.send.dispatched, "data swap did not dispatch");
+                let complete = wait_swap(client).await?;
+                let after = client.received_inventory().await?;
+                let expected = before
+                    .slot(if returning { 36 } else { 9 })?
+                    .and_then(|s| s.item())
+                    .context("data predecessor missing")?;
+                let actual = after
+                    .slot(if returning { 9 } else { 36 })?
+                    .and_then(|s| s.item())
+                    .context("data destination missing")?;
+                anyhow::ensure!(
+                    expected.native_equivalent(&actual)?,
+                    "data swap changed native item fields"
+                );
+                anyhow::ensure!(
+                    after
+                        .slot(if returning { 36 } else { 9 })?
+                        .is_some_and(|s| s.value() == &SlotKnowledge::Empty),
+                    "source was not emptied"
+                );
+                emit(
+                    &command,
+                    serde_json::json!({"record":complete,"native_item_equivalent":true,"registry_stamp":after.registry_state().stamp()}),
+                )?;
+            }
             "registry_state" => {
                 let player = client.player_state().await?;
                 let slot = player.inventory.slots[9]

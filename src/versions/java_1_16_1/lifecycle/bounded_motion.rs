@@ -842,7 +842,10 @@ impl MotionGate {
                         || hotbar > 8
                         || comparison.item_id < 0
                         || comparison.count <= 0
-                        || comparison.nbt.is_some()
+                        || comparison.nbt.as_ref().is_some_and(|bytes| {
+                            crate::client::nbt::decode(bytes, crate::MinecraftVersion::Java1_16_1)
+                                .is_err()
+                        })
                     {
                         return Err(OperationAdmissionError::InvalidOperation);
                     }

@@ -1153,3 +1153,36 @@ pub(crate) async fn common_cursor_close_retained(
     .await
     .unwrap()
 }
+
+/// Same public consumer for both adapters; semantic equality permits native re-encoding.
+pub(crate) async fn common_data_swap_completed_scenario(
+    client: &Client,
+    id: inventory::InventorySwapId,
+    before: &ReceivedInventory,
+) -> inventory::InventorySwapRecord {
+    let record = client
+        .survival()
+        .inventory_swap_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(record.id, id);
+    assert_eq!(record.stage, inventory::InventorySwapStage::ObservedSwapped);
+    assert!(record.send.dispatched && record.requires_inspection.is_none());
+    let after = client.received_inventory().await.unwrap();
+    for (destination, predecessor, diagnostic) in [
+        (9, 36, &record.source_receipt),
+        (36, 9, &record.hotbar_receipt),
+    ] {
+        let expected = before.slot(predecessor).unwrap().unwrap();
+        let actual = after.slot(destination).unwrap().unwrap();
+        assert!(actual.receive_sequence() > record.send.after_sequence);
+        assert_eq!(actual.value(), &diagnostic.as_ref().unwrap().value);
+        match (expected.item(), actual.item()) {
+            (Some(a), Some(b)) => assert!(a.native_equivalent(&b).unwrap()),
+            (None, None) => assert_eq!(actual.value(), &SlotKnowledge::Empty),
+            _ => panic!("swap lost or invented a stack"),
+        }
+    }
+    record
+}

@@ -18,7 +18,7 @@ let latest = survival.inventory_swap_record().await?;
 ```
 
 これは在庫・container統合段階の最初の操作である。一般containerのクリック列、split/shift click、
-crafting、装備、一般NBT/components付きstackの操作は後続作業に残る。
+crafting、一般装備、data付きPICKUP/QUICK_MOVE/cursorの操作は後続作業に残る。
 `Feature::InventorySwap`はplayer交換、`Feature::Containers`は既に開いたstorage/hotbar交換とopening-bound closeのRestricted。一般open/クリック列は残る。
 既存のmodern専用`swap_player_hotbar` / `wait_inventory_swap`とlegacy Bot APIも維持する。
 
@@ -28,7 +28,8 @@ crafting、装備、一般NBT/components付きstackの操作は後続作業に�
 実際に開いたconstructor確認済みstorageとhotbarのwhole stackを通常のSWAPで交換する。
 `Client::screen_state()`の現在の`ScreenId`を渡す。packet長からplayer slot位置を推定しない。
 source_slotはstorage側のみで、appended player slotは拒否する。hotbarはindex 0..8。
-両slotが非空の場合と一方が空の場合を扱い、default dataとempty cursorを要求する。
+両slotが非空の場合と一方が空の場合を扱い、実受信empty cursorを要求する。
+constructorと受信registryで解決できるlegacy NBT/modern component付きstackも保持して交換する。
 
 `InventorySwapSource::PlayerMain`はplayer screen、`Container { screen }`はその接続/world/OPENの画面を表す。
 `source_slot: u16`と`hotbar_screen_slot: u16`は実クリック画面でのindex、`hotbar: u8`はcanonical hotbar index。
@@ -57,7 +58,12 @@ modernは実container revisionを送る。どちらもclicked slot/hotbar mappin
 player画面は、同じopeningへのcloseを完全送信した明示的な`SubmittedClose`からも操作できる。
 actual window/cursor/slotを送信から生成せず、modernは別に保持したactual player-screen-zero revisionを使う。
 根拠・world変更・missing revisionの扱いは[共通プレイヤー画面](common-player-screen.md)を参照。
-材料名・版付きregistry ID・count・default dataを検査する。default stack以外は現在の共通入口では未対応。
+材料名・版付きregistry ID・count・実効最大容量を検査する。
+legacy NBT/modern component付きの受信stackは、受信registryを同じ境界で保持し、
+prototype/patchとnative constructor後のtyped fieldで交換先を比較する。元bytesの順序が異なっても
+native fieldが等しければ新しい実受信destinationとして認める。未知constructorは送信前にエラーにする。
+configuration変更やtag再読込で元の意味の所有情報を保証できない場合はinspectionとして残る。
+legacy NaNは元slot/packetに限る同じreceiptと独立decodeを区別し、移動後のwire一致だけでは成功にしない。
 modernはnative decoderの未対応components flagや画面revisionの欠測も拒否する。
 中身が同じ2slotは変更packetが返らない場合があるため、不要な交換としてI/O前に拒否する。
 
@@ -77,7 +83,7 @@ legacyは0x09へwindow 0、main slot、hotbar button、short action、SWAP、受
 公式handlerはクリックを先に実行してからreturned stackと比較する。SWAPのnative returnはEmptyなので、
 prestackとの不一致はnegative比較応答と実在庫のfull resyncを発生させる。正しいEmptyを送る場合は
 serverがslot更新を抑止し、実受信根拠を得られない。共通入口は予測slotを受信値と扱う代わりにこのresyncを要求する。
-`send.legacy_comparison`に送ったstackをI/O前に保持する。再送や追加クリックは行わず、
+`send.legacy_comparison`に送ったstackをNBTを含めI/O前に保持する。再送や追加クリックは行わず、
 negative応答への必須protocol replyだけを返す。negative応答単独では完了にもrollbackにもならない。
 公式codecで形式とpacket IDを確認している。
 modernは既存native SWAP形式と空modified-hash map/空cursor hashを使い、予測hashで実更新を抑止しない。
@@ -140,3 +146,20 @@ java -Xmx1024M -XX:ActiveProcessorCount=1 --class-path /absolute/path/1.16.1-ser
 同じconsumer/native試験ではさらに開いたsingle chestのstone 7をsurvivalで空hotbarへ取り出し、
 同じopeningでcreativeへmodeを変更して戻す。両destinationのfresh receipt、元opening、
 独立RCONのcontainer Items/player Inventory/位置不変と正常終了を照合する。
+
+## データ付き交換の検証
+
+両版の同じ公開Clientシナリオで、survival/creativeのデータ付き交換と明示的な戻しを実サーバーで検証した。
+1.16.1は名前・marker・Damageを含むNBT、1.21.11はmax_stack_size=16・custom name/data・
+入れ子item・enchantment・written bookを含むpatchを使用し、合計8回の交換が完了した。
+各操作は新しい実受信destinationとnative item field比較で確認し、元サーバーの独立RCONも
+移動先/countとデータを照合する。元packet traceで操作ごとのSWAPが一度であることを検査する。
+
+packetシナリオは両mode/両版の同じconsumerを使い、modernの容量99/count70、prototypeと
+同値な追加fieldの省略、実効容量を超える入力の送信前拒否、異なるfieldの受信後のsticky conflictも確認する。
+容量99/count70の検査は合成packetであり、この数値条件のlive gameplay検査と混同しない。
+実サーバーのsource/binary hashと失敗時の記録は各`report.json`のruntime_inputsへ保持する。
+
+live harnessのlegacy registry照合は、modern registry packetではなく元JOINのdimension listを
+独立に解析し、名前・順序・compoundの原bytesを照合する。データ交換後の`/clear`から届かなかった
+hotbar receiptは推測せず、明示的な戻し交換と実際のnative resyncで次の検査前提を確立する。

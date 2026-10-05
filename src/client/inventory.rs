@@ -1,5 +1,6 @@
 //! Received ordinary player/container exchanges; no click prediction is receive evidence.
 pub(crate) mod click;
+mod data;
 pub(crate) mod return_policy;
 pub(crate) mod slot_policy;
 pub(crate) mod transfer;
@@ -95,6 +96,8 @@ pub enum InventorySwapStage {
 /// Retained exchange diagnostics, also readable after closure.
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct InventorySwapRecord {
+    #[serde(skip)]
+    pub(crate) item_data: Option<data::SwapData>,
     /// Opaque immutable attempt identity.
     pub id: InventorySwapId,
     /// Coherent received baseline captured before possible I/O.
@@ -117,9 +120,9 @@ pub struct InventorySwapRecord {
     pub hotbar_before: ObservedValue<SlotKnowledge>,
     /// Intent recorded before I/O; there is no resend API.
     pub send: InventorySwapSend,
-    /// Fresh exact source destination receipt.
+    /// Fresh source destination receipt with matching native item fields.
     pub source_receipt: Option<ObservedValue<SlotKnowledge>>,
-    /// Fresh exact hotbar destination receipt.
+    /// Fresh hotbar destination receipt with matching native item fields.
     pub hotbar_receipt: Option<ObservedValue<SlotKnowledge>>,
     /// Actual legacy transaction response; modern has no such response.
     pub legacy_reply: Option<InventoryTransactionReply>,
@@ -148,24 +151,7 @@ impl InventorySwapRecord {
         }
     }
 }
-pub(crate) fn prepare(
-    initial: PlayerObservation,
-    mode: GameMode,
-    main_slot: u8,
-    hotbar: u8,
-    attempt: u64,
-) -> Result<InventorySwapRecord> {
-    validate_slots(main_slot, hotbar)?;
-    prepare_source(
-        initial,
-        mode,
-        InventorySwapSource::PlayerMain,
-        u16::from(main_slot),
-        hotbar,
-        attempt,
-        None,
-    )
-}
+#[cfg(test)]
 pub(crate) fn prepare_source(
     initial: PlayerObservation,
     mode: GameMode,
@@ -175,6 +161,51 @@ pub(crate) fn prepare_source(
     attempt: u64,
     screen: Option<ContainerScreen>,
 ) -> Result<InventorySwapRecord> {
+    prepare_source_inner(
+        (initial, None),
+        mode,
+        source,
+        source_slot,
+        hotbar,
+        attempt,
+        screen,
+    )
+}
+pub(crate) fn prepare_received_source(
+    capture: (
+        PlayerObservation,
+        super::registry::ServerRegistryObservation,
+    ),
+    mode: GameMode,
+    source: InventorySwapSource,
+    source_slot: u16,
+    hotbar: u8,
+    attempt: u64,
+    screen: Option<ContainerScreen>,
+) -> Result<InventorySwapRecord> {
+    prepare_source_inner(
+        (capture.0, Some(capture.1)),
+        mode,
+        source,
+        source_slot,
+        hotbar,
+        attempt,
+        screen,
+    )
+}
+fn prepare_source_inner(
+    capture: (
+        PlayerObservation,
+        Option<super::registry::ServerRegistryObservation>,
+    ),
+    mode: GameMode,
+    source: InventorySwapSource,
+    source_slot: u16,
+    hotbar: u8,
+    attempt: u64,
+    screen: Option<ContainerScreen>,
+) -> Result<InventorySwapRecord> {
+    let (initial, registries) = capture;
     if hotbar > 8
         || !matches!(mode, GameMode::Survival | GameMode::Creative)
         || initial.game_mode != Some(mode)
@@ -282,10 +313,17 @@ pub(crate) fn prepare_source(
             .clone();
         if let SlotKnowledge::Item { item } = &value.value {
             let definition = registry.item(&item.name)?;
-            if item.data != ItemData::Default
+            let capacity = if registries.is_some() {
+                u32::try_from(item.properties()?.max_stack_size).map_err(|_| {
+                    super::registry::invalid("invalid effective swap stack capacity")
+                })?
+            } else {
+                definition.max_stack_size
+            };
+            if (registries.is_none() && item.data != ItemData::Default)
                 || item.id != definition.id
                 || item.count == 0
-                || item.count > definition.max_stack_size
+                || item.count > capacity
             {
                 return Err(crate::Error::new(
                     crate::ErrorKind::Unsupported,
@@ -307,7 +345,23 @@ pub(crate) fn prepare_source(
         &source_before.value,
         &hotbar_before.value,
     )?;
-    if source_before.value == hotbar_before.value {
+    let has_data = [&source_before, &hotbar_before].iter().any(
+        |v| matches!(&v.value, SlotKnowledge::Item { item } if item.data != ItemData::Default),
+    );
+    let item_data = if has_data {
+        Some(data::SwapData::new(
+            registries.ok_or_else(|| unavailable("received swap registry context required"))?,
+            &initial,
+            &source_before,
+            &hotbar_before,
+        )?)
+    } else {
+        None
+    };
+    if item_data.as_ref().map_or(
+        source_before.value == hotbar_before.value,
+        data::SwapData::identical,
+    ) {
         return Err(super::registry::invalid(
             "identical slot contents do not require a swap",
         ));
@@ -318,6 +372,7 @@ pub(crate) fn prepare_source(
         return Err(unavailable("container/player hotbar receipts disagree"));
     }
     Ok(InventorySwapRecord {
+        item_data,
         id: InventorySwapId::new(initial.session, attempt),
         send: InventorySwapSend {
             after_sequence: initial.receive_sequence,
@@ -420,10 +475,19 @@ pub(crate) fn inspection(record: &mut InventorySwapRecord, reason: impl std::fmt
         record.stage = InventorySwapStage::RequiresInspection;
     }
 }
-pub(crate) fn receive(
+pub(crate) fn receive_with_registries(
     record: &mut InventorySwapRecord,
     current: &PlayerObservation,
     screen: Option<&ContainerScreen>,
+    registries: &super::registry::ServerRegistryObservation,
+) {
+    receive_inner(record, current, screen, Some(registries));
+}
+fn receive_inner(
+    record: &mut InventorySwapRecord,
+    current: &PlayerObservation,
+    screen: Option<&ContainerScreen>,
+    registries: Option<&super::registry::ServerRegistryObservation>,
 ) {
     if record.stage == InventorySwapStage::ObservedSwapped {
         return;
@@ -435,28 +499,45 @@ pub(crate) fn receive(
             return;
         }
     };
-    for (slot, before, after, receipt) in [
+    for (is_source, slot, before, after, receipt) in [
         (
+            true,
             usize::from(record.source_slot),
-            &record.source_before.value,
+            &record.source_before,
             &record.hotbar_before.value,
             &mut record.source_receipt,
         ),
         (
+            false,
             usize::from(record.hotbar_screen_slot),
-            &record.hotbar_before.value,
+            &record.hotbar_before,
             &record.source_before.value,
             &mut record.hotbar_receipt,
         ),
     ] {
-        match slots.get(slot).and_then(Option::as_ref) {
-            Some(value)
-                if matches!(value.source, ValueSource::Received { .. })
-                    && (&value.value == before || &value.value == after) =>
-            {
+        let actual = slots.get(slot).and_then(Option::as_ref);
+        let result = actual
+            .filter(|v| matches!(v.source, ValueSource::Received { .. }))
+            .ok_or_else(|| unavailable("swap destination receipt unavailable"))
+            .and_then(|value| {
+                let classification = if let Some(data) = &record.item_data {
+                    let owner = registries
+                        .filter(|owner| {
+                            owner.session() == current.session
+                                && owner.receive_sequence() == current.receive_sequence
+                        })
+                        .ok_or_else(|| unavailable("coherent swap registry capture unavailable"))?;
+                    data.classify(is_source, value, before, owner)?
+                } else {
+                    (value.value == before.value, &value.value == after)
+                };
+                Ok((value, classification))
+            });
+        match result {
+            Ok((value, (matches_before, matches_after))) if matches_before || matches_after => {
                 if let ValueSource::Received { sequence } = value.source {
                     if sequence > record.send.after_sequence {
-                        if &value.value == after {
+                        if matches_after {
                             receipt.get_or_insert_with(|| value.clone());
                         } else if receipt.is_some() {
                             record.requires_inspection.get_or_insert_with(|| {
@@ -466,10 +547,15 @@ pub(crate) fn receive(
                     }
                 }
             }
-            _ => {
+            Ok(_) => {
                 record.requires_inspection.get_or_insert_with(|| {
-                    "swap destination unavailable or conflicts with exact stacks".into()
+                    "swap destination conflicts with native stack values".into()
                 });
+            }
+            Err(error) => {
+                record
+                    .requires_inspection
+                    .get_or_insert_with(|| error.to_string());
             }
         }
     }

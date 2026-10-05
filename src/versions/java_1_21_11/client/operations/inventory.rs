@@ -69,6 +69,25 @@ fn prepare_with_player_revision(
     hotbar: u8,
     after_close_revision: Option<i32>,
 ) -> Result<(InventorySwap, Vec<u8>)> {
+    prepare_with_item_data(
+        inventory,
+        connection_id,
+        after_sequence,
+        main_slot,
+        hotbar,
+        after_close_revision,
+        false,
+    )
+}
+fn prepare_with_item_data(
+    inventory: &Inventory,
+    connection_id: u64,
+    after_sequence: u64,
+    main_slot: u8,
+    hotbar: u8,
+    after_close_revision: Option<i32>,
+    allow_components: bool,
+) -> Result<(InventorySwap, Vec<u8>)> {
     if !(9..=35).contains(&main_slot) || hotbar > 8 {
         return Err(invalid("swap requires main slot 9..35 and hotbar 0..8"));
     }
@@ -94,13 +113,23 @@ fn prepare_with_player_revision(
         return Err(unavailable("swap slot contents unavailable"));
     }
     for stack in [&main_before, &hotbar_before] {
-        if matches!(stack, InventorySlot::ItemWithComponents { .. }) {
+        if matches!(stack, InventorySlot::ItemWithComponents { .. }) && !allow_components {
             return Err(crate::Error::new(
                 crate::ErrorKind::Unsupported,
                 anyhow::anyhow!("native default swap does not support component-bearing stacks"),
             ));
         }
-        if let InventorySlot::Item { item } = stack {
+        if allow_components {
+            let value = super::common_slot(stack)?;
+            if let crate::client::SlotKnowledge::Item { item } = value {
+                if item.count
+                    > u32::try_from(item.properties()?.max_stack_size)
+                        .map_err(|_| invalid("invalid effective swap capacity"))?
+                {
+                    return Err(invalid("swap item exceeds its effective stack capacity"));
+                }
+            }
+        } else if let InventorySlot::Item { item } = stack {
             if items()
                 .iter()
                 .find(|definition| definition.id == item.item_id)
