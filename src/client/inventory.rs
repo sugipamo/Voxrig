@@ -1,6 +1,7 @@
 //! Received ordinary player/container exchanges; no click prediction is receive evidence.
 pub(crate) mod click;
 mod data;
+pub(crate) use data::ItemContext;
 pub(crate) mod return_policy;
 pub(crate) mod slot_policy;
 pub(crate) mod transfer;

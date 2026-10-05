@@ -15,7 +15,10 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
                     .container
                     .as_ref()
                     .map(|s| s.capture(current.session));
-                record.return_received(&current, screen.as_ref());
+                let registries = state
+                    .registries
+                    .capture(current.session, current.receive_sequence);
+                record.return_received_with_registries(&current, screen.as_ref(), &registries);
             }
             Err(error) => record.inspection(error),
         }
@@ -301,8 +304,11 @@ impl Operations {
             .as_ref()
             .map(|s| s.capture(initial.session))
             .ok_or_else(|| api::inventory::unavailable("no received container opening"))?;
-        let record = contract::prepare_close(
-            initial,
+        let registries = state
+            .registries
+            .capture(initial.session, initial.receive_sequence);
+        let record = contract::prepare_close_received(
+            (initial, registries),
             captured,
             screen,
             mode,
@@ -376,8 +382,11 @@ impl Operations {
                 let (current, screen) = self.close_current(&mut state, id)?;
                 let revision = screen.revision.as_ref().map(|r| r.value);
                 let sequence = current.receive_sequence;
+                let registries = state
+                    .registries
+                    .capture(current.session, current.receive_sequence);
                 let record = state.common_container_close.as_mut().expect("retained");
-                record.begin_return_step(current, screen)?;
+                record.begin_return_step_received(current, screen, registries)?;
                 let step = record.return_steps.last_mut().expect("prepared");
                 step.send.screen_revision = revision;
                 step.send.after_sequence = sequence;

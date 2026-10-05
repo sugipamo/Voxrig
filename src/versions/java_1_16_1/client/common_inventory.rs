@@ -1451,7 +1451,11 @@ mod tests {
             api::SlotKnowledge::Item { item } => Some(ItemStack {
                 item_id: item.id.value(),
                 count: item.count as i8,
-                nbt: None,
+                nbt: match &item.data {
+                    api::ItemData::Default => None,
+                    api::ItemData::LegacyNbt { bytes } => Some(bytes.clone()),
+                    _ => panic!("foreign legacy fixture data"),
+                },
             }),
             _ => panic!("value"),
         };
@@ -2331,6 +2335,135 @@ mod tests {
             }
             drop(client);
             let _ = release.send(());
+            drop(bot);
+            server.await.unwrap();
+        }
+    }
+    #[tokio::test]
+    async fn data_cursor_close_same_consumer_both_modes_waits_for_data_steps_and_actual_replies() {
+        for mode in [api::GameMode::Survival, api::GameMode::Creative] {
+            let (bot, mut packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            seed_container(&bot).await;
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            let screen = client.screen_state().await.unwrap().screen.unwrap().id;
+            let definition =
+                api::registry::Registry::for_version(crate::MinecraftVersion::Java1_16_1)
+                    .item("minecraft:stone")
+                    .unwrap();
+            let item = |count| api::SlotKnowledge::Item {
+                item: api::ItemStack {
+                    id: definition.id,
+                    name: definition.name.clone(),
+                    count,
+                    data: api::ItemData::LegacyNbt {
+                        bytes: hex::decode("0a0000030001610000000700").unwrap(),
+                    },
+                },
+            };
+            let mut health = Vec::from(20f32.to_be_bytes());
+            put_varint(&mut health, 20);
+            health.extend(5f32.to_be_bytes());
+            bot.apply_packet(0x49, health).await.unwrap();
+            container_slot(&bot, 27, &item(63)).await;
+            let mut cursor = vec![255, 255, 255];
+            write_slot(
+                &mut cursor,
+                Some(&ItemStack {
+                    item_id: definition.id.value(),
+                    count: 5,
+                    nbt: Some(hex::decode("0a0000030001610000000700").unwrap()),
+                }),
+            );
+            bot.apply_packet(0x16, cursor).await.unwrap();
+            if mode == api::GameMode::Creative {
+                let mut p = vec![3];
+                p.extend(1f32.to_be_bytes());
+                bot.apply_packet(0x1e, p).await.unwrap();
+            }
+            let before = client.received_inventory().await.unwrap();
+            let waiter = api::tests::common_cursor_close_start(&client, mode, screen);
+            for index in 0..2 {
+                let (id, payload) = timeout(Duration::from_secs(1), packets.recv())
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(id, 0x09);
+                assert_eq!(payload[0], 3);
+                let record = api::tests::common_cursor_close_retained(&client, index + 1).await;
+                let step = &record.return_steps[index];
+                assert_eq!(step.source_slot, 27 + index as u16);
+                assert_eq!(
+                    i16::from_be_bytes([payload[1], payload[2]]),
+                    step.source_slot as i16
+                );
+                assert!(client.survival().swap_hotbar(9, 0).await.is_err());
+                assert!(
+                    timeout(Duration::from_millis(20), packets.recv())
+                        .await
+                        .is_err()
+                );
+                container_slot(
+                    &bot,
+                    step.source_slot as i16,
+                    &item(if index == 0 { 64 } else { 4 }),
+                )
+                .await;
+                let mut cursor = vec![255, 255, 255];
+                let held = (index == 0).then_some(ItemStack {
+                    item_id: definition.id.value(),
+                    count: 4,
+                    nbt: Some(hex::decode("0a0000030001610000000700").unwrap()),
+                });
+                write_slot(&mut cursor, held.as_ref());
+                bot.apply_packet(0x16, cursor).await.unwrap();
+                assert!(
+                    timeout(Duration::from_millis(20), packets.recv())
+                        .await
+                        .is_err()
+                );
+                let mut reply = vec![3];
+                reply.extend(step.send.legacy_action.unwrap().to_be_bytes());
+                reply.push(0);
+                bot.apply_packet(0x12, reply).await.unwrap();
+                assert_eq!(packets.recv().await.unwrap().0, 0x07);
+            }
+            assert_eq!(
+                timeout(Duration::from_secs(1), packets.recv())
+                    .await
+                    .unwrap()
+                    .unwrap(),
+                (0x0a, vec![3])
+            );
+            let complete = waiter.await.unwrap().unwrap();
+            api::tests::common_data_cursor_close_complete_scenario(
+                &client,
+                &complete,
+                &before,
+                &[(9, 64), (10, 4)],
+            )
+            .await;
+            assert!(complete.dispatched);
+            assert!(
+                complete
+                    .return_steps
+                    .iter()
+                    .all(|s| s.stage == contract::InventoryClickStage::ObservedClicked)
+            );
+            assert!(
+                complete
+                    .return_steps
+                    .iter()
+                    .all(|s| s.legacy_reply.as_ref().is_some_and(|r| !r.accepted))
+            );
+            assert!(complete.server_close_sequence.is_none());
+            assert!(
+                timeout(Duration::from_millis(20), packets.recv())
+                    .await
+                    .is_err()
+            );
+            drop(release);
+            drop(client);
             drop(bot);
             server.await.unwrap();
         }

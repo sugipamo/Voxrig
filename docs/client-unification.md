@@ -302,4 +302,6 @@ modernは送信revisionを明示して完全再同期を要求し、実source/cu
 通常QUICK_MOVEも受信NBT/components付きstackの実効容量・stackable/data同値判定へ接続した。
 全changed slotsのfresh実受信と、保持したregistryの意味で完了を検査する。
 変更されたequippable routing・非defaultの装備済みarmorの取り出し・非空cursor QUICK_MOVE、
-data付きcursor close・製作/一般装備や後続の統合範囲は継続する。
+通常itemのdata付きcursor closeも、registry付き計画・step準備・実source/cursor受信へ接続した。
+各stepでdataの正規化を許容し、実Emptyを確認してからCLOSEを一度送る。
+特殊item override・製作/一般装備や後続の統合範囲は継続する。

@@ -428,7 +428,8 @@ dataの表現が正規化されても同じnative fieldなら一致する。変�
 
 `close_container(screen.id)`は、実cursorがitemでも十分な既知player main/hotbar容量があれば、返却してから閉じる。
 従来の「nonemptyなら即エラー」を使って呼出側で返却する分岐は不要になる。未知cursor、未解決操作、未検証画面、
-容量不足等は送信前にエラーになる。一般NBT/componentsやbundle内部への収納はこの変更の対象に含めない。
+容量不足等は送信前にエラーになる。通常itemの受信NBT/components付きcursorも、
+元registryで意味を解決し、実効容量で計画して返却する。未解決dataや特殊override・bundle内部収納は追加対応を要する。
 
 `ContainerCloseStage::ReturningCursor`を追加したため、stageを全分岐している利用側はこのvariantへ対応する。
 `return_plan`はI/O前の返却先とPredicted値、`return_steps`は各PICKUPの実before・送信・実結果を持つ。

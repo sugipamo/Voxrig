@@ -93,7 +93,7 @@ pub(crate) fn pickup(
         None,
     )
 }
-pub(super) fn pickup_with_data(
+pub(crate) fn pickup_with_data(
     version: MinecraftVersion,
     menu_name: &str,
     source_slot: usize,
@@ -170,9 +170,7 @@ fn pickup_inner(
                     ));
                 }
                 if (context.is_none() && item.data != ItemData::Default || !profile.ordinary_pickup)
-                    && !(context.is_none()
-                        && left_boundary
-                        && super::return_policy::default_left_item(version, item))
+                    && !(left_boundary && super::return_policy::default_left_item(version, item))
                 {
                     return Err(crate::Error::new(
                         crate::ErrorKind::Unsupported,

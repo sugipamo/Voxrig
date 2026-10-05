@@ -1091,26 +1091,34 @@ network-compression-threshold=256
             raise RuntimeError("container probe failed after disconnect")
         cursor_returns = {}
         report["native_results"]["cursor_return_close"] = cursor_returns
-        return_items = [("minecraft:stone", 5), ("minecraft:diamond_helmet", 1)]
+        return_items = [("minecraft:stone", 5, False), ("minecraft:diamond_helmet", 1, False), ("minecraft:stone", 5, True)]
         if version == "1.21.11":
-            return_items.append(("minecraft:bundle", 1))
+            return_items.append(("minecraft:bundle", 1, False))
         for mode in ("survival", "creative"):
-            for item, count in return_items:
+            for item, count, with_data in return_items:
                 until(lambda:matched(rcon.command("execute unless entity @a[name=UnifiedProbe]"),"Test passed"))
                 probe = subprocess.Popen([str(REPO / "target/debug/examples/common_native_probe")], cwd=REPO, env=dict(env, VOXRIG_NATIVE_SCENARIO="container"), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
                 messages = queue.Queue()
                 thread = threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True)
                 thread.start()
                 stage(probe,messages,"container_ready",report["container_records"])
-                key = mode + "/" + item
+                key = mode + "/" + item + ("/data" if with_data else "")
                 result = {"fixture": {}}
                 cursor_returns[key] = result
                 for command in ("clear UnifiedProbe", "kill @e[type=minecraft:item]", "gamemode " + mode + " UnifiedProbe", "tp UnifiedProbe 0.5 65 0.5 0 35"):
                     result["fixture"][command] = rcon.command(command)
+                fixture_item = item
+                maximum = 64
+                if with_data:
+                    if version == "1.16.1":
+                        fixture_item += "{VoxrigCursorProbe:23,display:{Name:'\"CursorReturnData\"'}}"
+                    else:
+                        maximum = 16
+                        fixture_item += '[minecraft:max_stack_size=16,minecraft:custom_data={VoxrigCursorProbe:23},minecraft:custom_name={text:"CursorReturnData"},minecraft:bundle_contents=[{id:"minecraft:stone",count:2,components:{"minecraft:custom_data":{CursorNested:31}}}]]'
                 if item == "minecraft:stone":
-                    command = ("replaceitem entity UnifiedProbe inventory.0 minecraft:stone 63" if version == "1.16.1" else "item replace entity UnifiedProbe inventory.0 with minecraft:stone 63")
+                    command = (f"replaceitem entity UnifiedProbe inventory.0 {fixture_item} {maximum-1}" if version == "1.16.1" else f"item replace entity UnifiedProbe inventory.0 with {fixture_item} {maximum-1}")
                     result["fixture"][command] = rcon.command(command)
-                command = (f"replaceitem block 0 65 2 container.0 {item} {count}" if version == "1.16.1" else f"item replace block 0 65 2 container.0 with {item} {count}")
+                command = (f"replaceitem block 0 65 2 container.0 {fixture_item} {count}" if version == "1.16.1" else f"item replace block 0 65 2 container.0 with {fixture_item} {count}")
                 result["fixture"][command] = rcon.command(command)
                 stage(probe,messages,"cursor_close_audit_open_" + mode,report["container_records"])
                 result["opened"] = stage(probe,messages,"cursor_close_audit_opened",report["container_records"])["value"]
@@ -1120,7 +1128,20 @@ network-compression-threshold=256
                 result["rotation_before"] = rcon.command("data get entity UnifiedProbe Rotation")
                 boundary = trace.mark()
                 result["close"] = stage(probe,messages,"cursor_return_close",report["container_records"])["value"]
-                result["inventory_after"] = until(lambda:inventory_matches({9:(item,64),10:(item,4)} if item == "minecraft:stone" else {9:(item,1)}))
+                result["inventory_after"] = until(lambda:inventory_matches({9:(item,maximum),10:(item,count-1)} if item == "minecraft:stone" else {9:(item,1)}))
+                if not result["close"]["native_data_equivalent"]:
+                    raise RuntimeError("cursor return did not preserve actual native data")
+                if with_data:
+                    metadata_path = "tag.VoxrigCursorProbe" if version == "1.16.1" else 'components."minecraft:custom_data".VoxrigCursorProbe'
+                    name_path = "tag.display.Name" if version == "1.16.1" else 'components."minecraft:custom_name"'
+                    result["native_metadata"] = {}
+                    for native_slot in (9,10):
+                        result["native_metadata"][str(native_slot)] = {
+                            "marker":until(lambda:matched(rcon.command(f'data get entity UnifiedProbe Inventory[{{Slot:{native_slot}b}}].{metadata_path}'),r'\b23\b')),
+                            "name":until(lambda:matched(rcon.command(f'data get entity UnifiedProbe Inventory[{{Slot:{native_slot}b}}].{name_path}'),'CursorReturnData')),
+                        }
+                        if version == "1.21.11":
+                            result["native_metadata"][str(native_slot)]["nested"] = until(lambda:matched(rcon.command(f'data get entity UnifiedProbe Inventory[{{Slot:{native_slot}b}}].components."minecraft:bundle_contents"[0].components."minecraft:custom_data".CursorNested'),r'\b31\b'))
                 result["no_drop"] = until(lambda:matched(rcon.command("execute unless entity @e[type=minecraft:item]"),"Test passed"))
                 result["barrel_empty_closed"] = until(lambda:matched(rcon.command("execute if block 0 65 2 minecraft:barrel[open=false] run data get block 0 65 2 Items"),r"\[\]$"))
                 result["position_after"] = rcon.command("data get entity UnifiedProbe Pos")

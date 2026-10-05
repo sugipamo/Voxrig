@@ -3300,3 +3300,207 @@ async fn data_transfer_damage_stackability_and_modified_equipment_route_refuse_w
     );
     f.stop().await;
 }
+
+#[tokio::test]
+async fn data_cursor_close_same_consumer_both_modes_waits_for_each_actual_data_step() {
+    use crate::client::{GameMode as Mode, inventory::InventoryClickStage};
+    for mode in [Mode::Survival, Mode::Creative] {
+        let mut f = CommonFixture::new().await;
+        f.api.bot.session.state.lock().await.registries.finish();
+        let screen = f.open_swap_container().await;
+        let mut health = Vec::from(20f32.to_be_bytes());
+        put_varint(&mut health, 20);
+        health.extend(5f32.to_be_bytes());
+        f.receive(ids::play_clientbound::UPDATE_HEALTH, &health)
+            .await;
+        f.container_slot(27, component_swap_item(13, 16, false))
+            .await;
+        let mut cursor = Vec::new();
+        put_slot(&mut cursor, &component_swap_item(5, 16, true));
+        f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+            .await;
+        if mode == Mode::Creative {
+            let mut p = vec![3];
+            p.extend(1f32.to_be_bytes());
+            f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &p)
+                .await;
+        }
+        let client = f.client();
+        let before = client.received_inventory().await.unwrap();
+        let waiter = crate::client::tests::common_cursor_close_start(&client, mode, screen);
+        for index in 0..2 {
+            let (id, payload) = timeout(Duration::from_secs(1), read_packet(&mut f.peer, None))
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(id, ids::play_serverbound::WINDOW_CLICK);
+            let record =
+                crate::client::tests::common_cursor_close_retained(&client, index + 1).await;
+            let step = &record.return_steps[index];
+            assert_eq!(payload, super::click::payload(step).unwrap());
+            assert_eq!(step.source_slot, 27 + index as u16);
+            assert!(client.survival().swap_hotbar(9, 0).await.is_err());
+            assert!(f.api.swap_player_hotbar(9, 0).await.is_err());
+            assert!(
+                timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+                    .await
+                    .is_err()
+            );
+            f.container_slot(
+                step.source_slot,
+                component_swap_item(if index == 0 { 16 } else { 2 }, 16, false),
+            )
+            .await;
+            assert!(
+                timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+                    .await
+                    .is_err()
+            );
+            let mut cursor = Vec::new();
+            put_slot(
+                &mut cursor,
+                &if index == 0 {
+                    component_swap_item(2, 16, false)
+                } else {
+                    InventorySlot::Empty
+                },
+            );
+            f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+                .await;
+        }
+        assert_eq!(
+            timeout(Duration::from_secs(1), read_packet(&mut f.peer, None))
+                .await
+                .unwrap()
+                .unwrap(),
+            (ids::play_serverbound::CLOSE_WINDOW, vec![3])
+        );
+        let complete = waiter.await.unwrap().unwrap();
+        crate::client::tests::common_data_cursor_close_complete_scenario(
+            &client,
+            &complete,
+            &before,
+            &[(9, 16), (10, 2)],
+        )
+        .await;
+        assert!(complete.dispatched);
+        assert!(
+            complete
+                .return_steps
+                .iter()
+                .all(|s| s.stage == InventoryClickStage::ObservedClicked)
+        );
+        assert!(
+            complete
+                .return_steps
+                .iter()
+                .all(|s| s.source_receipt.is_some() && s.cursor_receipt.is_some())
+        );
+        assert!(complete.server_close_sequence.is_none());
+        assert!(
+            timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+                .await
+                .is_err()
+        );
+        f.stop().await;
+    }
+}
+
+#[tokio::test]
+async fn data_cursor_close_no_capacity_refuses_before_any_return_or_close_frame() {
+    let mut f = CommonFixture::new().await;
+    f.api.bot.session.state.lock().await.registries.finish();
+    let screen = f.open_swap_container().await;
+    let mut health = Vec::from(20f32.to_be_bytes());
+    put_varint(&mut health, 20);
+    health.extend(5f32.to_be_bytes());
+    f.receive(ids::play_clientbound::UPDATE_HEALTH, &health)
+        .await;
+    for slot in 27..63 {
+        f.container_slot(slot, component_swap_item(16, 16, false))
+            .await;
+    }
+    let mut cursor = Vec::new();
+    put_slot(&mut cursor, &component_swap_item(5, 16, true));
+    f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+        .await;
+    let client = f.client();
+    let error = client.survival().close_container(screen).await.unwrap_err();
+    assert_eq!(error.kind(), crate::ErrorKind::InvalidInput);
+    assert!(error.to_string().contains("sufficient"));
+    assert!(
+        client
+            .survival()
+            .container_close_record()
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    assert_eq!(
+        client
+            .received_inventory()
+            .await
+            .unwrap()
+            .cursor()
+            .unwrap()
+            .item()
+            .unwrap()
+            .stack()
+            .count,
+        5
+    );
+    f.stop().await;
+}
+#[tokio::test]
+async fn data_cursor_close_conflicting_fields_do_not_heal_or_submit_close() {
+    let mut f = CommonFixture::new().await;
+    f.api.bot.session.state.lock().await.registries.finish();
+    let screen = f.open_swap_container().await;
+    let mut health = Vec::from(20f32.to_be_bytes());
+    put_varint(&mut health, 20);
+    health.extend(5f32.to_be_bytes());
+    f.receive(ids::play_clientbound::UPDATE_HEALTH, &health)
+        .await;
+    f.container_slot(27, component_swap_item(13, 16, false))
+        .await;
+    let mut cursor = Vec::new();
+    put_slot(&mut cursor, &component_swap_item(5, 16, true));
+    f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+        .await;
+    let client = f.client();
+    let waiter = crate::client::tests::common_cursor_close_start(
+        &client,
+        crate::client::GameMode::Survival,
+        screen,
+    );
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap().0,
+        ids::play_serverbound::WINDOW_CLICK
+    );
+    f.container_slot(27, component_swap_item(16, 15, false))
+        .await;
+    f.container_slot(27, component_swap_item(16, 16, false))
+        .await;
+    f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &[0])
+        .await;
+    assert!(waiter.await.unwrap().is_err());
+    let record = client
+        .survival()
+        .container_close_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(record.requires_inspection.is_some() && !record.dispatched);
+    assert_eq!(record.return_steps.len(), 1);
+    assert!(
+        timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.stop().await;
+}

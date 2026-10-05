@@ -4,11 +4,13 @@
 `ContainerCloseRecord`を返す。`ScreenId`は現在の実OPENから取得する。mode一致・既知の実cursor・未解決操作なしを要求し、
 元のplayer/screenを同じ境界でI/O前に保持する。Empty cursorならcloseを一度だけ送る。
 item付きcursorは、生存中の実health、constructorで検証済みのstorage画面、実player main/hotbar対応と十分な既知容量を要求する。
-同じID/name/dataのstackへ結合した後、既知の空きmain/hotbarへLeft PICKUPで返却する。
+同じnative item種別/dataのstackへ結合した後、既知の空きmain/hotbarへLeft PICKUPで返却する。
+通常itemの受信legacy NBT/modern componentsも保持し、元registryの意味と実効stack容量で計画する。
 全返却stepの完全送信と実slot/cursor結果を待ち、実Emptyを確認してからcloseを一度だけ送る。
 未知slotを空きと扱わず、容量不足時はintent保持・送信より前に失敗する。storageへの返却やdropのfallbackは行わない。
 [元のnative調査](common-cursor-close-audit.md)で確認したlegacy drop／modern returnの差を、この共通手順で吸収する。
-任意NBT/componentsやbundleの内部への収納は引き続き後続の統合作業である。
+未解決constructor/data、data付き特殊item override、bundleの内部への収納は後続作業。
+defaultのbundle Left空きslot移動など、既に検証済みの境界は保持する。
 
 ```rust,no_run
 use voxrig::client::prelude::*;
@@ -41,6 +43,11 @@ let latest = client.survival().container_close_record().await?;
 両版ともconnection-owned taskが一連の返却からcloseまで通常操作を排他する。
 waiter取消後も同じ処理は継続し、再送しない。`container_close_record()`はwriter待ち中も保持済みのrecordを返す。
 `return_plan`はI/O前の返却先とPredicted値、`return_steps`は各PICKUPのactual before・送信境界・actual結果を保持する。
+計画と実行stepで元registryを保持し、dataの正規化後も数量/native fieldが一致すれば続行する。
+受信したconfiguration/tagの所有が変わった場合や、source/destination/無変更slotの意味が競合した場合は
+inspectionとして保持する。予測を実受信へ昇格せず、各stepのactual source/cursorが必要。
+modernのdata付きstepは、実受信revisionと別の実送信revisionで完全再同期を要求する。
+Empty比較markerは実cursor hashではなく、再同期の要求だけで返却完了にはしない。
 内部stepの`InventoryClickId::close()`は元の`ContainerCloseId`を返し、通常のclick履歴は上書きしない。
 各stepは完全送信後5秒以内のactual source/cursor受信を要求し、legacyでは同じwindow/actionの実比較応答も要求する。
 比較falseはnativeでclickが実行されてから比較が不一致だったことを表す場合があり、rollbackとは扱わない。

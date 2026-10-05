@@ -79,6 +79,8 @@ pub enum ContainerCloseStage {
 /// Retained close intent, readable after caller cancellation or disconnection.
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct ContainerCloseRecord {
+    #[serde(skip)]
+    item_context: Option<std::sync::Arc<super::inventory::ItemContext>>,
     /// Opaque original attempt; there is no resend method.
     pub id: ContainerCloseId,
     /// Coherent received player/cursor baseline captured before I/O.
@@ -143,6 +145,7 @@ impl ContainerCloseRecord {
         mode: Option<super::GameMode>,
         screen: Option<ScreenId>,
         cursor: Option<&ObservedValue<SlotKnowledge>>,
+        registries: Option<&super::registry::ServerRegistryObservation>,
     ) {
         if matches!(
             self.stage,
@@ -150,7 +153,7 @@ impl ContainerCloseRecord {
         ) && (session != self.initial.session
             || mode != Some(self.mode)
             || screen != Some(self.id.screen)
-            || !self.valid_cursor(cursor))
+            || !self.valid_cursor(cursor, registries))
         {
             self.inspection(
                 "close session/mode/opening/cursor context changed before complete dispatch",
@@ -158,6 +161,7 @@ impl ContainerCloseRecord {
         }
     }
 }
+#[cfg(test)]
 pub(crate) fn prepare_close(
     initial: super::PlayerObservation,
     screen: ContainerScreen,
@@ -165,6 +169,31 @@ pub(crate) fn prepare_close(
     mode: super::GameMode,
     previous: Option<&ContainerCloseRecord>,
 ) -> crate::Result<ContainerCloseRecord> {
+    prepare_close_inner((initial, None), screen, requested, mode, previous)
+}
+pub(crate) fn prepare_close_received(
+    state: (
+        super::PlayerObservation,
+        super::registry::ServerRegistryObservation,
+    ),
+    screen: ContainerScreen,
+    requested: ScreenId,
+    mode: super::GameMode,
+    previous: Option<&ContainerCloseRecord>,
+) -> crate::Result<ContainerCloseRecord> {
+    prepare_close_inner((state.0, Some(state.1)), screen, requested, mode, previous)
+}
+fn prepare_close_inner(
+    state: (
+        super::PlayerObservation,
+        Option<super::registry::ServerRegistryObservation>,
+    ),
+    screen: ContainerScreen,
+    requested: ScreenId,
+    mode: super::GameMode,
+    previous: Option<&ContainerCloseRecord>,
+) -> crate::Result<ContainerCloseRecord> {
+    let (initial, registries) = state;
     if !matches!(mode, super::GameMode::Survival | super::GameMode::Creative)
         || initial.game_mode != Some(mode)
         || initial.pending_dispatch
@@ -184,8 +213,31 @@ pub(crate) fn prepare_close(
     let attempt = previous
         .map_or(Some(1), |p| p.id.attempt.checked_add(1))
         .ok_or_else(|| super::inventory::unavailable("close attempts exhausted"))?;
-    let return_plan = close::plan(&initial, &screen)?;
+    let has_data = initial.inventory.cursor.as_ref().is_some_and(|c| matches!(c.value, SlotKnowledge::Item {..})) && initial.inventory.slots.iter().chain(screen.slots.iter()).chain(std::iter::once(&initial.inventory.cursor)).flatten()
+        .any(|v| matches!(&v.value, SlotKnowledge::Item {item} if item.data != super::ItemData::Default));
+    let item_context = if let (true, Some(registries)) = (has_data, registries) {
+        let context = super::inventory::ItemContext::new(registries, &initial)?;
+        for value in initial
+            .inventory
+            .slots
+            .iter()
+            .chain(screen.slots.iter())
+            .chain(std::iter::once(&initial.inventory.cursor))
+            .flatten()
+            .filter(|v| {
+                matches!(v.source, super::ValueSource::Received { .. })
+                    && v.value != SlotKnowledge::Unavailable
+            })
+        {
+            context.predecessor(value)?;
+        }
+        Some(std::sync::Arc::new(context))
+    } else {
+        None
+    };
+    let return_plan = close::plan(&initial, &screen, item_context.as_deref())?;
     Ok(ContainerCloseRecord {
+        item_context,
         id: ContainerCloseId {
             screen: requested,
             attempt,

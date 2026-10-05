@@ -278,8 +278,14 @@ impl Bot {
             .filter(|w| *w > 0)
             .ok_or_else(|| api::inventory::unavailable("native legacy window unavailable"))?;
         self.close_native_basis(window, &initial).await?;
-        let record = contract::prepare_close(
-            initial,
+        let registries = self
+            .common_receipts
+            .lock()
+            .await
+            .registries
+            .capture(initial.session, initial.receive_sequence);
+        let record = contract::prepare_close_received(
+            (initial, registries),
             captured,
             screen,
             mode,
@@ -345,7 +351,13 @@ impl Bot {
             .as_mut()
             .filter(|r| r.id == id)
             .ok_or_else(|| api::inventory::unavailable("close intent superseded"))?;
-        record.return_received(&current, screen.as_ref());
+        let registries = self
+            .common_receipts
+            .lock()
+            .await
+            .registries
+            .capture(current.session, current.receive_sequence);
+        record.return_received_with_registries(&current, screen.as_ref(), &registries);
         if record.requires_inspection.is_some() {
             return Err(api::inventory::unavailable(
                 "close context changed; retained without replay",
@@ -388,12 +400,18 @@ impl Bot {
                 let _gate = self.coherent_state_gate.lock().await;
                 let (current, screen) = self.close_current(id).await?;
                 self.close_native_basis(window, &current).await?;
+                let registries = self
+                    .common_receipts
+                    .lock()
+                    .await
+                    .registries
+                    .capture(current.session, current.receive_sequence);
                 self.common_container_close
                     .lock()
                     .await
                     .as_mut()
                     .expect("retained")
-                    .begin_return_step(current, screen)?;
+                    .begin_return_step_received(current, screen, registries)?;
                 let action = self
                     .connection
                     .reserve_cursor_return(id.attempt(), number)
@@ -590,7 +608,10 @@ impl Bot {
             .as_ref()
             .map(|s| s.capture(player.session));
         if let Some(r) = self.common_container_close.lock().await.as_mut() {
-            r.return_received(&player, screen.as_ref());
+            let registries = receipts
+                .registries
+                .capture(player.session, player.receive_sequence);
+            r.return_received_with_registries(&player, screen.as_ref(), &registries);
         }
         Ok(())
     }

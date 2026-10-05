@@ -568,6 +568,11 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
             }
             "cursor_return_close" => {
                 let held = wait_pickup(client).await?;
+                let before = client.received_inventory().await?;
+                let original = before
+                    .cursor()
+                    .and_then(|s| s.item())
+                    .context("actual held item missing")?;
                 let InventorySource::Container { screen } = held.source else {
                     anyhow::bail!("cursor return requires original storage opening")
                 };
@@ -608,7 +613,30 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                         .is_some_and(|c| c.value == SlotKnowledge::Empty),
                     "actual cursor did not empty"
                 );
-                emit(&command, close)?;
+                let after = client.received_inventory().await?;
+                for step in &close.return_steps {
+                    let mapping = step
+                        .initial_screen
+                        .as_ref()
+                        .and_then(|s| s.layout.as_ref())
+                        .and_then(|l| {
+                            l.player_slots
+                                .iter()
+                                .find(|m| m.screen_slot == usize::from(step.source_slot))
+                        })
+                        .context("native cursor return mapping missing")?;
+                    let actual = after
+                        .slot(mapping.player_slot)?
+                        .and_then(|s| s.item())
+                        .context("native returned item missing")?;
+                    anyhow::ensure!(
+                        original.native_data_equivalent(&actual)?,
+                        "cursor return changed native data fields"
+                    );
+                }
+                let mut diagnostic = serde_json::to_value(close)?;
+                diagnostic["native_data_equivalent"] = serde_json::json!(true);
+                emit(&command, diagnostic)?;
             }
             "cursor_close_audit_forced" => {
                 let screen = tokio::time::timeout(Duration::from_secs(10), async {

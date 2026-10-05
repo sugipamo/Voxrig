@@ -123,7 +123,7 @@ pub(crate) struct ItemContext {
     owner: Arc<ServerRegistryObservation>,
 }
 impl ItemContext {
-    pub(super) fn new(
+    pub(crate) fn new(
         owner: ServerRegistryObservation,
         initial: &PlayerObservation,
     ) -> Result<Self> {
@@ -138,7 +138,7 @@ impl ItemContext {
             owner: Arc::new(owner),
         })
     }
-    pub(super) fn predecessor(&self, value: &ObservedValue<SlotKnowledge>) -> Result<()> {
+    pub(crate) fn predecessor(&self, value: &ObservedValue<SlotKnowledge>) -> Result<()> {
         if !matches!(value.source, ValueSource::Received { sequence } if sequence <= self.owner.receive_sequence() && sequence >= self.owner.stamp().configuration_generation)
         {
             return Err(unavailable(
@@ -151,10 +151,18 @@ impl ItemContext {
     pub(super) fn key(&self, value: &SlotKnowledge) -> Result<Stack> {
         Stack::read(value, &self.owner)
     }
-    pub(super) fn same_data(&self, a: &ItemStack, b: &ItemStack) -> Result<bool> {
+    pub(crate) fn same_data(&self, a: &ItemStack, b: &ItemStack) -> Result<bool> {
         Ok(self
             .key(&SlotKnowledge::Item { item: a.clone() })?
             .same_data(&self.key(&SlotKnowledge::Item { item: b.clone() })?))
+    }
+    pub(crate) fn equivalent_values(
+        &self,
+        a: &SlotKnowledge,
+        b: &SlotKnowledge,
+        shared: bool,
+    ) -> Result<bool> {
+        Ok(self.key(a)?.matches(&self.key(b)?, shared))
     }
     /// Frozen routing profiles remain valid only with the native default equip component.
     pub(super) fn default_transfer_equipment(&self, item: &ItemStack) -> Result<bool> {
@@ -172,7 +180,7 @@ impl ItemContext {
             .value();
         Ok(actual.components.get(&id) == prototype.components.get(&id))
     }
-    pub(super) fn classify(
+    pub(crate) fn classify(
         &self,
         actual: &ObservedValue<SlotKnowledge>,
         before: &ObservedValue<SlotKnowledge>,

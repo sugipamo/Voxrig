@@ -40,6 +40,7 @@ fn known(value: Option<&ObservedValue<SlotKnowledge>>) -> Option<&ObservedValue<
 pub(super) fn plan(
     initial: &PlayerObservation,
     screen: &ContainerScreen,
+    context: Option<&inventory::ItemContext>,
 ) -> crate::Result<Vec<CursorReturnPlanStep>> {
     let cursor = known(initial.inventory.cursor.as_ref())
         .ok_or_else(|| inventory::unavailable("close requires actual known cursor"))?;
@@ -105,30 +106,48 @@ pub(super) fn plan(
             let suitable = match &source.value {
                 SlotKnowledge::Empty => empty,
                 SlotKnowledge::Item { item } => {
-                    !empty
-                        && item.id == carried.id
-                        && item.name == carried.name
-                        && item.data == carried.data
-                        && slot_policy::default_item_capacity(
+                    let same = if let Some(context) = context {
+                        context.same_data(item, carried)?
+                    } else {
+                        item.id == carried.id
+                            && item.name == carried.name
+                            && item.data == carried.data
+                    };
+                    let capacity = if context.is_some() {
+                        u32::try_from(item.properties()?.max_stack_size).ok()
+                    } else {
+                        slot_policy::default_item_capacity(
                             initial.session.version,
                             item.id.value(),
                             &item.name,
                         )
-                        .is_some_and(|max| item.count < max)
+                    };
+                    !empty && same && capacity.is_some_and(|max| item.count < max)
                 }
                 _ => false,
             };
             if !suitable {
                 continue;
             }
-            let (after, cursor_after) = slot_policy::pickup(
-                initial.session.version,
-                menu,
-                mapping.screen_slot,
-                InventoryClickButton::Left,
-                &source.value,
-                &remaining,
-            )?;
+            let (after, cursor_after) = if let Some(context) = context {
+                slot_policy::pickup_with_data(
+                    initial.session.version,
+                    menu,
+                    mapping.screen_slot,
+                    InventoryClickButton::Left,
+                    (&source.value, &remaining),
+                    context,
+                )?
+            } else {
+                slot_policy::pickup(
+                    initial.session.version,
+                    menu,
+                    mapping.screen_slot,
+                    InventoryClickButton::Left,
+                    &source.value,
+                    &remaining,
+                )?
+            };
             if cursor_after == remaining {
                 continue;
             }
@@ -160,12 +179,29 @@ impl ContainerCloseRecord {
                 .iter()
                 .all(|s| s.stage == InventoryClickStage::ObservedClicked)
     }
+    #[cfg(test)]
     pub(crate) fn begin_return_step(
+        &mut self,
+        current: PlayerObservation,
+        screen: ContainerScreen,
+    ) -> crate::Result<()> {
+        self.begin_return_step_inner(current, screen, None)
+    }
+    pub(crate) fn begin_return_step_received(
+        &mut self,
+        current: PlayerObservation,
+        screen: ContainerScreen,
+        registries: crate::client::registry::ServerRegistryObservation,
+    ) -> crate::Result<()> {
+        self.begin_return_step_inner(current, screen, Some(registries))
+    }
+    fn begin_return_step_inner(
         &mut self,
         mut current: PlayerObservation,
         screen: ContainerScreen,
+        registries: Option<crate::client::registry::ServerRegistryObservation>,
     ) -> crate::Result<()> {
-        self.return_received(&current, Some(&screen));
+        self.return_received_inner(&current, Some(&screen), registries.as_ref());
         if self.requires_inspection.is_some()
             || self
                 .return_steps
@@ -184,23 +220,57 @@ impl ContainerCloseRecord {
         // This internal preparation excludes only its own retained close marker;
         // outer adapters hold the exclusive parent and reject other mutations.
         current.pending_dispatch = false;
-        let mut step = click::prepare(
-            current,
-            self.mode,
-            InventoryClickSource::Container {
-                screen: self.id.screen(),
-            },
-            plan.screen_slot,
-            InventoryClickButton::Left,
-            index as u64 + 1,
-            Some(screen),
-        )?;
+        let mut step = if let Some(registries) = registries {
+            click::prepare_received(
+                (current, registries),
+                self.mode,
+                InventoryClickSource::Container {
+                    screen: self.id.screen(),
+                },
+                plan.screen_slot,
+                InventoryClickButton::Left,
+                index as u64 + 1,
+                Some(screen),
+            )?
+        } else {
+            click::prepare(
+                current,
+                self.mode,
+                InventoryClickSource::Container {
+                    screen: self.id.screen(),
+                },
+                plan.screen_slot,
+                InventoryClickButton::Left,
+                index as u64 + 1,
+                Some(screen),
+            )?
+        };
         step.bind_close(self.id);
-        if step.source_before.value != plan.source_before.value
-            || step.cursor_before.value != plan.cursor_prediction_before.value
-            || step.prediction.source.value != plan.source_prediction.value
-            || step.prediction.cursor.value != plan.cursor_prediction_after.value
-        {
+        let matches = if let Some(context) = &self.item_context {
+            context.equivalent_values(
+                &step.source_before.value,
+                &plan.source_before.value,
+                step.source_before.source == plan.source_before.source,
+            )? && context.equivalent_values(
+                &step.cursor_before.value,
+                &plan.cursor_prediction_before.value,
+                false,
+            )? && context.equivalent_values(
+                &step.prediction.source.value,
+                &plan.source_prediction.value,
+                false,
+            )? && context.equivalent_values(
+                &step.prediction.cursor.value,
+                &plan.cursor_prediction_after.value,
+                false,
+            )?
+        } else {
+            step.source_before.value == plan.source_before.value
+                && step.cursor_before.value == plan.cursor_prediction_before.value
+                && step.prediction.source.value == plan.source_prediction.value
+                && step.prediction.cursor.value == plan.cursor_prediction_after.value
+        };
+        if !matches {
             return Err(inventory::unavailable(
                 "close return actual predecessor no longer matches retained plan",
             ));
@@ -220,10 +290,27 @@ impl ContainerCloseRecord {
             step.legacy_reply.get_or_insert(reply);
         }
     }
+    #[cfg(test)]
     pub(crate) fn return_received(
         &mut self,
         current: &PlayerObservation,
         screen: Option<&ContainerScreen>,
+    ) {
+        self.return_received_inner(current, screen, None)
+    }
+    pub(crate) fn return_received_with_registries(
+        &mut self,
+        current: &PlayerObservation,
+        screen: Option<&ContainerScreen>,
+        registries: &crate::client::registry::ServerRegistryObservation,
+    ) {
+        self.return_received_inner(current, screen, Some(registries))
+    }
+    fn return_received_inner(
+        &mut self,
+        current: &PlayerObservation,
+        screen: Option<&ContainerScreen>,
+        registries: Option<&crate::client::registry::ServerRegistryObservation>,
     ) {
         if !matches!(
             self.stage,
@@ -231,11 +318,20 @@ impl ContainerCloseRecord {
         ) {
             return;
         }
+        if self.item_context.is_some()
+            && registries.is_none_or(|r| {
+                r.session() != current.session || r.receive_sequence() != current.receive_sequence
+            })
+        {
+            self.inspection("close return registry capture disagrees with actual inventory");
+            return;
+        }
         self.context_received(
             current.session,
             current.game_mode,
             screen.map(|s| s.id),
             current.inventory.cursor.as_ref(),
+            registries,
         );
         if self.requires_inspection.is_some() || self.return_plan.is_empty() {
             return;
@@ -284,9 +380,25 @@ impl ContainerCloseRecord {
             let active_after = latest
                 .filter(|s| s.unresolved())
                 .map(|s| &s.prediction.source.value);
-            if actual.is_none_or(|v| {
-                &v.value != expected && active_after.is_none_or(|after| &v.value != after)
-            }) {
+            let matches = actual.is_some_and(|v| {
+                if let Some(context) = &self.item_context {
+                    registries
+                        .filter(|r| {
+                            r.session() == current.session
+                                && r.receive_sequence() == current.receive_sequence
+                        })
+                        .and_then(|r| context.classify(v, before, expected, r).ok())
+                        .is_some_and(|(same, after)| after || (expected == &before.value && same))
+                        || active_after.is_some_and(|after| {
+                            registries
+                                .and_then(|r| context.classify(v, before, after, r).ok())
+                                .is_some_and(|(_, after)| after)
+                        })
+                } else {
+                    &v.value == expected || active_after.is_some_and(|after| &v.value == after)
+                }
+            });
+            if !matches {
                 self.inspection("close return known source/destination/unaffected slot changed");
                 return;
             }
@@ -298,9 +410,19 @@ impl ContainerCloseRecord {
                 continue;
             }
             if let Some(before) = known(before.as_ref()) {
-                if known(current.inventory.slots.get(index).and_then(Option::as_ref))
-                    .is_none_or(|actual| actual.value != before.value)
-                {
+                let same = known(current.inventory.slots.get(index).and_then(Option::as_ref))
+                    .is_some_and(|actual| {
+                        if let Some(context) = &self.item_context {
+                            registries
+                                .and_then(|r| {
+                                    context.classify(actual, before, &before.value, r).ok()
+                                })
+                                .is_some_and(|(same, _)| same)
+                        } else {
+                            actual.value == before.value
+                        }
+                    });
+                if !same {
                     self.inspection("close return unaffected player equipment/offhand changed");
                     return;
                 }
@@ -317,7 +439,11 @@ impl ContainerCloseRecord {
             }
         }
         if let Some(step) = self.return_steps.last_mut().filter(|s| s.unresolved()) {
-            click::receive(step, current, Some(screen));
+            if let Some(registries) = registries {
+                click::receive_with_registries(step, current, Some(screen), registries);
+            } else {
+                click::receive(step, current, Some(screen));
+            }
             if let Some(reason) = step.requires_inspection.clone() {
                 self.inspection(reason);
             } else if step.ready() {
@@ -325,10 +451,39 @@ impl ContainerCloseRecord {
             }
         }
     }
-    pub(super) fn valid_cursor(&self, cursor: Option<&ObservedValue<SlotKnowledge>>) -> bool {
+    pub(super) fn valid_cursor(
+        &self,
+        cursor: Option<&ObservedValue<SlotKnowledge>>,
+        registries: Option<&crate::client::registry::ServerRegistryObservation>,
+    ) -> bool {
         let Some(cursor) = known(cursor) else {
             return false;
         };
+        if let Some(context) = &self.item_context {
+            let Some(registries) = registries else {
+                return false;
+            };
+            if let Some(step) = self.return_steps.last() {
+                return context
+                    .classify(
+                        cursor,
+                        &step.cursor_before,
+                        &step.prediction.cursor.value,
+                        registries,
+                    )
+                    .is_ok_and(|(before, after)| after || (step.unresolved() && before));
+            }
+            return self
+                .initial
+                .inventory
+                .cursor
+                .as_ref()
+                .is_some_and(|before| {
+                    context
+                        .classify(cursor, before, &before.value, registries)
+                        .is_ok_and(|(same, _)| same)
+                });
+        }
         if let Some(step) = self.return_steps.last() {
             cursor.value == step.prediction.cursor.value
                 || (step.unresolved() && cursor.value == step.cursor_before.value)
@@ -490,17 +645,17 @@ mod tests {
                 screen.slots[mapping.screen_slot] = None;
                 current.inventory.slots[mapping.player_slot] = None;
             }
-            assert!(plan(&current, &screen).is_err());
+            assert!(plan(&current, &screen, None).is_err());
             screen.slots[28] = Some(received(SlotKnowledge::Empty, 10));
             current.inventory.slots[10] = screen.slots[28].clone();
-            assert_eq!(plan(&current, &screen).unwrap().len(), 1);
+            assert_eq!(plan(&current, &screen, None).unwrap().len(), 1);
         }
         let version = MinecraftVersion::Java1_21_11;
         let (mut current, mut screen) = fixture(version, GameMode::Creative);
         current.inventory.cursor = Some(received(item(version, "bundle", 1), 10));
         screen.slots[27] = Some(received(item(version, "bundle", 1), 10));
         current.inventory.slots[9] = screen.slots[27].clone();
-        let plan = plan(&current, &screen).unwrap();
+        let plan = plan(&current, &screen, None).unwrap();
         assert_eq!(plan.len(), 1);
         assert_eq!(plan[0].screen_slot, 28);
     }

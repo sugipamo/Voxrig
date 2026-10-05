@@ -1273,3 +1273,46 @@ pub(crate) async fn common_data_transfer_complete_scenario(
     );
     record
 }
+
+pub(crate) async fn common_data_cursor_close_complete_scenario(
+    client: &Client,
+    complete: &container::ContainerCloseRecord,
+    before: &ReceivedInventory,
+    expected: &[(usize, u32)],
+) {
+    assert!(complete.dispatched && complete.requires_inspection.is_none());
+    let original = before.cursor().unwrap().item().unwrap();
+    let actual = client.received_inventory().await.unwrap();
+    assert_eq!(*actual.cursor().unwrap().value(), SlotKnowledge::Empty);
+    for &(index, count) in expected {
+        let slot = actual.slot(index).unwrap().unwrap();
+        let item = slot.item().unwrap();
+        assert_eq!(item.stack().count, count);
+        assert!(original.native_data_equivalent(&item).unwrap());
+        let step = complete
+            .return_steps
+            .iter()
+            .find(|s| {
+                s.initial_screen
+                    .as_ref()
+                    .unwrap()
+                    .layout
+                    .as_ref()
+                    .unwrap()
+                    .player_slots
+                    .iter()
+                    .any(|m| m.player_slot == index && m.screen_slot == usize::from(s.source_slot))
+            })
+            .unwrap();
+        assert_eq!(step.stage, inventory::InventoryClickStage::ObservedClicked);
+        for receipt in [
+            step.source_receipt.as_ref().unwrap(),
+            step.cursor_receipt.as_ref().unwrap(),
+        ] {
+            assert!(
+                matches!(receipt.source, ValueSource::Received {sequence} if sequence > step.send.after_sequence)
+            );
+        }
+        assert_eq!(*slot.value(), step.source_receipt.as_ref().unwrap().value);
+    }
+}
