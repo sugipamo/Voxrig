@@ -3,6 +3,9 @@
 Client共通化ブランチでは`Client::survival()` / `Client::creative()`を両版の共通入口とします。
 共通型・受信/予測を区別したcapture・版別registryと移行変更は
 [Client共通化](client-unification.md)を参照してください。
+`Client::revoke_connection()`は両版の元transportと全cloneを同期で不可逆に遮断します。
+共通`ConnectionRevocation`は版／connection IDのローカルな遮断事実で、通常のdisconnect完了や
+送信取消成功の証明ではありません。[共通緊急遮断](common-connection-revocation.md)を参照してください。
 共通の`Survival::target_block` / `Creative::target_block`は限定dry standingから最初のstatic outlineとcaptureを読出します。
 両版の7種類・全102storage state（chestのinset等）も公式JARから取得した形状で扱います。
 queryを採掘/設置の実行許可にしません。[狙い判定の範囲・検証](common-survival-targeting.md)を参照してください。

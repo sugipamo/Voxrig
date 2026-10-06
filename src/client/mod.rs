@@ -19,6 +19,8 @@ mod item;
 pub(crate) mod item_components;
 pub(crate) mod item_constructor;
 pub(crate) mod item_semantics;
+mod lifecycle;
+pub use lifecycle::ConnectionRevocation;
 pub(crate) mod login;
 pub use furnace::{FurnaceObservation, FurnaceSlot};
 pub mod manager;
@@ -107,17 +109,17 @@ pub mod prelude {
     };
     pub use super::{
         Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,
-        CraftingGridReturnPlan, CraftingGridReturnStep, CraftingGridUnreturnedSplit,
-        CraftingSource, CraftingTakeId, CraftingTakeRecord, CraftingTakeStage, Creative,
-        DismountId, DismountRecord, DismountStage, EntityId, EntitySpawn, EntitySpawns, Feature,
-        FlightCommand, FlightLanding, FlightRecord, FlightStage, FurnaceObservation, FurnaceSlot,
-        GameMode, ItemComponent, ItemComponentPatch, ItemData, ItemProperties, ItemStack, MountId,
-        PlayerObservation, ReceivedCrafting, ReceivedCraftingContext, ReceivedInventory,
-        ReceivedItem, ReceivedRecipe, ReceivedRecipes, ReceivedSlot, RecipeBookMaterials,
-        RecipeBookStock, RecipeCraftingCell, RecipeCraftingLayout, RecipeDisplay, RecipeId,
-        RecipeIngredient, RecipePlacementAmount, RecipePlacementPlan, RecipeSlotDisplay,
-        RecipeTrimDefinition, RecipeTrimPattern, Server, Support, Survival, VehicleObservation,
-        VehicleRelation,
+        ConnectionRevocation, CraftingGridReturnPlan, CraftingGridReturnStep,
+        CraftingGridUnreturnedSplit, CraftingSource, CraftingTakeId, CraftingTakeRecord,
+        CraftingTakeStage, Creative, DismountId, DismountRecord, DismountStage, EntityId,
+        EntitySpawn, EntitySpawns, Feature, FlightCommand, FlightLanding, FlightRecord,
+        FlightStage, FurnaceObservation, FurnaceSlot, GameMode, ItemComponent, ItemComponentPatch,
+        ItemData, ItemProperties, ItemStack, MountId, PlayerObservation, ReceivedCrafting,
+        ReceivedCraftingContext, ReceivedInventory, ReceivedItem, ReceivedRecipe, ReceivedRecipes,
+        ReceivedSlot, RecipeBookMaterials, RecipeBookStock, RecipeCraftingCell,
+        RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient, RecipePlacementAmount,
+        RecipePlacementPlan, RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern, Server,
+        Support, Survival, VehicleObservation, VehicleRelation,
     };
     pub use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Region, Result};
 }

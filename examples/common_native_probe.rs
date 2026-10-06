@@ -28,6 +28,37 @@ async fn wait_player(
     })
     .await?
 }
+
+async fn connection_revocation_probe(client: &Client) -> anyhow::Result<()> {
+    let baseline = wait_player(client, |p| {
+        p.game_mode == Some(GameMode::Creative) && p.received_pose.is_some()
+    })
+    .await?;
+    let clone = client.clone();
+    let selection = client.creative().select_hotbar(0).await?;
+    emit(
+        "b5_revocation_ready",
+        serde_json::json!({"session":baseline.session,"selection":selection}),
+    )?;
+    let mut commands = BufReader::new(tokio::io::stdin()).lines();
+    anyhow::ensure!(commands.next_line().await?.as_deref() == Some("b5_revoke"));
+    let receipt = client.revoke_connection();
+    anyhow::ensure!(receipt.version() == baseline.session.version);
+    anyhow::ensure!(receipt.connection_id() == baseline.session.connection_id);
+    anyhow::ensure!(clone.revoke_connection() == receipt);
+    let original_error = client.creative().select_hotbar(1).await.unwrap_err();
+    let clone_error = clone.creative().select_hotbar(2).await.unwrap_err();
+    emit(
+        "b5_revoke",
+        serde_json::json!({"receipt":receipt,"original_rejected":format!("{:?}",original_error.kind()),"clone_rejected":format!("{:?}",clone_error.kind())}),
+    )?;
+    // Keep both Client handles alive while the controller observes peer closure.
+    anyhow::ensure!(commands.next_line().await?.as_deref() == Some("b5_revocation_observed"));
+    anyhow::ensure!(clone.revoke_connection() == receipt);
+    anyhow::ensure!(client.creative().select_hotbar(3).await.is_err());
+    emit("b5_revocation_observed", receipt)?;
+    Ok(())
+}
 async fn wait_block(client: &Client, position: [i32; 3], name: &str) -> anyhow::Result<()> {
     tokio::time::timeout(Duration::from_secs(10), async {
         loop {
@@ -4604,6 +4635,9 @@ async fn main() -> anyhow::Result<()> {
         Client::connect(config.clone()).await?
     };
     client.wait_until_ready().await?;
+    if scenario.as_deref() == Some("connection-revocation") {
+        return connection_revocation_probe(&client).await;
+    }
     if scenario.as_deref() == Some("recording-scene") {
         return recording_scene_probe(&client).await;
     }

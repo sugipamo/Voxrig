@@ -1,6 +1,25 @@
 use super::*;
 use crate::MinecraftVersion;
 
+/// The same synchronous consumer must work even when capture/writer locks are held.
+pub(crate) fn common_revocation_scenario(
+    client: &Client,
+    version: MinecraftVersion,
+    connection_id: u64,
+) -> ConnectionRevocation {
+    let clone = client.clone();
+    let revoked = client.revoke_connection();
+    assert_eq!(revoked.version(), version);
+    assert_eq!(revoked.connection_id(), connection_id);
+    assert_eq!(clone.revoke_connection(), revoked);
+    assert_eq!(client.revoke_connection(), revoked);
+    assert_eq!(
+        serde_json::to_value(revoked).unwrap()["connection_id"],
+        connection_id
+    );
+    revoked
+}
+
 /// One version-independent consumer of exact received item data.
 pub(crate) async fn common_item_data_scenario(
     client: &Client,

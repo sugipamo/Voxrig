@@ -205,7 +205,7 @@ async fn fixture() -> (Arc<Session>, OwnedReadHalf, TcpStream) {
     let (peer, _) = listener.accept().await.unwrap();
     let (reader, writer) = client.into_split();
     let session = Arc::new(Session {
-        id: 42,
+        id: crate::connection::next_connection_id(),
         started: Instant::now(),
         writer: Mutex::new(Writer {
             stream: writer,
@@ -215,6 +215,9 @@ async fn fixture() -> (Arc<Session>, OwnedReadHalf, TcpStream) {
         changed: Notify::new(),
         cancel: Notify::new(),
         stopped: AtomicBool::new(false),
+        revoked: AtomicBool::new(false),
+        receiver_abort: std::sync::OnceLock::new(),
+        runtime: tokio::runtime::Handle::current(),
         interrupted_packet: AtomicI32::new(-1),
         limits: crate::client::ClientLimits::default(),
         interaction_sequence: AtomicI32::new(0),
@@ -228,6 +231,95 @@ async fn pending<F: Future>(mut future: Pin<&mut F>) {
         Poll::Ready(())
     })
     .await;
+}
+
+#[tokio::test]
+async fn common_revocation_fences_clones_with_capture_and_writer_locked() {
+    let (session, reader, mut peer) = fixture().await;
+    let api = operations(&session);
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let capture = session.state.lock().await;
+    let writer = session.writer.lock().await;
+    let receiving = session.clone();
+    let receiver = tokio::spawn(async move { receiving.run_receiver(reader).await });
+    session.receiver_abort.set(receiver.abort_handle()).unwrap();
+    let mut queued = Vec::new();
+    for _ in 0..32 {
+        let mut sender = Box::pin(session.send(9, &[1]));
+        pending(sender.as_mut()).await;
+        queued.push(sender);
+    }
+    // Invoke outside the runtime with the immutable actual connection identity.
+    let outside = client.clone();
+    let connection_id = session.id;
+    std::thread::spawn(move || {
+        crate::client::tests::common_revocation_scenario(
+            &outside,
+            MinecraftVersion::Java1_21_11,
+            connection_id,
+        )
+    })
+    .join()
+    .unwrap();
+    for sender in queued {
+        assert_eq!(
+            timeout(Duration::from_secs(1), sender)
+                .await
+                .unwrap()
+                .unwrap_err()
+                .kind(),
+            ErrorKind::Disconnected
+        );
+    }
+    assert_eq!(session.interrupted_packet.load(Ordering::Acquire), -1);
+    assert!(
+        timeout(Duration::from_secs(1), receiver)
+            .await
+            .unwrap()
+            .unwrap_err()
+            .is_cancelled()
+    );
+    drop(capture);
+    drop(writer);
+    assert!(client.survival().select_hotbar(0).await.is_err());
+    assert!(
+        timeout(Duration::from_secs(1), peer.read_u8())
+            .await
+            .unwrap()
+            .is_err()
+    );
+    assert!(api.operation_history().await.connection_closed);
+}
+
+#[tokio::test]
+async fn common_revocation_keeps_partial_write_unknown_and_other_connection_live() {
+    let (session, _reader, _peer) = fixture().await;
+    let api = operations(&session);
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let (other, _reader, mut peer) = fixture().await;
+    let other_client = crate::Client::from_java_1_21_11(operations(&other).bot);
+    assert_ne!(session.id, other.id);
+    let (mut limited, mut prefix) = tokio::io::duplex(1);
+    let mut attempt = Box::pin(session.write_frame(&mut limited, None, 9, &[0; 100]));
+    pending(attempt.as_mut()).await;
+    crate::client::tests::common_revocation_scenario(
+        &client,
+        MinecraftVersion::Java1_21_11,
+        session.id,
+    );
+    assert_eq!(
+        attempt.await.unwrap_err().kind(),
+        ErrorKind::UncertainDispatch
+    );
+    assert_eq!(prefix.read_u8().await.unwrap(), 101);
+    assert_eq!(api.operation_history().await.interrupted_packet_id, Some(9));
+    assert_eq!(
+        session.send(10, &[2]).await.unwrap_err().kind(),
+        ErrorKind::UncertainDispatch
+    );
+    other.send(11, &[3]).await.unwrap();
+    assert_eq!(read_packet(&mut peer, None).await.unwrap(), (11, vec![3]));
+    assert_ne!(other_client.revoke_connection(), client.revoke_connection());
 }
 
 fn operations(session: &Arc<Session>) -> operations::Operations {

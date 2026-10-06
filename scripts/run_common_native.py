@@ -455,7 +455,7 @@ def outer_snbt_compounds(response):
 
 
 def stage(probe, messages, name, records, timeout=30, poll=None):
-    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready", "a2_ready", "a4_ready", "a4_captured", "a5_ui_ready", "a5_furnace_ready", "a5_vehicle_ready", "b3_terrain_ready"):
+    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready", "a2_ready", "a4_ready", "a4_captured", "a5_ui_ready", "a5_furnace_ready", "a5_vehicle_ready", "b3_terrain_ready", "b5_revocation_ready"):
         probe.stdin.write(name + "\n")
         probe.stdin.flush()
     deadline = time.monotonic() + timeout
@@ -1065,6 +1065,45 @@ def run_equipment_entity(version, env, rcon, trace, report, probe_log, stderr_lo
                 except subprocess.TimeoutExpired: probe.kill(); probe.wait(timeout=5)
 
 
+def run_connection_revocation(version, env, rcon, trace, report, probe_log, stderr_log):
+    """Observe local revocation and actual peer closure while both clones live."""
+    result = report['native_results']['connection_revocation'] = {'records':[]}
+    probe = subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')], cwd=REPO,
+        env=dict(env, VOXRIG_NATIVE_SCENARIO='connection-revocation'), stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+    messages = queue.Queue()
+    reader = threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True)
+    reader.start()
+    try:
+        ready = stage(probe,messages,'b5_revocation_ready',result['records'])['value']
+        result['native_player_before'] = until(lambda: matched(rcon.command('list'), 'UnifiedProbe'))
+        selected_id = 0x24 if version == '1.16.1' else 0x34
+        def selections():
+            return [f for f in trace.frames if f['phase']=='play' and f['direction']=='serverbound' and f['packet_id']==selected_id]
+        until(lambda:selections())
+        revoked = stage(probe,messages,'b5_revoke',result['records'])['value']
+        if revoked['receipt']['connection_id'] != ready['session']['connection_id'] or revoked['receipt']['version'] != ready['session']['version']:
+            raise RuntimeError('revocation identity differs from actual baseline')
+        def absent():
+            value=rcon.command('list')
+            return value if 'UnifiedProbe' not in value else None
+        result['native_player_after'] = until(absent)
+        result['terminal_events'] = until(lambda:[e for e in trace.terminal_events if e['direction']=='serverbound' and e['kind']=='clean_eof'])
+        stage(probe,messages,'b5_revocation_observed',result['records'])
+        if len(selections()) != 1:
+            raise RuntimeError('revoked original/clone hotbar selections reached server')
+        result['selection_frame'] = selections()[0]
+        if probe.wait(timeout=15) != 0:
+            raise RuntimeError('common revocation consumer failed')
+        result['authority_limits']='Local irreversible fencing is distinct from observed peer EOF/player absence in this run. No general guarantee of transport closure, cancellation of prior effects or server stillness. Capture/writer stalls and partial writes are checked separately in TCP/stream fixtures.'
+        result['result']='passed'
+    finally:
+        if probe.poll() is None:
+            probe.terminate()
+            try: probe.wait(timeout=10)
+            except subprocess.TimeoutExpired: probe.kill(); probe.wait(timeout=5)
+
+
 def run_mining_recovery(version, env, rcon, trace, report, probe_log, stderr_log, case, tool_case=None):
     """A3: original mining -> explicit fresh admission -> actual placement.
     After the initial fixture, every RCON operation is read-only.
@@ -1401,6 +1440,10 @@ network-compression-threshold=256
         for check in ["execute if block 0 65 1 minecraft:stone", "execute if block 1 65 0 minecraft:air"]:
             report.setdefault("fixture_verification", {})[check] = until(lambda: matched(rcon.command(check), "Test passed"))
         env = dict(os.environ, VOXRIG_MINECRAFT_VERSION=version, VOXRIG_PORT=str(trace.port))
+        if scenario == "connection-revocation":
+            run_connection_revocation(version,env,rcon,trace,report,probe_log,stderr_log)
+            report["scenario_result"]="passed"
+            return retained
         if scenario in ("dry-terrain", "creative-flight", "creative-landing"):
             run_dry_terrain(version,env,rcon,trace,report,probe_log,stderr_log,flight=scenario in ("creative-flight","creative-landing"),landing=scenario=="creative-landing")
             report["scenario_result"]="passed"
@@ -2484,7 +2527,7 @@ def main():
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--accept-eula", action="store_true")
     parser.add_argument("--runtime-dir", type=Path, help="Optional disposable runtime parent, e.g. /dev/shm for isolating disk I/O; reports are exported to .local after JVM exit")
-    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "mining-tools", "recording-scene", "manager-ui", "furnace", "vehicle", "dry-terrain", "creative-flight", "creative-landing"), default="full", help="Run the operation corpus or a focused common Client workflow")
+    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "mining-tools", "connection-revocation", "recording-scene", "manager-ui", "furnace", "vehicle", "dry-terrain", "creative-flight", "creative-landing"), default="full", help="Run the operation corpus or a focused common Client workflow")
     args = parser.parse_args()
     if bool(args.version) == args.all:
         parser.error("select exactly one of --version / --all")

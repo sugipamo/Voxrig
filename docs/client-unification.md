@@ -67,6 +67,15 @@
   enchantment／custom tool／effect／別姿勢、広い移動・採掘・設置は引き続きB3へ残す。
   詳細は[共通採掘](common-survival-mining.md)。B4〜B6とA6も継続する。
 
+- B5の一部完了: `Client::revoke_connection()`を両版へ接続した。
+  観測capture・writer・通常のdisconnect cleanupを待たず、元transportと全cloneを不可逆に遮断する。
+  旧版のnative generation fenceと、新版のpartial-write uncertaintyを維持する。
+  同じconsumerで実接続→通常選択→遮断→元Client／cloneの追加操作拒否を両版で確認し、
+  両handleを保持したままnative playerの不在とproxy EOFを独立観測した。
+  ロック待ち・別OS thread・32送信待ち・partial prefixと別接続の分離は軽量試験で確認する。
+  広いcontext／記録／再構成／復旧と各履歴取得経路は継続する。
+  詳細は[共通緊急遮断](common-connection-revocation.md)。B3／B4／B6とA6も残る。
+
 ## 選択と公開入口
 
 通常の利用側は`voxrig::client::prelude::*`を使う。

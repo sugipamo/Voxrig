@@ -9608,6 +9608,60 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn common_revocation_fences_clones_with_capture_and_writer_locked() {
+        let (bot, mut packets, release, server) = operation_test_bot(0x7fff, 0, vec![]).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let connection_id = client.player_state().await.unwrap().session.connection_id;
+        let capture = bot.coherent_state_gate.lock().await;
+        let writer = bot.writer.lock().await;
+        let mut queued = Vec::new();
+        for _ in 0..32 {
+            let sender = bot.clone();
+            queued.push(tokio::spawn(async move {
+                sender.send_protocol(0x10, &[1]).await
+            }));
+        }
+        tokio::task::yield_now().await;
+        let outside = client.clone();
+        let revoked = std::thread::spawn(move || {
+            crate::client::tests::common_revocation_scenario(
+                &outside,
+                crate::MinecraftVersion::Java1_16_1,
+                connection_id,
+            )
+        })
+        .join()
+        .unwrap();
+        assert_eq!(revoked.connection_id(), bot.connection_generation().get());
+        assert!(bot.is_stopped());
+        assert_eq!(
+            bot.connection_state(),
+            ConnectionState::ConnectionStateUnknown
+        );
+        for sender in queued {
+            assert!(
+                timeout(Duration::from_secs(1), sender)
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .is_err()
+            );
+        }
+        // Both locks remain owned until after all queued sends have failed.
+        drop(capture);
+        drop(writer);
+        assert!(client.survival().select_hotbar(0).await.is_err());
+        drop(release);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+        while let Some((id, _)) = packets.recv().await {
+            assert_ne!(id, 0x10, "revoked queued frame reached the peer");
+        }
+    }
+
+    #[tokio::test]
     async fn server_slot_event_retains_the_revision_at_application() {
         let (bot, _packets, release, server) =
             operation_test_bot(0x2c, 0x16, vec![0, 0, 36, 0]).await;

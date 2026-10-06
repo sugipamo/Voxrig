@@ -573,3 +573,18 @@ local model ticksを実server tickや完了ACK、drop保証として扱わない
 受信target airの後に届く道具の耐久値更新は除去履歴を消さず、先に届いた道具交換やcontext異常は保持する。
 元接続のmutationは解放せず、明示的fresh recoveryを要求する。
 [入力と結果](evidence/common-mining-tools-20261006.json)／[共通採掘](common-survival-mining.md)を参照。
+
+## B5: 共通Clientの緊急遮断（2026-10-06）
+
+```bash
+CARGO_INCREMENTAL=0 python3 scripts/run_common_native.py --all --scenario connection-revocation --accept-eula
+```
+
+同じconsumerで実Clientへ接続し、通常のhotbar選択を一回送信した後に同期で遮断する。
+元Clientとcloneの追加選択は拒否する。両handleを保持したままRCONのplayer不在とproxy EOFを確認し、
+元の一回以外の選択frameが送信されていないことを照合する。fixture後のRCONは読み取りのみ。
+成功runは`trial-1.16.1-5a4b4868`／`trial-1.21.11-cf6a85c5`。
+同じ427 source/data入力とconsumer binary、両JVM exit 0、proxy errorなし。
+capture／writer停止・別OS thread・partial write・別接続の分離は軽量試験で補う。
+今回のEOF観測を、任意の遮断におけるtransport終了やserver静止の保証へ一般化しない。
+[契約](common-connection-revocation.md)／[入力と結果](evidence/common-connection-revocation-20261006.json)。

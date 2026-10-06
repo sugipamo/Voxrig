@@ -661,3 +661,12 @@ writer停止中にも元commandとdispatch stageを確認できる。送信途�
 道具の判定には受信block tagsと対象の所属が必要。未知・欠測はvanilla値で補わない。
 modernのnative `MiningIntent`には元`held_stack`と共通採掘の`estimate`も残る。
 共通の送信ID・stage・明示的復旧の使い方は同じで、除去観測後も元接続は再利用しない。
+
+### 緊急遮断
+
+版専用のnative遮断を呼んでいた利用側は`Client::revoke_connection()`を使える。
+返り値は共通`ConnectionRevocation`で、版／connection IDをローカル遮断の対象として保持する。
+同期処理なのでwriterやcaptureの待機に巻き込まれず、全cloneを同じ遮断へ束縛する。
+通常の`disconnect().await`とは完了条件が異なる。遮断を送信取消の成功やtransport終了の証明へ変換せず、
+元操作の配送不明を保持し、新しい接続は既存の明示的な条件で別に作る。
+旧版のnative `GenerationRevocation`も維持する。[共通緊急遮断](common-connection-revocation.md)を参照。

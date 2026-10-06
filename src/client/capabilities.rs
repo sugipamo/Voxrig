@@ -19,6 +19,8 @@ pub enum Support {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Feature {
+    /// Synchronous irreversible transport fencing independent of capture/writer locks.
+    ConnectionRevocation,
     /// Namespaced state and version-bound item lookup.
     Registry,
     /// Region observations, including missing cells.
@@ -94,7 +96,8 @@ impl Capabilities {
     /// Discover implemented semantics. Readiness and permission are checked on each action.
     pub const fn support(self, feature: Feature) -> Support {
         match feature {
-            Feature::Registry
+            Feature::ConnectionRevocation
+            | Feature::Registry
             | Feature::WorldObservation
             | Feature::PlayerObservation
             | Feature::BasicControls => Support::Available,

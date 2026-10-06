@@ -216,6 +216,9 @@ struct Session {
     changed: Notify,
     cancel: Notify,
     stopped: AtomicBool,
+    revoked: AtomicBool,
+    receiver_abort: std::sync::OnceLock<tokio::task::AbortHandle>,
+    runtime: tokio::runtime::Handle,
     interrupted_packet: AtomicI32,
     limits: crate::client::ClientLimits,
     interaction_sequence: AtomicI32,
@@ -447,6 +450,9 @@ impl Bot {
             changed: Notify::new(),
             cancel: Notify::new(),
             stopped: AtomicBool::new(false),
+            revoked: AtomicBool::new(false),
+            receiver_abort: std::sync::OnceLock::new(),
+            runtime: tokio::runtime::Handle::current(),
             interrupted_packet: AtomicI32::new(-1),
             limits: config.limits,
             interaction_sequence: AtomicI32::new(0),
@@ -476,9 +482,11 @@ impl Bot {
             _lease: Arc::new(Lease(Arc::downgrade(&session))),
             session: session.clone(),
         };
-        tokio::spawn(async move {
-            session.run_receiver(reader).await;
+        let receiving = session.clone();
+        let receiver = session.runtime.spawn(async move {
+            receiving.run_receiver(reader).await;
         });
+        let _ = session.receiver_abort.set(receiver.abort_handle());
         Ok(bot)
     }
 
@@ -573,6 +581,9 @@ impl Bot {
         self.session.stop();
         self.session.writer.lock().await.stream.shutdown().await?;
         Ok(())
+    }
+    pub(crate) fn revoke_connection(&self) {
+        self.session.revoke();
     }
 }
 

@@ -792,7 +792,37 @@ impl Client {
         }
     }
 
-    /// Ends the connection. A clone refers to the same session.
+    /// Irreversibly fence this transport without waiting for observation, writer
+    /// admission, pending writes or normal disconnect cleanup. All clones share
+    /// the fence. Native receive tasks are aborted and shutdown is scheduled.
+    ///
+    /// The returned local fact does not certify transport closure or server-side
+    /// stillness. Already admitted writes may have unknown effects. Do not retry
+    /// their commands or reuse this Client; retain diagnostics for inspection.
+    ///
+    /// ```no_run
+    /// use voxrig::client::prelude::*;
+    /// fn quarantine(client: &Client) -> ConnectionRevocation {
+    ///     client.revoke_connection()
+    /// }
+    /// ```
+    #[must_use]
+    pub fn revoke_connection(&self) -> crate::client::ConnectionRevocation {
+        let connection_id = match &self.adapter {
+            Adapter::Java1_16_1(bot) => {
+                let revoked = bot.revoke_connection();
+                revoked.generation().get()
+            }
+            Adapter::Java1_21_11(bot) => {
+                bot.revoke_connection();
+                bot.connection_id()
+            }
+        };
+        crate::client::ConnectionRevocation::new(self.version(), connection_id)
+    }
+
+    /// Ends the connection. A clone refers to the same session. This may wait
+    /// for cleanup or writer shutdown; use `revoke_connection` for local fencing.
     pub async fn disconnect(&self) -> Result<()> {
         match &self.adapter {
             Adapter::Java1_16_1(bot) => bot.disconnect().await,
