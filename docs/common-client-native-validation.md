@@ -616,3 +616,13 @@ writer保持中のcommon revocationによる要求の遮断を確認する。
 ghost／非空cursor結合／shift製作と広いB4は未完了。
 [契約](common-recipes.md#owned-recipe-placement-through-the-common-client)／
 [入力と結果](evidence/common-recipe-placement-20261006.json)。
+
+main `686f414`を取り込んだmerge `291da13`でも同じ16ケースを通した。
+統合後runは`trial-1.16.1-f9cefa8b`／`trial-1.21.11-62556fc0`。
+両版は同じ431入力とbinaryで成功し、JVM exit 0、proxy errorなし。
+固定B4 commitの証拠と統合後の入力を区別し、後者のsource/data hashも証跡へ保持する。
+
+統合後の単体749件、公開API4件、doctest30件は成功（専用環境等の8件ignored）。
+照明／診断／仮想transitionのmain側の追加試験もこの統合suiteへ含める。
+fmt／all-target Clippy／Rust 1.85 all-target check／rustdoc／trace境界／配布allowlist・Cargo package buildも成功。
+配布対象は772ファイルで、利用側logsと私的な`.local`のruntimeを含めない。

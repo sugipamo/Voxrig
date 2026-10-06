@@ -2,24 +2,8 @@
   "schema": 1,
   "date": "2026-10-06",
   "scope": "B4 normal owned common recipe placement followed by explicit result takes, deposits and original table close; not full B4 completion.",
-  "baseline_commit": "cf54bc383eb2a58fc319919621258999154456f3",
+  "baseline_commit": "291da1353e29d7700d08e060a38ef02782d0cd4f",
   "source_inputs": {
-    "src/client/crafting/dispatch.rs": {
-      "sha256": "ef6fa1c6dd7933617ef523f4bcb432601d34544150aee7b3106f3058d52fb0f2",
-      "git_blob": "970f02dc2c8568c07159cbc77dacf2dd5eb3eb2e"
-    },
-    "src/client/crafting/dispatch/tests.rs": {
-      "sha256": "7b11f50276ab3d0ebb4671988533651c6d605ab5aacdc55cfa361b4f246638e4",
-      "git_blob": "f402bbaf1fc173ec740b075b700e5c44f001bc7c"
-    },
-    "src/versions/java_1_16_1/client/common_recipe_placement.rs": {
-      "sha256": "9ddc2e86e6aae728a8f1c168987c78a376dd7101305e86d23550426a448777e7",
-      "git_blob": "425f816912ab419dc4f1c34f1526d417ccf13680"
-    },
-    "src/versions/java_1_21_11/client/operations/inventory/recipe_placement.rs": {
-      "sha256": "b3fccfa9344547b5cbe1a47720bfe6e5d509e0adf1e4cd2c391e79190e10a3c4",
-      "git_blob": "6d7888baeb2a819e8c1499b22b5a7eb502a2855a"
-    },
     "Cargo.lock": {
       "sha256": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
       "git_blob": "387a75effe8252846822cce94772bc92af565ff7"
@@ -868,6 +852,14 @@
       "sha256": "86b6afef435d11b61da9ed8d049aee39361414ff7c7217914f68d15573d63b5e",
       "git_blob": "744ed4476a6b871c4a353e9de654483a0f96bbd2"
     },
+    "src/client/crafting/dispatch.rs": {
+      "sha256": "ef6fa1c6dd7933617ef523f4bcb432601d34544150aee7b3106f3058d52fb0f2",
+      "git_blob": "970f02dc2c8568c07159cbc77dacf2dd5eb3eb2e"
+    },
+    "src/client/crafting/dispatch/tests.rs": {
+      "sha256": "7b11f50276ab3d0ebb4671988533651c6d605ab5aacdc55cfa361b4f246638e4",
+      "git_blob": "f402bbaf1fc173ec740b075b700e5c44f001bc7c"
+    },
     "src/client/crafting/layout.rs": {
       "sha256": "ecba49967d637a5f2482ca56a759201c635e043962106aae9098af0d2c4c4999",
       "git_blob": "5b2d48e7fef811dc210b544e3dae6ec5b7d0cfb5"
@@ -1105,8 +1097,8 @@
       "git_blob": "024403d45f68252ad1c7da611ea652c4be03b2f1"
     },
     "src/client/survival/checked.rs": {
-      "sha256": "7db8111eee69cbb7542d88fca9c60660731418500f2f06d01418dde961da18bc",
-      "git_blob": "497374ea1edeabbc29a8ad9517fe2e7d3b1052b5"
+      "sha256": "7cfbb4e40e5b49592a31cfdd21d3f999cb635172e1bcc4ddf63259ddf79a7f3d",
+      "git_blob": "acdb69a6e0042b8051a3770f295b9b963366a99a"
     },
     "src/client/survival/checked/diagnostic.rs": {
       "sha256": "9e56e3f2f93f81537b1d73ff547e5773de0ff8e93994d087f019c8e68e0300dd",
@@ -1213,8 +1205,8 @@
       "git_blob": "34e1e6cc6b6b47ad537399cfb51f536cc058f06d"
     },
     "src/versions/java_1_16_1/client.rs": {
-      "sha256": "a050636e6f716be6575726f3adcdb53adecf82e5c7f46206330024184201a911",
-      "git_blob": "69f3922032c42809aa234983eae6180aae4ffe6a"
+      "sha256": "1a1fc96c44e0057efe2a17ec2126a2f3d00381475f2da4f9e856c29478ece4ca",
+      "git_blob": "2d8c7b25c7aac295db102620cc9be8ee76c4214a"
     },
     "src/versions/java_1_16_1/client/common_api.rs": {
       "sha256": "3096e0f6f880407fe0039fe243166be5f88a23f4f099dd7c92f923fdbfb94663",
@@ -1252,6 +1244,10 @@
       "sha256": "fce6194a5b8d18d2194672c93fe36354cc1e927d6faa7b1e2940a1970add6566",
       "git_blob": "95ceaa190f527123c5b16efecc54ae717672f677"
     },
+    "src/versions/java_1_16_1/client/common_recipe_placement.rs": {
+      "sha256": "9ddc2e86e6aae728a8f1c168987c78a376dd7101305e86d23550426a448777e7",
+      "git_blob": "425f816912ab419dc4f1c34f1526d417ccf13680"
+    },
     "src/versions/java_1_16_1/client/common_recording.rs": {
       "sha256": "efb1b925646ba389c6261db6f5c1728cb78a3c2bd1c8e8850e746d96f60983ad",
       "git_blob": "1f7a77d3e534d0bc94ab1c294e3470fdc9a8c3bd"
@@ -1273,8 +1269,8 @@
       "git_blob": "1cfa65a4844d2e82b238c7b0052b1f900193708a"
     },
     "src/versions/java_1_16_1/client/packet_fairness_tests.rs": {
-      "sha256": "8d2e7ef00e86e3611bb6e9808ac494cf2909179f2ff11f415ab0abe983510a45",
-      "git_blob": "f2c996d3a98f8dcc5c4715b1a7b01c159e906f64"
+      "sha256": "d6996abef12f9783a8a76030ac97e656e04712f0242b01098f104a02f3b715c0",
+      "git_blob": "2f7c9d6e4528643aec0e6cb3dedb922822f8f7fd"
     },
     "src/versions/java_1_16_1/client/storage_tests.rs": {
       "sha256": "75c07a149cecaac7954abbd217ec9d16d943fe2358348f54b273fd0e349dee41",
@@ -1297,8 +1293,8 @@
       "git_blob": "9df46ac59e7db8cf800e75f0100fb37b616823f7"
     },
     "src/versions/java_1_16_1/lifecycle.rs": {
-      "sha256": "cd42c2533c88fcb73998fd373a5ab2c5e12956274007904adaf51cc4ac37bc6e",
-      "git_blob": "b29a621419e9a573c161a6f95ebb34d6c753f158"
+      "sha256": "fb5001fd1a38890df264b51862e4072700198f5d44515ce02a9cc97818370363",
+      "git_blob": "cf615da6447cd2c46996934b1440011d686b6357"
     },
     "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": {
       "sha256": "1fb3ca8c3200acefb73952d8129fec09095c8aa6d0d6113aca0b7f591244aa75",
@@ -1365,8 +1361,8 @@
       "git_blob": "1317f3cfb33aae8dafebe63d243f207766fc81bf"
     },
     "src/versions/java_1_16_1/world.rs": {
-      "sha256": "d1451ea09a36c27df09b44861bd2ca715f6e61ec08726caa0ccd251f4072f3df",
-      "git_blob": "46d1ba21b702d7d0b1a2a7fbcc74cd57d4fd1ac3"
+      "sha256": "806f18d71674e041bfc286240fc5a4b9e623ccf0083499ac16f28ef062c3cdd3",
+      "git_blob": "725c73ec628fce967b4ce53d9335fd351ff9f75d"
     },
     "src/versions/java_1_21_11/client.rs": {
       "sha256": "09488d4c2f6ae6a1c99fcdc49809686b0b14e0eb32db9c14cc25963ab70d48fc",
@@ -1409,8 +1405,8 @@
       "git_blob": "9648c488bab95cf91f1743a81732476fdf5cf967"
     },
     "src/versions/java_1_21_11/client/operations.rs": {
-      "sha256": "8026215a5a20203382cc0f9f8f31c333183db702f1a13bf9add2487a679a6404",
-      "git_blob": "163b88eadf2ba9009fb75deb8bb8b42556832eee"
+      "sha256": "1ba078b12d564850040959033556dec83534f6a859d253c6ccad63021ded13de",
+      "git_blob": "3a5fdc351aa84a3e8e1cd9db0e29e465f3b1e005"
     },
     "src/versions/java_1_21_11/client/operations/component_tests.rs": {
       "sha256": "abb8900890adb299cc517b85c0788dcfdf3c7b2076a073134d76f40220679b1f",
@@ -1444,6 +1440,10 @@
       "sha256": "7fcd5b5659490993d4e0b58a3940fa0d01e9f666b48198d93f1dfc3514e6c830",
       "git_blob": "d79a112fa4565f4687edc02a96c6e973093d9c27"
     },
+    "src/versions/java_1_21_11/client/operations/inventory/recipe_placement.rs": {
+      "sha256": "b3fccfa9344547b5cbe1a47720bfe6e5d509e0adf1e4cd2c391e79190e10a3c4",
+      "git_blob": "6d7888baeb2a819e8c1499b22b5a7eb502a2855a"
+    },
     "src/versions/java_1_21_11/client/operations/inventory/tests.rs": {
       "sha256": "763bc86aba56faeeb84c556690620e0ff39cda34c12d21c230cfece3a2dfda56",
       "git_blob": "112d1e888eea07bace68c8099a4c99c15e65ff22"
@@ -1473,8 +1473,8 @@
       "git_blob": "fd8bf20d61b2fc0cecc9c743fc81d09cf1f3d9e5"
     },
     "src/versions/java_1_21_11/client/operations/movement.rs": {
-      "sha256": "6315f1c2c9328455569836f4ca1802503f9e44edc107beebd303da081280c724",
-      "git_blob": "d4d1432f2e206c2dcdde7d7e51df08593dfc1628"
+      "sha256": "a288b0d18c0f98ddb5c696e24bdacbe4683fa26900de26c51eebc30b7524c49b",
+      "git_blob": "6a912a8ad42efd163c4e454ac9db48e5c9cf251b"
     },
     "src/versions/java_1_21_11/client/operations/movement/control.rs": {
       "sha256": "10f5c41511ebb02ac73346d9ec7ffef5689aff19f5bfec95f2c4bd172d5de4d6",
@@ -1485,8 +1485,8 @@
       "git_blob": "47b244ded5fd0aee19b0725088157477d2a75608"
     },
     "src/versions/java_1_21_11/client/operations/movement/scenario.rs": {
-      "sha256": "bf5817d00bc189637d1f4a088728a81c82489f05d5e43dad54474fe9c8eba85f",
-      "git_blob": "e968543c0e754f74b6995c60564038ecf3d79cd0"
+      "sha256": "776b62334e3464ce6a308eb1fb1daff9bbcaac7890e929227d56cabe24fa3a5d",
+      "git_blob": "e883940760222321379173865aeb2fad4d40ce5c"
     },
     "src/versions/java_1_21_11/client/operations/placement.rs": {
       "sha256": "2cf90eb39191d958c18355a6bc258255e60f55c69067ab09134ff897889bfcff",
@@ -1729,10 +1729,10 @@
       "git_blob": "54454f2776b4e3312a64123578e2463702d93a0a"
     }
   },
-  "consumer_binary_sha256": "e013f7b968850316570b076a013b2b0e3f7779012a58ca1f27ea4d7eb03d82dd",
+  "consumer_binary_sha256": "aeb9ed8e9c777fdfd96166cc829df1549903ce449bf98177d665c2fe52abed7a",
   "native_runs": [
     {
-      "trial": "trial-1.16.1-6239a947",
+      "trial": "trial-1.16.1-f9cefa8b",
       "version": "1.16.1",
       "source": {
         "version": "1.16.1",
@@ -1744,7 +1744,7 @@
           "url": "https://piston-data.mojang.com/v1/objects/a412fd69db1f81db3f511c1463fd304675244077/server.jar"
         }
       },
-      "report_sha256": "f7c0a2d182059eb3012f448c1c3929fa8c437eae89b48ff3147fdbd9b3eaafb6",
+      "report_sha256": "4f7fa5889b0a9733af1bd45f110d8a156cbc08745b146a87651f29c4e87b4a57",
       "server_exit_code": 0,
       "proxy_errors": [],
       "cases": {
@@ -1782,7 +1782,7 @@
               }
             },
             "send": {
-              "after_sequence": 906,
+              "after_sequence": 901,
               "dispatched": true
             },
             "stage": "observed_placed",
@@ -1845,7 +1845,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 34,
+                  "receive_sequence": 32,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -1889,7 +1889,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 34,
+                  "receive_sequence": 32,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -1965,7 +1965,7 @@
             ],
             "inputs": [
               {
-                "receive_sequence": 937,
+                "receive_sequence": 941,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -1981,7 +1981,7 @@
                 }
               },
               {
-                "receive_sequence": 937,
+                "receive_sequence": 941,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -1997,7 +1997,7 @@
                 }
               },
               {
-                "receive_sequence": 937,
+                "receive_sequence": 941,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -2013,7 +2013,7 @@
                 }
               },
               {
-                "receive_sequence": 937,
+                "receive_sequence": 941,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -2029,9 +2029,9 @@
                 }
               }
             ],
-            "receive_sequence": 939,
+            "receive_sequence": 945,
             "result": {
-              "receive_sequence": 937,
+              "receive_sequence": 941,
               "registry_stamp": {
                 "configuration_generation": 1,
                 "connection_id": 1,
@@ -2060,7 +2060,7 @@
             "width": 2
           },
           "final_cursor": {
-            "receive_sequence": 938,
+            "receive_sequence": 942,
             "registry_stamp": {
               "configuration_generation": 1,
               "connection_id": 1,
@@ -2077,7 +2077,7 @@
           },
           "final_stock": {
             "9": {
-              "receive_sequence": 937,
+              "receive_sequence": 941,
               "registry_stamp": {
                 "configuration_generation": 1,
                 "connection_id": 1,
@@ -2105,7 +2105,7 @@
               }
             },
             "10": {
-              "receive_sequence": 939,
+              "receive_sequence": 943,
               "registry_stamp": {
                 "configuration_generation": 1,
                 "connection_id": 1,
@@ -2151,7 +2151,7 @@
           "native_inventory": "UnifiedProbe has the following entity data: [{Slot: 10b, id: \"minecraft:stick\", Count: 20b}]",
           "native_position": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "request": {
-            "ordinal": 1059,
+            "ordinal": 1064,
             "connection": 2,
             "direction": "serverbound",
             "phase": "play",
@@ -2206,7 +2206,7 @@
               ],
               "inputs": [
                 {
-                  "receive_sequence": 87,
+                  "receive_sequence": 91,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -2250,7 +2250,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 88,
+                  "receive_sequence": 92,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -2294,7 +2294,7 @@
                   }
                 }
               ],
-              "receive_sequence": 89,
+              "receive_sequence": 93,
               "result": {
                 "receive_sequence": 86,
                 "registry_stamp": {
@@ -2362,7 +2362,7 @@
             ],
             "inputs": [
               {
-                "receive_sequence": 165,
+                "receive_sequence": 169,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -2378,7 +2378,7 @@
                 }
               },
               {
-                "receive_sequence": 165,
+                "receive_sequence": 169,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -2394,7 +2394,7 @@
                 }
               },
               {
-                "receive_sequence": 165,
+                "receive_sequence": 169,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -2410,7 +2410,7 @@
                 }
               },
               {
-                "receive_sequence": 165,
+                "receive_sequence": 169,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -2426,9 +2426,9 @@
                 }
               }
             ],
-            "receive_sequence": 167,
+            "receive_sequence": 171,
             "result": {
-              "receive_sequence": 165,
+              "receive_sequence": 169,
               "registry_stamp": {
                 "configuration_generation": 1,
                 "connection_id": 1,
@@ -2457,7 +2457,7 @@
             "width": 2
           },
           "final_cursor": {
-            "receive_sequence": 166,
+            "receive_sequence": 170,
             "registry_stamp": {
               "configuration_generation": 1,
               "connection_id": 1,
@@ -2474,7 +2474,7 @@
           },
           "final_stock": {
             "9": {
-              "receive_sequence": 165,
+              "receive_sequence": 169,
               "registry_stamp": {
                 "configuration_generation": 1,
                 "connection_id": 1,
@@ -2490,7 +2490,7 @@
               }
             },
             "10": {
-              "receive_sequence": 167,
+              "receive_sequence": 171,
               "registry_stamp": {
                 "configuration_generation": 1,
                 "connection_id": 1,
@@ -2536,7 +2536,7 @@
           "native_inventory": "UnifiedProbe has the following entity data: [{Slot: 9b, id: \"minecraft:oak_planks\", Count: 8b}, {Slot: 10b, id: \"minecraft:stick\", Count: 4b}]",
           "native_position": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "request": {
-            "ordinal": 1309,
+            "ordinal": 1316,
             "connection": 3,
             "direction": "serverbound",
             "phase": "play",
@@ -2556,7 +2556,7 @@
               }
             },
             "send": {
-              "after_sequence": 121,
+              "after_sequence": 122,
               "dispatched": true
             },
             "stage": "observed_placed",
@@ -2596,7 +2596,7 @@
               ],
               "inputs": [
                 {
-                  "receive_sequence": 111,
+                  "receive_sequence": 116,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -2612,7 +2612,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 125,
+                  "receive_sequence": 128,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -2640,7 +2640,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 111,
+                  "receive_sequence": 116,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -2656,7 +2656,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 111,
+                  "receive_sequence": 116,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -2672,7 +2672,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 126,
+                  "receive_sequence": 129,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -2700,7 +2700,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 111,
+                  "receive_sequence": 116,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -2716,7 +2716,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 111,
+                  "receive_sequence": 116,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -2732,7 +2732,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 111,
+                  "receive_sequence": 116,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -2748,7 +2748,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 111,
+                  "receive_sequence": 116,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -2764,9 +2764,9 @@
                   }
                 }
               ],
-              "receive_sequence": 127,
+              "receive_sequence": 130,
               "result": {
-                "receive_sequence": 124,
+                "receive_sequence": 127,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -2801,7 +2801,7 @@
               "source": {
                 "kind": "table",
                 "screen": {
-                  "opened_sequence": 110,
+                  "opened_sequence": 115,
                   "session": {
                     "connection_id": 1,
                     "version": "Java1_16_1",
@@ -2835,7 +2835,7 @@
             ],
             "inputs": [
               {
-                "receive_sequence": 137,
+                "receive_sequence": 144,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -2851,7 +2851,7 @@
                 }
               },
               {
-                "receive_sequence": 137,
+                "receive_sequence": 144,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -2867,7 +2867,7 @@
                 }
               },
               {
-                "receive_sequence": 137,
+                "receive_sequence": 144,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -2883,7 +2883,7 @@
                 }
               },
               {
-                "receive_sequence": 137,
+                "receive_sequence": 144,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -2899,7 +2899,7 @@
                 }
               },
               {
-                "receive_sequence": 137,
+                "receive_sequence": 144,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -2915,7 +2915,7 @@
                 }
               },
               {
-                "receive_sequence": 137,
+                "receive_sequence": 144,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -2931,7 +2931,7 @@
                 }
               },
               {
-                "receive_sequence": 137,
+                "receive_sequence": 144,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -2947,7 +2947,7 @@
                 }
               },
               {
-                "receive_sequence": 137,
+                "receive_sequence": 144,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -2963,7 +2963,7 @@
                 }
               },
               {
-                "receive_sequence": 137,
+                "receive_sequence": 144,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -2979,9 +2979,9 @@
                 }
               }
             ],
-            "receive_sequence": 138,
+            "receive_sequence": 148,
             "result": {
-              "receive_sequence": 137,
+              "receive_sequence": 144,
               "registry_stamp": {
                 "configuration_generation": 1,
                 "connection_id": 1,
@@ -3004,7 +3004,7 @@
             "source": {
               "kind": "table",
               "screen": {
-                "opened_sequence": 110,
+                "opened_sequence": 115,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -3016,7 +3016,7 @@
             "width": 3
           },
           "final_cursor": {
-            "receive_sequence": 138,
+            "receive_sequence": 145,
             "registry_stamp": {
               "configuration_generation": 1,
               "connection_id": 1,
@@ -3033,7 +3033,7 @@
           },
           "final_stock": {
             "9": {
-              "receive_sequence": 137,
+              "receive_sequence": 144,
               "registry_stamp": {
                 "configuration_generation": 1,
                 "connection_id": 1,
@@ -3061,7 +3061,7 @@
               }
             },
             "10": {
-              "receive_sequence": 137,
+              "receive_sequence": 146,
               "registry_stamp": {
                 "configuration_generation": 1,
                 "connection_id": 1,
@@ -3093,7 +3093,7 @@
             "id": {
               "attempt": 1,
               "screen": {
-                "opened_sequence": 110,
+                "opened_sequence": 115,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -3122,7 +3122,7 @@
           "native_inventory": "UnifiedProbe has the following entity data: [{Slot: 10b, id: \"minecraft:stick\", Count: 20b}]",
           "native_position": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "request": {
-            "ordinal": 1505,
+            "ordinal": 1513,
             "connection": 4,
             "direction": "serverbound",
             "phase": "play",
@@ -3142,7 +3142,7 @@
               }
             },
             "send": {
-              "after_sequence": 146,
+              "after_sequence": 147,
               "dispatched": true
             },
             "stage": "observed_placed",
@@ -3182,67 +3182,7 @@
               ],
               "inputs": [
                 {
-                  "receive_sequence": 142,
-                  "registry_stamp": {
-                    "configuration_generation": 1,
-                    "connection_id": 1,
-                    "version": "Java1_16_1"
-                  },
-                  "session": {
-                    "connection_id": 1,
-                    "version": "Java1_16_1",
-                    "world_generation": 1
-                  },
-                  "value": {
-                    "kind": "empty"
-                  }
-                },
-                {
-                  "receive_sequence": 149,
-                  "registry_stamp": {
-                    "configuration_generation": 1,
-                    "connection_id": 1,
-                    "version": "Java1_16_1"
-                  },
-                  "session": {
-                    "connection_id": 1,
-                    "version": "Java1_16_1",
-                    "world_generation": 1
-                  },
-                  "value": {
-                    "item": {
-                      "count": 5,
-                      "data": {
-                        "kind": "default"
-                      },
-                      "id": {
-                        "kind": "Item",
-                        "value": 15,
-                        "version": "Java1_16_1"
-                      },
-                      "name": "minecraft:oak_planks"
-                    },
-                    "kind": "item"
-                  }
-                },
-                {
-                  "receive_sequence": 142,
-                  "registry_stamp": {
-                    "configuration_generation": 1,
-                    "connection_id": 1,
-                    "version": "Java1_16_1"
-                  },
-                  "session": {
-                    "connection_id": 1,
-                    "version": "Java1_16_1",
-                    "world_generation": 1
-                  },
-                  "value": {
-                    "kind": "empty"
-                  }
-                },
-                {
-                  "receive_sequence": 142,
+                  "receive_sequence": 143,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -3286,7 +3226,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 142,
+                  "receive_sequence": 143,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -3302,7 +3242,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 142,
+                  "receive_sequence": 143,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -3318,7 +3258,35 @@
                   }
                 },
                 {
-                  "receive_sequence": 142,
+                  "receive_sequence": 151,
+                  "registry_stamp": {
+                    "configuration_generation": 1,
+                    "connection_id": 1,
+                    "version": "Java1_16_1"
+                  },
+                  "session": {
+                    "connection_id": 1,
+                    "version": "Java1_16_1",
+                    "world_generation": 1
+                  },
+                  "value": {
+                    "item": {
+                      "count": 5,
+                      "data": {
+                        "kind": "default"
+                      },
+                      "id": {
+                        "kind": "Item",
+                        "value": 15,
+                        "version": "Java1_16_1"
+                      },
+                      "name": "minecraft:oak_planks"
+                    },
+                    "kind": "item"
+                  }
+                },
+                {
+                  "receive_sequence": 143,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -3334,7 +3302,39 @@
                   }
                 },
                 {
-                  "receive_sequence": 142,
+                  "receive_sequence": 143,
+                  "registry_stamp": {
+                    "configuration_generation": 1,
+                    "connection_id": 1,
+                    "version": "Java1_16_1"
+                  },
+                  "session": {
+                    "connection_id": 1,
+                    "version": "Java1_16_1",
+                    "world_generation": 1
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                {
+                  "receive_sequence": 143,
+                  "registry_stamp": {
+                    "configuration_generation": 1,
+                    "connection_id": 1,
+                    "version": "Java1_16_1"
+                  },
+                  "session": {
+                    "connection_id": 1,
+                    "version": "Java1_16_1",
+                    "world_generation": 1
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                {
+                  "receive_sequence": 143,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -3350,9 +3350,9 @@
                   }
                 }
               ],
-              "receive_sequence": 151,
+              "receive_sequence": 152,
               "result": {
-                "receive_sequence": 148,
+                "receive_sequence": 149,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -3387,7 +3387,7 @@
               "source": {
                 "kind": "table",
                 "screen": {
-                  "opened_sequence": 141,
+                  "opened_sequence": 142,
                   "session": {
                     "connection_id": 1,
                     "version": "Java1_16_1",
@@ -3429,7 +3429,7 @@
             ],
             "inputs": [
               {
-                "receive_sequence": 210,
+                "receive_sequence": 211,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -3445,7 +3445,7 @@
                 }
               },
               {
-                "receive_sequence": 210,
+                "receive_sequence": 211,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -3461,7 +3461,7 @@
                 }
               },
               {
-                "receive_sequence": 210,
+                "receive_sequence": 211,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -3477,7 +3477,7 @@
                 }
               },
               {
-                "receive_sequence": 210,
+                "receive_sequence": 211,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -3493,7 +3493,7 @@
                 }
               },
               {
-                "receive_sequence": 210,
+                "receive_sequence": 211,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -3509,7 +3509,7 @@
                 }
               },
               {
-                "receive_sequence": 210,
+                "receive_sequence": 211,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -3525,7 +3525,7 @@
                 }
               },
               {
-                "receive_sequence": 210,
+                "receive_sequence": 211,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -3541,7 +3541,7 @@
                 }
               },
               {
-                "receive_sequence": 210,
+                "receive_sequence": 211,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -3557,7 +3557,7 @@
                 }
               },
               {
-                "receive_sequence": 210,
+                "receive_sequence": 211,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -3573,9 +3573,9 @@
                 }
               }
             ],
-            "receive_sequence": 212,
+            "receive_sequence": 213,
             "result": {
-              "receive_sequence": 210,
+              "receive_sequence": 211,
               "registry_stamp": {
                 "configuration_generation": 1,
                 "connection_id": 1,
@@ -3598,7 +3598,7 @@
             "source": {
               "kind": "table",
               "screen": {
-                "opened_sequence": 141,
+                "opened_sequence": 142,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -3610,7 +3610,7 @@
             "width": 3
           },
           "final_cursor": {
-            "receive_sequence": 211,
+            "receive_sequence": 212,
             "registry_stamp": {
               "configuration_generation": 1,
               "connection_id": 1,
@@ -3627,7 +3627,7 @@
           },
           "final_stock": {
             "9": {
-              "receive_sequence": 210,
+              "receive_sequence": 211,
               "registry_stamp": {
                 "configuration_generation": 1,
                 "connection_id": 1,
@@ -3643,7 +3643,7 @@
               }
             },
             "10": {
-              "receive_sequence": 212,
+              "receive_sequence": 213,
               "registry_stamp": {
                 "configuration_generation": 1,
                 "connection_id": 1,
@@ -3675,7 +3675,7 @@
             "id": {
               "attempt": 1,
               "screen": {
-                "opened_sequence": 141,
+                "opened_sequence": 142,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -3704,7 +3704,7 @@
           "native_inventory": "UnifiedProbe has the following entity data: [{Slot: 9b, id: \"minecraft:oak_planks\", Count: 8b}, {Slot: 10b, id: \"minecraft:stick\", Count: 4b}]",
           "native_position": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "request": {
-            "ordinal": 1741,
+            "ordinal": 1750,
             "connection": 5,
             "direction": "serverbound",
             "phase": "play",
@@ -3724,7 +3724,7 @@
               }
             },
             "send": {
-              "after_sequence": 131,
+              "after_sequence": 132,
               "dispatched": true
             },
             "stage": "observed_placed",
@@ -3758,50 +3758,6 @@
                 4
               ],
               "inputs": [
-                {
-                  "receive_sequence": 134,
-                  "registry_stamp": {
-                    "configuration_generation": 1,
-                    "connection_id": 1,
-                    "version": "Java1_16_1"
-                  },
-                  "session": {
-                    "connection_id": 1,
-                    "version": "Java1_16_1",
-                    "world_generation": 1
-                  },
-                  "value": {
-                    "item": {
-                      "count": 1,
-                      "data": {
-                        "kind": "default"
-                      },
-                      "id": {
-                        "kind": "Item",
-                        "value": 15,
-                        "version": "Java1_16_1"
-                      },
-                      "name": "minecraft:oak_planks"
-                    },
-                    "kind": "item"
-                  }
-                },
-                {
-                  "receive_sequence": 116,
-                  "registry_stamp": {
-                    "configuration_generation": 1,
-                    "connection_id": 1,
-                    "version": "Java1_16_1"
-                  },
-                  "session": {
-                    "connection_id": 1,
-                    "version": "Java1_16_1",
-                    "world_generation": 1
-                  },
-                  "value": {
-                    "kind": "empty"
-                  }
-                },
                 {
                   "receive_sequence": 135,
                   "registry_stamp": {
@@ -3845,11 +3801,55 @@
                   "value": {
                     "kind": "empty"
                   }
+                },
+                {
+                  "receive_sequence": 136,
+                  "registry_stamp": {
+                    "configuration_generation": 1,
+                    "connection_id": 1,
+                    "version": "Java1_16_1"
+                  },
+                  "session": {
+                    "connection_id": 1,
+                    "version": "Java1_16_1",
+                    "world_generation": 1
+                  },
+                  "value": {
+                    "item": {
+                      "count": 1,
+                      "data": {
+                        "kind": "default"
+                      },
+                      "id": {
+                        "kind": "Item",
+                        "value": 15,
+                        "version": "Java1_16_1"
+                      },
+                      "name": "minecraft:oak_planks"
+                    },
+                    "kind": "item"
+                  }
+                },
+                {
+                  "receive_sequence": 116,
+                  "registry_stamp": {
+                    "configuration_generation": 1,
+                    "connection_id": 1,
+                    "version": "Java1_16_1"
+                  },
+                  "session": {
+                    "connection_id": 1,
+                    "version": "Java1_16_1",
+                    "world_generation": 1
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
                 }
               ],
-              "receive_sequence": 136,
+              "receive_sequence": 137,
               "result": {
-                "receive_sequence": 133,
+                "receive_sequence": 134,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -3907,7 +3907,7 @@
             ],
             "inputs": [
               {
-                "receive_sequence": 147,
+                "receive_sequence": 148,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -3923,7 +3923,7 @@
                 }
               },
               {
-                "receive_sequence": 147,
+                "receive_sequence": 148,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -3939,7 +3939,7 @@
                 }
               },
               {
-                "receive_sequence": 147,
+                "receive_sequence": 148,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -3955,7 +3955,7 @@
                 }
               },
               {
-                "receive_sequence": 147,
+                "receive_sequence": 148,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -3971,9 +3971,9 @@
                 }
               }
             ],
-            "receive_sequence": 149,
+            "receive_sequence": 150,
             "result": {
-              "receive_sequence": 147,
+              "receive_sequence": 148,
               "registry_stamp": {
                 "configuration_generation": 1,
                 "connection_id": 1,
@@ -4002,7 +4002,7 @@
             "width": 2
           },
           "final_cursor": {
-            "receive_sequence": 148,
+            "receive_sequence": 149,
             "registry_stamp": {
               "configuration_generation": 1,
               "connection_id": 1,
@@ -4019,7 +4019,7 @@
           },
           "final_stock": {
             "9": {
-              "receive_sequence": 147,
+              "receive_sequence": 148,
               "registry_stamp": {
                 "configuration_generation": 1,
                 "connection_id": 1,
@@ -4047,7 +4047,7 @@
               }
             },
             "10": {
-              "receive_sequence": 149,
+              "receive_sequence": 150,
               "registry_stamp": {
                 "configuration_generation": 1,
                 "connection_id": 1,
@@ -4093,7 +4093,7 @@
           "native_inventory": "UnifiedProbe has the following entity data: [{Slot: 10b, id: \"minecraft:stick\", Count: 20b}]",
           "native_position": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "request": {
-            "ordinal": 1914,
+            "ordinal": 1922,
             "connection": 6,
             "direction": "serverbound",
             "phase": "play",
@@ -4368,7 +4368,7 @@
                 }
               }
             ],
-            "receive_sequence": 200,
+            "receive_sequence": 199,
             "result": {
               "receive_sequence": 198,
               "registry_stamp": {
@@ -4432,7 +4432,7 @@
               }
             },
             "10": {
-              "receive_sequence": 200,
+              "receive_sequence": 198,
               "registry_stamp": {
                 "configuration_generation": 1,
                 "connection_id": 1,
@@ -4478,7 +4478,7 @@
           "native_inventory": "UnifiedProbe has the following entity data: [{Slot: 9b, id: \"minecraft:oak_planks\", Count: 8b}, {Slot: 10b, id: \"minecraft:stick\", Count: 4b}]",
           "native_position": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "request": {
-            "ordinal": 2155,
+            "ordinal": 2165,
             "connection": 7,
             "direction": "serverbound",
             "phase": "play",
@@ -4498,7 +4498,7 @@
               }
             },
             "send": {
-              "after_sequence": 137,
+              "after_sequence": 138,
               "dispatched": true
             },
             "stage": "observed_placed",
@@ -4538,67 +4538,7 @@
               ],
               "inputs": [
                 {
-                  "receive_sequence": 133,
-                  "registry_stamp": {
-                    "configuration_generation": 1,
-                    "connection_id": 1,
-                    "version": "Java1_16_1"
-                  },
-                  "session": {
-                    "connection_id": 1,
-                    "version": "Java1_16_1",
-                    "world_generation": 1
-                  },
-                  "value": {
-                    "kind": "empty"
-                  }
-                },
-                {
-                  "receive_sequence": 140,
-                  "registry_stamp": {
-                    "configuration_generation": 1,
-                    "connection_id": 1,
-                    "version": "Java1_16_1"
-                  },
-                  "session": {
-                    "connection_id": 1,
-                    "version": "Java1_16_1",
-                    "world_generation": 1
-                  },
-                  "value": {
-                    "item": {
-                      "count": 1,
-                      "data": {
-                        "kind": "default"
-                      },
-                      "id": {
-                        "kind": "Item",
-                        "value": 15,
-                        "version": "Java1_16_1"
-                      },
-                      "name": "minecraft:oak_planks"
-                    },
-                    "kind": "item"
-                  }
-                },
-                {
-                  "receive_sequence": 133,
-                  "registry_stamp": {
-                    "configuration_generation": 1,
-                    "connection_id": 1,
-                    "version": "Java1_16_1"
-                  },
-                  "session": {
-                    "connection_id": 1,
-                    "version": "Java1_16_1",
-                    "world_generation": 1
-                  },
-                  "value": {
-                    "kind": "empty"
-                  }
-                },
-                {
-                  "receive_sequence": 133,
+                  "receive_sequence": 134,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -4642,7 +4582,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 133,
+                  "receive_sequence": 134,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -4658,7 +4598,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 133,
+                  "receive_sequence": 134,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -4674,7 +4614,35 @@
                   }
                 },
                 {
-                  "receive_sequence": 133,
+                  "receive_sequence": 142,
+                  "registry_stamp": {
+                    "configuration_generation": 1,
+                    "connection_id": 1,
+                    "version": "Java1_16_1"
+                  },
+                  "session": {
+                    "connection_id": 1,
+                    "version": "Java1_16_1",
+                    "world_generation": 1
+                  },
+                  "value": {
+                    "item": {
+                      "count": 1,
+                      "data": {
+                        "kind": "default"
+                      },
+                      "id": {
+                        "kind": "Item",
+                        "value": 15,
+                        "version": "Java1_16_1"
+                      },
+                      "name": "minecraft:oak_planks"
+                    },
+                    "kind": "item"
+                  }
+                },
+                {
+                  "receive_sequence": 134,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -4690,7 +4658,39 @@
                   }
                 },
                 {
-                  "receive_sequence": 133,
+                  "receive_sequence": 134,
+                  "registry_stamp": {
+                    "configuration_generation": 1,
+                    "connection_id": 1,
+                    "version": "Java1_16_1"
+                  },
+                  "session": {
+                    "connection_id": 1,
+                    "version": "Java1_16_1",
+                    "world_generation": 1
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                {
+                  "receive_sequence": 134,
+                  "registry_stamp": {
+                    "configuration_generation": 1,
+                    "connection_id": 1,
+                    "version": "Java1_16_1"
+                  },
+                  "session": {
+                    "connection_id": 1,
+                    "version": "Java1_16_1",
+                    "world_generation": 1
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                {
+                  "receive_sequence": 134,
                   "registry_stamp": {
                     "configuration_generation": 1,
                     "connection_id": 1,
@@ -4706,9 +4706,9 @@
                   }
                 }
               ],
-              "receive_sequence": 142,
+              "receive_sequence": 143,
               "result": {
-                "receive_sequence": 139,
+                "receive_sequence": 140,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -4743,7 +4743,7 @@
               "source": {
                 "kind": "table",
                 "screen": {
-                  "opened_sequence": 132,
+                  "opened_sequence": 133,
                   "session": {
                     "connection_id": 1,
                     "version": "Java1_16_1",
@@ -4777,7 +4777,7 @@
             ],
             "inputs": [
               {
-                "receive_sequence": 152,
+                "receive_sequence": 154,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -4793,7 +4793,7 @@
                 }
               },
               {
-                "receive_sequence": 152,
+                "receive_sequence": 154,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -4809,7 +4809,7 @@
                 }
               },
               {
-                "receive_sequence": 152,
+                "receive_sequence": 154,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -4825,7 +4825,7 @@
                 }
               },
               {
-                "receive_sequence": 152,
+                "receive_sequence": 154,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -4841,7 +4841,7 @@
                 }
               },
               {
-                "receive_sequence": 152,
+                "receive_sequence": 154,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -4857,7 +4857,7 @@
                 }
               },
               {
-                "receive_sequence": 152,
+                "receive_sequence": 154,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -4873,7 +4873,7 @@
                 }
               },
               {
-                "receive_sequence": 152,
+                "receive_sequence": 154,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -4889,7 +4889,7 @@
                 }
               },
               {
-                "receive_sequence": 152,
+                "receive_sequence": 154,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -4905,7 +4905,7 @@
                 }
               },
               {
-                "receive_sequence": 152,
+                "receive_sequence": 154,
                 "registry_stamp": {
                   "configuration_generation": 1,
                   "connection_id": 1,
@@ -4921,9 +4921,9 @@
                 }
               }
             ],
-            "receive_sequence": 154,
+            "receive_sequence": 155,
             "result": {
-              "receive_sequence": 152,
+              "receive_sequence": 154,
               "registry_stamp": {
                 "configuration_generation": 1,
                 "connection_id": 1,
@@ -4946,7 +4946,7 @@
             "source": {
               "kind": "table",
               "screen": {
-                "opened_sequence": 132,
+                "opened_sequence": 133,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -4958,7 +4958,7 @@
             "width": 3
           },
           "final_cursor": {
-            "receive_sequence": 153,
+            "receive_sequence": 155,
             "registry_stamp": {
               "configuration_generation": 1,
               "connection_id": 1,
@@ -4975,7 +4975,7 @@
           },
           "final_stock": {
             "9": {
-              "receive_sequence": 152,
+              "receive_sequence": 154,
               "registry_stamp": {
                 "configuration_generation": 1,
                 "connection_id": 1,
@@ -5035,7 +5035,7 @@
             "id": {
               "attempt": 1,
               "screen": {
-                "opened_sequence": 132,
+                "opened_sequence": 133,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_16_1",
@@ -5064,7 +5064,7 @@
           "native_inventory": "UnifiedProbe has the following entity data: [{Slot: 10b, id: \"minecraft:stick\", Count: 20b}]",
           "native_position": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "request": {
-            "ordinal": 2338,
+            "ordinal": 2347,
             "connection": 8,
             "direction": "serverbound",
             "phase": "play",
@@ -5635,7 +5635,7 @@
       }
     },
     {
-      "trial": "trial-1.21.11-c43b7cc9",
+      "trial": "trial-1.21.11-62556fc0",
       "version": "1.21.11",
       "source": {
         "version": "1.21.11",
@@ -5647,7 +5647,7 @@
           "url": "https://piston-data.mojang.com/v1/objects/64bb6d763bed0a9f1d632ec347938594144943ed/server.jar"
         }
       },
-      "report_sha256": "bf6ef4b79ac76e60de099581b199c83336789ed874f1af6082c94b207b22dd7f",
+      "report_sha256": "05d67d4b33aad4e844dde5304d74251aa81dd8367f58126a77e04e9339c2ae12",
       "server_exit_code": 0,
       "proxy_errors": [],
       "cases": {
@@ -5665,7 +5665,7 @@
           "native_inventory": "UnifiedProbe has the following entity data: [{count: 8, Slot: 9b, id: \"minecraft:oak_planks\"}, {count: 4, Slot: 10b, id: \"minecraft:stick\"}]",
           "native_position": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "request": {
-            "ordinal": 165,
+            "ordinal": 163,
             "connection": 1,
             "direction": "serverbound",
             "phase": "play",
@@ -5685,7 +5685,7 @@
               }
             },
             "send": {
-              "after_sequence": 144,
+              "after_sequence": 142,
               "dispatched": true
             },
             "stage": "observed_placed",
@@ -5693,7 +5693,7 @@
               "amount": "next",
               "mode": "survival",
               "recipe": {
-                "entry_sequence": 76,
+                "entry_sequence": 95,
                 "native": {
                   "kind": "modern",
                   "value": 1176
@@ -5720,7 +5720,7 @@
               ],
               "inputs": [
                 {
-                  "receive_sequence": 151,
+                  "receive_sequence": 149,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -5764,7 +5764,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 152,
+                  "receive_sequence": 150,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -5808,9 +5808,9 @@
                   }
                 }
               ],
-              "receive_sequence": 153,
+              "receive_sequence": 151,
               "result": {
-                "receive_sequence": 150,
+                "receive_sequence": 148,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -5868,7 +5868,7 @@
             ],
             "inputs": [
               {
-                "receive_sequence": 156,
+                "receive_sequence": 155,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -5884,7 +5884,7 @@
                 }
               },
               {
-                "receive_sequence": 156,
+                "receive_sequence": 155,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -5900,7 +5900,7 @@
                 }
               },
               {
-                "receive_sequence": 156,
+                "receive_sequence": 155,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -5916,7 +5916,7 @@
                 }
               },
               {
-                "receive_sequence": 156,
+                "receive_sequence": 155,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -5932,9 +5932,9 @@
                 }
               }
             ],
-            "receive_sequence": 159,
+            "receive_sequence": 157,
             "result": {
-              "receive_sequence": 156,
+              "receive_sequence": 155,
               "registry_stamp": {
                 "configuration_generation": 0,
                 "connection_id": 1,
@@ -5963,7 +5963,7 @@
             "width": 2
           },
           "final_cursor": {
-            "receive_sequence": 159,
+            "receive_sequence": 157,
             "registry_stamp": {
               "configuration_generation": 0,
               "connection_id": 1,
@@ -5980,7 +5980,7 @@
           },
           "final_stock": {
             "9": {
-              "receive_sequence": 156,
+              "receive_sequence": 155,
               "registry_stamp": {
                 "configuration_generation": 0,
                 "connection_id": 1,
@@ -6008,7 +6008,7 @@
               }
             },
             "10": {
-              "receive_sequence": 158,
+              "receive_sequence": 156,
               "registry_stamp": {
                 "configuration_generation": 0,
                 "connection_id": 1,
@@ -6054,7 +6054,7 @@
           "native_inventory": "UnifiedProbe has the following entity data: [{count: 20, Slot: 10b, id: \"minecraft:stick\"}]",
           "native_position": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "request": {
-            "ordinal": 327,
+            "ordinal": 324,
             "connection": 2,
             "direction": "serverbound",
             "phase": "play",
@@ -6109,7 +6109,7 @@
               ],
               "inputs": [
                 {
-                  "receive_sequence": 136,
+                  "receive_sequence": 135,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -6153,7 +6153,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 137,
+                  "receive_sequence": 136,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -6197,9 +6197,9 @@
                   }
                 }
               ],
-              "receive_sequence": 138,
+              "receive_sequence": 137,
               "result": {
-                "receive_sequence": 135,
+                "receive_sequence": 134,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -6265,7 +6265,7 @@
             ],
             "inputs": [
               {
-                "receive_sequence": 164,
+                "receive_sequence": 163,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -6281,7 +6281,7 @@
                 }
               },
               {
-                "receive_sequence": 164,
+                "receive_sequence": 163,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -6297,7 +6297,7 @@
                 }
               },
               {
-                "receive_sequence": 164,
+                "receive_sequence": 163,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -6313,7 +6313,7 @@
                 }
               },
               {
-                "receive_sequence": 164,
+                "receive_sequence": 163,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -6329,9 +6329,9 @@
                 }
               }
             ],
-            "receive_sequence": 166,
+            "receive_sequence": 165,
             "result": {
-              "receive_sequence": 164,
+              "receive_sequence": 163,
               "registry_stamp": {
                 "configuration_generation": 0,
                 "connection_id": 1,
@@ -6360,7 +6360,7 @@
             "width": 2
           },
           "final_cursor": {
-            "receive_sequence": 166,
+            "receive_sequence": 165,
             "registry_stamp": {
               "configuration_generation": 0,
               "connection_id": 1,
@@ -6377,7 +6377,7 @@
           },
           "final_stock": {
             "9": {
-              "receive_sequence": 164,
+              "receive_sequence": 163,
               "registry_stamp": {
                 "configuration_generation": 0,
                 "connection_id": 1,
@@ -6393,7 +6393,7 @@
               }
             },
             "10": {
-              "receive_sequence": 165,
+              "receive_sequence": 164,
               "registry_stamp": {
                 "configuration_generation": 0,
                 "connection_id": 1,
@@ -6439,7 +6439,7 @@
           "native_inventory": "UnifiedProbe has the following entity data: [{count: 8, Slot: 9b, id: \"minecraft:oak_planks\"}, {count: 4, Slot: 10b, id: \"minecraft:stick\"}]",
           "native_position": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "request": {
-            "ordinal": 535,
+            "ordinal": 532,
             "connection": 3,
             "direction": "serverbound",
             "phase": "play",
@@ -6499,7 +6499,7 @@
               ],
               "inputs": [
                 {
-                  "receive_sequence": 128,
+                  "receive_sequence": 129,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -6543,7 +6543,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 128,
+                  "receive_sequence": 129,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -6559,7 +6559,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 128,
+                  "receive_sequence": 129,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -6603,7 +6603,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 128,
+                  "receive_sequence": 129,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -6619,7 +6619,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 128,
+                  "receive_sequence": 129,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -6635,7 +6635,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 128,
+                  "receive_sequence": 129,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -6651,7 +6651,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 128,
+                  "receive_sequence": 129,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -6704,7 +6704,7 @@
               "source": {
                 "kind": "table",
                 "screen": {
-                  "opened_sequence": 127,
+                  "opened_sequence": 128,
                   "session": {
                     "connection_id": 1,
                     "version": "Java1_21_11",
@@ -6882,7 +6882,7 @@
                 }
               }
             ],
-            "receive_sequence": 141,
+            "receive_sequence": 142,
             "result": {
               "receive_sequence": 139,
               "registry_stamp": {
@@ -6907,7 +6907,7 @@
             "source": {
               "kind": "table",
               "screen": {
-                "opened_sequence": 127,
+                "opened_sequence": 128,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_21_11",
@@ -6919,7 +6919,7 @@
             "width": 3
           },
           "final_cursor": {
-            "receive_sequence": 141,
+            "receive_sequence": 142,
             "registry_stamp": {
               "configuration_generation": 0,
               "connection_id": 1,
@@ -6964,7 +6964,7 @@
               }
             },
             "10": {
-              "receive_sequence": 140,
+              "receive_sequence": 141,
               "registry_stamp": {
                 "configuration_generation": 0,
                 "connection_id": 1,
@@ -6996,7 +6996,7 @@
             "id": {
               "attempt": 1,
               "screen": {
-                "opened_sequence": 127,
+                "opened_sequence": 128,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_21_11",
@@ -7025,7 +7025,7 @@
           "native_inventory": "UnifiedProbe has the following entity data: [{count: 20, Slot: 10b, id: \"minecraft:stick\"}]",
           "native_position": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "request": {
-            "ordinal": 704,
+            "ordinal": 701,
             "connection": 4,
             "direction": "serverbound",
             "phase": "play",
@@ -7607,7 +7607,7 @@
           "native_inventory": "UnifiedProbe has the following entity data: [{count: 8, Slot: 9b, id: \"minecraft:oak_planks\"}, {count: 4, Slot: 10b, id: \"minecraft:stick\"}]",
           "native_position": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "request": {
-            "ordinal": 883,
+            "ordinal": 880,
             "connection": 5,
             "direction": "serverbound",
             "phase": "play",
@@ -7810,7 +7810,7 @@
             ],
             "inputs": [
               {
-                "receive_sequence": 136,
+                "receive_sequence": 135,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -7826,7 +7826,7 @@
                 }
               },
               {
-                "receive_sequence": 136,
+                "receive_sequence": 135,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -7842,7 +7842,7 @@
                 }
               },
               {
-                "receive_sequence": 136,
+                "receive_sequence": 135,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -7858,7 +7858,7 @@
                 }
               },
               {
-                "receive_sequence": 136,
+                "receive_sequence": 135,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -7874,9 +7874,9 @@
                 }
               }
             ],
-            "receive_sequence": 138,
+            "receive_sequence": 137,
             "result": {
-              "receive_sequence": 136,
+              "receive_sequence": 135,
               "registry_stamp": {
                 "configuration_generation": 0,
                 "connection_id": 1,
@@ -7905,7 +7905,7 @@
             "width": 2
           },
           "final_cursor": {
-            "receive_sequence": 138,
+            "receive_sequence": 137,
             "registry_stamp": {
               "configuration_generation": 0,
               "connection_id": 1,
@@ -7922,7 +7922,7 @@
           },
           "final_stock": {
             "9": {
-              "receive_sequence": 136,
+              "receive_sequence": 135,
               "registry_stamp": {
                 "configuration_generation": 0,
                 "connection_id": 1,
@@ -7950,7 +7950,7 @@
               }
             },
             "10": {
-              "receive_sequence": 137,
+              "receive_sequence": 136,
               "registry_stamp": {
                 "configuration_generation": 0,
                 "connection_id": 1,
@@ -7996,7 +7996,7 @@
           "native_inventory": "UnifiedProbe has the following entity data: [{count: 20, Slot: 10b, id: \"minecraft:stick\"}]",
           "native_position": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "request": {
-            "ordinal": 1045,
+            "ordinal": 1042,
             "connection": 6,
             "direction": "serverbound",
             "phase": "play",
@@ -8016,7 +8016,7 @@
               }
             },
             "send": {
-              "after_sequence": 71,
+              "after_sequence": 72,
               "dispatched": true
             },
             "stage": "observed_placed",
@@ -8381,7 +8381,7 @@
           "native_inventory": "UnifiedProbe has the following entity data: [{count: 8, Slot: 9b, id: \"minecraft:oak_planks\"}, {count: 4, Slot: 10b, id: \"minecraft:stick\"}]",
           "native_position": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "request": {
-            "ordinal": 1248,
+            "ordinal": 1244,
             "connection": 7,
             "direction": "serverbound",
             "phase": "play",
@@ -8457,7 +8457,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 129,
+                  "receive_sequence": 128,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -8517,7 +8517,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 130,
+                  "receive_sequence": 129,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -8609,9 +8609,9 @@
                   }
                 }
               ],
-              "receive_sequence": 131,
+              "receive_sequence": 130,
               "result": {
-                "receive_sequence": 128,
+                "receive_sequence": 127,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -8680,7 +8680,7 @@
             ],
             "inputs": [
               {
-                "receive_sequence": 134,
+                "receive_sequence": 133,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -8696,7 +8696,7 @@
                 }
               },
               {
-                "receive_sequence": 134,
+                "receive_sequence": 133,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -8712,7 +8712,7 @@
                 }
               },
               {
-                "receive_sequence": 134,
+                "receive_sequence": 133,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -8728,7 +8728,7 @@
                 }
               },
               {
-                "receive_sequence": 134,
+                "receive_sequence": 133,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -8744,7 +8744,7 @@
                 }
               },
               {
-                "receive_sequence": 134,
+                "receive_sequence": 133,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -8760,7 +8760,7 @@
                 }
               },
               {
-                "receive_sequence": 134,
+                "receive_sequence": 133,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -8776,7 +8776,7 @@
                 }
               },
               {
-                "receive_sequence": 134,
+                "receive_sequence": 133,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -8792,7 +8792,7 @@
                 }
               },
               {
-                "receive_sequence": 134,
+                "receive_sequence": 133,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -8808,7 +8808,7 @@
                 }
               },
               {
-                "receive_sequence": 134,
+                "receive_sequence": 133,
                 "registry_stamp": {
                   "configuration_generation": 0,
                   "connection_id": 1,
@@ -8824,9 +8824,9 @@
                 }
               }
             ],
-            "receive_sequence": 136,
+            "receive_sequence": 135,
             "result": {
-              "receive_sequence": 134,
+              "receive_sequence": 133,
               "registry_stamp": {
                 "configuration_generation": 0,
                 "connection_id": 1,
@@ -8861,7 +8861,7 @@
             "width": 3
           },
           "final_cursor": {
-            "receive_sequence": 136,
+            "receive_sequence": 135,
             "registry_stamp": {
               "configuration_generation": 0,
               "connection_id": 1,
@@ -8878,7 +8878,7 @@
           },
           "final_stock": {
             "9": {
-              "receive_sequence": 134,
+              "receive_sequence": 133,
               "registry_stamp": {
                 "configuration_generation": 0,
                 "connection_id": 1,
@@ -8906,7 +8906,7 @@
               }
             },
             "10": {
-              "receive_sequence": 135,
+              "receive_sequence": 134,
               "registry_stamp": {
                 "configuration_generation": 0,
                 "connection_id": 1,
@@ -8967,7 +8967,7 @@
           "native_inventory": "UnifiedProbe has the following entity data: [{count: 20, Slot: 10b, id: \"minecraft:stick\"}]",
           "native_position": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
           "request": {
-            "ordinal": 1410,
+            "ordinal": 1407,
             "connection": 8,
             "direction": "serverbound",
             "phase": "play",
@@ -9027,7 +9027,7 @@
               ],
               "inputs": [
                 {
-                  "receive_sequence": 123,
+                  "receive_sequence": 124,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -9071,7 +9071,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 123,
+                  "receive_sequence": 124,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -9087,7 +9087,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 123,
+                  "receive_sequence": 124,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -9131,7 +9131,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 123,
+                  "receive_sequence": 124,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -9147,7 +9147,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 123,
+                  "receive_sequence": 124,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -9163,7 +9163,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 123,
+                  "receive_sequence": 124,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -9179,7 +9179,7 @@
                   }
                 },
                 {
-                  "receive_sequence": 123,
+                  "receive_sequence": 124,
                   "registry_stamp": {
                     "configuration_generation": 0,
                     "connection_id": 1,
@@ -9232,7 +9232,7 @@
               "source": {
                 "kind": "table",
                 "screen": {
-                  "opened_sequence": 122,
+                  "opened_sequence": 123,
                   "session": {
                     "connection_id": 1,
                     "version": "Java1_21_11",
@@ -9443,7 +9443,7 @@
             "source": {
               "kind": "table",
               "screen": {
-                "opened_sequence": 122,
+                "opened_sequence": 123,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_21_11",
@@ -9520,7 +9520,7 @@
             "id": {
               "attempt": 1,
               "screen": {
-                "opened_sequence": 122,
+                "opened_sequence": 123,
                 "session": {
                   "connection_id": 1,
                   "version": "Java1_21_11",
@@ -9538,6 +9538,14 @@
       }
     }
   ],
+  "b4_fixed_commit_trials": {
+    "commit": "3f85021",
+    "inputs_match_committed_blobs": true,
+    "trials": [
+      "trial-1.16.1-6239a947",
+      "trial-1.21.11-c43b7cc9"
+    ]
+  },
   "adapter_regressions": [
     "Both native adapters: blocked writer history is independently readable; cancelled waiter retains one owned request; actual inputs without conserved stock do not release ownership; fresh conserved stock does; old plan is refused; subsequent selection allowed; no replay.",
     "Both native adapters: common revocation with the writer held fences the admitted owned request; original identity and inspection history retained.",
@@ -9567,5 +9575,129 @@
     "B3 adjacent-table collision and other broader terrain/movement/mining/placement",
     "Remaining B5 context/recording/reconstruction/recovery and B6 UI/vehicle/manager",
     "Private A6 migration and fixed-commit results; full goal and main integration remain incomplete"
-  ]
+  ],
+  "main_integration": {
+    "main": "686f414a82812cfe8b970e72d96876353b852dea",
+    "merge": "291da13",
+    "merged_prs": [
+      8,
+      9,
+      11,
+      12
+    ],
+    "preserved": "Length-prefixed light arrays and freshness invalidation, opt-in protocol timing diagnostics, native modern hypothetical movement/removal successor. Checked export conflict resolved retaining common motion types. Wider common B5 remains incomplete."
+  },
+  "validation": {
+    "unit_passed": 749,
+    "unit_ignored": 8,
+    "public_api_passed": 4,
+    "doctests_passed": 30,
+    "command_logs": ".local/integration-validation/client-api-unification/b4-recipe-placement/quality-*.log",
+    "required_checks": "fmt, all-target tests, doctests, Clippy, Rust 1.85 all-target check, rustdoc, trace boundaries and package allowlist/build",
+    "quality_checks": [
+      {
+        "name": "fmt",
+        "command": [
+          "cargo",
+          "fmt",
+          "--all",
+          "--",
+          "--check"
+        ],
+        "exit_code": 0
+      },
+      {
+        "name": "all-targets",
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "--all-targets",
+          "-j1",
+          "--",
+          "--test-threads=1"
+        ],
+        "exit_code": 0
+      },
+      {
+        "name": "doctests",
+        "command": [
+          "cargo",
+          "test",
+          "--locked",
+          "--doc",
+          "-j1"
+        ],
+        "exit_code": 0
+      },
+      {
+        "name": "clippy",
+        "command": [
+          "cargo",
+          "clippy",
+          "--locked",
+          "--all-targets",
+          "-j1",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "exit_code": 0
+      },
+      {
+        "name": "msrv",
+        "command": [
+          "cargo",
+          "+1.85.0",
+          "check",
+          "--locked",
+          "--all-targets",
+          "-j1"
+        ],
+        "exit_code": 0
+      },
+      {
+        "name": "rustdoc",
+        "command": [
+          "cargo",
+          "doc",
+          "--locked",
+          "--no-deps",
+          "-j1"
+        ],
+        "exit_code": 0
+      },
+      {
+        "name": "trace",
+        "command": [
+          "python3",
+          "scripts/test_native_trace.py"
+        ],
+        "exit_code": 0
+      },
+      {
+        "name": "package-list",
+        "command": [
+          "cargo",
+          "package",
+          "--locked",
+          "--allow-dirty",
+          "--list"
+        ],
+        "exit_code": 0
+      },
+      {
+        "name": "package",
+        "command": [
+          "cargo",
+          "package",
+          "--locked",
+          "--allow-dirty",
+          "-j1"
+        ],
+        "exit_code": 0
+      }
+    ],
+    "packaged_files": 772
+  }
 }

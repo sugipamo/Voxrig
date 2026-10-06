@@ -255,9 +255,9 @@ close送信と実受信screen履歴を混同せず、サーバー側でも位置
 
 | 段階 | 後続の対応範囲 |
 | --- | --- |
-| 3 | 広い移動・採掘・設置条件、道具・姿勢・非cube・effect等の対応、観測継続と復旧の範囲拡大、Creative飛行後の立位操作への継続 |
-| 4 | ownedレシピブック配置とghost結果、非空cursorへの結果結合、shift製作、製作台SWAP／QUICK_MOVE、一般装備・entity・item activation、任意item／text／dialogのconstructor・参照・比較と実server cache hash |
-| 5 | より広いcontext／記録／再構成／scene／復旧、履歴取得が書き込み停止で詰まる経路の解消、両版の共通緊急generation遮断、再設定・chunk欠測・再接続の範囲拡大 |
+| 3 | 広い移動・採掘・設置条件、道具・姿勢・非cube・effect等の対応、観測継続と復旧の範囲拡大、別姿勢／effectを含むCreative飛行後の立位操作への継続 |
+| 4 | レシピブック配置のghost結果と未対応条件、非空cursorへの結果結合、shift製作、製作台SWAP／QUICK_MOVE、一般装備・entity・item activation、任意item／text／dialogのconstructor・参照・比較と実server cache hash |
+| 5 | より広いcontext／記録／再構成／scene／復旧、履歴取得が書き込み停止で詰まる経路の解消、共通遮断後の各履歴取得と不確実性保持、再設定・chunk欠測・再接続の範囲拡大 |
 | 6 | 各UI・特殊window・vehicle・manager機能の残差分。raw操作の版依存は明示的な拡張として管理する |
 
 失われるitem data、異なるitemの誤結合、古い接続／画面への送信、取消後の重複送信など、
