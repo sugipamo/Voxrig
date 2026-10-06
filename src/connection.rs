@@ -446,12 +446,16 @@ impl Client {
         &self,
         mode: crate::client::GameMode,
         grid: &crate::client::crafting::ReceivedCrafting,
+        destination: crate::client::crafting::CraftingResultDestination,
     ) -> Result<crate::client::crafting::CraftingTakeRecord> {
         match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_take_crafting_result(mode, grid).await,
+            Adapter::Java1_16_1(bot) => {
+                bot.common_take_crafting_result(mode, grid, destination)
+                    .await
+            }
             Adapter::Java1_21_11(bot) => {
                 bot.operations()
-                    .common_take_crafting_result(mode, grid)
+                    .common_take_crafting_result(mode, grid, destination)
                     .await
             }
         }

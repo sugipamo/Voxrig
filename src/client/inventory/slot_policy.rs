@@ -52,7 +52,7 @@ fn profiles(version: MinecraftVersion) -> &'static Profiles {
         }),
     }
 }
-pub(super) fn regular_slot(
+pub(crate) fn regular_slot(
     version: MinecraftVersion,
     menu: &str,
     index: usize,

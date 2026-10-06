@@ -2,7 +2,9 @@
 use super::*;
 use crate::client::{
     self as api,
-    crafting::{self as contract, CraftingSource, CraftingTakeRecord, CraftingTakeStage, take},
+    crafting::{
+        self as contract, CraftingResultDestination, CraftingSource, CraftingTakeRecord, take,
+    },
     inventory::unavailable,
 };
 #[derive(Clone)]
@@ -15,6 +17,7 @@ impl Bot {
         &self,
         mode: api::GameMode,
         grid: &contract::ReceivedCrafting,
+        destination: CraftingResultDestination,
     ) -> Result<CraftingTakeRecord> {
         let gate = self.coherent_state_gate.lock().await;
         self.common_motion_admission().await?;
@@ -59,7 +62,14 @@ impl Bot {
             .registries
             .capture(initial.session, initial.receive_sequence);
         let screen = take::screen_observation(&initial, table);
-        let record = take::prepare(initial, screen, registries, grid, mode, attempt)?;
+        let record = match destination {
+            CraftingResultDestination::Cursor => {
+                take::prepare(initial, screen, registries, grid, mode, attempt)?
+            }
+            CraftingResultDestination::Inventory => {
+                take::prepare_transfer(initial, screen, registries, grid, mode, attempt)?
+            }
+        };
         self.crafting_cache(&record).await?;
         let id = record.id;
         *self.common_crafting_take.lock().await = Some(NativeCraftingTake {
@@ -131,22 +141,46 @@ impl Bot {
                 &registries,
             )?;
             self.crafting_cache(&record).await?;
-            // Original result PICKUP returns the nonempty output predecessor.
-            // Empty comparison deliberately requests actual native full resync.
-            let action = self
-                .connection
-                .begin_crafting_result_take(id.attempt(), revision, record.window_id() as i8)
-                .await
-                .map_err(|e| unavailable(format!("crafting reservation: {e:?}")))?;
+            let comparison = record.legacy_full_comparison()?;
+            let native = match &comparison {
+                api::SlotKnowledge::Empty => None,
+                api::SlotKnowledge::Item { item } => Some(ItemStack {
+                    item_id: item.id.value(),
+                    count: item.count as i8,
+                    nbt: None,
+                }),
+                _ => unreachable!("validated full resync comparison"),
+            };
+            let action = match record.destination {
+                CraftingResultDestination::Cursor => {
+                    self.connection
+                        .begin_crafting_result_take(
+                            id.attempt(),
+                            revision,
+                            record.window_id() as i8,
+                        )
+                        .await
+                }
+                CraftingResultDestination::Inventory => {
+                    self.connection
+                        .begin_crafting_result_transfer(
+                            id.attempt(),
+                            revision,
+                            record.window_id() as i8,
+                        )
+                        .await
+                }
+            }
+            .map_err(|e| unavailable(format!("crafting reservation: {e:?}")))?;
             {
                 let mut guard = self.common_crafting_take.lock().await;
                 let record = &mut guard.as_mut().expect("retained").record;
                 record.send.legacy_action = Some(action);
-                record.send.legacy_comparison = Some(api::SlotKnowledge::Empty);
+                record.send.legacy_comparison = Some(comparison);
                 record.send.after_sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
             }
             self.connection
-                .bounded_inventory_click(id.attempt(), 0, 0, None)
+                .bounded_inventory_click(id.attempt(), 0, 0, native)
                 .await?;
             let mut guard = self.common_crafting_take.lock().await;
             let record = &mut guard.as_mut().expect("retained").record;
@@ -262,7 +296,7 @@ impl Bot {
                     let mut guard = self.common_crafting_take.lock().await;
                     let r = guard.as_mut().expect("retained");
                     r.released = true;
-                    r.record.stage = CraftingTakeStage::ObservedTaken;
+                    r.record.stage = r.record.completed_stage();
                 }
                 Err(e) => {
                     self.interrupt_common_crafting_take(format!("crafting completion gate: {e:?}"))

@@ -236,5 +236,7 @@ coherent contextの実recipe IDからsealed Next／Maximum planを作り、送�
 `ObservedGhost`になる。`Client::received_recipe_ghost()`は元UI・registryへ固定した実表示を返す。
 新版応答はrecipe IDを持たず、選択recipeの応答や完成品と断定しない。古いplanは再送できない。
 `take_crafting_result`は空cursorまたは同じitem/dataの実受信cursorへ結果全体を結合する。
-結合先の実効容量を超える結果は送信前に拒否し、部分取得は行わない。自動shift製作は後続対応。
+結合先の実効容量を超える結果は送信前に拒否し、部分取得は行わない。`transfer_crafting_result`は一回のnative QUICK_MOVEで在庫へ転送し、
+`ObservedTransferred`に実grid／主在庫と変わらない実cursor、在庫の実増加を保持する。
+server内部の反復回数・製作総数・後続の部分移動やdropは予測しない。
 [共通レシピ](common-recipes.md)に公開契約と制限を記載する。

@@ -152,10 +152,29 @@ impl Survival {
         grid: &super::crafting::ReceivedCrafting,
     ) -> Result<super::crafting::CraftingTakeRecord> {
         self.client
-            .common_take_crafting_result(GameMode::Survival, grid)
+            .common_take_crafting_result(
+                GameMode::Survival,
+                grid,
+                super::crafting::CraftingResultDestination::Cursor,
+            )
             .await
     }
-    /// Inspect the retained take, including actual grid and output receipts.
+    /// Shift the actual result into main/hotbar with one native QUICK_MOVE.
+    /// The first whole result must fit. Native internal crafts/remainders/drops
+    /// are not predicted; inspect actual full inventory/grid and retained history.
+    pub async fn transfer_crafting_result(
+        &self,
+        grid: &super::crafting::ReceivedCrafting,
+    ) -> Result<super::crafting::CraftingTakeRecord> {
+        self.client
+            .common_take_crafting_result(
+                GameMode::Survival,
+                grid,
+                super::crafting::CraftingResultDestination::Inventory,
+            )
+            .await
+    }
+    /// Inspect the latest cursor take or inventory result transfer with actual receipts.
     /// Accessible while the writer is stalled; cancellation never resends it.
     pub async fn crafting_take_record(
         &self,
@@ -480,10 +499,29 @@ impl Creative {
         grid: &super::crafting::ReceivedCrafting,
     ) -> Result<super::crafting::CraftingTakeRecord> {
         self.client
-            .common_take_crafting_result(GameMode::Creative, grid)
+            .common_take_crafting_result(
+                GameMode::Creative,
+                grid,
+                super::crafting::CraftingResultDestination::Cursor,
+            )
             .await
     }
-    /// Inspect the retained take, including actual grid and output receipts.
+    /// Shift the actual result into main/hotbar with one native QUICK_MOVE.
+    /// The first whole result must fit. Native internal crafts/remainders/drops
+    /// are not predicted; inspect actual full inventory/grid and retained history.
+    pub async fn transfer_crafting_result(
+        &self,
+        grid: &super::crafting::ReceivedCrafting,
+    ) -> Result<super::crafting::CraftingTakeRecord> {
+        self.client
+            .common_take_crafting_result(
+                GameMode::Creative,
+                grid,
+                super::crafting::CraftingResultDestination::Inventory,
+            )
+            .await
+    }
+    /// Inspect the latest cursor take or inventory result transfer with actual receipts.
     /// Accessible while the writer is stalled; cancellation never resends it.
     pub async fn crafting_take_record(
         &self,

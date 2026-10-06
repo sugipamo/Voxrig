@@ -523,7 +523,9 @@ Item、Unavailableは別々に保持する。`registry_state()`と各slotのregi
 要求するが、revision mismatchやEmpty comparisonは受信証拠ではない。表示resultが同じまま再生成
 されるレシピも扱い、例えばケーキのバケツを実受信remainderとして保持する。成功した履歴は現在の
 在庫と区別する。recipe選択は利用側で行う。非空cursorでは結合先itemの実効容量に結果全体が入ることを要求し、部分取得やdataの異なる結合は送信前に拒否する。
-実cursorへの加算も`cursor_prediction`とfreshな`cursor_receipt`を分ける。shift-craftingは後続対応を要する。
+実cursorへの加算も`cursor_prediction`とfreshな`cursor_receipt`を分ける。結果のshift転送は`transfer_crafting_result`へ移行し、同じ履歴の
+`destination == Inventory`／`ObservedTransferred`と実`inventory_after`・`inventory_output_increase`を確認する。
+増加数を製作総数やdropがない証明へ読み替えない。
 旧版の`craft_once` / `take_crafting_result`でローカルに減算した材料は共通APIの受信結果にしない。
 
 ### 製作台の開閉

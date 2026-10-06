@@ -147,7 +147,7 @@ enum Owner {
     Motion(u64),
     Placement(u64),
     InventoryClick {
-        result_take: bool,
+        result_take: Option<crate::client::crafting::CraftingResultDestination>,
         run_id: u64,
         action: i16,
         window: i8,
@@ -284,7 +284,11 @@ impl MotionGate {
     }
     pub(super) async fn begin_inventory_click(
         &mut self,
-        identity: (u64, i8, bool),
+        identity: (
+            u64,
+            i8,
+            Option<crate::client::crafting::CraftingResultDestination>,
+        ),
         expected_revision: u64,
         state: ConnectionState,
         control: &Arc<RwLock<crate::snapshot::Versioned<crate::ControlState>>>,
@@ -1000,7 +1004,7 @@ impl MotionGate {
                     };
                     if *id != run_id
                         || *sent
-                        || if *result_take {
+                        || if result_take.is_some() {
                             slot != 0 || button != 0
                         } else {
                             *window == 0 && !(1..=4).contains(&slot) && !(9..=44).contains(&slot)
@@ -1020,7 +1024,7 @@ impl MotionGate {
                     payload.extend((slot as i16).to_be_bytes());
                     payload.push(button);
                     payload.extend(action.to_be_bytes());
-                    payload.push(0); // Original PICKUP, never SWAP/creative creation.
+                    payload.push(result_take.map_or(0, |destination| destination.click_mode())); // Result-owned PICKUP/QUICK_MOVE; ordinary click stays PICKUP.
                     crate::versions::java_1_16_1::inventory::write_slot(
                         &mut payload,
                         comparison.as_ref(),
@@ -1337,7 +1341,7 @@ impl ConnectionActor {
         let (reply, result) = oneshot::channel();
         self.commands
             .send(Command::BeginInventoryClick {
-                result_take: false,
+                result_take: None,
                 run_id,
                 expected_revision,
                 window,
@@ -1356,7 +1360,26 @@ impl ConnectionActor {
         let (reply, result) = oneshot::channel();
         self.commands
             .send(Command::BeginInventoryClick {
-                result_take: true,
+                result_take: Some(crate::client::crafting::CraftingResultDestination::Cursor),
+                run_id,
+                expected_revision,
+                window,
+                reply,
+            })
+            .await
+            .map_err(|_| self.terminal_admission_error())?;
+        result.await.map_err(|_| self.terminal_admission_error())?
+    }
+    pub(crate) async fn begin_crafting_result_transfer(
+        &self,
+        run_id: u64,
+        expected_revision: u64,
+        window: i8,
+    ) -> Admission<i16> {
+        let (reply, result) = oneshot::channel();
+        self.commands
+            .send(Command::BeginInventoryClick {
+                result_take: Some(crate::client::crafting::CraftingResultDestination::Inventory),
                 run_id,
                 expected_revision,
                 window,

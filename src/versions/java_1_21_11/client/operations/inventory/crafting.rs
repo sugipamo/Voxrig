@@ -2,7 +2,9 @@
 use super::*;
 use crate::client::{
     self as api,
-    crafting::{self as contract, CraftingSource, CraftingTakeRecord, CraftingTakeStage, take},
+    crafting::{
+        self as contract, CraftingResultDestination, CraftingSource, CraftingTakeRecord, take,
+    },
     inventory::unavailable,
 };
 fn publish(state: &mut State) {
@@ -58,7 +60,7 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
             record.inspection("crafting native session/inventory/loading ownership changed");
         }
         if record.ready() {
-            record.stage = CraftingTakeStage::ObservedTaken;
+            record.stage = record.completed_stage();
         }
     }
     state.common_crafting_take = Some(record);
@@ -73,7 +75,7 @@ pub(super) fn payload(record: &CraftingTakeRecord) -> Result<Vec<u8>> {
     put_varint(&mut bytes, record.window_id());
     put_varint(&mut bytes, revision);
     bytes.extend(0i16.to_be_bytes());
-    bytes.extend([0, 0, 0]); // left, PICKUP, no predicted modified-slot map
+    bytes.extend([0, record.destination.click_mode(), 0]); // left, native mode, no predicted modified-slot map
     put_default_cursor_hash(&mut bytes, &InventorySlot::Empty)?;
     Ok(bytes)
 }
@@ -82,6 +84,7 @@ impl Operations {
         &self,
         mode: api::GameMode,
         grid: &contract::ReceivedCrafting,
+        destination: CraftingResultDestination,
     ) -> Result<CraftingTakeRecord> {
         let mut state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
@@ -115,7 +118,14 @@ impl Operations {
             .as_ref()
             .map_or(Some(1), |r| r.id.attempt().checked_add(1))
             .ok_or_else(|| unavailable("crafting take attempts exhausted"))?;
-        let record = take::prepare(initial, screen, registries, grid, mode, attempt)?;
+        let record = match destination {
+            CraftingResultDestination::Cursor => {
+                take::prepare(initial, screen, registries, grid, mode, attempt)?
+            }
+            CraftingResultDestination::Inventory => {
+                take::prepare_transfer(initial, screen, registries, grid, mode, attempt)?
+            }
+        };
         let id = record.id;
         state.common_crafting_take = Some(record);
         publish(&mut state);

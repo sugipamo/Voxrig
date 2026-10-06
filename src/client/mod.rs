@@ -46,13 +46,13 @@ pub use crate::connection::{Client, ConnectionConfig, Observation, ObservedBlock
 pub use capabilities::{Capabilities, Feature, Support};
 pub use config::{ClientLimits, Server};
 pub use crafting::{
-    CraftingGridReturnPlan, CraftingGridReturnStep, CraftingGridUnreturnedSplit, CraftingSource,
-    CraftingTakeId, CraftingTakeRecord, CraftingTakeStage, ReceivedCrafting,
-    ReceivedCraftingContext, ReceivedRecipe, ReceivedRecipeGhost, ReceivedRecipes,
-    RecipeBookMaterials, RecipeBookStock, RecipeCraftingCell, RecipeCraftingLayout, RecipeDisplay,
-    RecipeId, RecipeIngredient, RecipePlacementAmount, RecipePlacementId, RecipePlacementPlan,
-    RecipePlacementRecord, RecipePlacementSend, RecipePlacementStage, RecipeSlotDisplay,
-    RecipeTrimDefinition, RecipeTrimPattern,
+    CraftingGridReturnPlan, CraftingGridReturnStep, CraftingGridUnreturnedSplit,
+    CraftingResultDestination, CraftingSource, CraftingTakeId, CraftingTakeRecord,
+    CraftingTakeStage, ReceivedCrafting, ReceivedCraftingContext, ReceivedRecipe,
+    ReceivedRecipeGhost, ReceivedRecipes, RecipeBookMaterials, RecipeBookStock, RecipeCraftingCell,
+    RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient, RecipePlacementAmount,
+    RecipePlacementId, RecipePlacementPlan, RecipePlacementRecord, RecipePlacementSend,
+    RecipePlacementStage, RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern,
 };
 pub use entity::{EntityId, EntitySpawn, EntitySpawns};
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
@@ -111,9 +111,9 @@ pub mod prelude {
     pub use super::{
         Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,
         ConnectionRevocation, CraftingGridReturnPlan, CraftingGridReturnStep,
-        CraftingGridUnreturnedSplit, CraftingSource, CraftingTakeId, CraftingTakeRecord,
-        CraftingTakeStage, Creative, DismountId, DismountRecord, DismountStage, EntityId,
-        EntitySpawn, EntitySpawns, Feature, FlightCommand, FlightLanding, FlightRecord,
+        CraftingGridUnreturnedSplit, CraftingResultDestination, CraftingSource, CraftingTakeId,
+        CraftingTakeRecord, CraftingTakeStage, Creative, DismountId, DismountRecord, DismountStage,
+        EntityId, EntitySpawn, EntitySpawns, Feature, FlightCommand, FlightLanding, FlightRecord,
         FlightStage, FurnaceObservation, FurnaceSlot, GameMode, ItemComponent, ItemComponentPatch,
         ItemData, ItemProperties, ItemStack, MountId, PlayerObservation, ReceivedCrafting,
         ReceivedCraftingContext, ReceivedInventory, ReceivedItem, ReceivedRecipe,

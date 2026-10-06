@@ -696,3 +696,28 @@ bounded cleanupも時間を超えて完全なreport exportは終わらなかっ�
 単体758件（8件ignored）、公開API4件、doctest30件と、fmt、all-target Clippy、
 Rust 1.85 all-target check、rustdoc warnings denied、trace境界、Cargo packageの確認も成功した。
 全体の操作テスト後の変更はCrafting capabilityの説明文だけで、最終nativeと静的・配布確認は修正文を含む。
+
+
+## B4: native result QUICK_MOVE and continued Client operation
+
+```sh
+CARGO_INCREMENTAL=0 python3 scripts/run_common_native.py --all --scenario recipe-result-transfer --accept-eula --runtime-dir /dev/shm/voxrig-b4-shift
+```
+
+Both versions, modes, player/table UIs and Next/Maximum: 16 successful cases.
+One original result QUICK_MOVE completes with actual full grid/main inventory,
+fresh unchanged cursor and observed compatible output increase. Next preserves a
+held dirt cursor and then deposits it; Maximum starts empty and the original
+server repeats three internal crafts. Exact independent native stock is planks4,
+sticks64 and dirt1 for Next, or sticks64+8 and dirt1 for Maximum. Both retain their
+position and finish empty inputs/result/cursor, table close, selection, disconnect.
+The proxy verifies one recipe request and exactly one result mode-1 click; stale
+snapshot reuse sends nothing. Legacy negative comparison plus full contents/cursor
+is received for both one-batch and repeated paths. Both JVMs exit 0; proxy errors
+are empty. Runtime input and consumer hashes agree across both native reports.
+
+This verifies one useful result transfer operation. It does not claim total
+manufactured quantity, recipe causation, no native drops in later partial rounds,
+all crafting conditions, table input SWAP/QUICK_MOVE or full B4 completion.
+[Contract](common-recipes.md#native-result-quick_move-through-the-common-client) /
+[inputs and results](evidence/common-recipe-result-transfer-20261006.json).

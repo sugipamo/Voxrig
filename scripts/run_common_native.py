@@ -1170,6 +1170,72 @@ def run_recipe_result_merge(version, env, rcon, trace, report, probe_log, stderr
                 except subprocess.TimeoutExpired:probe.kill();probe.wait(timeout=5)
 
 
+def run_recipe_result_transfer(version, env, rcon, trace, report, probe_log, stderr_log):
+    results=report['native_results']['recipe_result_transfer']={}
+    for mode in ('survival','creative'):
+      for ui in ('player','table'):
+       for amount in ('next','maximum'):
+        until(lambda:matched(rcon.command('execute unless entity @a[name=UnifiedProbe]'),'Test passed'))
+        result=results[mode+'-'+ui+'-'+amount]={'fixture':{},'records':[]}
+        for command in ['setblock 0 65 1 minecraft:air', 'setblock 0 65 2 minecraft:crafting_table' if ui=='table' else 'setblock 0 65 2 minecraft:air']:
+            result['fixture'][command]=rcon.command(command)
+        probe=subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')],cwd=REPO,
+            env=dict(env,VOXRIG_NATIVE_SCENARIO='recipe-result-transfer',VOXRIG_NATIVE_RECIPE_MODE=mode,VOXRIG_NATIVE_RECIPE_UI=ui,VOXRIG_NATIVE_RECIPE_AMOUNT=amount),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
+        messages=queue.Queue();reader=threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True);reader.start()
+        try:
+            stage(probe,messages,'b4_recipe_ready',result['records'])
+            commands=['gamemode '+mode+' UnifiedProbe','tp UnifiedProbe 0.5 65 0.5 0 0','clear UnifiedProbe']
+            commands.append('replaceitem entity UnifiedProbe inventory.0 minecraft:oak_planks 6' if version=='1.16.1' else 'item replace entity UnifiedProbe inventory.0 with minecraft:oak_planks 6')
+            commands.append('replaceitem entity UnifiedProbe inventory.2 minecraft:stick 60' if version=='1.16.1' else 'item replace entity UnifiedProbe inventory.2 with minecraft:stick 60')
+            commands.append('replaceitem entity UnifiedProbe inventory.3 minecraft:dirt 1' if version=='1.16.1' else 'item replace entity UnifiedProbe inventory.3 with minecraft:dirt 1')
+            commands.append('recipe give UnifiedProbe *')
+            for command in commands:result['fixture'][command]=rcon.command(command)
+            boundary=trace.mark()
+            done=stage(probe,messages,'b4_recipe_run',result['records'],timeout=120)['value']
+            expected=({8:('stick',8),11:('stick',64),12:('dirt',1)} if amount=='maximum' else {9:('oak_planks',4),11:('stick',64),12:('dirt',1)})
+            def inventory():
+                response=rcon.command('data get entity UnifiedProbe Inventory');stacks=outer_snbt_compounds(response)
+                if len(stacks)!=len(expected):return None
+                for slot,(item,count) in expected.items():
+                    if not any(re.search(rf'Slot: {slot}b(?:,|\s|}})',s) and f'id: "minecraft:{item}"' in s and re.search(rf'(?:Count|count): {count}(?:b)?(?:,|\s|}})',s) for s in stacks):return None
+                return response
+            result['native_inventory']=until(inventory)
+            result['native_position']=rcon.command('data get entity UnifiedProbe Pos')
+            if '[0.5d, 65.0d, 0.5d]' not in result['native_position']:raise RuntimeError('recipe placement moved native actor')
+            result['operation_frames']=trace.since(boundary)
+            requests=[f for f in result['operation_frames'] if f['phase']=='play' and f['direction']=='serverbound' and f['packet_id']==(0x19 if version=='1.16.1' else 0x26)]
+            if len(requests)!=1:raise RuntimeError('recipe placement request was repeated or missing')
+            raw=bytes.fromhex(requests[0]['body_hex'])
+            if raw[-1]!=int(amount=='maximum'):raise RuntimeError('native recipe amount flag differs')
+            if not done['placement']['send']['dispatched'] or done['placement']['stage']!='observed_placed':raise RuntimeError('missing actual recipe completion')
+            transfer=done['transfer']
+            if transfer['stage']!='observed_transferred' or transfer['requires_inspection'] is not None or transfer['destination']!='inventory':
+                raise RuntimeError('actual native result transfer missing')
+            if transfer['inventory_output_increase']!=(12 if amount=='maximum' else 4) or transfer['inventory_after'] is None or transfer['cursor_receipt']['value']!=transfer['cursor_before']['value']:
+                raise RuntimeError('actual inventory gain or unchanged cursor differs')
+            clicks=[f for f in result['operation_frames'] if f['phase']=='play' and f['direction']=='serverbound' and f['packet_id']==(0x09 if version=='1.16.1' else 0x11)]
+            if len(clicks)!=(1 if amount=='maximum' else 3):raise RuntimeError('native shift or ordinary cursor moves were repeated or missing')
+            quick=[]
+            for click in clicks:
+                body=bytes.fromhex(click['body_hex'])
+                if version=='1.16.1':
+                    slot=int.from_bytes(body[1:3],'big',signed=True);mode_id=body[6]
+                else:
+                    _,off=trace.varint(body);_,size=trace.varint(body[off:]);off+=size
+                    slot=int.from_bytes(body[off:off+2],'big',signed=True);mode_id,_=trace.varint(body[off+3:])
+                if mode_id==1:quick.append(slot)
+            if quick!=[0]:raise RuntimeError('expected exactly one original result QUICK_MOVE')
+            trace.expect_disconnect();stage(probe,messages,'b4_recipe_disconnect',result['records'])
+            if probe.wait(timeout=15)!=0:raise RuntimeError('recipe placement consumer failed')
+            result['authority_limits']='One common Client per mode/UI/amount: original recipe placement, one result QUICK_MOVE, actual full grid and main inventory, observed output gain and unchanged empty/held dirt cursor, stale-grid refusal, original table close, selection, disconnect. Read-only native inventory and position independently checked. Gain is received stock increase, not predicted batch count or a guarantee against later native partial/drop behavior.'
+            result['result']='passed'
+        finally:
+            if probe.poll() is None:
+                probe.terminate()
+                try:probe.wait(timeout=10)
+                except subprocess.TimeoutExpired:probe.kill();probe.wait(timeout=5)
+
+
 def run_recipe_ghost(version, env, rcon, trace, report, probe_log, stderr_log):
     results=report['native_results']['recipe_ghost']={}
     for mode in ('survival','creative'):
@@ -1598,6 +1664,10 @@ network-compression-threshold=256
         for check in ["execute if block 0 65 1 minecraft:stone", "execute if block 1 65 0 minecraft:air"]:
             report.setdefault("fixture_verification", {})[check] = until(lambda: matched(rcon.command(check), "Test passed"))
         env = dict(os.environ, VOXRIG_MINECRAFT_VERSION=version, VOXRIG_PORT=str(trace.port))
+        if scenario == "recipe-result-transfer":
+            run_recipe_result_transfer(version,env,rcon,trace,report,probe_log,stderr_log)
+            report["scenario_result"]="passed"
+            return retained
         if scenario == "recipe-result-merge":
             run_recipe_result_merge(version,env,rcon,trace,report,probe_log,stderr_log)
             report["scenario_result"]="passed"
@@ -2697,7 +2767,7 @@ def main():
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--accept-eula", action="store_true")
     parser.add_argument("--runtime-dir", type=Path, help="Optional disposable runtime parent, e.g. /dev/shm for isolating disk I/O; reports are exported to .local after JVM exit")
-    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "mining-tools", "connection-revocation", "recipe-placement", "recipe-result-merge", "recipe-ghost", "recording-scene", "manager-ui", "furnace", "vehicle", "dry-terrain", "creative-flight", "creative-landing"), default="full", help="Run the operation corpus or a focused common Client workflow")
+    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "mining-tools", "connection-revocation", "recipe-placement", "recipe-result-merge", "recipe-result-transfer", "recipe-ghost", "recording-scene", "manager-ui", "furnace", "vehicle", "dry-terrain", "creative-flight", "creative-landing"), default="full", help="Run the operation corpus or a focused common Client workflow")
     args = parser.parse_args()
     if bool(args.version) == args.all:
         parser.error("select exactly one of --version / --all")

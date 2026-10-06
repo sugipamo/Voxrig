@@ -4353,3 +4353,124 @@ async fn crafting_take_merge_cancelled_waiter_preserves_one_write_combined_curso
     );
     f.stop().await;
 }
+
+#[tokio::test]
+async fn crafting_result_shift_cancelled_waiter_keeps_one_native_move_and_actual_inventory_gain() {
+    use crate::client::crafting::CraftingTakeStage;
+    let mut f = CommonFixture::new().await;
+    f.api.bot.session.state.lock().await.registries.finish();
+    for slot in 0..=4 {
+        f.slot(
+            slot,
+            match slot {
+                0 => plain("stick", 4),
+                1 | 3 => plain("oak_planks", 2),
+                _ => InventorySlot::Empty,
+            },
+        )
+        .await;
+    }
+    let mut cursor = Vec::new();
+    put_slot(&mut cursor, &plain("stick", 4));
+    f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+        .await;
+    let client = f.client();
+    let grid = client.received_crafting().await.unwrap().unwrap();
+    let bot = f.api.bot.clone();
+    let writer = bot.session.writer.lock().await;
+    let ops = client.survival();
+    let old = grid.clone();
+    let waiter = tokio::spawn(async move { ops.transfer_crafting_result(&old).await });
+    let pending = timeout(Duration::from_secs(1), async {
+        loop {
+            if let Some(r) = client.survival().crafting_take_record().await.unwrap() {
+                break r;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(
+        matches!(&pending.cursor_before.value,crate::client::SlotKnowledge::Item{item} if item.count==4)
+    );
+    assert!(
+        matches!(&pending.cursor_prediction.value,crate::client::SlotKnowledge::Item{item} if item.count==4)
+    );
+    waiter.abort();
+    assert!(waiter.await.unwrap_err().is_cancelled());
+    drop(writer);
+    let (id, payload) = read_packet(&mut f.peer, None).await.unwrap();
+    assert_eq!(id, ids::play_serverbound::WINDOW_CLICK);
+    assert_eq!(payload, super::crafting::payload(&pending).unwrap());
+    cursor.clear();
+    put_slot(&mut cursor, &plain("stick", 4));
+    f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+        .await;
+    let half = client
+        .survival()
+        .crafting_take_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(half.cursor_receipt.is_some() && half.after.is_none());
+    assert_eq!(half.stage, CraftingTakeStage::Pending);
+    assert!(client.survival().select_hotbar(0).await.is_err());
+    let mut full = vec![0];
+    put_varint(&mut full, 130);
+    put_varint(&mut full, 46);
+    for slot in 0..46 {
+        put_slot(
+            &mut full,
+            &match slot {
+                0 | 1 | 3 => InventorySlot::Empty,
+                44 => plain("stick", 8),
+                9 => plain("stone", 32),
+                36 => plain("dirt", 12),
+                _ => InventorySlot::Empty,
+            },
+        );
+    }
+    put_slot(&mut full, &plain("stick", 4));
+    f.receive(ids::play_clientbound::WINDOW_ITEMS, &full).await;
+    let complete = client
+        .survival()
+        .crafting_take_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(complete.inventory_output_increase, Some(8));
+    assert!(complete.inventory_after.is_some());
+    assert_eq!(complete.id, pending.id);
+    assert_eq!(complete.stage, CraftingTakeStage::ObservedTransferred);
+    assert!(complete.after.is_some() && complete.requires_inspection.is_none());
+    assert!(
+        client
+            .survival()
+            .transfer_crafting_result(&grid)
+            .await
+            .is_err()
+    );
+    client.survival().select_hotbar(0).await.unwrap();
+    assert_eq!(
+        read_packet(&mut f.peer, None).await.unwrap().0,
+        ids::play_serverbound::HELD_ITEM_SLOT
+    );
+    assert!(
+        timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    client.disconnect().await.unwrap();
+    assert_eq!(
+        client
+            .survival()
+            .crafting_take_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .stage,
+        CraftingTakeStage::ObservedTransferred
+    );
+    f.stop().await;
+}

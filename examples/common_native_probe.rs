@@ -122,11 +122,7 @@ async fn crafting_pickup(
     })
     .await?
 }
-async fn crafting_result_take(
-    client: &Client,
-    mode: GameMode,
-    expected: &str,
-) -> anyhow::Result<CraftingTakeRecord> {
+async fn crafting_result_grid(client: &Client, expected: &str) -> anyhow::Result<ReceivedCrafting> {
     let previous = client.survival().inventory_click_record().await?;
     // A negative legacy comparison queues full contents followed by the cursor.
     // The click's own fresh source/cursor can precede those queued updates. Wait
@@ -198,6 +194,14 @@ async fn crafting_result_take(
     })
     .await
     .context("crafting result baseline wait")??;
+    Ok(grid)
+}
+async fn crafting_result_take(
+    client: &Client,
+    mode: GameMode,
+    expected: &str,
+) -> anyhow::Result<CraftingTakeRecord> {
+    let grid = crafting_result_grid(client, expected).await?;
     let sent = match mode {
         GameMode::Survival => client.survival().take_crafting_result(&grid).await?,
         _ => client.creative().take_crafting_result(&grid).await?,
@@ -257,6 +261,85 @@ async fn crafting_result_take(
         _ => client.creative().take_crafting_result(&grid).await,
     };
     anyhow::ensure!(refusal.is_err(), "old crafting snapshot was reused");
+    Ok(complete)
+}
+async fn crafting_result_transfer(
+    client: &Client,
+    mode: GameMode,
+    expected_gain: u64,
+) -> anyhow::Result<CraftingTakeRecord> {
+    let grid = crafting_result_grid(client, "minecraft:stick").await?;
+    let sent = match mode {
+        GameMode::Survival => client.survival().transfer_crafting_result(&grid).await?,
+        _ => client.creative().transfer_crafting_result(&grid).await?,
+    };
+    let complete = tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            let record = client
+                .survival()
+                .crafting_take_record()
+                .await?
+                .context("transfer history absent")?;
+            anyhow::ensure!(
+                record.id == sent.id && record.requires_inspection.is_none(),
+                "crafting transfer conflict: {:?}",
+                record.requires_inspection
+            );
+            if record.stage == CraftingTakeStage::ObservedTransferred {
+                return Ok::<_, anyhow::Error>(record);
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await??;
+    anyhow::ensure!(
+        complete.destination == CraftingResultDestination::Inventory
+            && complete.inventory_output_increase == Some(expected_gain)
+            && complete.inventory_after.is_some()
+            && complete
+                .cursor_receipt
+                .as_ref()
+                .is_some_and(|r| r.value == complete.cursor_before.value),
+        "actual inventory gain or retained cursor differs"
+    );
+    let after = complete.after.as_ref().context("fresh grid absent")?;
+    let sequence = after
+        .result()
+        .context("fresh result absent")?
+        .receive_sequence();
+    anyhow::ensure!(sequence > complete.send.after_sequence);
+    for y in 0..after.dimensions()[1] {
+        for x in 0..after.dimensions()[0] {
+            anyhow::ensure!(
+                after
+                    .input(x, y)?
+                    .is_some_and(|s| s.receive_sequence() == sequence)
+            );
+        }
+    }
+    let inventory = complete.inventory_after.as_ref().unwrap();
+    for slot in 9..45 {
+        anyhow::ensure!(
+            inventory
+                .slot(slot)?
+                .is_some_and(|s| s.receive_sequence() == sequence)
+        );
+    }
+    anyhow::ensure!(matches!(complete.cursor_receipt.as_ref().unwrap().source,
+        voxrig::client::ValueSource::Received {sequence} if sequence > complete.send.after_sequence));
+    if let Some(reply) = &complete.legacy_reply {
+        anyhow::ensure!(!reply.accepted);
+    }
+    let refused = match mode {
+        GameMode::Survival => client.survival().transfer_crafting_result(&grid).await,
+        _ => client.creative().transfer_crafting_result(&grid).await,
+    };
+    anyhow::ensure!(refused.is_err(), "stale transfer grid reused");
+    anyhow::ensure!(
+        client.survival().crafting_take_record().await?.is_some_and(
+            |r| r.id == complete.id && r.stage == CraftingTakeStage::ObservedTransferred
+        )
+    );
     Ok(complete)
 }
 async fn crafting_result_probe(
@@ -1700,6 +1783,8 @@ async fn recipe_ghost_probe(client: &Client) -> anyhow::Result<()> {
 }
 
 async fn recipe_placement_probe(client: &Client) -> anyhow::Result<()> {
+    let transferring =
+        std::env::var("VOXRIG_NATIVE_SCENARIO").as_deref() == Ok("recipe-result-transfer");
     let merging = std::env::var("VOXRIG_NATIVE_SCENARIO").as_deref() == Ok("recipe-result-merge");
     let ready = client.player_state().await?;
     emit("b4_recipe_ready", &ready)?;
@@ -1717,7 +1802,9 @@ async fn recipe_placement_probe(client: &Client) -> anyhow::Result<()> {
         p.game_mode == Some(mode)
             && p.health.as_ref().is_some_and(|h| h.value.health > 0.0)
             && p.received_pose.as_ref().is_some_and(|p| p.position == [0.5,65.0,0.5])
-            && p.inventory.slots[9].as_ref().is_some_and(|s| matches!(&s.value,SlotKnowledge::Item{item} if item.name=="minecraft:oak_planks" && item.count==if merging {4}else{10}))
+            && p.inventory.slots[9].as_ref().is_some_and(|s| matches!(&s.value,SlotKnowledge::Item{item} if item.name=="minecraft:oak_planks" && item.count==if transferring {6}else if merging {4}else{10}))
+            && (!transferring || (p.inventory.slots[11].as_ref().is_some_and(|s| matches!(&s.value,SlotKnowledge::Item{item} if item.name=="minecraft:stick" && item.count==60))
+                && p.inventory.slots[12].as_ref().is_some_and(|s| matches!(&s.value,SlotKnowledge::Item{item} if item.name=="minecraft:dirt" && item.count==1))))
             && p.inventory.cursor.as_ref().is_some_and(|s| s.value==SlotKnowledge::Empty)
     }).await?;
     let catalogue = received_recipe_fixture(client, true).await?;
@@ -1758,7 +1845,9 @@ async fn recipe_placement_probe(client: &Client) -> anyhow::Result<()> {
     anyhow::ensure!(
         plan.can_place()
             && plan.requested_crafts()
-                == if merging {
+                == if transferring && maximum {
+                    3
+                } else if merging {
                     2
                 } else if maximum {
                     5
@@ -1820,7 +1909,40 @@ async fn recipe_placement_probe(client: &Client) -> anyhow::Result<()> {
     let mut stores = Vec::new();
     let mut merge_pickup = None;
     let mut overflow_rejected = false;
-    if merging {
+    let mut transfer = None;
+    if transferring {
+        if !maximum {
+            merge_pickup = Some(
+                crafting_pickup(
+                    client,
+                    mode,
+                    source,
+                    destination(12)?,
+                    InventoryClickButton::Left,
+                )
+                .await?,
+            );
+        }
+        let record = crafting_result_transfer(client, mode, if maximum { 12 } else { 4 }).await?;
+        anyhow::ensure!(if maximum {
+            record.cursor_before.value == SlotKnowledge::Empty
+        } else {
+            matches!(&record.cursor_before.value,SlotKnowledge::Item{item} if item.name=="minecraft:dirt" && item.count==1)
+        });
+        transfer = Some(record);
+        if !maximum {
+            stores.push(
+                crafting_pickup(
+                    client,
+                    mode,
+                    source,
+                    destination(12)?,
+                    InventoryClickButton::Left,
+                )
+                .await?,
+            );
+        }
+    } else if merging {
         merge_pickup = Some(
             crafting_pickup(
                 client,
@@ -1934,28 +2056,43 @@ async fn recipe_placement_probe(client: &Client) -> anyhow::Result<()> {
             .cursor()
             .is_some_and(|s| *s.value() == SlotKnowledge::Empty)
     );
-    anyhow::ensure!(
-        inventory
-            .slot(10)?
-            .and_then(ReceivedSlot::item)
-            .is_some_and(|i| i.stack().name == "minecraft:stick"
-                && i.stack().count
-                    == if merging {
-                        64
-                    } else if maximum {
-                        20
-                    } else {
-                        4
-                    })
-    );
-    anyhow::ensure!(inventory.slot(9)?.is_some_and(|s|if merging || maximum {*s.value()==SlotKnowledge::Empty}else{matches!(s.value(),SlotKnowledge::Item{item} if item.name=="minecraft:oak_planks" && item.count==8)}));
-    if merging {
+    if transferring {
+        for (slot, name, count) in [(11, "minecraft:stick", 64), (12, "minecraft:dirt", 1)] {
+            anyhow::ensure!(
+                inventory
+                    .slot(slot)?
+                    .and_then(ReceivedSlot::item)
+                    .is_some_and(|i| i.stack().name == name && i.stack().count == count)
+            );
+        }
+        anyhow::ensure!(inventory.slot(9)?.is_some_and(|s| if maximum {*s.value()==SlotKnowledge::Empty}
+            else {matches!(s.value(),SlotKnowledge::Item{item} if item.name=="minecraft:oak_planks" && item.count==4)}));
+        anyhow::ensure!(inventory.slot(44)?.is_some_and(|s| if maximum {matches!(s.value(),SlotKnowledge::Item{item} if item.name=="minecraft:stick" && item.count==8)}
+            else {*s.value()==SlotKnowledge::Empty}));
+    } else {
         anyhow::ensure!(
             inventory
-                .slot(11)?
+                .slot(10)?
                 .and_then(ReceivedSlot::item)
-                .is_some_and(|i| i.stack().name == "minecraft:stick" && i.stack().count == 4)
+                .is_some_and(|i| i.stack().name == "minecraft:stick"
+                    && i.stack().count
+                        == if merging {
+                            64
+                        } else if maximum {
+                            20
+                        } else {
+                            4
+                        })
         );
+        anyhow::ensure!(inventory.slot(9)?.is_some_and(|s|if merging || maximum {*s.value()==SlotKnowledge::Empty}else{matches!(s.value(),SlotKnowledge::Item{item} if item.name=="minecraft:oak_planks" && item.count==8)}));
+        if merging {
+            anyhow::ensure!(
+                inventory
+                    .slot(11)?
+                    .and_then(ReceivedSlot::item)
+                    .is_some_and(|i| i.stack().name == "minecraft:stick" && i.stack().count == 4)
+            );
+        }
     }
     match mode {
         GameMode::Survival => {
@@ -1967,7 +2104,7 @@ async fn recipe_placement_probe(client: &Client) -> anyhow::Result<()> {
     }
     emit(
         "b4_recipe_run",
-        serde_json::json!({"baseline":baseline,"placement":placed,"takes":takes,"stores":stores,"merge_pickup":merge_pickup,"overflow_rejected":overflow_rejected,"grid":grid,"close":close,"inventory":inventory}),
+        serde_json::json!({"baseline":baseline,"placement":placed,"takes":takes,"stores":stores,"merge_pickup":merge_pickup,"overflow_rejected":overflow_rejected,"transfer":transfer,"grid":grid,"close":close,"inventory":inventory}),
     )?;
     anyhow::ensure!(commands.next_line().await?.as_deref() == Some("b4_recipe_disconnect"));
     client.disconnect().await?;
@@ -5243,7 +5380,7 @@ async fn main() -> anyhow::Result<()> {
     }
     if matches!(
         scenario.as_deref(),
-        Some("recipe-placement" | "recipe-result-merge")
+        Some("recipe-placement" | "recipe-result-merge" | "recipe-result-transfer")
     ) {
         return recipe_placement_probe(&client).await;
     }

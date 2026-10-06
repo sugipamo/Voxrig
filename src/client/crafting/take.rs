@@ -1,4 +1,5 @@
-//! One result PICKUP. Ingredient consumption and remainders are only receipts.
+//! One result PICKUP or QUICK_MOVE. Consumption and remainders are only receipts.
+mod shift;
 use super::*;
 use crate::client::inventory::{
     InventoryClickSend, InventoryTransactionReply, ItemContext, unavailable,
@@ -21,6 +22,24 @@ impl CraftingTakeId {
         self.attempt
     }
 }
+/// Original native destination for one result operation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum CraftingResultDestination {
+    /// One entire result into the empty or compatible actual cursor.
+    Cursor,
+    /// Native QUICK_MOVE into main/hotbar, including its internal crafts.
+    Inventory,
+}
+impl CraftingResultDestination {
+    pub(crate) fn click_mode(self) -> u8 {
+        match self {
+            Self::Cursor => 0,
+            Self::Inventory => 1,
+        }
+    }
+}
 /// Delivery and observation of one result take.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -30,10 +49,12 @@ pub enum CraftingTakeStage {
     Pending,
     /// Complete write, matching fresh output cursor and fresh entire actual grid.
     ObservedTaken,
+    /// Full write, unchanged fresh cursor and full grid/main inventory with actual output increase.
+    ObservedTransferred,
     /// First conflict or uncertain delivery, permanently retained.
     RequiresInspection,
 }
-/// Actual before/after grids with a cursor prediction kept separate.
+/// Actual before/after grids and optional shift inventory; cursor prediction is separate.
 /// There is no predicted ingredient consumption, remainder or next result.
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct CraftingTakeRecord {
@@ -43,17 +64,27 @@ pub struct CraftingTakeRecord {
     pub initial: PlayerObservation,
     /// Required received mode.
     pub mode: GameMode,
+    /// Original one-shot result destination.
+    pub destination: CraftingResultDestination,
     /// Actual complete input/result receipts before I/O.
     pub before: ReceivedCrafting,
-    /// Actual empty or compatible held cursor before I/O.
+    /// Actual known cursor: empty/compatible for PICKUP, preserved by QUICK_MOVE.
     pub cursor_before: ObservedValue<SlotKnowledge>,
-    /// Expected entire result added to the cursor, explicitly Predicted.
+    /// Entire result added to the cursor, or unchanged cursor for QUICK_MOVE; explicitly Predicted.
     pub cursor_prediction: ObservedValue<SlotKnowledge>,
     /// Submission facts. Full resync is always requested.
     pub send: InventoryClickSend,
     /// Entire grid/result from one fresh actual full-content boundary.
     pub after: Option<ReceivedCrafting>,
-    /// Fresh matching actual output cursor.
+    /// Full main/hotbar boundary after native QUICK_MOVE; no inventory prediction.
+    pub inventory_after: Option<crate::client::ReceivedInventory>,
+    /// Compatible output stock counted from actual main/hotbar before I/O.
+    /// Derived from receipts, not a server counter or predicted craft count.
+    pub inventory_output_before: Option<u64>,
+    /// Actual compatible main/hotbar count increase, not total manufactured output.
+    /// Native remainder/drop behavior is not reconstructed from this count.
+    pub inventory_output_increase: Option<u64>,
+    /// Fresh matching actual output/unchanged cursor.
     pub cursor_receipt: Option<ObservedValue<SlotKnowledge>>,
     /// Actual legacy comparison reply; rejection is not rollback.
     pub legacy_reply: Option<InventoryTransactionReply>,
@@ -65,6 +96,18 @@ pub struct CraftingTakeRecord {
     context: Arc<ItemContext>,
 }
 impl CraftingTakeRecord {
+    pub(crate) fn completed_stage(&self) -> CraftingTakeStage {
+        match self.destination {
+            CraftingResultDestination::Cursor => CraftingTakeStage::ObservedTaken,
+            CraftingResultDestination::Inventory => CraftingTakeStage::ObservedTransferred,
+        }
+    }
+    pub(crate) fn legacy_full_comparison(&self) -> Result<SlotKnowledge> {
+        match self.destination {
+            CraftingResultDestination::Cursor => Ok(SlotKnowledge::Empty),
+            CraftingResultDestination::Inventory => shift::legacy_comparison(self),
+        }
+    }
     pub(crate) fn window_id(&self) -> i32 {
         match self.before.source {
             CraftingSource::Player { .. } => 0,
@@ -72,7 +115,10 @@ impl CraftingTakeRecord {
         }
     }
     pub(crate) fn unresolved(&self) -> bool {
-        self.stage != CraftingTakeStage::ObservedTaken
+        !matches!(
+            self.stage,
+            CraftingTakeStage::ObservedTaken | CraftingTakeStage::ObservedTransferred
+        )
     }
     pub(crate) fn inspection(&mut self, reason: impl std::fmt::Display) {
         if self.unresolved() {
@@ -86,6 +132,8 @@ impl CraftingTakeRecord {
             && self.requires_inspection.is_none()
             && self.after.is_some()
             && self.cursor_receipt.is_some()
+            && (self.destination == CraftingResultDestination::Cursor
+                || (self.inventory_after.is_some() && self.inventory_output_increase.is_some()))
             && (self.initial.session.version == MinecraftVersion::Java1_21_11
                 || self.legacy_reply.is_some())
     }
@@ -130,6 +178,43 @@ pub(crate) fn prepare(
     requested: &ReceivedCrafting,
     mode: GameMode,
     attempt: u64,
+) -> Result<CraftingTakeRecord> {
+    prepare_inner(
+        initial,
+        screen,
+        registries,
+        requested,
+        mode,
+        attempt,
+        CraftingResultDestination::Cursor,
+    )
+}
+pub(crate) fn prepare_transfer(
+    initial: PlayerObservation,
+    screen: ScreenObservation,
+    registries: ServerRegistryObservation,
+    requested: &ReceivedCrafting,
+    mode: GameMode,
+    attempt: u64,
+) -> Result<CraftingTakeRecord> {
+    prepare_inner(
+        initial,
+        screen,
+        registries,
+        requested,
+        mode,
+        attempt,
+        CraftingResultDestination::Inventory,
+    )
+}
+fn prepare_inner(
+    initial: PlayerObservation,
+    screen: ScreenObservation,
+    registries: ServerRegistryObservation,
+    requested: &ReceivedCrafting,
+    mode: GameMode,
+    attempt: u64,
+    destination: CraftingResultDestination,
 ) -> Result<CraftingTakeRecord> {
     if attempt == 0
         || initial.pending_dispatch
@@ -206,28 +291,40 @@ pub(crate) fn prepare(
             v.receive_sequence(),
         ))?;
     }
-    let cursor_prediction = match (&cursor_before.value, &output) {
-        (SlotKnowledge::Empty, _) => output.clone(),
-        (SlotKnowledge::Item { item: held }, SlotKnowledge::Item { item: result }) => {
-            if !context.same_data(held, result)? {
-                return Err(unavailable(
-                    "crafting result differs from held cursor item/data",
-                ));
-            }
-            let capacity = u32::try_from(held.properties()?.max_stack_size)
-                .map_err(|_| unavailable("crafting cursor capacity is invalid"))?;
-            let count = held
-                .count
-                .checked_add(result.count)
-                .filter(|count| *count <= capacity)
-                .ok_or_else(|| unavailable("entire crafting result does not fit held cursor"))?;
-            // Native result slots refuse a partial result. Preserve the actual
-            // held representation rather than replacing it with display data.
-            let mut combined = held.clone();
-            combined.count = count;
-            SlotKnowledge::Item { item: combined }
+    let inventory_output_before = match (&output, destination) {
+        (SlotKnowledge::Item { item }, CraftingResultDestination::Inventory) => {
+            Some(shift::prepare_inventory(&initial, &before, &context, item)?)
         }
-        _ => return Err(unavailable("crafting cursor/result unavailable")),
+        _ => None,
+    };
+    let cursor_prediction = if destination == CraftingResultDestination::Inventory {
+        cursor_before.value.clone()
+    } else {
+        match (&cursor_before.value, &output) {
+            (SlotKnowledge::Empty, _) => output.clone(),
+            (SlotKnowledge::Item { item: held }, SlotKnowledge::Item { item: result }) => {
+                if !context.same_data(held, result)? {
+                    return Err(unavailable(
+                        "crafting result differs from held cursor item/data",
+                    ));
+                }
+                let capacity = u32::try_from(held.properties()?.max_stack_size)
+                    .map_err(|_| unavailable("crafting cursor capacity is invalid"))?;
+                let count = held
+                    .count
+                    .checked_add(result.count)
+                    .filter(|count| *count <= capacity)
+                    .ok_or_else(|| {
+                        unavailable("entire crafting result does not fit held cursor")
+                    })?;
+                // Native result slots refuse a partial result. Preserve the actual
+                // held representation rather than replacing it with display data.
+                let mut combined = held.clone();
+                combined.count = count;
+                SlotKnowledge::Item { item: combined }
+            }
+            _ => return Err(unavailable("crafting cursor/result unavailable")),
+        }
     };
     Ok(CraftingTakeRecord {
         id: CraftingTakeId {
@@ -245,6 +342,7 @@ pub(crate) fn prepare(
         },
         initial,
         mode,
+        destination,
         before,
         cursor_before,
         cursor_prediction: ObservedValue {
@@ -252,6 +350,9 @@ pub(crate) fn prepare(
             source: ValueSource::Predicted,
         },
         after: None,
+        inventory_after: None,
+        inventory_output_before,
+        inventory_output_increase: None,
         cursor_receipt: None,
         legacy_reply: None,
         requires_inspection: None,
@@ -275,36 +376,40 @@ fn current_grid(
             "crafting take session/mode/hand/registry changed",
         ));
     }
-    // Crafting can change the grid and cursor, never an unrelated equipped hand.
-    for slot in [
-        45,
-        record
-            .initial
-            .selected_hotbar
-            .as_ref()
-            .map_or(usize::MAX, |v| 36 + usize::from(v.value)),
-    ] {
-        if let Some(before) = record
-            .initial
-            .inventory
-            .slots
-            .get(slot)
-            .and_then(Option::as_ref)
-        {
-            let actual = player
+    if record.destination == CraftingResultDestination::Cursor {
+        // Crafting can change the grid and cursor, never an unrelated equipped hand.
+        for slot in [
+            45,
+            record
+                .initial
+                .selected_hotbar
+                .as_ref()
+                .map_or(usize::MAX, |v| 36 + usize::from(v.value)),
+        ] {
+            if let Some(before) = record
+                .initial
                 .inventory
                 .slots
                 .get(slot)
                 .and_then(Option::as_ref)
-                .ok_or_else(|| unavailable("crafting hand receipt disappeared"))?;
-            if !record
-                .context
-                .classify(actual, before, &before.value, registries)?
-                .0
             {
-                return Err(unavailable("crafting take equipped hand changed"));
+                let actual = player
+                    .inventory
+                    .slots
+                    .get(slot)
+                    .and_then(Option::as_ref)
+                    .ok_or_else(|| unavailable("crafting hand receipt disappeared"))?;
+                if !record
+                    .context
+                    .classify(actual, before, &before.value, registries)?
+                    .0
+                {
+                    return Err(unavailable("crafting take equipped hand changed"));
+                }
             }
         }
+    } else {
+        shift::validate_retained(record, player, registries)?;
     }
     let grid = ReceivedCrafting::capture(player, screen, registries.clone())?
         .ok_or_else(|| unavailable("crafting take UI disappeared"))?;
@@ -322,6 +427,9 @@ pub(crate) fn validate_before(
     registries: &ServerRegistryObservation,
 ) -> Result<()> {
     let grid = current_grid(record, player, screen, registries)?;
+    if record.destination == CraftingResultDestination::Inventory {
+        shift::validate_before(record, player)?;
+    }
     complete(&grid)?;
     if values(&grid)
         .zip(values(&record.before))
@@ -411,6 +519,15 @@ fn receive_inner(
                 record
                     .context
                     .classify(&actual, &before, &actual.value, registries)?;
+            }
+            if record.destination == CraftingResultDestination::Inventory {
+                let Some((inventory, increase)) =
+                    shift::capture_after(record, player, registries, sequence)?
+                else {
+                    return Ok(());
+                };
+                record.inventory_after.get_or_insert(inventory);
+                record.inventory_output_increase.get_or_insert(increase);
             }
             record.after.get_or_insert(grid);
         }

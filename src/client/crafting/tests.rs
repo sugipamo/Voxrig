@@ -692,3 +692,138 @@ fn crafting_result_merge_requires_entire_capacity_semantic_data_and_fresh_combin
         assert!(conflict.requires_inspection.is_some());
     }
 }
+
+#[test]
+fn crafting_result_shift_requires_one_whole_initial_move_and_received_full_inventory_gain() {
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        for held in [false, true] {
+            let (mut p, grid) = take_fixture(version);
+            for index in 9..=45 {
+                p.inventory.slots[index] = Some(received(SlotKnowledge::Empty, 15));
+            }
+            if held {
+                p.inventory.cursor = Some(received(item(version), 15));
+            }
+            let prepare = |p: PlayerObservation, grid: &ReceivedCrafting| {
+                take::prepare_transfer(
+                    p.clone(),
+                    screen(&p),
+                    registries(&p),
+                    grid,
+                    GameMode::Survival,
+                    1,
+                )
+            };
+            let mut record = prepare(p.clone(), &grid).unwrap();
+            assert_eq!(record.destination, CraftingResultDestination::Inventory);
+            assert_eq!(record.cursor_prediction.value, record.cursor_before.value);
+            assert_eq!(record.inventory_output_before, Some(0));
+            let comparison = record.legacy_full_comparison().unwrap();
+            assert!(matches!(comparison,SlotKnowledge::Item{item} if item.name=="minecraft:dirt"));
+            let mut missing = p.clone();
+            missing.inventory.slots[20] = None;
+            assert!(prepare(missing, &grid).is_err());
+            let mut full = p.clone();
+            for index in 9..45 {
+                full.inventory.slots[index] = Some(received(
+                    {
+                        let d = Registry::for_version(version)
+                            .item("minecraft:dirt")
+                            .unwrap();
+                        SlotKnowledge::Item {
+                            item: ItemStack {
+                                id: d.id,
+                                name: d.name,
+                                count: 64,
+                                data: ItemData::Default,
+                            },
+                        }
+                    },
+                    15,
+                ));
+            }
+            assert!(prepare(full, &grid).is_err());
+            // Generic moveItemStackTo visits only the first empty slot per native
+            // result round; summing all empties would falsely admit oversized output.
+            let mut oversized = p.clone();
+            if let SlotKnowledge::Item { item } =
+                &mut oversized.inventory.slots[0].as_mut().unwrap().value
+            {
+                item.count = 127;
+            }
+            let oversized_grid =
+                ReceivedCrafting::capture(&oversized, &screen(&oversized), registries(&oversized))
+                    .unwrap()
+                    .unwrap();
+            assert!(prepare(oversized, &oversized_grid).is_err());
+            let mut changed = p.clone();
+            changed.inventory.slots[44] = Some(received(SlotKnowledge::Empty, 21));
+            assert!(
+                take::validate_before(&record, &changed, &screen(&changed), &registries(&changed))
+                    .is_err()
+            );
+            record.send.dispatched = true;
+            p.receive_sequence = 24;
+            for index in 0..=4 {
+                p.inventory.slots[index] = Some(received(SlotKnowledge::Empty, 24));
+            }
+            // Input/result alone, or output gain in an individual update, is not a
+            // full main/hotbar boundary. No predicted craft count exists here.
+            p.inventory.slots[44] = Some(received(
+                {
+                    let SlotKnowledge::Item { mut item } = item(version) else {
+                        unreachable!()
+                    };
+                    item.count = 6;
+                    SlotKnowledge::Item { item }
+                },
+                24,
+            ));
+            take::receive(&mut record, &p, &screen(&p), &registries(&p));
+            assert!(record.after.is_none() && record.inventory_after.is_none() && !record.ready());
+            for index in 9..44 {
+                p.inventory.slots[index] = Some(received(SlotKnowledge::Empty, 24));
+            }
+            take::receive(&mut record, &p, &screen(&p), &registries(&p));
+            assert!(record.after.is_some() && record.inventory_after.is_some() && !record.ready());
+            assert_eq!(record.inventory_output_increase, Some(6));
+            p.receive_sequence = 25;
+            p.inventory.cursor = Some(received(record.cursor_before.value.clone(), 25));
+            take::receive(&mut record, &p, &screen(&p), &registries(&p));
+            if version == MinecraftVersion::Java1_16_1 {
+                record.legacy_reply = Some(crate::client::inventory::InventoryTransactionReply {
+                    window_id: 0,
+                    action: 1,
+                    accepted: false,
+                    receive_sequence: 25,
+                });
+            }
+            assert!(record.ready());
+            assert_eq!(
+                record.completed_stage(),
+                CraftingTakeStage::ObservedTransferred
+            );
+            // Once actual full output was retained, a conflicting destination is
+            // latched while waiting for final evidence; restoration cannot erase it.
+            let mut conflict = prepare(
+                {
+                    let (mut q, _) = take_fixture(version);
+                    for i in 9..=45 {
+                        q.inventory.slots[i] = Some(received(SlotKnowledge::Empty, 15));
+                    }
+                    q
+                },
+                &grid,
+            )
+            .unwrap();
+            conflict.send.dispatched = true;
+            let mut q = p.clone();
+            q.inventory.cursor = Some(received(SlotKnowledge::Empty, 15));
+            take::receive(&mut conflict, &q, &screen(&q), &registries(&q));
+            q.receive_sequence = 26;
+            q.inventory.slots[44] = Some(received(SlotKnowledge::Empty, 26));
+            take::receive(&mut conflict, &q, &screen(&q), &registries(&q));
+            assert!(conflict.requires_inspection.is_some());
+        }
+    }
+}

@@ -9,6 +9,14 @@
 最終目標は、接続時の版選択を除いて同じClient APIで利用できること。
 新しい版・未知block/itemへの対応にはVoxrig更新を要求する。
 
+## 現在の区切り
+
+A0〜A5の代表操作は両版で初回貫通済み。A6は資料・共通consumerを準備済みで、
+非公開の利用側から固定commitでの移行結果を受け取る段階にある。
+全機能の統合完了とは分ける。直近のB4は結果の在庫転送を一連の操作として閉じ、
+その区切りでB3〜B6の未対応一覧を見直す。操作に不要なconstructor比較の拡大を先行させない。
+実サーバーや重い検査は一つずつ実行する。
+
 ## 再開後の進捗
 
 - A0完了: mainのPR #6・#7を専用ブランチへ取り込んだ（`ab3b5aa`）。
@@ -38,7 +46,7 @@
   同じClientから一回の乗車interaction→owned下車要求→実除外受信→明示的neutral→切断を
   両版・両modeで検証した。独立したnative RootVehicleと元packetのfields／ordinalも照合した。
   詳細は[基本UIとmanager](common-ui-manager.md)と[共通かまど操作](common-furnaces.md)、[共通乗車関係](common-vehicles.md)。
-- 次はA6の共通consumer・対応一覧・移行資料と、非公開利用側の固定commit検証。
+- A6の共通consumer・対応一覧・移行資料は準備済み。非公開利用側の固定commit検証は結果待ち。
   Bの広い残機能は引き続き必須作業で、全統合完了とは扱わない。
   初回貫通時はownedレシピブック配置を退避し、現在はB4として復元・実装している。
   利用側へ返してもらう内容は[A6の確認手順](client-api-consumer-validation.md)にまとめる。
@@ -87,7 +95,10 @@
   両版・両mode・player／table・Next／Maximumの16ケースでnative在庫と位置を独立確認する。
   材料の保存が確認できるまで後続mutationを許可せず、古いplanの再送を拒否する。
   材料不足ghostと非空cursorへの結果全体の結合も接続した。
-  shift製作／table SWAP・QUICK_MOVEと一般装備・entity・dataはB4へ残す。
+  結果のnative QUICK_MOVEも接続し、両版・両mode・player／table・Next／Maximumの16ケースで、
+  一回の送信→実grid／主在庫の増加と変わらない実cursor→close→選択→切断を確認した。
+  製作総数や後続の部分移動・dropは予測しない。
+  table入力SWAP・QUICK_MOVEと広い製作・一般装備・entity・dataはB4へ残す。
   隣接する製作台がdry collision範囲に入るとlookを拒否する制限はB3へ残す。
   詳細は[共通レシピ](common-recipes.md)。A6と全体goalは継続する。
 
@@ -190,7 +201,7 @@ mainのnative機能とClient共通化の完了を区別する。
 - 公開済み: 材料判定、盤面の配置幾何、返却計画、`recipe_placement_plan`。
   配置planは読み取り専用で、配置packetを送信しない。
 - 中断時の作業: planからのowned送信、実入力と在庫の結果保持、取消・競合の扱い。
-  初回貫通中は退避した。現在はB4で復元し、通常Next／Maximumのowned送信と実保存まで接続した。
+  初回貫通中は退避した。現在はB4で復元し、通常Next／Maximumのowned送信と実保存、結果のnative QUICK_MOVEまで接続した。
 - 既に使える製作経路: `click_inventory`で通常の入力を置き、
   `take_crafting_result`で空または互換の実受信cursorへ結果全体を取得する。必要なrecipeと入力手順は利用側が選ぶ。
 
@@ -239,7 +250,7 @@ A5の代表例は初回貫通用であり、すべての特殊windowやentity／
 | かまどslot観測・通常PICKUP・開閉 | 共通・限定条件 | 共通・限定条件 | A5の基本かまど精錬flow。溶鉱炉／燻製器はconstructor/slot規則の確認で、特殊レシピのlive検証は残る |
 | own-player乗車関係・明示的下車 | 共通・限定条件 | 共通・限定条件 | 実passenger list、owned一回送信→実除外→neutral。両版・両modeのnativeで確認。下車後の地上継続はB |
 | vehicle操縦・その他特殊window／UI／manager | 未共通化 | 未共通化 | 広い対応はB |
-| ownedレシピブック配置 | 共通・限定条件 | 共通・限定条件 | B4で通常Next／Maximumを接続。材料不足ghostと実返却も接続。自動shift製作は残る |
+| ownedレシピブック配置 | 共通・限定条件 | 共通・限定条件 | B4で通常Next／Maximumを接続。材料不足ghostと実返却も接続。結果のnative QUICK_MOVEは接続済み。広い製作条件はB4へ残る |
 
 A1の固定fixtureはstone床、空のsingle chest、oak planks 2個、収納用stone 2個、
 設置用dirt 3個とする。初期配置後にfixtureから操作結果を上書きせず、
@@ -257,7 +268,7 @@ close送信と実受信screen履歴を混同せず、サーバー側でも位置
 | 段階 | 後続の対応範囲 |
 | --- | --- |
 | 3 | 広い移動・採掘・設置条件、道具・姿勢・非cube・effect等の対応、観測継続と復旧の範囲拡大、別姿勢／effectを含むCreative飛行後の立位操作への継続 |
-| 4 | レシピブック配置の残る未対応条件、shift製作、製作台SWAP／QUICK_MOVE、一般装備・entity・item activation、任意item／text／dialogのconstructor・参照・比較と実server cache hash |
+| 4 | レシピブック配置とshift転送の残る条件、製作台入力SWAP／QUICK_MOVE、一般装備・entity・item activation、任意item／text／dialogのconstructor・参照・比較と実server cache hash |
 | 5 | より広いcontext／記録／再構成／scene／復旧、履歴取得が書き込み停止で詰まる経路の解消、共通遮断後の各履歴取得と不確実性保持、再設定・chunk欠測・再接続の範囲拡大 |
 | 6 | 各UI・特殊window・vehicle・manager機能の残差分。raw操作の版依存は明示的な拡張として管理する |
 

@@ -289,7 +289,7 @@ enum Command {
         reply: oneshot::Sender<Result<i16, OperationAdmissionError>>,
     },
     BeginInventoryClick {
-        result_take: bool,
+        result_take: Option<crate::client::crafting::CraftingResultDestination>,
         run_id: u64,
         expected_revision: u64,
         window: i8,

@@ -170,7 +170,7 @@ classpath, request/helper and result hashes. The return helper's Inventory has a
 unused null owner; it calls no owner/world, creative fallback or drop behavior.
 
 Native ghost observations and owned material-shortage requests are available below.
-Compatible nonempty-cursor result merging is available below; shift crafting remains follow-up work. Normal owned recipe dispatch is described below. The coherent preflight below
+Compatible nonempty-cursor result merging is available below; native result QUICK_MOVE is supported below. Normal owned recipe dispatch is described below. The coherent preflight below
 combines current-grid materials, native capacity guards and return-space checks. Displayed remainder associations
 are not actual inventory consumption/remainder receipts. The existing common
 result take retains those actual receipts separately.
@@ -344,4 +344,50 @@ remaining4. The final grid/cursor is empty, the original table closes and the
 same Client selects and disconnects. Independent native inventory and captured
 frames verify 64+4 sticks and exactly five clicks.
 See [native validation](common-client-native-validation.md) and its evidence.
-Automatic shift crafting and table SWAP/QUICK_MOVE remain required B4 work.
+Native result QUICK_MOVE is described below. Table input SWAP/QUICK_MOVE remains required B4 work.
+
+
+## Native result QUICK_MOVE through the common Client
+
+`survival().transfer_crafting_result(&received_grid)` and the matching Creative
+method submit one owned original result-slot QUICK_MOVE. The original server
+may perform several internal crafts; the client does not issue a local loop.
+Both destinations share `CraftingTakeId` and `crafting_take_record()`:
+`destination == Inventory` completes as `ObservedTransferred`, while ordinary
+cursor PICKUP continues to complete as `ObservedTaken`.
+
+Admission requires the current sealed full grid, known actual cursor and all
+main/hotbar/offhand receipts, matching connection/world/registry/UI, and room
+for the entire initially displayed result under original reverse destination
+order. Capacity merges compatible existing stacks and then considers only the
+first eligible empty slot, as original `moveItemStackTo` does. It does not sum
+all empty slots for an oversized initial result. No destination receipt is
+predicted. Cursor prediction remains explicitly separate and unchanged.
+
+Completion requires a full write, a fresh actual full grid and main/hotbar
+boundary, a fresh unchanged cursor, and in 1.16.1 the actual comparison reply.
+`inventory_after` is an actual sealed observation; equipment/offhand receipts
+may precede its refreshed main/hotbar boundary. `inventory_output_before` and
+`inventory_output_increase` count compatible output stock in actual main/hotbar
+receipts. They are derived counts, not server counters, manufactured quantity,
+recipe causation, or predicted batch/ingredient consumption. Remainders and
+later native partial moves or drops are not reconstructed or prevented merely
+by the first-result capacity check.
+
+Legacy original QUICK_MOVE can return Empty for a last single batch and the
+original output for repeated batches. The comparison therefore uses a static
+different-item sentinel, requesting full contents/cursor in both cases without
+predicting the number of crafts. Modern retains the existing stale revision and
+full resync request. Cancellation retains the owned write/history, stale grid
+reuse sends nothing, and the first unresolved conflict requires inspection.
+
+The `recipe-result-transfer` workflow verifies Next and Maximum recipe placement
+in both modes and player/table UIs. Next preserves a held dirt cursor during one
+shift and explicitly deposits it afterward; Maximum starts with an empty cursor
+and produces an observed stock increase across three native internal crafts.
+Both finish with empty inputs/result/cursor, exact independent server inventory,
+original table close, a subsequent selection and disconnect. Wider B4 remains
+open; table input SWAP/QUICK_MOVE is separate from this result operation.
+
+[Native inputs and results](evidence/common-recipe-result-transfer-20261006.json)
+retain all 16 cases and unchanged original method hashes.
