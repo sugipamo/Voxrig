@@ -1233,14 +1233,15 @@ impl World {
         let block_mask = get_varint(&mut rest)? as u32;
         let empty_sky_mask = get_varint(&mut rest)? as u32;
         let empty_block_mask = get_varint(&mut rest)? as u32;
+        // Validate both channels before publishing any cached light observation.
+        let sky = read_light_mask(sky_mask, empty_sky_mask, &mut rest)?;
+        let block = read_light_mask(block_mask, empty_block_mask, &mut rest)?;
+        if !rest.is_empty() {
+            bail!("trailing light update data");
+        }
         let chunk = self.chunks.entry((x, z)).or_default();
-        apply_light_mask(&mut chunk.sky_light, sky_mask, empty_sky_mask, &mut rest)?;
-        apply_light_mask(
-            &mut chunk.block_light,
-            block_mask,
-            empty_block_mask,
-            &mut rest,
-        )?;
+        chunk.sky_light.extend(sky);
+        chunk.block_light.extend(block);
         Ok((x, z))
     }
 
@@ -1369,18 +1370,26 @@ const INDEXED_RESOURCES: &[&str] = &[
     "dark_oak_log",
 ];
 
-fn apply_light_mask(
-    target: &mut HashMap<i32, Arc<[u8; 2048]>>,
+fn read_light_mask(
     present: u32,
     empty: u32,
     rest: &mut &[u8],
-) -> Result<()> {
+) -> Result<HashMap<i32, Arc<[u8; 2048]>>> {
+    const SECTION_MASK: u32 = (1 << 18) - 1;
+    if (present | empty) & !SECTION_MASK != 0 || present & empty != 0 {
+        bail!("invalid or overlapping light section masks");
+    }
+    let mut target = HashMap::new();
     for bit in 0..18 {
         let section_y = bit - 1;
         if empty & (1 << bit) != 0 {
             target.insert(section_y, Arc::new([0; 2048]));
         }
         if present & (1 << bit) != 0 {
+            let length = get_varint(rest)?;
+            if length != 2048 {
+                bail!("invalid light array length {length}; expected 2048");
+            }
             if rest.len() < 2048 {
                 bail!("truncated light array");
             }
@@ -1390,7 +1399,7 @@ fn apply_light_mask(
             target.insert(section_y, Arc::new(values));
         }
     }
-    Ok(())
+    Ok(target)
 }
 
 fn dda_axis(origin: f64, direction: f64) -> (i32, f64, f64) {
@@ -2194,7 +2203,9 @@ mod tests {
         for value in [2, 3, 1, 1 << 1, 1 << 1, 0, 0] {
             crate::versions::java_1_16_1::protocol::put_varint(&mut packet, value);
         }
+        crate::protocol::put_varint(&mut packet, 2048);
         packet.extend([0x21; 2048]);
+        crate::protocol::put_varint(&mut packet, 2048);
         packet.extend([0xa5; 2048]);
         let mut world = World::default();
         assert_eq!(world.apply_light(&packet, 256).unwrap(), (2, 3));
@@ -2211,13 +2222,112 @@ mod tests {
         for value in [-1, -1, 1, 1 << 1, 1 << 1, 0, 0] {
             crate::protocol::put_varint(&mut packet, value);
         }
+        crate::protocol::put_varint(&mut packet, 2048);
         packet.extend([0x21; 2048]);
+        crate::protocol::put_varint(&mut packet, 2048);
         packet.extend([0xa5; 2048]);
         let mut world = World::default();
         assert_eq!(world.apply_light(&packet, 256).unwrap(), (-1, -1));
         assert_eq!(world.light_at(-16, 0, -16), Some((5, 1)));
         assert_eq!(world.light_at(-1, 0, -1), Some((10, 2)));
         assert_eq!(world.light_at(-17, 0, -16), None);
+    }
+
+    fn framed_light_packet(masks: [i32; 4], arrays: &[[u8; 2048]]) -> Vec<u8> {
+        let mut packet = Vec::new();
+        for value in [-1, -1, 1].into_iter().chain(masks) {
+            crate::protocol::put_varint(&mut packet, value);
+        }
+        for array in arrays {
+            crate::protocol::put_varint(&mut packet, 2048);
+            packet.extend(array);
+        }
+        packet
+    }
+
+    #[test]
+    fn framed_light_arrays_keep_multiple_sections_and_channels_aligned() {
+        let mask = (1 << 1) | (1 << 5) | (1 << 16);
+        let packet = framed_light_packet(
+            [mask, mask, 0, 0],
+            &[
+                [0x21; 2048],
+                [0x43; 2048],
+                [0x65; 2048],
+                [0xa5; 2048],
+                [0xcb; 2048],
+                [0xed; 2048],
+            ],
+        );
+        let mut world = World::default();
+        world.apply_light(&packet, 256).unwrap();
+        assert_eq!(world.light_at(-16, 0, -16), Some((5, 1)));
+        assert_eq!(world.light_at(-15, 64, -16), Some((12, 4)));
+        assert_eq!(world.light_at(-16, 255, -16), Some((13, 5)));
+        assert_eq!(world.light_at(-16, 32, -16), None);
+    }
+
+    #[test]
+    fn partial_light_updates_preserve_omitted_channels_and_old_snapshots() {
+        let mut world = World::default();
+        world
+            .apply_light(
+                &framed_light_packet([2, 2, 0, 0], &[[0x21; 2048], [0xa5; 2048]]),
+                256,
+            )
+            .unwrap();
+        let old = world.chunk_snapshot(ChunkPos { x: -1, z: -1 }).unwrap();
+        world
+            .apply_light(&framed_light_packet([0, 2, 0, 0], &[[0xee; 2048]]), 256)
+            .unwrap();
+        assert_eq!(world.light_at(-16, 0, -16), Some((14, 1)));
+        assert_eq!(old.block_light(0, 0, 0), Some(5));
+        world
+            .apply_light(&framed_light_packet([0, 0, 0, 2], &[]), 256)
+            .unwrap();
+        assert_eq!(world.light_at(-16, 0, -16), Some((0, 1)));
+    }
+
+    #[test]
+    fn every_truncated_framed_light_packet_leaves_cache_unchanged() {
+        let initial = framed_light_packet([2, 2, 0, 0], &[[0x21; 2048], [0xa5; 2048]]);
+        let replacement = framed_light_packet([2, 2, 0, 0], &[[0xff; 2048], [0xee; 2048]]);
+        let mut world = World::default();
+        world.apply_light(&initial, 256).unwrap();
+        for end in 0..replacement.len() {
+            assert!(
+                world.apply_light(&replacement[..end], 256).is_err(),
+                "accepted prefix {end}"
+            );
+            assert_eq!(world.light_at(-16, 0, -16), Some((5, 1)));
+        }
+    }
+
+    #[test]
+    fn invalid_light_lengths_masks_and_trailing_bytes_never_publish() {
+        let mut invalid = Vec::new();
+        for length in [-1, 0, 2047, 2049, i32::MAX] {
+            let mut packet = framed_light_packet([0, 2, 0, 0], &[]);
+            crate::protocol::put_varint(&mut packet, length);
+            packet.extend([0xee; 2048]);
+            invalid.push(packet);
+        }
+        for masks in [
+            [-1, 0, 0, 0],
+            [1 << 18, 0, 0, 0],
+            [2, 0, 2, 0],
+            [0, 2, 0, 2],
+        ] {
+            invalid.push(framed_light_packet(masks, &[[0xee; 2048]]));
+        }
+        let mut trailing = framed_light_packet([0, 2, 0, 0], &[[0xee; 2048]]);
+        trailing.push(0);
+        invalid.push(trailing);
+        for packet in invalid {
+            let mut world = World::default();
+            assert!(world.apply_light(&packet, 256).is_err());
+            assert!(world.chunk_snapshot(ChunkPos { x: -1, z: -1 }).is_none());
+        }
     }
 
     #[test]

@@ -7736,7 +7736,9 @@ mod tests {
         for value in [0, 0, 1, 1 << 1, 1 << 1, 0, 0] {
             put_varint(&mut packet, value);
         }
+        put_varint(&mut packet, 2048);
         packet.extend([0x21; 2048]);
+        put_varint(&mut packet, 2048);
         packet.extend([0xa5; 2048]);
         packet
     }
@@ -8545,7 +8547,9 @@ mod tests {
         for value in [0, 0, 1, 1 << 1, 1 << 1, 0, 0] {
             put_varint(&mut packet, value);
         }
+        put_varint(&mut packet, 2048);
         packet.extend([0x21; 2048]);
+        put_varint(&mut packet, 2048);
         packet.extend([0xa5; 2048]);
         assert_eq!(
             bot.world.lock().await.apply_light(&packet, 256).unwrap(),
@@ -8869,7 +8873,9 @@ mod tests {
         for value in [0, 0, 1, 1 << 1, 1 << 1, 0, 0] {
             put_varint(&mut light_packet, value);
         }
+        put_varint(&mut light_packet, 2048);
         light_packet.extend([0x21; 2048]);
+        put_varint(&mut light_packet, 2048);
         light_packet.extend([0xa5; 2048]);
         assert_eq!(
             bot.world
