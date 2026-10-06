@@ -50,6 +50,268 @@ async fn wait_block(client: &Client, position: [i32; 3], name: &str) -> anyhow::
     })
     .await?
 }
+async fn crafting_pickup(
+    client: &Client,
+    mode: GameMode,
+    source: InventorySource,
+    slot: u16,
+    button: InventoryClickButton,
+) -> anyhow::Result<InventoryClickRecord> {
+    let sent = match mode {
+        GameMode::Survival => {
+            client
+                .survival()
+                .click_inventory(source, slot, button)
+                .await?
+        }
+        _ => {
+            client
+                .creative()
+                .click_inventory(source, slot, button)
+                .await?
+        }
+    };
+    tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            let record = client
+                .survival()
+                .inventory_click_record()
+                .await?
+                .context("crafting click absent")?;
+            anyhow::ensure!(
+                record.id == sent.id && record.requires_inspection.is_none(),
+                "crafting click conflict: {:?}",
+                record.requires_inspection
+            );
+            if record.stage == InventoryClickStage::ObservedClicked {
+                return Ok::<_, anyhow::Error>(record);
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await?
+}
+async fn crafting_result_take(
+    client: &Client,
+    mode: GameMode,
+    expected: &str,
+) -> anyhow::Result<CraftingTakeRecord> {
+    let grid = tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            let grid = client
+                .received_crafting()
+                .await?
+                .context("crafting grid absent")?;
+            if grid.result().is_some_and(
+                |r| matches!(r.value(), SlotKnowledge::Item {item} if item.name == expected),
+            ) {
+                return Ok::<_, anyhow::Error>(grid);
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await??;
+    let sent = match mode {
+        GameMode::Survival => client.survival().take_crafting_result(&grid).await?,
+        _ => client.creative().take_crafting_result(&grid).await?,
+    };
+    let complete = tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            let record = client
+                .survival()
+                .crafting_take_record()
+                .await?
+                .context("crafting take absent")?;
+            anyhow::ensure!(
+                record.id == sent.id && record.requires_inspection.is_none(),
+                "crafting take conflict: {:?}",
+                record.requires_inspection
+            );
+            if record.stage == CraftingTakeStage::ObservedTaken {
+                return Ok::<_, anyhow::Error>(record);
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await??;
+    let after = complete.after.as_ref().context("actual full grid absent")?;
+    let sequence = after
+        .result()
+        .context("fresh result absent")?
+        .receive_sequence();
+    anyhow::ensure!(sequence > complete.send.after_sequence, "result not fresh");
+    for y in 0..after.dimensions()[1] {
+        for x in 0..after.dimensions()[0] {
+            anyhow::ensure!(
+                after
+                    .input(x, y)?
+                    .context("fresh input absent")?
+                    .receive_sequence()
+                    == sequence,
+                "inputs not one actual full boundary"
+            );
+        }
+    }
+    let cursor = complete
+        .cursor_receipt
+        .as_ref()
+        .context("output cursor absent")?;
+    anyhow::ensure!(
+        matches!(cursor.source, voxrig::client::ValueSource::Received {sequence} if sequence > complete.send.after_sequence)
+            && matches!(&cursor.value, SlotKnowledge::Item {item} if item.name == expected),
+        "output not freshly received"
+    );
+    if client.version() == MinecraftVersion::Java1_16_1 {
+        anyhow::ensure!(
+            complete.legacy_reply.as_ref().is_some_and(|r| !r.accepted),
+            "actual resync comparison reply absent"
+        );
+    }
+    // This sealed predecessor now differs. Refusal must not resend the take.
+    let refusal = match mode {
+        GameMode::Survival => client.survival().take_crafting_result(&grid).await,
+        _ => client.creative().take_crafting_result(&grid).await,
+    };
+    anyhow::ensure!(refusal.is_err(), "old crafting snapshot was reused");
+    Ok(complete)
+}
+async fn crafting_result_probe(
+    client: &Client,
+    mode: GameMode,
+    cake: bool,
+) -> anyhow::Result<serde_json::Value> {
+    let initial = client
+        .received_crafting()
+        .await?
+        .context("crafting grid absent")?;
+    let source = match initial.source() {
+        CraftingSource::Player { .. } => InventorySource::Player,
+        CraftingSource::Table { screen } => InventorySource::Container { screen },
+        _ => anyhow::bail!("unknown crafting source"),
+    };
+    let active_screen = client.screen_state().await?.screen;
+    let source_slot = |canonical: usize| -> anyhow::Result<u16> {
+        match source {
+            InventorySource::Player => Ok(canonical as u16),
+            InventorySource::Container { .. } => {
+                // Original appended-player mapping; no hardcoded cross-version offset.
+                let table = initial.input_source(0, 0)?.0;
+                anyhow::ensure!(table == source, "table identity changed");
+                Ok(active_screen
+                    .as_ref()
+                    .context("table absent")?
+                    .layout
+                    .as_ref()
+                    .context("native mapping absent")?
+                    .player_slots
+                    .iter()
+                    .find(|m| m.player_slot == canonical)
+                    .context("mapped player slot absent")?
+                    .screen_slot as u16)
+            }
+            _ => anyhow::bail!("unknown inventory source"),
+        }
+    };
+    let mut clicks = Vec::new();
+    let plans = if cake {
+        anyhow::ensure!(initial.dimensions() == [3, 3], "cake table absent");
+        vec![
+            (9, vec![(0, 0)], false),
+            (10, vec![(1, 0)], false),
+            (11, vec![(2, 0)], false),
+            (12, vec![(0, 1), (2, 1)], true),
+            (13, vec![(1, 1)], false),
+            (14, vec![(0, 2), (1, 2), (2, 2)], true),
+        ]
+    } else {
+        anyhow::ensure!(initial.dimensions() == [2, 2], "sticks player grid absent");
+        vec![(9, vec![(0, 0), (0, 0), (0, 1), (0, 1)], true)]
+    };
+    for (canonical, coordinates, split) in plans {
+        clicks.push(
+            crafting_pickup(
+                client,
+                mode,
+                source,
+                source_slot(canonical)?,
+                InventoryClickButton::Left,
+            )
+            .await?,
+        );
+        for (x, y) in coordinates {
+            let (input, slot) = initial.input_source(x, y)?;
+            clicks.push(
+                crafting_pickup(
+                    client,
+                    mode,
+                    input,
+                    slot,
+                    if split {
+                        InventoryClickButton::Right
+                    } else {
+                        InventoryClickButton::Left
+                    },
+                )
+                .await?,
+            );
+        }
+    }
+    let take = crafting_result_take(
+        client,
+        mode,
+        if cake {
+            "minecraft:cake"
+        } else {
+            "minecraft:stick"
+        },
+    )
+    .await?;
+    let after = take.after.as_ref().context("taken grid absent")?;
+    if cake {
+        for y in 0..3 {
+            for x in 0..3 {
+                let value = after.input(x, y)?.context("cake input missing")?.value();
+                anyhow::ensure!(
+                    if y == 0 {
+                        matches!(value,SlotKnowledge::Item {item} if item.name == "minecraft:bucket" && item.count == 1)
+                    } else {
+                        *value == SlotKnowledge::Empty
+                    },
+                    "native cake remainder differs"
+                );
+            }
+        }
+        anyhow::ensure!(
+            *after.result().unwrap().value() == SlotKnowledge::Empty,
+            "cake result not actually empty"
+        );
+    } else {
+        anyhow::ensure!(
+            matches!(after.result().unwrap().value(),SlotKnowledge::Item {item} if item.name == "minecraft:stick" && item.count == 4),
+            "regenerated sticks result lost"
+        );
+        for y in 0..2 {
+            anyhow::ensure!(
+                after
+                    .input(0, y)?
+                    .is_some_and(|r| stack_count(r.value()) == 1),
+                "native sticks input not consumed once"
+            );
+        }
+        clicks.push(crafting_pickup(client, mode, source, 10, InventoryClickButton::Left).await?);
+        for y in 0..2 {
+            let (input, slot) = initial.input_source(0, y)?;
+            clicks.push(
+                crafting_pickup(client, mode, input, slot, InventoryClickButton::Left).await?,
+            );
+            clicks
+                .push(crafting_pickup(client, mode, source, 9, InventoryClickButton::Left).await?);
+        }
+    }
+    Ok(
+        serde_json::json!({"initial":initial,"clicks":clicks,"take":take,"player_after":client.player_state().await?}),
+    )
+}
 async fn crafting_input_probe(
     client: &Client,
     mode: GameMode,
@@ -999,6 +1261,20 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 );
                 opening = Some(id);
                 emit(&command, serde_json::json!({"record":record,"grid":grid}))?;
+            }
+            "result_sticks_survival"
+            | "result_sticks_creative"
+            | "result_cake_survival"
+            | "result_cake_creative" => {
+                let mode = if command.ends_with("survival") {
+                    GameMode::Survival
+                } else {
+                    GameMode::Creative
+                };
+                emit(
+                    &command,
+                    crafting_result_probe(client, mode, command.starts_with("result_cake")).await?,
+                )?;
             }
             "table_fill_survival" | "table_fill_creative" => {
                 let mode = if command.ends_with("survival") {

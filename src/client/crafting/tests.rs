@@ -350,3 +350,224 @@ fn crafting_table_close_plans_player_cursor_return_and_retains_received_ingredie
         }
     }
 }
+
+fn take_fixture(version: MinecraftVersion) -> (PlayerObservation, ReceivedCrafting) {
+    let mut p = player(version);
+    p.inventory.screen_revision = Some(7);
+    p.inventory.cursor = Some(received(SlotKnowledge::Empty, 15));
+    for slot in 0..=4 {
+        p.inventory.slots[slot] = Some(received(SlotKnowledge::Empty, 15));
+    }
+    p.inventory.slots[0] = Some(received(item(version), 15));
+    p.inventory.slots[1] = Some(received(item(version), 15));
+    let grid = ReceivedCrafting::capture(&p, &screen(&p), registries(&p))
+        .unwrap()
+        .unwrap();
+    (p, grid)
+}
+#[test]
+fn crafting_take_requires_complete_sealed_unchanged_grid_empty_cursor_and_mode() {
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        let (p, grid) = take_fixture(version);
+        let prepare = |p: PlayerObservation, grid: &ReceivedCrafting| {
+            take::prepare(
+                p.clone(),
+                screen(&p),
+                registries(&p),
+                grid,
+                GameMode::Survival,
+                1,
+            )
+        };
+        let record = prepare(p.clone(), &grid).unwrap();
+        assert_eq!(
+            record.cursor_prediction.source,
+            crate::client::ValueSource::Predicted
+        );
+        assert!(record.after.is_none());
+        assert!(record.send.request_full_resync);
+        assert_eq!(record.send.screen_revision, Some(7));
+        assert_eq!(record.send.sent_screen_revision, Some(0));
+        let mut changed = p.clone();
+        changed.inventory.slots[1] = Some(received(item(version), 16));
+        assert!(prepare(changed, &grid).is_err());
+        for slot in 0..=4 {
+            let mut missing = p.clone();
+            missing.inventory.slots[slot] = None;
+            assert!(prepare(missing, &grid).is_err());
+        }
+        let mut held = p.clone();
+        held.inventory.cursor = Some(received(item(version), 15));
+        assert!(prepare(held, &grid).is_err());
+        let mut unknown = p.clone();
+        unknown.inventory.cursor = None;
+        assert!(prepare(unknown, &grid).is_err());
+        let mut wrong = p.clone();
+        wrong.game_mode = Some(GameMode::Creative);
+        assert!(prepare(wrong, &grid).is_err());
+        let mut busy = p.clone();
+        busy.pending_dispatch = true;
+        assert!(prepare(busy, &grid).is_err());
+    }
+}
+#[test]
+fn crafting_take_regenerated_result_is_not_predicted_empty_and_partial_grid_is_not_completion() {
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        let (p, grid) = take_fixture(version);
+        let mut r = take::prepare(
+            p.clone(),
+            screen(&p),
+            registries(&p),
+            &grid,
+            GameMode::Survival,
+            1,
+        )
+        .unwrap();
+        r.send.dispatched = true;
+        let mut next = p.clone();
+        next.receive_sequence = 25;
+        next.inventory.cursor = Some(received(item(version), 21));
+        next.inventory.slots[0] = Some(received(item(version), 22));
+        next.inventory.slots[1] = Some(received(SlotKnowledge::Empty, 23));
+        take::receive(&mut r, &next, &screen(&next), &registries(&next));
+        assert!(r.cursor_receipt.is_some());
+        assert!(r.after.is_none());
+        assert!(!r.ready());
+        for slot in 0..=4 {
+            next.inventory.slots[slot] = Some(received(SlotKnowledge::Empty, 24));
+        }
+        next.inventory.slots[0] = Some(received(item(version), 24));
+        // A bucket remainder is an actual new item; no uniform decrement was applied.
+        let bucket = Registry::for_version(version)
+            .item("minecraft:bucket")
+            .unwrap();
+        let remainder = SlotKnowledge::Item {
+            item: ItemStack {
+                id: bucket.id,
+                name: bucket.name,
+                count: 1,
+                data: ItemData::Default,
+            },
+        };
+        next.inventory.slots[1] = Some(received(remainder.clone(), 24));
+        take::receive(&mut r, &next, &screen(&next), &registries(&next));
+        let after = r.after.as_ref().unwrap();
+        assert_eq!(after.result().unwrap().value(), &item(version));
+        assert_eq!(after.input(0, 0).unwrap().unwrap().value(), &remainder);
+        assert_eq!(
+            r.before.input(0, 0).unwrap().unwrap().value(),
+            &item(version)
+        );
+        assert_eq!(r.ready(), version == MinecraftVersion::Java1_21_11);
+        if version == MinecraftVersion::Java1_16_1 {
+            r.legacy_reply = Some(crate::client::inventory::InventoryTransactionReply {
+                window_id: 0,
+                action: 1,
+                accepted: false,
+                receive_sequence: 25,
+            });
+            assert!(r.ready());
+        }
+    }
+}
+#[test]
+fn crafting_take_conflict_is_latched_even_when_later_output_matches() {
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        let (p, grid) = take_fixture(version);
+        let mut r = take::prepare(
+            p.clone(),
+            screen(&p),
+            registries(&p),
+            &grid,
+            GameMode::Survival,
+            1,
+        )
+        .unwrap();
+        r.send.dispatched = true;
+        let mut next = p.clone();
+        next.receive_sequence = 25;
+        next.game_mode = Some(GameMode::Creative);
+        take::receive(&mut r, &next, &screen(&next), &registries(&next));
+        let reason = r.requires_inspection.clone();
+        assert!(reason.is_some());
+        next.game_mode = Some(GameMode::Survival);
+        next.inventory.cursor = Some(received(item(version), 24));
+        take::receive(&mut r, &next, &screen(&next), &registries(&next));
+        assert_eq!(r.requires_inspection, reason);
+        assert!(!r.ready());
+        assert!(r.cursor_receipt.is_none());
+    }
+}
+
+#[test]
+fn crafting_take_table_requires_actual_full_boundary_and_original_opening() {
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        let mut p = player(version);
+        p.inventory.window_id = Some(3);
+        p.inventory.player_screen = None;
+        p.inventory.cursor = Some(received(SlotKnowledge::Empty, 15));
+        let mut table = ScreenReceipts::open(
+            version,
+            3,
+            native_menu(version, "minecraft:crafting")
+                .unwrap()
+                .native_id,
+            ScreenTitle::Unavailable,
+            11,
+        );
+        let mut slots = vec![Some(received(SlotKnowledge::Empty, 15)); 46];
+        slots[0] = Some(received(item(version), 15));
+        table.full_items(slots, Some(7), 15).unwrap();
+        let mut s = screen(&p);
+        s.screen = Some(table.capture(p.session));
+        let grid = ReceivedCrafting::capture(&p, &s, registries(&p))
+            .unwrap()
+            .unwrap();
+        let mut r = take::prepare(
+            p.clone(),
+            s.clone(),
+            registries(&p),
+            &grid,
+            GameMode::Survival,
+            1,
+        )
+        .unwrap();
+        r.send.dispatched = true;
+        p.receive_sequence = 25;
+        p.inventory.cursor = Some(received(item(version), 21));
+        // Fresh individual slots sharing an invented ordinal are not table full authority.
+        for slot in 0..=9 {
+            table
+                .slot(slot, Some(received(SlotKnowledge::Empty, 24)), Some(8), 24)
+                .unwrap();
+        }
+        s = screen(&p);
+        s.screen = Some(table.capture(p.session));
+        take::receive(&mut r, &p, &s, &registries(&p));
+        assert!(r.after.is_none());
+        assert!(r.requires_inspection.is_none());
+        table
+            .full_items(
+                vec![Some(received(SlotKnowledge::Empty, 24)); 46],
+                Some(8),
+                24,
+            )
+            .unwrap();
+        s.screen = Some(table.capture(p.session));
+        take::receive(&mut r, &p, &s, &registries(&p));
+        assert!(r.after.is_some());
+        s.screen = Some(
+            ScreenReceipts::open(
+                version,
+                3,
+                table.native_menu_id,
+                ScreenTitle::Unavailable,
+                25,
+            )
+            .capture(p.session),
+        );
+        take::receive(&mut r, &p, &s, &registries(&p));
+        assert!(r.requires_inspection.is_some());
+        assert!(!r.ready());
+    }
+}

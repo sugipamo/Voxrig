@@ -319,6 +319,10 @@ async fn survival_look_sends_native_ground_bit_and_refusal_sends_nothing() {
     });
     let operations = Operations {
         bot: Bot {
+            crafting_take_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.crafting_take_history.clone()
+            },
             close_history: session
                 .state
                 .try_lock()

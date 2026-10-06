@@ -43,6 +43,10 @@ async fn pending<F: Future>(mut future: Pin<&mut F>) {
 fn operations(session: &Arc<Session>) -> operations::Operations {
     operations::Operations {
         bot: Bot {
+            crafting_take_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.crafting_take_history.clone()
+            },
             close_history: session
                 .state
                 .try_lock()

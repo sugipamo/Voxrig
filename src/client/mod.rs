@@ -32,7 +32,9 @@ pub(crate) mod uuid;
 pub use crate::connection::{Client, ConnectionConfig, Observation, ObservedBlock, Region};
 pub use capabilities::{Capabilities, Feature, Support};
 pub use config::{ClientLimits, Server};
-pub use crafting::{CraftingSource, ReceivedCrafting};
+pub use crafting::{
+    CraftingSource, CraftingTakeId, CraftingTakeRecord, CraftingTakeStage, ReceivedCrafting,
+};
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
 pub use item::ItemProperties;
 pub(crate) use item::{modern_prototype_components, modern_weight_defaults};
@@ -72,9 +74,10 @@ pub mod prelude {
         SurvivalInput,
     };
     pub use super::{
-        Client, ClientLimits, ConnectionConfig, CraftingSource, Creative, Feature, GameMode,
-        ItemComponent, ItemComponentPatch, ItemData, ItemProperties, ItemStack, PlayerObservation,
-        ReceivedCrafting, ReceivedInventory, ReceivedItem, ReceivedSlot, Server, Support, Survival,
+        Client, ClientLimits, ConnectionConfig, CraftingSource, CraftingTakeId, CraftingTakeRecord,
+        CraftingTakeStage, Creative, Feature, GameMode, ItemComponent, ItemComponentPatch,
+        ItemData, ItemProperties, ItemStack, PlayerObservation, ReceivedCrafting,
+        ReceivedInventory, ReceivedItem, ReceivedSlot, Server, Support, Survival,
     };
     pub use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Region, Result};
 }

@@ -1412,13 +1412,67 @@ network-compression-threshold=256
                 raise RuntimeError("stale table handle sent inventory mutation or close")
             empty_boundary=trace.mark()
             table["empty_close"]=stage(probe,messages,"table_close_empty_"+mode,report["container_records"])["value"]
-            table["empty_close_frames"]=[f for f in trace.since(empty_boundary) if f["phase"]=="play"]
+            def empty_close_recorded():
+                frames=[f for f in trace.since(empty_boundary) if f["phase"]=="play"]
+                return frames if any(f["direction"]=="serverbound" and f["packet_id"]==close_id for f in frames) else None
+            # Complete client write may precede the forwarding thread's trace
+            # append. Wait for the real outgoing frame, never a fabricated ACK.
+            table["empty_close_frames"]=until(empty_close_recorded)
             if len([f for f in table["empty_close_frames"] if f["direction"]=="serverbound" and f["packet_id"]==close_id])!=1:
                 raise RuntimeError("empty table close did not write exactly one close")
             table["native_final"]=until(lambda:inventory_matches({9:("minecraft:oak_planks",3)}))
             table["position_after"]=rcon.command("data get entity UnifiedProbe Pos")
             if table["position_after"]!=table["position_before"]:raise RuntimeError("table lifecycle moved native player")
             table["authority_limits"]="Same public Client/mode handles receive native table OPEN/full/cursor/modern processing, place one input in 3x3, observe displayed result, return carried cursor through actual player-slot receipts, and dispatch one close. Fresh player receipt and independent RCON verify native ingredient return with space/living player and no drops. Reopening changes opaque identity; stale input/close requests write nothing. Native empty close is separately dispatched. No result take, recipe consumption/remainder, full-inventory/death disposal guarantee or fabricated close ACK."
+            result_takes = report["native_results"].setdefault("crafting_result_take", {})
+            takes = {"fixture":{}}
+            result_takes[mode] = takes
+            def fixture_item(slot, item, count):
+                return rcon.command(f"replaceitem entity UnifiedProbe inventory.{slot} minecraft:{item} {count}" if version=="1.16.1" else f"item replace entity UnifiedProbe inventory.{slot} with minecraft:{item} {count}")
+            takes["fixture"]["sticks_clear"]=rcon.command("clear UnifiedProbe")
+            takes["fixture"]["sticks_material"]=fixture_item(0,"oak_planks",4)
+            def result_baseline(expected):
+                player=stage(probe,messages,"armor_fixture_state",report["container_records"])["value"]
+                for canonical,(item,count) in expected.items():
+                    slot=player["inventory"]["slots"][canonical]
+                    if slot is None or slot["source"]["kind"]!="received" or slot["value"]["kind"]!="item":return None
+                    actual=slot["value"]["item"]
+                    if actual["name"]!="minecraft:"+item or actual["count"]!=count:return None
+                return player
+            takes["sticks_received_before"]=until(lambda:result_baseline({9:("oak_planks",4)}))
+            take_boundary=trace.mark()
+            takes["sticks"]=stage(probe,messages,"result_sticks_"+mode,report["container_records"])["value"]
+            takes["sticks_native"]=until(lambda:inventory_matches({9:("minecraft:oak_planks",2),10:("minecraft:stick",4)}))
+            takes["sticks_frames"]=[f for f in trace.since(take_boundary) if f["phase"]=="play"]
+            if len([f for f in takes["sticks_frames"] if f["direction"]=="serverbound" and f["packet_id"]==click_id])!=11:
+                raise RuntimeError("sticks lacks ten ordinary clicks and one result take; stale refusal must send nothing")
+            takes["fixture"]["cake_clear"]=rcon.command("clear UnifiedProbe")
+            ingredients={9:("milk_bucket",1),10:("milk_bucket",1),11:("milk_bucket",1),12:("sugar",2),13:("egg",1),14:("wheat",3)}
+            for canonical,(item,count) in ingredients.items():takes["fixture"]["cake_"+str(canonical)]=fixture_item(canonical-9,item,count)
+            takes["cake_received_before"]=until(lambda:result_baseline(ingredients))
+            cake_boundary=trace.mark()
+            takes["cake_open"]=stage(probe,messages,"table_reopen_"+mode,report["container_records"])["value"]
+            takes["cake_opened"]=stage(probe,messages,"table_observed_"+mode,report["container_records"])["value"]
+            takes["cake"]=stage(probe,messages,"result_cake_"+mode,report["container_records"])["value"]
+            takes["cake_close"]=stage(probe,messages,"table_close_"+mode,report["container_records"])["value"]
+            # Native input disposal chooses the free inventory slot. Audit total
+            # counts rather than manufacturing a local destination prediction.
+            def cake_inventory():
+                response=rcon.command("data get entity UnifiedProbe Inventory")
+                stacks=outer_snbt_compounds(response)
+                totals={}
+                for stack in stacks:
+                    item=re.search(r'id: "([^"]+)"',stack)
+                    count=re.search(r'(?:Count|count): (\d+)(?:b)?(?:,|\s|})',stack)
+                    if not item or not count:return None
+                    totals[item.group(1)]=totals.get(item.group(1),0)+int(count.group(1))
+                return response if totals=={"minecraft:cake":1,"minecraft:bucket":3} else None
+            takes["cake_native"]=until(cake_inventory)
+            takes["cake_no_drop"]=until(lambda:matched(rcon.command("execute unless entity @e[type=minecraft:item]"),"Test passed"))
+            takes["cake_frames"]=[f for f in trace.since(cake_boundary) if f["phase"]=="play"]
+            if len([f for f in takes["cake_frames"] if f["direction"]=="serverbound" and f["packet_id"]==click_id])!=17:
+                raise RuntimeError("cake lacks fifteen ingredient clicks, one result take and one cursor return")
+            takes["authority_limits"]="Same common Client/mode handles take one 2x2 sticks result that regenerates, consume each input once, and take one 3x3 cake with three actual bucket remainders. Whole fresh native grid/result, matching actual output cursor, native legacy reply and independent RCON totals are checked. Stale take refuses without frames. Recipe selection/planning, nonempty-cursor result merging, shift-crafting and disposal without available space remain outside this evidence."
             trace.expect_disconnect()
             stage(probe,messages,"container_disconnect",report["container_records"])
             probe.wait(timeout=10)

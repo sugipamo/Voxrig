@@ -387,8 +387,23 @@ fn prepare_inner(
             source: ValueSource::Predicted,
         },
     };
-    let request_full_resync =
-        item_context.is_some() && initial.session.version == MinecraftVersion::Java1_21_11;
+    // Modern player inventory updates can omit the crafting slots. A known
+    // ordinary source still permits this PICKUP; request actual full contents
+    // so the following input operation need not invent an empty crafting grid.
+    let missing_player_grid = matches!(source, InventoryClickSource::Player)
+        && (0..=4).any(|slot| {
+            initial
+                .inventory
+                .slots
+                .get(slot)
+                .and_then(Option::as_ref)
+                .is_none_or(|v| {
+                    !matches!(v.source, ValueSource::Received { .. })
+                        || matches!(v.value, SlotKnowledge::Unavailable)
+                })
+        });
+    let request_full_resync = (item_context.is_some() || missing_player_grid)
+        && initial.session.version == MinecraftVersion::Java1_21_11;
     let sent_screen_revision = revision.map(|v| {
         if request_full_resync {
             if v == 0 { 1 } else { 0 }
@@ -630,6 +645,40 @@ fn receive_inner(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn crafting_missing_player_grid_requests_native_full_without_empty_prediction() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let record = fixture(version);
+            assert!(!record.send.request_full_resync);
+            let mut initial = record.initial.clone();
+            initial.inventory.slots[1] = None;
+            let click = prepare(
+                initial,
+                GameMode::Survival,
+                InventorySource::Player,
+                9,
+                InventoryClickButton::Left,
+                2,
+                None,
+            )
+            .unwrap();
+            assert!(click.initial.inventory.slots[1].is_none());
+            assert_eq!(
+                click.send.request_full_resync,
+                version == MinecraftVersion::Java1_21_11
+            );
+            assert_eq!(
+                click.send.sent_screen_revision,
+                Some(if version == MinecraftVersion::Java1_21_11 {
+                    0
+                } else {
+                    7
+                })
+            );
+            assert_eq!(click.source_slot, 9);
+            assert!(click.source_receipt.is_none());
+        }
+    }
     fn fixture(version: MinecraftVersion) -> InventoryClickRecord {
         use crate::client::{InventoryObservation, ItemData, ItemStack, registry::Registry};
         let mut slots = vec![Some(crate::client::received(SlotKnowledge::Empty, 10)); 46];

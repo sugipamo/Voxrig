@@ -90,6 +90,24 @@ impl Survival {
             .common_click_inventory(GameMode::Survival, source, slot, button)
             .await
     }
+    /// Take one displayed crafting result with an actual empty cursor.
+    /// Rechecks this sealed snapshot before I/O. Ingredient consumption and
+    /// remainders are observed from the server, never predicted or replayed.
+    pub async fn take_crafting_result(
+        &self,
+        grid: &super::crafting::ReceivedCrafting,
+    ) -> Result<super::crafting::CraftingTakeRecord> {
+        self.client
+            .common_take_crafting_result(GameMode::Survival, grid)
+            .await
+    }
+    /// Inspect the retained take, including actual grid and output receipts.
+    /// Accessible while the writer is stalled; cancellation never resends it.
+    pub async fn crafting_take_record(
+        &self,
+    ) -> Result<Option<super::crafting::CraftingTakeRecord>> {
+        self.client.common_crafting_take_record().await
+    }
     /// Inspect the retained click without replay. Both fresh source/cursor receipts are required.
     pub async fn inventory_click_record(
         &self,
@@ -316,6 +334,24 @@ impl Creative {
         self.client
             .common_click_inventory(GameMode::Creative, source, slot, button)
             .await
+    }
+    /// Take one displayed crafting result with an actual empty cursor.
+    /// Rechecks this sealed snapshot before I/O. Ingredient consumption and
+    /// remainders are observed from the server, never predicted or replayed.
+    pub async fn take_crafting_result(
+        &self,
+        grid: &super::crafting::ReceivedCrafting,
+    ) -> Result<super::crafting::CraftingTakeRecord> {
+        self.client
+            .common_take_crafting_result(GameMode::Creative, grid)
+            .await
+    }
+    /// Inspect the retained take, including actual grid and output receipts.
+    /// Accessible while the writer is stalled; cancellation never resends it.
+    pub async fn crafting_take_record(
+        &self,
+    ) -> Result<Option<super::crafting::CraftingTakeRecord>> {
+        self.client.common_crafting_take_record().await
     }
     /// Inspect the retained click without replay. Both fresh source/cursor receipts are required.
     pub async fn inventory_click_record(

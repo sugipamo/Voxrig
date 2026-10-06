@@ -8,6 +8,8 @@ use super::{PlayerObservation, ReceivedSlot, SessionStamp};
 use crate::{MinecraftVersion, Result};
 use std::sync::{Arc, OnceLock};
 pub(crate) mod outline;
+pub(crate) mod take;
+pub use take::{CraftingTakeId, CraftingTakeRecord, CraftingTakeStage};
 
 /// UI supplying the captured grid. Access basis does not grant click authority.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]

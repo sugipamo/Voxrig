@@ -269,6 +269,7 @@ enum Command {
         reply: oneshot::Sender<Result<i16, OperationAdmissionError>>,
     },
     BeginInventoryClick {
+        result_take: bool,
         run_id: u64,
         expected_revision: u64,
         window: i8,
@@ -513,6 +514,7 @@ impl ConnectionActor {
                         let _ = reply.send(result);
                     }
                     Command::BeginInventoryClick {
+                        result_take,
                         run_id,
                         expected_revision,
                         window,
@@ -520,7 +522,7 @@ impl ConnectionActor {
                     } => {
                         let result = motion_gate
                             .begin_inventory_click(
-                                (run_id, window),
+                                (run_id, window, result_take),
                                 expected_revision,
                                 state,
                                 &actor_control,

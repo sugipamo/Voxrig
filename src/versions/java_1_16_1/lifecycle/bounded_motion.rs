@@ -133,6 +133,7 @@ enum Owner {
     Motion(u64),
     Placement(u64),
     InventoryClick {
+        result_take: bool,
         run_id: u64,
         action: i16,
         window: i8,
@@ -269,14 +270,14 @@ impl MotionGate {
     }
     pub(super) async fn begin_inventory_click(
         &mut self,
-        identity: (u64, i8),
+        identity: (u64, i8, bool),
         expected_revision: u64,
         state: ConnectionState,
         control: &Arc<RwLock<crate::snapshot::Versioned<crate::ControlState>>>,
         pending: bool,
         next_actions: &mut HashMap<i8, i16>,
     ) -> Admission<i16> {
-        let (run_id, window) = identity;
+        let (run_id, window, result_take) = identity;
         self.can_begin(state, control, pending).await?;
         if run_id == 0 || window < 0 || expected_revision != self.normal_revision {
             return Err(OperationAdmissionError::InvalidOperation);
@@ -289,6 +290,7 @@ impl MotionGate {
             .ok_or(OperationAdmissionError::InvalidOperation)?;
         *next = action;
         self.owner = Some(Owner::InventoryClick {
+            result_take,
             run_id,
             action,
             window,
@@ -895,6 +897,7 @@ impl MotionGate {
             } => {
                 let payload = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
                     let Some(Owner::InventoryClick {
+                        result_take,
                         run_id: id,
                         action,
                         window,
@@ -905,7 +908,11 @@ impl MotionGate {
                     };
                     if *id != run_id
                         || *sent
-                        || (*window == 0 && !(1..=4).contains(&slot) && !(9..=44).contains(&slot))
+                        || if *result_take {
+                            slot != 0 || button != 0
+                        } else {
+                            *window == 0 && !(1..=4).contains(&slot) && !(9..=44).contains(&slot)
+                        }
                         || slot >= 4096
                         || button > 1
                         || comparison.as_ref().is_some_and(|s| {
@@ -1209,6 +1216,26 @@ impl ConnectionActor {
         let (reply, result) = oneshot::channel();
         self.commands
             .send(Command::BeginInventoryClick {
+                result_take: false,
+                run_id,
+                expected_revision,
+                window,
+                reply,
+            })
+            .await
+            .map_err(|_| self.terminal_admission_error())?;
+        result.await.map_err(|_| self.terminal_admission_error())?
+    }
+    pub(crate) async fn begin_crafting_result_take(
+        &self,
+        run_id: u64,
+        expected_revision: u64,
+        window: i8,
+    ) -> Admission<i16> {
+        let (reply, result) = oneshot::channel();
+        self.commands
+            .send(Command::BeginInventoryClick {
+                result_take: true,
                 run_id,
                 expected_revision,
                 window,

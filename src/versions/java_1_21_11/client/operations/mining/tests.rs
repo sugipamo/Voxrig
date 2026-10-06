@@ -667,6 +667,10 @@ impl Fixture {
         });
         let api = Operations {
             bot: Bot {
+                crafting_take_history: {
+                    let state = session.state.try_lock().expect("new session");
+                    state.crafting_take_history.clone()
+                },
                 close_history: session
                     .state
                     .try_lock()

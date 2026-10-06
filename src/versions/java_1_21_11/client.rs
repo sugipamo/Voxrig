@@ -121,9 +121,12 @@ struct State {
     retired_common_placement: Option<crate::client::survival::PlacementRecord>,
     common_inventory_swap: Option<operations::inventory::common::CommonSwap>,
     common_inventory_click: Option<crate::client::inventory::InventoryClickRecord>,
+    common_crafting_take: Option<crate::client::crafting::CraftingTakeRecord>,
     common_inventory_transfer: Option<crate::client::inventory::InventoryTransferRecord>,
     common_container_close: Option<crate::client::container::ContainerCloseRecord>,
     close_history: Arc<std::sync::Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
+    crafting_take_history:
+        Arc<std::sync::Mutex<Option<crate::client::crafting::CraftingTakeRecord>>>,
     common_container_open: Option<crate::client::container::ContainerOpenRecord>,
     survival_motion: Option<operations::SurvivalMotionRecord>,
     retired_common_motion: Option<crate::client::survival::MotionRecord>,
@@ -158,9 +161,11 @@ impl Default for State {
             retired_common_placement: None,
             common_inventory_swap: None,
             common_inventory_click: None,
+            common_crafting_take: None,
             common_inventory_transfer: None,
             common_container_close: None,
             close_history: Arc::default(),
+            crafting_take_history: Arc::default(),
             common_container_open: None,
             survival_motion: None,
             retired_common_motion: None,
@@ -208,6 +213,7 @@ impl State {
             operations::placement::common_placement_context_received(self);
             operations::inventory::common::context_received(self);
             operations::inventory::click::context_received(self);
+            operations::inventory::crafting::context_received(self);
             operations::inventory::transfer::context_received(self);
             operations::container::context_received(self);
             operations::mining::common_mining_context_received(self);
@@ -256,6 +262,8 @@ impl Drop for Lease {
 #[derive(Clone)]
 pub(crate) struct Bot {
     close_history: Arc<std::sync::Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
+    crafting_take_history:
+        Arc<std::sync::Mutex<Option<crate::client::crafting::CraftingTakeRecord>>>,
     session: Arc<Session>,
     _lease: Arc<Lease>,
 }
@@ -478,6 +486,10 @@ impl Bot {
             .send(ids::configuration_serverbound::SETTINGS, &settings())
             .await?;
         let bot = Self {
+            crafting_take_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.crafting_take_history.clone()
+            },
             close_history: session
                 .state
                 .try_lock()

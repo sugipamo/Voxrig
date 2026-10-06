@@ -1990,6 +1990,94 @@ mod tests {
         drop(bot);
         server.await.unwrap();
     }
+    #[tokio::test]
+    async fn crafting_take_cancelled_caller_retains_owned_write_and_prompt_history() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        let mut result = vec![0, 0, 0];
+        write_slot(
+            &mut result,
+            Some(&ItemStack {
+                item_id: crate::item_id("stick").unwrap(),
+                count: 4,
+                nbt: None,
+            }),
+        );
+        bot.apply_packet(0x16, result).await.unwrap();
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let grid = client.received_crafting().await.unwrap().unwrap();
+        let writer = bot.writer.lock().await;
+        let ops = client.survival();
+        let waiter = tokio::spawn(async move { ops.take_crafting_result(&grid).await });
+        let pending = timeout(Duration::from_secs(1), async {
+            loop {
+                if let Some(r) = client.survival().crafting_take_record().await.unwrap() {
+                    break r;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert!(!pending.send.dispatched);
+        assert!(pending.after.is_none());
+        waiter.abort();
+        assert!(waiter.await.unwrap_err().is_cancelled());
+        drop(writer);
+        assert_eq!(
+            timeout(Duration::from_secs(1), packets.recv())
+                .await
+                .unwrap()
+                .unwrap()
+                .0,
+            0x09
+        );
+        let sent = timeout(Duration::from_secs(1), async {
+            loop {
+                let r = client
+                    .survival()
+                    .crafting_take_record()
+                    .await
+                    .unwrap()
+                    .unwrap();
+                if r.send.dispatched {
+                    break r;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(sent.id, pending.id);
+        assert!(
+            client
+                .survival()
+                .take_crafting_result(&sent.before)
+                .await
+                .is_err()
+        );
+        assert!(
+            timeout(Duration::from_millis(20), packets.recv())
+                .await
+                .is_err()
+        );
+        bot.disconnect().await.unwrap();
+        assert_eq!(
+            client
+                .survival()
+                .crafting_take_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            api::crafting::CraftingTakeStage::RequiresInspection
+        );
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
     async fn seed(bot: &Bot) {
         super::super::common_motion::tests::seed_motion(bot).await;
         let mut slots = vec![0, 0, 46];

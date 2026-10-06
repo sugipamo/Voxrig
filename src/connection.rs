@@ -343,6 +343,28 @@ impl Client {
             }
         }
     }
+    pub(crate) async fn common_take_crafting_result(
+        &self,
+        mode: crate::client::GameMode,
+        grid: &crate::client::crafting::ReceivedCrafting,
+    ) -> Result<crate::client::crafting::CraftingTakeRecord> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_take_crafting_result(mode, grid).await,
+            Adapter::Java1_21_11(bot) => {
+                bot.operations()
+                    .common_take_crafting_result(mode, grid)
+                    .await
+            }
+        }
+    }
+    pub(crate) async fn common_crafting_take_record(
+        &self,
+    ) -> Result<Option<crate::client::crafting::CraftingTakeRecord>> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_crafting_take_record().await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_crafting_take_record().await,
+        }
+    }
     pub(crate) async fn common_inventory_click_record(
         &self,
     ) -> Result<Option<crate::client::inventory::InventoryClickRecord>> {

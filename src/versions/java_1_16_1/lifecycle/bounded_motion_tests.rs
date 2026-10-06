@@ -338,3 +338,20 @@ async fn cursor_close_parent_retains_normal_exclusion_and_shared_actions_between
     read_packet(&mut peer, None).await.unwrap();
     actor.finish_inventory_swap(2).await.unwrap();
 }
+
+#[tokio::test]
+async fn crafting_take_actor_separates_result_from_ordinary_click_and_sends_once() {
+    let(actor,mut peer)=actor_fixture().await;actor.mark_ready().await;
+    let revision=actor.motion_admission_revision().await.unwrap();
+    actor.begin_window_click(1,revision,0).await.unwrap();
+    assert!(actor.bounded_inventory_click(1,0,0,None).await.is_err());no_packet(&mut peer).await;
+    actor.bounded_inventory_click(1,1,0,None).await.unwrap();read_packet(&mut peer,None).await.unwrap();actor.finish_inventory_click(1).await.unwrap();
+    let revision=actor.motion_admission_revision().await.unwrap();
+    assert_eq!(actor.begin_crafting_result_take(1,revision,0).await.unwrap(),2);
+    for (slot,button) in [(1,0),(0,1)] {assert!(actor.bounded_inventory_click(1,slot,button,None).await.is_err());no_packet(&mut peer).await;}
+    assert!(actor.finish_inventory_click(1).await.is_err());
+    actor.bounded_inventory_click(1,0,0,None).await.unwrap();
+    assert_eq!(read_packet(&mut peer,None).await.unwrap(),(0x09,vec![0,0,0,0,0,2,0,0]));
+    assert!(actor.bounded_inventory_click(1,0,0,None).await.is_err());no_packet(&mut peer).await;
+    actor.finish_inventory_click(1).await.unwrap();
+}

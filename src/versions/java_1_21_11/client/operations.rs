@@ -701,6 +701,15 @@ impl Operations {
             ));
         }
         if state
+            .common_crafting_take
+            .as_ref()
+            .is_some_and(|r| r.unresolved())
+        {
+            return Err(crate::client::inventory::unavailable(
+                "common crafting take unresolved; inspect without replay",
+            ));
+        }
+        if state
             .common_inventory_transfer
             .as_ref()
             .is_some_and(|s| s.unresolved())
@@ -1239,6 +1248,10 @@ fn common_player_in_state(
                 .common_inventory_click
                 .as_ref()
                 .is_some_and(|s| s.unresolved())
+            || state
+                .common_crafting_take
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
             || state
                 .common_inventory_transfer
                 .as_ref()

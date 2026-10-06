@@ -1056,6 +1056,10 @@ impl CommonFixture {
         });
         let api = Operations {
             bot: Bot {
+                crafting_take_history: {
+                    let state = session.state.try_lock().expect("new session");
+                    state.crafting_take_history.clone()
+                },
                 close_history: session
                     .state
                     .try_lock()
@@ -1598,6 +1602,10 @@ async fn ordinary_click_uses_real_transport_and_timeout_never_resubmits() {
     });
     let operations = Operations {
         bot: Bot {
+            crafting_take_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.crafting_take_history.clone()
+            },
             close_history: session
                 .state
                 .try_lock()
@@ -3862,4 +3870,82 @@ async fn data_cursor_close_conflicting_fields_do_not_heal_or_submit_close() {
             .is_err()
     );
     f.stop().await;
+}
+
+#[tokio::test]
+async fn crafting_take_cancelled_caller_retains_owned_write_and_prompt_history() {
+    use crate::client::crafting::CraftingTakeStage;
+    let mut f = CommonFixture::new().await;
+    f.api.bot.session.state.lock().await.registries.finish();
+    for slot in 0..=4 {
+        f.slot(
+            slot,
+            if slot == 0 {
+                plain("stick", 4)
+            } else {
+                InventorySlot::Empty
+            },
+        )
+        .await;
+    }
+    let mut cursor = Vec::new();
+    put_slot(&mut cursor, &InventorySlot::Empty);
+    f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+        .await;
+    let client = f.client();
+    let grid = client.received_crafting().await.unwrap().unwrap();
+    let bot = f.api.bot.clone();
+    let writer = bot.session.writer.lock().await;
+    let ops = client.survival();
+    let waiter = tokio::spawn(async move { ops.take_crafting_result(&grid).await });
+    let pending = timeout(Duration::from_secs(1), async {
+        loop {
+            if let Some(r) = client.survival().crafting_take_record().await.unwrap() {
+                break r;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(!pending.send.dispatched);
+    assert!(pending.after.is_none());
+    waiter.abort();
+    assert!(waiter.await.unwrap_err().is_cancelled());
+    drop(writer);
+    let (id, payload) = timeout(Duration::from_secs(1), read_packet(&mut f.peer, None))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(id, ids::play_serverbound::WINDOW_CLICK);
+    assert_eq!(payload, super::crafting::payload(&pending).unwrap());
+    let sent = client
+        .survival()
+        .crafting_take_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(sent.send.dispatched);
+    assert_eq!(sent.id, pending.id);
+    assert!(
+        client
+            .survival()
+            .take_crafting_result(&sent.before)
+            .await
+            .is_err()
+    );
+    assert!(
+        timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+            .await
+            .is_err()
+    );
+    f.stop().await;
+    let retained = client
+        .survival()
+        .crafting_take_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(retained.stage, CraftingTakeStage::RequiresInspection);
+    assert_eq!(retained.id, pending.id);
 }

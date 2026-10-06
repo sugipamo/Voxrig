@@ -484,9 +484,20 @@ Item、Unavailableは別々に保持する。`registry_state()`と各slotのregi
 `result()`はサーバーから受信した表示だけを返し、材料消費や製作完了を意味しない。
 新版のinput base capacityは99、旧版は64で、操作時には各itemの有効最大数との小さい方を使用する。
 
-この段階は入力操作・表示・table activationの統合。recipe計画・resultの取り出し、
-消費数・remainderの確認は後続対応を要する。旧版の`craft_once` / `take_crafting_result`で
-ローカルに減算した材料を共通APIの受信結果として扱わない。
+`Survival/Creative::take_crafting_result(&received_grid)`は、実受信の空cursorと現在も一致する
+封じられたsnapshotを要求し、結果slot 0へ左PICKUPを一度だけ送る。通常の`click_inventory`
+では結果slotを扱わない。新版でplayer製作枠が未受信の場合、既知の通常sourceへの
+最初のPICKUPでnative full更新を要求し、受信するまで枠をEmptyと推測しない。snapshotのsession・world・registry・opening・入力/result受信境界を
+送信前に再確認し、取消後も送信ownerと`crafting_take_record()`を保持する。書き込みが停止しても
+記録getterは書き込み完了を待たない。未知の配送状態や最初の競合を固定し、自動再送しない。
+
+`CraftingTakeRecord::cursor_prediction`だけが予測で、材料減算・remainder・次resultの予測はない。
+`ObservedTaken`は完全な送信、予測に合う新規実受信cursor、全input/resultが一つの新規full境界で
+受信された`after`を要求する。旧版では実際のcomparison replyも必要。両版ともnative full resyncを
+要求するが、revision mismatchやEmpty comparisonは受信証拠ではない。表示resultが同じまま再生成
+されるレシピも扱い、例えばケーキのバケツを実受信remainderとして保持する。成功した履歴は現在の
+在庫と区別する。recipe選択/計画、非空cursorへのresult merge、shift-craftingは後続対応を要する。
+旧版の`craft_once` / `take_crafting_result`でローカルに減算した材料は共通APIの受信結果にしない。
 
 ### 製作台の開閉
 
