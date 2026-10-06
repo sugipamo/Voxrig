@@ -1393,11 +1393,21 @@ network-compression-threshold=256
             recipe_results[mode] = catalogue
             catalogue["fixture"]["grant"] = rcon.command("recipe give UnifiedProbe *")
             catalogue["received"] = stage(probe,messages,"recipe_catalogue",report["container_records"])["value"]
+            catalogue["materials"] = stage(probe,messages,"recipe_materials",report["container_records"])["value"]
+            catalogue["fixture"]["named_material"] = rcon.command(
+                "replaceitem entity UnifiedProbe inventory.0 minecraft:oak_planks{display:{Name:'\"RecipeBookNamed\"'}} 3"
+                if version == "1.16.1" else
+                'item replace entity UnifiedProbe inventory.0 with minecraft:oak_planks[minecraft:custom_name={text:"RecipeBookNamed"}] 3')
+            catalogue["named_materials"] = stage(probe,messages,"recipe_materials_named",report["container_records"])["value"]
+            catalogue["fixture"]["restored_material"] = rcon.command(
+                "replaceitem entity UnifiedProbe inventory.0 minecraft:oak_planks 3" if version == "1.16.1" else
+                "item replace entity UnifiedProbe inventory.0 with minecraft:oak_planks 3")
+            catalogue["restored_materials"] = stage(probe,messages,"recipe_materials_restored",report["container_records"])["value"]
             catalogue["fixture"]["revoke"] = rcon.command("recipe take UnifiedProbe minecraft:stick")
             catalogue["removed"] = stage(probe,messages,"recipe_removed",report["container_records"])["value"]
             catalogue["fixture"]["regrant"] = rcon.command("recipe give UnifiedProbe minecraft:stick")
             catalogue["readded"] = stage(probe,messages,"recipe_readded",report["container_records"])["value"]
-            catalogue["authority_limits"] = "Actual declaration/display/book receipts and tags captured through identical public Client calls in both versions. Native RCON grants, revokes and regrants stick; no recipe planning, placement, inventory eligibility or predicted consumption is claimed."
+            catalogue["authority_limits"] = "Actual declaration/display/book receipts and tags captured through identical public Client calls in both versions. Native RCON grants, revokes and regrants stick; Inventory-only material assignment and named-stack exclusion are also captured at one native boundary; no grid placement or predicted consumption is claimed."
             boundary=trace.mark()
             table["open"]=stage(probe,messages,"table_open_"+mode,report["container_records"])["value"]
             table["opened"]=stage(probe,messages,"table_observed_"+mode,report["container_records"])["value"]

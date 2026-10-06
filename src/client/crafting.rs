@@ -7,8 +7,10 @@ use super::registry::ServerRegistryObservation;
 use super::{PlayerObservation, ReceivedSlot, SessionStamp};
 use crate::{MinecraftVersion, Result};
 use std::sync::{Arc, OnceLock};
+pub(crate) mod materials;
 pub(crate) mod outline;
 pub(crate) mod recipes;
+pub use materials::RecipeBookMaterials;
 pub use recipes::{
     ReceivedRecipe, ReceivedRecipes, RecipeDisplay, RecipeId, RecipeIngredient, RecipeSlotDisplay,
     RecipeTrimDefinition, RecipeTrimPattern,
@@ -287,3 +289,6 @@ pub(crate) fn regular_slot(
 
 #[cfg(test)]
 mod tests;
+
+pub(crate) mod stock;
+pub use stock::RecipeBookStock;

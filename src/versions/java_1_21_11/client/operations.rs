@@ -1110,6 +1110,35 @@ impl Operations {
             state.registries.capture(player.session, state.sequence),
         )
     }
+    pub(crate) async fn common_recipe_book_materials(
+        &self,
+        recipe: &crate::client::RecipeId,
+        crafts: u32,
+        maximum_bound: u32,
+    ) -> Result<crate::client::RecipeBookMaterials> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let registries = state
+            .registries
+            .capture(player.session, player.receive_sequence);
+        let catalogue =
+            state
+                .recipes
+                .capture(player.session, player.receive_sequence, registries.clone())?;
+        let inventory = crate::client::ReceivedInventory::capture(
+            player.session,
+            player.receive_sequence,
+            &player.inventory,
+            registries,
+        )?;
+        crate::client::RecipeBookMaterials::capture(
+            catalogue,
+            inventory,
+            recipe,
+            crafts,
+            maximum_bound,
+        )
+    }
     pub(crate) async fn common_received_crafting(
         &self,
     ) -> Result<Option<crate::client::ReceivedCrafting>> {

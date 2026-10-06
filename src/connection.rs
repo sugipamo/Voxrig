@@ -253,6 +253,29 @@ impl Client {
         }
     }
 
+    /// Inventory-only recipe-book material assignment and bounded maximum.
+    /// Captures actual recipes/tags and main/hotbar receipts at one adapter boundary.
+    /// Positive native batch sizes are required. Missing stock/requirements are errors.
+    /// This excludes grid/cursor stock and is not a placement or consumption plan.
+    pub async fn recipe_book_materials(
+        &self,
+        recipe: &crate::client::RecipeId,
+        crafts: u32,
+        maximum_bound: u32,
+    ) -> Result<crate::client::RecipeBookMaterials> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => {
+                bot.common_recipe_book_materials(recipe, crafts, maximum_bound)
+                    .await
+            }
+            Adapter::Java1_21_11(bot) => {
+                bot.operations()
+                    .common_recipe_book_materials(recipe, crafts, maximum_bound)
+                    .await
+            }
+        }
+    }
+
     /// Actual player/table crafting inputs and displayed result, with native
     /// topology and registry ownership captured together. Other active UIs
     /// return None. Missing receipts do not become empty ingredients.

@@ -527,3 +527,12 @@ player側のslotを選び、各PICKUPの実source/cursor応答を確認してか
 材料の処理は同じ保証にしない。必要な材料の保存確認には、その後の実player slot受信や
 在庫の調査を用いる。再度開いた画面では新しい`ScreenId`を取得し、古いinput/close要求を再送しない。
 結果slotを取る操作、recipe消費・remainder、製作台でのSWAP/QUICK_MOVEは後続対応を要する。
+
+### Recipe-book materials
+
+Use `Client::recipe_book_materials(&RecipeId, crafts, maximum_bound)` for received
+main/hotbar material-only assignment. Inspect `ReceivedItem::recipe_book_stock()`
+for the native inventory filter rather than using ingredient membership as an
+eligibility predicate. This shared API is available in both versions and modes.
+See [common recipes](common-recipes.md) for provenance, missing-data errors, batch
+semantics and the separate placement/consumption work that remains.

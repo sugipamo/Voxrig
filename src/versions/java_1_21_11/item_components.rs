@@ -89,6 +89,33 @@ pub(crate) fn validate_patch(patch: &ItemComponentPatch) -> Result<()> {
     }
     Ok(())
 }
+/// Predicate fields used by the native inventory recipe-book filter. This reads
+/// component presence/constructor map emptiness, not rendered names or glint.
+pub(crate) fn recipe_book_flags(item: &crate::client::ItemStack) -> Result<(bool, bool)> {
+    use crate::client::{ItemData, item_components::ComponentFields};
+    let patch = match &item.data {
+        ItemData::Default => None,
+        ItemData::ModernComponents { patch } => {
+            validate_patch(patch)?;
+            Some(patch)
+        }
+        _ => bail!("recipe-book stack data belongs to another adapter"),
+    };
+    let fields = ComponentFields::apply(
+        crate::MinecraftVersion::Java1_21_11,
+        crate::client::modern_prototype_components(item.id.value())?,
+        patch,
+    )?;
+    let enchanted = if let Some(field) = fields.get("minecraft:enchantments") {
+        match framing::decode_value(definition(field.definition.id.value())?, &field.bytes)? {
+            values::Value::Enchantments(value) => !value.levels.is_empty(),
+            _ => bail!("recipe-book enchantments have another native constructor"),
+        }
+    } else {
+        false
+    };
+    Ok((enchanted, fields.get("minecraft:custom_name").is_some()))
+}
 /// Decode a complete native signed scalar through the same typed grammar.
 pub(crate) fn scalar_value(value: &ItemComponent) -> Result<i32> {
     let native = definition(value.definition.id.value())?;

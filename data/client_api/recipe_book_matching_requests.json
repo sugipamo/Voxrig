@@ -1,0 +1,895 @@
+[
+  {
+    "case": "augment-path",
+    "ingredients": [
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      }
+    ],
+    "crafts": 1,
+    "bound": 64
+  },
+  {
+    "case": "same-item-short",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      }
+    ],
+    "crafts": 1,
+    "bound": 64
+  },
+  {
+    "case": "same-item-enough",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 2
+      }
+    ],
+    "crafts": 1,
+    "bound": 64
+  },
+  {
+    "case": "batch-cannot-mix-types",
+    "ingredients": [
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 3
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      }
+    ],
+    "crafts": 2,
+    "bound": 64
+  },
+  {
+    "case": "batch-with-two-dirt",
+    "ingredients": [
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 3
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 2
+      }
+    ],
+    "crafts": 2,
+    "bound": 64
+  },
+  {
+    "case": "three-step-augment",
+    "ingredients": [
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:dirt",
+        "minecraft:sand"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      {
+        "item": "minecraft:sand",
+        "count": 1
+      }
+    ],
+    "crafts": 1,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-0-crafts1",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 0
+      }
+    ],
+    "crafts": 1,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-0-crafts2",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 0
+      }
+    ],
+    "crafts": 2,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-0-crafts4",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 0
+      }
+    ],
+    "crafts": 4,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-1-crafts1",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      }
+    ],
+    "crafts": 1,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-1-crafts2",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      }
+    ],
+    "crafts": 2,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-1-crafts4",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      }
+    ],
+    "crafts": 4,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-2-crafts1",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 2
+      }
+    ],
+    "crafts": 1,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-2-crafts2",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 2
+      }
+    ],
+    "crafts": 2,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-2-crafts4",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 2
+      }
+    ],
+    "crafts": 4,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-3-crafts1",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 3
+      }
+    ],
+    "crafts": 1,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-3-crafts2",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 3
+      }
+    ],
+    "crafts": 2,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-3-crafts4",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 3
+      }
+    ],
+    "crafts": 4,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-5-crafts1",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 5
+      }
+    ],
+    "crafts": 1,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-5-crafts2",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 5
+      }
+    ],
+    "crafts": 2,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-5-crafts4",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 5
+      }
+    ],
+    "crafts": 4,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-63-crafts1",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 63
+      }
+    ],
+    "crafts": 1,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-63-crafts2",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 63
+      }
+    ],
+    "crafts": 2,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-63-crafts4",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 63
+      }
+    ],
+    "crafts": 4,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-64-crafts1",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 64
+      }
+    ],
+    "crafts": 1,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-64-crafts2",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 64
+      }
+    ],
+    "crafts": 2,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-64-crafts4",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 64
+      }
+    ],
+    "crafts": 4,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-96-crafts1",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 96
+      }
+    ],
+    "crafts": 1,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-96-crafts2",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 96
+      }
+    ],
+    "crafts": 2,
+    "bound": 64
+  },
+  {
+    "case": "duplicate-96-crafts4",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 96
+      }
+    ],
+    "crafts": 4,
+    "bound": 64
+  },
+  {
+    "case": "bounded-1",
+    "ingredients": [
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 16
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 16
+      }
+    ],
+    "crafts": 1,
+    "bound": 1
+  },
+  {
+    "case": "bounded-2",
+    "ingredients": [
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 16
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 16
+      }
+    ],
+    "crafts": 1,
+    "bound": 2
+  },
+  {
+    "case": "bounded-3",
+    "ingredients": [
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 16
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 16
+      }
+    ],
+    "crafts": 1,
+    "bound": 3
+  },
+  {
+    "case": "bounded-16",
+    "ingredients": [
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 16
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 16
+      }
+    ],
+    "crafts": 1,
+    "bound": 16
+  },
+  {
+    "case": "bounded-64",
+    "ingredients": [
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 16
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 16
+      }
+    ],
+    "crafts": 1,
+    "bound": 64
+  },
+  {
+    "case": "nine-ingredients",
+    "ingredients": [
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 4
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 5
+      }
+    ],
+    "crafts": 1,
+    "bound": 64
+  },
+  {
+    "case": "nine-short",
+    "ingredients": [
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone",
+        "minecraft:dirt"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 4
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 4
+      }
+    ],
+    "crafts": 1,
+    "bound": 64
+  },
+  {
+    "case": "tool-count-cap",
+    "ingredients": [
+      [
+        "minecraft:iron_pickaxe"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:iron_pickaxe",
+        "count": 3
+      }
+    ],
+    "crafts": 2,
+    "bound": 64
+  },
+  {
+    "case": "split-supply",
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 3
+      }
+    ],
+    "crafts": 2,
+    "bound": 64
+  },
+  {
+    "case": "repeated-alternative",
+    "ingredients": [
+      [
+        "minecraft:stone",
+        "minecraft:stone",
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "stocks": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      }
+    ],
+    "crafts": 1,
+    "bound": 64
+  }
+]

@@ -76,7 +76,47 @@ types and bounded nesting. The live common-Client scenario grants all recipes,
 revokes/regrants the shaped stick recipe and observes the cake topology, separately
 in survival and creative against sequential original servers.
 
-Recipe selection/planning, recipe-book placement, stack eligibility, result merging
-and shift crafting remain required follow-up work. Displayed remainder associations
+`ReceivedItem::recipe_book_stock()` exposes the original simple-inventory filter:
+received stacks that are damaged, enchanted or custom-named contribute zero.
+Stored enchantments, glint and item-name alone are different native facts. Java
+1.16.1 caps each admitted stack at 64; Java 1.21.11 caps it at the effective native
+stack capacity. Signed zero/negative stream capacities are retained diagnostically,
+not converted to available material. Stock is separate from ingredient membership
+and from manual crafting eligibility.
+
+`Client::recipe_book_materials(recipe.id(), crafts, maximum_bound)` captures the
+catalogue, actual tags and received player inventory at one adapter boundary.
+It returns `RecipeBookMaterials` with stock provenance, one item choice for each
+requirement (or no assignment), and an inventory-only bounded maximum. Main/hotbar
+player-screen slots 9..44 contribute; armor, offhand, cursor and current crafting
+grid are excluded. Every one of these 36 slots must have a known receipt. Missing
+requirements/tags or stock, replaced/foreign recipe IDs, nonpositive/out-of-range
+batch sizes, negative contributions and signed accumulator overflow are errors.
+Book membership is retained separately and does not affect the material-only
+calculation. Neither method sends packets.
+
+An ingredient uses one item type for the whole requested batch. With two
+requirements `[stone or dirt]` and `[stone]`, three stone and one dirt support one
+batch, but cannot form a single two-batch placement. Assignment uses augmenting
+paths, so a flexible ingredient cannot prevent a later constrained ingredient from
+using the stock it needs. Returned choices are deterministic; native tie ordering
+is not promised. `maximum()` counts recipe batches, not result items or actual
+completed crafting. Shaped dimensions and the active grid still need independent
+validation before placement.
+
+The original native stock getter/accounting corpus has 72 cases across both
+versions; the original ingredient picker corpus has 80, including competing
+alternatives, reassignment paths, repeated requirements, split stacks, bounded
+maximums, the per-version tool capacity difference and batches that cannot mix
+item types. Their `recipe_book_*_source.json` files retain original JAR/mapping,
+classpath, helper, request and result hashes. Both exporters run JVMs sequentially
+with 512 MiB heaps. The live common-Client scenario additionally observes that
+three plain planks provide one stick batch, cannot provide two, and stop counting
+when the stack is custom-named; removing the name restores the same material facts
+in both modes and versions.
+
+Full recipe selection/placement planning (including existing grid material,
+return space and UI capacity), recipe-book placement, result merging and shift
+crafting remain required follow-up work. Displayed remainder associations
 are not actual inventory consumption/remainder receipts. The existing common
 result take retains those actual receipts separately.

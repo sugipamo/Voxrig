@@ -318,3 +318,8 @@ modernは受信enchantmentの制限効果を解決する。
 材料候補・配置・表示結果・解放状態・registry/tag ownerを同じ受信境界で保持し、
 未受信のpermissionや実在庫は補完しない。[共通レシピ受信](common-recipes.md)を参照。
 recipe選択・計画・配置、記録・再構成・復旧等の残作業を含め、全体goalは継続中。
+
+受信レシピに加えて`Client::recipe_book_materials`でmain/hotbarだけの材料割当を同じcapture境界から取得する。
+`ReceivedItem::recipe_book_stock`はnativeの損傷・enchantments・custom name除外と版別stack計数を保持する。
+72の元stockケースと80の元ingredient pickerケースで照合する。これは現grid、返却space、UI容量を含む
+配置planではなく、stage 4全体の完了も意味しない。詳細は[共通レシピ](common-recipes.md)。

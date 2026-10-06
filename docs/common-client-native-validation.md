@@ -228,3 +228,13 @@ uses received entries instead of locally constructed recipes. Legacy retains the
 declaration when locked; modern removes it and regrant supplies a new add ordinal.
 See [common recipes](common-recipes.md). Planning/placement and inventory eligibility
 are separate remaining work. The servers still run sequentially.
+
+## Recipe-book材料の共通観測
+
+`recipe_book_materials`はcatalogue・実tag・main/hotbarを同じadapter capture境界で取得する。
+両modeで棒の材料にoak planksを3個与え、1batchの割当と最大1batch、2batchの不足を確認する。
+同じstackにcustom nameを与えるとnative simple-stock filterによって寄与0になり、名前を除くと3へ戻る。
+fixture commandと各stackの実受信ordinalを別に保持し、実送信やgridの配置成功とは扱わない。
+この試験は元stock getter/accountingの72ケース、ingredient pickerの80ケースの照合と組み合わせる。
+サーバーは順次実行し、両版の正常終了・同一consumer binaryとsrc/data/Cargo/probe/controller hashを要求する。
+現grid material・返却space・UI容量を含む配置plan、recipe-book配置、result merge/shift-craftingは残る。

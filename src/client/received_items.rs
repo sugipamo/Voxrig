@@ -305,6 +305,12 @@ impl<'a> ReceivedItem<'a> {
             }
         }
     }
+    /// Original recipe-book inventory filter and signed stock contribution.
+    /// Damaged, enchanted and custom-named stacks are excluded. This is separate
+    /// from ingredient membership, manual crafting and operation permission.
+    pub fn recipe_book_stock(&self) -> Result<super::crafting::RecipeBookStock> {
+        super::crafting::stock::RecipeBookStock::capture(self)
+    }
     /// Exact version-bound stack and original data bytes.
     pub fn stack(&self) -> &'a ItemStack {
         self.item

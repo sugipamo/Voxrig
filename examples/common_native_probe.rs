@@ -1187,6 +1187,46 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 old_recipe = Some(stick);
                 emit(&command, &catalogue)?;
             }
+            "recipe_materials" | "recipe_materials_named" | "recipe_materials_restored" => {
+                let recipe = old_recipe.as_ref().context("native stick recipe missing")?;
+                let named = command == "recipe_materials_named";
+                let single = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let result = client.recipe_book_materials(recipe.id(), 1, 64).await?;
+                        if result.stocks().iter().any(|(index, stock)| {
+                            *index == 9
+                                && stock.custom_named() == named
+                                && stock.count() == if named { 0 } else { 3 }
+                        }) {
+                            return Ok::<_, anyhow::Error>(result);
+                        }
+                        tokio::time::sleep(Duration::from_millis(10)).await;
+                    }
+                })
+                .await??;
+                let planks = client.registry().item("minecraft:oak_planks")?.id;
+                if named {
+                    anyhow::ensure!(
+                        single.maximum() == 0 && single.assignment().is_none(),
+                        "named stock counted as recipe-book material"
+                    );
+                } else {
+                    anyhow::ensure!(
+                        single.maximum() == 1
+                            && single.assignment() == Some([planks, planks].as_slice()),
+                        "three planks do not support one native stick batch"
+                    );
+                }
+                let double = client.recipe_book_materials(recipe.id(), 2, 64).await?;
+                anyhow::ensure!(
+                    double.assignment().is_none(),
+                    "three planks permit two stick batches"
+                );
+                emit(
+                    &command,
+                    serde_json::json!({"single":single,"double":double}),
+                )?;
+            }
             "recipe_removed" => {
                 let catalogue = received_recipe_fixture(client, false).await?;
                 let old = old_recipe.as_ref().context("original recipe missing")?;

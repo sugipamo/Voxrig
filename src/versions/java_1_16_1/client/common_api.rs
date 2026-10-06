@@ -55,6 +55,31 @@ impl Bot {
                 .capture(player.session, player.receive_sequence),
         )
     }
+    pub(crate) async fn common_recipe_book_materials(
+        &self,
+        recipe: &api::RecipeId,
+        crafts: u32,
+        maximum_bound: u32,
+    ) -> Result<api::RecipeBookMaterials> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        let receipts = self.common_receipts.lock().await;
+        let registries = receipts
+            .registries
+            .capture(player.session, player.receive_sequence);
+        let catalogue = receipts.recipes.capture(
+            player.session,
+            player.receive_sequence,
+            registries.clone(),
+        )?;
+        let inventory = api::ReceivedInventory::capture(
+            player.session,
+            player.receive_sequence,
+            &player.inventory,
+            registries,
+        )?;
+        api::RecipeBookMaterials::capture(catalogue, inventory, recipe, crafts, maximum_bound)
+    }
     pub(crate) async fn common_received_crafting(&self) -> Result<Option<api::ReceivedCrafting>> {
         let _gate = self.coherent_state_gate.lock().await;
         let player = self.common_player_unlocked().await?;
