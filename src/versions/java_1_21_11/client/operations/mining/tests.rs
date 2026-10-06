@@ -178,6 +178,42 @@ async fn hypothetical_reconnect_matches_fresh_native_model_without_fabricating_r
         yaw: 0.,
         input: Default::default(),
     }; 3];
+    // The read-only public assumptions use exactly the same native geometry/model.
+    let mut assumed_cells = std::collections::BTreeMap::new();
+    for x in region.min[0]..=region.max[0] {
+        for y in region.min[1]..=region.max[1] {
+            for z in region.min[2]..=region.max[2] {
+                let p = [x, y, z];
+                assumed_cells.insert(p, captured.scenario().block(p).unwrap());
+            }
+        }
+    }
+    let assumed = AssumedSurvivalScene::new(
+        region,
+        assumed_cells,
+        AssumedSurvivalStart {
+            dimension: captured.source().dimension.clone(),
+            position,
+            velocity: [0.0; 3],
+            planning_reserve: captured.source().position_basis.geometry_reserve(),
+        },
+    )
+    .unwrap();
+    let prediction = assumed
+        .scenario_with_motion_contract(SurvivalMotionContract::IndependentlyObserved)
+        .preview_path(&idle)
+        .unwrap();
+    assert_eq!(
+        prediction.frames,
+        captured.scenario().preview_path(&idle).unwrap().frames
+    );
+    assert!(prediction.source.captured().is_none());
+    assert!(
+        prediction
+            .initial_aim_requirement
+            .validate_standing(captured.source())
+            .is_err()
+    );
     let resting = captured.scenario().after_path(&idle).unwrap();
     let controls: Vec<_> = (0..28)
         .map(|t| SurvivalControl {
@@ -208,7 +244,7 @@ async fn hypothetical_reconnect_matches_fresh_native_model_without_fabricating_r
     assert_eq!(planned.initial_frame, live.initial_frame);
     assert_eq!(planned.frames, live.frames);
     assert_eq!(
-        planned.source.connection_id,
+        planned.source.captured().unwrap().connection_id,
         captured.source().connection_id
     );
     assert!(!planned.shares_origin(&carried));
