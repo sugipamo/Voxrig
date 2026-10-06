@@ -34,6 +34,8 @@ pub use capabilities::{Capabilities, Feature, Support};
 pub use config::{ClientLimits, Server};
 pub use crafting::{
     CraftingSource, CraftingTakeId, CraftingTakeRecord, CraftingTakeStage, ReceivedCrafting,
+    ReceivedRecipe, ReceivedRecipes, RecipeDisplay, RecipeId, RecipeIngredient, RecipeSlotDisplay,
+    RecipeTrimDefinition, RecipeTrimPattern,
 };
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
 pub use item::ItemProperties;
@@ -77,7 +79,9 @@ pub mod prelude {
         Client, ClientLimits, ConnectionConfig, CraftingSource, CraftingTakeId, CraftingTakeRecord,
         CraftingTakeStage, Creative, Feature, GameMode, ItemComponent, ItemComponentPatch,
         ItemData, ItemProperties, ItemStack, PlayerObservation, ReceivedCrafting,
-        ReceivedInventory, ReceivedItem, ReceivedSlot, Server, Support, Survival,
+        ReceivedInventory, ReceivedItem, ReceivedRecipe, ReceivedRecipes, ReceivedSlot,
+        RecipeDisplay, RecipeId, RecipeIngredient, RecipeSlotDisplay, RecipeTrimDefinition,
+        RecipeTrimPattern, Server, Support, Survival,
     };
     pub use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Region, Result};
 }

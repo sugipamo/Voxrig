@@ -244,6 +244,15 @@ impl Client {
             Adapter::Java1_21_11(bot) => bot.operations().common_received_inventory().await,
         }
     }
+    /// Capture the actual received recipe catalogue and its registry/tag owner.
+    /// Displays and book membership do not predict inventory or authorize crafting.
+    pub async fn received_recipes(&self) -> Result<crate::client::ReceivedRecipes> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_received_recipes().await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_received_recipes().await,
+        }
+    }
+
     /// Actual player/table crafting inputs and displayed result, with native
     /// topology and registry ownership captured together. Other active UIs
     /// return None. Missing receipts do not become empty ingredients.

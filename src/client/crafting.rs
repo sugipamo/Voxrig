@@ -8,6 +8,11 @@ use super::{PlayerObservation, ReceivedSlot, SessionStamp};
 use crate::{MinecraftVersion, Result};
 use std::sync::{Arc, OnceLock};
 pub(crate) mod outline;
+pub(crate) mod recipes;
+pub use recipes::{
+    ReceivedRecipe, ReceivedRecipes, RecipeDisplay, RecipeId, RecipeIngredient, RecipeSlotDisplay,
+    RecipeTrimDefinition, RecipeTrimPattern,
+};
 pub(crate) mod take;
 pub use take::{CraftingTakeId, CraftingTakeRecord, CraftingTakeStage};
 

@@ -10,6 +10,7 @@ pub mod operations;
 mod outbound;
 pub mod players;
 pub mod raycast;
+mod recipes;
 pub mod recording;
 use super::{
     ids,
@@ -140,6 +141,7 @@ struct State {
     observations: observations::RegionCache,
     dimensions: Vec<Dimension>,
     registries: crate::client::registry::received::ReceivedRegistries,
+    recipes: crate::client::crafting::recipes::RecipeReceipts,
     position: Option<[f64; 3]>,
     rotation: [f32; 2],
     ready: bool,
@@ -179,6 +181,7 @@ impl Default for State {
             observations: observations::RegionCache::default(),
             dimensions: Vec::new(),
             registries: Default::default(),
+            recipes: Default::default(),
             position: None,
             rotation: [0.0; 2],
             ready: false,
@@ -846,6 +849,9 @@ fn apply_play(
     if operations::receive(state, id, payload)? {
         return Ok(responses);
     }
+    if recipes::receive(state, id, payload)? {
+        return Ok(responses);
+    }
     if state.players.receive(id, payload, state.sequence)? {
         operations::retirement_received(state, id, payload)?;
         return Ok(responses);
@@ -1028,6 +1034,7 @@ fn apply_play(
             state.position = None;
             state.dimensions.clear();
             state.registries.reset(state.sequence);
+            state.recipes = Default::default();
             state.world.reset();
             state.reconstruction = Reconstruction::default();
             state.operations.reset_configuration(state.sequence);

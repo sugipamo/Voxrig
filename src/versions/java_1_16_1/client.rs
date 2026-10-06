@@ -5076,6 +5076,7 @@ impl Bot {
                     receipts
                         .registries
                         .legacy_join(join.registry_codec.clone(), packet_sequence)?;
+                    receipts.recipes = Default::default();
                     receipts.container = None;
                     receipts.inventory.window_id = None;
                     receipts.inventory.cursor = None;
@@ -5292,7 +5293,17 @@ impl Bot {
             }
             0x35 => self.handle_position(&p).await?,
             0x36 => {
-                self.recipe_book.write().await.apply(&p)?;
+                let mut book = self.recipe_book.write().await;
+                book.apply(&p)?;
+                let mut header = p.as_slice();
+                let initial = get_varint(&mut header)? == 0;
+                self.common_receipts.lock().await.recipes.legacy_book(
+                    book.unlocked.iter().cloned().collect(),
+                    book.displayed.iter().cloned().collect(),
+                    initial,
+                    packet_sequence,
+                );
+                drop(book);
                 self.emit(Event::RecipeBookUpdated);
             }
             0x37 => {
@@ -5687,7 +5698,14 @@ impl Bot {
                 }
             }
             0x5a => {
-                **self.server_recipes.write().await = parse_recipes(&p)?;
+                let recipes = parse_recipes(&p)?;
+                let common = crate::client::crafting::recipes::legacy_entries(&recipes)?;
+                **self.server_recipes.write().await = recipes;
+                self.common_receipts
+                    .lock()
+                    .await
+                    .recipes
+                    .declare_legacy(common, packet_sequence);
                 self.emit(Event::RecipesDeclared);
             }
             0x5b => {

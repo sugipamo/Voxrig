@@ -218,3 +218,13 @@ legacyも同じconsumerで再実行し、両版の既存全workflowも成功し�
 writerを止めたtransport回帰試験でnormal lookが確認packetを追い越さないことを確認する。
 fixtureも外部teleportの新しい実poseを待つ。過去の失敗を成功へ読み替えず、最終runと分けて保持した。
 任意item data/components、製作・一般装備・entity、広いmovement条件、context/記録/再構成/復旧等は全体goalに残る。
+
+## Received recipe catalogue
+
+The same public `Client::received_recipes()` observes all native recipe grants,
+the 1x2 stick and 3x3 cake arrangements, actual revoke/regrant and identity behavior,
+separately in survival and creative. RCON changes the native book; the common probe
+uses received entries instead of locally constructed recipes. Legacy retains the
+declaration when locked; modern removes it and regrant supplies a new add ordinal.
+See [common recipes](common-recipes.md). Planning/placement and inventory eligibility
+are separate remaining work. The servers still run sequentially.

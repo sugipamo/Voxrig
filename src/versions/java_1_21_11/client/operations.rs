@@ -858,7 +858,7 @@ pub(crate) fn item_definition(id: i32) -> Result<(String, u32)> {
         .ok_or_else(|| invalid("invalid native item capacity"))?;
     Ok((format!("minecraft:{}", item.name), size))
 }
-fn slot(r: &mut Reader<'_>) -> anyhow::Result<Option<InventorySlot>> {
+pub(super) fn slot(r: &mut Reader<'_>) -> anyhow::Result<Option<InventorySlot>> {
     let count = r.varint()?;
     if count < 0 {
         bail!("negative item count");
@@ -1101,6 +1101,15 @@ impl Operations {
             registries,
         )
     }
+    pub(crate) async fn common_received_recipes(&self) -> Result<crate::client::ReceivedRecipes> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        state.recipes.capture(
+            player.session,
+            state.sequence,
+            state.registries.capture(player.session, state.sequence),
+        )
+    }
     pub(crate) async fn common_received_crafting(
         &self,
     ) -> Result<Option<crate::client::ReceivedCrafting>> {
@@ -1338,7 +1347,7 @@ fn common_player_in_state(
     })
 }
 
-fn common_slot(slot: &InventorySlot) -> Result<crate::client::SlotKnowledge> {
+pub(super) fn common_slot(slot: &InventorySlot) -> Result<crate::client::SlotKnowledge> {
     use crate::client as api;
     Ok(match slot {
         InventorySlot::Unavailable => api::SlotKnowledge::Unavailable,

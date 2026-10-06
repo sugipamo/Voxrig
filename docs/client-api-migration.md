@@ -468,6 +468,17 @@ native modern拡張の`operations::InventorySlot`には`ItemWithComponents`が�
 native default SWAP/default cursor hashは非default patchを送信前に拒否する。
 対応範囲・原codecの証拠・次の操作対応は[共通item data](common-item-data.md)を参照。
 
+### レシピ受信
+
+`Client::received_recipes()`で、両版のrecipe情報を同じ型から参照できる。
+`entries()`・`display()`・`requirements()`・`unlocked()`で受信内容を確認し、
+`output_items(&catalogue)`で表示結果のitem候補を探す。1.16.1は全宣言とbook状態、
+1.21.11は解放済みdisplay entriesを受信するため、受信していない情報は補完しない。
+旧版のrecipe名や新版のnumeric IDは、共通入口ではopaqueな`RecipeId`へ移行する。
+旧版の解除後の宣言保持と新版の削除・再追加のidentity変更を区別する。
+レシピ表示は製作permissionや在庫ではなく、recipe計画・配置は後続対応となる。
+詳しくは[共通レシピ受信](common-recipes.md)を参照。
+
 ### 製作入力と受信表示
 
 `Client::received_crafting()`は両版共通で、playerの2×2または開いているcrafting tableの3×3を返す。

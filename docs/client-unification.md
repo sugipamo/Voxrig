@@ -311,3 +311,10 @@ modernは受信enchantmentの制限効果を解決する。
 意味比較し、modernのdata付きcursorは送信revisionを分けてfull実受信を要求する。
 特殊item override・製作/一般装備や
 後続の統合範囲は継続する。
+
+## レシピ受信の共通化
+
+`Client::received_recipes()`で、全宣言／解放済みdisplayの版差を保持した共通catalogueを取得する。
+材料候補・配置・表示結果・解放状態・registry/tag ownerを同じ受信境界で保持し、
+未受信のpermissionや実在庫は補完しない。[共通レシピ受信](common-recipes.md)を参照。
+recipe選択・計画・配置、記録・再構成・復旧等の残作業を含め、全体goalは継続中。

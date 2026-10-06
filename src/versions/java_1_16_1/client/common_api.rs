@@ -43,6 +43,18 @@ impl Bot {
         let _gate = self.coherent_state_gate.lock().await;
         self.common_player_unlocked().await
     }
+    pub(crate) async fn common_received_recipes(&self) -> Result<api::ReceivedRecipes> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        let receipts = self.common_receipts.lock().await;
+        receipts.recipes.capture(
+            player.session,
+            player.receive_sequence,
+            receipts
+                .registries
+                .capture(player.session, player.receive_sequence),
+        )
+    }
     pub(crate) async fn common_received_crafting(&self) -> Result<Option<api::ReceivedCrafting>> {
         let _gate = self.coherent_state_gate.lock().await;
         let player = self.common_player_unlocked().await?;

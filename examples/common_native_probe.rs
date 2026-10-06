@@ -96,21 +96,79 @@ async fn crafting_result_take(
     mode: GameMode,
     expected: &str,
 ) -> anyhow::Result<CraftingTakeRecord> {
+    let previous = client
+        .survival()
+        .inventory_click_record()
+        .await?
+        .context("crafting predecessor click absent")?;
+    // A negative legacy comparison queues full contents followed by the cursor.
+    // The click's own fresh source/cursor can precede those queued updates. Wait
+    // for the actual full grid AND its cursor before capturing a take intent.
+    let full_after = previous
+        .legacy_reply
+        .as_ref()
+        .filter(|r| !r.accepted)
+        .map(|r| r.receive_sequence)
+        .or_else(|| {
+            previous
+                .send
+                .request_full_resync
+                .then_some(previous.send.after_sequence)
+        });
     let grid = tokio::time::timeout(Duration::from_secs(15), async {
         loop {
             let grid = client
                 .received_crafting()
                 .await?
                 .context("crafting grid absent")?;
-            if grid.result().is_some_and(
-                |r| matches!(r.value(), SlotKnowledge::Item {item} if item.name == expected),
-            ) {
-                return Ok::<_, anyhow::Error>(grid);
+            let result = grid
+                .result()
+                .filter(|r| matches!(r.value(),SlotKnowledge::Item{item} if item.name==expected));
+            if let Some(result) = result {
+                let sequence = result.receive_sequence();
+                let mut complete = true;
+                if let Some(after) = full_after {
+                    let screen = client.screen_state().await?;
+                    let mut minimum_input = u64::MAX;
+                    for y in 0..grid.dimensions()[1] {
+                        for x in 0..grid.dimensions()[0] {
+                            if let Some(input) = grid.input(x, y)? {
+                                minimum_input = minimum_input.min(input.receive_sequence());
+                            } else {
+                                minimum_input = 0;
+                            }
+                        }
+                    }
+                    let full_sequence = match grid.source() {
+                        CraftingSource::Table { screen: opening } => screen
+                            .screen
+                            .as_ref()
+                            .filter(|s| s.id == opening)
+                            .and_then(|s| s.full_contents_sequence),
+                        CraftingSource::Player { .. } => Some(minimum_input),
+                        _ => None,
+                    };
+                    let inventory = client.received_inventory().await?;
+                    complete = full_sequence.is_some_and(|full| {
+                        full > after
+                            && minimum_input >= full
+                            && sequence >= full
+                            && inventory.session() == grid.session()
+                            && inventory.cursor().is_some_and(|r| {
+                                r.receive_sequence() >= full
+                                    && matches!(r.value(), SlotKnowledge::Empty)
+                            })
+                    });
+                }
+                if complete {
+                    return Ok::<_, anyhow::Error>(grid);
+                }
             }
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
     })
-    .await??;
+    .await
+    .context("crafting result baseline wait")??;
     let sent = match mode {
         GameMode::Survival => client.survival().take_crafting_result(&grid).await?,
         _ => client.creative().take_crafting_result(&grid).await?,
@@ -1026,6 +1084,72 @@ async fn inventory_probe(client: &Client) -> anyhow::Result<()> {
     }
     anyhow::bail!("inventory fixture ended without disconnect")
 }
+fn find_stick_recipe(catalogue: &ReceivedRecipes, client: &Client) -> Option<ReceivedRecipe> {
+    let registry = client.registry();
+    let stick = registry.item("minecraft:stick").unwrap().id;
+    let planks = registry.item("minecraft:oak_planks").unwrap().id;
+    catalogue
+        .entries()
+        .iter()
+        .find(|entry| {
+            matches!(
+                entry.display(),
+                RecipeDisplay::Shaped {
+                    width: 1,
+                    height: 2,
+                    ..
+                }
+            ) && entry
+                .output_items(catalogue)
+                .is_ok_and(|ids| ids.contains(&stick))
+                && entry.requirements().is_some_and(|requirements| {
+                    requirements.len() == 2
+                        && requirements
+                            .iter()
+                            .all(|r| r.items(catalogue).is_ok_and(|ids| ids.contains(&planks)))
+                })
+        })
+        .cloned()
+}
+fn has_cake_recipe(catalogue: &ReceivedRecipes, client: &Client) -> bool {
+    let cake = client.registry().item("minecraft:cake").unwrap().id;
+    catalogue.entries().iter().any(|r| {
+        matches!(
+            r.display(),
+            RecipeDisplay::Shaped {
+                width: 3,
+                height: 3,
+                ..
+            }
+        ) && r.unlocked() == Some(true)
+            && r.output_items(catalogue)
+                .is_ok_and(|ids| ids.contains(&cake))
+    })
+}
+async fn received_recipe_fixture(
+    client: &Client,
+    unlocked: bool,
+) -> anyhow::Result<ReceivedRecipes> {
+    tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            let catalogue = client.received_recipes().await?;
+            let entry = find_stick_recipe(&catalogue, client);
+            let observed = if unlocked {
+                entry.as_ref().is_some_and(|r| r.unlocked() == Some(true))
+                    && has_cake_recipe(&catalogue, client)
+            } else if client.version() == voxrig::MinecraftVersion::Java1_16_1 {
+                entry.as_ref().is_some_and(|r| r.unlocked() == Some(false))
+            } else {
+                entry.is_none()
+            };
+            if catalogue.book_initialized() && observed {
+                return Ok::<_, anyhow::Error>(catalogue);
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await?
+}
 async fn container_probe(client: &Client) -> anyhow::Result<()> {
     use voxrig::client::{ValueSource, container::ScreenObservation};
     let ready = client.player_state().await?;
@@ -1034,9 +1158,70 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
     let mut commands = BufReader::new(tokio::io::stdin()).lines();
     let mut opening = None;
     let mut old_table_opening = None;
+    let mut old_recipe: Option<ReceivedRecipe> = None;
     let mut content_sequence = 0;
     while let Some(command) = commands.next_line().await? {
         match command.as_str() {
+            "recipe_catalogue" => {
+                let catalogue = received_recipe_fixture(client, true).await?;
+                let stick =
+                    find_stick_recipe(&catalogue, client).context("native stick recipe missing")?;
+                anyhow::ensure!(
+                    stick.requirements().is_some_and(|r| r.len() == 2),
+                    "two distinct crafting requirements missing"
+                );
+                let cake = client.registry().item("minecraft:cake")?.id;
+                anyhow::ensure!(
+                    catalogue.entries().iter().any(|r| matches!(
+                        r.display(),
+                        RecipeDisplay::Shaped {
+                            width: 3,
+                            height: 3,
+                            ..
+                        }
+                    ) && r.unlocked() == Some(true)
+                        && r.output_items(&catalogue)
+                            .is_ok_and(|ids| ids.contains(&cake))),
+                    "native cake arrangement missing"
+                );
+                old_recipe = Some(stick);
+                emit(&command, &catalogue)?;
+            }
+            "recipe_removed" => {
+                let catalogue = received_recipe_fixture(client, false).await?;
+                let old = old_recipe.as_ref().context("original recipe missing")?;
+                if client.version() == voxrig::MinecraftVersion::Java1_16_1 {
+                    anyhow::ensure!(
+                        catalogue.entry(old.id())?.unlocked() == Some(false),
+                        "legacy book revoke lost declaration"
+                    );
+                } else {
+                    anyhow::ensure!(
+                        catalogue.entry(old.id()).is_err(),
+                        "modern removed recipe still present"
+                    );
+                }
+                emit(&command, &catalogue)?;
+            }
+            "recipe_readded" => {
+                let catalogue = received_recipe_fixture(client, true).await?;
+                let old = old_recipe.as_ref().context("original recipe missing")?;
+                let new =
+                    find_stick_recipe(&catalogue, client).context("readded recipe missing")?;
+                if client.version() == voxrig::MinecraftVersion::Java1_16_1 {
+                    anyhow::ensure!(
+                        new.id() == old.id(),
+                        "unchanged legacy declaration replaced"
+                    );
+                } else {
+                    anyhow::ensure!(
+                        new.id() != old.id() && catalogue.entry(old.id()).is_err(),
+                        "reused native modern ID accepted as old entry"
+                    );
+                }
+                emit(&command, &catalogue)?;
+            }
+
             "cursor_close_audit_open_survival" | "cursor_close_audit_open_creative" => {
                 let mode = if command.ends_with("survival") {
                     GameMode::Survival
