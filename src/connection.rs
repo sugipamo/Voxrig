@@ -203,6 +203,15 @@ impl Client {
             Adapter::Java1_21_11(bot) => bot.common_server_registry_state().await,
         }
     }
+    /// Capture received entity spawns which have not been removed in this world.
+    /// Coordinates retain their original spawn ordinal; current movement, metadata
+    /// and hitboxes are not inferred. Opaque targets are rechecked before dispatch.
+    pub async fn entity_spawns(&self) -> Result<crate::client::EntitySpawns> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_entity_spawns().await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_entity_spawns().await,
+        }
+    }
     /// Survival-mode handle available on each adapter. Does not change game mode.
     pub fn survival(&self) -> crate::client::Survival {
         crate::client::Survival {

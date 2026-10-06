@@ -453,7 +453,7 @@ def outer_snbt_compounds(response):
 
 
 def stage(probe, messages, name, records, timeout=30, poll=None):
-    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready"):
+    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready", "a2_ready"):
         probe.stdin.write(name + "\n")
         probe.stdin.flush()
     deadline = time.monotonic() + timeout
@@ -564,6 +564,85 @@ def run_basic_workflow(version, env, rcon, trace, report, probe_log, stderr_log)
                     probe.kill(); probe.wait(timeout=5)
 
 
+
+def run_equipment_entity(version, env, rcon, trace, report, probe_log, stderr_log):
+    """A2: received equipment transfer, one attack and one villager interaction."""
+    results = report['native_results']['equipment_entity'] = {}
+    selector = '@e[type=minecraft:sheep,tag=VoxrigA2Target,limit=1]'
+    for mode in ('survival','creative'):
+        until(lambda:matched(rcon.command('execute unless entity @a[name=UnifiedProbe]'),'Test passed'))
+        result = results[mode] = {'fixture':{},'records':[]}
+        for command in ['kill @e[tag=VoxrigA2Target]', 'kill @e[tag=VoxrigA2Merchant]',
+                        'setblock 0 65 1 minecraft:air',
+                        'summon minecraft:sheep 2.5 65 0.5 {NoAI:1b,Tags:["VoxrigA2Target"]}',
+                        'summon minecraft:villager 0.5 65 2.5 {NoAI:1b,Tags:["VoxrigA2Merchant"],VillagerData:{type:"minecraft:plains",profession:"minecraft:farmer",level:1}}']:
+            result['fixture'][command] = rcon.command(command)
+        probe = subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')],cwd=REPO,
+            env=dict(env,VOXRIG_NATIVE_SCENARIO='equipment-entity'),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
+        messages = queue.Queue()
+        reader = threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True)
+        reader.start()
+        try:
+            stage(probe,messages,'a2_ready',result['records'])
+            commands = ['gamemode '+mode+' UnifiedProbe','tp UnifiedProbe 0.5 65 0.5 0 0','clear UnifiedProbe']
+            commands.append('replaceitem entity UnifiedProbe hotbar.2 minecraft:iron_boots 1' if version=='1.16.1'
+                else 'item replace entity UnifiedProbe hotbar.2 with minecraft:iron_boots 1')
+            for command in commands:
+                result['fixture'][command] = rcon.command(command)
+            baseline = stage(probe,messages,'a2_baseline',result['records'])['value']
+            result['inventory_before'] = rcon.command('data get entity UnifiedProbe Inventory')
+            mark = trace.mark()
+            equipped = stage(probe,messages,'a2_equip',result['records'])['value']
+            def boots():
+                raw = rcon.command('data get entity UnifiedProbe Inventory' if version=='1.16.1' else 'data get entity UnifiedProbe equipment.feet')
+                if version=='1.16.1':
+                    stacks = outer_snbt_compounds(raw)
+                    found = [stack for stack in stacks if re.search(r'Slot: 100b(?:,|\s|})',stack) and 'id: "minecraft:iron_boots"' in stack]
+                    return raw if len(stacks)==1 and len(found)==1 else None
+                return raw if 'id: "minecraft:iron_boots"' in raw and re.search(r'count: 1(?:,|\s|})',raw) else None
+            result['equipment_feet'] = until(boots)
+            def health():
+                raw = rcon.command('data get entity '+selector+' Health')
+                match = re.search(r': (-?\d+(?:\.\d+)?)f$',raw)
+                if not match: raise RuntimeError('missing native sheep health: '+raw)
+                return float(match.group(1)),raw
+            before,before_raw = health()
+            result['health_before'] = before_raw
+            attacked = stage(probe,messages,'a2_attack',result['records'])['value']
+            def damaged():
+                value,raw = health()
+                return raw if 0<value<before else None
+            result['health_after'] = until(damaged)
+            result['retire_fixture'] = rcon.command('kill @e[tag=VoxrigA2Target]')
+            retire_mark = trace.mark()
+            retired = stage(probe,messages,'a2_retire',result['records'])['value']
+            entity_packet = 0x0e if version=='1.16.1' else 0x19
+            if any(f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==entity_packet for f in trace.since(retire_mark)):
+                raise RuntimeError('retired entity request emitted a frame')
+            interacted = stage(probe,messages,'a2_interact',result['records'])['value']
+            stamp = baseline['player']['session']
+            if any(s!=stamp for s in (baseline['spawns']['session'],equipped['player']['session'],attacked['target']['session'],retired['spawns']['session'],interacted['target']['session'],interacted['screen']['session'])):
+                raise RuntimeError('A2 changed connection/world across equipment/entity operations')
+            result['operation_frames'] = trace.since(mark)
+            frames = [f for f in result['operation_frames'] if f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==entity_packet]
+            if len(frames)!=2: raise RuntimeError('A2 expected one attack and one interaction frame')
+            for frame,target,action in [(frames[0],attacked['target'],1),(frames[1],interacted['target'],0)]:
+                raw = bytes.fromhex(frame['body_hex']); native_id,offset = PacketTraceProxy.varint(raw)
+                if native_id!=target['native_id'] or raw[offset:]!=(bytes([1,0]) if action==1 else bytes([0,0,0])):
+                    raise RuntimeError('native entity request fields differ from the public intent')
+            result['authority_limits'] = 'One Client/session per mode. Actual equipment slot receipt plus independent native feet storage; one empty-hand attack changes native sheep health; one empty-hand interaction precedes actual merchant OPEN. Dispatch is not damage/trade confirmation. Spawn positions are historical, no current movement/metadata/hitbox/reach or tactics are inferred. Merchant layout/trading remain unsupported. Removed targets emit no entity frame.'
+            trace.expect_disconnect()
+            stage(probe,messages,'a2_disconnect',result['records'])
+            probe.wait(timeout=10); reader.join(timeout=2)
+            if probe.returncode!=0 or reader.is_alive(): raise RuntimeError('A2 probe failed at disconnect')
+            result['result'] = 'passed'
+        finally:
+            if probe.poll() is None:
+                probe.terminate()
+                try: probe.wait(timeout=10)
+                except subprocess.TimeoutExpired: probe.kill(); probe.wait(timeout=5)
+
+
 def run(version, accept_eula, runtime_root=None, runtime_inputs=None, scenario="full"):
     if not accept_eula:
         raise RuntimeError("pass --accept-eula when authorized to run the official server")
@@ -649,6 +728,10 @@ network-compression-threshold=256
         for check in ["execute if block 0 65 1 minecraft:stone", "execute if block 1 65 0 minecraft:air"]:
             report.setdefault("fixture_verification", {})[check] = until(lambda: matched(rcon.command(check), "Test passed"))
         env = dict(os.environ, VOXRIG_MINECRAFT_VERSION=version, VOXRIG_PORT=str(trace.port))
+        if scenario == "equipment-entity":
+            run_equipment_entity(version, env, rcon, trace, report, probe_log, stderr_log)
+            report["scenario_result"] = "passed"
+            return retained
         if scenario == "basic-workflow":
             run_basic_workflow(version, env, rcon, trace, report, probe_log, stderr_log)
             report["scenario_result"] = "passed"
@@ -1693,7 +1776,7 @@ def main():
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--accept-eula", action="store_true")
     parser.add_argument("--runtime-dir", type=Path, help="Optional disposable runtime parent, e.g. /dev/shm for isolating disk I/O; reports are exported to .local after JVM exit")
-    parser.add_argument("--scenario", choices=("full", "basic-workflow"), default="full", help="Run the complete operation corpus or the focused A1 workflow")
+    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity"), default="full", help="Run the operation corpus or a focused A1/A2 workflow")
     args = parser.parse_args()
     if bool(args.version) == args.all:
         parser.error("select exactly one of --version / --all")

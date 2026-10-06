@@ -6,6 +6,7 @@ pub(crate) mod constructor;
 pub mod container;
 pub mod crafting;
 pub(crate) mod enchantments;
+pub(crate) mod entity;
 pub(crate) mod fraction;
 mod geometry;
 mod hash_ops;
@@ -40,6 +41,7 @@ pub use crafting::{
     RecipePlacementAmount, RecipePlacementPlan, RecipeSlotDisplay, RecipeTrimDefinition,
     RecipeTrimPattern,
 };
+pub use entity::{EntityId, EntitySpawn, EntitySpawns};
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
 pub use item::ItemProperties;
 pub(crate) use item::{modern_prototype_components, modern_weight_defaults};
@@ -81,10 +83,10 @@ pub mod prelude {
     pub use super::{
         Client, ClientLimits, ConnectionConfig, CraftingGridReturnPlan, CraftingGridReturnStep,
         CraftingGridUnreturnedSplit, CraftingSource, CraftingTakeId, CraftingTakeRecord,
-        CraftingTakeStage, Creative, Feature, GameMode, ItemComponent, ItemComponentPatch,
-        ItemData, ItemProperties, ItemStack, PlayerObservation, ReceivedCrafting,
-        ReceivedCraftingContext, ReceivedInventory, ReceivedItem, ReceivedRecipe, ReceivedRecipes,
-        ReceivedSlot, RecipeBookMaterials, RecipeBookStock, RecipeCraftingCell,
+        CraftingTakeStage, Creative, EntityId, EntitySpawn, EntitySpawns, Feature, GameMode,
+        ItemComponent, ItemComponentPatch, ItemData, ItemProperties, ItemStack, PlayerObservation,
+        ReceivedCrafting, ReceivedCraftingContext, ReceivedInventory, ReceivedItem, ReceivedRecipe,
+        ReceivedRecipes, ReceivedSlot, RecipeBookMaterials, RecipeBookStock, RecipeCraftingCell,
         RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient, RecipePlacementAmount,
         RecipePlacementPlan, RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern, Server,
         Support, Survival,

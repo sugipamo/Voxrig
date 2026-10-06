@@ -17,7 +17,11 @@
 - A1完了: 同じconsumerを使い、各modeで接続を変えずに観測・地上移動・収納・通常製作・
   設置・切断を両版の公式vanillaで確認した。収納後のno-echo closeから設置へ進む契約を接続し、
   Creative handleにも有限地上歩行を実装した。予測位置と受信pose、close送信と受信画面は分離する。
-- 次はA2の基本装備・代表的なentity操作。A3〜A6とBは未完了で、全統合完了とは扱わない。
+- A2完了: 同じClientでbootsの装備転送、sheepへの一回の攻撃、
+  villagerへの一回のinteractionと実merchant OPENを両版・両modeで確認した。
+  削除済み・再利用されたentity IDを拒否し、spawn座標を現在位置とは扱わない。
+  単体681件、公開API2件、doctest24件が成功した。詳細は[基本装備とentity操作](common-client-entities.md)。
+- 次はA3の採掘後の明示的復旧と次の操作への継続。A3〜A6とBは未完了で、全統合完了とは扱わない。
   ownedレシピブック配置の未検証変更は退避したまま、Bまで復元しない。
 
 ## 選択と公開入口
@@ -160,7 +164,7 @@ A5の代表例は初回貫通用であり、すべての特殊windowやentity／
 | passive cube設置・空手のdirt/stone採掘 | 共通・限定条件 | 共通・限定条件 | A1は設置。採掘後の共通復旧はA3 |
 | 装備への通常転送 | 共通・限定条件 | 共通・限定条件 | A2の代表シナリオに組み込む |
 | checked拡張・captured/assumed scene・診断record | 共通契約は未実装 | 版固有拡張 | PR #7の機能を維持。re-exportだけで両版対応としない |
-| 一般entity操作 | 未共通化 | 未共通化 | A2で代表的なinteractionを実装する |
+| entity spawn寿命・一回のINTERACT／ATTACK | 共通・限定条件 | 共通・限定条件 | A2で装備→攻撃→削除拒否→村人interactionを確認。現在のmotion/metadata・INTERACT_ATはB |
 | 記録・再構成・UI・特殊window・vehicle・manager | 未共通化 | 未共通化 | A4/A5で代表操作を実装する。従来の版固有APIがあることと区別する |
 | ownedレシピブック配置 | 未公開 | 未公開 | 読み取り専用planを維持し、送信はBへ残す |
 

@@ -57,6 +57,8 @@ pub enum Feature {
     InventoryTransfer,
     /// Common crafting operations.
     Crafting,
+    /// Received entity spawn/despawn lifetimes, without current motion or metadata.
+    EntityObservation,
     /// Common general-entity interaction.
     EntityInteraction,
     /// Common recording and reconstruction API.
@@ -122,9 +124,13 @@ impl Capabilities {
             Feature::Crafting => Support::Restricted(
                 "received recipe declarations/displays/book membership and player/table input grids with coherent registry/tag ownership; empty-hand table activation, ordinary input PICKUP and opening-bound close with cursor return; native input disposal on close is not locally predicted or a close ACK; empty-cursor result PICKUP retains fresh native full-grid consumption/remainders and output receipts; recipe planning, nonempty-cursor result merging and shift-crafting remain incomplete",
             ),
-            Feature::EntityInteraction | Feature::RecordingAndReconstruction => {
-                Support::NotImplemented
-            }
+            Feature::EntityObservation => Support::Restricted(
+                "received spawn/despawn ledger; version-bound entity types and original spawn coordinates; opaque connection/world/spawn identity; current motion, metadata, hitboxes and health remain incomplete",
+            ),
+            Feature::EntityInteraction => Support::Restricted(
+                "one native INTERACT or ATTACK on an original received lifetime; matching received handle mode; no auto-selection, cooldown, retry, reach/visibility proof or outcome ACK; position-specific interaction and broader entity state remain incomplete",
+            ),
+            Feature::RecordingAndReconstruction => Support::NotImplemented,
         }
     }
 }

@@ -43,6 +43,25 @@ Survivalの設置ではdirt 3→2、Creativeでは3個を維持する。
 同じconsumer binaryとsource/dataを使い、両modeの結果とJVMのexit code 0を確認した。
 保存した各`report.json`に入力hash、操作記録、実サーバー側の結果を保持する。
 
+## A2の基本装備とentity操作
+
+```bash
+CARGO_INCREMENTAL=0 python3 scripts/run_common_native.py --all --scenario equipment-entity --accept-eula
+```
+
+両版・両modeで同じconsumer、一つの接続を使う。bootsのfeet転送はcommon slot 8の実受信と
+RCONの装備で確認する。empty handの一回の攻撃はnative sheep HPの8→7、一回のvillager操作は
+実merchant OPENで確認した。送信結果とゲーム内の変化を区別し、merchant layout/取引は成功扱いにしない。
+試験側でsheepを削除し、despawn受信後に古い対象への要求がentity frameを送らないことも確認する。
+既知typeと固定座標に合う最新spawnの選択はconsumerのfixture規則である。
+
+2026-10-06の成功runは`trial-1.16.1-2617c684`と`trial-1.21.11-c41dad1a`。
+同じsource/data/binaryで実行し、両JVMのexit code 0とproxyのエラーなしを確認した。
+今回はdisk上のruntimeで成功した。source/dataのhash・実操作記録・RCON結果は各`report.json`へ保存する。
+先行した`trial-1.16.1-e126a0ce`は、Creativeのconsumerが前の試験のdying villagerを選び、
+削除された元のtargetとして拒否されて失敗した。失敗記録を保持し、最新のmatching spawnを選ぶ修正後に再検証した。
+共通APIの範囲と制約は[基本装備とentity操作](common-client-entities.md)を参照。
+
 ## 検証する結果
 
 | 共通APIの操作 | Voxrigとは別のサーバー側確認 |

@@ -5084,6 +5084,7 @@ impl Bot {
                 {
                     let mut receipts = self.common_receipts.lock().await;
                     receipts.generation = packet_sequence;
+                    receipts.entities.clear();
                     receipts
                         .registries
                         .legacy_join(join.registry_codec.clone(), packet_sequence)?;
@@ -5328,6 +5329,7 @@ impl Bot {
                 for _ in 0..count {
                     let entity_id = get_varint(&mut rest)?;
                     entities.entities.remove(&entity_id);
+                    self.common_receipts.lock().await.entities.remove(entity_id);
                     entity_ids.push(entity_id);
                 }
                 drop(entities);
@@ -5356,6 +5358,7 @@ impl Bot {
                 {
                     let mut receipts = self.common_receipts.lock().await;
                     receipts.generation = packet_sequence;
+                    receipts.entities.clear();
                     receipts.pose = None;
                     receipts.position_source = None;
                     receipts.health = None;
@@ -6057,6 +6060,18 @@ impl Bot {
         {
             bail!("entity cache limit exceeded");
         }
+        self.common_receipts.lock().await.entities.insert(
+            crate::MinecraftVersion::Java1_16_1,
+            crate::client::entity::NativeSpawn {
+                id: entity.entity_id,
+                uuid: entity.uuid,
+                type_id: entity.type_id,
+                dedicated_type_name: entity.type_name,
+                position: [entity.position.x, entity.position.y, entity.position.z],
+            },
+            self.protocol_packet_sequence.load(Ordering::Acquire),
+            self.connection_options.max_entities,
+        )?;
         entities.entities.insert(entity.entity_id, entity.clone());
         drop(entities);
         self.emit(Event::EntitySpawned(entity));

@@ -1089,6 +1089,27 @@ impl Operations {
     ) -> Result<Option<i32>> {
         use crate::client::operations::Action;
         match action {
+            Action::Entity(target, interaction) => {
+                let state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                self.require_mode(&state, Some(mode))?;
+                state.entities.validate(
+                    crate::client::SessionStamp {
+                        version: crate::MinecraftVersion::Java1_21_11,
+                        connection_id: self.bot.session.id,
+                        world_generation: state.loading.generation,
+                    },
+                    target,
+                )?;
+                self.bot
+                    .session
+                    .send(
+                        ids::play_serverbound::USE_ENTITY,
+                        &interaction.payload(target),
+                    )
+                    .await?;
+            }
+
             Action::Look(rotation) => {
                 crate::client::operations::validate_rotation(rotation)?;
                 self.look_in_mode(Some(mode), rotation).await?;
@@ -1117,6 +1138,11 @@ impl Operations {
             }
         }
         Ok(None)
+    }
+    pub(crate) async fn common_entity_spawns(&self) -> Result<crate::client::EntitySpawns> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        Ok(state.entities.capture(player.session, state.sequence))
     }
     pub(crate) async fn common_player_state(&self) -> Result<crate::client::PlayerObservation> {
         let state = self.bot.session.state.lock().await;

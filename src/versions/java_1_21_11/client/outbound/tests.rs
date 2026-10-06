@@ -868,3 +868,125 @@ async fn creative_ground_motion_keeps_mode_and_prediction_contract() {
             .is_err()
     );
 }
+
+#[tokio::test]
+async fn common_entity_lifetime_rejects_reused_id_and_wrong_mode() {
+    use crate::client::{GameMode, Hand};
+    for mode in [GameMode::Survival, GameMode::Creative] {
+        let (session, api, mut peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        let mut spawn = vec![43];
+        spawn.extend([7; 16]);
+        put_varint(
+            &mut spawn,
+            client
+                .registry()
+                .builtin_id("minecraft:entity_type", "minecraft:sheep")
+                .unwrap()
+                .value(),
+        );
+        for v in [9.0f64, 65.0, 8.5] {
+            spawn.extend(v.to_be_bytes());
+        }
+        spawn.extend([0; 5]); // zero compact velocity, three angles, zero object data.
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::SPAWN_ENTITY, &spawn, 256)
+            .unwrap();
+        let observed = client.entity_spawns().await.unwrap();
+        let target = observed.entities[0].id;
+        assert_eq!(
+            observed.entities[0].type_name.as_deref(),
+            Some("minecraft:sheep")
+        );
+        let (ops, wrong) = match mode {
+            GameMode::Survival => (
+                crate::client::entity::EntityAction::Attack { sneaking: false },
+                client.creative().attack_entity(target, false).await,
+            ),
+            _ => (
+                crate::client::entity::EntityAction::Attack { sneaking: false },
+                client.survival().attack_entity(target, false).await,
+            ),
+        };
+        assert!(wrong.is_err());
+        client
+            .execute(mode, crate::client::operations::Action::Entity(target, ops))
+            .await
+            .unwrap();
+        assert_eq!(
+            read_packet(&mut peer, None).await.unwrap(),
+            (ids::play_serverbound::USE_ENTITY, vec![43, 1, 0])
+        );
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::ENTITY_DESTROY, &[1, 43], 256)
+            .unwrap();
+        assert!(client.entity_spawns().await.unwrap().entities.is_empty());
+        assert!(
+            client
+                .execute(mode, crate::client::operations::Action::Entity(target, ops))
+                .await
+                .is_err()
+        );
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::SPAWN_ENTITY, &spawn, 256)
+            .unwrap();
+        let next = client.entity_spawns().await.unwrap().entities[0].id;
+        assert_ne!(next, target);
+        assert!(
+            client
+                .execute(mode, crate::client::operations::Action::Entity(target, ops))
+                .await
+                .is_err()
+        );
+        match mode {
+            GameMode::Survival => {
+                client
+                    .survival()
+                    .interact_entity(next, Hand::Off, true)
+                    .await
+                    .unwrap();
+            }
+            _ => {
+                client
+                    .creative()
+                    .interact_entity(next, Hand::Off, true)
+                    .await
+                    .unwrap();
+            }
+        }
+        assert_eq!(
+            read_packet(&mut peer, None).await.unwrap(),
+            (ids::play_serverbound::USE_ENTITY, vec![43, 0, 1, 1])
+        );
+        // Cancellation before the writer is acquired cannot emit a packet.
+        let writer = session.writer.lock().await;
+        let mut attempt =
+            Box::pin(client.execute(mode, crate::client::operations::Action::Entity(next, ops)));
+        pending(attempt.as_mut()).await;
+        drop(attempt);
+        drop(writer);
+        assert_eq!(session.interrupted_packet.load(Ordering::Acquire), -1);
+        assert!(
+            timeout(Duration::from_millis(10), peer.read_u8())
+                .await
+                .is_err()
+        );
+        // A world reset retires all common targets even if raw IDs reappear.
+        session.state.lock().await.entities.clear();
+        assert!(
+            client
+                .execute(mode, crate::client::operations::Action::Entity(next, ops))
+                .await
+                .is_err()
+        );
+    }
+}

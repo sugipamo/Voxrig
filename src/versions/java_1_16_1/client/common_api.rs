@@ -3,6 +3,17 @@ use super::*;
 use crate::client::{self as api, operations::Action};
 
 impl Bot {
+    pub(crate) async fn common_entity_spawns(&self) -> Result<api::EntitySpawns> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        Ok(self
+            .common_receipts
+            .lock()
+            .await
+            .entities
+            .capture(player.session, player.receive_sequence))
+    }
+
     pub(crate) async fn common_server_registry_state(
         &self,
     ) -> Result<api::registry::ServerRegistryObservation> {
@@ -269,6 +280,19 @@ impl Bot {
             ));
         }
         let (id, payload) = match action {
+            Action::Entity(target, interaction) => {
+                let receipts = self.common_receipts.lock().await;
+                receipts.entities.validate(
+                    api::SessionStamp {
+                        version: crate::MinecraftVersion::Java1_16_1,
+                        connection_id: self.connection_id(),
+                        world_generation: receipts.generation,
+                    },
+                    target,
+                )?;
+                (0x0e, interaction.payload(target))
+            }
+
             Action::Look(rotation) => {
                 api::operations::validate_rotation(rotation)?;
                 let player = self.player.lock().await;
@@ -485,6 +509,92 @@ fn common_state(message: &str) -> crate::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn common_entity_lifetime_rejects_reused_id_and_wrong_mode() {
+        let (bot, server, release) =
+            super::super::tests::ready_test_bot(ConnectionOptions::default()).await;
+        bot.teleport_barrier_ticks.store(u8::MAX, Ordering::Release);
+        bot.survival.write().await.game_mode = Some(0);
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let mut spawn = vec![42];
+        spawn.extend([7; 16]);
+        put_varint(
+            &mut spawn,
+            client
+                .registry()
+                .builtin_id("minecraft:entity_type", "minecraft:sheep")
+                .unwrap()
+                .value(),
+        );
+        for v in [2.0f64, 65.0, 0.5] {
+            spawn.extend(v.to_be_bytes());
+        }
+        spawn.extend([0; 9]); // native living yaw/pitch/head yaw + three short velocities.
+        bot.apply_packet(0x02, spawn.clone()).await.unwrap();
+        let received = client.entity_spawns().await.unwrap();
+        let target = received.entities[0].id;
+        assert_eq!(
+            received.entities[0].type_name.as_deref(),
+            Some("minecraft:sheep")
+        );
+        assert!(
+            client
+                .creative()
+                .attack_entity(target, false)
+                .await
+                .is_err()
+        );
+        let dispatch = client
+            .survival()
+            .attack_entity(target, false)
+            .await
+            .unwrap();
+        assert_eq!(dispatch.connection_id, received.session.connection_id);
+        assert_eq!(dispatch.interaction_sequence, None);
+        bot.apply_packet(0x37, vec![1, 42]).await.unwrap();
+        assert!(client.entity_spawns().await.unwrap().entities.is_empty());
+        assert!(
+            client
+                .survival()
+                .attack_entity(target, false)
+                .await
+                .is_err()
+        );
+        bot.apply_packet(0x02, spawn).await.unwrap();
+        let next = client.entity_spawns().await.unwrap().entities[0].id;
+        assert_ne!(target, next);
+        assert!(
+            client
+                .survival()
+                .interact_entity(target, api::Hand::Main, false)
+                .await
+                .is_err()
+        );
+        client
+            .survival()
+            .interact_entity(next, api::Hand::Main, false)
+            .await
+            .unwrap();
+        // Before actor I/O cancellation, retain uncertainty and never silently replay.
+        let writer = bot.writer.lock().await;
+        let ops = client.survival();
+        let mut attempt = Box::pin(ops.attack_entity(next, false));
+        assert!(
+            timeout(Duration::from_millis(10), attempt.as_mut())
+                .await
+                .is_err()
+        );
+        drop(attempt);
+        drop(writer);
+        assert!(client.player_state().await.unwrap().pending_dispatch);
+        assert!(ops.attack_entity(next, false).await.is_err());
+        release.send(()).unwrap();
+        drop(ops);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+
     #[tokio::test]
     async fn common_server_registries_keep_original_join_codec_and_replace_actual_tags() {
         let (bot, server, release) =

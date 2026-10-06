@@ -2,6 +2,7 @@
 mod correction;
 #[cfg(test)]
 mod edge_native_trials;
+mod entity;
 mod loading;
 mod motion;
 mod observations;
@@ -135,6 +136,7 @@ struct State {
     recording_ordinal: u64,
     operations: operations::OperationState,
     players: players::PlayerTracker,
+    entities: crate::client::entity::SpawnLedger,
     phase: Phase,
     world: World,
     reconstruction: Reconstruction,
@@ -175,6 +177,7 @@ impl Default for State {
             recording_ordinal: 0,
             operations: operations::OperationState::default(),
             players: players::PlayerTracker::default(),
+            entities: Default::default(),
             phase: Phase::Configuration,
             world: World::default(),
             reconstruction: Reconstruction::default(),
@@ -832,6 +835,7 @@ fn spawn_info(state: &mut State, r: &mut Reader<'_>) -> anyhow::Result<()> {
     state.reconstruction = Reconstruction::default();
     state.operations.reset_world(game_mode)?;
     state.players.reset_world();
+    state.entities.clear();
     state.ready = false;
     state.position = None;
     Ok(())
@@ -852,6 +856,7 @@ fn apply_play(
     if recipes::receive(state, id, payload)? {
         return Ok(responses);
     }
+    entity::receive(state, id, payload)?;
     if state.players.receive(id, payload, state.sequence)? {
         operations::retirement_received(state, id, payload)?;
         return Ok(responses);
@@ -1039,6 +1044,7 @@ fn apply_play(
             state.reconstruction = Reconstruction::default();
             state.operations.reset_configuration(state.sequence);
             state.players = players::PlayerTracker::default();
+            state.entities.clear();
             if let Some(capture) = &mut state.recording {
                 capture.invalidate(recording::RecordingIssue::WorldChanged);
             }

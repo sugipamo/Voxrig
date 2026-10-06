@@ -18,6 +18,18 @@ legacyのdimension codecは個別entryも取得できる。新旧とも未受信
 
 ## deepplanning派生版から
 
+共通の基本entity操作には、`Client::entity_spawns()`で受信した`EntityId`を渡す。
+`survival()`／`creative()`の`interact_entity`・`attack_entity`は同じ引数で使え、受信modeと元のspawn寿命を検査する。
+従来の整数entity IDを直接渡すコードは、共通captureから対象を選ぶ形へ変更する。
+`spawn_position`は受信spawnの履歴なので、従来の現在位置・metadata付きentity queryの代替とは扱わない。
+それらの広い共通観測は残る対応範囲に含む。
+
+従来の`Bot::attack`に含まれたcooldown待ち・arm swingは、共通`attack_entity`では実行しない。
+一回のATTACK送信を提供するため、攻撃間隔・武器・対象・結果の判断は利用側へ移す。
+基本装備は既存の`transfer_inventory(InventorySource::Player, slot)`を利用し、
+完了判定には`InventoryTransferStage::ObservedTransferred`と実変更slotを使う。
+詳細は[基本装備とentity操作](common-client-entities.md)を参照。
+
 依存packageを`zen-minecraft-client`から`voxrig`へ変更し、Rustのimportを`voxrig`へ変更します。
 1.16.1の詳細APIは`voxrig::versions::java_1_16_1`でも参照できます。
 

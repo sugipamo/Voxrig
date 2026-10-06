@@ -3203,6 +3203,209 @@ async fn basic_workflow_probe(client: &Client) -> anyhow::Result<()> {
     anyhow::bail!("workflow controller ended without disconnect")
 }
 
+async fn equipment_entity_probe(client: &Client) -> anyhow::Result<()> {
+    let ready = client.player_state().await?;
+    emit("a2_ready", &ready)?;
+    let mut commands = BufReader::new(tokio::io::stdin()).lines();
+    let mut mode = None;
+    let mut sheep = None;
+    let mut villager = None;
+    while let Some(command) = commands.next_line().await? {
+        match command.as_str() {
+            "a2_baseline" => {
+                let player = wait_player(client, |p| {
+                    matches!(p.game_mode, Some(GameMode::Survival | GameMode::Creative))
+                        && p.received_pose.as_ref().is_some_and(|r| r.receive_sequence > ready.receive_sequence && r.position == [0.5,65.0,0.5])
+                        && matches!(p.inventory.slots[38].as_ref().map(|s| &s.value), Some(SlotKnowledge::Item {item}) if item.name == "minecraft:iron_boots" && item.count == 1)
+                        && p.inventory.slots[8].as_ref().is_some_and(|s| s.value == SlotKnowledge::Empty)
+                        && p.inventory.slots[36].as_ref().is_some_and(|s| s.value == SlotKnowledge::Empty)
+                        && p.inventory.cursor.as_ref().is_some_and(|s| s.value == SlotKnowledge::Empty)
+                }).await?;
+                mode = player.game_mode;
+                match mode.context("A2 mode absent")? {
+                    GameMode::Survival => {
+                        client.survival().select_hotbar(0).await?;
+                    }
+                    _ => {
+                        client.creative().select_hotbar(0).await?;
+                    }
+                }
+                let spawns = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let spawns = client.entity_spawns().await?;
+                        sheep = spawns
+                            .entities
+                            .iter()
+                            .filter(|e| {
+                                e.type_name.as_deref() == Some("minecraft:sheep")
+                                    && e.spawn_position.value == [2.5, 65.0, 0.5]
+                            })
+                            .max_by_key(|e| e.id.spawn_sequence())
+                            .map(|e| e.id);
+                        villager = spawns
+                            .entities
+                            .iter()
+                            .filter(|e| {
+                                e.type_name.as_deref() == Some("minecraft:villager")
+                                    && e.spawn_position.value == [0.5, 65.0, 2.5]
+                            })
+                            .max_by_key(|e| e.id.spawn_sequence())
+                            .map(|e| e.id);
+                        if sheep.is_some() && villager.is_some() {
+                            break Ok::<_, anyhow::Error>(spawns);
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                anyhow::ensure!(spawns.session == player.session, "A2 mixed world baseline");
+                emit(
+                    &command,
+                    serde_json::json!({"player":player,"spawns":spawns}),
+                )?;
+            }
+            "a2_equip" => {
+                let mode = mode.context("A2 baseline absent")?;
+                let sent = match mode {
+                    GameMode::Survival => {
+                        client
+                            .survival()
+                            .transfer_inventory(InventorySource::Player, 38)
+                            .await?
+                    }
+                    _ => {
+                        client
+                            .creative()
+                            .transfer_inventory(InventorySource::Player, 38)
+                            .await?
+                    }
+                };
+                let record = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let record = client
+                            .survival()
+                            .inventory_transfer_record()
+                            .await?
+                            .context("A2 equipment transfer absent")?;
+                        anyhow::ensure!(
+                            record.id == sent.id && record.requires_inspection.is_none(),
+                            "A2 equipment conflict: {:?}",
+                            record.requires_inspection
+                        );
+                        if record.stage == InventoryTransferStage::ObservedTransferred {
+                            break Ok::<_, anyhow::Error>(record);
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                let player = client.player_state().await?;
+                anyhow::ensure!(
+                    record
+                        .changed_slots
+                        .iter()
+                        .any(|s| s.player_slot == Some(8) && s.receipt.is_some()),
+                    "A2 boots lack an actual feet-slot receipt"
+                );
+                anyhow::ensure!(
+                    player.inventory.slots[38]
+                        .as_ref()
+                        .is_some_and(|s| s.value == SlotKnowledge::Empty),
+                    "A2 boots source not empty"
+                );
+                emit(
+                    &command,
+                    serde_json::json!({"transfer":record,"player":player}),
+                )?;
+            }
+            "a2_attack" => {
+                let mode = mode.context("A2 baseline absent")?;
+                let target = sheep.context("A2 sheep absent")?;
+                let initial = client.player_state().await?;
+                let wrong = match mode {
+                    GameMode::Survival => client.creative().attack_entity(target, false).await,
+                    _ => client.survival().attack_entity(target, false).await,
+                };
+                anyhow::ensure!(wrong.is_err(), "A2 wrong-mode entity request accepted");
+                let dispatch = match mode {
+                    GameMode::Survival => client.survival().attack_entity(target, false).await?,
+                    _ => client.creative().attack_entity(target, false).await?,
+                };
+                emit(
+                    &command,
+                    serde_json::json!({"initial":initial,"target":target,"dispatch":dispatch,"wrong_mode":wrong.unwrap_err().to_string()}),
+                )?;
+            }
+            "a2_retire" => {
+                let mode = mode.context("A2 baseline absent")?;
+                let target = sheep.context("A2 sheep absent")?;
+                let spawns = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let spawns = client.entity_spawns().await?;
+                        if !spawns.entities.iter().any(|e| e.id == target) {
+                            break Ok::<_, anyhow::Error>(spawns);
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                let rejected = match mode {
+                    GameMode::Survival => client.survival().attack_entity(target, false).await,
+                    _ => client.creative().attack_entity(target, false).await,
+                };
+                anyhow::ensure!(rejected.is_err(), "A2 retired entity accepted");
+                emit(
+                    &command,
+                    serde_json::json!({"spawns":spawns,"rejected":rejected.unwrap_err().to_string()}),
+                )?;
+            }
+            "a2_interact" => {
+                let mode = mode.context("A2 baseline absent")?;
+                let target = villager.context("A2 villager absent")?;
+                let initial = client.player_state().await?;
+                let dispatch = match mode {
+                    GameMode::Survival => {
+                        client
+                            .survival()
+                            .interact_entity(target, voxrig::client::Hand::Main, false)
+                            .await?
+                    }
+                    _ => {
+                        client
+                            .creative()
+                            .interact_entity(target, voxrig::client::Hand::Main, false)
+                            .await?
+                    }
+                };
+                let screen = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let screen = client.screen_state().await?;
+                        if screen.screen.as_ref().is_some_and(|s| {
+                            s.menu_name.as_deref() == Some("minecraft:merchant")
+                                && s.id.opened_sequence() > initial.receive_sequence
+                        }) {
+                            break Ok::<_, anyhow::Error>(screen);
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                emit(
+                    &command,
+                    serde_json::json!({"initial":initial,"target":target,"dispatch":dispatch,"screen":screen}),
+                )?;
+            }
+            "a2_disconnect" => {
+                client.disconnect().await?;
+                emit(&command, serde_json::json!({"disconnected":true}))?;
+                return Ok(());
+            }
+            _ => anyhow::bail!("unknown A2 command"),
+        }
+    }
+    anyhow::bail!("A2 controller ended without disconnect")
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let port: u16 = std::env::var("VOXRIG_PORT")?.parse()?;
@@ -3210,6 +3413,9 @@ async fn main() -> anyhow::Result<()> {
         ConnectionConfig::offline_from_env(Server::new("127.0.0.1", port), "UnifiedProbe")?;
     let client = Client::connect(config).await?;
     client.wait_until_ready().await?;
+    if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("equipment-entity") {
+        return equipment_entity_probe(&client).await;
+    }
     if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("basic-workflow") {
         return basic_workflow_probe(&client).await;
     }

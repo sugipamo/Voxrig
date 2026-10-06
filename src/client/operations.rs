@@ -32,6 +32,7 @@ pub struct Creative {
 }
 
 pub(crate) enum Action<'a> {
+    Entity(super::EntityId, super::entity::EntityAction),
     Look([f32; 2]),
     SelectHotbar(u8),
     SetFlying(bool),
@@ -41,6 +42,41 @@ pub(crate) enum Action<'a> {
     UseOnBlock([i32; 3], BlockFace, [f32; 3]),
 }
 impl Survival {
+    /// Dispatch one interaction with an original received entity lifetime.
+    /// Rechecks connection/world/spawn and received mode before I/O. No target
+    /// selection, aim/reach/visibility proof, automatic retry or outcome ACK is supplied.
+    /// Cancellation never retries; native interrupted dispatch requires inspection/reconnect.
+    pub async fn interact_entity(
+        &self,
+        target: super::EntityId,
+        hand: super::Hand,
+        sneaking: bool,
+    ) -> Result<DispatchReceipt> {
+        self.client
+            .execute(
+                GameMode::Survival,
+                Action::Entity(
+                    target,
+                    super::entity::EntityAction::Interact { hand, sneaking },
+                ),
+            )
+            .await
+    }
+    /// Dispatch exactly one attack, with the same lifetime and mode checks.
+    /// This does not wait for a cooldown, choose a weapon, swing an arm or confirm damage.
+    pub async fn attack_entity(
+        &self,
+        target: super::EntityId,
+        sneaking: bool,
+    ) -> Result<DispatchReceipt> {
+        self.client
+            .execute(
+                GameMode::Survival,
+                Action::Entity(target, super::entity::EntityAction::Attack { sneaking }),
+            )
+            .await
+    }
+
     /// Activate one received first-outline storage or crafting-table target with empty hands/cursor.
     /// Retains intent before I/O; complete dispatch and received screen/content facts
     /// are separate. OPEN packets contain no causal target-block identity.
@@ -278,6 +314,41 @@ impl Survival {
     }
 }
 impl Creative {
+    /// Dispatch one interaction with an original received entity lifetime.
+    /// Rechecks connection/world/spawn and received mode before I/O. No target
+    /// selection, aim/reach/visibility proof, automatic retry or outcome ACK is supplied.
+    /// Cancellation never retries; native interrupted dispatch requires inspection/reconnect.
+    pub async fn interact_entity(
+        &self,
+        target: super::EntityId,
+        hand: super::Hand,
+        sneaking: bool,
+    ) -> Result<DispatchReceipt> {
+        self.client
+            .execute(
+                GameMode::Creative,
+                Action::Entity(
+                    target,
+                    super::entity::EntityAction::Interact { hand, sneaking },
+                ),
+            )
+            .await
+    }
+    /// Dispatch exactly one attack, with the same lifetime and mode checks.
+    /// This does not wait for a cooldown, choose a weapon, swing an arm or confirm damage.
+    pub async fn attack_entity(
+        &self,
+        target: super::EntityId,
+        sneaking: bool,
+    ) -> Result<DispatchReceipt> {
+        self.client
+            .execute(
+                GameMode::Creative,
+                Action::Entity(target, super::entity::EntityAction::Attack { sneaking }),
+            )
+            .await
+    }
+
     /// Read-only finite ground walking/jump preview while flight is inactive.
     /// Uses the selected adapter's native dry defaults and received Creative mode.
     pub async fn preview_path(
