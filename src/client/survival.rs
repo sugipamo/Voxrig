@@ -9,10 +9,12 @@ pub use placement::{
 };
 mod motion;
 mod recovery;
+pub(crate) mod scene;
 pub use recovery::{
     MiningProfileRecovery, MiningRecoveryAttempt, MiningRecoveryEvidence, MiningRecoveryMethod,
     MiningRecoveryTarget, RecoveredSurvivalClient,
 };
+pub use scene::{CapturedSurvivalScene, ScenePreview, SceneSource};
 pub(crate) mod target;
 pub use mining::{
     MiningAction, MiningId, MiningInventoryChange, MiningInventoryChangeKind,

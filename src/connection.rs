@@ -84,7 +84,8 @@ impl ConnectionConfig {
 }
 
 /// Inclusive region, independent of a protocol's chunk representation.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Region {
     /// Minimum x, y and z coordinates.
     pub min: [i32; 3],
@@ -652,29 +653,21 @@ impl Client {
             )),
         }
     }
-    /// Captures exact incoming packets for a bounded diagnostic interval.
+    /// Captures exact incoming packets for a bounded diagnostic interval on either version.
+    /// Late-start traces retain original ordinals but cannot be replayed without
+    /// an initial baseline; use `connect_recorded` for replayable histories.
     pub async fn start_packet_trace(&self, maximum_bytes: usize) -> Result<()> {
         match &self.adapter {
             Adapter::Java1_21_11(bot) => bot.start_packet_trace(maximum_bytes).await,
-            Adapter::Java1_16_1(_) => Err(Error::new(
-                ErrorKind::Unsupported,
-                anyhow::anyhow!(
-                    "packet capture is not implemented for the 1.16.1 compatibility adapter"
-                ),
-            )),
+            Adapter::Java1_16_1(bot) => bot.start_packet_trace(maximum_bytes).await,
         }
     }
 
-    /// Finishes a diagnostic capture; incomplete captures are explicitly marked.
-    pub async fn stop_packet_trace(&self) -> Result<crate::versions::java_1_21_11::PacketTrace> {
+    /// Finish exact received evidence. Overflow and original ordinals are retained.
+    pub async fn stop_packet_trace(&self) -> Result<crate::client::PacketTrace> {
         match &self.adapter {
             Adapter::Java1_21_11(bot) => bot.stop_packet_trace().await,
-            Adapter::Java1_16_1(_) => Err(Error::new(
-                ErrorKind::Unsupported,
-                anyhow::anyhow!(
-                    "packet capture is not implemented for the 1.16.1 compatibility adapter"
-                ),
-            )),
+            Adapter::Java1_16_1(bot) => bot.stop_packet_trace().await,
         }
     }
 
@@ -701,14 +694,28 @@ impl Client {
 
     /// Connects using only the selected version. Unsupported adapters fail before I/O.
     pub async fn connect(config: ConnectionConfig) -> Result<Self> {
+        Self::connect_with_packet_trace(config, None).await
+    }
+    /// Connect with capture enabled before the first configuration/play packet.
+    /// Authentication/login packets are excluded. No packet gap is hidden by
+    /// starting capture after connect or wait_until_ready.
+    pub async fn connect_recorded(config: ConnectionConfig, maximum_bytes: usize) -> Result<Self> {
+        crate::client::recording::validate_limit(maximum_bytes)?;
+        Self::connect_with_packet_trace(config, Some(maximum_bytes)).await
+    }
+    async fn connect_with_packet_trace(
+        config: ConnectionConfig,
+        trace_limit: Option<usize>,
+    ) -> Result<Self> {
         config.validate()?;
         match config.version {
             MinecraftVersion::Java1_16_1 => {
-                let bot = legacy::Bot::connect(
+                let bot = legacy::Bot::connect_with_packet_trace(
                     config.server,
                     legacy::Player::offline(config.username),
                     Arc::new(legacy::SharedChunkStorage::default()),
                     config.limits.legacy(),
+                    trace_limit,
                 )
                 .await?;
                 Ok(Self {
@@ -717,7 +724,11 @@ impl Client {
             }
             MinecraftVersion::Java1_21_11 => Ok(Self {
                 adapter: Adapter::Java1_21_11(
-                    crate::versions::java_1_21_11::Bot::connect(config).await?,
+                    crate::versions::java_1_21_11::Bot::connect_with_packet_trace(
+                        config,
+                        trace_limit,
+                    )
+                    .await?,
                 ),
             }),
         }

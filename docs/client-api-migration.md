@@ -590,3 +590,23 @@ claimと復旧成功を区別してください。`MiningRecoveryMethod/Target/A
 legacyの試験serverは空のLOGIN_SUCCESSを送らず、16byte UUIDと元のprofile名を送る必要があります。
 欠損・名前不一致・余分なfieldはlogin時に拒否します。
 詳細とvanilla限定条件は[採掘後の復旧](common-mining-recovery.md)を参照してください。
+
+## 共通の記録・再生・scene
+
+`Client::stop_packet_trace()`の戻り値は`voxrig::client::PacketTrace`へ移ります。
+modernの旧`PacketRecord/PacketTrace` importは同じ共通型のre-exportです。
+`PacketRecord.phase`は文字列から`PacketPhase::{Configuration, Play}`へ変更します。
+JSONでは引き続き`configuration`／`play`ですが、Rustの比較・struct literalは更新してください。
+position decoderのlocal入力、stop時のclient frameが記録fieldに加わります。
+旧JSONの追加fieldは既定値で読み込めても、再生に必要なlocal基準が欠けた記録は拒否します。
+
+両版で接続開始から再生する場合は`Client::connect_recorded(config, maximum_bytes)`を使い、
+`stop_packet_trace`で終了した`PacketTrace::replay(region, maximum_chunks)`を呼びます。
+途中開始の`start_packet_trace`は診断区間用です。
+戻り値のinventoryは`RecordedSlotKnowledge/RecordedItemStack/RecordedItemData`という診断型です。
+保存値を操作用のslot/registry/screenへ変換する移行は行わず、live Clientから新しく取得してください。
+
+限定sceneは`client.survival().capture_scene(region)`と`scene.preview_path(controls)`へ移せます。
+返る共通`ScenePreview`は操作planではありません。modern専用の編集・連鎖・assumed scene等は
+従来の版固有入口を維持し、Bでより広い共通契約を検討します。
+詳細は[記録・再生・scene](common-recording-scenes.md)を参照してください。

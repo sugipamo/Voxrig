@@ -1320,7 +1320,7 @@ impl Operations {
         )
     }
 }
-fn common_player_in_state(
+pub(super) fn common_player_in_state(
     state: &State,
     connection_id: u64,
     interrupted: bool,

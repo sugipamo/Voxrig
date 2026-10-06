@@ -3576,13 +3576,173 @@ async fn equipment_entity_probe(client: &Client) -> anyhow::Result<()> {
     anyhow::bail!("A2 controller ended without disconnect")
 }
 
+// The same consumer records before the first configuration/play receive, then
+// decodes only diagnostic facts. Scene forecasts own no live transport.
+async fn recording_scene_probe(client: &Client) -> anyhow::Result<()> {
+    let mut commands = BufReader::new(tokio::io::stdin()).lines();
+    emit("a4_ready", client.player_state().await?)?;
+    anyhow::ensure!(commands.next_line().await?.as_deref() == Some("a4_capture"));
+    let player = wait_player(client, |p| p.game_mode == Some(GameMode::Survival)
+        && p.received_pose.as_ref().is_some_and(|r|r.position==[0.5,65.0,0.5])
+        && p.inventory.slots.get(36).and_then(Option::as_ref).is_some_and(|s|
+            matches!(&s.value,SlotKnowledge::Item {item} if item.name=="minecraft:oak_planks" && item.count==3)))
+        .await?;
+    wait_block(client, [0, 65, 1], "minecraft:stone").await?;
+    let region = Region {
+        min: [-2, 63, -2],
+        max: [5, 68, 3],
+    };
+    let scene = tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            match client.survival().capture_scene(region).await {
+                Ok(scene) => return Ok::<_, anyhow::Error>(scene),
+                Err(_) => tokio::time::sleep(Duration::from_millis(50)).await,
+            }
+        }
+    })
+    .await
+    .context("stationary scene capture wait")??;
+    let controls = (0..34)
+        .map(|tick| SurvivalControl {
+            yaw: 270.0,
+            input: SurvivalInput {
+                forward: if tick < 4 { 1 } else { 0 },
+                ..Default::default()
+            },
+        })
+        .collect::<Vec<_>>();
+    let prediction = scene.preview_path(&controls)?;
+    let live_prediction = client.survival().preview_path(&controls).await?;
+    anyhow::ensure!(
+        prediction.initial_frame == live_prediction.initial_frame
+            && prediction.frames == live_prediction.frames
+            && prediction.terminal_clearance == live_prediction.terminal_clearance,
+        "detached/native forecast differs"
+    );
+    anyhow::ensure!(matches!(
+        prediction.terminal_clearance,
+        voxrig::client::survival::TerminalClearance::Admitted { .. }
+    ));
+    anyhow::ensure!(scene.preview_path(&[]).is_err());
+    anyhow::ensure!(
+        client
+            .survival()
+            .capture_scene(Region {
+                min: [0, 65, 0],
+                max: [0, 65, 0]
+            })
+            .await
+            .is_err(),
+        "omitted standing halo accepted"
+    );
+    let outside = vec![
+        SurvivalControl {
+            yaw: 270.0,
+            input: SurvivalInput {
+                forward: 1,
+                ..Default::default()
+            }
+        };
+        120
+    ];
+    anyhow::ensure!(
+        scene.preview_path(&outside).is_err(),
+        "missing captured geometry guessed"
+    );
+    let trace = client.stop_packet_trace().await?;
+    let path = std::env::var("VOXRIG_NATIVE_RECORDING_PATH")?;
+    std::fs::write(&path, serde_json::to_vec(&trace)?)?;
+    let loaded: PacketTrace = serde_json::from_slice(&std::fs::read(&path)?)?;
+    let query = Region {
+        min: [0, 65, 1],
+        max: [0, 65, 1],
+    };
+    let replay = loaded.replay(query, 256)?;
+    let live = client.capture(query).await?;
+    anyhow::ensure!(
+        replay.dimension == live.player.dimension
+            && replay.received_pose == live.player.received_pose
+            && replay.game_mode == live.player.game_mode
+            && replay.may_fly == live.player.may_fly
+    );
+    let health = live.player.health.as_ref().map(|r| RecordedValue {
+        value: r.value,
+        source: r.source,
+    });
+    anyhow::ensure!(
+        replay.health == health,
+        "replayed health provenance differs"
+    );
+    let slots = live
+        .player
+        .inventory
+        .slots
+        .iter()
+        .map(|s| {
+            s.as_ref().map(|r| RecordedValue {
+                value: RecordedSlotKnowledge::from(&r.value),
+                source: r.source,
+            })
+        })
+        .collect::<Vec<_>>();
+    let cursor = live
+        .player
+        .inventory
+        .cursor
+        .as_ref()
+        .map(|r| RecordedValue {
+            value: RecordedSlotKnowledge::from(&r.value),
+            source: r.source,
+        });
+    anyhow::ensure!(
+        replay.inventory.slots == slots
+            && replay.inventory.cursor == cursor
+            && replay.inventory.window_id == live.player.inventory.window_id
+            && replay.inventory.screen_revision == live.player.inventory.screen_revision,
+        "replayed inventory/data/provenance differs"
+    );
+    anyhow::ensure!(replay.blocks[0].state == live.world.blocks[0].state);
+    emit(
+        "a4_captured",
+        serde_json::json!({"baseline":player,"live":live,"replay":replay,"trace_records":trace.records.len(),"trace_complete":trace.complete,"scene":prediction,"live_preview":live_prediction}),
+    )?;
+    anyhow::ensure!(commands.next_line().await?.as_deref() == Some("a4_detached"));
+    wait_block(client, [1, 65, 0], "minecraft:stone").await?;
+    // Immutable geometry survives actual live updates, then source disconnection.
+    let before_close = scene.preview_path(&controls)?;
+    anyhow::ensure!(before_close.frames == prediction.frames);
+    client.disconnect().await?;
+    anyhow::ensure!(client.survival().capture_scene(region).await.is_err());
+    let detached = scene.preview_path(&controls)?;
+    let offline = loaded.replay(query, 256)?;
+    anyhow::ensure!(
+        detached.initial_frame == prediction.initial_frame
+            && detached.frames == prediction.frames
+            && detached.terminal_clearance == prediction.terminal_clearance
+            && offline == replay
+    );
+    emit(
+        "a4_detached",
+        serde_json::json!({"closed":true,"offline_replay":offline,"detached_preview":detached,"live_update_seen":true}),
+    )?;
+    Ok(())
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let port: u16 = std::env::var("VOXRIG_PORT")?.parse()?;
     let config =
         ConnectionConfig::offline_from_env(Server::new("127.0.0.1", port), "UnifiedProbe")?;
-    let client = Client::connect(config.clone()).await?;
+    let scenario = std::env::var("VOXRIG_NATIVE_SCENARIO").ok();
+    let client = if scenario.as_deref() == Some("recording-scene") {
+        Client::connect_recorded(config.clone(), 16_777_216).await?
+    } else {
+        Client::connect(config.clone()).await?
+    };
     client.wait_until_ready().await?;
+    if scenario.as_deref() == Some("recording-scene") {
+        return recording_scene_probe(&client).await;
+    }
     if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("equipment-entity") {
         return equipment_entity_probe(&client).await;
     }

@@ -8,6 +8,10 @@ mod common_inventory;
 mod common_mining;
 mod common_motion;
 mod common_placement;
+mod common_recording;
+mod common_scene;
+pub(crate) use common_recording::replay_packets;
+pub(crate) use common_scene::LegacyCapturedScene;
 mod common_transfer;
 
 use crate::versions::java_1_16_1::Result;
@@ -1033,6 +1037,7 @@ pub struct Bot {
     block_geometry_revision: Arc<AtomicU64>,
     inventory: Arc<RwLock<Versioned<InventoryState>>>,
     common_receipts: Arc<Mutex<crate::client::LegacyReceipts>>,
+    packet_trace: Arc<Mutex<Option<crate::client::recording::TraceCapture>>>,
     common_motion: Arc<Mutex<Option<common_motion::NativeMotionRun>>>,
     common_mining: Arc<Mutex<Option<common_mining::NativeMiningRun>>>,
     common_placement: Arc<Mutex<Option<common_placement::NativePlacementRun>>>,
@@ -1135,6 +1140,7 @@ impl Bot {
             block_geometry_revision: self.block_geometry_revision.clone(),
             inventory: self.inventory.clone(),
             common_receipts: self.common_receipts.clone(),
+            packet_trace: self.packet_trace.clone(),
             common_motion: self.common_motion.clone(),
             common_mining: self.common_mining.clone(),
             common_placement: self.common_placement.clone(),
@@ -1188,6 +1194,19 @@ impl Bot {
         chunk_storage: Arc<crate::versions::java_1_16_1::SharedChunkStorage>,
         connection_options: ConnectionOptions,
     ) -> Result<Self> {
+        Self::connect_with_packet_trace(server, player, chunk_storage, connection_options, None)
+            .await
+    }
+    pub(crate) async fn connect_with_packet_trace(
+        server: Server,
+        player: Player,
+        chunk_storage: Arc<crate::versions::java_1_16_1::SharedChunkStorage>,
+        connection_options: ConnectionOptions,
+        trace_limit: Option<usize>,
+    ) -> Result<Self> {
+        let trace = trace_limit
+            .map(|limit| crate::client::recording::TraceCapture::new(0, limit))
+            .transpose()?;
         player.validate()?;
         let stream = timeout(
             connection_options.connect_timeout,
@@ -1287,6 +1306,7 @@ impl Bot {
                 connected_at,
             ))),
             common_receipts: Arc::new(Mutex::new(crate::client::LegacyReceipts::default())),
+            packet_trace: Arc::new(Mutex::new(trace)),
             common_motion: Arc::new(Mutex::new(None)),
             common_mining: Arc::new(Mutex::new(None)),
             common_placement: Arc::new(Mutex::new(None)),
@@ -4608,6 +4628,26 @@ impl Bot {
             .fetch_add(1, Ordering::AcqRel)
             .checked_add(1)
             .context("protocol packet sequence exhausted")?;
+        if let Some(trace) = self.packet_trace.lock().await.as_mut() {
+            let local_player_basis = if id == 0x35 {
+                let player = self.player.lock().await;
+                Some(crate::client::recording::LocalPlayerBasis {
+                    position: Some([player.x, player.y, player.z]),
+                    rotation: [player.yaw, player.pitch],
+                    velocity: None,
+                })
+            } else {
+                None
+            };
+            trace.record(
+                packet_sequence,
+                self.connected_at.elapsed().as_millis() as u64 / 50,
+                crate::client::recording::PacketPhase::Play,
+                id,
+                &p,
+                local_player_basis,
+            );
+        }
         match id {
             0x00 => self.insert_entity(parse_spawn_object(&p)?).await?,
             0x01 => self.insert_entity(parse_spawn_orb(&p)?).await?,
@@ -6118,29 +6158,11 @@ impl Bot {
         Ok(())
     }
     async fn handle_position(&self, p: &[u8]) -> Result<()> {
-        let mut c = Cursor::new(p);
-        let x = c.read_f64::<BigEndian>()?;
-        let y = c.read_f64::<BigEndian>()?;
-        let z = c.read_f64::<BigEndian>()?;
-        let yaw = c.read_f32::<BigEndian>()?;
-        let pitch = c.read_f32::<BigEndian>()?;
-        let flags = c.read_i8()? as u8;
-        let mut rest = &p[c.position() as usize..];
-        let teleport = get_varint(&mut rest)?;
         let mut s = self.player.lock().await;
-        let next_x = if flags & 1 != 0 { s.x + x } else { x };
-        let next_y = if flags & 2 != 0 { s.y + y } else { y };
-        let next_z = if flags & 4 != 0 { s.z + z } else { z };
-        validate_position(next_x, next_y, next_z)?;
-        let next_yaw = if flags & 8 != 0 { s.yaw + yaw } else { yaw };
-        let next_pitch = if flags & 16 != 0 {
-            s.pitch + pitch
-        } else {
-            pitch
-        };
-        if !next_yaw.is_finite() || !next_pitch.is_finite() {
-            bail!("server position contains a non-finite rotation");
-        }
+        let (position, rotation, teleport) =
+            common_recording::decode_position(p, [s.x, s.y, s.z], [s.yaw, s.pitch])?;
+        let [next_x, next_y, next_z] = position;
+        let [next_yaw, next_pitch] = rotation;
         s.x = next_x;
         s.y = next_y;
         s.z = next_z;

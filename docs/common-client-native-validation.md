@@ -354,3 +354,30 @@ scenarios, actual result takes, cursor/grid returns, RCON inventory and no-drop
 evidence also pass; both original JVMs exit zero. This is placement preflight
 evidence, not owned placement dispatch, placement acknowledgement or consumption.
 The entire original shaped/shapeless matchers separately contribute 102 cases.
+
+## A4の記録・読み取り専用再生・限定scene
+
+```bash
+CARGO_INCREMENTAL=0 python3 scripts/run_common_native.py --all --scenario recording-scene --accept-eula --runtime-dir /dev/shm/voxrig-a4
+```
+
+両版で同じconsumerが`Client::connect_recorded`から受信を記録し、完全なJSONを保存して
+`PacketTrace::replay`で読み取り専用再生する。元の全受信packetのphase・ID・payload hash・ordinalを
+透過proxyで独立照合し、player pose/dimension/mode/health、player inventoryの全slot/cursor・
+NBT/componentデータと元の受信ordinal、選んだblockをlive観測と比較する。
+RCONで実position、独自metadataを持つplanks 3個とblockを独立確認する。
+
+共通のscene captureから34tickの有限予測を行い、同じ版のlive previewと全frame・seed・
+terminal clearanceが一致することを確認する。初期halo不足・空入力・region外の予測を拒否する。
+その後、実serverの別cellを変更し、元sceneが変わらないことを確認する。
+source切断後も同じ記録の再生とdetached予測が同じ結果を返し、live captureは拒否する。
+読み取り専用操作からgame mutationが送られていないことも送信packet IDで確認する。
+認証packet、全protocol履歴・entity現在状態・広いpiston再構成・scene編集/連鎖の共通化は
+この限定したA4の証拠に含めない。
+
+2026-10-06のA4試験は`trial-1.16.1-ea67f007`と`trial-1.21.11-88294321`で成功した。
+同じ400個のsource/data/consumer/driver入力と同じbinaryを使い、両JVM exit0、proxyエラーなし。
+接続開始からの記録91packet／95packetの元payload hash・phase・ID・ordinalをすべて照合した。
+同じ34frameのnative予測と限定sceneの全frameが一致し、実地形更新・切断後の同一予測と
+同一受信再生を確認した。raw recording・独立RCON結果・全入力hashは各runに保持する。
+単体690件（8件ignored）、公開API2件、doctest26件、proxy境界3件とall-target Clippyが成功した。

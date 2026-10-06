@@ -9,6 +9,7 @@ mod observations;
 /// Explicit Java 1.21.11 operation API and received player state.
 pub mod operations;
 mod outbound;
+mod packet_replay;
 pub mod players;
 pub mod raycast;
 mod recipes;
@@ -25,6 +26,7 @@ use crate::{
     Result,
 };
 use anyhow::{Context, bail};
+pub(crate) use packet_replay::replay_packets;
 use std::{
     sync::{
         Arc, Weak,
@@ -48,68 +50,8 @@ enum Phase {
     Play,
 }
 
-/// One decompressed server packet in exact receive order.
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct PacketRecord {
-    /// Connection-local receive ordinal.
-    pub sequence: u64,
-    /// Local frame at application, for replaying moving blocks; not a server tick.
-    pub client_tick: u64,
-    /// Protocol state in which the packet was received.
-    pub phase: &'static str,
-    /// Native packet identifier.
-    pub packet_id: i32,
-    /// Payload before parsing or state application.
-    pub payload: Vec<u8>,
-}
-
-/// Bounded diagnostic evidence; overflow is explicit.
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct PacketTrace {
-    /// Native version.
-    pub minecraft_version: &'static str,
-    /// Identity within this client process.
-    pub connection_id: u64,
-    /// Sequence at the start of capture.
-    pub after_sequence: u64,
-    /// Sequence at the end of capture.
-    pub through_sequence: u64,
-    /// False if the configured byte/record bound was reached.
-    pub complete: bool,
-    /// Exact payloads, including packets unrelated to blocks.
-    pub records: Vec<PacketRecord>,
-}
-
-struct TraceCapture {
-    start: u64,
-    bytes: usize,
-    limit: usize,
-    complete: bool,
-    records: Vec<PacketRecord>,
-}
-
-impl TraceCapture {
-    fn record(&mut self, sequence: u64, client_tick: u64, phase: Phase, id: i32, payload: &[u8]) {
-        if !self.complete {
-            return;
-        }
-        if self.bytes.saturating_add(payload.len()) > self.limit || self.records.len() >= 65_536 {
-            self.complete = false;
-            return;
-        }
-        self.bytes += payload.len();
-        self.records.push(PacketRecord {
-            sequence,
-            client_tick,
-            phase: match phase {
-                Phase::Configuration => "configuration",
-                Phase::Play => "play",
-            },
-            packet_id: id,
-            payload: payload.to_vec(),
-        });
-    }
-}
+use crate::client::recording::{LocalPlayerBasis, PacketPhase, TraceCapture};
+pub use crate::client::recording::{PacketRecord, PacketTrace};
 
 struct State {
     loading: loading::InteractionLoading,
@@ -205,9 +147,22 @@ impl State {
             trace.record(
                 self.sequence,
                 self.reconstruction.tick,
-                self.phase,
+                match self.phase {
+                    Phase::Configuration => PacketPhase::Configuration,
+                    Phase::Play => PacketPhase::Play,
+                },
                 id,
                 payload,
+                (matches!(self.phase, Phase::Play) && id == ids::play_clientbound::POSITION)
+                    .then_some(LocalPlayerBasis {
+                        position: self.position,
+                        rotation: self.rotation,
+                        velocity: if self.motion.position_basis == motion::PositionBasis::Received {
+                            self.operations.local_player.velocity.map(|v| v.value)
+                        } else {
+                            None
+                        },
+                    }),
             );
         }
         let result = match self.phase {
@@ -296,12 +251,7 @@ impl Bot {
         operations::Operations { bot: self.clone() }
     }
     pub async fn start_packet_trace(&self, maximum_bytes: usize) -> Result<()> {
-        if !(1..=16_777_216).contains(&maximum_bytes) {
-            return Err(Error::new(
-                ErrorKind::InvalidInput,
-                anyhow::anyhow!("trace limit must be 1..=16777216"),
-            ));
-        }
+        crate::client::recording::validate_limit(maximum_bytes)?;
         let mut state = self.session.state.lock().await;
         self.session.check(&state)?;
         if state.trace.is_some() {
@@ -310,27 +260,19 @@ impl Bot {
                 anyhow::anyhow!("trace already active"),
             ));
         }
-        state.trace = Some(TraceCapture {
-            start: state.sequence,
-            bytes: 0,
-            limit: maximum_bytes,
-            complete: true,
-            records: Vec::new(),
-        });
+        state.trace = Some(TraceCapture::new(state.sequence, maximum_bytes)?);
         Ok(())
     }
 
     pub async fn stop_packet_trace(&self) -> Result<PacketTrace> {
         let mut state = self.session.state.lock().await;
         let trace = state.trace.take().context("no active packet trace")?;
-        Ok(PacketTrace {
-            minecraft_version: "1.21.11",
-            connection_id: self.session.id,
-            after_sequence: trace.start,
-            through_sequence: state.sequence,
-            complete: trace.complete,
-            records: trace.records,
-        })
+        Ok(trace.finish(
+            crate::MinecraftVersion::Java1_21_11,
+            self.session.id,
+            state.sequence,
+            state.reconstruction.tick,
+        ))
     }
 
     pub async fn interact_block(&self, position: [i32; 3], face: crate::BlockFace) -> Result<()> {
@@ -341,6 +283,15 @@ impl Bot {
     }
 
     pub async fn connect(config: ConnectionConfig) -> Result<Self> {
+        Self::connect_with_packet_trace(config, None).await
+    }
+    pub(crate) async fn connect_with_packet_trace(
+        config: ConnectionConfig,
+        trace_limit: Option<usize>,
+    ) -> Result<Self> {
+        let trace = trace_limit
+            .map(|limit| TraceCapture::new(0, limit))
+            .transpose()?;
         config.validate()?;
         if config.version != crate::MinecraftVersion::Java1_21_11 {
             return Err(Error::new(
@@ -479,6 +430,7 @@ impl Bot {
             }),
             state: Mutex::new(State {
                 identity: Some(identity),
+                trace,
                 ..State::default()
             }),
             changed: Notify::new(),

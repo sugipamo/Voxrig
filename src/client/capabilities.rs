@@ -63,6 +63,12 @@ pub enum Feature {
     EntityObservation,
     /// Common general-entity interaction.
     EntityInteraction,
+    /// Exact received packets, bounded without resuming after overflow.
+    PacketRecording,
+    /// Detached selected received-state decoding, without execution authority.
+    PacketReplay,
+    /// Immutable bounded dry-cube capture and native-model prediction.
+    SurvivalScene,
     /// Common recording and reconstruction API.
     RecordingAndReconstruction,
 }
@@ -135,7 +141,18 @@ impl Capabilities {
             Feature::EntityInteraction => Support::Restricted(
                 "one native INTERACT or ATTACK on an original received lifetime; matching received handle mode; no auto-selection, cooldown, retry, reach/visibility proof or outcome ACK; position-specific interaction and broader entity state remain incomplete",
             ),
-            Feature::RecordingAndReconstruction => Support::NotImplemented,
+            Feature::PacketRecording => Support::Restricted(
+                "exact configuration/play receive payloads and local position decoder inputs; 16MiB/65536 records; no authentication packets; from-connect capture is required for replay",
+            ),
+            Feature::PacketReplay => Support::Restricted(
+                "complete from-connect history; exact native version decoder; selected received player/inventory/block facts only; legacy unhandled IDs explicit; saved facts never restore execution IDs or a Client",
+            ),
+            Feature::SurvivalScene => Support::Restricted(
+                "immutable <=64 cells/axis and <=32768 loaded air/passive dry cubes; healthy stationary Survival defaults and complete standing halo; detached 1..120 input prediction without dispatch; edits/chaining remain version-specific",
+            ),
+            Feature::RecordingAndReconstruction => Support::Restricted(
+                "bounded raw receive recording and selected read-only decoder replay; live dry-cube scene capture/prediction; broader reconstruction/piston/history contracts remain version-specific",
+            ),
         }
     }
 }

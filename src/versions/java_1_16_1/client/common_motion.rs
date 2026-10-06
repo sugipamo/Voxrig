@@ -779,7 +779,7 @@ pub(super) fn legacy_movement_attribute(survival: &SurvivalState) -> Option<&Att
         .or_else(|| survival.attributes.get("generic.movement_speed"))
 }
 
-fn legacy_motion_block(
+pub(super) fn legacy_motion_block(
     world: &super::World,
     position: [i32; 3],
 ) -> Result<crate::NativeBlockState> {
@@ -794,7 +794,7 @@ fn legacy_motion_block(
         .ok_or_else(|| motion_state("motion geometry is not loaded"))?;
     crate::versions::java_1_16_1::native_state(state)
 }
-fn legacy_clearance(
+pub(super) fn legacy_clearance(
     block_at: &impl Fn([i32; 3]) -> Result<crate::NativeBlockState>,
     position: [f64; 3],
     margin: f64,

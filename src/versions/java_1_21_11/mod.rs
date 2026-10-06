@@ -11,11 +11,11 @@ pub mod reconstruction;
 mod recovery_tests;
 mod wire;
 mod world;
-pub(crate) use client::Bot;
 pub use client::operations;
 pub use client::players;
 pub use client::raycast;
 pub use client::recording;
+pub(crate) use client::{Bot, replay_packets};
 pub use client::{PacketRecord, PacketTrace};
 
 fn registry() -> &'static crate::block_state::StateRegistry {

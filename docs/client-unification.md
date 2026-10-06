@@ -25,7 +25,11 @@
   明示的close、fresh admission、新しい設置まで確認した。旧接続・旧IDは解放せず、
   取消したloginも二度目を拒否する。元のdelayed miningが予定時間後にも継続しないことを確認した。
   詳細は[共通の採掘復旧](common-mining-recovery.md)。
-- 次はA4の記録・読み取り専用再生・限定scene。A4〜A6とBは未完了で、全統合完了とは扱わない。
+- A4完了: 接続開始からの実受信packet記録、各版decoderによる読み取り専用のplayer／inventory／
+  block再生、共通の限定scene captureとnative予測を両版で確認した。元の全packetをproxyで照合し、
+  NBT/component bytesと受信ordinalを保持する。地形変更・切断後もsceneは不変で、保存値から
+  操作ID・Clientを復元しない。詳細は[記録・再生・scene](common-recording-scenes.md)。
+- 次はA5の基本UI・特殊window・vehicle・manager。A5〜A6とBは未完了で、全統合完了とは扱わない。
   ownedレシピブック配置の未検証変更は退避したまま、Bまで復元しない。
 
 ## 選択と公開入口
@@ -167,9 +171,10 @@ A5の代表例は初回貫通用であり、すべての特殊windowやentity／
 | storage開閉・通常クリック・転送・空cursorへの製作結果取得 | 共通・限定条件 | 共通・限定条件 | 一つの接続で収納の後に通常製作へ進む |
 | passive cube設置・空手のdirt/stone採掘 | 共通・限定条件 | 共通・限定条件 | A1は設置。採掘後の共通復旧はA3 |
 | 装備への通常転送 | 共通・限定条件 | 共通・限定条件 | A2の代表シナリオに組み込む |
-| checked拡張・captured/assumed scene・診断record | 共通契約は未実装 | 版固有拡張 | PR #7の機能を維持。re-exportだけで両版対応としない |
+| 限定captured scene・packet診断recordと選択観測の再生 | 共通・限定条件 | 共通・限定条件 | A4で同じconsumerを検証。live native予測と一致し、source更新・切断後も不変 |
+| checked拡張・assumed scene・仮想編集/連鎖・広い再構成 | 共通契約は未完了 | 版固有拡張 | PR #7の機能を維持し、Bで拡大。re-exportだけで両版対応としない |
 | entity spawn寿命・一回のINTERACT／ATTACK | 共通・限定条件 | 共通・限定条件 | A2で装備→攻撃→削除拒否→村人interactionを確認。現在のmotion/metadata・INTERACT_ATはB |
-| 記録・再構成・UI・特殊window・vehicle・manager | 未共通化 | 未共通化 | A4/A5で代表操作を実装する。従来の版固有APIがあることと区別する |
+| UI・特殊window・vehicle・manager | 未共通化 | 未共通化 | A5で代表操作を実装する。従来の版固有APIがあることと区別する |
 | ownedレシピブック配置 | 未公開 | 未公開 | 読み取り専用planを維持し、送信はBへ残す |
 
 A1の固定fixtureはstone床、空のsingle chest、oak planks 2個、収納用stone 2個、

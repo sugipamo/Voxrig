@@ -22,6 +22,7 @@ mod observation;
 pub(crate) mod operations;
 pub(crate) mod profile;
 mod received_items;
+pub mod recording;
 pub mod registry;
 pub(crate) mod selector;
 pub(crate) mod selector_snbt;
@@ -54,6 +55,7 @@ pub use observation::{
 pub(crate) use observation::{LegacyReceipts, legacy_slot, received};
 pub use operations::{Creative, DispatchReceipt, Survival};
 pub use received_items::{ReceivedInventory, ReceivedItem, ReceivedSlot};
+pub use recording::{PacketPhase, PacketRecord, PacketTrace};
 pub use survival::{BlockTargetHit, BlockTargetObservation};
 
 /// Imports for consumers selecting their Minecraft version at setup.
@@ -71,16 +73,22 @@ pub mod prelude {
         InventoryTransferStage,
     };
     pub use super::nbt::{NbtCompound, NbtData, NbtEntry, NbtString, NbtValue};
+    pub use super::recording::{
+        LocalPlayerBasis, PacketPhase, PacketRecord, PacketTrace, RecordedItemData,
+        RecordedItemStack, RecordedSlotKnowledge, RecordedValue, ReplayedBlock, ReplayedInventory,
+        ReplayedObservation,
+    };
     pub use super::registry::{
         BuiltinRegistryId, ItemComponentDefinition, Registry, RegistryEntryId, RegistryId,
         RegistryKind, ServerRegistryEntry, ServerRegistryId, ServerRegistryObservation,
         ServerRegistryStamp, ServerRegistryTags,
     };
     pub use super::survival::{
-        BlockTargetHit, BlockTargetObservation, MiningId, MiningProfileRecovery, MiningRecord,
-        MiningRecoveryAttempt, MiningRecoveryEvidence, MiningRecoveryMethod, MiningRecoveryTarget,
-        MiningStage, MotionPreview, MotionRecord, MotionStatus, PlacementId, PlacementRecord,
-        PlacementStage, RecoveredSurvivalClient, SurvivalControl, SurvivalInput,
+        BlockTargetHit, BlockTargetObservation, CapturedSurvivalScene, MiningId,
+        MiningProfileRecovery, MiningRecord, MiningRecoveryAttempt, MiningRecoveryEvidence,
+        MiningRecoveryMethod, MiningRecoveryTarget, MiningStage, MotionPreview, MotionRecord,
+        MotionStatus, PlacementId, PlacementRecord, PlacementStage, RecoveredSurvivalClient,
+        ScenePreview, SceneSource, SurvivalControl, SurvivalInput,
     };
     pub use super::{
         Client, ClientLimits, ConnectionConfig, ConnectionIdentity, CraftingGridReturnPlan,

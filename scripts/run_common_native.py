@@ -453,7 +453,7 @@ def outer_snbt_compounds(response):
 
 
 def stage(probe, messages, name, records, timeout=30, poll=None):
-    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready", "a2_ready"):
+    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready", "a2_ready", "a4_ready", "a4_captured"):
         probe.stdin.write(name + "\n")
         probe.stdin.flush()
     deadline = time.monotonic() + timeout
@@ -735,6 +735,64 @@ def run_mining_recovery(version, env, rcon, trace, report, probe_log, stderr_log
             except subprocess.TimeoutExpired: probe.kill(); probe.wait(timeout=5)
 
 
+def run_recording_scene(version, env, rcon, trace, report, probe_log, stderr_log, folder):
+    """Actual original receive bytes, detached forecast, offline replay; one JVM."""
+    result=report['native_results']['recording_scene']={'fixture':{},'records':[]}
+    path=folder / 'common-packet-recording.json'
+    probe=subprocess.Popen([str(REPO / 'target/debug/examples/common_native_probe')],cwd=REPO,
+        env=dict(env,VOXRIG_NATIVE_SCENARIO='recording-scene',VOXRIG_NATIVE_RECORDING_PATH=str(path)),
+        stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
+    messages=queue.Queue()
+    reader=threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True);reader.start()
+    try:
+        stage(probe,messages,'a4_ready',result['records'])
+        item=('minecraft:oak_planks{VoxrigA4:{marker:"recorded",values:[I;1,2,3]}}' if version=='1.16.1'
+            else 'minecraft:oak_planks[minecraft:custom_data={VoxrigA4:{marker:"recorded",values:[I;1,2,3]}}]')
+        for command in ('gamemode survival UnifiedProbe','clear UnifiedProbe','tp UnifiedProbe 0.5 65 0.5 0 0','give UnifiedProbe '+item+' 3'):
+            response=rcon.command(command);result['fixture'][command]=response
+            if any(word in response for word in ('Incorrect argument','Unknown or incomplete')):raise RuntimeError('A4 fixture rejected: '+response)
+        probe.stdin.write('a4_capture\n');probe.stdin.flush()
+        # Consumer completion uses a distinct stage while the submitted command
+        # remains explicit, like the other retained-operation scenarios.
+        captured=stage(probe,messages,'a4_captured',result['records'])['value']
+        result['captured']=captured
+        saved=json.loads(path.read_text())
+        received=[f for f in trace.since(0) if f['direction']=='clientbound' and f['phase'] in ('configuration','play')]
+        if not saved['complete'] or saved['after_sequence']!=0 or saved['through_sequence']!=len(saved['records']):raise RuntimeError('A4 incomplete trace')
+        for index,record in enumerate(saved['records']):
+            frame=received[index];body=bytes(record['payload'])
+            if record['sequence']!=index+1 or (record['phase'],record['packet_id'],len(body),hashlib.sha256(body).hexdigest())!=(frame['phase'],frame['packet_id'],frame['body_length'],frame['body_sha256']):
+                raise RuntimeError('A4 recording differs from original native receive frame')
+        result['recording']={'sha256':hashlib.sha256(path.read_bytes()).hexdigest(),'records':len(saved['records']),'bytes':sum(len(r['payload']) for r in saved['records']),'exact_original_frames_verified':len(saved['records'])}
+        result['native_inventory']=until(lambda: matched(rcon.command('data get entity UnifiedProbe Inventory'), 'VoxrigA4'))
+        stacks=outer_snbt_compounds(result['native_inventory'])
+        if len(stacks)!=1 or 'id: "minecraft:oak_planks"' not in stacks[0] or not re.search(r'(?:Count|count): 3(?:b)?(?:,|\s|})',stacks[0]) or 'recorded' not in stacks[0]:
+            raise RuntimeError('A4 original native inventory/item data differs')
+        result['native_position']=rcon.command('data get entity UnifiedProbe Pos')
+        if not re.search(r'0\.5d, 65\.0d, 0\.5d',result['native_position']):raise RuntimeError('A4 read-only scene moved native player')
+        result['native_target']=rcon.command('execute if block 0 65 1 minecraft:stone')
+        if 'Test passed' not in result['native_target']:raise RuntimeError('A4 replay target differs from native block')
+        # Change actual geometry after capture; old scene must retain its snapshot.
+        result['live_update_fixture']=rcon.command('setblock 1 65 0 minecraft:stone')
+        trace.expect_disconnect()
+        result['detached']=stage(probe,messages,'a4_detached',result['records'])['value']
+        probe.wait(timeout=10);reader.join(timeout=2)
+        if probe.returncode!=0 or reader.is_alive():raise RuntimeError('A4 consumer failed shutdown')
+        frames=trace.since(0)
+        # This scenario never invokes a game mutation; only native session/motion
+        # heartbeat and mandatory acknowledgements may appear on the wire.
+        result['serverbound_packet_ids']=sorted({f['packet_id'] for f in frames if f['phase']=='play' and f['direction']=='serverbound'})
+        allowed={0x00,0x05,0x0b,0x10,0x12,0x13,0x14,0x15} if version=='1.16.1' else {0x00,0x0a,0x0c,0x0d,0x15,0x1b,0x1d,0x1e,0x1f,0x20,0x2b,0x2c}
+        if set(result['serverbound_packet_ids'])-allowed:raise RuntimeError('A4 read-only capture/replay emitted a game mutation')
+        result['authority_limits']='Original payloads/ordinals verified against a transparent compressed-byte proxy. Received pose, health, complete player inventory data/provenance and one native block match live observation. Immutable dry-cube scene matches native live forecast and survives an actual world update/source closure. Replay owns no connection or execution IDs; full protocol reconstruction, edits/chaining and authenticated saved histories are not claimed.'
+        result['result']='passed'
+    finally:
+        if probe.poll() is None:
+            probe.terminate()
+            try:probe.wait(timeout=10)
+            except subprocess.TimeoutExpired:probe.kill();probe.wait(timeout=5)
+
+
 def run(version, accept_eula, runtime_root=None, runtime_inputs=None, scenario="full"):
     if not accept_eula:
         raise RuntimeError("pass --accept-eula when authorized to run the official server")
@@ -764,7 +822,7 @@ level-type=flat
 generator-settings={generator_settings}
 level-seed=1234
 online-mode=false
-gamemode={"survival" if scenario == "mining-recovery" else "creative"}
+gamemode={"survival" if scenario in ("mining-recovery","recording-scene") else "creative"}
 force-gamemode=true
 spawn-protection=0
 view-distance=2
@@ -820,6 +878,10 @@ network-compression-threshold=256
         for check in ["execute if block 0 65 1 minecraft:stone", "execute if block 1 65 0 minecraft:air"]:
             report.setdefault("fixture_verification", {})[check] = until(lambda: matched(rcon.command(check), "Test passed"))
         env = dict(os.environ, VOXRIG_MINECRAFT_VERSION=version, VOXRIG_PORT=str(trace.port))
+        if scenario == "recording-scene":
+            run_recording_scene(version, env, rcon, trace, report, probe_log, stderr_log, folder)
+            report["scenario_result"] = "passed"
+            return retained
         if scenario == "mining-recovery":
             for recovery_case in ("completed", "pending"):
                 run_mining_recovery(version, env, rcon, trace, report, probe_log, stderr_log, recovery_case)
@@ -1873,7 +1935,7 @@ def main():
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--accept-eula", action="store_true")
     parser.add_argument("--runtime-dir", type=Path, help="Optional disposable runtime parent, e.g. /dev/shm for isolating disk I/O; reports are exported to .local after JVM exit")
-    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery"), default="full", help="Run the operation corpus or a focused A1/A2/A3 workflow")
+    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "recording-scene"), default="full", help="Run the operation corpus or a focused A1/A2/A3/A4 workflow")
     args = parser.parse_args()
     if bool(args.version) == args.all:
         parser.error("select exactly one of --version / --all")

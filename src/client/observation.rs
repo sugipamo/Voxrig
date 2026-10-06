@@ -49,7 +49,7 @@ pub struct ConnectionIdentity {
     pub name: String,
 }
 /// Origin of a value. None is represented by absence, never an invented default.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum ValueSource {
@@ -114,11 +114,12 @@ impl PartialEq for ItemComponentPatch {
     }
 }
 impl Eq for ItemComponentPatch {}
+crate::diagnostic_projection::diagnostic_record! {
 /// Item data whose interpretation belongs to the owning version.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[non_exhaustive]
-pub enum ItemData {
+pub enum ItemData => RecordedItemData {
     /// No legacy NBT or an empty modern patch; native prototypes may still contain data.
     Default,
     /// Complete legacy NBT, including the root tag byte. Not modern components.
@@ -132,9 +133,12 @@ pub enum ItemData {
         patch: ItemComponentPatch,
     },
 }
+diagnostic_serde { #[serde(tag = "kind", rename_all = "snake_case")] }
+}
+crate::diagnostic_projection::diagnostic_record! {
 /// A common stack identity with lossless supported native data.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
-pub struct ItemStack {
+pub struct ItemStack => RecordedItemStack {
     /// ID bound to this stack's adapter.
     pub id: RegistryId,
     /// Namespaced item name.
@@ -143,6 +147,8 @@ pub struct ItemStack {
     pub count: u32,
     /// Supported native item data; unsupported stacks remain unavailable.
     pub data: ItemData,
+}
+diagnostic_serde {  }
 }
 impl ItemStack {
     /// Decode common custom metadata while preserving the original ItemData bytes.
@@ -204,11 +210,12 @@ impl ItemStack {
         }
     }
 }
+crate::diagnostic_projection::diagnostic_record! {
 /// Knowledge of one inventory slot.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[non_exhaustive]
-pub enum SlotKnowledge {
+pub enum SlotKnowledge => RecordedSlotKnowledge {
     /// No complete supported value is known.
     Unavailable,
     /// Explicitly empty, with source carried by the surrounding value.
@@ -218,6 +225,8 @@ pub enum SlotKnowledge {
         /// Exact stack identity and data.
         item: ItemStack,
     },
+}
+diagnostic_serde { #[serde(tag = "kind", rename_all = "snake_case")] }
 }
 /// Inventory at one capture boundary. Slot indices use player-screen layout 0..45.
 #[derive(Clone, Debug, serde::Serialize)]
@@ -253,7 +262,7 @@ impl Default for InventoryObservation {
     }
 }
 /// Last supported health/hunger packet.
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Health {
     /// Native health points.
     pub health: f32,
@@ -263,7 +272,7 @@ pub struct Health {
     pub saturation: f32,
 }
 /// Last position packet, retained separately from current predicted/submitted position.
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ReceivedPose {
     /// Resolved feet position.
     pub position: [f64; 3],
@@ -273,7 +282,7 @@ pub struct ReceivedPose {
     pub receive_sequence: u64,
 }
 /// Current dimension metadata. Never silently clamped to another version's height.
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Dimension {
     /// Received dimension name.
     pub name: String,

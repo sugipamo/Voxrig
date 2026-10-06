@@ -156,23 +156,6 @@ fn piston_packet_rejects_truncation_and_unknown_action_without_applying_it() {
 }
 
 #[test]
-fn trace_overflow_never_reports_complete_or_resumes_after_a_gap() {
-    let mut trace = TraceCapture {
-        start: 10,
-        bytes: 0,
-        limit: 2,
-        complete: true,
-        records: vec![],
-    };
-    trace.record(11, 0, Phase::Play, 8, &[1, 2]);
-    trace.record(12, 0, Phase::Play, 8, &[3]);
-    trace.record(13, 0, Phase::Play, 0, &[]);
-    assert!(!trace.complete);
-    assert_eq!(trace.records.len(), 1);
-    assert_eq!(trace.records[0].sequence, 11);
-}
-
-#[test]
 fn failed_packet_poisoning_prevents_later_state_application() {
     let mut state = play_state();
     state.ready = true;
