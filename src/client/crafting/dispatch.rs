@@ -117,15 +117,10 @@ fn identity(record: &RecipePlacementRecord, current: &ReceivedCraftingContext) -
             "recipe placement session/mode/hand/registry tags changed",
         ));
     }
-    let same_ui = match (before.grid().source(), current.grid().source()) {
-        (
-            CraftingSource::Player { .. },
-            CraftingSource::Player {
-                access: PlayerScreenAccess::Received,
-            },
-        ) => current.player().inventory.window_id == Some(0),
-        (a, b) => a == b,
-    };
+    let same_ui = before
+        .grid()
+        .source()
+        .accepts_received_source(current.grid().source());
     if !same_ui {
         return Err(unavailable("recipe placement original UI changed"));
     }
@@ -350,7 +345,11 @@ pub(crate) fn receive_with_ghost(
         if let Some(ghost) = ghost.filter(|g| {
             g.receive_sequence() > record.send.after_sequence
                 && g.session() == record.id.session()
-                && g.source() == record.plan.layout().source()
+                && record
+                    .plan
+                    .layout()
+                    .source()
+                    .accepts_received_source(g.source())
         }) {
             if ghost.recipe_name().is_some_and(|name| {
                 record.plan.recipe().native() != &recipes::NativeRecipeId::Legacy(name.into())

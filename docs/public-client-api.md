@@ -235,5 +235,6 @@ coherent contextの実recipe IDからsealed Next／Maximum planを作り、送�
 `can_request()`で安全な材料不足の要求も扱い、実ghostと空盤面・在庫保存を確認すると
 `ObservedGhost`になる。`Client::received_recipe_ghost()`は元UI・registryへ固定した実表示を返す。
 新版応答はrecipe IDを持たず、選択recipeの応答や完成品と断定しない。古いplanは再送できない。
-非空cursorへの結果結合、自動shift製作は後続対応。
+`take_crafting_result`は空cursorまたは同じitem/dataの実受信cursorへ結果全体を結合する。
+結合先の実効容量を超える結果は送信前に拒否し、部分取得は行わない。自動shift製作は後続対応。
 [共通レシピ](common-recipes.md)に公開契約と制限を記載する。

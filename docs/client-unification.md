@@ -86,7 +86,8 @@
   実入力と在庫の保存を確認した後、明示的結果取得→格納→空grid／cursor→製作台close→切断を通した。
   両版・両mode・player／table・Next／Maximumの16ケースでnative在庫と位置を独立確認する。
   材料の保存が確認できるまで後続mutationを許可せず、古いplanの再送を拒否する。
-  ghost／非空cursor結合／shift製作／table SWAP・QUICK_MOVEと一般装備・entity・dataはB4へ残す。
+  材料不足ghostと非空cursorへの結果全体の結合も接続した。
+  shift製作／table SWAP・QUICK_MOVEと一般装備・entity・dataはB4へ残す。
   隣接する製作台がdry collision範囲に入るとlookを拒否する制限はB3へ残す。
   詳細は[共通レシピ](common-recipes.md)。A6と全体goalは継続する。
 
@@ -180,7 +181,7 @@ mainのnative機能とClient共通化の完了を区別する。
 | 1 | 接続設定・基本型・対応情報・registry | 共通入口と版選択の基盤は実装・検証済み | 同じ利用コードで接続でき、版・ID・registryの混同を拒否する |
 | 2 | player・world・inventoryの観測 | 基本captureと受信／予測／欠測の区別は実装・検証済み | 次の操作へ必要な実受信情報を同じ境界で取得できる |
 | 3 | 視点・選択・移動・採掘・設置 | 両版の限定条件で動作・実サーバー検証済み。共通fresh復旧も接続済み。広い地形・道具条件はB3へ残る | dry環境の基本操作から、明示的な復旧を挟んで次の操作へ進める |
-| 4 | 在庫・container・製作・装備・entity | 通常在庫・開閉・製作入力・空cursorへの結果取得と通常owned配置は実装済み。基本装備／entityは初回貫通済み。広い対応はB4 | 収納と通常の1回製作、基本装備、代表的なentity操作を同じAPIで通す |
+| 4 | 在庫・container・製作・装備・entity | 通常在庫・開閉・製作入力・空/互換cursorへの結果全体取得と通常owned配置・材料不足ghostは実装済み。基本装備／entityは初回貫通済み。広い対応はB4 | 収納と通常の1回製作、基本装備、代表的なentity操作を同じAPIで通す |
 | 5 | context・記録・再構成・scene・復旧 | 元packet記録・選択観測の再生・限定scene・明示的fresh復旧・共通遮断は実装済み。広いcontextと再構成はB5 | 受信記録の読み取り専用再生、限定scene、明示的な復旧から操作を継続できる |
 | 6 | UI・特殊window・vehicle・manager | scoreboard／かまど／実乗車関係・下車／managerは初回貫通済み。広い対応はB6 | 代表的なUI・特殊window・乗車状態／下車・複数Client管理を両版で通す |
 
@@ -191,7 +192,7 @@ mainのnative機能とClient共通化の完了を区別する。
 - 中断時の作業: planからのowned送信、実入力と在庫の結果保持、取消・競合の扱い。
   初回貫通中は退避した。現在はB4で復元し、通常Next／Maximumのowned送信と実保存まで接続した。
 - 既に使える製作経路: `click_inventory`で通常の入力を置き、
-  `take_crafting_result`で空cursorへ結果を取得する。必要なrecipeと入力手順は利用側が選ぶ。
+  `take_crafting_result`で空または互換の実受信cursorへ結果全体を取得する。必要なrecipeと入力手順は利用側が選ぶ。
 
 レシピブック送信は有用な機能であり、最終的な残作業に含む。しかし、
 **既存の通常クリック経路で基本製作を通せるため、初回の全体貫通を待たせる必須条件にしない。**
@@ -228,7 +229,7 @@ A5の代表例は初回貫通用であり、すべての特殊windowやentity／
 | --- | --- | --- | --- |
 | 接続・registry・player/world/inventory観測 | 共通 | 共通 | A1で同じconsumerの受信基準に使う |
 | 視点・選択・乾いた地形での有限移動 | 共通・限定条件 | 共通・限定条件 | 両handleの有限地上歩行。Creativeでも飛行中は拒否する |
-| storage開閉・通常クリック・転送・空cursorへの製作結果取得 | 共通・限定条件 | 共通・限定条件 | 一つの接続で収納の後に通常製作へ進む |
+| storage開閉・通常クリック・転送・空/互換cursorへの製作結果取得 | 共通・限定条件 | 共通・限定条件 | 一つの接続で収納の後に通常製作へ進む |
 | passive cube設置・通常道具の既知dry採掘 | 共通・限定条件 | 共通・限定条件 | A1は設置。採掘後の共通復旧はA3 |
 | 装備への通常転送 | 共通・限定条件 | 共通・限定条件 | A2の代表シナリオに組み込む |
 | 限定captured scene・packet診断recordと選択観測の再生 | 共通・限定条件 | 共通・限定条件 | A4で同じconsumerを検証。live native予測と一致し、source更新・切断後も不変 |
@@ -256,7 +257,7 @@ close送信と実受信screen履歴を混同せず、サーバー側でも位置
 | 段階 | 後続の対応範囲 |
 | --- | --- |
 | 3 | 広い移動・採掘・設置条件、道具・姿勢・非cube・effect等の対応、観測継続と復旧の範囲拡大、別姿勢／effectを含むCreative飛行後の立位操作への継続 |
-| 4 | レシピブック配置の残る未対応条件、非空cursorへの結果結合、shift製作、製作台SWAP／QUICK_MOVE、一般装備・entity・item activation、任意item／text／dialogのconstructor・参照・比較と実server cache hash |
+| 4 | レシピブック配置の残る未対応条件、shift製作、製作台SWAP／QUICK_MOVE、一般装備・entity・item activation、任意item／text／dialogのconstructor・参照・比較と実server cache hash |
 | 5 | より広いcontext／記録／再構成／scene／復旧、履歴取得が書き込み停止で詰まる経路の解消、共通遮断後の各履歴取得と不確実性保持、再設定・chunk欠測・再接続の範囲拡大 |
 | 6 | 各UI・特殊window・vehicle・manager機能の残差分。raw操作の版依存は明示的な拡張として管理する |
 
@@ -541,9 +542,15 @@ material-shortage ghosts. Remaining full integration scope is still required.
 B4の材料不足ghostは共通観測型とowned要求へ接続した。ghost表示と実盤面・在庫は別に保持し、
 実返却と保存が揃うまで操作を解放しない。新版応答にはrecipe IDがないため、表示内容から
 選択recipeや因果関係を補完しない。同じ画面番号の再利用・world変更とold planの再送を拒否する。
-次のB4区切りは非空cursorへの結果結合とshift製作。一般装備・entity／任意data等を含む
+非空cursorへの結果全体の結合も同じtake APIへ接続した。次のB4区切りはshift製作。一般装備・entity／任意data等を含む
 B4全体とA6の利用側検証は継続中。[共通ghost契約](common-recipes.md#received-ghosts-and-conserved-material-shortage-completion)。
 
-Owned ghostは現在sourceの根拠も完全一致を要求する。table closeを根拠にしたplayer planの
-`SubmittedClose`が実player画面の`Received`へ移る境界は、B4の残るadmission項目。
-その場合のpending履歴を実完了へ変換せず、再送もしない。今回の16ケースはこの境界を含まない。
+Owned ghostは、元playerの`SubmittedClose`から実player zeroの`Received`へ進むことを許可する。
+通常結果取得と同じ画面継続規則を使い、planとghostそれぞれの歴史的根拠は書き換えない。
+別tableや同番号で開き直したtableの再束縛は拒否する。両版の軽量回帰で確認する。
+
+B4の非空cursor結果結合は、同じitem/data・結合先の実効容量内の結果全体だけを扱う。
+実cursor60→結果4→実cursor64→次結果の送信前拒否→格納→空cursorで残り取得を、
+両版・両mode・player/tableで同じconsumerから通す。freshな結合cursorとfull盤面を完了条件とし、
+消費や次resultを予測で書き換えない。shift製作、table SWAP・QUICK_MOVE、一般装備・entity・data、
+広いB3/B5/B6とA6の非公開利用側結果は継続する。

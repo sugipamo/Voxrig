@@ -510,7 +510,7 @@ Item、Unavailableは別々に保持する。`registry_state()`と各slotのregi
 `result()`はサーバーから受信した表示だけを返し、材料消費や製作完了を意味しない。
 新版のinput base capacityは99、旧版は64で、操作時には各itemの有効最大数との小さい方を使用する。
 
-`Survival/Creative::take_crafting_result(&received_grid)`は、実受信の空cursorと現在も一致する
+`Survival/Creative::take_crafting_result(&received_grid)`は、実受信の空cursorまたは同じitem/dataの保持cursorと、現在も一致する
 封じられたsnapshotを要求し、結果slot 0へ左PICKUPを一度だけ送る。通常の`click_inventory`
 では結果slotを扱わない。新版でplayer製作枠が未受信の場合、既知の通常sourceへの
 最初のPICKUPでnative full更新を要求し、受信するまで枠をEmptyと推測しない。snapshotのsession・world・registry・opening・入力/result受信境界を
@@ -522,7 +522,8 @@ Item、Unavailableは別々に保持する。`registry_state()`と各slotのregi
 受信された`after`を要求する。旧版では実際のcomparison replyも必要。両版ともnative full resyncを
 要求するが、revision mismatchやEmpty comparisonは受信証拠ではない。表示resultが同じまま再生成
 されるレシピも扱い、例えばケーキのバケツを実受信remainderとして保持する。成功した履歴は現在の
-在庫と区別する。recipe選択は利用側で行う。非空cursorへのresult mergeとshift-craftingは後続対応を要する。
+在庫と区別する。recipe選択は利用側で行う。非空cursorでは結合先itemの実効容量に結果全体が入ることを要求し、部分取得やdataの異なる結合は送信前に拒否する。
+実cursorへの加算も`cursor_prediction`とfreshな`cursor_receipt`を分ける。shift-craftingは後続対応を要する。
 旧版の`craft_once` / `take_crafting_result`でローカルに減算した材料は共通APIの受信結果にしない。
 
 ### 製作台の開閉
@@ -541,7 +542,7 @@ player側のslotを選び、各PICKUPの実source/cursor応答を確認してか
 元サーバーで生存・在庫空きのある条件の材料返却を検証するが、満杯・死亡・切断時などの
 材料の処理は同じ保証にしない。必要な材料の保存確認には、その後の実player slot受信や
 在庫の調査を用いる。再度開いた画面では新しい`ScreenId`を取得し、古いinput/close要求を再送しない。
-結果は空cursorへの`take_crafting_result`で取得し、消費・remainderを実受信として保持する。
+結果は空または互換の保持cursorへの`take_crafting_result`で取得し、消費・remainderを実受信として保持する。
 製作台でのSWAP/QUICK_MOVEは後続対応を要する。
 
 ### Recipe-book materials
@@ -687,5 +688,10 @@ Use `plan.can_request()` to include safe material-shortage requests;
 `ObservedGhost` records a fresh actual display plus conserved empty inputs.
 Inspect `record.ghost` separately from actual grid/output. Modern responses have
 no recipe ID. Recapture after any prior request, even when no slots changed.
-Nonempty-result-cursor/shift crafting remain required follow-up work.
+For result takes, a compatible actual held cursor can receive the entire result
+within its effective capacity. Overflow and unlike data are refused before I/O.
+A fresh combined cursor and full input/result receipts remain required. Shift
+crafting remains follow-up work. Ghost completion may progress from an original
+player SubmittedClose basis to actual Received player zero without rebinding
+a table opening; each historical source retains its own basis.
 See [common recipe placement](common-recipes.md#owned-recipe-placement-through-the-common-client).

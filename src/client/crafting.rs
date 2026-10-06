@@ -50,6 +50,23 @@ pub enum CraftingSource {
     },
 }
 
+impl CraftingSource {
+    /// A received player screen can refine its submitted-close basis. Original
+    /// table/close identities remain exact; this comparison grants no authority.
+    pub(crate) fn accepts_received_source(self, actual: Self) -> bool {
+        self == actual
+            || matches!(
+                (self, actual),
+                (
+                    Self::Player { .. },
+                    Self::Player {
+                        access: PlayerScreenAccess::Received
+                    }
+                )
+            )
+    }
+}
+
 /// Immutable input and result receipts from one adapter capture boundary.
 /// Only Client creates this value. Missing inputs remain distinct from empty.
 #[derive(Clone, Debug, serde::Serialize)]

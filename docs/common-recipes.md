@@ -170,7 +170,7 @@ classpath, request/helper and result hashes. The return helper's Inventory has a
 unused null owner; it calls no owner/world, creative fallback or drop behavior.
 
 Native ghost observations and owned material-shortage requests are available below.
-Nonempty-cursor result merging and shift crafting remain required follow-up work. Normal owned recipe dispatch is described below. The coherent preflight below
+Compatible nonempty-cursor result merging is available below; shift crafting remains follow-up work. Normal owned recipe dispatch is described below. The coherent preflight below
 combines current-grid materials, native capacity guards and return-space checks. Displayed remainder associations
 are not actual inventory consumption/remainder receipts. The existing common
 result take retains those actual receipts separately.
@@ -250,9 +250,9 @@ fences the owned request and leaves its uncertainty available for inspection.
 
 Once placement is observed, use a fresh `received_crafting()` capture for each
 explicit `take_crafting_result`, then ordinary cursor deposit and actual inventory
-inspection. Maximum placement does not perform automatic shift crafting. Taking
-into a nonempty cursor, table SWAP/QUICK_MOVE and the remaining
-B4 equipment/entity/data work still require implementation.
+inspection. Maximum placement does not perform automatic shift crafting.
+Compatible held-result cursor merging is supported below. Table SWAP/QUICK_MOVE
+and the remaining B4 equipment/entity/data work still require implementation.
 
 The version-independent native consumer covers both modes, both 2x2/player and
 3x3/table UIs, and Next/Maximum: 10 planks become either 8 planks + 4 sticks or
@@ -306,9 +306,42 @@ receipt, and distinguish frozen openings/configurations/worlds. The native
 dirt and a single plank are explicitly placed then returned by two native ghosts;
 a fresh button recipe is normally placed, taken and stored before disconnect.
 
-Owned completion currently requires the ghost's exact captured source, including
-its player-screen access basis. A transition from a plan's `SubmittedClose` basis
-to an actual `Received` player screen is a remaining B4 admission boundary: that
-differently based ghost does not complete the pending attempt. Keep inspecting
-that retained attempt without replay; this workflow has not been validated by the
-16 player/table fixture cases above.
+Owned completion permits the same player UI to progress from a submitted table
+close basis to an actual received player-screen-zero basis. The original plan
+keeps `SubmittedClose` and the ghost keeps its actual `Received` source; neither
+is rewritten as the other. Table openings still require the exact original
+`ScreenId`, including the opening ordinal. A lightweight both-version regression
+exercises this handoff and refuses a reopened table with the same numeric ID.
+The 16 ghost native cases above retain their original narrower fixture scope.
+
+## Entire result merged into a held cursor
+
+Both mode handles use the existing `take_crafting_result(&ReceivedCrafting)`; no
+second result API is required. Its actual cursor may be empty or hold the same
+item and semantically equivalent native item data. With a held cursor, the whole
+received result must fit that cursor item's effective maximum stack size. The
+operation refuses mismatched data, unknown cursors and overflow before admission
+or I/O. It never takes a partial result.
+
+`cursor_before` retains the actual held stack. `cursor_prediction` keeps its
+actual representation and predicts only the combined count. A fresh actual
+cursor matching the entire combined stack plus an actual full input/result grid
+are still required for `ObservedTaken`; an unchanged old held cursor cannot
+complete it. Ingredient consumption, remainders and regenerated results remain
+actual receipts. Legacy comparison replies, one owned send after caller
+cancellation, stale-grid rejection and unresolved-mutation guards remain intact.
+
+The unchanged original 1.16.1 menu checks matching item/NBT and entire-result
+capacity. In 1.21.11 the menu uses the original same-item/components comparison
+and `Slot.tryRemove`; a result slot cannot accept placement, so insufficient
+room refuses the whole result. The common operation follows that behavior rather
+than inferring a partial transfer from a generic inventory stack merge.
+
+The `recipe-result-merge` native workflow uses both modes and both player/table
+UIs: place a two-batch stick recipe, pick up 60 actual sticks, merge result4 into
+cursor64, refuse another result before I/O, deposit64, then take and deposit the
+remaining4. The final grid/cursor is empty, the original table closes and the
+same Client selects and disconnects. Independent native inventory and captured
+frames verify 64+4 sticks and exactly five clicks.
+See [native validation](common-client-native-validation.md) and its evidence.
+Automatic shift crafting and table SWAP/QUICK_MOVE remain required B4 work.

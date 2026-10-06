@@ -143,7 +143,8 @@ impl Survival {
     ) -> Result<Option<super::crafting::RecipePlacementRecord>> {
         self.client.common_recipe_placement_record().await
     }
-    /// Take one displayed crafting result with an actual empty cursor.
+    /// Take one displayed result into an actual empty or compatible cursor.
+    /// A held cursor must fit the entire result; no partial crafting is submitted.
     /// Rechecks this sealed snapshot before I/O. Ingredient consumption and
     /// remainders are observed from the server, never predicted or replayed.
     pub async fn take_crafting_result(
@@ -470,7 +471,8 @@ impl Creative {
     ) -> Result<Option<super::crafting::RecipePlacementRecord>> {
         self.client.common_recipe_placement_record().await
     }
-    /// Take one displayed crafting result with an actual empty cursor.
+    /// Take one displayed result into an actual empty or compatible cursor.
+    /// A held cursor must fit the entire result; no partial crafting is submitted.
     /// Rechecks this sealed snapshot before I/O. Ingredient consumption and
     /// remainders are observed from the server, never predicted or replayed.
     pub async fn take_crafting_result(

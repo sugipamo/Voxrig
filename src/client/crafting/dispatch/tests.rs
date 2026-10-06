@@ -278,3 +278,98 @@ fn placement_native_payload_matches_existing_original_packet_oracle() {
         assert!(checked > 0);
     }
 }
+
+#[test]
+fn ghost_accepts_actual_player_zero_after_exact_submitted_close_without_rebinding_a_table() {
+    use crate::client::crafting::ghost::{GhostContext, GhostReceipts};
+    use crate::client::registry::received::ReceivedRegistries;
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        let table = context(version, true, GameMode::Survival);
+        let screen = receipts::screen(table.player(), true, &[]).screen.unwrap();
+        let mut close = crate::client::container::prepare_close(
+            table.player().clone(),
+            screen.clone(),
+            screen.id,
+            GameMode::Survival,
+            None,
+        )
+        .unwrap();
+        close.sent();
+        let mut p = receipts::player(version);
+        p.inventory.window_id = Some(3);
+        p.inventory.player_screen = Some(PlayerScreenAccess::SubmittedClose { close: close.id });
+        let before = with_player(&context(version, false, GameMode::Survival), p);
+        let plan = before
+            .recipe_placement_plan(
+                before.recipes().entries()[0].id(),
+                RecipePlacementAmount::Next,
+            )
+            .unwrap();
+        assert!(plan.can_request() && !plan.can_place());
+        let mut record = prepare(&plan, &before, GameMode::Survival, 1).unwrap();
+        record.send.dispatched = true;
+        let mut p = before.player().clone();
+        p.receive_sequence = 21;
+        p.inventory.window_id = Some(0);
+        p.inventory.player_screen = Some(PlayerScreenAccess::Received);
+        let current = with_player(&before, p);
+        let mut registries = ReceivedRegistries::default();
+        registries.reset(10);
+        registries.finish();
+        let context = GhostContext {
+            generation: before.session().world_generation,
+            sequence: 21,
+            active_window: Some(0),
+            screen: None,
+            close: Some(close),
+            registries,
+        };
+        let ghost = match plan.recipe().native() {
+            recipes::NativeRecipeId::Legacy(name) => GhostReceipts::named(
+                context.clone(),
+                0,
+                name.clone(),
+                &recipes::RecipeReceipts::default(),
+            ),
+            recipes::NativeRecipeId::Modern(_) => GhostReceipts::displayed(
+                context.clone(),
+                0,
+                before.recipes().entries()[0].display().clone(),
+            ),
+        }
+        .capture(before.session())
+        .unwrap()
+        .unwrap();
+        let mut other = context;
+        other.active_window = Some(3);
+        let mut receipt = crate::client::container::ScreenReceipts::open(
+            version,
+            3,
+            None,
+            crate::client::container::ScreenTitle::Unavailable,
+            21,
+        );
+        receipt.menu_name = Some("minecraft:crafting".into());
+        other.screen = Some(receipt);
+        let table_ghost =
+            GhostReceipts::displayed(other, 3, before.recipes().entries()[0].display().clone())
+                .capture(before.session())
+                .unwrap()
+                .unwrap();
+        receive_with_ghost(&mut record, &current, Some(&table_ghost));
+        assert!(record.ghost.is_none() && !record.ready());
+        receive_with_ghost(&mut record, &current, Some(&ghost));
+        assert!(record.ready() && record.requires_inspection.is_none());
+        assert_eq!(
+            record.ghost.as_ref().unwrap().source(),
+            current.grid().source()
+        );
+        assert_ne!(record.plan.layout().source(), ghost.source());
+        assert!(matches!(
+            record.plan.layout().source(),
+            CraftingSource::Player {
+                access: PlayerScreenAccess::SubmittedClose { .. }
+            }
+        ));
+    }
+}

@@ -45,9 +45,9 @@ pub struct CraftingTakeRecord {
     pub mode: GameMode,
     /// Actual complete input/result receipts before I/O.
     pub before: ReceivedCrafting,
-    /// Actual empty cursor before I/O.
+    /// Actual empty or compatible held cursor before I/O.
     pub cursor_before: ObservedValue<SlotKnowledge>,
-    /// Expected output cursor, explicitly Predicted.
+    /// Expected entire result added to the cursor, explicitly Predicted.
     pub cursor_prediction: ObservedValue<SlotKnowledge>,
     /// Submission facts. Full resync is always requested.
     pub send: InventoryClickSend,
@@ -190,9 +190,10 @@ pub(crate) fn prepare(
         .cursor
         .clone()
         .filter(|v| {
-            matches!(v.source, ValueSource::Received { .. }) && v.value == SlotKnowledge::Empty
+            matches!(v.source, ValueSource::Received { .. })
+                && v.value != SlotKnowledge::Unavailable
         })
-        .ok_or_else(|| unavailable("crafting result take requires actual empty cursor"))?;
+        .ok_or_else(|| unavailable("crafting result take requires actual known cursor"))?;
     let output = before.result.as_ref().expect("complete").value().clone();
     if !matches!(output, SlotKnowledge::Item { .. }) {
         return Err(unavailable("received crafting result is empty"));
@@ -205,6 +206,29 @@ pub(crate) fn prepare(
             v.receive_sequence(),
         ))?;
     }
+    let cursor_prediction = match (&cursor_before.value, &output) {
+        (SlotKnowledge::Empty, _) => output.clone(),
+        (SlotKnowledge::Item { item: held }, SlotKnowledge::Item { item: result }) => {
+            if !context.same_data(held, result)? {
+                return Err(unavailable(
+                    "crafting result differs from held cursor item/data",
+                ));
+            }
+            let capacity = u32::try_from(held.properties()?.max_stack_size)
+                .map_err(|_| unavailable("crafting cursor capacity is invalid"))?;
+            let count = held
+                .count
+                .checked_add(result.count)
+                .filter(|count| *count <= capacity)
+                .ok_or_else(|| unavailable("entire crafting result does not fit held cursor"))?;
+            // Native result slots refuse a partial result. Preserve the actual
+            // held representation rather than replacing it with display data.
+            let mut combined = held.clone();
+            combined.count = count;
+            SlotKnowledge::Item { item: combined }
+        }
+        _ => return Err(unavailable("crafting cursor/result unavailable")),
+    };
     Ok(CraftingTakeRecord {
         id: CraftingTakeId {
             session: initial.session,
@@ -224,7 +248,7 @@ pub(crate) fn prepare(
         before,
         cursor_before,
         cursor_prediction: ObservedValue {
-            value: output,
+            value: cursor_prediction,
             source: ValueSource::Predicted,
         },
         after: None,
@@ -284,15 +308,7 @@ fn current_grid(
     }
     let grid = ReceivedCrafting::capture(player, screen, registries.clone())?
         .ok_or_else(|| unavailable("crafting take UI disappeared"))?;
-    let same = match (record.before.source, grid.source) {
-        (
-            CraftingSource::Player { .. },
-            CraftingSource::Player {
-                access: PlayerScreenAccess::Received,
-            },
-        ) => player.inventory.window_id == Some(0),
-        (a, b) => a == b,
-    };
+    let same = record.before.source.accepts_received_source(grid.source);
     if !same || grid.dimensions() != record.before.dimensions() {
         return Err(unavailable("crafting take original UI changed"));
     }

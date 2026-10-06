@@ -2331,6 +2331,167 @@ mod tests {
             server.await.unwrap();
         }
     }
+    #[tokio::test]
+    async fn crafting_take_merge_cancelled_waiter_preserves_one_write_combined_cursor_and_full_grid()
+     {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        let item = |name: &str, count| api::SlotKnowledge::Item {
+            item: {
+                let def = api::registry::Registry::for_version(crate::MinecraftVersion::Java1_16_1)
+                    .item(name)
+                    .unwrap();
+                api::ItemStack {
+                    id: def.id,
+                    name: def.name,
+                    count,
+                    data: api::ItemData::Default,
+                }
+            },
+        };
+        for index in 0..=4 {
+            slot(
+                &bot,
+                index,
+                &match index {
+                    0 => item("minecraft:stick", 4),
+                    1 | 3 => item("minecraft:oak_planks", 2),
+                    _ => api::SlotKnowledge::Empty,
+                },
+                false,
+            )
+            .await;
+        }
+        let cursor = |count| {
+            let mut p = vec![255, 255, 255];
+            write_slot(
+                &mut p,
+                Some(&ItemStack {
+                    item_id: crate::item_id("stick").unwrap(),
+                    count,
+                    nbt: None,
+                }),
+            );
+            p
+        };
+        bot.apply_packet(0x16, cursor(4)).await.unwrap();
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let grid = client.received_crafting().await.unwrap().unwrap();
+        let writer = bot.writer.lock().await;
+        let old = grid.clone();
+        let ops = client.survival();
+        let waiter = tokio::spawn(async move { ops.take_crafting_result(&old).await });
+        let pending = timeout(Duration::from_secs(1), async {
+            loop {
+                if let Some(r) = client.survival().crafting_take_record().await.unwrap() {
+                    break r;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert!(
+            matches!(&pending.cursor_before.value,api::SlotKnowledge::Item{item} if item.count==4)
+        );
+        assert!(
+            matches!(&pending.cursor_prediction.value,api::SlotKnowledge::Item{item} if item.count==8)
+        );
+        waiter.abort();
+        assert!(waiter.await.unwrap_err().is_cancelled());
+        drop(writer);
+        assert_eq!(packets.recv().await.unwrap().0, 0x09);
+        let sent = timeout(Duration::from_secs(1), async {
+            loop {
+                let r = client
+                    .survival()
+                    .crafting_take_record()
+                    .await
+                    .unwrap()
+                    .unwrap();
+                if r.send.dispatched {
+                    break r;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        bot.apply_packet(0x16, cursor(8)).await.unwrap();
+        let half = client
+            .survival()
+            .crafting_take_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(half.cursor_receipt.is_some() && half.after.is_none());
+        assert!(client.survival().select_hotbar(0).await.is_err());
+        let mut reply = vec![0];
+        reply.extend(sent.send.legacy_action.unwrap().to_be_bytes());
+        reply.push(0);
+        bot.apply_packet(0x12, reply).await.unwrap();
+        assert_eq!(packets.recv().await.unwrap().0, 0x07);
+        let mut full = vec![0, 0, 46];
+        for index in 0..46 {
+            let stack = match index {
+                0 => Some(ItemStack {
+                    item_id: crate::item_id("stick").unwrap(),
+                    count: 4,
+                    nbt: None,
+                }),
+                1 | 3 => Some(ItemStack {
+                    item_id: crate::item_id("oak_planks").unwrap(),
+                    count: 1,
+                    nbt: None,
+                }),
+                9 => Some(ItemStack {
+                    item_id: crate::item_id("stone").unwrap(),
+                    count: 3,
+                    nbt: None,
+                }),
+                36 => Some(ItemStack {
+                    item_id: crate::item_id("dirt").unwrap(),
+                    count: 2,
+                    nbt: None,
+                }),
+                _ => None,
+            };
+            write_slot(&mut full, stack.as_ref());
+        }
+        bot.apply_packet(0x14, full).await.unwrap();
+        let complete = client
+            .survival()
+            .crafting_take_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(complete.id, pending.id);
+        assert_eq!(complete.stage, api::CraftingTakeStage::ObservedTaken);
+        assert!(client.survival().take_crafting_result(&grid).await.is_err());
+        client.survival().select_hotbar(0).await.unwrap();
+        assert_eq!(packets.recv().await.unwrap().0, 0x24);
+        assert!(
+            timeout(Duration::from_millis(20), packets.recv())
+                .await
+                .is_err()
+        );
+        bot.disconnect().await.unwrap();
+        assert_eq!(
+            client
+                .survival()
+                .crafting_take_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            api::CraftingTakeStage::ObservedTaken
+        );
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
     async fn seed(bot: &Bot) {
         super::super::common_motion::tests::seed_motion(bot).await;
         let mut slots = vec![0, 0, 46];

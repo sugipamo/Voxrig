@@ -366,7 +366,7 @@ fn take_fixture(version: MinecraftVersion) -> (PlayerObservation, ReceivedCrafti
     (p, grid)
 }
 #[test]
-fn crafting_take_requires_complete_sealed_unchanged_grid_empty_cursor_and_mode() {
+fn crafting_take_requires_complete_sealed_unchanged_grid_known_cursor_and_mode() {
     for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
         let (p, grid) = take_fixture(version);
         let prepare = |p: PlayerObservation, grid: &ReceivedCrafting| {
@@ -398,7 +398,11 @@ fn crafting_take_requires_complete_sealed_unchanged_grid_empty_cursor_and_mode()
         }
         let mut held = p.clone();
         held.inventory.cursor = Some(received(item(version), 15));
-        assert!(prepare(held, &grid).is_err());
+        let combined = prepare(held, &grid).unwrap();
+        let SlotKnowledge::Item { item } = combined.cursor_prediction.value else {
+            panic!("merged cursor absent")
+        };
+        assert_eq!(item.count, 6);
         let mut unknown = p.clone();
         unknown.inventory.cursor = None;
         assert!(prepare(unknown, &grid).is_err());
@@ -569,5 +573,122 @@ fn crafting_take_table_requires_actual_full_boundary_and_original_opening() {
         take::receive(&mut r, &p, &s, &registries(&p));
         assert!(r.requires_inspection.is_some());
         assert!(!r.ready());
+    }
+}
+
+#[test]
+fn crafting_result_merge_requires_entire_capacity_semantic_data_and_fresh_combined_receipt() {
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        let (base, grid) = take_fixture(version);
+        let prepare = |p: PlayerObservation| {
+            take::prepare(
+                p.clone(),
+                screen(&p),
+                registries(&p),
+                &grid,
+                GameMode::Survival,
+                1,
+            )
+        };
+        let SlotKnowledge::Item { item: output } = item(version) else {
+            unreachable!()
+        };
+        // This fixture's received result is three planks, not a partial transfer.
+        let mut held = output.clone();
+        held.count = 61;
+        let mut p = base.clone();
+        p.inventory.cursor = Some(received(SlotKnowledge::Item { item: held.clone() }, 15));
+        let mut record = prepare(p.clone()).unwrap();
+        assert!(
+            matches!(&record.cursor_prediction.value,SlotKnowledge::Item{item} if item.count==64)
+        );
+        assert_eq!(
+            record.cursor_before.value,
+            SlotKnowledge::Item { item: held.clone() }
+        );
+        let mut overflow = p.clone();
+        held.count = 62;
+        overflow.inventory.cursor = Some(received(SlotKnowledge::Item { item: held }, 15));
+        assert!(prepare(overflow).is_err());
+        let dirt = Registry::for_version(version)
+            .item("minecraft:dirt")
+            .unwrap();
+        let mut other = p.clone();
+        other.inventory.cursor = Some(received(
+            SlotKnowledge::Item {
+                item: ItemStack {
+                    id: dirt.id,
+                    name: dirt.name,
+                    count: 1,
+                    data: ItemData::Default,
+                },
+            },
+            15,
+        ));
+        assert!(prepare(other).is_err());
+        let mut named = p.clone();
+        if let Some(SlotKnowledge::Item { item }) =
+            named.inventory.cursor.as_mut().map(|v| &mut v.value)
+        {
+            item.data = if version == MinecraftVersion::Java1_16_1 {
+                ItemData::LegacyNbt {
+                    bytes: vec![
+                        10, 0, 0, 8, 0, 6, b'm', b'a', b'r', b'k', b'e', b'r', 0, 1, b'x', 0,
+                    ],
+                }
+            } else {
+                // Actual native custom_data patch form, not a name-only comparison.
+                let mut raw = vec![];
+                crate::protocol::put_varint(&mut raw, 1);
+                crate::protocol::put_varint(&mut raw, 0);
+                crate::protocol::put_varint(
+                    &mut raw,
+                    Registry::for_version(version)
+                        .item_component("minecraft:custom_data")
+                        .unwrap()
+                        .id
+                        .value(),
+                );
+                raw.extend([
+                    10, 8, 0, 6, b'm', b'a', b'r', b'k', b'e', b'r', 0, 1, b'x', 0,
+                ]);
+                ItemData::ModernComponents {
+                    patch: crate::versions::java_1_21_11::item_components::decode_patch(&raw)
+                        .unwrap(),
+                }
+            };
+        }
+        assert!(prepare(named).is_err());
+        record.send.dispatched = true;
+        // An old or unchanged held cursor is not proof of the result increment.
+        p.receive_sequence = 25;
+        for slot in 0..=4 {
+            p.inventory.slots[slot] = Some(received(SlotKnowledge::Empty, 24));
+        }
+        take::receive(&mut record, &p, &screen(&p), &registries(&p));
+        assert!(record.after.is_some() && record.cursor_receipt.is_none() && !record.ready());
+        p.inventory.cursor = Some(received(record.cursor_before.value.clone(), 25));
+        take::receive(&mut record, &p, &screen(&p), &registries(&p));
+        assert!(record.cursor_receipt.is_none() && record.requires_inspection.is_none());
+        p.receive_sequence = 26;
+        p.inventory.cursor = Some(received(record.cursor_prediction.value.clone(), 26));
+        take::receive(&mut record, &p, &screen(&p), &registries(&p));
+        assert!(record.cursor_receipt.is_some());
+        if version == MinecraftVersion::Java1_16_1 {
+            record.legacy_reply = Some(crate::client::inventory::InventoryTransactionReply {
+                window_id: 0,
+                action: 1,
+                accepted: false,
+                receive_sequence: 26,
+            });
+        }
+        assert!(record.ready());
+        // A different fresh cursor latches conflict before later matching data.
+        let mut conflict = prepare(base.clone()).unwrap();
+        conflict.send.dispatched = true;
+        let mut wrong = p.clone();
+        wrong.inventory.cursor = Some(received(record.cursor_before.value.clone(), 27));
+        take::receive(&mut conflict, &wrong, &screen(&wrong), &registries(&wrong));
+        assert!(conflict.requires_inspection.is_some());
     }
 }

@@ -613,7 +613,7 @@ writer保持中のcommon revocationによる要求の遮断を確認する。
 製作台は既存のstanding/ray試験と同じ`[0, 65, 2]`に置く。
 `[0, 65, 1]`の隣接tableはdry collision modelの未対応としてlookを拒否した。
 この制限はB3へ残し、guardを弱めたり成功として扱ったりしない。
-ghost／非空cursor結合／shift製作と広いB4は未完了。
+この配置fixtureの後にghostと非空cursor結合も下記の区切りで接続した。shift製作と広いB4は未完了。
 [契約](common-recipes.md#owned-recipe-placement-through-the-common-client)／
 [入力と結果](evidence/common-recipe-placement-20261006.json)。
 
@@ -652,8 +652,47 @@ planの元ordinalを変え、送信直前の検査が拒否した。consumer側�
 元opening/configuration/world束縛の軽量試験も通過した。
 [契約](common-recipes.md#received-ghosts-and-conserved-material-shortage-completion)／
 [入力と結果](evidence/common-recipe-ghost-20261006.json)。
-非空cursor結合・shift製作・製作台SWAP/QUICK_MOVEと広いB4、B3/B5/B6、私的A6は継続中。
+非空cursor結合は下記の区切りで接続した。shift製作・製作台SWAP/QUICK_MOVEと広いB4、B3/B5/B6、私的A6は継続中。
 
 この区切りの単体754件・公開API4件・doctest30件、fmt・all-target Clippy・Rust 1.85の
 all-target check・rustdoc・trace境界・配布allowlistとCargo package buildは成功した。
 専用環境等の8件はignored。配布対象は780ファイルで、私的runtimeと利用側logsを含めない。
+
+
+## B4 held result merge and whole-capacity refusal
+
+```sh
+CARGO_INCREMENTAL=0 python3 scripts/run_common_native.py --all --scenario recipe-result-merge --accept-eula
+```
+
+両版の公式JARを順番に起動し、各版でSurvival/Creative×player/tableの4ケースを通す。
+各ケースは一つのClientと同じ公開APIを使用する。fixtureは開始前にplanks4、stick60、
+必要な製作台とrecipe unlockを準備し、操作開始後のRCONは読み取りに限定する。
+Maximumで2回分を配置→実stick60をPICKUP→結果4を結合して実cursor64→
+次結果4を送信前に拒否→64を格納→空cursorで残り4を取得・格納→空盤面・cursor→
+元tableのclose→同じClientで選択・切断を確認する。独立したnative inventoryは64+4、
+位置は不変で、proxyの5clickが過容量要求や再送のないことを確認する。
+
+旧版元menuのitem/NBT・全容量判定と、新版元menuのsame-item/components・
+`Slot.tryRemove`/result-slot placement拒否に従う。TCP回帰は待機取消後も一回送信、
+合計cursorのみでは未完了、fresh full盤面との完了、古いsnapshot拒否、切断後の履歴を両版で確認する。
+共通回帰はitem/data不一致、容量超過、古いcursorと実結合cursorの区別を確認する。
+SubmittedClose→実Received player zeroのghost継続は軽量回帰で確認し、別tableへ再束縛しない。
+
+[契約](common-recipes.md#entire-result-merged-into-a-held-cursor)／
+[入力と結果](evidence/common-recipe-result-merge-20261006.json)。
+shift製作やtable SWAP/QUICK_MOVEはこの区切りで完了としない。
+
+元の新版runでは3ケース通過後、4番目のClientを起動する前にRCON待機がtimeoutした。
+終了時の元JVM dumpは`DimensionDataStorage`から`NbtIo`/`FileChannel.write`への保存待ちを示し、
+bounded cleanupも時間を超えて完全なreport exportは終わらなかった。ログと通信記録を保持し、
+元JVMの不在を確認してから使い捨てruntimeを`/dev/shm/voxrig-b4-result-merge`へ移した。
+ソース・consumerを変えずに新版4ケースが成功し、元JVMもexit 0となった。
+この観測だけで元timeoutの原因全体を確定はしない。
+
+最終run `trial-1.16.1-70aebfc5` / `trial-1.21.11-81322b7d`は、
+同じ436 source/data/consumer入力とbinaryで8ケース成功、両JVM exit 0、proxy errorsなし。
+最終対応一覧の表記修正も含むruntime入力を保存している。
+単体758件（8件ignored）、公開API4件、doctest30件と、fmt、all-target Clippy、
+Rust 1.85 all-target check、rustdoc warnings denied、trace境界、Cargo packageの確認も成功した。
+全体の操作テスト後の変更はCrafting capabilityの説明文だけで、最終nativeと静的・配布確認は修正文を含む。
