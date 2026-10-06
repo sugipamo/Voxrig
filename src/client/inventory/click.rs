@@ -298,7 +298,11 @@ fn prepare_inner(
             let menu = s
                 .menu_name
                 .as_deref()
-                .filter(|n| super::storage_menu(n) || *n == "minecraft:crafting")
+                .filter(|n| {
+                    super::storage_menu(n)
+                        || *n == "minecraft:crafting"
+                        || super::super::furnace::native_menu(initial.session.version, n).is_some()
+                })
                 .ok_or_else(|| unavailable("audited ordinary menu required"))?;
             if usize::from(source_slot) >= layout.total_slots {
                 return Err(crate::client::registry::invalid(
@@ -342,6 +346,13 @@ fn prepare_inner(
     let source_before =
         received_value(slots.get(usize::from(source_slot)).and_then(Option::as_ref))?;
     let cursor_before = received_value(initial.inventory.cursor.as_ref())?;
+    super::super::furnace::validate_fuel(
+        initial.session.version,
+        menu,
+        usize::from(source_slot),
+        &cursor_before.value,
+        registries.as_ref(),
+    )?;
     let has_data = [&source_before, &cursor_before].iter().any(|v| {
         matches!(&v.value, SlotKnowledge::Item {item} if item.data != crate::client::ItemData::Default)
     });

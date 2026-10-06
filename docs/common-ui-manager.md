@@ -57,5 +57,6 @@ pendingの個別disconnectはerrorで、接続callerの取消かshutdownを使�
 途中でshutdown callerを取消した場合も未完了entryは保持し、明示的な次のshutdownで終了を続けられる。
 単なるmanagerのdropはshutdownではない。event集約・自動reconnect・版固有metrics/cache共有は未統合。
 
-この変更はA5のscoreboardとmanager部分で、かまど基本slot操作・実乗車状態と下車は引き続きA5の必須作業。
+この変更はA5のscoreboardとmanager部分。[かまど基本slot操作](common-furnaces.md)も接続したが、
+実乗車状態と下車は引き続きA5の必須作業。
 A5全体やより広いUI・vehicle・manager統合の完了とは扱わない。

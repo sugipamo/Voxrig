@@ -387,6 +387,19 @@ fn native_menu(version: MinecraftVersion, id: i32) -> Option<NativeMenu> {
             })
             .collect();
     }
+    if let Some(furnace) =
+        super::furnace::native_menu(version, &menu.name).filter(|m| m.native_id == id)
+    {
+        menu.total_slots = Some(furnace.total_slots);
+        menu.player_slots = furnace
+            .player_slots
+            .iter()
+            .map(|m| NativePlayerSlot {
+                screen_slot: m.screen_slot,
+                raw_player_slot: m.raw_player_slot,
+            })
+            .collect();
+    }
     Some(menu)
 }
 

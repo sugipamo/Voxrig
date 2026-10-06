@@ -85,6 +85,9 @@ legacyのdimension codecは個別entryも取得できる。新旧とも未受信
 かまど操作は`WindowClickSequence { window_id, close_window_after: false, clicks }`を
 `dispatch_window_clicks(context, sequence)`へ渡します。input/fuel/outputをどこへ置くかは利用側の計画です。
 旧phaseはclientのdispatchで使われていませんでした。利用側がphaseを追跡する必要がある場合は利用側に保持します。
+共通Clientでは`furnace_state()`／`FurnaceSlot`と、mode handleの`open_container`・
+`click_inventory`・`close_container`を使用します。native window/menu ID・player offsetを利用側で分岐せず、
+精錬結果は実output受信で確認します。詳しい条件は[共通かまど操作](common-furnaces.md)を参照。
 
 `WindowPrediction`はserver受信値ではありません。既存のcache予測の契約を維持しますが、
 ackやcache更新だけを目的達成の証拠にしないでください。

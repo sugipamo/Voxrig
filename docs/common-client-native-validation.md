@@ -403,6 +403,34 @@ proxyエラーなしを確認した。両版は同時起動していない。
 
 生成ごとのmixed-version／registry分離、接続取消・shutdown中のpending transport閉鎖は
 両版の軽量TCP fixtureで検査する。異なる版のJVMを同時に起動した証拠ではない。
-これはA5のscoreboardとmanager部分の検証で、かまどslot・実乗車／下車は引き続き必須作業。
+これはA5のscoreboardとmanager部分の検証。かまどslotの検証は次節に記載し、実乗車／下車は引き続き必須作業。
 number formatの3種と任意displayの保存はcodec単体試験で確認し、実サーバーで全表示形式を
 操作したとは扱わない。契約は[基本UIとmanager](common-ui-manager.md)を参照。
+
+## A5のかまど基本slot操作
+
+```bash
+CARGO_INCREMENTAL=0 python3 scripts/run_common_native.py --all --scenario furnace --accept-eula --runtime-dir /dev/shm/voxrig-a5-furnace
+```
+
+各版・各modeで一つのClientから、同じAPIで通常のかまどを開き、fuelを先に入れ、
+iron oreを置き、新しいiron ingotの実受信を待ち、取り出してplayer在庫へ戻し、close・切断する。
+各clickのsource/cursorとlegacy実reply、同じsession/opening、6件のPICKUP frameを確認する。
+初期fixture後はRCONで編集せず、燃焼中のblock、材料→結果、空になったかまどと在庫の
+iron ingot 1個、位置不変を独立確認する。closeは送信結果でありscreen echoを捏造しない。
+close後の古いscreenへの操作が追加clickを発生させないことも確認する。
+
+2026-10-06の成功runは`trial-1.16.1-5cda8b49`と`trial-1.21.11-d06e282f`。
+同じ407個のsource/data/consumer/driver入力と同じbinary、両mode成功、両JVM exit 0、proxyエラーなし。
+溶鉱炉・燻製器を含む39-slot topology、vanilla燃料判定・bucket容量、24 block state・
+144 native clipは、別の公式JAR observerへ照合している。特殊レシピ・XP・燃焼時間の予測や
+custom datapack semanticsをこのlive試験で検証したとは扱わない。
+
+先行の`trial-1.16.1-d4042a9c`は周辺geometry受信前のopenで停止し、読み取り専用の
+狙い判定を待ってから一度だけ開く試験へ修正した。`trial-1.21.11-d16fce76`はSurvival成功後の
+Creative fixtureに以前の燃焼時間が残ったため失敗した。元受信の二回目のopeningにも
+正のnative燃焼propertyが残っていた。各mode前にblock entityを作り直してから再検証し、
+両失敗runの記録も保持する。契約は[共通かまど操作](common-furnaces.md)を参照。
+
+この変更の回帰検査では単体699件（8件ignored）、公開API2件、doctest26件、
+all-target Clippy `-D warnings`、Rust 1.85.0のlib checkが成功した。

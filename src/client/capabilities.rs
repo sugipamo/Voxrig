@@ -125,7 +125,7 @@ impl Capabilities {
                 "regular OPEN_WINDOW screens and constructor-verified storage/crafting layouts; lossless modern component boundaries, common custom metadata and effective scalar item properties; general component semantics and special entity windows remain incomplete",
             ),
             Feature::Containers => Support::Restricted(
-                "empty-hand audited storage/crafting-table activation with distinct dispatch/OPEN/full/cursor/modern processing facts; opening-bound close with observed resolved-data cursor return; constructor-verified ordinary slots; SWAP/QUICK_MOVE remain storage/player only; general UI/special clicks and unresolved item semantics remain incomplete",
+                "empty-hand audited storage/crafting-table/furnace-family activation with distinct dispatch/OPEN/full/cursor/modern processing facts; opening-bound close with observed resolved-data cursor return; constructor-verified ordinary slots and furnace PICKUP roles with received native fuel-tag guard/bucket capacity/output refusal; SWAP/QUICK_MOVE remain storage/player only; smelting/XP prediction, custom fuel rules and other special windows remain incomplete",
             ),
             Feature::SurvivalMovement | Feature::CreativeMovement => Support::Restricted(
                 "1..120 dry walking/jump ticks with released-rest endpoint; retained intent/failure; predicted completion is not received acceptance",

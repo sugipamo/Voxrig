@@ -455,7 +455,7 @@ def outer_snbt_compounds(response):
 
 
 def stage(probe, messages, name, records, timeout=30, poll=None):
-    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready", "a2_ready", "a4_ready", "a4_captured", "a5_ui_ready"):
+    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready", "a2_ready", "a4_ready", "a4_captured", "a5_ui_ready", "a5_furnace_ready"):
         probe.stdin.write(name + "\n")
         probe.stdin.flush()
     deadline = time.monotonic() + timeout
@@ -475,6 +475,70 @@ def stage(probe, messages, name, records, timeout=30, poll=None):
             print("native", name, "received", flush=True)
             return record
     raise TimeoutError("probe stage timed out: " + name)
+
+
+def run_furnace(version, env, rcon, trace, report, probe_log, stderr_log):
+    """A5 common slots: native fuel-first input, real smelting, output, close.
+    After baseline all RCON commands are read-only, and JVMs stay sequential.
+    """
+    results=report['native_results']['furnace']={}
+    def items(command, expected):
+        raw=rcon.command(command);stacks=outer_snbt_compounds(raw)
+        if len(stacks)!=len(expected):return None
+        for slot,(item,count) in expected.items():
+            if not any(re.search(rf'Slot: {slot}b(?:,|\s|}})',stack)
+                and f'id: "minecraft:{item}"' in stack
+                and re.search(rf'(?:Count|count): {count}(?:b)?(?:,|\s|}})',stack) for stack in stacks):return None
+        return raw
+    for mode in ('survival','creative'):
+        until(lambda: matched(rcon.command('execute unless entity @a[name=UnifiedProbe]'),'Test passed'))
+        result=results[mode]={'fixture':{},'records':[]}
+        for command in ['setblock 0 65 1 minecraft:air','setblock 0 65 2 minecraft:air','setblock 0 65 2 minecraft:furnace[facing=north,lit=false]']:
+            result['fixture'][command]=rcon.command(command)
+        probe=subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')],cwd=REPO,
+            env=dict(env,VOXRIG_NATIVE_SCENARIO='furnace',VOXRIG_NATIVE_MODE=mode),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
+        messages=queue.Queue();reader=threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True);reader.start()
+        try:
+            stage(probe,messages,'a5_furnace_ready',result['records'])
+            commands=['gamemode '+mode+' UnifiedProbe','tp UnifiedProbe 0.5 65 0.5 0 30','clear UnifiedProbe']
+            for slot,item in [('inventory.0','coal'),('inventory.1','iron_ore')]:
+                commands.append(f'replaceitem entity UnifiedProbe {slot} minecraft:{item} 1' if version=='1.16.1' else f'item replace entity UnifiedProbe {slot} with minecraft:{item} 1')
+            for command in commands:result['fixture'][command]=rcon.command(command)
+            baseline=stage(probe,messages,'a5_furnace_baseline',result['records'])['value']
+            result['native_before']=until(lambda:items('data get entity UnifiedProbe Inventory',{9:('coal',1),10:('iron_ore',1)}))
+            result['position_before']=rcon.command('data get entity UnifiedProbe Pos')
+            boundary=trace.mark()
+            opened=stage(probe,messages,'a5_furnace_open',result['records'])['value']
+            loaded=stage(probe,messages,'a5_furnace_load',result['records'])['value']
+            result['native_input']=until(lambda:items('data get block 0 65 2 Items',{0:('iron_ore',1)}))
+            result['native_running']=until(lambda:matched(rcon.command('execute if block 0 65 2 minecraft:furnace[lit=true]'),'Test passed'))
+            output=stage(probe,messages,'a5_furnace_output',result['records'],timeout=40)['value']
+            result['native_output']=until(lambda:items('data get block 0 65 2 Items',{2:('iron_ingot',1)}))
+            taken=stage(probe,messages,'a5_furnace_take',result['records'])['value']
+            result['native_after']=until(lambda:items('data get entity UnifiedProbe Inventory',{11:('iron_ingot',1)}))
+            result['native_empty']=until(lambda:items('data get block 0 65 2 Items',{}))
+            result['position_after']=rcon.command('data get entity UnifiedProbe Pos')
+            if result['position_after']!=result['position_before']:raise RuntimeError('furnace slot workflow moved player')
+            closed=stage(probe,messages,'a5_furnace_close',result['records'])['value']
+            furnace_id=opened['furnace']['screen']['id'];session=baseline['session']
+            if any(v['session']!=session or v['screen']['id']!=furnace_id for v in [opened['furnace'],loaded['furnace'],output,taken['furnace']]):raise RuntimeError('furnace workflow changed session/opening')
+            frames=trace.since(boundary);click_id=0x09 if version=='1.16.1' else 0x11
+            clicks=[f for f in frames if f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==click_id]
+            if len(clicks)!=6:raise RuntimeError('expected exactly six furnace PICKUP frames, got '+str(len(clicks)))
+            for f in clicks:
+                body=bytes.fromhex(f['body_hex']);window,width=PacketTraceProxy.varint(body) if version!='1.16.1' else (body[0],1)
+                if window!=furnace_id['window']:raise RuntimeError('furnace click used another window')
+            result['operation_frames']=frames
+            result['authority_limits']='Same public consumer/Client per mode: constructor-derived slots, four fresh load click receipts, native burning and iron_ore->iron_ingot, two fresh output/store receipts, exactly six PICKUP frames, independent RCON inventory/furnace contents and unchanged position. Close dispatch does not forge a screen echo; old opening cannot emit another click. Fuel is loaded before input so it remains receivable. Concurrent smelting changes may require inspection; no automatic retry, cook-time/XP forecast or recipe planning.'
+            trace.expect_disconnect();stage(probe,messages,'a5_furnace_disconnect',result['records'])
+            probe.wait(timeout=10);reader.join(timeout=2)
+            if probe.returncode!=0 or reader.is_alive():raise RuntimeError('furnace probe failed at disconnect')
+            result['result']='passed'
+        finally:
+            if probe.poll() is None:
+                probe.terminate()
+                try:probe.wait(timeout=10)
+                except subprocess.TimeoutExpired:probe.kill();probe.wait(timeout=5)
 
 
 def run_basic_workflow(version, env, rcon, trace, report, probe_log, stderr_log):
@@ -966,6 +1030,10 @@ network-compression-threshold=256
         for check in ["execute if block 0 65 1 minecraft:stone", "execute if block 1 65 0 minecraft:air"]:
             report.setdefault("fixture_verification", {})[check] = until(lambda: matched(rcon.command(check), "Test passed"))
         env = dict(os.environ, VOXRIG_MINECRAFT_VERSION=version, VOXRIG_PORT=str(trace.port))
+        if scenario == "furnace":
+            run_furnace(version,env,rcon,trace,report,probe_log,stderr_log)
+            report["scenario_result"]="passed"
+            return retained
         if scenario == "manager-ui":
             run_manager_ui(version,env,rcon,trace,report,probe_log,stderr_log)
             report["scenario_result"]="passed"
@@ -2027,7 +2095,7 @@ def main():
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--accept-eula", action="store_true")
     parser.add_argument("--runtime-dir", type=Path, help="Optional disposable runtime parent, e.g. /dev/shm for isolating disk I/O; reports are exported to .local after JVM exit")
-    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "recording-scene", "manager-ui"), default="full", help="Run the operation corpus or a focused A1-A5 workflow")
+    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "recording-scene", "manager-ui", "furnace"), default="full", help="Run the operation corpus or a focused A1-A5 workflow")
     args = parser.parse_args()
     if bool(args.version) == args.all:
         parser.error("select exactly one of --version / --all")

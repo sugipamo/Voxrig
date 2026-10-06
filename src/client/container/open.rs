@@ -125,6 +125,9 @@ fn menu(state: &NativeBlockState) -> Result<&'static str> {
         "minecraft:hopper" => Ok("minecraft:hopper"),
         "minecraft:dispenser" | "minecraft:dropper" => Ok("minecraft:generic_3x3"),
         "minecraft:crafting_table" => Ok("minecraft:crafting"),
+        "minecraft:furnace" => Ok("minecraft:furnace"),
+        "minecraft:blast_furnace" => Ok("minecraft:blast_furnace"),
+        "minecraft:smoker" => Ok("minecraft:smoker"),
         _ => Err(crate::client::inventory::unavailable(
             "native container opening not implemented",
         )),

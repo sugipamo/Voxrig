@@ -31,8 +31,10 @@
   操作ID・Clientを復元しない。詳細は[記録・再生・scene](common-recording-scenes.md)。
 - A5作業中: 共通scoreboard観測とClientManagerを実装し、両版で2つの接続の値更新・owner reset・
   objective削除・manager終了を確認した。生成ごとの版／registry分離と接続取消は軽量TCP試験で確認する。
-  かまどの基本slot操作と実乗車状態／下車が残る。詳細は[基本UIとmanager](common-ui-manager.md)。
-- 次はA5のかまど・vehicle。A5〜A6とBは未完了で、全統合完了とは扱わない。
+  かまどのconstructor由来のslot観測・PICKUP・燃料tag検査・開閉も接続した。
+  両版・両modeの精錬workflowを検証し、実乗車状態／下車を次に進める。
+  詳細は[基本UIとmanager](common-ui-manager.md)と[共通かまど操作](common-furnaces.md)。
+- 次はA5のvehicle。A5〜A6とBは未完了で、全統合完了とは扱わない。
   ownedレシピブック配置の未検証変更は退避したまま、Bまで復元しない。
 
 ## 選択と公開入口
@@ -178,7 +180,8 @@ A5の代表例は初回貫通用であり、すべての特殊windowやentity／
 | checked拡張・assumed scene・仮想編集/連鎖・広い再構成 | 共通契約は未完了 | 版固有拡張 | PR #7の機能を維持し、Bで拡大。re-exportだけで両版対応としない |
 | entity spawn寿命・一回のINTERACT／ATTACK | 共通・限定条件 | 共通・限定条件 | A2で装備→攻撃→削除拒否→村人interactionを確認。現在のmotion/metadata・INTERACT_ATはB |
 | scoreboard観測・ClientManager生成／取得／終了 | 共通・限定条件 | 共通・限定条件 | A5の一部を実装・検証。managerのmixed-version分離は軽量fixtureで確認 |
-| 特殊window・vehicle・その他UI／manager | 未共通化 | 未共通化 | A5のかまどslot・実乗車／下車が残る。広い対応はB |
+| かまどslot観測・通常PICKUP・開閉 | 共通・限定条件 | 共通・限定条件 | A5の基本かまど精錬flow。溶鉱炉／燻製器はconstructor/slot規則の確認で、特殊レシピのlive検証は残る |
+| vehicle・その他特殊window／UI／manager | 未共通化 | 未共通化 | A5の実乗車／下車が残る。広い対応はB |
 | ownedレシピブック配置 | 未公開 | 未公開 | 読み取り専用planを維持し、送信はBへ残す |
 
 A1の固定fixtureはstone床、空のsingle chest、oak planks 2個、収納用stone 2個、

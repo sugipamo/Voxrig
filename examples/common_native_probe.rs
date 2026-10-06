@@ -3576,6 +3576,195 @@ async fn equipment_entity_probe(client: &Client) -> anyhow::Result<()> {
     anyhow::bail!("A2 controller ended without disconnect")
 }
 
+async fn furnace_probe(client: &Client) -> anyhow::Result<()> {
+    use voxrig::client::ValueSource;
+    let mode = if std::env::var("VOXRIG_NATIVE_MODE").as_deref() == Ok("survival") {
+        GameMode::Survival
+    } else {
+        GameMode::Creative
+    };
+    emit("a5_furnace_ready", client.connection_identity().await?)?;
+    let mut lines = BufReader::new(tokio::io::stdin()).lines();
+    let mut opening = None;
+    let mut load_sequence = 0;
+    while let Some(command) = lines.next_line().await? {
+        match command.as_str() {
+            "a5_furnace_baseline" => {
+                let player = wait_player(client, |p| p.game_mode == Some(mode)
+                    && p.received_pose.as_ref().is_some_and(|pose| pose.position == [0.5,65.0,0.5])
+                    && p.inventory.slots[9].as_ref().is_some_and(|s| matches!(&s.value,SlotKnowledge::Item{item} if item.name=="minecraft:coal" && item.count==1))
+                    && p.inventory.slots[10].as_ref().is_some_and(|s| matches!(&s.value,SlotKnowledge::Item{item} if item.name=="minecraft:iron_ore" && item.count==1))).await?;
+                wait_block(client, [0, 65, 2], "minecraft:furnace").await?;
+                match mode {
+                    GameMode::Survival => {
+                        client.survival().select_hotbar(0).await?;
+                        client.survival().look([0., 30.]).await?;
+                    }
+                    _ => {
+                        client.creative().select_hotbar(0).await?;
+                        client.creative().look([0., 30.]).await?;
+                    }
+                }
+                tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let query = match mode {
+                            GameMode::Survival => client.survival().target_block(4.5).await,
+                            _ => client.creative().target_block(4.5).await,
+                        };
+                        if query.is_ok_and(|q| q.hit.is_some_and(|h| h.position == [0, 65, 2])) {
+                            return Ok::<_, anyhow::Error>(());
+                        }
+                        tokio::time::sleep(Duration::from_millis(50)).await;
+                    }
+                })
+                .await??;
+                anyhow::ensure!(client.furnace_state().await?.is_none());
+                emit(&command, player)?;
+            }
+            "a5_furnace_open" => {
+                match mode {
+                    GameMode::Survival => {
+                        client.survival().open_container([0, 65, 2]).await?;
+                    }
+                    _ => {
+                        client.creative().open_container([0, 65, 2]).await?;
+                    }
+                }
+                let opened = wait_container_open(client).await?;
+                let furnace = client
+                    .furnace_state()
+                    .await?
+                    .context("received furnace missing")?;
+                anyhow::ensure!(
+                    opened.observed_screen.as_ref().map(|s| s.id) == Some(furnace.screen().id)
+                );
+                anyhow::ensure!(
+                    furnace.screen().slots.len() == 39
+                        && furnace.screen().full_contents_sequence.is_some()
+                );
+                opening = Some(furnace.screen().id);
+                emit(
+                    &command,
+                    serde_json::json!({"opening":opened,"furnace":furnace}),
+                )?;
+            }
+            "a5_furnace_load" => {
+                let furnace = client.furnace_state().await?.context("furnace closed")?;
+                let map = |slot| -> anyhow::Result<u16> {
+                    Ok(furnace
+                        .screen()
+                        .layout
+                        .as_ref()
+                        .unwrap()
+                        .player_slots
+                        .iter()
+                        .find(|m| m.player_slot == slot)
+                        .context("furnace player mapping missing")?
+                        .screen_slot as u16)
+                };
+                let player_source = InventorySource::Container {
+                    screen: furnace.screen().id,
+                };
+                let mut clicks = Vec::new();
+                // Fuel first: without input it remains receivable in the slot.
+                // A running furnace can consume a deposited stack before a full receipt.
+                for (source, slot) in [
+                    (player_source, map(9)?),
+                    furnace.slot_source(FurnaceSlot::Fuel),
+                    (player_source, map(10)?),
+                    furnace.slot_source(FurnaceSlot::Input),
+                ] {
+                    let click =
+                        crafting_pickup(client, mode, source, slot, InventoryClickButton::Left)
+                            .await?;
+                    load_sequence = click.send.after_sequence;
+                    clicks.push(click);
+                }
+                emit(
+                    &command,
+                    serde_json::json!({"clicks":clicks,"furnace":client.furnace_state().await?}),
+                )?;
+            }
+            "a5_furnace_output" => {
+                let furnace=tokio::time::timeout(Duration::from_secs(30),async {
+                    loop {
+                        let f=client.furnace_state().await?.context("furnace missing during smelting")?;
+                        if f.slot(FurnaceSlot::Output).is_some_and(|s| matches!(&s.value,SlotKnowledge::Item{item} if item.name=="minecraft:iron_ingot" && item.count==1)
+                            && matches!(s.source,ValueSource::Received{sequence} if sequence>load_sequence))
+                            && f.slot(FurnaceSlot::Input).is_some_and(|s|s.value==SlotKnowledge::Empty) { return Ok::<_,anyhow::Error>(f); }
+                        tokio::time::sleep(Duration::from_millis(50)).await;
+                    }
+                }).await??;
+                anyhow::ensure!(Some(furnace.screen().id) == opening);
+                emit(&command, furnace)?;
+            }
+            "a5_furnace_take" => {
+                let furnace = client.furnace_state().await?.context("furnace missing")?;
+                let (source, slot) = furnace.slot_source(FurnaceSlot::Output);
+                let taken =
+                    crafting_pickup(client, mode, source, slot, InventoryClickButton::Left).await?;
+                anyhow::ensure!(
+                    taken.source_receipt.as_ref().unwrap().value == SlotKnowledge::Empty
+                );
+                let destination = furnace
+                    .screen()
+                    .layout
+                    .as_ref()
+                    .unwrap()
+                    .player_slots
+                    .iter()
+                    .find(|m| m.player_slot == 11)
+                    .unwrap()
+                    .screen_slot as u16;
+                let stored = crafting_pickup(
+                    client,
+                    mode,
+                    source,
+                    destination,
+                    InventoryClickButton::Left,
+                )
+                .await?;
+                anyhow::ensure!(
+                    stored.cursor_receipt.as_ref().unwrap().value == SlotKnowledge::Empty
+                );
+                emit(
+                    &command,
+                    serde_json::json!({"clicks":[taken,stored],"furnace":client.furnace_state().await?,"player":client.player_state().await?}),
+                )?;
+            }
+            "a5_furnace_close" => {
+                let id = opening.context("opening missing")?;
+                let closed = match mode {
+                    GameMode::Survival => client.survival().close_container(id).await?,
+                    _ => client.creative().close_container(id).await?,
+                };
+                anyhow::ensure!(closed.dispatched && client.furnace_state().await?.is_none());
+                let stale = InventorySource::Container { screen: id };
+                anyhow::ensure!(match mode {
+                    GameMode::Survival => client
+                        .survival()
+                        .click_inventory(stale, 2, InventoryClickButton::Left)
+                        .await
+                        .is_err(),
+                    _ => client
+                        .creative()
+                        .click_inventory(stale, 2, InventoryClickButton::Left)
+                        .await
+                        .is_err(),
+                });
+                emit(&command, closed)?;
+            }
+            "a5_furnace_disconnect" => {
+                client.disconnect().await?;
+                emit(&command, true)?;
+                return Ok(());
+            }
+            _ => anyhow::bail!("unexpected furnace stage {command}"),
+        }
+    }
+    anyhow::bail!("furnace controller stopped before disconnect")
+}
+
 async fn manager_ui_probe(config: ConnectionConfig) -> anyhow::Result<()> {
     let manager = ClientManager::new(2)?;
     let primary = manager.connect("primary", config.clone()).await?;
@@ -3880,6 +4069,9 @@ async fn main() -> anyhow::Result<()> {
     client.wait_until_ready().await?;
     if scenario.as_deref() == Some("recording-scene") {
         return recording_scene_probe(&client).await;
+    }
+    if scenario.as_deref() == Some("furnace") {
+        return furnace_probe(&client).await;
     }
     if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("equipment-entity") {
         return equipment_entity_probe(&client).await;

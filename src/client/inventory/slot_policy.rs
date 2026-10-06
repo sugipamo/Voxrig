@@ -65,6 +65,7 @@ pub(super) fn regular_slot(
         .and_then(|m| m.slots.iter().find(|s| s.slot == index))
         .and_then(|s| profiles.slot_policies.get(s.policy))
         .or_else(|| crate::client::crafting::regular_slot(version, menu, index))
+        .or_else(|| crate::client::furnace::regular_slot(version, menu, index))
         .ok_or_else(|| unavailable("native ordinary slot policy unavailable; update Voxrig"))
 }
 /// Original native default-stack capacity, tied to both registry ID and name.
@@ -206,7 +207,10 @@ fn pickup_inner(
         }
         (_, SlotKnowledge::Item { item: incoming }) => {
             let may_place = !slot.rejected_default_items.contains(&incoming.name);
-            let capacity = slot.base_capacity.min(cursor_max.expect("validated item"));
+            let capacity =
+                crate::client::furnace::capacity(version, menu_name, source_slot, &incoming.name)
+                    .unwrap_or(slot.base_capacity)
+                    .min(cursor_max.expect("validated item"));
             match source {
                 SlotKnowledge::Empty if may_place => {
                     let take = incoming.count.min(if right { 1 } else { capacity });

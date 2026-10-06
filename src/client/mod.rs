@@ -8,6 +8,7 @@ pub mod crafting;
 pub(crate) mod enchantments;
 pub(crate) mod entity;
 pub(crate) mod fraction;
+pub mod furnace;
 mod geometry;
 mod hash_ops;
 pub(crate) mod identifier;
@@ -17,6 +18,7 @@ pub(crate) mod item_components;
 pub(crate) mod item_constructor;
 pub(crate) mod item_semantics;
 pub(crate) mod login;
+pub use furnace::{FurnaceObservation, FurnaceSlot};
 pub mod manager;
 pub use manager::ClientManager;
 pub mod nbt;
@@ -101,12 +103,13 @@ pub mod prelude {
         Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,
         CraftingGridReturnPlan, CraftingGridReturnStep, CraftingGridUnreturnedSplit,
         CraftingSource, CraftingTakeId, CraftingTakeRecord, CraftingTakeStage, Creative, EntityId,
-        EntitySpawn, EntitySpawns, Feature, GameMode, ItemComponent, ItemComponentPatch, ItemData,
-        ItemProperties, ItemStack, PlayerObservation, ReceivedCrafting, ReceivedCraftingContext,
-        ReceivedInventory, ReceivedItem, ReceivedRecipe, ReceivedRecipes, ReceivedSlot,
-        RecipeBookMaterials, RecipeBookStock, RecipeCraftingCell, RecipeCraftingLayout,
-        RecipeDisplay, RecipeId, RecipeIngredient, RecipePlacementAmount, RecipePlacementPlan,
-        RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern, Server, Support, Survival,
+        EntitySpawn, EntitySpawns, Feature, FurnaceObservation, FurnaceSlot, GameMode,
+        ItemComponent, ItemComponentPatch, ItemData, ItemProperties, ItemStack, PlayerObservation,
+        ReceivedCrafting, ReceivedCraftingContext, ReceivedInventory, ReceivedItem, ReceivedRecipe,
+        ReceivedRecipes, ReceivedSlot, RecipeBookMaterials, RecipeBookStock, RecipeCraftingCell,
+        RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient, RecipePlacementAmount,
+        RecipePlacementPlan, RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern, Server,
+        Support, Survival,
     };
     pub use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Region, Result};
 }
