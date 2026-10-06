@@ -5,7 +5,7 @@
 //! predicted frames never establish a received position or server tick.
 
 /// Digital walking input for one predicted native game tick, without sprint/sneak.
-#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SurvivalInput {
     /// -1 backwards, 0 released, 1 forwards.
     pub forward: i8,
@@ -15,7 +15,7 @@ pub struct SurvivalInput {
     pub jump: bool,
 }
 /// One native tick's heading and digital input. Route selection belongs to the caller.
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SurvivalControl {
     /// Native body yaw in degrees.
     pub yaw: f32,
@@ -43,7 +43,7 @@ pub struct MotionPreview {
     pub terminal_clearance: TerminalClearance,
 }
 /// A simulated player frame, never a received pose or permission to build.
-#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PredictedMotionFrame {
     /// Tick count from the preview's initial context, not server time.
     pub tick: u16,
@@ -59,7 +59,7 @@ pub struct PredictedMotionFrame {
     pub resting: bool,
 }
 /// An adapter model's endpoint assessment, separate from received outcomes.
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum TerminalClearance {
     /// The model reports resting support and a margin from solid walls.
@@ -75,7 +75,7 @@ pub enum TerminalClearance {
 }
 
 /// No phase means server-confirmed stopped motion.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MotionStatus {
     /// The bounded input sequence is being dispatched at native tick spacing.

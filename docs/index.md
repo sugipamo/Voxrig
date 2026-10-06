@@ -60,3 +60,5 @@
 - [物理実装完了報告](history/physics-completion-report.md)
 - [サバイバルロードマップ](history/survival-roadmap.md)
 - [サバイバル実装完了報告](history/survival-completion-report.md)
+
+Read-only caller assumptions: [assumed survival scenes](assumed-survival-scenes.md).

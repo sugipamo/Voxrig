@@ -4,15 +4,22 @@ mod endpoint;
 mod scenario;
 use super::geometry::GeometryView;
 use super::*;
+use crate::diagnostic_projection::diagnostic_record;
 pub(super) use control::standing_basis;
+pub use control::{RecordedSurvivalMotionRecheck, RecordedSurvivalMotionRecord};
 pub use control::{
     StandingPositionBasis, SurvivalMotionContract, SurvivalMotionRecheck, SurvivalMotionRecord,
     SurvivalMotionStatus,
 };
 pub use scenario::{
-    CapturedSurvivalScene, HypotheticalAimRequirement, HypotheticalBlockEdit,
-    HypotheticalMovementPreview, HypotheticalPlacement, HypotheticalReconnectBoundary,
-    SurvivalScenario,
+    AssumedSurvivalScene, AssumedSurvivalStart, CapturedSurvivalScene, HypotheticalAimRequirement,
+    HypotheticalBlockEdit, HypotheticalMovementPreview, HypotheticalPlacement,
+    HypotheticalReconnectBoundary, HypotheticalSceneSource, SurvivalScenario,
+};
+pub use scenario::{
+    RecordedHypotheticalAimRequirement, RecordedHypotheticalBlockEdit,
+    RecordedHypotheticalMovementPreview, RecordedHypotheticalPlacement,
+    RecordedHypotheticalReconnectBoundary, RecordedHypotheticalSceneSource,
 };
 
 pub use crate::client::survival::{
@@ -28,21 +35,24 @@ fn fixed_controls(yaw: f32, inputs: &[SurvivalInput]) -> Result<Vec<SurvivalCont
         .map(|input| SurvivalControl { yaw, input: *input })
         .collect())
 }
-/// Read-only simulation against one received world snapshot. Not a reusable plan.
-#[derive(Clone, Debug, Serialize)]
-pub struct SurvivalMovementPreview {
-    /// Received starting posture, attributes and world revision.
-    pub initial: StandingContext,
-    /// Initial model frame (tick zero), distinguishing received reset from rest.
-    pub initial_frame: PredictedMotionFrame,
-    /// World generation of the starting context.
-    pub generation: u64,
-    /// Exact per-tick heading and input; no packets were sent.
-    pub controls: Vec<SurvivalControl>,
-    /// Predicted frames. The world itself is not advanced into the future.
-    pub frames: Vec<PredictedMotionFrame>,
-    /// Prospective terminal clearance; does not authorize later sends.
-    pub terminal_clearance: TerminalClearance,
+diagnostic_record! {
+    /// Read-only simulation against one received world snapshot. Not a reusable plan.
+    #[derive(Clone, Debug, Serialize)]
+    pub struct SurvivalMovementPreview => RecordedSurvivalMovementPreview {
+        /// Received starting posture, attributes and world revision.
+        pub initial: StandingContext,
+        /// Initial model frame (tick zero), distinguishing received reset from rest.
+        pub initial_frame: PredictedMotionFrame,
+        /// World generation of the starting context.
+        pub generation: u64,
+        /// Exact per-tick heading and input; no packets were sent.
+        pub controls: Vec<SurvivalControl>,
+        /// Predicted frames. The world itself is not advanced into the future.
+        pub frames: Vec<PredictedMotionFrame>,
+        /// Prospective terminal clearance; does not authorize later sends.
+        pub terminal_clearance: TerminalClearance,
+    }
+    diagnostic_serde {}
 }
 const TERMINAL_MARGIN: f64 = 1.0 / 16.0;
 fn terminal_clearance(state: &impl GeometryView, frame: &PredictedMotionFrame) -> Result<()> {

@@ -75,7 +75,7 @@ pub enum MiningProtocolObservation {
     },
 }
 /// First received inventory prerequisite that changed during an attempt.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MiningInventoryChangeKind {
     /// Selected hand or its ordered provenance changed.

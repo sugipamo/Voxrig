@@ -4556,7 +4556,6 @@ impl Bot {
                                 .context("coherent observation sequence exhausted")?;
                         }
                         let _ = request.reply.send(result);
-                        continue;
                     }
                     request = traversal_movement_facts_requests.recv() => {
                         let Some(request) = request else {
@@ -4574,9 +4573,21 @@ impl Bot {
                                 .context("coherent observation sequence exhausted")?;
                         }
                         let _ = request.reply.send(result);
-                        continue;
                     }
                     packet = &mut packet_read => break packet.context("play packet timed out")?,
+                }
+                // Give the same packet read (and its deadline) one poll after
+                // each capture, without letting a packet backlog starve captures.
+                tokio::select! {
+                    biased;
+                    _ = self.cancel.notified() => return Ok(()),
+                    packet = std::future::poll_fn(|cx| {
+                        std::task::Poll::Ready(std::future::Future::poll(packet_read.as_mut(), cx))
+                    }) => {
+                        if let std::task::Poll::Ready(packet) = packet {
+                            break packet.context("play packet timed out")?;
+                        }
+                    }
                 }
             };
             let (id, p) = packet?;
@@ -6931,6 +6942,7 @@ mod tests {
     };
 
     include!("client/packet_deadline_tests.rs");
+    include!("client/packet_fairness_tests.rs");
     include!("client/storage_tests.rs");
 
     struct CountingRead<R> {

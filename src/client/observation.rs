@@ -3,7 +3,7 @@ use super::registry::{Registry, RegistryId};
 use crate::{MinecraftVersion, Result};
 
 /// Received game mode. Choosing an operations handle does not change it.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum GameMode {
     /// Ordinary survival mode.
@@ -61,23 +61,31 @@ pub struct ObservedValue<T> {
     /// Where the value came from.
     pub source: ValueSource,
 }
+crate::diagnostic_projection::diagnostic_record! {
 /// A complete encoded value of one native item data component.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
-pub struct ItemComponent {
+pub struct ItemComponent => RecordedItemComponent {
     /// Exact version-bound type, distinct from item or block-state identity.
     pub definition: super::registry::ItemComponentDefinition,
     /// Native value bytes, excluding the type ID. Empty is valid for unit components.
     pub bytes: Vec<u8>,
 }
+    diagnostic_serde {}
+}
+
+crate::diagnostic_projection::diagnostic_record! {
 /// A lossless native item-component patch against the owning item's prototype.
 /// Lists retain original wire ordering; removed types are not empty values.
 #[derive(Clone, Debug, serde::Serialize)]
-pub struct ItemComponentPatch {
+pub struct ItemComponentPatch => RecordedItemComponentPatch {
     /// Added or replaced values; an empty list does not mean an empty item.
     pub added: Vec<ItemComponent>,
     /// Components explicitly removed from the native item prototype.
     pub removed: Vec<super::registry::ItemComponentDefinition>,
 }
+    diagnostic_serde {}
+}
+
 impl PartialEq for ItemComponentPatch {
     fn eq(&self, other: &Self) -> bool {
         // Native patches are maps/sets. Keep wire order for inspection without

@@ -51,6 +51,7 @@ pub mod block_state;
 pub use client::survival::checked as checked_survival;
 pub mod client;
 pub mod connection;
+mod diagnostic_projection;
 mod error;
 mod protocol;
 pub mod snapshot;

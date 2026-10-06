@@ -24,6 +24,9 @@ pub use super::{
     MAX_SURVIVAL_CONTROL_TICKS, PredictedMotionFrame, SurvivalControl, SurvivalInput,
     TerminalClearance,
 };
+/// Diagnostic-only projections; persisted data never restores checked authority.
+pub mod diagnostic;
+
 use crate::versions::java_1_21_11::operations as native;
 use crate::{
     BlockFace, Client, ConnectionConfig, MinecraftVersion, NativeBlockState, Region, Result,
@@ -33,19 +36,19 @@ use std::time::Duration;
 pub use crate::versions::java_1_21_11::players::PlayerObservations;
 
 pub use native::{
-    CapturedSurvivalScene, HypotheticalAimRequirement, HypotheticalBlockEdit,
-    HypotheticalMovementPreview, HypotheticalPlacement, HypotheticalReconnectBoundary,
-    InventorySlot, InventorySwap, InventorySwapObservation, LocalPlayerState, MiningIntent,
-    MiningInventoryChange, MiningInventoryChangeKind, MiningRecord, MiningRecoveryAttempt,
-    MiningRecoveryBoundary, MiningRecoveryEvidence, MiningRecoveryMethod, MiningRecoveryTarget,
-    MiningRetirementStatus, MiningStatus, OperationHistory, PlacementIntent, PlacementStatus,
-    PlayerState, StandingContext, StandingPositionBasis, SurvivalMotionContract,
-    SurvivalMotionRecheck, SurvivalMotionRecord, SurvivalMotionStatus, SurvivalMovementPreview,
-    SurvivalScenario,
+    AssumedSurvivalScene, AssumedSurvivalStart, CapturedSurvivalScene, HypotheticalAimRequirement,
+    HypotheticalBlockEdit, HypotheticalMovementPreview, HypotheticalPlacement,
+    HypotheticalReconnectBoundary, HypotheticalSceneSource, InventorySlot, InventorySwap,
+    InventorySwapObservation, LocalPlayerState, MiningIntent, MiningInventoryChange,
+    MiningInventoryChangeKind, MiningRecord, MiningRecoveryAttempt, MiningRecoveryBoundary,
+    MiningRecoveryEvidence, MiningRecoveryMethod, MiningRecoveryTarget, MiningRetirementStatus,
+    MiningStatus, OperationHistory, PlacementIntent, PlacementStatus, PlayerState, StandingContext,
+    StandingPositionBasis, SurvivalMotionContract, SurvivalMotionRecheck, SurvivalMotionRecord,
+    SurvivalMotionStatus, SurvivalMovementPreview, SurvivalScenario,
 };
 
 /// Versioned semantics, separate from a wire protocol number.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SurvivalContract {
     /// Bounded dry full-cube walking/jumping with independent endpoint observation,
@@ -61,7 +64,7 @@ pub enum SurvivalContract {
 }
 
 /// Static adapter support. A supported contract still checks each live action.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SurvivalCapabilities {
     /// Exact immutable wire/registry version.
     pub version: MinecraftVersion,

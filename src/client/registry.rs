@@ -9,7 +9,7 @@ pub use received::{
 };
 
 /// Registry namespace of a numeric identifier.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum RegistryKind {
     /// Complete block state, including all properties.
     BlockState,
@@ -18,13 +18,17 @@ pub enum RegistryKind {
     /// Item data component type, distinct from item and block-state IDs.
     ItemComponent,
 }
+crate::diagnostic_projection::diagnostic_record! {
 /// A validated ID whose version and namespace cannot be discarded accidentally.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
-pub struct RegistryId {
+pub struct RegistryId => RecordedRegistryId {
     version: MinecraftVersion,
     kind: RegistryKind,
     value: i32,
 }
+    diagnostic_serde {}
+}
+
 impl RegistryId {
     /// Owning wire/registry version.
     pub fn version(self) -> MinecraftVersion {
@@ -49,14 +53,18 @@ pub struct ItemDefinition {
     /// Native maximum default stack count.
     pub max_stack_size: u32,
 }
+crate::diagnostic_projection::diagnostic_record! {
 /// A native item-component type bound to its exact adapter registry.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
-pub struct ItemComponentDefinition {
+pub struct ItemComponentDefinition => RecordedItemComponentDefinition {
     /// Version and component namespace are retained with the native ID.
     pub id: RegistryId,
     /// Namespaced component name.
     pub name: String,
 }
+    diagnostic_serde {}
+}
+
 /// Read-only access to one explicitly selected registry, also usable before connecting.
 #[derive(Clone, Copy, Debug)]
 pub struct Registry {
@@ -258,3 +266,5 @@ mod tests {
         }
     }
 }
+
+crate::diagnostic_projection::identity!(RegistryKind);
