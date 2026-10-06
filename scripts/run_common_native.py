@@ -527,9 +527,31 @@ def run_dry_terrain(version, env, rcon, trace, report, probe_log, stderr_log):
                 if (current := trace.since(boundary)) else None)
             positions = [f for f in motion_frames if f['direction']=='serverbound'
                 and f['phase']=='play' and f['packet_id']==position_id]
-            if len(positions)!=44:
-                raise RuntimeError('dry terrain motion emitted unexpected full-position frames: '+str(len(positions)))
-            for actual, predicted in zip(positions, frames):
+            def fields(frame):
+                raw = bytes.fromhex(frame['body_hex'])
+                if len(raw)!=33:raise RuntimeError('dry terrain position packet length differs')
+                return (*struct.unpack('>dddff', raw[:32]), raw[32])
+            expected_fields = [(*f['position'], 0.0, 0.0, int(f['on_ground'])
+                | (int(f['horizontal_collision'])<<1 if version!='1.16.1' else 0)) for f in frames]
+            actual_fields = [fields(f) for f in positions]
+            starts = [i for i in range(len(positions)-43) if actual_fields[i:i+44]==expected_fields]
+            if len(starts)!=1 or moved['record']['dispatched_ticks']!=44:
+                raise RuntimeError('dry terrain trace lacks one complete fixed 44-frame path')
+            start = starts[0]
+            if version=='1.16.1':
+                initial = (*baseline['preview']['initial_frame']['position'],0.0,0.0)
+                if any(f[:5]!=initial or f[5] not in (0,1) for f in actual_fields[:start]) or any(
+                    f!=expected_fields[-1] for f in actual_fields[start+44:]):
+                    raise RuntimeError('legacy native idle frames changed initial/terminal position')
+            elif start!=0 or len(positions)!=44:
+                raise RuntimeError('modern dry terrain has extra full-position frames')
+            # The legacy native ground loop can emit idle position heartbeats
+            # before/after a finite run. Keep and inspect them separately; they
+            # are not counted as that run's dispatched controls or as receipts.
+            result['finite_motion_trace'] = {'matching_frames':44,
+                'first_ordinal':positions[start]['ordinal'],'last_ordinal':positions[start+43]['ordinal'],
+                'idle_before':positions[:start],'idle_after':positions[start+44:]}
+            for actual, predicted in zip(positions[start:start+44], frames):
                 body = bytes.fromhex(actual['body_hex'])
                 values = struct.unpack('>dddff', body[:32])
                 if list(values[:3])!=predicted['position'] or values[3]!=0.0 or values[4]!=0.0:
@@ -557,9 +579,21 @@ def run_dry_terrain(version, env, rcon, trace, report, probe_log, stderr_log):
             storage_frames = until(lambda: (current if any(f['direction']=='serverbound' and f['phase']=='play'
                 and f['packet_id']==(0x0a if version=='1.16.1' else 0x12) for f in current) else None)
                 if (current := trace.since(storage_boundary)) else None)
-            for packet in (0x2e,0x0a) if version=='1.16.1' else (0x3f,0x12):
+            for packet in (0x2d,0x0a) if version=='1.16.1' else (0x3f,0x12):
                 if len([f for f in storage_frames if f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==packet])!=1:
                     raise RuntimeError('dry terrain storage did not dispatch activation/close exactly once')
+            connection = positions[0]['connection']
+            peers = [f for f in trace.since(0) if f['connection']==connection
+                and f['direction']=='clientbound' and f['phase'] in ('configuration','play')]
+            original_open = peers[opening['opened_sequence']-1]
+            if original_open['packet_id']!=(0x2e if version=='1.16.1' else 0x39):
+                raise RuntimeError('dry terrain received opening ordinal refers to another native packet')
+            raw = bytes.fromhex(original_open['body_hex'])
+            window, offset = PacketTraceProxy.varint(raw)
+            menu, _ = PacketTraceProxy.varint(raw[offset:])
+            if window!=opening['window'] or menu!=2 or stored['opening']['observed_screen']['menu_name']!='minecraft:generic_9x3':
+                raise RuntimeError('dry terrain received window/menu differs from original native OPEN')
+            result['opening_source_proof'] = {k:original_open[k] for k in ('connection','ordinal','packet_id','body_sha256')}
             result['motion_frames'] = motion_frames
             result['storage_frames'] = storage_frames
             result['authority_limits'] = 'Same common consumer and one Client per mode. Actual dry slab/stair properties, 44 bounded predicted ticks, independent native final position and unchanged session through actual chest OPEN and once close. Survival captured-scene prediction also matches. Sent positions and local close are not server acknowledgements. No waterlogged, body-intersecting seed, tool/effect/posture, vehicle, flight-to-standing or arbitrary terrain support is claimed.'

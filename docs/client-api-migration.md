@@ -610,6 +610,9 @@ position decoderのlocal入力、stop時のclient frameが記録fieldに加わ�
 保存値を操作用のslot/registry/screenへ変換する移行は行わず、live Clientから新しく取得してください。
 
 限定sceneは`client.survival().capture_scene(region)`と`scene.preview_path(controls)`へ移せます。
+有限地上歩行とsceneの既存APIは、登録された乾いたstairs/slabも扱います。
+受信した全propertiesで版の元形状へ照合し、waterloggedや未知形状は拒否します。
+追加の版別分岐や新しい移動入口は不要です。範囲は[共通dry terrain](common-dry-terrain.md)を参照。
 返る共通`ScenePreview`は操作planではありません。modern専用の編集・連鎖・assumed scene等は
 従来の版固有入口を維持し、Bでより広い共通契約を検討します。
 詳細は[記録・再生・scene](common-recording-scenes.md)を参照してください。

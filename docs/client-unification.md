@@ -14,6 +14,8 @@
 - A0完了: mainのPR #6・#7を専用ブランチへ取り込んだ（`ab3b5aa`）。
   共通のcomponent付き在庫も診断recordへ元bytes・削除patch・版を保持し、
   保存データから検証済みIDや操作guardを復元しない。
+  後続のmain `b38e8b4`（PR #10の旧版generation revocation）も取り込んだ（`f05cff2`）。
+  nativeの緊急遮断を維持し、Client共通の緊急遮断入口はB5へ残す。
 - A1完了: 同じconsumerを使い、各modeで接続を変えずに観測・地上移動・収納・通常製作・
   設置・切断を両版の公式vanillaで確認した。収納後のno-echo closeから設置へ進む契約を接続し、
   Creative handleにも有限地上歩行を実装した。予測位置と受信pose、close送信と受信画面は分離する。
@@ -40,6 +42,11 @@
   Bの広い残機能は引き続き必須作業で、全統合完了とは扱わない。
   ownedレシピブック配置の未検証変更は退避したまま、Bまで復元しない。
   利用側へ返してもらう内容は[A6の確認手順](client-api-consumer-validation.md)にまとめる。
+- B3の一部完了: 乾いた登録stairs/slabを両版の有限地上歩行・立位検査・Survival sceneへ接続した。
+  同じconsumerで段差を上り、同じClientで収納の開閉と切断まで両版・両modeで確認した。
+  公式combined VoxelShapeの境界を保持し、実受信propertyから形状を選ぶ。
+  waterlogged／未知形状は拒否し、道具・effect・姿勢・広い採掘／設置・Creative飛行後の立位は残る。
+  詳細は[共通dry terrain](common-dry-terrain.md)。A6の利用側評価とBの全残機能を完了扱いにしない。
 
 ## 選択と公開入口
 
@@ -119,12 +126,13 @@ modernの既存intent・session guardも維持する。保存したreceiptは次
 
 ## ロードマップと現在地
 
-調査基準はPR #4の実装commit `24fef69`。mainには別途PR #6・#7が取り込まれ、
-`344018c`になっている。mainの機能とPR #4の共通APIを区別して評価する。
+見直し時の調査基準はPR #4の実装commit `24fef69`、当時のmainはPR #6・#7を含む
+`344018c`。再開後の進捗は上の一覧に記録する。後続のmain `b38e8b4`（PR #10）も
+専用ブランチへ取り込み、mainのnative機能とClient共通化の完了を区別する。
 過去の[派生版rollout](client-rollout-roadmap.md)と
 [1.16.1 API拡張](headless-api-roadmap.md)は、この共通化の完了表ではない。
 
-| 段階 | 対象 | PR #4の現在地 | 全体を通す初回の到達点 |
+| 段階 | 対象 | PR #4の見直し時点 | 全体を通す初回の到達点 |
 | --- | --- | --- | --- |
 | 1 | 接続設定・基本型・対応情報・registry | 共通入口と版選択の基盤は実装・検証済み | 同じ利用コードで接続でき、版・ID・registryの混同を拒否する |
 | 2 | player・world・inventoryの観測 | 基本captureと受信／予測／欠測の区別は実装・検証済み | 次の操作へ必要な実受信情報を同じ境界で取得できる |
@@ -206,7 +214,7 @@ close送信と実受信screen履歴を混同せず、サーバー側でも位置
 | --- | --- |
 | 3 | 広い移動・採掘・設置条件、道具・姿勢・非cube・effect等の対応、観測継続と復旧の範囲拡大、Creative飛行後の立位操作への継続 |
 | 4 | ownedレシピブック配置とghost結果、非空cursorへの結果結合、shift製作、製作台SWAP／QUICK_MOVE、一般装備・entity・item activation、任意item／text／dialogのconstructor・参照・比較と実server cache hash |
-| 5 | より広いcontext／記録／再構成／scene／復旧、履歴取得が書き込み停止で詰まる経路の解消、再設定・chunk欠測・再接続の範囲拡大 |
+| 5 | より広いcontext／記録／再構成／scene／復旧、履歴取得が書き込み停止で詰まる経路の解消、両版の共通緊急generation遮断、再設定・chunk欠測・再接続の範囲拡大 |
 | 6 | 各UI・特殊window・vehicle・manager機能の残差分。raw操作の版依存は明示的な拡張として管理する |
 
 失われるitem data、異なるitemの誤結合、古い接続／画面への送信、取消後の重複送信など、

@@ -483,3 +483,27 @@ playerはvehicleのsaveAsPassenger NBTに保存されるとは限らないため
 下車追加後の回帰検査は単体709件（8件ignored）、公開API2件、doctest28件が成功。
 all-target clippy、Rust 1.85.0のall-target check、rustdoc `-D warnings`、fmtも成功した。
 配布allowlistには新しいsource/dataとobserver toolを含め、開発用directoryを混ぜない。
+
+## B3の乾いた階段・ハーフブロックと収納
+
+```bash
+CARGO_INCREMENTAL=0 python3 scripts/run_common_native.py --all --scenario dry-terrain --accept-eula --runtime-dir /dev/shm/voxrig-b3
+```
+
+同じconsumerの各modeで、底slab→full cube→stairs→高さ67のplatformを44tickで歩き、
+一つのClientのまま隣のchestを一度開閉して切断する。Survivalはcaptured sceneとliveの予測も照合する。
+fixtureの準備後はRCONを読み取りのみに使い、実終点・収納後の位置不変・空のchest内容を確認する。
+元position/input fields、実OPENのwindow/menu/ordinalとmatching closeを別に検査する。
+legacyの通常ground loopが前後へ送る待機positionは元traceへ残し、44の有限入力から分けて
+初期／終端位置が変わっていないことを検査する。
+
+2026-10-06の成功runは`trial-1.16.1-e98102fd`と`trial-1.21.11-67afb914`。
+両modeが成功し、同じ419 source/data入力とconsumer binaryを使った。両JVMはexit 0、proxyのerrorはない。
+main `b38e8b4`のPR #10も取り込んだコードで実行した。
+[結果と出典](evidence/common-dry-terrain-20261006.json)には、元形状／getterの出典、
+各native report hash・受信OPENの証拠と、失敗した3試行の理由も保存する。
+先行失敗は立位準備待ちの不足、待機frameを有限操作へ数えた検査、旧版のactivation ID検査の誤りで、
+操作guardを緩めずconsumer／verifierを修正した。
+
+これは既知のdry terrainを歩いて収納へ進む区切りである。元clientの全tick物理の同等性、
+waterlogged・一般非cube・道具／effect／別姿勢・Creative飛行後の立位操作は完了扱いにしない。

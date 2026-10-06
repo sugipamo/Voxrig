@@ -1,0 +1,183 @@
+{
+  "schema": 1,
+  "scope": "Known dry original exact SlabBlock/StairBlock state geometry, per-original VoxelShape collision grouping, guarded common finite walking, live/captured Survival preview and following actual storage OPEN/once close. Same consumer and sequential original vanilla servers, both modes/version; 44 controls per route. Server acceptance of endpoint is not native-client full-tick parity, physical-error bound or a received pose ACK.",
+  "original_source_manifest": {
+    "path": "data/client_api/dry_terrain_source.json",
+    "sha256": "38b46266a959f082048a059d1de1fc819911b25b14020e88b465a751c594c4d7"
+  },
+  "original_facts": [
+    {
+      "version": "1.16.1",
+      "blocks": 76,
+      "states": 1560,
+      "shapes": 27,
+      "collisions": 810,
+      "clear_initial_body": 654,
+      "intersecting_initial_body": 156,
+      "clips": 810
+    },
+    {
+      "version": "1.21.11",
+      "blocks": 112,
+      "states": 2334,
+      "shapes": 27,
+      "collisions": 810,
+      "clear_initial_body": 654,
+      "intersecting_initial_body": 156,
+      "clips": 810
+    }
+  ],
+  "read_only_native_getter_inspection_sha256": {
+    ".local/integration-validation/client-api-unification/b3-dry-terrain/1.16.1-caz-bytecode.log": "15a4aa4c260f109e92f9528417f434eed0d55e92f5c2b5c66e135d27c4fdf0dc",
+    ".local/integration-validation/client-api-unification/b3-dry-terrain/1.16.1-cbn-bytecode.log": "62cb95c15ea1a4a0e3173533e8be6ea37bae09b8348a24be5ec78cc41f912f8c",
+    ".local/integration-validation/client-api-unification/b3-dry-terrain/1.21.11-ehi-bytecode.log": "fb1e73182f531915248c45d3d5391283bf11dcae28fc166479b8a02ff2a24d8e",
+    ".local/integration-validation/client-api-unification/b3-dry-terrain/1.21.11-ehz-bytecode.log": "d36f420140f29530cbb1c4b5e870c8a097e393b7dc77cdf36a9360af2972985b"
+  },
+  "runtime": {
+    "same_source_data_inputs": 419,
+    "source_input_manifest_sha256": "24fa82930e5656a271b52661976b26f1ff739132ff1670522865ea92c110a970",
+    "baseline_commit": "f05cff2e1f5d6168a8556dfd9916e1e6ea3c182e",
+    "consumer_binary_sha256": "a6705623acc89e3f2ddb6b9766a52bb8392b76e17d910755e6d94d9df1b75fe4",
+    "native_runs": [
+      {
+        "version": "1.16.1",
+        "run": "trial-1.16.1-e98102fd",
+        "report_sha256": "550c59ead51bbe44928687fde18a9f1b6a18b02714974f1b3e88358c714d5502",
+        "server_exit_code": 0,
+        "proxy_errors": [],
+        "modes": {
+          "survival": {
+            "result": "passed",
+            "native_position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+            "native_position_after_move": "UnifiedProbe has the following entity data: [0.5d, 67.0d, 4.8134259902859675d]",
+            "native_position_after_storage": "UnifiedProbe has the following entity data: [0.5d, 67.0d, 4.8134259902859675d]",
+            "native_chest_contents": "2, 67, 5 has the following block data: []",
+            "matching_finite_frames": 44,
+            "additional_initial_idle_frames": 0,
+            "additional_terminal_idle_frames": 0,
+            "same_session_through_operations": true,
+            "captured_scene_matching_frames": 44,
+            "original_open_source": {
+              "connection": 1,
+              "ordinal": 170,
+              "packet_id": 46,
+              "body_sha256": "011d5adb04ce4be15c2a3241dcf90238c0d07469e9baec6cf0152ef636440f00"
+            },
+            "close_dispatched": true
+          },
+          "creative": {
+            "result": "passed",
+            "native_position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+            "native_position_after_move": "UnifiedProbe has the following entity data: [0.5d, 67.0d, 4.699353976828549d]",
+            "native_position_after_storage": "UnifiedProbe has the following entity data: [0.5d, 67.0d, 4.699353976828549d]",
+            "native_chest_contents": "2, 67, 5 has the following block data: []",
+            "matching_finite_frames": 44,
+            "additional_initial_idle_frames": 0,
+            "additional_terminal_idle_frames": 0,
+            "same_session_through_operations": true,
+            "captured_scene_matching_frames": null,
+            "original_open_source": {
+              "connection": 2,
+              "ordinal": 373,
+              "packet_id": 46,
+              "body_sha256": "011d5adb04ce4be15c2a3241dcf90238c0d07469e9baec6cf0152ef636440f00"
+            },
+            "close_dispatched": true
+          }
+        }
+      },
+      {
+        "version": "1.21.11",
+        "run": "trial-1.21.11-67afb914",
+        "report_sha256": "3dd89ad8af00027b27c7c7b405af28a6767c7926e74fc7b21375dcc49720025a",
+        "server_exit_code": 0,
+        "proxy_errors": [],
+        "modes": {
+          "survival": {
+            "result": "passed",
+            "native_position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+            "native_position_after_move": "UnifiedProbe has the following entity data: [0.5d, 67.0d, 4.699353976828549d]",
+            "native_position_after_storage": "UnifiedProbe has the following entity data: [0.5d, 67.0d, 4.699353976828549d]",
+            "native_chest_contents": "2, 67, 5 has the following block data: []",
+            "matching_finite_frames": 44,
+            "additional_initial_idle_frames": 0,
+            "additional_terminal_idle_frames": 0,
+            "same_session_through_operations": true,
+            "captured_scene_matching_frames": 44,
+            "original_open_source": {
+              "connection": 1,
+              "ordinal": 239,
+              "packet_id": 57,
+              "body_sha256": "a7d0bca23c66d00a8c473f461731d2e0a7b3fdb0d99812bd3e6f1fee3b9e7133"
+            },
+            "close_dispatched": true
+          },
+          "creative": {
+            "result": "passed",
+            "native_position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+            "native_position_after_move": "UnifiedProbe has the following entity data: [0.5d, 67.0d, 4.699353976828549d]",
+            "native_position_after_storage": "UnifiedProbe has the following entity data: [0.5d, 67.0d, 4.699353976828549d]",
+            "native_chest_contents": "2, 67, 5 has the following block data: []",
+            "matching_finite_frames": 44,
+            "additional_initial_idle_frames": 0,
+            "additional_terminal_idle_frames": 0,
+            "same_session_through_operations": true,
+            "captured_scene_matching_frames": null,
+            "original_open_source": {
+              "connection": 2,
+              "ordinal": 481,
+              "packet_id": 57,
+              "body_sha256": "a7d0bca23c66d00a8c473f461731d2e0a7b3fdb0d99812bd3e6f1fee3b9e7133"
+            },
+            "close_dispatched": true
+          }
+        }
+      }
+    ]
+  },
+  "failed_native_trials": [
+    {
+      "run": "trial-1.16.1-c98129e9",
+      "report_sha256": "955ad726b8ad8b5dfcbb2ce85c25a211413c4be4091f66d4464cebf5e8e7aae2",
+      "error": "probe stopped before b3_terrain_baseline",
+      "reason": "Probe requested preview immediately after teleport receipt, before locally grounded readiness. Fixed only the consumer with bounded read-only admission polling; mutation guard is preserved."
+    },
+    {
+      "run": "trial-1.16.1-2218b21b",
+      "report_sha256": "c1e8d4fa1a91d5bab11378e75b654a58ff321c023651bd6076581efbf9d2d64f",
+      "error": "dry terrain motion emitted unexpected full-position frames: 45",
+      "reason": "Independent native movement matched preview, but verifier counted one legacy idle position heartbeat as an extra finite control. Retained all frames and now requires one exact 44-frame path; only unchanged initial/terminal idle poses are allowed separately."
+    },
+    {
+      "run": "trial-1.16.1-80e3eb86",
+      "report_sha256": "d5f8ddae78189a5ce1be81f842635e3377f3ac452df542286aca5a1bed8be996",
+      "error": "dry terrain storage did not dispatch activation/close exactly once",
+      "reason": "Movement and actual storage opening/close completed, but verifier used the wrong legacy serverbound activation ID (0x2e). Corrected to original adapter/trace ID 0x2d; received OPEN remains 0x2e."
+    }
+  ],
+  "validation": {
+    "unit_tests": 719,
+    "ignored": 8,
+    "public_api_tests": 2,
+    "doctests": 28,
+    "all_target_clippy": "passed after main integration",
+    "probe_clippy_after_readiness_fix": "passed",
+    "rust_1_85_all_target": "passed",
+    "rustdoc_warnings_denied": "passed",
+    "fmt": "passed",
+    "package_build": "passed; 750 files, Cargo package verification with -j1",
+    "package_allowlist": "passed; no development directories"
+  },
+  "limits": [
+    "Waterlogged, unknown subclass/property, fluids, moving/context-dependent geometry remain refused.",
+    "Original primitive comparisons cover 654 nonintersecting collision inputs and 810 clips per version; 156 intersecting inputs and original intersection classifier are retained, not claimed as box-decomposition collision parity.",
+    "Tools/effects/postures, creative flight-to-standing, general mining/placement and the rest of B remain required work.",
+    "No automatic route choice, mutation replay or conversion of prediction/local close into received facts."
+  ],
+  "main_integration": {
+    "main": "b38e8b4ee68775e3ca064a18cd57052c3c1a6981",
+    "pr": 10,
+    "merge": "f05cff2e1f5d6168a8556dfd9916e1e6ea3c182e",
+    "compatibility_fix": "Native PacketWriter reference resolves in Java 1.16.1 module; common emergency fence remains B5."
+  }
+}

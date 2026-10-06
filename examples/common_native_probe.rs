@@ -3630,10 +3630,25 @@ async fn dry_terrain_probe(client: &Client) -> anyhow::Result<()> {
                         client.creative().select_hotbar(0).await?;
                     }
                 }
-                let preview = match mode {
-                    GameMode::Survival => client.survival().preview_path(&controls).await?,
-                    _ => client.creative().preview_path(&controls).await?,
-                };
+                // A teleport receipt precedes local grounded readiness. Poll the
+                // read-only admission, then start exactly one finite operation.
+                let mut refusal = None;
+                let preview = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let attempt = match mode {
+                            GameMode::Survival => client.survival().preview_path(&controls).await,
+                            _ => client.creative().preview_path(&controls).await,
+                        };
+                        match attempt {
+                            Ok(preview) => break preview,
+                            Err(error) => refusal = Some(error.to_string()),
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await
+                .with_context(|| format!("terrain preview readiness: {refusal:?}"))?;
+                let player = preview.initial.clone();
                 anyhow::ensure!(matches!(
                     preview.terminal_clearance,
                     TerminalClearance::Admitted { .. }
