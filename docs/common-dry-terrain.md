@@ -1,7 +1,8 @@
-# 共通の乾いた階段・ハーフブロック
+# 共通の乾いた地形
 
 共通`survival()`／`creative()`の有限地上歩行は、既存のpassive full cubesに加え、
 選択した版の元registryで`SlabBlock`／`StairBlock`の実classとして登録された乾いた状態を扱う。
+乾いた`rail`／`powered_rail`／`detector_rail`／`activator_rail`も同じ入口で扱う。
 利用側は`preview_path`／`start_predicted_path`をそのまま使用する。
 接続時以外に版別の操作を選ぶ必要はない。経路の選択は利用側に残す。
 
@@ -38,3 +39,20 @@ outline／interaction shapeのray clipは各版810入力を元`BlockGetter.clip`
 初期fixtureを整えた後はRCONを読み取りだけに使い、サーバー側の終点と元位置・input packetを確認する。
 サーバーが受理した終点の確認は、元clientの全tick物理を再現した証明とは分ける。
 結果は[実サーバー検証](common-client-native-validation.md)へ記録する。
+
+## 車両付近の乾いたrail
+
+車両への接近時、足元のrailを未知形状として拒否していた問題を解消した。
+四つの登録railの乾いた46状態を各版の元registryと全propertiesで一致させる。
+collisionは元getterの通り空で、下の床を通常の立位検査へ使う。
+outlineは平面と上り坂の形状を区別し、共通のray targetingにも接続する。
+railを床やfull cubeとして補うことはしない。水・欠測property・未知状態は従来通り拒否する。
+
+[railの出典](../data/client_api/rail_terrain_source.json)には元JAR・mapping・classpath・
+observer・生成物のhashを記録した。各版30件のcollisionと60件のray clipを元game methodと比較する。
+これは歩行・観測用の静的形状対応で、railの採掘・設置や車両物理全体の共通化を意味しない。
+
+実サーバーでは`vehicle-control`の接近方向をrail側への前進へ変更し、同じClientで
+有限歩行→実乗車→有限乗車入力→新しい車両位置受信→実下車とneutral→切断を検証する。
+下車後の地上継続には、受信poseと宣言したcontroller停止値を分けて扱う後続実装が必要。
+この地形対応だけで再開guardを解除しない。

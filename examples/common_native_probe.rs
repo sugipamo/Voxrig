@@ -4761,7 +4761,7 @@ async fn vehicle_probe(client: &Client) -> anyhow::Result<()> {
                     let mut controls = vec![SurvivalControl {
                         yaw: 0.,
                         input: SurvivalInput {
-                            forward: -1,
+                            forward: 1,
                             strafe: 0,
                             jump: false,
                         },

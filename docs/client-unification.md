@@ -110,6 +110,11 @@ vehicleの受信motion観測も両版・両modeで接続した。次は下車後
   受信motionは次の区切りで接続した。metadata・paddle・広いphysics・下車後の地上継続、他UI/window/managerはB6へ残す。
   詳細は[共通乗車入力](common-vehicles.md#有限の乗車入力)と[検証記録](common-client-native-validation.md#b6-finite-mounted-input-and-original-minecart-response)。
 
+- B3／B6の前提: 車両の近くで歩けるように、四種類の乾いたrailの元collision／outlineを
+  共通地形へ接続した。両版の46状態を完全propertiesで選び、railの下の既知床で立位を検査する。
+  同じ車両fixtureへの前進をnativeで確認し、下車後の地上継続は次の実装へ残す。
+  詳細は[共通dry terrain](common-dry-terrain.md#車両付近の乾いたrail)。
+
 ## 選択と公開入口
 
 通常の利用側は`voxrig::client::prelude::*`を使う。

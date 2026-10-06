@@ -1,4 +1,4 @@
-//! Original registered dry slab/stair states, shared by both native adapters.
+//! Original registered dry slab/stair/rail states, shared by both native adapters.
 use crate::{MinecraftVersion, NativeBlockState};
 use serde::Deserialize;
 use std::{collections::BTreeMap, io::Read, sync::OnceLock};
@@ -16,6 +16,7 @@ pub(crate) struct Shape {
 struct Terrain {
     states: Vec<Shape>,
 }
+mod rails;
 type Shapes = BTreeMap<String, BTreeMap<BTreeMap<String, String>, Shape>>;
 fn bytes(version: MinecraftVersion) -> &'static [u8] {
     match version {
@@ -60,6 +61,7 @@ pub(crate) fn lookup(
     shapes(version)
         .get(&state.name)
         .and_then(|states| states.get(&state.properties))
+        .or_else(|| rails::lookup(version, state))
 }
 type Outlines = (&'static [[f64; 6]], &'static [[f64; 6]]);
 pub(crate) fn outlines(version: MinecraftVersion, state: &NativeBlockState) -> Option<Outlines> {

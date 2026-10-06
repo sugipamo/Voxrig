@@ -141,7 +141,7 @@ pub(crate) fn geometry(
     }
     Ok(geometry)
 }
-/// Default dry cubes or a complete originally registered dry slab/stair state.
+/// Default dry cubes or a complete originally registered dry slab/stair/rail state.
 /// Fluids and unmodeled shape/effect semantics remain explicitly unsupported.
 pub(crate) fn collision_shape(
     version: MinecraftVersion,
