@@ -386,6 +386,9 @@ pub struct RecipeId {
     native: NativeRecipeId,
 }
 impl RecipeId {
+    pub(crate) fn native(&self) -> &NativeRecipeId {
+        &self.native
+    }
     /// Original registry configuration/transport.
     pub fn owner(&self) -> ServerRegistryStamp {
         self.owner

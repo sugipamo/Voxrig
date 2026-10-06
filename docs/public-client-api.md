@@ -223,3 +223,14 @@ inventory interruptionの型を所有する。modernの既存native intent/recov
 両modeの`open_container(target)`は監査済みstorageのempty-hand activationを共通化する。
 `container_open_record()`は送信とactual screen/content/cursor/modern processingの事実を保持する。
 [対応条件と取消](common-container-open.md)を確認し、一般UI/クリック/製作の対応とは区別する。
+
+
+## 通常のレシピブック配置
+
+両handleで`place_recipe(&RecipePlacementPlan)`と`recipe_placement_record()`を公開する。
+coherent contextの実recipe IDからsealed Next／Maximum planを作り、送信直前にも受信基準を再検査する。
+`ObservedPlaced`は実入力と在庫の保存を確認した履歴で、完成品取得の保証ではない。
+待機取消後もClient所有の一回送信を保持し、検査による再送は行わない。
+結果は新しいgridから明示的に取り、通常clickで格納する。
+ghost、非空cursorへの結果結合、自動shift製作は後続対応。
+[共通レシピ](common-recipes.md)に公開契約と制限を記載する。

@@ -169,8 +169,8 @@ unchanged original methods, sequential 512 MiB JVMs and retain JAR/mapping,
 classpath, request/helper and result hashes. The return helper's Inventory has an
 unused null owner; it calls no owner/world, creative fallback or drop behavior.
 
-Native recipe choice/dispatch and actual placement/ghost receipts, result merging
-and shift crafting remain required follow-up work. The coherent preflight below
+Native ghost receipts, nonempty-cursor result merging and shift crafting remain
+required follow-up work. Normal owned recipe dispatch is described below. The coherent preflight below
 combines current-grid materials, native capacity guards and return-space checks. Displayed remainder associations
 are not actual inventory consumption/remainder receipts. The existing common
 result take retains those actual receipts separately.
@@ -206,5 +206,60 @@ empty cells and modified/named/damaged stacks. A legacy pattern with an empty
 border can match where modern normalized dimensions reject it; version semantics
 remain explicit internally. Native Client runs verify both intents, named-stock
 exclusion and restoration in both versions/modes, and no recipe request is emitted
-by planning. Owned recipe dispatch and actual placement/ghost receipts remain
-required work; this preflight alone does not complete recipe placement.
+by planning. This preflight alone does not complete recipe placement; normal owned dispatch
+and actual conserved placement are now available as described below.
+
+
+## Owned recipe placement through the common Client
+
+Both handles expose `place_recipe(&RecipePlacementPlan)` and
+`recipe_placement_record()`. Capture a coherent context, choose a received recipe,
+and construct a sealed Next/Maximum plan. The adapter rechecks the original
+connection/world, mode, recipe membership, registry/tags, screen opening, selected
+hand, actual empty cursor and exact input/inventory receipt ordinals before I/O.
+A plan with `can_place() == false` cannot be submitted. No recipe name or numeric
+protocol ID is accepted at this common operation boundary.
+
+```rust,no_run
+use voxrig::client::prelude::*;
+async fn request(client: &Client, recipe: &RecipeId) -> Result<Option<RecipePlacementRecord>> {
+    let Some(context) = client.received_crafting_context().await? else { return Ok(None) };
+    let plan = context.recipe_placement_plan(recipe, RecipePlacementAmount::Next)?;
+    if !plan.can_place() { return Ok(None) }
+    Ok(Some(client.survival().place_recipe(&plan).await?))
+}
+```
+
+`RecipePlacementRecord` separates the submitted plan, native send and received
+result. `send.dispatched` means one complete request write. `ObservedPlaced` needs
+actual changed inputs with fresh ordinals, the native layout and allowed count,
+and semantic item conservation across inputs and inventory. A matching grid alone
+cannot release the operation while stock is still unchanged. The retained `after`
+grid and `inventory_after` are actual receipts; unchanged cells may retain their
+original ordinals. This does not prove causation, manufacture result contents,
+consume ingredients or grant a new mutation from a historical record.
+
+The connection owns the attempt after admission. Cancelling the waiting caller
+keeps that attempt, and inspection never retries it. Pending/uncertain attempts
+block subsequent mutations. The first session/UI/book/cursor/data conflict stays
+latched as `RequiresInspection`; restoring a matching value does not erase it.
+History remains readable during a stalled writer. Common connection revocation
+fences the owned request and leaves its uncertainty available for inspection.
+
+Once placement is observed, use a fresh `received_crafting()` capture for each
+explicit `take_crafting_result`, then ordinary cursor deposit and actual inventory
+inspection. Maximum placement does not perform automatic shift crafting. Taking
+into a nonempty cursor, ghost placement, table SWAP/QUICK_MOVE and the remaining
+B4 equipment/entity/data work still require implementation.
+
+The version-independent native consumer covers both modes, both 2x2/player and
+3x3/table UIs, and Next/Maximum: 10 planks become either 8 planks + 4 sticks or
+20 sticks. Each result is explicitly taken and stored, inputs/result/cursor become
+empty, the original table closes and the same Client can select again before
+normal disconnect. Independent RCON checks native counts and unchanged position.
+See [native validation](common-client-native-validation.md).
+
+A table at `[0, 65, 2]` uses the previously supported standing/ray fixture. A table
+at `[0, 65, 1]` falls inside the bounded dry collision neighborhood and is currently
+rejected by common `look`: crafting-table collision is not yet part of that model.
+This remains a B3 terrain integration item, not a successful near-table test.

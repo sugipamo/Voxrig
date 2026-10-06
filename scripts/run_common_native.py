@@ -455,7 +455,7 @@ def outer_snbt_compounds(response):
 
 
 def stage(probe, messages, name, records, timeout=30, poll=None):
-    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready", "a2_ready", "a4_ready", "a4_captured", "a5_ui_ready", "a5_furnace_ready", "a5_vehicle_ready", "b3_terrain_ready", "b5_revocation_ready"):
+    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready", "a2_ready", "a4_ready", "a4_captured", "a5_ui_ready", "a5_furnace_ready", "a5_vehicle_ready", "b3_terrain_ready", "b5_revocation_ready", "b4_recipe_ready"):
         probe.stdin.write(name + "\n")
         probe.stdin.flush()
     deadline = time.monotonic() + timeout
@@ -1065,6 +1065,54 @@ def run_equipment_entity(version, env, rcon, trace, report, probe_log, stderr_lo
                 except subprocess.TimeoutExpired: probe.kill(); probe.wait(timeout=5)
 
 
+def run_recipe_placement(version, env, rcon, trace, report, probe_log, stderr_log):
+    results=report['native_results']['recipe_placement']={}
+    for mode in ('survival','creative'):
+      for ui in ('player','table'):
+       for amount in ('next','maximum'):
+        until(lambda:matched(rcon.command('execute unless entity @a[name=UnifiedProbe]'),'Test passed'))
+        result=results[mode+'-'+ui+'-'+amount]={'fixture':{},'records':[]}
+        for command in ['setblock 0 65 1 minecraft:air', 'setblock 0 65 2 minecraft:crafting_table' if ui=='table' else 'setblock 0 65 2 minecraft:air']:
+            result['fixture'][command]=rcon.command(command)
+        probe=subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')],cwd=REPO,
+            env=dict(env,VOXRIG_NATIVE_SCENARIO='recipe-placement',VOXRIG_NATIVE_RECIPE_MODE=mode,VOXRIG_NATIVE_RECIPE_UI=ui,VOXRIG_NATIVE_RECIPE_AMOUNT=amount),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
+        messages=queue.Queue();reader=threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True);reader.start()
+        try:
+            stage(probe,messages,'b4_recipe_ready',result['records'])
+            commands=['gamemode '+mode+' UnifiedProbe','tp UnifiedProbe 0.5 65 0.5 0 0','clear UnifiedProbe']
+            commands.append('replaceitem entity UnifiedProbe inventory.0 minecraft:oak_planks 10' if version=='1.16.1' else 'item replace entity UnifiedProbe inventory.0 with minecraft:oak_planks 10')
+            commands.append('recipe give UnifiedProbe *')
+            for command in commands:result['fixture'][command]=rcon.command(command)
+            boundary=trace.mark()
+            done=stage(probe,messages,'b4_recipe_run',result['records'],timeout=120)['value']
+            expected={10:('stick',20 if amount=='maximum' else 4)}
+            if amount=='next':expected[9]=('oak_planks',8)
+            def inventory():
+                response=rcon.command('data get entity UnifiedProbe Inventory');stacks=outer_snbt_compounds(response)
+                if len(stacks)!=len(expected):return None
+                for slot,(item,count) in expected.items():
+                    if not any(re.search(rf'Slot: {slot}b(?:,|\s|}})',s) and f'id: "minecraft:{item}"' in s and re.search(rf'(?:Count|count): {count}(?:b)?(?:,|\s|}})',s) for s in stacks):return None
+                return response
+            result['native_inventory']=until(inventory)
+            result['native_position']=rcon.command('data get entity UnifiedProbe Pos')
+            if '[0.5d, 65.0d, 0.5d]' not in result['native_position']:raise RuntimeError('recipe placement moved native actor')
+            result['operation_frames']=trace.since(boundary)
+            requests=[f for f in result['operation_frames'] if f['phase']=='play' and f['direction']=='serverbound' and f['packet_id']==(0x19 if version=='1.16.1' else 0x26)]
+            if len(requests)!=1:raise RuntimeError('recipe placement request was repeated or missing')
+            raw=bytes.fromhex(requests[0]['body_hex'])
+            if raw[-1]!=int(amount=='maximum'):raise RuntimeError('native recipe amount flag differs')
+            if not done['placement']['send']['dispatched'] or done['placement']['stage']!='observed_placed':raise RuntimeError('missing actual recipe completion')
+            trace.expect_disconnect();stage(probe,messages,'b4_recipe_disconnect',result['records'])
+            if probe.wait(timeout=15)!=0:raise RuntimeError('recipe placement consumer failed')
+            result['authority_limits']='One unchanged common Client per mode/UI/amount: native recipe request -> actual conserved input/inventory capture -> explicit single result takes and actual cursor deposits -> empty grid/cursor -> original table close -> disconnect. Fixture only before operation; RCON thereafter reads exact native ingredient/output counts and unchanged position. No native type-tie attribution, automatic shift-crafting, ghost or nonempty-result-cursor support claimed.'
+            result['result']='passed'
+        finally:
+            if probe.poll() is None:
+                probe.terminate()
+                try:probe.wait(timeout=10)
+                except subprocess.TimeoutExpired:probe.kill();probe.wait(timeout=5)
+
+
 def run_connection_revocation(version, env, rcon, trace, report, probe_log, stderr_log):
     """Observe local revocation and actual peer closure while both clones live."""
     result = report['native_results']['connection_revocation'] = {'records':[]}
@@ -1440,6 +1488,10 @@ network-compression-threshold=256
         for check in ["execute if block 0 65 1 minecraft:stone", "execute if block 1 65 0 minecraft:air"]:
             report.setdefault("fixture_verification", {})[check] = until(lambda: matched(rcon.command(check), "Test passed"))
         env = dict(os.environ, VOXRIG_MINECRAFT_VERSION=version, VOXRIG_PORT=str(trace.port))
+        if scenario == "recipe-placement":
+            run_recipe_placement(version,env,rcon,trace,report,probe_log,stderr_log)
+            report["scenario_result"]="passed"
+            return retained
         if scenario == "connection-revocation":
             run_connection_revocation(version,env,rcon,trace,report,probe_log,stderr_log)
             report["scenario_result"]="passed"
@@ -2527,7 +2579,7 @@ def main():
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--accept-eula", action="store_true")
     parser.add_argument("--runtime-dir", type=Path, help="Optional disposable runtime parent, e.g. /dev/shm for isolating disk I/O; reports are exported to .local after JVM exit")
-    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "mining-tools", "connection-revocation", "recording-scene", "manager-ui", "furnace", "vehicle", "dry-terrain", "creative-flight", "creative-landing"), default="full", help="Run the operation corpus or a focused common Client workflow")
+    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "mining-tools", "connection-revocation", "recipe-placement", "recording-scene", "manager-ui", "furnace", "vehicle", "dry-terrain", "creative-flight", "creative-landing"), default="full", help="Run the operation corpus or a focused common Client workflow")
     args = parser.parse_args()
     if bool(args.version) == args.all:
         parser.error("select exactly one of --version / --all")

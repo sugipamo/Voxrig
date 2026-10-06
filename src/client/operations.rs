@@ -126,6 +126,23 @@ impl Survival {
             .common_click_inventory(GameMode::Survival, source, slot, button)
             .await
     }
+    /// Submit this sealed Next/Maximum recipe plan once. Live predecessors,
+    /// mode and opening are rechecked. Inputs and inventory remain actual receipts.
+    /// Caller cancellation retains the owned attempt; inspection never replays it.
+    pub async fn place_recipe(
+        &self,
+        plan: &super::crafting::RecipePlacementPlan,
+    ) -> Result<super::crafting::RecipePlacementRecord> {
+        self.client
+            .common_place_recipe(GameMode::Survival, plan)
+            .await
+    }
+    /// Inspect the retained placement, including during a stalled write.
+    pub async fn recipe_placement_record(
+        &self,
+    ) -> Result<Option<super::crafting::RecipePlacementRecord>> {
+        self.client.common_recipe_placement_record().await
+    }
     /// Take one displayed crafting result with an actual empty cursor.
     /// Rechecks this sealed snapshot before I/O. Ingredient consumption and
     /// remainders are observed from the server, never predicted or replayed.
@@ -435,6 +452,23 @@ impl Creative {
         self.client
             .common_click_inventory(GameMode::Creative, source, slot, button)
             .await
+    }
+    /// Submit this sealed Next/Maximum recipe plan once. Live predecessors,
+    /// mode and opening are rechecked. Inputs and inventory remain actual receipts.
+    /// Caller cancellation retains the owned attempt; inspection never replays it.
+    pub async fn place_recipe(
+        &self,
+        plan: &super::crafting::RecipePlacementPlan,
+    ) -> Result<super::crafting::RecipePlacementRecord> {
+        self.client
+            .common_place_recipe(GameMode::Creative, plan)
+            .await
+    }
+    /// Inspect the retained placement, including during a stalled write.
+    pub async fn recipe_placement_record(
+        &self,
+    ) -> Result<Option<super::crafting::RecipePlacementRecord>> {
+        self.client.common_recipe_placement_record().await
     }
     /// Take one displayed crafting result with an actual empty cursor.
     /// Rechecks this sealed snapshot before I/O. Ingredient consumption and

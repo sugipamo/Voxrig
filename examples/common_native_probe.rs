@@ -127,25 +127,23 @@ async fn crafting_result_take(
     mode: GameMode,
     expected: &str,
 ) -> anyhow::Result<CraftingTakeRecord> {
-    let previous = client
-        .survival()
-        .inventory_click_record()
-        .await?
-        .context("crafting predecessor click absent")?;
+    let previous = client.survival().inventory_click_record().await?;
     // A negative legacy comparison queues full contents followed by the cursor.
     // The click's own fresh source/cursor can precede those queued updates. Wait
     // for the actual full grid AND its cursor before capturing a take intent.
-    let full_after = previous
-        .legacy_reply
-        .as_ref()
-        .filter(|r| !r.accepted)
-        .map(|r| r.receive_sequence)
-        .or_else(|| {
-            previous
-                .send
-                .request_full_resync
-                .then_some(previous.send.after_sequence)
-        });
+    let full_after = previous.as_ref().and_then(|previous| {
+        previous
+            .legacy_reply
+            .as_ref()
+            .filter(|r| !r.accepted)
+            .map(|r| r.receive_sequence)
+            .or_else(|| {
+                previous
+                    .send
+                    .request_full_resync
+                    .then_some(previous.send.after_sequence)
+            })
+    });
     let grid = tokio::time::timeout(Duration::from_secs(15), async {
         loop {
             let grid = client
@@ -1373,6 +1371,182 @@ fn find_stick_recipe(catalogue: &ReceivedRecipes, client: &Client) -> Option<Rec
                 })
         })
         .cloned()
+}
+async fn recipe_placement_probe(client: &Client) -> anyhow::Result<()> {
+    let ready = client.player_state().await?;
+    emit("b4_recipe_ready", &ready)?;
+    let mut commands = BufReader::new(tokio::io::stdin()).lines();
+    anyhow::ensure!(commands.next_line().await?.as_deref() == Some("b4_recipe_run"));
+    let table = std::env::var("VOXRIG_NATIVE_RECIPE_UI")?.as_str() == "table";
+    let maximum = std::env::var("VOXRIG_NATIVE_RECIPE_AMOUNT")?.as_str() == "maximum";
+    let requested_mode = std::env::var("VOXRIG_NATIVE_RECIPE_MODE")?;
+    let mode = if requested_mode == "survival" {
+        GameMode::Survival
+    } else {
+        GameMode::Creative
+    };
+    let baseline = wait_player(client, |p| {
+        p.game_mode == Some(mode)
+            && p.health.as_ref().is_some_and(|h| h.value.health > 0.0)
+            && p.received_pose.as_ref().is_some_and(|p| p.position == [0.5,65.0,0.5])
+            && p.inventory.slots[9].as_ref().is_some_and(|s| matches!(&s.value,SlotKnowledge::Item{item} if item.name=="minecraft:oak_planks" && item.count==10))
+            && p.inventory.cursor.as_ref().is_some_and(|s| s.value==SlotKnowledge::Empty)
+    }).await?;
+    let catalogue = received_recipe_fixture(client, true).await?;
+    let recipe = find_stick_recipe(&catalogue, client).context("native stick book entry absent")?;
+    let opening = if table {
+        wait_block(client, [0, 65, 2], "minecraft:crafting_table").await?;
+        workflow_look(client, mode, [0.5, 65.5, 2.5]).await?;
+        match mode {
+            GameMode::Survival => {
+                client.survival().open_container([0, 65, 2]).await?;
+            }
+            _ => {
+                client.creative().open_container([0, 65, 2]).await?;
+            }
+        }
+        Some(
+            wait_container_open(client)
+                .await?
+                .observed_screen
+                .context("table receipt absent")?
+                .id,
+        )
+    } else {
+        None
+    };
+    let context = client
+        .received_crafting_context()
+        .await?
+        .context("recipe UI absent")?;
+    let plan = context.recipe_placement_plan(
+        recipe.id(),
+        if maximum {
+            RecipePlacementAmount::Maximum
+        } else {
+            RecipePlacementAmount::Next
+        },
+    )?;
+    anyhow::ensure!(plan.can_place() && plan.requested_crafts() == if maximum { 5 } else { 1 });
+    let sent = match mode {
+        GameMode::Survival => client.survival().place_recipe(&plan).await?,
+        _ => client.creative().place_recipe(&plan).await?,
+    };
+    let placed = tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            let record = client
+                .survival()
+                .recipe_placement_record()
+                .await?
+                .context("recipe intent disappeared")?;
+            anyhow::ensure!(
+                record.id == sent.id && record.requires_inspection.is_none(),
+                "recipe placement conflict: {:?}",
+                record.requires_inspection
+            );
+            if record.stage == voxrig::client::RecipePlacementStage::ObservedPlaced {
+                return Ok::<_, anyhow::Error>(record);
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await??;
+    let reused = match mode {
+        GameMode::Survival => client.survival().place_recipe(&plan).await,
+        _ => client.creative().place_recipe(&plan).await,
+    };
+    anyhow::ensure!(reused.is_err(), "old placement plan was reused");
+    let source = opening.map_or(InventorySource::Player, |screen| {
+        InventorySource::Container { screen }
+    });
+    let destination = if table {
+        client
+            .screen_state()
+            .await?
+            .screen
+            .context("table screen absent")?
+            .layout
+            .context("table layout absent")?
+            .player_slots
+            .iter()
+            .find(|m| m.player_slot == 10)
+            .context("table player destination absent")?
+            .screen_slot as u16
+    } else {
+        10
+    };
+    let mut takes = Vec::new();
+    let mut stores = Vec::new();
+    for _ in 0..if maximum { 5 } else { 1 } {
+        takes.push(crafting_result_take(client, mode, "minecraft:stick").await?);
+        stores.push(
+            crafting_pickup(
+                client,
+                mode,
+                source,
+                destination,
+                InventoryClickButton::Left,
+            )
+            .await?,
+        );
+    }
+    let grid = client
+        .received_crafting()
+        .await?
+        .context("final recipe grid absent")?;
+    for y in 0..grid.dimensions()[1] {
+        for x in 0..grid.dimensions()[0] {
+            anyhow::ensure!(
+                grid.input(x, y)?
+                    .is_some_and(|s| *s.value() == SlotKnowledge::Empty)
+            );
+        }
+    }
+    anyhow::ensure!(
+        grid.result()
+            .is_some_and(|s| *s.value() == SlotKnowledge::Empty)
+    );
+    let close = if let Some(screen) = opening {
+        Some(match mode {
+            GameMode::Survival => client.survival().close_container(screen).await?,
+            _ => client.creative().close_container(screen).await?,
+        })
+    } else {
+        None
+    };
+    let inventory = client.received_inventory().await?;
+    anyhow::ensure!(
+        inventory
+            .cursor()
+            .is_some_and(|s| *s.value() == SlotKnowledge::Empty)
+    );
+    anyhow::ensure!(
+        inventory
+            .slot(10)?
+            .and_then(ReceivedSlot::item)
+            .is_some_and(|i| i.stack().name == "minecraft:stick"
+                && i.stack().count == if maximum { 20 } else { 4 })
+    );
+    anyhow::ensure!(inventory.slot(9)?.is_some_and(|s|if maximum {*s.value()==SlotKnowledge::Empty}else{matches!(s.value(),SlotKnowledge::Item{item} if item.name=="minecraft:oak_planks" && item.count==8)}));
+    match mode {
+        GameMode::Survival => {
+            client.survival().select_hotbar(0).await?;
+        }
+        _ => {
+            client.creative().select_hotbar(0).await?;
+        }
+    }
+    emit(
+        "b4_recipe_run",
+        serde_json::json!({"baseline":baseline,"placement":placed,"takes":takes,"stores":stores,"grid":grid,"close":close,"inventory":inventory}),
+    )?;
+    anyhow::ensure!(commands.next_line().await?.as_deref() == Some("b4_recipe_disconnect"));
+    client.disconnect().await?;
+    emit(
+        "b4_recipe_disconnect",
+        client.survival().recipe_placement_record().await?,
+    )?;
+    Ok(())
 }
 fn has_cake_recipe(catalogue: &ReceivedRecipes, client: &Client) -> bool {
     let cake = client.registry().item("minecraft:cake").unwrap().id;
@@ -4635,6 +4809,9 @@ async fn main() -> anyhow::Result<()> {
         Client::connect(config.clone()).await?
     };
     client.wait_until_ready().await?;
+    if scenario.as_deref() == Some("recipe-placement") {
+        return recipe_placement_probe(&client).await;
+    }
     if scenario.as_deref() == Some("connection-revocation") {
         return connection_revocation_probe(&client).await;
     }

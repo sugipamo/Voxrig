@@ -491,7 +491,7 @@ native default SWAP/default cursor hashは非default patchを送信前に拒否�
 1.21.11は解放済みdisplay entriesを受信するため、受信していない情報は補完しない。
 旧版のrecipe名や新版のnumeric IDは、共通入口ではopaqueな`RecipeId`へ移行する。
 旧版の解除後の宣言保持と新版の削除・再追加のidentity変更を区別する。
-レシピ表示は製作permissionや在庫ではなく、recipe計画・配置は後続対応となる。
+レシピ表示は製作permissionや在庫ではない。coherent contextからsealed配置planを作り、両handleの`place_recipe`で通常Next／Maximumを一回送信できる。
 詳しくは[共通レシピ受信](common-recipes.md)を参照。
 
 ### 製作入力と受信表示
@@ -522,7 +522,7 @@ Item、Unavailableは別々に保持する。`registry_state()`と各slotのregi
 受信された`after`を要求する。旧版では実際のcomparison replyも必要。両版ともnative full resyncを
 要求するが、revision mismatchやEmpty comparisonは受信証拠ではない。表示resultが同じまま再生成
 されるレシピも扱い、例えばケーキのバケツを実受信remainderとして保持する。成功した履歴は現在の
-在庫と区別する。recipe選択/計画、非空cursorへのresult merge、shift-craftingは後続対応を要する。
+在庫と区別する。recipe選択は利用側で行う。非空cursorへのresult mergeとshift-craftingは後続対応を要する。
 旧版の`craft_once` / `take_crafting_result`でローカルに減算した材料は共通APIの受信結果にしない。
 
 ### 製作台の開閉
@@ -541,7 +541,8 @@ player側のslotを選び、各PICKUPの実source/cursor応答を確認してか
 元サーバーで生存・在庫空きのある条件の材料返却を検証するが、満杯・死亡・切断時などの
 材料の処理は同じ保証にしない。必要な材料の保存確認には、その後の実player slot受信や
 在庫の調査を用いる。再度開いた画面では新しい`ScreenId`を取得し、古いinput/close要求を再送しない。
-結果slotを取る操作、recipe消費・remainder、製作台でのSWAP/QUICK_MOVEは後続対応を要する。
+結果は空cursorへの`take_crafting_result`で取得し、消費・remainderを実受信として保持する。
+製作台でのSWAP/QUICK_MOVEは後続対応を要する。
 
 ### Recipe-book materials
 
@@ -574,8 +575,9 @@ and call `recipe_placement_plan(recipe.id(), RecipePlacementAmount::Next)` or
 not mean a fixed exact batch or one output item. Inspect grid matching, native
 material counts, full return capacity and compatible post-return sources together.
 `can_place()` is historical preflight, not an operation reservation or server ACK.
-Planning emits no recipe packet. Owned dispatch/actual placement receipts are
-still in progress; do not replace consumer placement with a successful plan alone.
+Planning emits no recipe packet. Submit a safe current plan with `place_recipe`
+and inspect actual conservation separately; a successful plan alone is not placement.
+Ghost receipts and broader crafting remain in progress.
 
 
 ## 共通の採掘復旧とログインidentity
@@ -670,3 +672,16 @@ modernのnative `MiningIntent`には元`held_stack`と共通採掘の`estimate`�
 通常の`disconnect().await`とは完了条件が異なる。遮断を送信取消の成功やtransport終了の証明へ変換せず、
 元操作の配送不明を保持し、新しい接続は既存の明示的な条件で別に作る。
 旧版のnative `GenerationRevocation`も維持する。[共通緊急遮断](common-connection-revocation.md)を参照。
+
+
+### Owned recipe placement
+
+Use either mode handle's `place_recipe(&plan)` with a current sealed
+`RecipePlacementPlan`. Replace native recipe-name/window-ID calls with received
+`RecipeId` and the coherent context's source. Poll `recipe_placement_record()`
+for actual conserved `ObservedPlaced`; complete write alone is not placement or
+crafted output. Caller cancellation retains the one owned attempt, including
+pending or uncertain history, and never retries it. Old plans cannot be reused.
+Use fresh grid captures for explicit result takes and ordinary cursor deposits.
+Ghost/nonempty-result-cursor/shift crafting remain required follow-up work.
+See [common recipe placement](common-recipes.md#owned-recipe-placement-through-the-common-client).

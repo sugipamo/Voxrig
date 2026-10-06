@@ -39,6 +39,10 @@ async fn fixture() -> (Bot, OwnedReadHalf, TcpStream) {
         interaction_sequence: AtomicI32::new(0),
     });
     let bot = Bot {
+        recipe_placement_history: {
+            let state = session.state.try_lock().expect("new session");
+            state.recipe_placement_history.clone()
+        },
         crafting_take_history: {
             let state = session.state.try_lock().expect("new session");
             state.crafting_take_history.clone()

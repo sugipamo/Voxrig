@@ -325,6 +325,10 @@ async fn common_revocation_keeps_partial_write_unknown_and_other_connection_live
 fn operations(session: &Arc<Session>) -> operations::Operations {
     operations::Operations {
         bot: Bot {
+            recipe_placement_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.recipe_placement_history.clone()
+            },
             crafting_take_history: {
                 let state = session.state.try_lock().expect("new session");
                 state.crafting_take_history.clone()

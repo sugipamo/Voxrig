@@ -144,7 +144,7 @@ impl Capabilities {
                 ),
             },
             Feature::Crafting => Support::Restricted(
-                "received recipe declarations/displays/book membership and player/table input grids with coherent registry/tag ownership; empty-hand table activation, ordinary input PICKUP and opening-bound close with cursor return; native input disposal on close is not locally predicted or a close ACK; empty-cursor result PICKUP retains fresh native full-grid consumption/remainders and output receipts; recipe planning, nonempty-cursor result merging and shift-crafting remain incomplete",
+                "received recipe declarations/displays/book membership and player/table input grids with coherent registry/tag ownership; empty-hand table activation, ordinary input PICKUP and opening-bound close with cursor return; native input disposal on close is not locally predicted or a close ACK; empty-cursor result PICKUP retains fresh native full-grid consumption/remainders and output receipts; coherent Next/Maximum recipe planning and owned one-shot placement release only after actual grid/inventory conservation; ghost, nonempty-cursor result merging and shift-crafting remain incomplete",
             ),
             Feature::EntityObservation => Support::Restricted(
                 "received spawn/despawn ledger; version-bound entity types and original spawn coordinates; opaque connection/world/spawn identity; current motion, metadata, hitboxes and health remain incomplete",

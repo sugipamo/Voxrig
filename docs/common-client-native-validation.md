@@ -588,3 +588,30 @@ CARGO_INCREMENTAL=0 python3 scripts/run_common_native.py --all --scenario connec
 capture／writer停止・別OS thread・partial write・別接続の分離は軽量試験で補う。
 今回のEOF観測を、任意の遮断におけるtransport終了やserver静止の保証へ一般化しない。
 [契約](common-connection-revocation.md)／[入力と結果](evidence/common-connection-revocation-20261006.json)。
+
+## B4: ownedレシピ配置から結果取得・格納まで（2026-10-06）
+
+```bash
+CARGO_INCREMENTAL=0 python3 scripts/run_common_native.py --all --scenario recipe-placement --accept-eula
+```
+
+同じconsumerでSurvival／Creative、player 2x2／table 3x3、Next／Maximumの
+8通りを各版で実行する。初期fixtureはplanks 10個と受信book、以降のRCONは読み取りのみ。
+sealed planから一回だけrecipe要求を送信し、実入力と在庫の保存を確認した後、
+明示的な1回／5回の結果取得とcursor格納を行う。最終grid・result・cursorが空で、
+Nextはplanks 8個とsticks 4個、Maximumはsticks 20個のみ。元tableのclose、
+同じClientでの新しいhotbar選択、正常disconnectまで確認する。
+
+B4単独の固定入力runは`trial-1.16.1-6239a947`／`trial-1.21.11-c43b7cc9`。
+同じ431 source/data入力とbinaryで16ケース成功、両JVM exit 0、proxy errorなし。
+両adapterの軽量TCP試験ではwriter保持中の履歴取得、待機取消後の一回送信、
+実入力だけでは解放しないこと、保存確認後の次操作、old plan拒否、
+writer保持中のcommon revocationによる要求の遮断を確認する。
+先行成功runと失敗runは証跡に区別して保持する。
+
+製作台は既存のstanding/ray試験と同じ`[0, 65, 2]`に置く。
+`[0, 65, 1]`の隣接tableはdry collision modelの未対応としてlookを拒否した。
+この制限はB3へ残し、guardを弱めたり成功として扱ったりしない。
+ghost／非空cursor結合／shift製作と広いB4は未完了。
+[契約](common-recipes.md#owned-recipe-placement-through-the-common-client)／
+[入力と結果](evidence/common-recipe-placement-20261006.json)。

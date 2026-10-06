@@ -2078,6 +2078,133 @@ mod tests {
         drop(bot);
         server.await.unwrap();
     }
+
+    #[tokio::test]
+    async fn recipe_placement_cancelled_waiter_keeps_one_write_conservation_and_revocation_fence() {
+        use api::crafting::RecipePlacementStage;
+        for revoke in [false, true] {
+            let (bot, mut packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            seed(&bot).await;
+            bot.apply_packet(0x3f, vec![0]).await.unwrap();
+            let plank = |count| api::SlotKnowledge::Item {
+                item: api::ItemStack {
+                    id: api::registry::Registry::for_version(crate::MinecraftVersion::Java1_16_1)
+                        .item("minecraft:oak_planks")
+                        .unwrap()
+                        .id,
+                    name: "minecraft:oak_planks".into(),
+                    count,
+                    data: api::ItemData::Default,
+                },
+            };
+            slot(&bot, 9, &plank(10), false).await;
+            slot(&bot, 36, &api::SlotKnowledge::Empty, false).await;
+            {
+                let mut receipts = bot.common_receipts.lock().await;
+                receipts.registries.finish();
+                receipts.recipes = api::tests::recipe_placement_book_fixture(
+                    crate::MinecraftVersion::Java1_16_1,
+                    bot.protocol_packet_sequence.load(Ordering::Acquire),
+                );
+            }
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            let plan = api::tests::common_recipe_placement_plan(&client).await;
+            let old_plan = plan.clone();
+            let writer = bot.writer.lock().await;
+            let ops = client.survival();
+            let waiter = tokio::spawn(async move { ops.place_recipe(&plan).await });
+            let pending = timeout(Duration::from_secs(1), async {
+                loop {
+                    if let Some(record) = client.survival().recipe_placement_record().await.unwrap()
+                    {
+                        break record;
+                    }
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .unwrap();
+            assert!(!pending.send.dispatched && pending.after.is_none());
+            waiter.abort();
+            assert!(waiter.await.unwrap_err().is_cancelled());
+            if revoke {
+                let revoked = client.revoke_connection();
+                assert_eq!(revoked.connection_id(), pending.id.session().connection_id);
+                let retained = timeout(
+                    Duration::from_millis(100),
+                    client.survival().recipe_placement_record(),
+                )
+                .await
+                .unwrap()
+                .unwrap()
+                .unwrap();
+                assert_eq!(retained.id, pending.id);
+                assert_eq!(retained.stage, RecipePlacementStage::RequiresInspection);
+                drop(writer);
+                assert!(client.survival().place_recipe(&old_plan).await.is_err());
+                drop(release);
+                drop(client);
+                drop(bot);
+                server.await.unwrap();
+                assert!(packets.try_recv().is_err());
+                continue;
+            }
+            drop(writer);
+            assert_eq!(
+                timeout(Duration::from_secs(1), packets.recv())
+                    .await
+                    .unwrap()
+                    .unwrap(),
+                (0x19, api::crafting::dispatch::payload(&pending).unwrap())
+            );
+            slot(&bot, 1, &plank(1), false).await;
+            slot(&bot, 3, &plank(1), false).await;
+            let partial = client
+                .survival()
+                .recipe_placement_record()
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(partial.send.dispatched && partial.after.is_none());
+            assert_eq!(partial.stage, RecipePlacementStage::Pending);
+            assert!(client.survival().place_recipe(&old_plan).await.is_err());
+            assert!(client.survival().select_hotbar(0).await.is_err());
+            slot(&bot, 9, &plank(8), false).await;
+            let complete = client
+                .survival()
+                .recipe_placement_record()
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(complete.id, pending.id);
+            assert_eq!(complete.stage, RecipePlacementStage::ObservedPlaced);
+            assert!(complete.after.is_some() && complete.inventory_after.is_some());
+            assert!(client.survival().place_recipe(&old_plan).await.is_err());
+            client.survival().select_hotbar(0).await.unwrap();
+            assert_eq!(packets.recv().await.unwrap().0, 0x24);
+            assert!(
+                timeout(Duration::from_millis(20), packets.recv())
+                    .await
+                    .is_err()
+            );
+            bot.disconnect().await.unwrap();
+            assert_eq!(
+                client
+                    .survival()
+                    .recipe_placement_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .stage,
+                RecipePlacementStage::ObservedPlaced
+            );
+            drop(release);
+            drop(client);
+            drop(bot);
+            server.await.unwrap();
+        }
+    }
     async fn seed(bot: &Bot) {
         super::super::common_motion::tests::seed_motion(bot).await;
         let mut slots = vec![0, 0, 46];

@@ -9,6 +9,7 @@ mod common_inventory;
 mod common_mining;
 mod common_motion;
 mod common_placement;
+mod common_recipe_placement;
 mod common_recording;
 mod common_scene;
 pub(crate) use common_recording::replay_packets;
@@ -1049,6 +1050,7 @@ pub struct Bot {
     common_inventory_swap: Arc<Mutex<Option<common_inventory::NativeInventorySwap>>>,
     common_inventory_click: Arc<Mutex<Option<common_click::NativeInventoryClick>>>,
     common_crafting_take: Arc<Mutex<Option<common_crafting::NativeCraftingTake>>>,
+    common_recipe_placement: Arc<Mutex<Option<common_recipe_placement::NativeRecipePlacement>>>,
     common_inventory_transfer: Arc<Mutex<Option<common_transfer::NativeInventoryTransfer>>>,
     pub(crate) flight_history: crate::client::flight::History,
     retired_common_motion: Arc<Mutex<Option<crate::client::survival::MotionRecord>>>,
@@ -1157,6 +1159,7 @@ impl Bot {
             common_inventory_swap: self.common_inventory_swap.clone(),
             common_inventory_click: self.common_inventory_click.clone(),
             common_crafting_take: self.common_crafting_take.clone(),
+            common_recipe_placement: self.common_recipe_placement.clone(),
             common_inventory_transfer: self.common_inventory_transfer.clone(),
             flight_history: self.flight_history.clone(),
             retired_common_motion: self.retired_common_motion.clone(),
@@ -1328,6 +1331,7 @@ impl Bot {
             common_inventory_swap: Arc::new(Mutex::new(None)),
             common_inventory_click: Arc::new(Mutex::new(None)),
             common_crafting_take: Arc::new(Mutex::new(None)),
+            common_recipe_placement: Arc::new(Mutex::new(None)),
             common_inventory_transfer: Arc::new(Mutex::new(None)),
             flight_history: Arc::default(),
             retired_common_motion: Arc::default(),
@@ -5871,6 +5875,7 @@ impl Bot {
         self.common_inventory_context_received().await?;
         self.common_click_context_received().await?;
         self.common_crafting_context_received(false).await?;
+        self.common_recipe_placement_context_received().await?;
         self.common_transfer_context_received().await?;
         self.common_container_close_context_received().await?;
         self.common_container_open_context_received().await?;

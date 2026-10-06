@@ -5,6 +5,7 @@ use std::time::Duration;
 pub(in crate::versions::java_1_21_11::client) mod click;
 pub(in crate::versions::java_1_21_11::client) mod common;
 pub(in crate::versions::java_1_21_11::client) mod crafting;
+pub(in crate::versions::java_1_21_11::client) mod recipe_placement;
 pub(in crate::versions::java_1_21_11::client) mod transfer;
 
 diagnostic_record! {

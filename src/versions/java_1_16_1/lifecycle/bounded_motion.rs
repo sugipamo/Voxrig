@@ -23,6 +23,16 @@ pub(super) enum MotionCommand {
         run_id: u64,
         reply: oneshot::Sender<Admission<()>>,
     },
+    RecipePlacement {
+        run_id: u64,
+        expected_revision: u64,
+        payload: Vec<u8>,
+        reply: oneshot::Sender<crate::Result<()>>,
+    },
+    FinishRecipePlacement {
+        run_id: u64,
+        reply: oneshot::Sender<Admission<()>>,
+    },
     OpenContainer {
         run_id: u64,
         expected_revision: u64,
@@ -125,6 +135,10 @@ enum Owner {
         next: u16,
         active: Option<CursorStep>,
         closed: bool,
+    },
+    RecipePlacement {
+        run_id: u64,
+        sent: bool,
     },
     ContainerOpen {
         run_id: u64,
@@ -496,6 +510,84 @@ impl MotionGate {
                 let result = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
                     if !matches!(self.owner, Some(Owner::CursorClose { run_id: id, closed: true, active: None, .. }) if id == run_id) { return Err(OperationAdmissionError::InvalidOperation); }
                     self.owner = None; Ok(())
+                });
+                let _ = reply.send(result);
+            }
+            MotionCommand::RecipePlacement {
+                run_id,
+                expected_revision,
+                payload,
+                reply,
+            } => {
+                let valid_payload = (|| -> crate::Result<()> {
+                    let mut bytes = payload.as_slice();
+                    if bytes.is_empty() || bytes[0] > 127 {
+                        return Err(crate::client::inventory::unavailable(
+                            "recipe placement invalid window",
+                        ));
+                    }
+                    bytes = &bytes[1..];
+                    let name = crate::protocol::get_string(&mut bytes)?;
+                    if name.is_empty() || bytes.len() != 1 || bytes[0] > 1 {
+                        return Err(crate::client::inventory::unavailable(
+                            "recipe placement invalid identity/amount",
+                        ));
+                    }
+                    Ok(())
+                })();
+                let admission = self
+                    .can_begin(state, control, pending)
+                    .await
+                    .and_then(|()| {
+                        if run_id == 0
+                            || expected_revision != self.normal_revision
+                            || valid_payload.is_err()
+                        {
+                            return Err(OperationAdmissionError::InvalidOperation);
+                        }
+                        self.normal_revision = self
+                            .normal_revision
+                            .checked_add(1)
+                            .ok_or(OperationAdmissionError::InvalidOperation)?;
+                        self.owner = Some(Owner::RecipePlacement {
+                            run_id,
+                            sent: false,
+                        });
+                        Ok(())
+                    });
+                let admitted = admission.is_ok();
+                let result = match admission {
+                    Err(e) => Err(crate::client::inventory::unavailable(format!(
+                        "recipe placement admission: {e:?}"
+                    ))),
+                    Ok(()) => {
+                        let mut writer = writer.lock().await;
+                        let compression = writer.compression;
+                        let result = crate::protocol::write_packet(
+                            &mut writer.inner,
+                            compression,
+                            0x19,
+                            &payload,
+                        )
+                        .await
+                        .map_err(crate::Error::from);
+                        if result.is_ok() {
+                            self.owner = Some(Owner::RecipePlacement { run_id, sent: true });
+                        }
+                        result
+                    }
+                };
+                let failed = admitted && result.is_err();
+                let _ = reply.send(result);
+                return failed;
+            }
+            MotionCommand::FinishRecipePlacement { run_id, reply } => {
+                let result = admit_lifecycle(state, OperationClass::Normal).and_then(|()| {
+                    if self.owner != Some(Owner::RecipePlacement { run_id, sent: true }) {
+                        return Err(OperationAdmissionError::InvalidOperation);
+                    }
+                    self.owner = None;
+                    Ok(())
                 });
                 let _ = reply.send(result);
             }
@@ -1077,6 +1169,9 @@ impl MotionGate {
             Some(Owner::ContainerOpen { .. }) => {
                 OperationAdmissionError::BoundedContainerOpenInProgress
             }
+            Some(Owner::RecipePlacement { .. }) => {
+                OperationAdmissionError::BoundedRecipePlacementInProgress
+            }
             Some(Owner::InventoryTransfer { .. }) => {
                 OperationAdmissionError::BoundedInventoryTransferInProgress
             }
@@ -1108,6 +1203,32 @@ impl MotionGate {
     }
 }
 impl ConnectionActor {
+    pub(crate) async fn bounded_recipe_placement(
+        &self,
+        run_id: u64,
+        expected_revision: u64,
+        payload: Vec<u8>,
+    ) -> crate::Result<()> {
+        let (reply, result) = oneshot::channel();
+        self.commands
+            .send(Command::Motion(MotionCommand::RecipePlacement {
+                run_id,
+                expected_revision,
+                payload,
+                reply,
+            }))
+            .await
+            .map_err(|_| {
+                crate::client::inventory::unavailable("recipe placement actor unavailable")
+            })?;
+        result.await.map_err(|_| {
+            crate::client::inventory::unavailable("recipe placement actor result unavailable")
+        })?
+    }
+    pub(crate) async fn finish_recipe_placement(&self, run_id: u64) -> Admission<()> {
+        self.motion_admission(|reply| MotionCommand::FinishRecipePlacement { run_id, reply })
+            .await
+    }
     pub(crate) async fn bounded_container_open(
         &self,
         run_id: u64,

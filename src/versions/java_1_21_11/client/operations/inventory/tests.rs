@@ -1059,6 +1059,10 @@ impl CommonFixture {
         });
         let api = Operations {
             bot: Bot {
+                recipe_placement_history: {
+                    let state = session.state.try_lock().expect("new session");
+                    state.recipe_placement_history.clone()
+                },
                 crafting_take_history: {
                     let state = session.state.try_lock().expect("new session");
                     state.crafting_take_history.clone()
@@ -1616,6 +1620,10 @@ async fn ordinary_click_uses_real_transport_and_timeout_never_resubmits() {
     });
     let operations = Operations {
         bot: Bot {
+            recipe_placement_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.recipe_placement_history.clone()
+            },
             crafting_take_history: {
                 let state = session.state.try_lock().expect("new session");
                 state.crafting_take_history.clone()
@@ -3970,4 +3978,119 @@ async fn crafting_take_cancelled_caller_retains_owned_write_and_prompt_history()
         .unwrap();
     assert_eq!(retained.stage, CraftingTakeStage::RequiresInspection);
     assert_eq!(retained.id, pending.id);
+}
+
+#[tokio::test]
+async fn recipe_placement_cancelled_waiter_keeps_one_write_conservation_and_revocation_fence() {
+    use crate::client::crafting::RecipePlacementStage;
+    for revoke in [false, true] {
+        let mut f = CommonFixture::new().await;
+        f.receive(ids::play_clientbound::HELD_ITEM_SLOT, &[0]).await;
+        f.slot(9, plain("oak_planks", 10)).await;
+        f.slot(36, InventorySlot::Empty).await;
+        {
+            let mut state = f.api.bot.session.state.lock().await;
+            state.registries.finish();
+            state.recipes = crate::client::tests::recipe_placement_book_fixture(
+                crate::MinecraftVersion::Java1_21_11,
+                state.sequence,
+            );
+        }
+        let client = f.client();
+        let plan = crate::client::tests::common_recipe_placement_plan(&client).await;
+        let old_plan = plan.clone();
+        let session = f.api.bot.session.clone();
+        let writer = session.writer.lock().await;
+        let ops = client.survival();
+        let waiter = tokio::spawn(async move { ops.place_recipe(&plan).await });
+        let pending = timeout(Duration::from_secs(1), async {
+            loop {
+                if let Some(record) = client.survival().recipe_placement_record().await.unwrap() {
+                    break record;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert!(!pending.send.dispatched && pending.after.is_none());
+        assert_eq!(pending.stage, RecipePlacementStage::Pending);
+        waiter.abort();
+        assert!(waiter.await.unwrap_err().is_cancelled());
+        if revoke {
+            let revoked = client.revoke_connection();
+            assert_eq!(revoked.connection_id(), pending.id.session().connection_id);
+            let retained = timeout(
+                Duration::from_millis(100),
+                client.survival().recipe_placement_record(),
+            )
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+            assert_eq!(retained.id, pending.id);
+            assert_eq!(retained.stage, RecipePlacementStage::RequiresInspection);
+            drop(writer);
+            f.receiver.await.unwrap();
+            assert!(read_packet(&mut f.peer, None).await.is_err());
+            assert!(client.survival().place_recipe(&old_plan).await.is_err());
+            continue;
+        }
+        drop(writer);
+        let packet = timeout(Duration::from_secs(1), read_packet(&mut f.peer, None))
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            packet,
+            (
+                ids::play_serverbound::CRAFT_RECIPE_REQUEST,
+                crate::client::crafting::dispatch::payload(&pending).unwrap()
+            )
+        );
+        f.slot(1, plain("oak_planks", 1)).await;
+        f.slot(3, plain("oak_planks", 1)).await;
+        let partial = client
+            .survival()
+            .recipe_placement_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(partial.send.dispatched && partial.after.is_none());
+        assert_eq!(partial.stage, RecipePlacementStage::Pending);
+        assert!(client.survival().place_recipe(&old_plan).await.is_err());
+        assert!(client.survival().select_hotbar(0).await.is_err());
+        f.slot(9, plain("oak_planks", 8)).await;
+        let complete = client
+            .survival()
+            .recipe_placement_record()
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(complete.id, pending.id);
+        assert_eq!(complete.stage, RecipePlacementStage::ObservedPlaced);
+        assert!(complete.after.is_some() && complete.inventory_after.is_some());
+        assert!(client.survival().place_recipe(&old_plan).await.is_err());
+        client.survival().select_hotbar(0).await.unwrap();
+        assert_eq!(
+            read_packet(&mut f.peer, None).await.unwrap().0,
+            ids::play_serverbound::HELD_ITEM_SLOT
+        );
+        assert!(
+            timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+                .await
+                .is_err()
+        );
+        f.stop().await;
+        assert_eq!(
+            client
+                .survival()
+                .recipe_placement_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            RecipePlacementStage::ObservedPlaced
+        );
+    }
 }

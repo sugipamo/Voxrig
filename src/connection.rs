@@ -414,6 +414,24 @@ impl Client {
             }
         }
     }
+    pub(crate) async fn common_place_recipe(
+        &self,
+        mode: crate::client::GameMode,
+        plan: &crate::client::crafting::RecipePlacementPlan,
+    ) -> Result<crate::client::crafting::RecipePlacementRecord> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_place_recipe(mode, plan).await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_place_recipe(mode, plan).await,
+        }
+    }
+    pub(crate) async fn common_recipe_placement_record(
+        &self,
+    ) -> Result<Option<crate::client::crafting::RecipePlacementRecord>> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_recipe_placement_record().await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_recipe_placement_record().await,
+        }
+    }
     pub(crate) async fn common_take_crafting_result(
         &self,
         mode: crate::client::GameMode,

@@ -15,7 +15,7 @@
   共通のcomponent付き在庫も診断recordへ元bytes・削除patch・版を保持し、
   保存データから検証済みIDや操作guardを復元しない。
   後続のmain `b38e8b4`（PR #10の旧版generation revocation）も取り込んだ（`f05cff2`）。
-  nativeの緊急遮断を維持し、Client共通の緊急遮断入口はB5へ残す。
+  nativeの緊急遮断を維持し、Client共通の緊急遮断入口もB5で接続した。
 - A1完了: 同じconsumerを使い、各modeで接続を変えずに観測・地上移動・収納・通常製作・
   設置・切断を両版の公式vanillaで確認した。収納後のno-echo closeから設置へ進む契約を接続し、
   Creative handleにも有限地上歩行を実装した。予測位置と受信pose、close送信と受信画面は分離する。
@@ -40,7 +40,7 @@
   詳細は[基本UIとmanager](common-ui-manager.md)と[共通かまど操作](common-furnaces.md)、[共通乗車関係](common-vehicles.md)。
 - 次はA6の共通consumer・対応一覧・移行資料と、非公開利用側の固定commit検証。
   Bの広い残機能は引き続き必須作業で、全統合完了とは扱わない。
-  ownedレシピブック配置の未検証変更は退避したまま、Bまで復元しない。
+  初回貫通時はownedレシピブック配置を退避し、現在はB4として復元・実装している。
   利用側へ返してもらう内容は[A6の確認手順](client-api-consumer-validation.md)にまとめる。
 - B3の一部完了: 乾いた登録stairs/slabを両版の有限地上歩行・立位検査・Survival sceneへ接続した。
   同じconsumerで段差を上り、同じClientで収納の開閉と切断まで両版・両modeで確認した。
@@ -75,6 +75,14 @@
   ロック待ち・別OS thread・32送信待ち・partial prefixと別接続の分離は軽量試験で確認する。
   広いcontext／記録／再構成／復旧と各履歴取得経路は継続する。
   詳細は[共通緊急遮断](common-connection-revocation.md)。B3／B4／B6とA6も残る。
+
+- B4の一部完了: sealed `recipe_placement_plan`から一回のowned配置を送信し、
+  実入力と在庫の保存を確認した後、明示的結果取得→格納→空grid／cursor→製作台close→切断を通した。
+  両版・両mode・player／table・Next／Maximumの16ケースでnative在庫と位置を独立確認する。
+  材料の保存が確認できるまで後続mutationを許可せず、古いplanの再送を拒否する。
+  ghost／非空cursor結合／shift製作／table SWAP・QUICK_MOVEと一般装備・entity・dataはB4へ残す。
+  隣接する製作台がdry collision範囲に入るとlookを拒否する制限はB3へ残す。
+  詳細は[共通レシピ](common-recipes.md)。A6と全体goalは継続する。
 
 ## 選択と公開入口
 
@@ -164,17 +172,17 @@ modernの既存intent・session guardも維持する。保存したreceiptは次
 | --- | --- | --- | --- |
 | 1 | 接続設定・基本型・対応情報・registry | 共通入口と版選択の基盤は実装・検証済み | 同じ利用コードで接続でき、版・ID・registryの混同を拒否する |
 | 2 | player・world・inventoryの観測 | 基本captureと受信／予測／欠測の区別は実装・検証済み | 次の操作へ必要な実受信情報を同じ境界で取得できる |
-| 3 | 視点・選択・移動・採掘・設置 | 両版の限定条件で動作・実サーバー検証済み。広い条件と採掘後の共通復旧は残る | dry環境の基本操作から、明示的な復旧を挟んで次の操作へ進める |
-| 4 | 在庫・container・製作・装備・entity | 通常在庫・開閉・製作入力・空cursorへの結果取得は実装済み。レシピ配置などは途中、一般entityは未共通化 | 収納と通常の1回製作、基本装備、代表的なentity操作を同じAPIで通す |
-| 5 | context・記録・再構成・scene・復旧 | 共通化は残る。個別操作の送信記録はあるが、この段階全体とは別 | 受信記録の読み取り専用再生、限定scene、明示的な復旧から操作を継続できる |
-| 6 | UI・特殊window・vehicle・manager | 共通化は残る | 代表的なUI・特殊window・乗車状態／下車・複数Client管理を両版で通す |
+| 3 | 視点・選択・移動・採掘・設置 | 両版の限定条件で動作・実サーバー検証済み。共通fresh復旧も接続済み。広い地形・道具条件はB3へ残る | dry環境の基本操作から、明示的な復旧を挟んで次の操作へ進める |
+| 4 | 在庫・container・製作・装備・entity | 通常在庫・開閉・製作入力・空cursorへの結果取得と通常owned配置は実装済み。基本装備／entityは初回貫通済み。広い対応はB4 | 収納と通常の1回製作、基本装備、代表的なentity操作を同じAPIで通す |
+| 5 | context・記録・再構成・scene・復旧 | 元packet記録・選択観測の再生・限定scene・明示的fresh復旧・共通遮断は実装済み。広いcontextと再構成はB5 | 受信記録の読み取り専用再生、限定scene、明示的な復旧から操作を継続できる |
+| 6 | UI・特殊window・vehicle・manager | scoreboard／かまど／実乗車関係・下車／managerは初回貫通済み。広い対応はB6 | 代表的なUI・特殊window・乗車状態／下車・複数Client管理を両版で通す |
 
-**直前の作業は第4段階の「レシピブック配置」だった。第4段階全体の完了ではない。**
+**見直し前の作業は第4段階の「レシピブック配置」だった。現在はA0〜A5の初回貫通後、B4として通常配置を接続した。第4段階全体の完了ではない。**
 
 - 公開済み: 材料判定、盤面の配置幾何、返却計画、`recipe_placement_plan`。
   配置planは読み取り専用で、配置packetを送信しない。
 - 中断時の作業: planからのowned送信、実入力と在庫の結果保持、取消・競合の扱い。
-  未コミット・未検証の変更を退避してあり、利用可能な機能として数えない。
+  初回貫通中は退避した。現在はB4で復元し、通常Next／Maximumのowned送信と実保存まで接続した。
 - 既に使える製作経路: `click_inventory`で通常の入力を置き、
   `take_crafting_result`で空cursorへ結果を取得する。必要なrecipeと入力手順は利用側が選ぶ。
 
@@ -223,7 +231,7 @@ A5の代表例は初回貫通用であり、すべての特殊windowやentity／
 | かまどslot観測・通常PICKUP・開閉 | 共通・限定条件 | 共通・限定条件 | A5の基本かまど精錬flow。溶鉱炉／燻製器はconstructor/slot規則の確認で、特殊レシピのlive検証は残る |
 | own-player乗車関係・明示的下車 | 共通・限定条件 | 共通・限定条件 | 実passenger list、owned一回送信→実除外→neutral。両版・両modeのnativeで確認。下車後の地上継続はB |
 | vehicle操縦・その他特殊window／UI／manager | 未共通化 | 未共通化 | 広い対応はB |
-| ownedレシピブック配置 | 未公開 | 未公開 | 読み取り専用planを維持し、送信はBへ残す |
+| ownedレシピブック配置 | 共通・限定条件 | 共通・限定条件 | B4で通常Next／Maximumを接続。ghost／自動shift製作は残る |
 
 A1の固定fixtureはstone床、空のsingle chest、oak planks 2個、収納用stone 2個、
 設置用dirt 3個とする。初期配置後にfixtureから操作結果を上書きせず、
@@ -261,8 +269,7 @@ Aの代表操作で実害がある不足はその操作の前提として先に�
 - 各区切りで、使えるようになった操作、残る制約、次に進める理由を報告する。
   必要な前提修正が広がる場合は、追加作業の前にロードマップ上の位置と影響を示す。
 
-この順序と代表例に沿って再開する。退避したレシピ配置の変更はBの対象とし、
-最優先の実装として復元しない。
+この順序と代表例に沿って再開する。退避したレシピ配置の変更は初回貫通後のB4で復元した。
 初回貫通後も不足はこの文書と対応情報へ残し、全体統合とmain合流の判断を別に行う。
 
 現在の共通Creativeはdefault hotbar write、look/選択、server許可済みのflight requestと4block以内のstep、

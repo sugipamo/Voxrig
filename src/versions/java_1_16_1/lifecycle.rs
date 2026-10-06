@@ -133,6 +133,8 @@ pub enum OperationAdmissionError {
     BoundedContainerCloseInProgress,
     /// A retained common storage activation owns ordinary gameplay dispatch.
     BoundedContainerOpenInProgress,
+    /// Retained recipe placement owns normal dispatch until actual inventory/grid conservation.
+    BoundedRecipePlacementInProgress,
     /// A finite common motion run exclusively owns normal gameplay dispatch.
     BoundedMotionInProgress,
     /// A retained common mining attempt owns normal dispatch until fresh recovery.
@@ -164,6 +166,9 @@ pub enum OperationAdmissionError {
 impl Display for OperationAdmissionError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         let name = match self {
+            Self::BoundedRecipePlacementInProgress => {
+                "bounded recipe placement owns normal dispatch"
+            }
             Self::BoundedContainerCloseInProgress => {
                 "retained cursor return/close owns gameplay dispatch"
             }

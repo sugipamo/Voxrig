@@ -39,6 +39,8 @@ pub struct RecipePlacementPlan {
     source_data_safe: bool,
     unlocked: bool,
     #[serde(skip)]
+    pub(super) targets: std::collections::BTreeSet<u32>,
+    #[serde(skip)]
     context: ReceivedCraftingContext,
 }
 impl RecipePlacementPlan {
@@ -237,9 +239,10 @@ pub(super) fn capture(
     };
     let layout = context.recipe_layout(recipe)?;
     let grid_return = context.grid_return_plan()?;
+    let targets = target_counts(context, &choices, &amounts, requested_crafts)?;
     let source_data_safe = grid_return.fits()
         && requested_crafts > 0
-        && source_safety(context, &grid_return, &choices, &amounts, requested_crafts)?;
+        && source_safety(context, &grid_return, &choices, &amounts, &targets)?;
     Ok(RecipePlacementPlan {
         session: context.session(),
         receive_sequence: context.receive_sequence(),
@@ -254,6 +257,7 @@ pub(super) fn capture(
         matched_capacity,
         source_data_safe,
         unlocked,
+        targets,
         context: context.clone(),
     })
 }
@@ -265,7 +269,7 @@ fn source_safety(
     returned: &CraftingGridReturnPlan,
     choices: &[Vec<i32>],
     amounts: &BTreeMap<i32, i32>,
-    requested: u32,
+    targets: &std::collections::BTreeSet<u32>,
 ) -> Result<bool> {
     let semantic = ItemContext::new(
         context.inventory().registry_state().clone(),
@@ -300,26 +304,11 @@ fn source_safety(
             variants.push((item.clone(), u64::from(item.count)));
         }
     }
-    let registry = Registry::for_version(context.session().version);
-    let targets = choices
-        .iter()
-        .flatten()
-        .filter(|id| {
-            amounts
-                .get(id)
-                .is_some_and(|count| *count >= requested as i32)
-        })
-        .map(|id| {
-            registry
-                .item_by_native_id(*id)
-                .map(|item| item.max_stack_size.min(requested))
-        })
-        .collect::<Result<std::collections::BTreeSet<_>>>()?;
     // Native selection can clamp and repick at a smaller count, with different
     // choices. Only selected default caps/requested count can become the final
     // count; intermediate numbers are not native clamp outcomes. This is a sufficient safety check;
     // it does not assert the deterministic local assignment is the native tie.
-    for crafts in targets {
+    for &crafts in targets {
         if crafts == 0 {
             return Err(unavailable(
                 "native default crafting capacity must be positive",
@@ -350,6 +339,36 @@ fn source_safety(
         }
     }
     Ok(true)
+}
+
+fn target_counts(
+    context: &ReceivedCraftingContext,
+    choices: &[Vec<i32>],
+    amounts: &BTreeMap<i32, i32>,
+    requested: u32,
+) -> Result<std::collections::BTreeSet<u32>> {
+    if requested == 0 {
+        return Ok(Default::default());
+    }
+    let registry = Registry::for_version(context.session().version);
+    let targets = choices
+        .iter()
+        .flatten()
+        .filter(|id| {
+            amounts
+                .get(id)
+                .is_some_and(|count| *count >= requested as i32)
+        })
+        .map(|id| {
+            registry
+                .item_by_native_id(*id)
+                .map(|item| item.max_stack_size.min(requested))
+        })
+        .collect::<Result<std::collections::BTreeSet<_>>>()?;
+    Ok(targets
+        .into_iter()
+        .filter(|&n| n > 0 && super::materials::assign(choices, amounts, n).is_some())
+        .collect())
 }
 
 #[cfg(test)]

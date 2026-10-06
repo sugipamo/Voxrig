@@ -24,6 +24,10 @@ pub use recipes::{
     ReceivedRecipe, ReceivedRecipes, RecipeDisplay, RecipeId, RecipeIngredient, RecipeSlotDisplay,
     RecipeTrimDefinition, RecipeTrimPattern,
 };
+pub(crate) mod dispatch;
+pub use dispatch::{
+    RecipePlacementId, RecipePlacementRecord, RecipePlacementSend, RecipePlacementStage,
+};
 pub(crate) mod take;
 pub use take::{CraftingTakeId, CraftingTakeRecord, CraftingTakeStage};
 

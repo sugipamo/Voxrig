@@ -66,11 +66,14 @@ struct State {
     common_inventory_swap: Option<operations::inventory::common::CommonSwap>,
     common_inventory_click: Option<crate::client::inventory::InventoryClickRecord>,
     common_crafting_take: Option<crate::client::crafting::CraftingTakeRecord>,
+    common_recipe_placement: Option<crate::client::crafting::RecipePlacementRecord>,
     common_inventory_transfer: Option<crate::client::inventory::InventoryTransferRecord>,
     common_container_close: Option<crate::client::container::ContainerCloseRecord>,
     pub(crate) flight_history: crate::client::flight::History,
     dismount_history: crate::client::vehicle::dismount::History,
     close_history: Arc<std::sync::Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
+    recipe_placement_history:
+        Arc<std::sync::Mutex<Option<crate::client::crafting::RecipePlacementRecord>>>,
     crafting_take_history:
         Arc<std::sync::Mutex<Option<crate::client::crafting::CraftingTakeRecord>>>,
     common_container_open: Option<crate::client::container::ContainerOpenRecord>,
@@ -112,12 +115,14 @@ impl Default for State {
             common_inventory_swap: None,
             common_inventory_click: None,
             common_crafting_take: None,
+            common_recipe_placement: None,
             common_inventory_transfer: None,
             common_container_close: None,
             flight_history: Arc::default(),
             dismount_history: Arc::default(),
             close_history: Arc::default(),
             crafting_take_history: Arc::default(),
+            recipe_placement_history: Arc::default(),
             common_container_open: None,
             survival_motion: None,
             retired_common_motion: None,
@@ -184,6 +189,7 @@ impl State {
             operations::inventory::common::context_received(self);
             operations::inventory::click::context_received(self);
             operations::inventory::crafting::context_received(self);
+            operations::inventory::recipe_placement::context_received(self);
             operations::inventory::transfer::context_received(self);
             operations::container::context_received(self);
             operations::mining::common_mining_context_received(self);
@@ -237,6 +243,8 @@ pub(crate) struct Bot {
     pub(crate) flight_history: crate::client::flight::History,
     dismount_history: crate::client::vehicle::dismount::History,
     close_history: Arc<std::sync::Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
+    recipe_placement_history:
+        Arc<std::sync::Mutex<Option<crate::client::crafting::RecipePlacementRecord>>>,
     crafting_take_history:
         Arc<std::sync::Mutex<Option<crate::client::crafting::CraftingTakeRecord>>>,
     session: Arc<Session>,
@@ -461,6 +469,10 @@ impl Bot {
             .send(ids::configuration_serverbound::SETTINGS, &settings())
             .await?;
         let bot = Self {
+            recipe_placement_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.recipe_placement_history.clone()
+            },
             crafting_take_history: {
                 let state = session.state.try_lock().expect("new session");
                 state.crafting_take_history.clone()

@@ -775,6 +775,15 @@ impl Operations {
             ));
         }
         if state
+            .common_recipe_placement
+            .as_ref()
+            .is_some_and(|r| r.unresolved())
+        {
+            return Err(crate::client::inventory::unavailable(
+                "common recipe placement unresolved; inspect without replay",
+            ));
+        }
+        if state
             .common_crafting_take
             .as_ref()
             .is_some_and(|r| r.unresolved())
@@ -1455,6 +1464,10 @@ pub(super) fn common_player_in_state(
                 .common_inventory_click
                 .as_ref()
                 .is_some_and(|s| s.unresolved())
+            || state
+                .common_recipe_placement
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
             || state
                 .common_crafting_take
                 .as_ref()

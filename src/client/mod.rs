@@ -50,7 +50,8 @@ pub use crafting::{
     CraftingTakeId, CraftingTakeRecord, CraftingTakeStage, ReceivedCrafting,
     ReceivedCraftingContext, ReceivedRecipe, ReceivedRecipes, RecipeBookMaterials, RecipeBookStock,
     RecipeCraftingCell, RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient,
-    RecipePlacementAmount, RecipePlacementPlan, RecipeSlotDisplay, RecipeTrimDefinition,
+    RecipePlacementAmount, RecipePlacementId, RecipePlacementPlan, RecipePlacementRecord,
+    RecipePlacementSend, RecipePlacementStage, RecipeSlotDisplay, RecipeTrimDefinition,
     RecipeTrimPattern,
 };
 pub use entity::{EntityId, EntitySpawn, EntitySpawns};
@@ -118,7 +119,8 @@ pub mod prelude {
         ReceivedCraftingContext, ReceivedInventory, ReceivedItem, ReceivedRecipe, ReceivedRecipes,
         ReceivedSlot, RecipeBookMaterials, RecipeBookStock, RecipeCraftingCell,
         RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient, RecipePlacementAmount,
-        RecipePlacementPlan, RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern, Server,
+        RecipePlacementId, RecipePlacementPlan, RecipePlacementRecord, RecipePlacementSend,
+        RecipePlacementStage, RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern, Server,
         Support, Survival, VehicleObservation, VehicleRelation,
     };
     pub use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Region, Result};

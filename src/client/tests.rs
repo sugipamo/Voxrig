@@ -1,6 +1,72 @@
 use super::*;
 use crate::MinecraftVersion;
 
+/// Seed only the recipe catalogue; adapter tests deliver inventory through their receiver.
+pub(crate) fn recipe_placement_book_fixture(
+    version: MinecraftVersion,
+    sequence: u64,
+) -> crafting::recipes::RecipeReceipts {
+    use crafting::recipes::{NativeRecipeId, RecipeEntry, RecipeReceipts};
+    let registry = registry::Registry::for_version(version);
+    let plank = registry.item("minecraft:oak_planks").unwrap();
+    let entry = RecipeEntry {
+        display: RecipeDisplay::Shaped {
+            width: 1,
+            height: 2,
+            ingredients: vec![
+                RecipeSlotDisplay::Item {
+                    item: plank.clone()
+                };
+                2
+            ],
+            result: RecipeSlotDisplay::Item {
+                item: registry.item("minecraft:stick").unwrap(),
+            },
+            crafting_station: None,
+        },
+        requirements: Some(vec![
+            RecipeIngredient::Items {
+                items: vec![plank.id]
+            };
+            2
+        ]),
+        group: None,
+        category: None,
+        highlighted: None,
+        notification: None,
+    };
+    let mut book = RecipeReceipts::default();
+    match version {
+        MinecraftVersion::Java1_16_1 => {
+            book.declare_legacy(
+                [(NativeRecipeId::Legacy("minecraft:stick".into()), entry)].into(),
+                sequence,
+            );
+            book.legacy_book(
+                ["minecraft:stick".into()].into(),
+                Default::default(),
+                true,
+                sequence,
+            );
+        }
+        MinecraftVersion::Java1_21_11 => book.add_modern(vec![(130, entry)], true, sequence),
+    }
+    book
+}
+
+pub(crate) async fn common_recipe_placement_plan(client: &Client) -> RecipePlacementPlan {
+    let context = client.received_crafting_context().await.unwrap().unwrap();
+    let plan = context
+        .recipe_placement_plan(
+            context.recipes().entries()[0].id(),
+            RecipePlacementAmount::Next,
+        )
+        .unwrap();
+    assert!(plan.can_place());
+    assert_eq!(plan.requested_crafts(), 1);
+    plan
+}
+
 /// The same synchronous consumer must work even when capture/writer locks are held.
 pub(crate) fn common_revocation_scenario(
     client: &Client,
