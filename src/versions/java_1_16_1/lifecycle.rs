@@ -368,6 +368,37 @@ pub(crate) fn dig_lifecycle_trace_enabled() -> bool {
     std::env::var_os("VOXRIG_TRACE_OPERATIONS").is_some()
 }
 
+pub(crate) fn emit_protocol_timing(make_value: impl FnOnce() -> serde_json::Value) {
+    use std::sync::atomic::AtomicU32;
+    static EMITTED: AtomicU32 = AtomicU32::new(0);
+    const CAPACITY: u32 = 65_536;
+    if std::env::var_os("VOXRIG_TRACE_PROTOCOL").is_none() {
+        return;
+    }
+    #[allow(deprecated)]
+    let emitted = EMITTED.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
+        (value < CAPACITY).then_some(value + 1)
+    });
+    if emitted.is_ok() {
+        let mut value = make_value();
+        value["at_unix_ms"] = serde_json::json!(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis()
+        );
+        eprintln!("voxrig_protocol_timing {value}");
+    } else if EMITTED
+        .compare_exchange(CAPACITY, CAPACITY + 1, Ordering::Relaxed, Ordering::Relaxed)
+        .is_ok()
+    {
+        eprintln!(
+            "voxrig_protocol_timing {}",
+            serde_json::json!({"stage":"capacity_exhausted","capacity":CAPACITY})
+        );
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct ConnectionActor {
     generation: ConnectionGeneration,

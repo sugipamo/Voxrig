@@ -48,6 +48,38 @@ remains another possible contributor. Fixing the isolated bug is not evidence
 that the incident's root cause has been proven or that long-running stability
 is guaranteed.
 
+The unpatched production controller subsequently timed out all eleven clients
+at 06:16:58-06:17:15 UTC. It fail-closed at 06:17:38 UTC after unconfirmed
+cancellation, preserving holds; the Minecraft server remained active. The
+single-job, low-priority test build also had an LLD crash. Their overlap does not
+prove a common cause. No patched production run has been performed.
+
+## Opt-In Timing Evidence
+
+Set `VOXRIG_TRACE_PROTOCOL=1` before starting a diagnostic process to emit
+`voxrig_protocol_timing` JSON lines to stderr. Logging is off by default and
+bounded to 65,536 records per process, followed by one `capacity_exhausted`
+marker. Do not interpret missing records after that marker as missing packets.
+
+- `keepalive_frame_decoded` records the connection generation, exact KeepAlive
+  identity and Unix timestamp before coherent-gate admission. It means a full
+  frame was decoded, not that the TCP bytes just arrived or that prior backlog
+  was absent.
+- `keepalive_reply_write_completed` or `keepalive_reply_failed` correlates
+  by generation/identity and includes monotonic elapsed milliseconds from
+  decoded-frame handling through gate wait, actor queue and socket write.
+  A completed write is NOT proof of peer receipt or acceptance. Failure includes
+  a bounded error string and may be an admission rejection without a write.
+- `slow_capture` records coherent or movement captures taking at least 100 ms,
+  including waits, sequence and success. It emits only after the capture ends;
+  an unfinished capture or whole-process scheduling stall remains unmeasured.
+
+No raw payloads, inventory, world data or user chat are logged. These records
+do not alter packet admission, timeouts, replies, reconnect or replay policy.
+Use an independent server log/packet trace and host scheduling evidence to
+separate absent client receipt, delayed handling, failed write and peer timeout.
+Diagnostic stderr must be drained; logging itself can add timing overhead.
+
 Run the local scheduling tests with:
 
 ```bash
@@ -68,3 +100,10 @@ cargo test --locked --lib packet_deadline_tests -- --test-threads=1
   The existing Evolto release remained connected, without a service restart or
   a new transport failure. It **does not contain this patch**. The isolated
   fixtures do not certify a patched ten-bot real-server endurance run.
+
+Follow-up after adding opt-in timing evidence: 369 all-target tests passed,
+8 opt-in tests ignored; four doc tests and warnings-denied all-target Clippy
+passed. Mock-server trace records were parsed to check generation/KeepAlive
+pairing, exact echo, a measured 100+ ms coherent-gate wait and reply rejection
+without barrier bypass. Production stayed stopped, retaining all holds; these
+checks do not attribute the historical server timeout.

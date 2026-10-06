@@ -72,6 +72,10 @@ async fn main() -> Result<()> {
 
 ## 開発時の確認
 
+1.16.1の通信調査では `VOXRIG_TRACE_PROTOCOL=1` により、KeepAliveのフレーム処理・
+返信write完了/失敗・100ms以上かかった観測処理をstderrへ記録できます。
+通常は無効で、1プロセス65,536件までです。write完了はサーバー受信の証明ではありません。
+
 ```bash
 cargo fmt --all -- --check
 cargo test --all-targets
