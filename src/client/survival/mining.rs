@@ -153,7 +153,9 @@ pub struct MiningRecord {
     pub requires_inspection: Option<String>,
     /// Current retained result state.
     pub stage: MiningStage,
-    /// False until an explicit common fresh recovery boundary is implemented.
+    /// Original connection's once-only before-I/O recovery claim.
+    pub recovery_attempt: Option<super::MiningRecoveryAttempt>,
+    /// Always false on the original connection, including after fresh recovery.
     pub continuation_validated: bool,
 }
 pub(crate) fn material(state: &NativeBlockState) -> crate::Result<()> {

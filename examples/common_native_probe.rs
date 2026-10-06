@@ -687,7 +687,11 @@ async fn crafting_table_fill_probe(
 }
 // A fresh connection isolates mining's unresolved continuation boundary from
 // the earlier motion scenario. Both versions execute this exact consumer.
-async fn mining_probe(client: &Client) -> anyhow::Result<()> {
+async fn mining_probe(
+    client: &Client,
+    recovery_config: Option<&ConnectionConfig>,
+) -> anyhow::Result<()> {
+    let mut recovered: Option<RecoveredSurvivalClient> = None;
     let ready = client.player_state().await?;
     let initial_sequence = ready.receive_sequence;
     emit("mining_ready", ready)?;
@@ -819,6 +823,172 @@ async fn mining_probe(client: &Client) -> anyhow::Result<()> {
                     "ABORT after removal admitted"
                 );
                 emit("mining_finish", removed)?;
+            }
+            "mining_pending_finish" => {
+                let ops = client.survival();
+                let original = ops
+                    .mining_record()
+                    .await?
+                    .context("pending source mining missing")?;
+                let finished = ops.finish_mining(original.id).await?;
+                let finish = finished.finish.as_ref().context("pending FINISH missing")?;
+                let processed = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let record = ops
+                            .mining_record()
+                            .await?
+                            .context("pending mining missing")?;
+                        use voxrig::client::survival::MiningProtocolObservation;
+                        let received = match record.protocol.as_ref() {
+                            Some(MiningProtocolObservation::LegacyReply {
+                                action: 2,
+                                accepted: true,
+                                state,
+                                receive_sequence,
+                            }) => {
+                                state.name == "minecraft:stone"
+                                    && *receive_sequence > finish.after_sequence
+                            }
+                            Some(MiningProtocolObservation::ModernProcessing {
+                                sequence,
+                                receive_sequence,
+                            }) => {
+                                finish
+                                    .interaction_sequence
+                                    .is_some_and(|expected| *sequence >= expected)
+                                    && *receive_sequence > finish.after_sequence
+                            }
+                            _ => false,
+                        };
+                        if received {
+                            return Ok::<_, anyhow::Error>(record);
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                anyhow::ensure!(
+                    processed.stage == MiningStage::PendingAfterFinish
+                        && !processed.continuation_validated,
+                    "early FINISH unexpectedly released mining"
+                );
+                anyhow::ensure!(
+                    ops.look([0.0; 2]).await.is_err(),
+                    "early FINISH admitted continuation"
+                );
+                emit("mining_pending_finish", processed)?;
+            }
+            "mining_recover" => {
+                let config = recovery_config.context("recovery scenario configuration missing")?;
+                let ops = client.survival();
+                let original = ops
+                    .mining_record()
+                    .await?
+                    .context("original mining missing")?;
+                let watch = ops.prepare_mining_profile_recovery(original.id).await?;
+                let clone = watch.clone();
+                anyhow::ensure!(
+                    watch
+                        .reconnect(config.clone(), MiningRecoveryTarget::OriginalOrAir)
+                        .await
+                        .is_err(),
+                    "open source admitted recovery"
+                );
+                anyhow::ensure!(
+                    watch.source_record().await?.recovery_attempt.is_none(),
+                    "open source consumed login claim"
+                );
+                watch.close_source().await?;
+                let result = watch
+                    .reconnect(config.clone(), MiningRecoveryTarget::OriginalOrAir)
+                    .await?;
+                anyhow::ensure!(
+                    clone
+                        .reconnect(config.clone(), MiningRecoveryTarget::OriginalOrAir)
+                        .await
+                        .is_err(),
+                    "cloned watch admitted second login"
+                );
+                anyhow::ensure!(
+                    ops.look([0.0; 2]).await.is_err(),
+                    "recovery released old source"
+                );
+                anyhow::ensure!(
+                    result
+                        .client
+                        .survival()
+                        .finish_mining(original.id)
+                        .await
+                        .is_err(),
+                    "fresh client accepted old mining ID"
+                );
+                anyhow::ensure!(
+                    !result.evidence.original.continuation_validated
+                        && result.evidence.original.recovery_attempt.is_some(),
+                    "source claim/history lost"
+                );
+                emit("mining_recover", &result.evidence)?;
+                recovered = Some(result);
+            }
+            "recovery_place" => {
+                let fresh = &recovered.as_ref().context("fresh recovery missing")?.client;
+                let ops = fresh.survival();
+                ops.select_hotbar(1).await?;
+                let pending =
+                    std::env::var("VOXRIG_NATIVE_RECOVERY_CASE").ok().as_deref() == Some("pending");
+                let (rotation, support) = if pending {
+                    ([-90.0, 35.0], [2, 64, 0])
+                } else {
+                    ([0.0, 31.0], [0, 64, 3])
+                };
+                ops.look(rotation).await?;
+                let hit = ops
+                    .target_block(4.5)
+                    .await?
+                    .hit
+                    .context("fresh placement support missing")?;
+                anyhow::ensure!(
+                    hit.position == support && hit.face == BlockFace::Up,
+                    "unexpected fresh placement hit: {:?}",
+                    hit
+                );
+                ops.place_cube(hit.position, hit.face).await?;
+                let placed = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let record = ops
+                            .placement_record()
+                            .await?
+                            .context("fresh placement missing")?;
+                        match record.stage {
+                            PlacementStage::ObservedPlaced => {
+                                return Ok::<_, anyhow::Error>(record);
+                            }
+                            PlacementStage::RequiresInspection => anyhow::bail!(
+                                "fresh placement interrupted: {:?}",
+                                record.requires_inspection
+                            ),
+                            _ => tokio::time::sleep(Duration::from_millis(25)).await,
+                        }
+                    }
+                })
+                .await??;
+                emit(
+                    "recovery_place",
+                    serde_json::json!({"placement": placed, "player":fresh.player_state().await?, "original":client.survival().mining_record().await?}),
+                )?;
+            }
+            "recovery_disconnect" => {
+                recovered
+                    .as_ref()
+                    .context("fresh recovery missing")?
+                    .client
+                    .disconnect()
+                    .await?;
+                emit(
+                    "recovery_disconnect",
+                    client.survival().mining_record().await?,
+                )?;
+                return Ok(());
             }
             "mining_disconnect" => {
                 client.disconnect().await?;
@@ -3411,7 +3581,7 @@ async fn main() -> anyhow::Result<()> {
     let port: u16 = std::env::var("VOXRIG_PORT")?.parse()?;
     let config =
         ConnectionConfig::offline_from_env(Server::new("127.0.0.1", port), "UnifiedProbe")?;
-    let client = Client::connect(config).await?;
+    let client = Client::connect(config.clone()).await?;
     client.wait_until_ready().await?;
     if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("equipment-entity") {
         return equipment_entity_probe(&client).await;
@@ -3429,7 +3599,10 @@ async fn main() -> anyhow::Result<()> {
         return placement_probe(&client).await;
     }
     if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("mining") {
-        return mining_probe(&client).await;
+        return mining_probe(&client, None).await;
+    }
+    if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("mining-recovery") {
+        return mining_probe(&client, Some(&config)).await;
     }
     let ready = client.player_state().await?;
     let initial_sequence = ready.receive_sequence;

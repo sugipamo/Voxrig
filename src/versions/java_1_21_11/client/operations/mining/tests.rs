@@ -2137,3 +2137,113 @@ async fn common_mining_retains_before_io_capture_and_cancelled_modern_finish_aft
     );
     assert_eq!(closed.id, record.id);
 }
+
+#[tokio::test]
+async fn common_profile_recovery_cancelled_login_shares_native_claim() {
+    use crate::client::survival::MiningRecoveryTarget;
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let endpoint = crate::Server::new("127.0.0.1", listener.local_addr().unwrap().port());
+    let mut miner = Fixture::new().await;
+    miner
+        .session
+        .state
+        .lock()
+        .await
+        .identity
+        .as_mut()
+        .unwrap()
+        .server = endpoint.clone();
+    let client = crate::Client::from_java_1_21_11(miner.api.bot.clone());
+    let ops = client.survival();
+    let original = ops
+        .start_mining(TARGET, crate::BlockFace::West)
+        .await
+        .unwrap();
+    assert_eq!(
+        read_packet(&mut miner.peer, None).await.unwrap().0,
+        ids::play_serverbound::BLOCK_DIG
+    );
+    let watch = ops
+        .prepare_mining_profile_recovery(original.id)
+        .await
+        .unwrap();
+    let config = ConnectionConfig::offline(endpoint, "Miner42", MinecraftVersion::Java1_21_11);
+    assert!(
+        watch
+            .reconnect(config.clone(), MiningRecoveryTarget::OriginalOrAir)
+            .await
+            .is_err()
+    );
+    assert!(
+        watch
+            .source_record()
+            .await
+            .unwrap()
+            .recovery_attempt
+            .is_none()
+    );
+    watch.close_source().await.unwrap();
+    let mut attempt =
+        Box::pin(watch.reconnect(config.clone(), MiningRecoveryTarget::OriginalOrAir));
+    let (mut login, _) = timeout(Duration::from_secs(2), async {
+        tokio::select! {
+            accepted = listener.accept() => accepted.unwrap(),
+            _ = &mut attempt => panic!("recovery returned before login"),
+        }
+    })
+    .await
+    .unwrap();
+    timeout(Duration::from_secs(2), async {
+        tokio::select! {
+            packet = read_packet(&mut login, None) => assert_eq!(packet.unwrap().0, 0),
+            _ = &mut attempt => panic!("recovery returned before handshake"),
+        }
+    })
+    .await
+    .unwrap();
+    drop(attempt);
+    assert!(
+        watch
+            .source_record()
+            .await
+            .unwrap()
+            .recovery_attempt
+            .is_some()
+    );
+    assert!(!watch.source_record().await.unwrap().continuation_validated);
+    assert!(
+        watch
+            .clone()
+            .reconnect(config, MiningRecoveryTarget::OriginalOrAir)
+            .await
+            .is_err()
+    );
+    assert!(
+        ops.prepare_mining_profile_recovery(original.id)
+            .await
+            .is_err()
+    );
+    let intent = miner
+        .session
+        .state
+        .lock()
+        .await
+        .mining
+        .as_ref()
+        .unwrap()
+        .intent
+        .clone();
+    assert!(
+        miner
+            .api
+            .prepare_survival_mining_profile_recovery(&intent)
+            .await
+            .is_err()
+    );
+    assert!(
+        timeout(Duration::from_millis(10), listener.accept())
+            .await
+            .is_err()
+    );
+    miner.stop().await;
+}

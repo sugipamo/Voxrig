@@ -203,6 +203,14 @@ impl Client {
             Adapter::Java1_21_11(bot) => bot.common_server_registry_state().await,
         }
     }
+    /// Read the UUID/name actually received in LOGIN_SUCCESS, with this session stamp.
+    /// Profile identity alone does not prove old-player retirement or recovery.
+    pub async fn connection_identity(&self) -> Result<crate::client::ConnectionIdentity> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_connection_identity().await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_connection_identity().await,
+        }
+    }
     /// Capture received entity spawns which have not been removed in this world.
     /// Coordinates retain their original spawn ordinal; current movement, metadata
     /// and hitboxes are not inferred. Opaque targets are rechecked before dispatch.
@@ -839,8 +847,15 @@ mod tests {
                 let (mut stream, _) = listener.accept().await.unwrap();
                 let (_, payload) = read_packet(&mut stream, None).await.unwrap();
                 assert_eq!(get_varint(&mut payload.as_slice()).unwrap(), 736);
-                read_packet(&mut stream, None).await.unwrap();
-                write_packet(&mut stream, None, 2, &[]).await.unwrap();
+                let (_, login) = read_packet(&mut stream, None).await.unwrap();
+                write_packet(
+                    &mut stream,
+                    None,
+                    2,
+                    &crate::client::login::test_legacy_success(&login),
+                )
+                .await
+                .unwrap();
                 // No chunk arrives; the client must not label missing data as air.
                 while read_packet(&mut stream, None).await.is_ok() {}
             }
@@ -857,8 +872,12 @@ mod tests {
         let one = Client::connect(config.clone()).await.unwrap();
         assert_eq!(one.survival_capabilities().checked_contract, None);
         assert!(matches!(one.checked_survival(), Err(e) if e.kind() == ErrorKind::Unsupported));
+        let identity = one.connection_identity().await.unwrap();
+        assert_eq!(identity.uuid, [3; 16]);
+        assert_eq!(identity.name, "Observe");
         let first = one.observe_region(region).await.unwrap();
         assert_eq!(first.blocks.len(), 4);
+        assert_eq!(identity.session.connection_id, first.connection_id);
         assert!(first.blocks.iter().all(|b| b.state.is_none()));
         assert_eq!(first.version, MinecraftVersion::Java1_16_1);
         assert!(

@@ -36,6 +36,18 @@ pub struct SessionStamp {
     /// Native reset boundary; changes on login/respawn/reconfiguration.
     pub world_generation: u64,
 }
+/// Received login UUID/name, captured with the current connection/world stamp.
+/// These fields originate in LOGIN_SUCCESS, outside the play receive ordinal stream.
+/// They are profile facts, not a recovery fence or permission to restore a saved job.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+pub struct ConnectionIdentity {
+    /// Owning connection and world at capture.
+    pub session: SessionStamp,
+    /// Exact received UUID bytes; never calculated from the requested name.
+    pub uuid: [u8; 16],
+    /// Exact received login name.
+    pub name: String,
+}
 /// Origin of a value. None is represented by absence, never an invented default.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]

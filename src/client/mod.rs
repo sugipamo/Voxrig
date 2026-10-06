@@ -16,6 +16,7 @@ mod item;
 pub(crate) mod item_components;
 pub(crate) mod item_constructor;
 pub(crate) mod item_semantics;
+pub(crate) mod login;
 pub mod nbt;
 mod observation;
 pub(crate) mod operations;
@@ -46,9 +47,9 @@ pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
 pub use item::ItemProperties;
 pub(crate) use item::{modern_prototype_components, modern_weight_defaults};
 pub use observation::{
-    Capture, Dimension, GameMode, Health, InventoryObservation, ItemComponent, ItemComponentPatch,
-    ItemData, ItemStack, ObservedValue, PlayerObservation, ReceivedPose, SessionStamp,
-    SlotKnowledge, ValueSource,
+    Capture, ConnectionIdentity, Dimension, GameMode, Health, InventoryObservation, ItemComponent,
+    ItemComponentPatch, ItemData, ItemStack, ObservedValue, PlayerObservation, ReceivedPose,
+    SessionStamp, SlotKnowledge, ValueSource,
 };
 pub(crate) use observation::{LegacyReceipts, legacy_slot, received};
 pub use operations::{Creative, DispatchReceipt, Survival};
@@ -76,20 +77,21 @@ pub mod prelude {
         ServerRegistryStamp, ServerRegistryTags,
     };
     pub use super::survival::{
-        BlockTargetHit, BlockTargetObservation, MiningId, MiningRecord, MiningStage, MotionPreview,
-        MotionRecord, MotionStatus, PlacementId, PlacementRecord, PlacementStage, SurvivalControl,
-        SurvivalInput,
+        BlockTargetHit, BlockTargetObservation, MiningId, MiningProfileRecovery, MiningRecord,
+        MiningRecoveryAttempt, MiningRecoveryEvidence, MiningRecoveryMethod, MiningRecoveryTarget,
+        MiningStage, MotionPreview, MotionRecord, MotionStatus, PlacementId, PlacementRecord,
+        PlacementStage, RecoveredSurvivalClient, SurvivalControl, SurvivalInput,
     };
     pub use super::{
-        Client, ClientLimits, ConnectionConfig, CraftingGridReturnPlan, CraftingGridReturnStep,
-        CraftingGridUnreturnedSplit, CraftingSource, CraftingTakeId, CraftingTakeRecord,
-        CraftingTakeStage, Creative, EntityId, EntitySpawn, EntitySpawns, Feature, GameMode,
-        ItemComponent, ItemComponentPatch, ItemData, ItemProperties, ItemStack, PlayerObservation,
-        ReceivedCrafting, ReceivedCraftingContext, ReceivedInventory, ReceivedItem, ReceivedRecipe,
-        ReceivedRecipes, ReceivedSlot, RecipeBookMaterials, RecipeBookStock, RecipeCraftingCell,
-        RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient, RecipePlacementAmount,
-        RecipePlacementPlan, RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern, Server,
-        Support, Survival,
+        Client, ClientLimits, ConnectionConfig, ConnectionIdentity, CraftingGridReturnPlan,
+        CraftingGridReturnStep, CraftingGridUnreturnedSplit, CraftingSource, CraftingTakeId,
+        CraftingTakeRecord, CraftingTakeStage, Creative, EntityId, EntitySpawn, EntitySpawns,
+        Feature, GameMode, ItemComponent, ItemComponentPatch, ItemData, ItemProperties, ItemStack,
+        PlayerObservation, ReceivedCrafting, ReceivedCraftingContext, ReceivedInventory,
+        ReceivedItem, ReceivedRecipe, ReceivedRecipes, ReceivedSlot, RecipeBookMaterials,
+        RecipeBookStock, RecipeCraftingCell, RecipeCraftingLayout, RecipeDisplay, RecipeId,
+        RecipeIngredient, RecipePlacementAmount, RecipePlacementPlan, RecipeSlotDisplay,
+        RecipeTrimDefinition, RecipeTrimPattern, Server, Support, Survival,
     };
     pub use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Region, Result};
 }

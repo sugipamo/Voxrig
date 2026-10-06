@@ -643,6 +643,98 @@ def run_equipment_entity(version, env, rcon, trace, report, probe_log, stderr_lo
                 except subprocess.TimeoutExpired: probe.kill(); probe.wait(timeout=5)
 
 
+def run_mining_recovery(version, env, rcon, trace, report, probe_log, stderr_log, case):
+    """A3: original mining -> explicit fresh admission -> actual placement.
+    After the initial fixture, every RCON operation is read-only.
+    """
+    result = report['native_results'].setdefault('mining_recovery', {})[case] = {'fixture':{}, 'records':[]}
+    for command in ['setblock 0 65 1 minecraft:air', 'setblock 0 65 3 minecraft:stone', 'setblock 2 65 0 minecraft:air']:
+        result['fixture'][command] = rcon.command(command)
+    probe = subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')], cwd=REPO,
+        env=dict(env, VOXRIG_NATIVE_SCENARIO='mining-recovery', VOXRIG_NATIVE_RECOVERY_CASE=case), stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+    messages = queue.Queue()
+    reader = threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True)
+    reader.start()
+    try:
+        stage(probe,messages,'mining_ready',result['records'])
+        for command in ['tp UnifiedProbe 0.5 65 0.5 0 0','clear UnifiedProbe',
+                        ('replaceitem entity UnifiedProbe hotbar.1 minecraft:stone 3' if version=='1.16.1'
+                         else 'item replace entity UnifiedProbe hotbar.1 with minecraft:stone 3')]:
+            result['fixture'][command] = rcon.command(command)
+        baseline = stage(probe,messages,'mining_baseline',result['records'])['value']
+        result['position_before'] = rcon.command('data get entity UnifiedProbe Pos')
+        result['inventory_before'] = rcon.command('data get entity UnifiedProbe Inventory')
+        mark = trace.mark()
+        started = stage(probe,messages,'mining_start',result['records'])['value']
+        started_at = time.monotonic()
+        pending = case == 'pending'
+        if not pending:
+            time.sleep(started['estimated_wait_ms']/1000 + 0.25)
+        removed = stage(probe,messages,'mining_pending_finish' if pending else 'mining_finish',result['records'])['value']
+        original_state = 'minecraft:stone' if pending else 'minecraft:air'
+        result['native_target_before_recovery'] = until(lambda:matched(rcon.command('execute if block 0 65 3 '+original_state),'Test passed'))
+        trace.expect_disconnect()
+        fresh = stage(probe,messages,'mining_recover',result['records'])['value']
+        placed = stage(probe,messages,'recovery_place',result['records'])['value']
+        placed_cell = '2 65 0' if pending else '0 65 3'
+        result['native_placed_after_recovery'] = until(lambda:matched(rcon.command('execute if block '+placed_cell+' minecraft:stone'),'Test passed'))
+        if pending:
+            time.sleep(max(0, started_at + started['estimated_wait_ms']/1000 + 0.5 - time.monotonic()))
+            result['original_stone_after_old_delayed_break_deadline'] = rcon.command('execute if block 0 65 3 minecraft:stone')
+            if 'Test passed' not in result['original_stone_after_old_delayed_break_deadline']:
+                raise RuntimeError('old delayed mining continued after fresh recovery')
+        def remaining():
+            raw = rcon.command('data get entity UnifiedProbe Inventory')
+            stacks = outer_snbt_compounds(raw)
+            return raw if len(stacks)==1 and re.search(r'Slot: 1b(?:,|\s|})',stacks[0]) and 'id: "minecraft:stone"' in stacks[0] and re.search(r'(?:Count: 2b|count: 2)(?:,|\s|})',stacks[0]) else None
+        result['inventory_after'] = until(remaining)
+        result['position_after'] = rcon.command('data get entity UnifiedProbe Pos')
+        if result['position_after'] != result['position_before']:
+            raise RuntimeError('recovery changed native position')
+        source_stamp = baseline['session']
+        fresh_stamp = fresh['identity']['session']
+        if started['id']['session']!=source_stamp or removed['id']['session']!=source_stamp or fresh_stamp['connection_id']==source_stamp['connection_id']:
+            raise RuntimeError('invalid mining recovery source/fresh identity')
+        if fresh['target']['name']!=original_state or fresh['original']['continuation_validated'] or fresh['original']['recovery_attempt']['method']!='same_profile_login':
+            raise RuntimeError('recovery source history or target differs')
+        if placed['player']['session']!=fresh_stamp or placed['placement']['id']['session']!=fresh_stamp or placed['original']['id']['session']!=source_stamp or placed['original']['continuation_validated']:
+            raise RuntimeError('placement reused original mining authority')
+        frames = trace.since(mark)
+        result['operation_frames'] = frames
+        play = [f for f in frames if f['direction']=='serverbound' and f['phase']=='play']
+        mining_id = 0x1b if version=='1.16.1' else 0x28
+        placement_id = 0x2d if version=='1.16.1' else 0x3f
+        mines = [f for f in play if f['packet_id']==mining_id]
+        placements = [f for f in play if f['packet_id']==placement_id]
+        # Packet IDs are selected only in the native wire oracle, not the consumer.
+        if len(mines)!=2 or len(placements)!=1 or len({f['connection'] for f in mines})!=1 or placements[0]['connection']==mines[0]['connection']:
+            raise RuntimeError('expected one source START/FINISH and one fresh placement: '+repr([(f['connection'],f['packet_id']) for f in play]))
+        all_frames = trace.since(0)
+        profiles = []
+        for connection in (mines[0]['connection'], placements[0]['connection']):
+            packets = [f for f in all_frames if f['connection']==connection and f['direction']=='clientbound' and f['phase']=='login' and f['packet_id']==2]
+            if len(packets)!=1: raise RuntimeError('expected exactly one actual LOGIN_SUCCESS per mining/recovery connection')
+            raw = bytes.fromhex(packets[0]['body_hex'])
+            length,offset = PacketTraceProxy.varint(raw[16:]); offset += 16
+            if raw[offset:offset+length] != b'UnifiedProbe': raise RuntimeError('native login profile name differs')
+            profiles.append({'connection':connection,'uuid_hex':raw[:16].hex(),'name':'UnifiedProbe'})
+        if profiles[0]['uuid_hex']!=profiles[1]['uuid_hex'] or bytes(fresh['identity']['uuid']).hex()!=profiles[1]['uuid_hex']:
+            raise RuntimeError('fresh common identity differs from original received native UUID')
+        result['original_login_profiles'] = profiles
+        result['authority_limits'] = 'Direct unmodified vanilla, exclusively owned offline profile; original closed and still blocked; same received UUID/name, new play/join/loaded position/inventory and dry standing admission; explicit once-only login then a new placement. Air and native ACK alone never release the source. No game-state edits after baseline, inherited authority or automatic retries.'
+        trace.expect_disconnect()
+        stage(probe,messages,'recovery_disconnect',result['records'])
+        probe.wait(timeout=10); reader.join(timeout=2)
+        if probe.returncode!=0 or reader.is_alive(): raise RuntimeError('A3 probe failed at disconnect')
+        result['result'] = 'passed'
+    finally:
+        if probe.poll() is None:
+            probe.terminate()
+            try: probe.wait(timeout=10)
+            except subprocess.TimeoutExpired: probe.kill(); probe.wait(timeout=5)
+
+
 def run(version, accept_eula, runtime_root=None, runtime_inputs=None, scenario="full"):
     if not accept_eula:
         raise RuntimeError("pass --accept-eula when authorized to run the official server")
@@ -672,7 +764,7 @@ level-type=flat
 generator-settings={generator_settings}
 level-seed=1234
 online-mode=false
-gamemode=creative
+gamemode={"survival" if scenario == "mining-recovery" else "creative"}
 force-gamemode=true
 spawn-protection=0
 view-distance=2
@@ -728,6 +820,11 @@ network-compression-threshold=256
         for check in ["execute if block 0 65 1 minecraft:stone", "execute if block 1 65 0 minecraft:air"]:
             report.setdefault("fixture_verification", {})[check] = until(lambda: matched(rcon.command(check), "Test passed"))
         env = dict(os.environ, VOXRIG_MINECRAFT_VERSION=version, VOXRIG_PORT=str(trace.port))
+        if scenario == "mining-recovery":
+            for recovery_case in ("completed", "pending"):
+                run_mining_recovery(version, env, rcon, trace, report, probe_log, stderr_log, recovery_case)
+            report["scenario_result"] = "passed"
+            return retained
         if scenario == "equipment-entity":
             run_equipment_entity(version, env, rcon, trace, report, probe_log, stderr_log)
             report["scenario_result"] = "passed"
@@ -1776,7 +1873,7 @@ def main():
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--accept-eula", action="store_true")
     parser.add_argument("--runtime-dir", type=Path, help="Optional disposable runtime parent, e.g. /dev/shm for isolating disk I/O; reports are exported to .local after JVM exit")
-    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity"), default="full", help="Run the operation corpus or a focused A1/A2 workflow")
+    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery"), default="full", help="Run the operation corpus or a focused A1/A2/A3 workflow")
     args = parser.parse_args()
     if bool(args.version) == args.all:
         parser.error("select exactly one of --version / --all")

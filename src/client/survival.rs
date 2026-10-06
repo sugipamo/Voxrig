@@ -8,6 +8,11 @@ pub use placement::{
     PlacementId, PlacementProcessing, PlacementRecord, PlacementSend, PlacementStage,
 };
 mod motion;
+mod recovery;
+pub use recovery::{
+    MiningProfileRecovery, MiningRecoveryAttempt, MiningRecoveryEvidence, MiningRecoveryMethod,
+    MiningRecoveryTarget, RecoveredSurvivalClient,
+};
 pub(crate) mod target;
 pub use mining::{
     MiningAction, MiningId, MiningInventoryChange, MiningInventoryChangeKind,

@@ -37,6 +37,39 @@ fn known_empty(value: Option<&ObservedValue<SlotKnowledge>>) -> bool {
     )
 }
 impl Bot {
+    pub(crate) async fn common_claim_profile_recovery(
+        &self,
+        id: MiningId,
+        config: &crate::ConnectionConfig,
+        target: crate::client::survival::MiningRecoveryTarget,
+    ) -> Result<()> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if !self.is_stopped()
+            || config.server != self.server
+            || config.username != self.login_profile.name
+            || config.version != crate::MinecraftVersion::Java1_16_1
+        {
+            return Err(mining::unavailable(
+                "recovery requires the closed original endpoint/profile/version",
+            ));
+        }
+        let mut retained = self.common_mining.lock().await;
+        let run = retained
+            .as_mut()
+            .filter(|m| m.record.id == id)
+            .ok_or_else(|| mining::unavailable("recovery belongs to another mining attempt"))?;
+        if run.record.recovery_attempt.is_some() {
+            return Err(mining::unavailable(
+                "mining recovery already attempted; no second login",
+            ));
+        }
+        target.validate_baseline(&run.record.baseline)?;
+        run.record.recovery_attempt = Some(crate::client::survival::MiningRecoveryAttempt {
+            method: crate::client::survival::MiningRecoveryMethod::SameProfileLogin,
+            target,
+        });
+        Ok(())
+    }
     async fn mining_prepared(
         &self,
         target: [i32; 3],
@@ -136,6 +169,7 @@ impl Bot {
             inventory_change: None,
             requires_inspection: None,
             stage: MiningStage::Mining,
+            recovery_attempt: None,
             continuation_validated: false,
         };
         *self.common_mining.lock().await = Some(NativeMiningRun {
@@ -564,6 +598,175 @@ mod tests {
         .to_vec();
         put_varint(&mut payload, state);
         bot.apply_packet(0x0b, payload).await.unwrap();
+    }
+    #[tokio::test]
+    async fn common_profile_recovery_cancelled_login_keeps_shared_claim() {
+        use crate::client::survival::MiningRecoveryTarget;
+        use tokio::net::TcpListener;
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let endpoint = Server::new("127.0.0.1", listener.local_addr().unwrap().port());
+        let (mut bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        // Model the authenticated endpoint independently from the source wire
+        // fixture, which never accepts a recovery login itself.
+        bot.server = endpoint.clone();
+        seed(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        client.survival().select_hotbar(0).await.unwrap();
+        packets.recv().await.unwrap();
+        let record = client
+            .survival()
+            .start_mining(TARGET, crate::BlockFace::North)
+            .await
+            .unwrap();
+        packets.recv().await.unwrap();
+        let ops = client.survival();
+        assert!(
+            ops.prepare_mining_profile_recovery(MiningId::new(record.id.session(), 2))
+                .await
+                .is_err()
+        );
+        let recovery = ops
+            .prepare_mining_profile_recovery(record.id)
+            .await
+            .unwrap();
+        let config = crate::ConnectionConfig::offline(
+            endpoint,
+            "LagProbe",
+            crate::MinecraftVersion::Java1_16_1,
+        );
+        assert!(
+            recovery
+                .reconnect(config.clone(), MiningRecoveryTarget::OriginalOrAir)
+                .await
+                .is_err()
+        );
+        assert!(
+            recovery
+                .source_record()
+                .await
+                .unwrap()
+                .recovery_attempt
+                .is_none()
+        );
+        recovery.close_source().await.unwrap();
+        let mut wrong = config.clone();
+        wrong.server.port += 1;
+        assert!(
+            recovery
+                .reconnect(wrong, MiningRecoveryTarget::OriginalOrAir)
+                .await
+                .is_err()
+        );
+        let mut wrong = config.clone();
+        wrong.username = "Different".into();
+        assert!(
+            recovery
+                .reconnect(wrong, MiningRecoveryTarget::OriginalOrAir)
+                .await
+                .is_err()
+        );
+        assert!(
+            recovery
+                .source_record()
+                .await
+                .unwrap()
+                .recovery_attempt
+                .is_none()
+        );
+        assert!(
+            timeout(Duration::from_millis(10), listener.accept())
+                .await
+                .is_err()
+        );
+        let mut attempt =
+            Box::pin(recovery.reconnect(config.clone(), MiningRecoveryTarget::OriginalOrAir));
+        let (mut login, _) = timeout(Duration::from_secs(2), async {
+            tokio::select! {
+                accepted = listener.accept() => accepted.unwrap(),
+                _ = &mut attempt => panic!("recovery returned before login"),
+            }
+        })
+        .await
+        .unwrap();
+        let handshake = timeout(Duration::from_secs(2), async {
+            tokio::select! {
+                packet = read_packet(&mut login, None) => packet.unwrap(),
+                _ = &mut attempt => panic!("recovery returned before handshake"),
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(handshake.0, 0);
+        let (_, login_request) = timeout(Duration::from_secs(2), async {
+            tokio::select! {
+                packet = read_packet(&mut login, None) => packet.unwrap(),
+                _ = &mut attempt => panic!("recovery returned before LOGIN_SUCCESS"),
+            }
+        })
+        .await
+        .unwrap();
+        write_packet(
+            &mut login,
+            None,
+            2,
+            &crate::client::login::test_legacy_success(&login_request),
+        )
+        .await
+        .unwrap();
+        // Original 1.16.1 may send LOGIN_SUCCESS before old-player retirement.
+        // Matching UUID/name without a fresh JOIN/position must stay pending.
+        assert!(
+            timeout(Duration::from_millis(50), &mut attempt)
+                .await
+                .is_err()
+        );
+        drop(attempt);
+        assert!(
+            timeout(Duration::from_secs(2), read_packet(&mut login, None))
+                .await
+                .unwrap()
+                .is_err()
+        );
+        assert!(
+            recovery
+                .source_record()
+                .await
+                .unwrap()
+                .recovery_attempt
+                .is_some()
+        );
+        assert!(
+            !recovery
+                .source_record()
+                .await
+                .unwrap()
+                .continuation_validated
+        );
+        assert!(
+            recovery
+                .clone()
+                .reconnect(config, MiningRecoveryTarget::OriginalOrAir)
+                .await
+                .is_err()
+        );
+        assert!(
+            ops.prepare_mining_profile_recovery(record.id)
+                .await
+                .is_err()
+        );
+        assert!(
+            timeout(Duration::from_millis(10), listener.accept())
+                .await
+                .is_err()
+        );
+        drop(release);
+        drop(client);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
     }
     #[tokio::test]
     async fn common_mining_runs_identical_consumer_with_legacy_receipts_and_no_modern_sequence() {

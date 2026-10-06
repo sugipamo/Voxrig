@@ -1011,6 +1011,7 @@ struct ObservationEventQueue {
 pub struct Bot {
     connection: ConnectionActor,
     server: Server,
+    login_profile: Arc<crate::client::login::LoginProfile>,
     writer: Arc<Mutex<PacketWriter>>,
     player: Arc<Mutex<Versioned<Player>>>,
     world: Arc<Mutex<Versioned<World>>>,
@@ -1112,6 +1113,7 @@ impl Bot {
         Self {
             connection: self.connection.clone(),
             server: self.server.clone(),
+            login_profile: self.login_profile.clone(),
             writer: self.writer.clone(),
             player: self.player.clone(),
             world: self.world.clone(),
@@ -1208,7 +1210,7 @@ impl Bot {
         let mut login = Vec::new();
         put_string(&mut login, &player.username);
         write_packet(&mut writer.lock().await.inner, None, 0, &login).await?;
-        loop {
+        let login_profile = loop {
             let compression = writer.lock().await.compression;
             let (id, payload) = timeout(
                 connection_options.login_packet_timeout,
@@ -1222,7 +1224,7 @@ impl Bot {
                     bail!("login rejected: {}", get_string(&mut p).unwrap_or_default());
                 }
                 0x01 => bail!("server requested encryption; only offline-mode is supported"),
-                0x02 => break,
+                0x02 => break crate::client::login::legacy_profile(&payload, &player.username)?,
                 0x03 => {
                     let mut p = payload.as_slice();
                     let threshold = get_varint(&mut p)?;
@@ -1233,7 +1235,7 @@ impl Bot {
                 }
                 _ => {}
             }
-        }
+        };
         let (events, _) = broadcast::channel(connection_options.event_channel_capacity.max(1));
         let connected_at = std::time::Instant::now();
         let control = Arc::new(RwLock::new(Versioned::new(
@@ -1251,6 +1253,7 @@ impl Bot {
         let bot = Self {
             connection,
             server,
+            login_profile: Arc::new(login_profile),
             writer,
             player: Arc::new(Mutex::new(Versioned::new(player, connected_at))),
             world: Arc::new(Mutex::new(Versioned::new(
@@ -6985,6 +6988,49 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn login_profile_rejects_malformed_or_different_received_success() {
+        for kind in 0..3 {
+            let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+            let port = listener.local_addr().unwrap().port();
+            let server = tokio::spawn(async move {
+                let (stream, _) = listener.accept().await.unwrap();
+                let (mut reader, mut writer) = stream.into_split();
+                read_packet(&mut reader, None).await.unwrap();
+                let (_, login) = read_packet(&mut reader, None).await.unwrap();
+                let mut payload = crate::client::login::test_legacy_success(&login);
+                match kind {
+                    0 => payload.clear(),
+                    1 => {
+                        payload.truncate(16);
+                        put_string(&mut payload, "Different");
+                    }
+                    _ => payload.push(0),
+                }
+                write_packet(&mut writer, None, 2, &payload).await.unwrap();
+                let mut byte = [0; 1];
+                assert_eq!(
+                    timeout(Duration::from_secs(2), reader.read(&mut byte))
+                        .await
+                        .unwrap()
+                        .unwrap(),
+                    0
+                );
+            });
+            assert!(
+                Bot::connect(
+                    Server::new("127.0.0.1", port),
+                    Player::offline("ProfileProbe"),
+                    Arc::new(crate::SharedChunkStorage::default()),
+                    ConnectionOptions::default()
+                )
+                .await
+                .is_err()
+            );
+            server.await.unwrap();
+        }
+    }
+
     async fn connected_test_bot(
         connection_options: ConnectionOptions,
         play_packets: Vec<(i32, Vec<u8>)>,
@@ -6996,8 +7042,15 @@ mod tests {
             let (stream, _) = listener.accept().await.unwrap();
             let (mut reader, mut writer) = stream.into_split();
             read_packet(&mut reader, None).await.unwrap();
-            read_packet(&mut reader, None).await.unwrap();
-            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            let (_, login) = read_packet(&mut reader, None).await.unwrap();
+            write_packet(
+                &mut writer,
+                None,
+                2,
+                &crate::client::login::test_legacy_success(&login),
+            )
+            .await
+            .unwrap();
             release_rx.await.unwrap();
             for (id, payload) in play_packets {
                 write_packet(&mut writer, None, id, &payload).await.unwrap();
@@ -7669,8 +7722,15 @@ mod tests {
             let (stream, _) = listener.accept().await.unwrap();
             let (mut reader, mut _writer) = stream.into_split();
             read_packet(&mut reader, None).await.unwrap();
-            read_packet(&mut reader, None).await.unwrap();
-            write_packet(&mut _writer, None, 0x02, &[]).await.unwrap();
+            let (_, login) = read_packet(&mut reader, None).await.unwrap();
+            write_packet(
+                &mut _writer,
+                None,
+                2,
+                &crate::client::login::test_legacy_success(&login),
+            )
+            .await
+            .unwrap();
             release_rx.await.unwrap();
         });
         let bot = Bot::connect(
@@ -8491,8 +8551,15 @@ mod tests {
             let (stream, _) = listener.accept().await.unwrap();
             let (mut reader, mut writer) = stream.into_split();
             read_packet(&mut reader, None).await.unwrap();
-            read_packet(&mut reader, None).await.unwrap();
-            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            let (_, login) = read_packet(&mut reader, None).await.unwrap();
+            write_packet(
+                &mut writer,
+                None,
+                2,
+                &crate::client::login::test_legacy_success(&login),
+            )
+            .await
+            .unwrap();
             release_rx.await.unwrap();
         });
         let bot = Bot::connect(
@@ -8546,8 +8613,15 @@ mod tests {
             let (stream, _) = listener.accept().await.unwrap();
             let (mut reader, mut writer) = stream.into_split();
             read_packet(&mut reader, None).await.unwrap();
-            read_packet(&mut reader, None).await.unwrap();
-            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            let (_, login) = read_packet(&mut reader, None).await.unwrap();
+            write_packet(
+                &mut writer,
+                None,
+                2,
+                &crate::client::login::test_legacy_success(&login),
+            )
+            .await
+            .unwrap();
             write_packet(&mut writer, None, 0x1a, &[0]).await.unwrap();
             let mut byte = [0_u8; 1];
             let result =
@@ -9351,8 +9425,15 @@ mod tests {
             let (stream, _) = listener.accept().await.unwrap();
             let (mut reader, mut writer) = stream.into_split();
             read_packet(&mut reader, None).await.unwrap();
-            read_packet(&mut reader, None).await.unwrap();
-            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            let (_, login) = read_packet(&mut reader, None).await.unwrap();
+            write_packet(
+                &mut writer,
+                None,
+                2,
+                &crate::client::login::test_legacy_success(&login),
+            )
+            .await
+            .unwrap();
             let mut released = Some(released);
             while let Ok((id, payload)) = read_packet(&mut reader, None).await {
                 packets.send((id, payload.clone())).unwrap();
@@ -9618,8 +9699,15 @@ mod tests {
             let (stream, _) = listener.accept().await.unwrap();
             let (mut reader, mut writer) = stream.into_split();
             read_packet(&mut reader, None).await.unwrap();
-            read_packet(&mut reader, None).await.unwrap();
-            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            let (_, login) = read_packet(&mut reader, None).await.unwrap();
+            write_packet(
+                &mut writer,
+                None,
+                2,
+                &crate::client::login::test_legacy_success(&login),
+            )
+            .await
+            .unwrap();
             let mut byte = [0_u8; 1];
             tokio::time::timeout(Duration::from_secs(2), reader.read_exact(&mut byte))
                 .await

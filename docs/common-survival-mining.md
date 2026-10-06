@@ -66,8 +66,9 @@ writer取得前の取消ではcommandが未送信のまま残り、送信した�
 後の空手復元でも消さない。別の原因があれば`sole_cause`はfalseになる。
 身体のclearanceや足場の一時的な喪失、mode/pose/属性等の変更も各受信境界で保持する。
 
-`continuation_validated`はこの段階では常にfalse。air受信・ABORT・ACKで元接続を解放しない。
-明示的なfresh recoveryとその共通結果型は後続のcontext/復旧段階で実装する。
+`continuation_validated`は元接続では常にfalse。air受信・ABORT・ACKで元接続を解放しない。
+明示的な同一profileのfresh recoveryは[共通の復旧API](common-mining-recovery.md)を使う。
+復旧前のclaimを`recovery_attempt`へ保持し、失敗・取消後も二度目のloginを拒否する。
 modern専用の既存recovery履歴/APIを削除・共通履歴へ再解釈しない。
 
 ## 検証

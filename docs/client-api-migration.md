@@ -573,3 +573,20 @@ material counts, full return capacity and compatible post-return sources togethe
 `can_place()` is historical preflight, not an operation reservation or server ACK.
 Planning emits no recipe packet. Owned dispatch/actual placement receipts are
 still in progress; do not replace consumer placement with a successful plan alone.
+
+
+## 共通の採掘復旧とログインidentity
+
+両版は`client.survival().prepare_mining_profile_recovery(MiningId)`から明示的なcloseと
+一度だけの`reconnect(config, MiningRecoveryTarget)`へ進めます。戻り値の共通
+`RecoveredSurvivalClient.client`を使い、旧IDや旧接続へ次のmutationを送らないでください。
+modern専用の`checked_survival`の復旧入口・証拠型は維持します。
+同じ名前の共通型とnative診断型は契約が違うため、必要なimportを明示します。
+
+共通`MiningRecord`にも`recovery_attempt`が加わります。struct literal・保存schemaを更新し、
+claimと復旧成功を区別してください。`MiningRecoveryMethod/Target/Attempt`の純粋な値型は
+共通側の所有へ移し、modernの旧importは同じ型のre-exportです。
+新しい`Client::connection_identity()`は実受信UUID/nameと現在のsessionを返します。
+legacyの試験serverは空のLOGIN_SUCCESSを送らず、16byte UUIDと元のprofile名を送る必要があります。
+欠損・名前不一致・余分なfieldはlogin時に拒否します。
+詳細とvanilla限定条件は[採掘後の復旧](common-mining-recovery.md)を参照してください。

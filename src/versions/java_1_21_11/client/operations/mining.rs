@@ -757,6 +757,27 @@ impl Operations {
             .await?
             .ok_or_else(|| unavailable("common mining capture missing"))
     }
+    pub(crate) async fn common_profile_recovery_watch(
+        &self,
+        id: crate::client::survival::MiningId,
+    ) -> Result<MiningProfileRecoveryWatch> {
+        let intent = {
+            let state = self.bot.session.state.lock().await;
+            let capture = state
+                .common_mining
+                .as_ref()
+                .filter(|c| c.id() == id)
+                .ok_or_else(|| unavailable("recovery belongs to another common mining attempt"))?;
+            state
+                .mining
+                .as_ref()
+                .filter(|m| m.intent.start_sequence == capture.start_sequence)
+                .ok_or_else(|| unavailable("common mining no longer owns native intent"))?
+                .intent
+                .clone()
+        };
+        self.prepare_survival_mining_profile_recovery(&intent).await
+    }
     pub(crate) async fn common_mining_send(
         &self,
         id: crate::client::survival::MiningId,
@@ -918,6 +939,7 @@ impl Operations {
             inventory_change,
             requires_inspection: native.requires_inspection.clone(),
             stage,
+            recovery_attempt: native.recovery_attempt.clone(),
             continuation_validated: false,
         }))
     }

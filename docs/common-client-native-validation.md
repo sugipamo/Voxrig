@@ -62,6 +62,25 @@ RCONの装備で確認する。empty handの一回の攻撃はnative sheep HPの
 削除された元のtargetとして拒否されて失敗した。失敗記録を保持し、最新のmatching spawnを選ぶ修正後に再検証した。
 共通APIの範囲と制約は[基本装備とentity操作](common-client-entities.md)を参照。
 
+## A3の採掘復旧と次の設置
+
+```bash
+CARGO_INCREMENTAL=0 python3 scripts/run_common_native.py --all --scenario mining-recovery --accept-eula
+```
+
+同じconsumerで、通常完了と早いFINISHの未解決状態の二経路を両版へ通す。
+どちらも元接続を閉じ、一度だけ同じprofileで再接続し、新しい受信・standingを検査してから設置する。
+初期fixture後のRCONは読み取りだけで、資材3→2、位置不変、設置blockを照合する。
+未解決経路ではFINISHの処理応答を受信してからcloseし、元の採掘の予定時間を過ぎても
+元のstoneが残ることを確認する。wire上の元UUID/name、新しいconnection、各経路の
+START/FINISH各1回とfresh設置1回を確認し、旧ID・元接続・watch cloneからの再送を拒否する。
+
+2026-10-06の最終成功runは`trial-1.16.1-0d4120cb`と`trial-1.21.11-3d05b30f`。
+各版の二経路、同じsource/data/binary、両JVMのexit code 0、proxyのエラーなしを確認した。
+先行した通常完了だけの試験`trial-1.16.1-3e53c90b`と`trial-1.21.11-11202850`も成功記録として保持する。
+この区切りの全体テストは単体686件（8件ignored）、公開API2件、doctest24件が成功した。
+詳しい契約・制約は[採掘後の復旧](common-mining-recovery.md)を参照。
+
 ## 検証する結果
 
 | 共通APIの操作 | Voxrigとは別のサーバー側確認 |

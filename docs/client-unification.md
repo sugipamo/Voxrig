@@ -21,7 +21,11 @@
   villagerへの一回のinteractionと実merchant OPENを両版・両modeで確認した。
   削除済み・再利用されたentity IDを拒否し、spawn座標を現在位置とは扱わない。
   単体681件、公開API2件、doctest24件が成功した。詳細は[基本装備とentity操作](common-client-entities.md)。
-- 次はA3の採掘後の明示的復旧と次の操作への継続。A3〜A6とBは未完了で、全統合完了とは扱わない。
+- A3完了: 共通の同一profile復旧を実装し、両版で採掘完了後・早いFINISHの未解決状態から
+  明示的close、fresh admission、新しい設置まで確認した。旧接続・旧IDは解放せず、
+  取消したloginも二度目を拒否する。元のdelayed miningが予定時間後にも継続しないことを確認した。
+  詳細は[共通の採掘復旧](common-mining-recovery.md)。
+- 次はA4の記録・読み取り専用再生・限定scene。A4〜A6とBは未完了で、全統合完了とは扱わない。
   ownedレシピブック配置の未検証変更は退避したまま、Bまで復元しない。
 
 ## 選択と公開入口

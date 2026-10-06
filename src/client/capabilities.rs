@@ -35,6 +35,8 @@ pub enum Feature {
     SurvivalPreview,
     /// Retained empty-hand dirt/stone mining, with explicit FINISH/ABORT and target receipts.
     SurvivalMining,
+    /// Explicit once-only same-profile fresh recovery from retained mining.
+    SurvivalMiningRecovery,
     /// One-shot passive-cube placement with separate target/material receipts.
     SurvivalPlacement,
     /// Connection-owned finite dry walking/jump dispatch under prediction contract.
@@ -93,6 +95,9 @@ impl Capabilities {
             ),
             Feature::SurvivalMining => Support::Restricted(
                 "healthy dry standing; received empty selected hand/cursor; dirt/stone first outline; retained explicit commands/target conflicts; removal does not permit continuation",
+            ),
+            Feature::SurvivalMiningRecovery => Support::Restricted(
+                "direct unmodified vanilla; exclusively owned same offline profile/endpoint/version; closed source; once-only login claim; fresh join/identity/dry standing/received player inventory/target; old source remains blocked",
             ),
             Feature::SurvivalPlacement => Support::Restricted(
                 "healthy dry standing; default passive cubes; first-outline support/face; fresh target and one-material receipts; modern processing ACK also required",

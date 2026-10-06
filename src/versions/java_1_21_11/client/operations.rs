@@ -1139,6 +1139,21 @@ impl Operations {
         }
         Ok(None)
     }
+    pub(crate) async fn common_connection_identity(
+        &self,
+    ) -> Result<crate::client::ConnectionIdentity> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let identity = state
+            .identity
+            .as_ref()
+            .ok_or_else(|| invalid("received login profile unavailable"))?;
+        Ok(crate::client::ConnectionIdentity {
+            session: player.session,
+            uuid: identity.uuid,
+            name: identity.name.clone(),
+        })
+    }
     pub(crate) async fn common_entity_spawns(&self) -> Result<crate::client::EntitySpawns> {
         let state = self.bot.session.state.lock().await;
         let player = self.common_player_unlocked(&state)?;

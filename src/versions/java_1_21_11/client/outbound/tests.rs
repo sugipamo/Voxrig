@@ -895,8 +895,12 @@ async fn common_entity_lifetime_rejects_reused_id_and_wrong_mode() {
             .await
             .receive(ids::play_clientbound::SPAWN_ENTITY, &spawn, 256)
             .unwrap();
+        let identity = client.connection_identity().await.unwrap();
+        assert_eq!(identity.uuid, [1; 16]);
+        assert_eq!(identity.name, "CommonProbe");
         let observed = client.entity_spawns().await.unwrap();
         let target = observed.entities[0].id;
+        assert_eq!(identity.session, observed.session);
         assert_eq!(
             observed.entities[0].type_name.as_deref(),
             Some("minecraft:sheep")

@@ -3,6 +3,16 @@ use super::*;
 use crate::client::{self as api, operations::Action};
 
 impl Bot {
+    pub(crate) async fn common_connection_identity(&self) -> Result<api::ConnectionIdentity> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        Ok(api::ConnectionIdentity {
+            session: player.session,
+            uuid: self.login_profile.uuid,
+            name: self.login_profile.name.clone(),
+        })
+    }
+
     pub(crate) async fn common_entity_spawns(&self) -> Result<api::EntitySpawns> {
         let _gate = self.coherent_state_gate.lock().await;
         let player = self.common_player_unlocked().await?;
