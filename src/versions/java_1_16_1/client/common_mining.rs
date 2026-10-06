@@ -91,20 +91,22 @@ impl Bot {
                 "mining target/face differs from native first outline",
             ));
         }
-        mining::material(&hit.state)?;
+        crate::client::survival::mining_tools::material(
+            crate::MinecraftVersion::Java1_16_1,
+            &hit.state,
+        )?;
         let position = query
             .initial
             .position
             .as_ref()
             .ok_or_else(|| mining::unavailable("mining position unavailable"))?
             .value;
-        let body = crate::client::survival::model::body(position);
-        if (f64::from(target[1] + 1) - position[1]).abs() < 1e-7
-            && body[0] < f64::from(target[0] + 1)
-            && body[3] > f64::from(target[0])
-            && body[2] < f64::from(target[2] + 1)
-            && body[5] > f64::from(target[2])
-        {
+        if crate::client::survival::mining_tools::removes_support(
+            crate::MinecraftVersion::Java1_16_1,
+            &hit.state,
+            target,
+            position,
+        )? {
             return Err(mining::unavailable(
                 "mining may not remove its foot support",
             ));
@@ -119,16 +121,45 @@ impl Bot {
         let legacy = self.inventory.read().await;
         if inventory.window_id != Some(0)
             || !known_empty(inventory.cursor.as_ref())
-            || !known_empty(inventory.slots[36 + usize::from(selected.value)].as_ref())
+            || !inventory.slots[36 + usize::from(selected.value)]
+                .as_ref()
+                .is_some_and(|s| {
+                    matches!(s.source, ValueSource::Received { .. })
+                        && s.value != SlotKnowledge::Unavailable
+                })
             || legacy.cursor.is_some()
             || legacy.open_window.is_some()
             || !legacy.pending_clicks.is_empty()
         {
             return Err(mining::unavailable(
-                "mining needs received empty selected hand/cursor and supported player screen without pending clicks",
+                "mining needs received selected hand, empty cursor and supported player screen without pending clicks",
             ));
         }
+        self.mining_estimate(&query.initial, &hit.state).await?;
         Ok(query)
+    }
+    async fn mining_estimate(
+        &self,
+        player: &crate::client::PlayerObservation,
+        state: &crate::NativeBlockState,
+    ) -> Result<crate::client::survival::MiningEstimate> {
+        let selected = player
+            .selected_hotbar
+            .as_ref()
+            .ok_or_else(|| mining::unavailable("selected hand missing"))?;
+        let hand = player.inventory.slots[36 + usize::from(selected.value)]
+            .as_ref()
+            .ok_or_else(|| mining::unavailable("received mining hand missing"))?;
+        let receipts = self.common_receipts.lock().await;
+        let registries = receipts
+            .registries
+            .capture(player.session, player.receive_sequence);
+        crate::client::survival::mining_tools::estimate(
+            crate::MinecraftVersion::Java1_16_1,
+            state,
+            &hand.value,
+            Some(&registries),
+        )
     }
     pub(crate) async fn common_start_mining(
         &self,
@@ -145,16 +176,14 @@ impl Bot {
         let query = self.mining_prepared(target, face, None).await?;
         let initial = query.initial;
         let baseline = query.hit.expect("prepared hit").state;
+        let estimate = self.mining_estimate(&initial, &baseline).await?;
         let id = MiningId::new(initial.session, 1); // No in-session replacement/continuation.
         let record = MiningRecord {
             id,
             target,
             face,
-            estimated_wait_ms: if baseline.name == "minecraft:dirt" {
-                1100
-            } else {
-                8500
-            },
+            estimated_wait_ms: estimate.wait_ms(),
+            estimate,
             start: MiningSend {
                 after_sequence: initial.receive_sequence,
                 interaction_sequence: None,
@@ -276,6 +305,16 @@ impl Bot {
                         != run.record.initial.position.as_ref().map(|p| p.value)
                     || prepared.initial.rotation != run.record.initial.rotation
                     || prepared.initial.selected_hotbar != run.record.initial.selected_hotbar
+                    || prepared.initial.inventory.slots[36
+                        + usize::from(run.record.initial.selected_hotbar.as_ref().unwrap().value)]
+                    .as_ref()
+                    .map(|s| &s.value)
+                        != run.record.initial.inventory.slots[36
+                            + usize::from(
+                                run.record.initial.selected_hotbar.as_ref().unwrap().value,
+                            )]
+                        .as_ref()
+                        .map(|s| &s.value)
                     || prepared.hit.as_ref().map(|h| &h.state) != Some(&run.record.baseline)
                     || self.motion.lock().await.revision() != run.movement_revision
                 {
@@ -431,11 +470,24 @@ impl Bot {
             Some(MiningInventoryChangeKind::PlayerScreenChanged)
         } else if !self.inventory.read().await.pending_clicks.is_empty() {
             Some(MiningInventoryChangeKind::InventoryUnavailable)
-        } else if !known_empty(hand) {
+        } else if !hand.is_some_and(|h| {
+            matches!(h.source, ValueSource::Received { .. })
+                && Some(&h.value)
+                    == snapshot.record.initial.inventory.slots[36 + usize::from(selected)]
+                        .as_ref()
+                        .map(|s| &s.value)
+        }) {
             Some(MiningInventoryChangeKind::SelectedHandChanged)
         } else {
             None
         };
+        if let Err(error) = self
+            .mining_estimate(&current, &snapshot.record.baseline)
+            .await
+        {
+            self.interrupt_common_mining(format!("mining tool prerequisites changed: {error}"))
+                .await;
+        }
         if let Some(kind) = kind {
             let mut guard = self.common_mining.lock().await;
             let run = guard.as_mut().expect("retained mining");
@@ -497,7 +549,17 @@ impl Bot {
     }
     pub(super) async fn common_mining_context_received(&self) -> Result<()> {
         // Per-packet latch runs before later packets can restore an empty hand/mode.
-        self.reconcile_common_mining(false).await
+        let tool = self.common_mining.lock().await.as_ref().is_some_and(|r| {
+            let p = &r.record.initial;
+            p.selected_hotbar.as_ref().is_some_and(|s| {
+                p.inventory.slots[36 + usize::from(s.value)]
+                    .as_ref()
+                    .is_some_and(|h| matches!(h.value, SlotKnowledge::Item { .. }))
+            })
+        });
+        // A tool may wear in a later slot packet. Preserve the already checked
+        // exact-target air at its own receive boundary before that later change.
+        self.reconcile_common_mining(tool).await
     }
     pub(super) async fn common_mining_chunk_changed(&self, chunk: [i32; 2]) {
         let mut guard = self.common_mining.lock().await;
@@ -598,6 +660,101 @@ mod tests {
         .to_vec();
         put_varint(&mut payload, state);
         bot.apply_packet(0x0b, payload).await.unwrap();
+    }
+    #[tokio::test]
+    async fn common_tool_mining_keeps_received_removal_before_later_durability() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        bot.apply_packet(
+            0x5b,
+            crate::client::survival::mining_tools::test_block_tag_packet(
+                crate::MinecraftVersion::Java1_16_1,
+            ),
+        )
+        .await
+        .unwrap();
+        let mut item = vec![0, 0, 36, 1];
+        put_varint(&mut item, crate::item_id("iron_pickaxe").unwrap());
+        item.push(1);
+        let mut pristine = item.clone();
+        pristine.push(0);
+        bot.apply_packet(0x16, pristine).await.unwrap();
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        client.survival().select_hotbar(0).await.unwrap();
+        packets.recv().await.unwrap();
+        let started = crate::client::tests::common_tool_mining_start_scenario(
+            &client,
+            TARGET,
+            crate::BlockFace::North,
+        )
+        .await;
+        packets.recv().await.unwrap();
+        client.survival().finish_mining(started.id).await.unwrap();
+        packets.recv().await.unwrap();
+        change(&bot, TARGET, 0).await;
+        // Do not poll the operation between exact-target air and later wear.
+        item.extend([10, 0, 0, 3, 0, 6]);
+        item.extend(b"Damage");
+        item.extend([0, 0, 0, 1, 0]);
+        bot.apply_packet(0x16, item).await.unwrap();
+        let removed = client.survival().mining_record().await.unwrap().unwrap();
+        assert_eq!(removed.stage, MiningStage::ObservedRemoved);
+        assert!(removed.inventory_change.is_none() && !removed.continuation_validated);
+        assert!(client.survival().select_hotbar(1).await.is_err());
+        drop(release);
+        drop(client);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+    #[tokio::test]
+    async fn common_tool_mining_uses_received_stack_and_latches_tool_replacement() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        bot.apply_packet(
+            0x5b,
+            crate::client::survival::mining_tools::test_block_tag_packet(
+                crate::MinecraftVersion::Java1_16_1,
+            ),
+        )
+        .await
+        .unwrap();
+        let mut item = vec![0, 0, 36, 1];
+        put_varint(&mut item, crate::item_id("iron_pickaxe").unwrap());
+        item.extend([1, 0]);
+        bot.apply_packet(0x16, item.clone()).await.unwrap();
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        client.survival().select_hotbar(0).await.unwrap();
+        packets.recv().await.unwrap();
+        let record = crate::client::tests::common_tool_mining_start_scenario(
+            &client,
+            TARGET,
+            crate::BlockFace::North,
+        )
+        .await;
+        assert_eq!(packets.recv().await.unwrap().1[0], 0);
+        bot.apply_packet(0x16, vec![0, 0, 36, 0]).await.unwrap();
+        bot.apply_packet(0x16, item).await.unwrap();
+        change(&bot, TARGET, 0).await;
+        let retained = client.survival().mining_record().await.unwrap().unwrap();
+        assert_eq!(retained.id, record.id);
+        assert_eq!(retained.stage, MiningStage::RequiresInspection);
+        assert_eq!(
+            retained.inventory_change.unwrap().kind,
+            MiningInventoryChangeKind::SelectedHandChanged
+        );
+        assert!(client.survival().finish_mining(record.id).await.is_err());
+        drop(release);
+        drop(client);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
     }
     #[tokio::test]
     async fn common_profile_recovery_cancelled_login_keeps_shared_claim() {

@@ -1520,3 +1520,29 @@ pub(crate) async fn common_creative_landing_scenario(client: &Client) {
     .unwrap();
     assert!(started.run_id > landing.motion.run_id);
 }
+
+pub(crate) async fn common_tool_mining_start_scenario(
+    client: &Client,
+    target: [i32; 3],
+    face: BlockFace,
+) -> survival::MiningRecord {
+    let ops = client.survival();
+    let record = ops.start_mining(target, face).await.unwrap();
+    assert!(record.start.dispatched);
+    let selection = record.initial.selected_hotbar.as_ref().unwrap().value;
+    assert!(
+        matches!(&record.initial.inventory.slots[36 + usize::from(selection)].as_ref().unwrap().value,
+        SlotKnowledge::Item { item } if item.name == "minecraft:iron_pickaxe")
+    );
+    assert_eq!(
+        (
+            record.estimate.tool_speed,
+            record.estimate.harvestable,
+            record.estimate.model_ticks
+        ),
+        (6.0, true, 8)
+    );
+    assert!(ops.start_mining(target, face).await.is_err());
+    assert!(ops.select_hotbar(1).await.is_err());
+    record
+}

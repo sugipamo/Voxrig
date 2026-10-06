@@ -1354,7 +1354,7 @@ async fn cancelled_start_and_finish_attempts_are_retained_without_replay() {
 #[test]
 fn admitted_target_and_held_selection_are_explicit_and_native_packet_updates_are_atomic() {
     let mut state = state();
-    assert!(prepared(&mut state, 42, 0, TARGET, 4).is_err());
+    assert!(prepared(&mut state, 42, 0, TARGET, 4, false).is_err());
     super::super::receive(&mut state, ids::play_clientbound::HELD_ITEM_SLOT, &[0]).unwrap();
     let selected = state.operations.selected_hotbar.clone();
     for invalid in [vec![], vec![9], vec![0, 0], vec![255, 255, 255, 255, 15]] {
@@ -1364,18 +1364,20 @@ fn admitted_target_and_held_selection_are_explicit_and_native_packet_updates_are
         );
         assert_eq!(state.operations.selected_hotbar, selected);
     }
-    assert!(prepared(&mut state, 42, 0, TARGET, 4).is_ok());
-    assert!(prepared(&mut state, 42, 0, TARGET, 5).is_err());
+    assert!(prepared(&mut state, 42, 0, TARGET, 4, false).is_ok());
+    assert!(prepared(&mut state, 42, 0, TARGET, 5, false).is_err());
     state
         .world
         .seed_replay_cell([1, 2, 0], state_id(&native("stone")).unwrap());
-    assert!(prepared(&mut state, 42, 0, TARGET, 4).is_err()); // obstruction
+    assert!(prepared(&mut state, 42, 0, TARGET, 4, false).is_err()); // obstruction
     state.world.seed_replay_cell([1, 2, 0], 0);
     state
         .world
         .seed_replay_cell(TARGET, state_id(&native("glass")).unwrap());
     assert_eq!(
-        prepared(&mut state, 42, 0, TARGET, 4).unwrap_err().kind(),
+        prepared(&mut state, 42, 0, TARGET, 4, false)
+            .unwrap_err()
+            .kind(),
         ErrorKind::Unsupported
     );
 }
@@ -2254,4 +2256,115 @@ async fn common_profile_recovery_cancelled_login_shares_native_claim() {
             .is_err()
     );
     miner.stop().await;
+}
+
+#[tokio::test]
+async fn common_tool_mining_uses_received_stack_and_latches_tool_replacement() {
+    let mut f = Fixture::new().await;
+    let stack = default_item("iron_pickaxe", 1).unwrap();
+    let mut packet = vec![0, 2, 0, 36, 1];
+    put_varint(&mut packet, stack.item_id);
+    packet.extend([0, 0]);
+    {
+        let mut state = f.session.state.lock().await;
+        state
+            .receive(
+                ids::play_clientbound::TAGS,
+                &crate::client::survival::mining_tools::test_block_tag_packet(
+                    MinecraftVersion::Java1_21_11,
+                ),
+                256,
+            )
+            .unwrap();
+        state
+            .receive(ids::play_clientbound::SET_SLOT, &packet, 256)
+            .unwrap();
+    }
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    let record = crate::client::tests::common_tool_mining_start_scenario(
+        &client,
+        TARGET,
+        crate::BlockFace::West,
+    )
+    .await;
+    assert_eq!(read_packet(&mut f.peer, None).await.unwrap().1[0], 0);
+    {
+        let mut state = f.session.state.lock().await;
+        state
+            .receive(ids::play_clientbound::SET_SLOT, &[0, 3, 0, 36, 0], 256)
+            .unwrap();
+        state
+            .receive(ids::play_clientbound::SET_SLOT, &packet, 256)
+            .unwrap();
+    }
+    f.change(TARGET, &native("air")).await;
+    let retained = client.survival().mining_record().await.unwrap().unwrap();
+    assert_eq!(retained.id, record.id);
+    assert_eq!(
+        retained.stage,
+        crate::client::survival::MiningStage::RequiresInspection
+    );
+    assert_eq!(
+        retained.inventory_change.unwrap().kind,
+        MiningInventoryChangeKind::SelectedHandChanged
+    );
+    assert!(client.survival().finish_mining(record.id).await.is_err());
+    f.stop().await;
+}
+
+#[tokio::test]
+async fn common_tool_mining_keeps_received_removal_before_later_durability() {
+    let mut f = Fixture::new().await;
+    let stack = default_item("iron_pickaxe", 1).unwrap();
+    let mut header = vec![0, 2, 0, 36, 1];
+    put_varint(&mut header, stack.item_id);
+    let mut pristine = header.clone();
+    pristine.extend([0, 0]);
+    {
+        let mut state = f.session.state.lock().await;
+        state
+            .receive(
+                ids::play_clientbound::TAGS,
+                &crate::client::survival::mining_tools::test_block_tag_packet(
+                    MinecraftVersion::Java1_21_11,
+                ),
+                256,
+            )
+            .unwrap();
+        state
+            .receive(ids::play_clientbound::SET_SLOT, &pristine, 256)
+            .unwrap();
+    }
+    let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+    let started = crate::client::tests::common_tool_mining_start_scenario(
+        &client,
+        TARGET,
+        crate::BlockFace::West,
+    )
+    .await;
+    read_packet(&mut f.peer, None).await.unwrap();
+    client.survival().finish_mining(started.id).await.unwrap();
+    read_packet(&mut f.peer, None).await.unwrap();
+    f.change(TARGET, &native("air")).await;
+    // No common poll before the later native damage component packet.
+    header.extend([1, 0]);
+    let component = crate::client::registry::Registry::for_version(MinecraftVersion::Java1_21_11)
+        .item_component("minecraft:damage")
+        .unwrap();
+    put_varint(&mut header, component.id.value());
+    put_varint(&mut header, 1);
+    f.session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::SET_SLOT, &header, 256)
+        .unwrap();
+    let removed = client.survival().mining_record().await.unwrap().unwrap();
+    assert_eq!(
+        removed.stage,
+        crate::client::survival::MiningStage::ObservedRemoved
+    );
+    assert!(removed.inventory_change.is_none() && !removed.continuation_validated);
+    assert!(client.survival().select_hotbar(1).await.is_err());
+    f.stop().await;
 }

@@ -1065,15 +1065,18 @@ def run_equipment_entity(version, env, rcon, trace, report, probe_log, stderr_lo
                 except subprocess.TimeoutExpired: probe.kill(); probe.wait(timeout=5)
 
 
-def run_mining_recovery(version, env, rcon, trace, report, probe_log, stderr_log, case):
+def run_mining_recovery(version, env, rcon, trace, report, probe_log, stderr_log, case, tool_case=None):
     """A3: original mining -> explicit fresh admission -> actual placement.
     After the initial fixture, every RCON operation is read-only.
     """
-    result = report['native_results'].setdefault('mining_recovery', {})[case] = {'fixture':{}, 'records':[]}
-    for command in ['setblock 0 65 1 minecraft:air', 'setblock 0 65 3 minecraft:stone', 'setblock 2 65 0 minecraft:air']:
+    group = 'mining_tools' if tool_case else 'mining_recovery'
+    block, tool = tool_case if tool_case else ('minecraft:stone', None)
+    result = report['native_results'].setdefault(group, {})[case] = {'fixture':{}, 'records':[]}
+    tool_env = {'VOXRIG_NATIVE_MINING_TOOL':tool, 'VOXRIG_NATIVE_MINING_BLOCK':block.split('[')[0]} if tool else {}
+    for command in ['setblock 0 65 1 minecraft:air', 'setblock 0 65 3 '+block, 'setblock 2 65 0 minecraft:air']:
         result['fixture'][command] = rcon.command(command)
     probe = subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')], cwd=REPO,
-        env=dict(env, VOXRIG_NATIVE_SCENARIO='mining-recovery', VOXRIG_NATIVE_RECOVERY_CASE=case), stdin=subprocess.PIPE,
+        env=dict(env, VOXRIG_NATIVE_SCENARIO='mining-recovery', VOXRIG_NATIVE_RECOVERY_CASE=case, **tool_env), stdin=subprocess.PIPE,
         stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
     messages = queue.Queue()
     reader = threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True)
@@ -1083,6 +1086,9 @@ def run_mining_recovery(version, env, rcon, trace, report, probe_log, stderr_log
         for command in ['tp UnifiedProbe 0.5 65 0.5 0 0','clear UnifiedProbe',
                         ('replaceitem entity UnifiedProbe hotbar.1 minecraft:stone 3' if version=='1.16.1'
                          else 'item replace entity UnifiedProbe hotbar.1 with minecraft:stone 3')]:
+            result['fixture'][command] = rcon.command(command)
+        if tool:
+            command = ('replaceitem entity UnifiedProbe hotbar.0 '+tool if version=='1.16.1' else 'item replace entity UnifiedProbe hotbar.0 with '+tool)
             result['fixture'][command] = rcon.command(command)
         baseline = stage(probe,messages,'mining_baseline',result['records'])['value']
         result['position_before'] = rcon.command('data get entity UnifiedProbe Pos')
@@ -1109,8 +1115,17 @@ def run_mining_recovery(version, env, rcon, trace, report, probe_log, stderr_log
         def remaining():
             raw = rcon.command('data get entity UnifiedProbe Inventory')
             stacks = outer_snbt_compounds(raw)
-            return raw if len(stacks)==1 and re.search(r'Slot: 1b(?:,|\s|})',stacks[0]) and 'id: "minecraft:stone"' in stacks[0] and re.search(r'(?:Count: 2b|count: 2)(?:,|\s|})',stacks[0]) else None
+            placement = [s for s in stacks if re.search(r'Slot: 1b(?:,|\s|})',s) and 'id: "minecraft:stone"' in s and re.search(r'(?:Count: 2b|count: 2)(?:,|\s|})',s)]
+            held = [s for s in stacks if re.search(r'Slot: 0b(?:,|\s|})',s) and ('id: "'+tool+'"') in s] if tool else []
+            return raw if len(placement)==1 and len(stacks)==(2 if tool else 1) and (not tool or len(held)==1) else None
         result['inventory_after'] = until(remaining)
+        if tool:
+            held = next(s for s in outer_snbt_compounds(result['inventory_after']) if re.search(r'Slot: 0b(?:,|\s|})',s))
+            if not re.search(r'(?:Damage|"minecraft:damage"): 1(?:,|\s|})', held):
+                raise RuntimeError('native tool durability did not change once: '+held)
+            result['native_worn_tool'] = held
+            if started['estimate']['tool_speed'] <= 1 or not started['estimate']['harvestable']:
+                raise RuntimeError('common native-default tool estimate not retained')
         result['position_after'] = rcon.command('data get entity UnifiedProbe Pos')
         if result['position_after'] != result['position_before']:
             raise RuntimeError('recovery changed native position')
@@ -1330,7 +1345,7 @@ level-type=flat
 generator-settings={generator_settings}
 level-seed=1234
 online-mode=false
-gamemode={"survival" if scenario in ("mining-recovery","recording-scene") else "creative"}
+gamemode={"survival" if scenario in ("mining-recovery","mining-tools","recording-scene") else "creative"}
 force-gamemode=true
 spawn-protection=0
 view-distance=2
@@ -1404,6 +1419,16 @@ network-compression-threshold=256
             return retained
         if scenario == "recording-scene":
             run_recording_scene(version, env, rcon, trace, report, probe_log, stderr_log, folder)
+            report["scenario_result"] = "passed"
+            return retained
+        if scenario == "mining-tools":
+            for case, block, tool in (
+                ("pickaxe-stone", "minecraft:stone", "minecraft:iron_pickaxe"),
+                ("shovel-dirt", "minecraft:dirt", "minecraft:iron_shovel"),
+                ("axe-planks", "minecraft:oak_planks", "minecraft:iron_axe"),
+                ("pickaxe-double-slab", "minecraft:stone_slab[type=double,waterlogged=false]", "minecraft:wooden_pickaxe"),
+            ):
+                run_mining_recovery(version, env, rcon, trace, report, probe_log, stderr_log, case, (block, tool))
             report["scenario_result"] = "passed"
             return retained
         if scenario == "mining-recovery":
@@ -2459,7 +2484,7 @@ def main():
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--accept-eula", action="store_true")
     parser.add_argument("--runtime-dir", type=Path, help="Optional disposable runtime parent, e.g. /dev/shm for isolating disk I/O; reports are exported to .local after JVM exit")
-    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "recording-scene", "manager-ui", "furnace", "vehicle", "dry-terrain", "creative-flight", "creative-landing"), default="full", help="Run the operation corpus or a focused common Client workflow")
+    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "mining-tools", "recording-scene", "manager-ui", "furnace", "vehicle", "dry-terrain", "creative-flight", "creative-landing"), default="full", help="Run the operation corpus or a focused common Client workflow")
     args = parser.parse_args()
     if bool(args.version) == args.all:
         parser.error("select exactly one of --version / --all")

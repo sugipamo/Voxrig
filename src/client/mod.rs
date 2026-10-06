@@ -64,7 +64,7 @@ pub(crate) use observation::{LegacyReceipts, legacy_slot, received};
 pub use operations::{Creative, DispatchReceipt, Survival};
 pub use received_items::{ReceivedInventory, ReceivedItem, ReceivedSlot};
 pub use recording::{PacketPhase, PacketRecord, PacketTrace};
-pub use survival::{BlockTargetHit, BlockTargetObservation};
+pub use survival::{BlockTargetHit, BlockTargetObservation, MiningEstimate};
 pub use vehicle::{
     DismountId, DismountRecord, DismountStage, MountId, VehicleObservation, VehicleRelation,
 };
@@ -95,7 +95,7 @@ pub mod prelude {
         ServerRegistryStamp, ServerRegistryTags,
     };
     pub use super::survival::{
-        BlockTargetHit, BlockTargetObservation, CapturedSurvivalScene, MiningId,
+        BlockTargetHit, BlockTargetObservation, CapturedSurvivalScene, MiningEstimate, MiningId,
         MiningProfileRecovery, MiningRecord, MiningRecoveryAttempt, MiningRecoveryEvidence,
         MiningRecoveryMethod, MiningRecoveryTarget, MiningStage, MotionPreview, MotionRecord,
         MotionStatus, PlacementId, PlacementRecord, PlacementStage, RecoveredSurvivalClient,

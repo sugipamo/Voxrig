@@ -546,3 +546,30 @@ fixture後のRCONは読み取りのみで、着地後のflying false・位置・
 受信abilitiesが同じflagsで再到着してもordinalが変われば古い解除根拠を無効にする。
 軽量TCP試験は両版でwriter停止中の待機取消、同期診断、一回の解除／neutral／2tick、
 後続ground run、新しいabilities受信による拒否を確認する。
+
+## B3: 通常道具の採掘から復旧・設置へ（2026-10-06）
+
+```bash
+CARGO_INCREMENTAL=0 python3 scripts/run_common_native.py --all --scenario mining-tools --accept-eula
+```
+
+同じcommon consumerでiron pickaxe／stone、iron shovel／dirt、iron axe／oak planks、
+wooden pickaxe／double stone slabの4通りを各版で通す。
+各caseは受信道具の選択→START→local scheduling待機→FINISH→fresh target air→
+元接続のclose→一回の同一offline profile admission→新しいstone設置→切断まで実行する。
+RCONは初期fixture後には読み取りのみで、対象air、Damage 1の道具、stoneの消費と新しい設置、位置不変を照合する。
+元START／FINISHとfresh接続の設置frame、profile、旧操作IDの拒否を別に検査する。
+
+最終成功runは1.16.1 `trial-1.16.1-df60e9f2`／1.21.11 `trial-1.21.11-c5beb20b`。
+両版は同じ426 source/data入力とconsumer binaryを使い、8 caseが成功した。
+両JVMはexit 0、proxy errorなし。単体731件・公開API2件・doctest29件、
+fmt／all-target Clippy／Rust 1.85 all-target check／rustdoc／trace／配布検査も成功した。
+先行成功runはcapabilityと説明文更新前の入力として証跡で分けて保持する。
+
+元nativeのdefault stack getterからtool speed／correct-tool gateを取得するが、
+local model ticksを実server tickや完了ACK、drop保証として扱わない。
+耐久値のみのdata・通常属性・健康なdry standing・既知geometryに限定する。
+道具に必要なtarget tagが実受信資料と異なる場合は拒否する。
+受信target airの後に届く道具の耐久値更新は除去履歴を消さず、先に届いた道具交換やcontext異常は保持する。
+元接続のmutationは解放せず、明示的fresh recoveryを要求する。
+[入力と結果](evidence/common-mining-tools-20261006.json)／[共通採掘](common-survival-mining.md)を参照。

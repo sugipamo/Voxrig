@@ -33,7 +33,7 @@ pub enum Feature {
     SurvivalTargeting,
     /// Read-only bounded walking/jump model preview under dry standing defaults.
     SurvivalPreview,
-    /// Retained empty-hand dirt/stone mining, with explicit FINISH/ABORT and target receipts.
+    /// Retained default-item mining on audited dry geometry, with explicit stages and target receipts.
     SurvivalMining,
     /// Explicit once-only same-profile fresh recovery from retained mining.
     SurvivalMiningRecovery,
@@ -108,7 +108,7 @@ impl Capabilities {
                 "read-only 1..120 walking/jump inputs; healthy stationary normal posture; native defaults; loaded passive dry full cubes and originally registered dry slabs/stairs",
             ),
             Feature::SurvivalMining => Support::Restricted(
-                "healthy dry standing; received empty selected hand/cursor; dirt/stone first outline; retained explicit commands/target conflicts; removal does not permit continuation",
+                "healthy dry standing; received default selected stack or empty hand and empty cursor; audited dry cubes/slabs/stairs; default native tool speed/gate and received target block tags; durability-only item data; retained explicit commands/target conflicts; removal does not permit continuation",
             ),
             Feature::SurvivalMiningRecovery => Support::Restricted(
                 "direct unmodified vanilla; exclusively owned same offline profile/endpoint/version; closed source; once-only login claim; fresh join/identity/dry standing/received player inventory/target; old source remains blocked",

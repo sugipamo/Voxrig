@@ -652,3 +652,12 @@ writer停止中にも元commandとdispatch stageを確認できる。送信途�
 実受信velocity・pose・abilitiesやserver rest ACKへ読み替えない。成功後は同じhandleで
 有限地上歩行・収納へ進める。空中・未対応姿勢／effect／attribute／impulseは拒否する。
 詳細は[共通Creative飛行](common-creative-flight.md)。
+
+### 通常道具の採掘
+
+共通`start_mining`は、選択した実受信slotにある通常の道具でも使える。道具の速度・適合と推定時間は
+`MiningRecord::estimate`へ保持する。新しい`estimate` fieldを使うrecord schema／struct literalを更新する。
+耐久値だけを持つlegacy NBT／modern damage patchを扱い、enchantment・custom tool等の未統合dataは拒否する。
+道具の判定には受信block tagsと対象の所属が必要。未知・欠測はvanilla値で補わない。
+modernのnative `MiningIntent`には元`held_stack`と共通採掘の`estimate`も残る。
+共通の送信ID・stage・明示的復旧の使い方は同じで、除去観測後も元接続は再利用しない。

@@ -1,4 +1,4 @@
-//! Connection-owned, explicitly staged empty-hand mining diagnostics.
+//! Connection-owned, explicitly staged mining diagnostics.
 use crate::NativeBlockState;
 use crate::client::{BlockFace, ObservedValue, PlayerObservation, SessionStamp, SlotKnowledge};
 
@@ -84,10 +84,10 @@ pub enum MiningInventoryChangeKind {
     PlayerScreenChanged,
     /// Unsupported data or unresolved inventory operations appeared.
     InventoryUnavailable,
-    /// Original selected slot stopped being received empty.
+    /// Original selected stack changed or its received value became unavailable.
     SelectedHandChanged,
 }
-/// Latched first interruption, preserved even if later packets restore an empty hand.
+/// Latched first interruption, preserved even if later packets restore the original hand.
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct MiningInventoryChange {
     /// Which prerequisite changed first.
@@ -137,6 +137,8 @@ pub struct MiningRecord {
     pub baseline: NativeBlockState,
     /// Local scheduling estimate; not elapsed server ticks or an acceptance fence.
     pub estimated_wait_ms: u64,
+    /// Native default-item inputs and normal dry local scheduling model.
+    pub estimate: super::MiningEstimate,
     /// Retained before possible START dispatch.
     pub start: MiningSend,
     /// At most one explicit FINISH attempt, retained before I/O.
@@ -157,17 +159,6 @@ pub struct MiningRecord {
     pub recovery_attempt: Option<super::MiningRecoveryAttempt>,
     /// Always false on the original connection, including after fresh recovery.
     pub continuation_validated: bool,
-}
-pub(crate) fn material(state: &NativeBlockState) -> crate::Result<()> {
-    if !matches!(state.name.as_str(), "minecraft:dirt" | "minecraft:stone")
-        || !state.properties.is_empty()
-    {
-        return Err(crate::Error::new(
-            crate::ErrorKind::Unsupported,
-            anyhow::anyhow!("empty-hand mining currently admits dirt and stone only"),
-        ));
-    }
-    Ok(())
 }
 pub(crate) fn unavailable(reason: impl std::fmt::Display) -> crate::Error {
     crate::Error::new(crate::ErrorKind::State, anyhow::anyhow!("{reason}"))

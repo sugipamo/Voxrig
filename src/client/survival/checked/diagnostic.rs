@@ -188,6 +188,8 @@ mod tests {
                 from_server: false,
             },
             held_receive_sequence: 11,
+            held_stack: crate::versions::java_1_21_11::operations::InventorySlot::Empty,
+            estimate: None,
             estimated_wait_ms: 50,
         };
         let status = MiningStatus::RequiresInspection {

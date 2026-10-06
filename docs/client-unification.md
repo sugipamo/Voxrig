@@ -58,6 +58,15 @@
   飛行物理全体や別姿勢／effectへの拡張は残る。
   詳細は[共通Creative飛行](common-creative-flight.md)。
 
+- B3の一部完了: 通常道具と耐久値だけを持つitem dataを共通Survival採掘へ接続した。
+  同じconsumerでpickaxe／stone、shovel／dirt、axe／planks、wooden pickaxe／double slabを採掘し、
+  明示的な同一profile復旧→新しい設置まで両版で確認する。
+  元native getterに基づく`MiningEstimate`はローカルの目安として保持し、実受信結果へ変換しない。
+  道具交換の最初の受信は保持し、正常なtarget airの後に届く耐久値更新で除去履歴を消さない。
+  元接続を次のmutationへ解放せず、欠測tag／対象のtag変更を拒否する。
+  enchantment／custom tool／effect／別姿勢、広い移動・採掘・設置は引き続きB3へ残す。
+  詳細は[共通採掘](common-survival-mining.md)。B4〜B6とA6も継続する。
+
 ## 選択と公開入口
 
 通常の利用側は`voxrig::client::prelude::*`を使う。
@@ -196,7 +205,7 @@ A5の代表例は初回貫通用であり、すべての特殊windowやentity／
 | 接続・registry・player/world/inventory観測 | 共通 | 共通 | A1で同じconsumerの受信基準に使う |
 | 視点・選択・乾いた地形での有限移動 | 共通・限定条件 | 共通・限定条件 | 両handleの有限地上歩行。Creativeでも飛行中は拒否する |
 | storage開閉・通常クリック・転送・空cursorへの製作結果取得 | 共通・限定条件 | 共通・限定条件 | 一つの接続で収納の後に通常製作へ進む |
-| passive cube設置・空手のdirt/stone採掘 | 共通・限定条件 | 共通・限定条件 | A1は設置。採掘後の共通復旧はA3 |
+| passive cube設置・通常道具の既知dry採掘 | 共通・限定条件 | 共通・限定条件 | A1は設置。採掘後の共通復旧はA3 |
 | 装備への通常転送 | 共通・限定条件 | 共通・限定条件 | A2の代表シナリオに組み込む |
 | 限定captured scene・packet診断recordと選択観測の再生 | 共通・限定条件 | 共通・限定条件 | A4で同じconsumerを検証。live native予測と一致し、source更新・切断後も不変 |
 | checked拡張・assumed scene・仮想編集/連鎖・広い再構成 | 共通契約は未完了 | 版固有拡張 | PR #7の機能を維持し、Bで拡大。re-exportだけで両版対応としない |
@@ -275,7 +284,8 @@ OPENにはblock座標がなく、受信したmatching screenをtarget由来の�
 範囲と独立native oracleは[共通Survivalのブロック狙い判定](common-survival-targeting.md)を参照する。
 
 `Survival::start_mining` / `finish_mining` / `abort_mining` / `mining_record`も両版に実装する。
-受信済み空手でのdirt/stoneに限定し、before-I/O intent、native protocolの違い、fresh target receipt、
+受信済みの通常item／道具（耐久値だけのdata）と既知dry cube／slab／stairsを扱い、
+before-I/O intent、native protocolの違い、fresh target receipt、
 取消/競合の履歴を保持する。airやABORTで元接続のmutationを解放しない。
 詳細は[共通Survivalの採掘](common-survival-mining.md)を参照する。
 

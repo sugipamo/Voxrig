@@ -113,6 +113,8 @@ include = [
     "/scripts/ExportVehicleInput.java",
     "/scripts/export_vehicle_input.py",
     "/scripts/ExportDryTerrain.java",
+    "/scripts/ExportMiningTools.java",
+    "/scripts/export_mining_tools.py",
     "/scripts/export_dry_terrain.py",
     "/README.md",
     "/LICENSE",

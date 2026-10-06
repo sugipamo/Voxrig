@@ -2,6 +2,8 @@
 pub use super::Survival;
 pub mod checked;
 pub(crate) mod mining;
+pub(crate) mod mining_tools;
+pub use mining_tools::MiningEstimate;
 pub(crate) mod model;
 pub(crate) mod placement;
 pub(crate) mod terrain;

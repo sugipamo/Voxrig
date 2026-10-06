@@ -21,11 +21,14 @@ let diagnostics = survival.mining_record().await?;
 ```
 
 共通入口は、健康な通常立位・乾いた既知geometry・接地・通常属性・受信済みsurvival mode、
-受信済みの空のselected hand/cursorとplayer screenに限定する。最初のnative outlineが
-指定target/faceと一致すること、対象がpropertiesなしのdirtまたはstoneであることを検査する。
-足場自身は除去できない。legacyのgeometryは監査済みのair/12種のcubeに限定される。
+受信済みのselected hand、空cursorとplayer screenに限定する。最初のnative outlineが
+指定target/faceと一致すること、対象が既存のdry cube／登録slab／stairsのnative採掘資料に含まれることを検査する。
+足場自身は除去できない。slabの半分の高さも元collision shapeから足場と判定する。
+legacy／modernとも既存のdry cube／登録slab／stairsのgeometryを使用する。
 追加effectの受信がないことは、serverのeffect一覧が完全に空である証明ではない。
-工具・他の素材・液体・未ロード・未知形状・複雑なitem dataは今後の実装対象である。
+通常の道具／itemと、耐久値だけを持つ受信dataを扱う。道具を使う場合は実受信block tagにおける
+対象blockの所属が元vanilla資料と一致することを要求する。欠測や対象のtag変更は黙って補わない。
+enchantment／custom tool／他のdata・effect／属性の拡張、液体・未ロード・未知形状は今後の実装対象である。
 
 ## 送信と観測
 
@@ -63,7 +66,7 @@ writer取得前の取消ではcommandが未送信のまま残り、送信した�
 未送信STARTの後に別のactor等から対象airを受信しても、共通結果の除去成功へは変換しない。
 
 在庫の最初の変更を`inventory_change`へ受信ordinalとslot/selection/cursorの根拠付きで保持する。
-後の空手復元でも消さない。別の原因があれば`sole_cause`はfalseになる。
+後の空手や元の道具への復元でも消さない。別の原因があれば`sole_cause`はfalseになる。
 身体のclearanceや足場の一時的な喪失、mode/pose/属性等の変更も各受信境界で保持する。
 
 `continuation_validated`は元接続では常にfalse。air受信・ABORT・ACKで元接続を解放しない。
@@ -79,4 +82,24 @@ legacy actorのwaiter取消・write失敗、modern FINISHのwriter取得前取�
 公式vanilla両版では移動試験とは別の新しい接続でstoneをSTARTし、ローカル待機後にFINISH、
 Clientのfresh air受信と別経路のRCONによる対象air・位置不変を照合する。
 両版のJVMを同時には起動しない。再実行・実行結果は[共通native検証](common-client-native-validation.md)を参照。
-この限定採掘の成功は工具採掘・設置・復旧等の機能parityを意味しない。
+この空手stone試験の成功だけでは、工具採掘・設置・復旧等の機能parityを判断しない。
+通常道具を使う後続の検証は次節を参照。
+
+## B3: 通常の道具を共通採掘へ接続する
+
+公開操作は同じ`start_mining`／`finish_mining`を使う。選択した受信slotをSTARTの前に保存し、
+道具の交換や個数／data変更を最初の受信境界で保持する。`MiningRecord::estimate`には元nativeの
+hardness、default stackのdestroy speedとcorrect-tool gate、通常dry standingのlocal scheduling値を保持する。
+`harvestable`はnative tool gateであり、lootの発生や回収の保証ではない。推定時間経過から結果や次の操作許可を作らない。
+
+元の既知dry geometryに対し、1.16.1の974 item／1,573 stateと1.21.11の1,504 item／2,347 stateを調べた。
+計5,061,990 item/stateのnative getter結果を確認し、同じprofileを9／11種へまとめる。
+propertyごとの同一性を仮定せず、各stateで実getterを呼んで確認した。
+元vanilla block tagはnative resource/tag loaderで束縛し、sourceと生成手順を
+[mining tools source](../data/client_api/mining_tools_source.json)へ保持する。
+
+道具採掘では、未解決の異常がなく正しく受信したexact-target airを、そのpacket境界で結果履歴へ保持する。
+後から届く耐久値更新で、その過去の除去履歴を失わない。airより前の道具変更・context conflictは保持したまま。
+結果履歴と現在の在庫を分け、元接続の`continuation_validated`は常にfalseとする。
+次の操作は既存の明示的な同一profile fresh recoveryを使用する。
+modern専用の従来`start_survival_mining`は空手dirt／stoneの互換契約を維持する。

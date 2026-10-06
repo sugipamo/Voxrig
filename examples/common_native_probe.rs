@@ -691,6 +691,9 @@ async fn mining_probe(
     client: &Client,
     recovery_config: Option<&ConnectionConfig>,
 ) -> anyhow::Result<()> {
+    let tool = std::env::var("VOXRIG_NATIVE_MINING_TOOL").ok();
+    let block =
+        std::env::var("VOXRIG_NATIVE_MINING_BLOCK").unwrap_or_else(|_| "minecraft:stone".into());
     let mut recovered: Option<RecoveredSurvivalClient> = None;
     let ready = client.player_state().await?;
     let initial_sequence = ready.receive_sequence;
@@ -712,11 +715,17 @@ async fn mining_probe(
                             .is_some_and(|c| c.value == SlotKnowledge::Empty)
                         && p.inventory.slots[36]
                             .as_ref()
-                            .is_some_and(|c| c.value == SlotKnowledge::Empty)
+                            .is_some_and(|c| match (&tool, &c.value) {
+                                (None, SlotKnowledge::Empty) => true,
+                                (Some(name), SlotKnowledge::Item { item }) => {
+                                    item.name == *name && item.count == 1
+                                }
+                                _ => false,
+                            })
                         && p.health.as_ref().is_some_and(|h| h.value.health > 0.0)
                 })
                 .await?;
-                wait_block(client, [0, 65, 3], "minecraft:stone").await?;
+                wait_block(client, [0, 65, 3], &block).await?;
                 emit("mining_baseline", player)?;
             }
             "mining_start" => {
@@ -755,6 +764,12 @@ async fn mining_probe(
                 );
                 let started = ops.start_mining(hit.position, hit.face).await?;
                 anyhow::ensure!(started.start.dispatched, "incomplete START");
+                if tool.is_some() {
+                    anyhow::ensure!(
+                        started.estimate.tool_speed > 1.0 && started.estimate.harvestable,
+                        "native default tool was not used in the common schedule"
+                    );
+                }
                 anyhow::ensure!(
                     ops.select_hotbar(1).await.is_err(),
                     "competing mining action admitted"
