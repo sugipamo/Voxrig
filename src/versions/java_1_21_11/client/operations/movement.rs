@@ -5,12 +5,12 @@ mod scenario;
 use super::geometry::GeometryView;
 use super::*;
 use crate::diagnostic_projection::diagnostic_record;
-pub(super) use control::standing_basis;
 pub use control::{RecordedSurvivalMotionRecheck, RecordedSurvivalMotionRecord};
 pub use control::{
     StandingPositionBasis, SurvivalMotionContract, SurvivalMotionRecheck, SurvivalMotionRecord,
     SurvivalMotionStatus,
 };
+pub(super) use control::{flight_can_retire, retire_common_for_flight, standing_basis};
 pub use scenario::{
     AssumedSurvivalScene, AssumedSurvivalStart, CapturedSurvivalScene, HypotheticalAimRequirement,
     HypotheticalBlockEdit, HypotheticalMovementPreview, HypotheticalPlacement,

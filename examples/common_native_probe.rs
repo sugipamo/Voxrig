@@ -3751,6 +3751,72 @@ async fn dry_terrain_probe(client: &Client) -> anyhow::Result<()> {
                     serde_json::json!({"target":target,"opening":opening,"close":close,"player":client.player_state().await?}),
                 )?;
             }
+            "b3_flight_steps" => {
+                anyhow::ensure!(
+                    mode == GameMode::Creative,
+                    "flight requires Creative fixture"
+                );
+                let initial = client.player_state().await?;
+                let p = initial
+                    .position
+                    .as_ref()
+                    .context("flight baseline position")?
+                    .value;
+                let received = initial.received_pose.clone();
+                client.creative().set_flying(true).await?;
+                let mut commands = vec![client.flight_record().context("flight enable record")?];
+                for offset in [[0., 2., 0.], [0., 2., 1.], [0., 2., 2.]] {
+                    let position = std::array::from_fn(|i| p[i] + offset[i]);
+                    client.creative().move_flying(position, [0., 0.]).await?;
+                    commands.push(client.flight_record().context("flight step record")?);
+                }
+                let player = client.player_state().await?;
+                anyhow::ensure!(
+                    player.session == initial.session && player.received_pose == received,
+                    "flight changed session or forged a pose receipt"
+                );
+                anyhow::ensure!(
+                    commands
+                        .iter()
+                        .all(|r| r.dispatched && r.stage == FlightStage::Submitted),
+                    "flight retained an unresolved command"
+                );
+                let retired = client
+                    .creative()
+                    .motion_record()
+                    .await?
+                    .context("retired ground run")?;
+                anyhow::ensure!(
+                    retired.status == MotionStatus::RequiresInspection
+                        && retired
+                            .problem
+                            .as_deref()
+                            .is_some_and(|p| p.contains("superseded")),
+                    "flight reused ground authority"
+                );
+                let refusal = client
+                    .creative()
+                    .preview_path(&[SurvivalControl {
+                        yaw: 0.,
+                        input: Default::default(),
+                    }])
+                    .await
+                    .expect_err("active flight must refuse ground prediction")
+                    .to_string();
+                emit(
+                    &command,
+                    serde_json::json!({"initial":initial,"commands":commands,
+                    "player":player,"retired_ground":retired,"ground_refusal":refusal}),
+                )?;
+            }
+            "b3_flight_disable" => {
+                client.creative().set_flying(false).await?;
+                let record = client.flight_record().context("flight disable record")?;
+                emit(
+                    &command,
+                    serde_json::json!({"record":record,"player":client.player_state().await?}),
+                )?;
+            }
             "b3_terrain_disconnect" => {
                 client.disconnect().await?;
                 emit(&command, serde_json::json!({"disconnected":true}))?;
@@ -4456,7 +4522,7 @@ async fn main() -> anyhow::Result<()> {
     if scenario.as_deref() == Some("vehicle") {
         return vehicle_probe(&client).await;
     }
-    if scenario.as_deref() == Some("dry-terrain") {
+    if matches!(scenario.as_deref(), Some("dry-terrain" | "creative-flight")) {
         return dry_terrain_probe(&client).await;
     }
     if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("equipment-entity") {

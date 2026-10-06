@@ -3,6 +3,7 @@
 //! General locomotion/pathfinding and complex item components are not inferred.
 //! Mining removal alone does not authorize further mutations on that connection.
 pub(super) mod container;
+mod flight;
 mod geometry;
 pub(super) mod inventory;
 pub(super) mod mining;
@@ -708,7 +709,20 @@ impl Operations {
         self.mutable_with_ground_requirement(state, false)
     }
     fn mutable_with_ground_requirement(&self, state: &State, ground: bool) -> Result<()> {
+        self.mutable_with_flight_owner(state, ground, false)
+    }
+    fn mutable_with_flight_owner(
+        &self,
+        state: &State,
+        ground: bool,
+        flight_owner: bool,
+    ) -> Result<()> {
         self.ready(state)?;
+        if !flight_owner && crate::client::flight::unresolved(&state.flight_history) {
+            return Err(crate::client::inventory::unavailable(
+                "flight dispatch unresolved; inspect without replay",
+            ));
+        }
         if state
             .dismount_history
             .lock()
@@ -1133,10 +1147,19 @@ impl Operations {
                 self.look_in_mode(Some(mode), rotation).await?;
             }
             Action::SelectHotbar(slot) => self.select_hotbar_in_mode(Some(mode), slot).await?,
-            Action::SetFlying(flying) => self.set_flying_in_mode(Some(mode), flying).await?,
+            Action::SetFlying(flying) => {
+                if mode != GameMode::Creative {
+                    return Err(invalid("creative operation required"));
+                }
+                self.common_flight(crate::client::FlightCommand::SetFlying { flying })
+                    .await?;
+            }
             Action::MoveFlying(position, rotation) => {
                 crate::client::operations::validate_rotation(rotation)?;
-                self.move_flying_in_mode(Some(mode), position, rotation)
+                if mode != GameMode::Creative {
+                    return Err(invalid("creative operation required"));
+                }
+                self.common_flight(crate::client::FlightCommand::Move { position, rotation })
                     .await?;
             }
             Action::SetHotbar(slot, item) => {
@@ -1402,12 +1425,13 @@ pub(super) fn common_player_in_state(
             world_generation: state.loading.generation,
         },
         receive_sequence: state.sequence,
-        pending_dispatch: state
-            .dismount_history
-            .lock()
-            .expect("dismount history")
-            .as_ref()
-            .is_some_and(|r| r.unresolved())
+        pending_dispatch: crate::client::flight::unresolved(&state.flight_history)
+            || state
+                .dismount_history
+                .lock()
+                .expect("dismount history")
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
             || state
                 .common_container_open
                 .as_ref()

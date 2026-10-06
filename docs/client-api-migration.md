@@ -639,3 +639,12 @@ event集約・physics metrics・shared chunk storage等の版固有入口は維�
 `Completed`は地上支持・立位の確認ではないため、地上操作の許可を戻す条件に使わない。
 操縦・車両physics・広い下車後継続はBに残る。
 契約は[共通乗車関係](common-vehicles.md)を参照。
+
+## Creative飛行の取消と地上終点
+
+`set_flying`／`move_flying`は同じcommon handleから呼ぶ。送信を待つfutureを取り消しても、
+Clientが元intentを保持して処理する。`Client::flight_record()`は同期読み取りで、
+writer停止中にも元commandとdispatch stageを確認できる。送信途中・失敗時に自動で再送しない。
+飛行を有効にすると直前の地上移動結果は診断履歴へ退避される。飛行解除だけでは
+その地上終点の操作許可を戻さない。着地から地上操作へ継続する共通契約はB3で作業中。
+詳細は[共通Creative飛行](common-creative-flight.md)。

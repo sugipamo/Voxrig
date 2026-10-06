@@ -440,10 +440,13 @@ impl Operations {
             return Err(invalid("motion inputs must end in predicted released rest"));
         }
         terminal_clearance(&*state, preview.frames.last().unwrap())?;
-        let run_id = state
+        let previous_id = state
             .survival_motion
             .as_ref()
-            .map_or(Some(1), |r| r.run_id.checked_add(1))
+            .map(|r| r.run_id)
+            .or(state.retired_common_motion.as_ref().map(|r| r.run_id));
+        let run_id = previous_id
+            .map_or(Some(1), |id| id.checked_add(1))
             .ok_or_else(|| invalid("motion run IDs exhausted"))?;
         let common_initial = common_mode
             .is_some()
@@ -878,4 +881,25 @@ fn inspect_motion(state: &mut State) {
         r.status = SurvivalMotionStatus::RequiresInspection;
         r.problem.get_or_insert_with(|| problem.to_string());
     }
+}
+
+// Flight deliberately retires the settled ground endpoint, retaining its diagnostics.
+// A disabled ability flag cannot restore this old standing authority.
+pub(in super::super) fn retire_common_for_flight(state: &mut State) -> Result<()> {
+    if let Some(previous) = state.survival_motion.as_ref() {
+        let mut retired = common_record(previous.clone())?;
+        retired.status = SurvivalMotionStatus::RequiresInspection;
+        retired
+            .problem
+            .get_or_insert_with(|| "ground motion superseded by owned Creative flight".into());
+        state.retired_common_motion = Some(retired);
+        state.survival_motion = None;
+    }
+    Ok(())
+}
+pub(in super::super) fn flight_can_retire(state: &State) -> bool {
+    state
+        .survival_motion
+        .as_ref()
+        .is_none_or(|r| r.common_initial.is_some())
 }

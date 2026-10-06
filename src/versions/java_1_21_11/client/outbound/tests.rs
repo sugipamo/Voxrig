@@ -237,6 +237,10 @@ fn operations(session: &Arc<Session>) -> operations::Operations {
                 let state = session.state.try_lock().expect("new session");
                 state.crafting_take_history.clone()
             },
+            flight_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.flight_history.clone()
+            },
             dismount_history: {
                 let state = session.state.try_lock().expect("new session");
                 state.dismount_history.clone()
@@ -814,6 +818,10 @@ async fn common_creative_contract_dispatches_modern_packets_without_inventory_ec
             rotation: [0.0; 2],
             velocity: Some([0.0; 3]),
         });
+        let mut health = 20.0f32.to_be_bytes().to_vec();
+        put_varint(&mut health, 20);
+        health.extend(5.0f32.to_be_bytes());
+        operations::receive(&mut state, ids::play_clientbound::UPDATE_HEALTH, &health).unwrap();
         let mut abilities = vec![4];
         abilities.extend(0.05f32.to_be_bytes());
         abilities.extend(0.1f32.to_be_bytes());
@@ -1306,4 +1314,65 @@ async fn malformed_passenger_frame_preserves_relation_and_terminates_receive() {
         drop(state);
         assert!(client.vehicle_state().await.is_err());
     }
+}
+
+#[tokio::test]
+async fn cancelled_common_flight_wait_keeps_one_owner_and_nonblocking_record() {
+    use crate::client::{FlightCommand, FlightStage, GameMode};
+    let (session, api, mut peer) = common_ground_fixture(GameMode::Creative).await;
+    {
+        let mut state = session.state.lock().await;
+        let mut abilities = vec![4];
+        abilities.extend(0.05f32.to_be_bytes());
+        abilities.extend(0.1f32.to_be_bytes());
+        operations::receive(&mut state, ids::play_clientbound::ABILITIES, &abilities).unwrap();
+    }
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let writer = session.writer.lock().await;
+    let ops = client.creative();
+    let mut waiter = Box::pin(ops.set_flying(true));
+    assert!(
+        timeout(Duration::from_millis(20), waiter.as_mut())
+            .await
+            .is_err()
+    );
+    drop(waiter);
+    let pending = client.flight_record().unwrap();
+    assert_eq!(pending.stage, FlightStage::Prepared);
+    assert_eq!(pending.command, FlightCommand::SetFlying { flying: true });
+    assert!(!pending.dispatched);
+    // Reading retained intent never needs the state/writer lock held by its owner.
+    assert_eq!(client.flight_record().unwrap().attempt, pending.attempt);
+    drop(writer);
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap(),
+        (ids::play_serverbound::ABILITIES, vec![2])
+    );
+    let completed = tokio::time::timeout(Duration::from_secs(1), async {
+        loop {
+            let r = client.flight_record().unwrap();
+            if r.stage == FlightStage::Submitted {
+                break r;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(completed.dispatched);
+    assert_eq!(completed.attempt, pending.attempt);
+    assert!(client.player_state().await.unwrap().received_pose.is_some());
+    ops.move_flying([8.5, 67.0, 8.5], [10.0, 0.0])
+        .await
+        .unwrap();
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap().0,
+        ids::play_serverbound::POSITION_LOOK
+    );
+    assert_eq!(client.flight_record().unwrap().attempt, pending.attempt + 1);
+    assert!(
+        timeout(Duration::from_millis(20), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
 }

@@ -525,12 +525,17 @@ impl Creative {
             .await
     }
     /// Request flight; enabling requires a received server flight permission.
+    /// The Client owns this one-shot write after admission, even if the caller stops waiting.
+    /// Inspect `Client::flight_record` after cancellation; do not replay the request.
+    /// Enabling retires the previous ground endpoint. Disabling does not establish grounding.
     pub async fn set_flying(&self, flying: bool) -> Result<DispatchReceipt> {
         self.client
             .execute(GameMode::Creative, Action::SetFlying(flying))
             .await
     }
     /// Submit a flight step of at most four blocks. Not collision resolution or teleport.
+    /// The Client retains and owns the write; `Client::flight_record` is readable during I/O.
+    /// This updates submitted position only, preserving the last actual received pose.
     pub async fn move_flying(
         &self,
         position: [f64; 3],

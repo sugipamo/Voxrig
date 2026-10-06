@@ -707,6 +707,10 @@ impl Fixture {
                     let state = session.state.try_lock().expect("new session");
                     state.crafting_take_history.clone()
                 },
+                flight_history: {
+                    let state = session.state.try_lock().expect("new session");
+                    state.flight_history.clone()
+                },
                 dismount_history: {
                     let state = session.state.try_lock().expect("new session");
                     state.dismount_history.clone()

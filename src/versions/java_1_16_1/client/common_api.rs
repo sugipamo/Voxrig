@@ -223,7 +223,8 @@ impl Bot {
                 world_generation: receipts.generation,
             },
             receive_sequence: self.protocol_packet_sequence.load(Ordering::Acquire),
-            pending_dispatch: dismount_pending
+            pending_dispatch: api::flight::unresolved(&self.flight_history)
+                || dismount_pending
                 || receipts.pending_dispatch
                 || self.common_motion_pauses_physics().await,
             dimension: survival.dimension.as_ref().map(|name| api::Dimension {
@@ -290,8 +291,47 @@ impl Bot {
         mode: api::GameMode,
         action: Action<'_>,
     ) -> Result<Option<i32>> {
+        if let Some(command) = match action {
+            Action::SetFlying(flying) => Some(api::FlightCommand::SetFlying { flying }),
+            Action::MoveFlying(position, rotation) => {
+                Some(api::FlightCommand::Move { position, rotation })
+            }
+            _ => None,
+        } {
+            if mode != api::GameMode::Creative {
+                return Err(common_state("creative operation required"));
+            }
+            return self.common_flight(command).await.map(|_| None);
+        }
+        self.execute_common_inner(mode, action, None).await
+    }
+    pub(super) async fn execute_common_inner(
+        &self,
+        mode: api::GameMode,
+        action: Action<'_>,
+        flight_owner: Option<u64>,
+    ) -> Result<Option<i32>> {
         let _gate = self.coherent_state_gate.lock().await;
-        self.common_motion_admission().await?;
+        self.common_motion_admission_inner(flight_owner.is_some())
+            .await?;
+        if let Some(attempt) = flight_owner {
+            if self.control().await != ControlState::default()
+                || self
+                    .common_receipts
+                    .lock()
+                    .await
+                    .vehicles
+                    .motion_interrupted()
+            {
+                return Err(common_state(
+                    "flight motion context changed before dispatch",
+                ));
+            }
+            let record = self.flight_snapshot(attempt)?;
+            let player = self.common_player_unlocked().await?;
+            let requested = self.common_receipts.lock().await.requested_flying;
+            api::flight::validate_before(&record, &player, requested)?;
+        }
         if self.connection_state() != ConnectionState::Ready {
             return Err(common_state("connection not ready"));
         }
@@ -917,6 +957,7 @@ mod tests {
     async fn common_creative_contract_dispatches_legacy_packets_without_inventory_echo() {
         let (bot, mut packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
         bot.teleport_barrier_ticks.store(u8::MAX, Ordering::Release);
         bot.survival.write().await.game_mode = Some(1);
         let mut abilities = vec![4];
@@ -1068,6 +1109,65 @@ mod tests {
         drop(writer);
         assert!(client.player_state().await.unwrap().pending_dispatch);
         assert!(ops.select_hotbar(0).await.is_err());
+        release.send(()).unwrap();
+        drop(ops);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn cancelled_common_flight_wait_keeps_one_owner_and_nonblocking_record() {
+        use api::{FlightCommand, FlightStage};
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.survival.write().await.game_mode = Some(1);
+        let mut abilities = vec![4];
+        abilities.extend(0.05f32.to_be_bytes());
+        abilities.extend(0.1f32.to_be_bytes());
+        bot.apply_packet(0x31, abilities).await.unwrap();
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let writer = bot.writer.lock().await;
+        let ops = client.creative();
+        let mut waiter = Box::pin(ops.set_flying(true));
+        assert!(
+            timeout(Duration::from_millis(20), waiter.as_mut())
+                .await
+                .is_err()
+        );
+        drop(waiter);
+        let pending = client.flight_record().unwrap();
+        assert_eq!(pending.stage, FlightStage::Prepared);
+        assert_eq!(pending.command, FlightCommand::SetFlying { flying: true });
+        assert!(!pending.dispatched);
+        assert_eq!(client.flight_record().unwrap().attempt, pending.attempt);
+        drop(writer);
+        assert_eq!(
+            timeout(Duration::from_secs(1), packets.recv())
+                .await
+                .unwrap()
+                .unwrap(),
+            (0x1a, vec![2])
+        );
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while client.flight_record().unwrap().stage != FlightStage::Submitted {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert!(client.flight_record().unwrap().dispatched);
+        assert_eq!(client.flight_record().unwrap().attempt, pending.attempt);
+        ops.move_flying([8.5, 67.0, 8.5], [10.0, 0.0])
+            .await
+            .unwrap();
+        assert_eq!(packets.recv().await.unwrap().0, 0x13);
+        assert_eq!(client.flight_record().unwrap().attempt, pending.attempt + 1);
+        assert!(
+            timeout(Duration::from_millis(20), packets.recv())
+                .await
+                .is_err()
+        );
         release.send(()).unwrap();
         drop(ops);
         drop(client);

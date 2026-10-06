@@ -68,6 +68,7 @@ struct State {
     common_crafting_take: Option<crate::client::crafting::CraftingTakeRecord>,
     common_inventory_transfer: Option<crate::client::inventory::InventoryTransferRecord>,
     common_container_close: Option<crate::client::container::ContainerCloseRecord>,
+    pub(crate) flight_history: crate::client::flight::History,
     dismount_history: crate::client::vehicle::dismount::History,
     close_history: Arc<std::sync::Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
     crafting_take_history:
@@ -113,6 +114,7 @@ impl Default for State {
             common_crafting_take: None,
             common_inventory_transfer: None,
             common_container_close: None,
+            flight_history: Arc::default(),
             dismount_history: Arc::default(),
             close_history: Arc::default(),
             crafting_take_history: Arc::default(),
@@ -229,6 +231,7 @@ impl Drop for Lease {
 
 #[derive(Clone)]
 pub(crate) struct Bot {
+    pub(crate) flight_history: crate::client::flight::History,
     dismount_history: crate::client::vehicle::dismount::History,
     close_history: Arc<std::sync::Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
     crafting_take_history:
@@ -455,6 +458,10 @@ impl Bot {
             crafting_take_history: {
                 let state = session.state.try_lock().expect("new session");
                 state.crafting_take_history.clone()
+            },
+            flight_history: {
+                let state = session.state.lock().await;
+                state.flight_history.clone()
             },
             dismount_history: {
                 let state = session.state.try_lock().expect("new session");

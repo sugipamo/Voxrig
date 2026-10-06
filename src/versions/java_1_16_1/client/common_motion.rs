@@ -280,7 +280,7 @@ impl Bot {
 }
 #[derive(Clone)]
 pub(super) struct NativeMotionRun {
-    record: MotionRecord,
+    pub(super) record: MotionRecord,
     expected_motion_revision: u64,
     movement_attribute: Option<Attribute>,
 }
@@ -298,6 +298,9 @@ impl Bot {
         mounted_history || self.common_motion_pauses_physics().await
     }
     pub(super) async fn common_motion_pauses_physics(&self) -> bool {
+        if crate::client::flight::unresolved(&self.flight_history) {
+            return true;
+        }
         if self
             .dismount_history
             .lock()
@@ -398,6 +401,14 @@ impl Bot {
         }
     }
     pub(super) async fn common_motion_admission(&self) -> Result<()> {
+        self.common_motion_admission_inner(false).await
+    }
+    pub(super) async fn common_motion_admission_inner(&self, flight_owner: bool) -> Result<()> {
+        if !flight_owner && crate::client::flight::unresolved(&self.flight_history) {
+            return Err(motion_state(
+                "flight dispatch unresolved; inspect without replay",
+            ));
+        }
         if self
             .dismount_history
             .lock()
@@ -545,12 +556,20 @@ impl Bot {
                 "finite controls must end in released rest with full dry support",
             ));
         }
-        let run_id = self
+        let previous_id = self
             .common_motion
             .lock()
             .await
             .as_ref()
-            .map_or(Some(1), |run| run.record.run_id.checked_add(1))
+            .map(|r| r.record.run_id)
+            .or(self
+                .retired_common_motion
+                .lock()
+                .await
+                .as_ref()
+                .map(|r| r.run_id));
+        let run_id = previous_id
+            .map_or(Some(1), |id| id.checked_add(1))
             .ok_or_else(|| motion_state("motion run IDs exhausted"))?;
         let movement_attribute = legacy_movement_attribute(&**self.survival.read().await).cloned();
         let run = NativeMotionRun {
@@ -611,12 +630,17 @@ impl Bot {
                 }
             }
         }
-        Ok(self
+        let record = self
             .common_motion
             .lock()
             .await
             .as_ref()
-            .map(|run| run.record.clone()))
+            .map(|run| run.record.clone());
+        Ok(if record.is_some() {
+            record
+        } else {
+            self.retired_common_motion.lock().await.clone()
+        })
     }
     async fn legacy_stable_run(
         &self,

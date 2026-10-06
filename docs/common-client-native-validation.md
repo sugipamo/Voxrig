@@ -507,3 +507,16 @@ main `b38e8b4`のPR #10も取り込んだコードで実行した。
 
 これは既知のdry terrainを歩いて収納へ進む区切りである。元clientの全tick物理の同等性、
 waterlogged・一般非cube・道具／effect／別姿勢・Creative飛行後の立位操作は完了扱いにしない。
+
+## B3: 地上操作済みClientからCreative飛行へ（2026-10-06）
+
+`creative-flight`は同じconsumerで44tickのdry slab/stair移動→収納の開閉→flight要求→
+3つのbounded飛行位置→flight解除→切断まで通す。各版で同じ接続を維持し、
+baseline後のRCONは読み取りだけで位置・abilitiesを独立確認する。元packetの
+一回のenable、3つのposition、1回のdisableと保持commandを照合した。
+元の受信poseを保持し、以前の地上runの終点は診断履歴へ退避する。
+
+1.16.1 `trial-1.16.1-597eb958`／1.21.11 `trial-1.21.11-127651d9`は
+同じ422 source/dataとbinaryで成功、両JVM exit 0・proxy errorなし。
+明示的な着地→地上操作の継続とvanilla飛行物理全体は、この区切りの検証範囲に含めない。
+[共通Creative飛行](common-creative-flight.md)／[入力と結果](evidence/common-creative-flight-20261006.json)。

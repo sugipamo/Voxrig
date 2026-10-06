@@ -477,13 +477,13 @@ def stage(probe, messages, name, records, timeout=30, poll=None):
     raise TimeoutError("probe stage timed out: " + name)
 
 
-def run_dry_terrain(version, env, rcon, trace, report, probe_log, stderr_log):
+def run_dry_terrain(version, env, rcon, trace, report, probe_log, stderr_log, flight=False):
     """Walk a dry slab/stair route, then open/close storage on the same Client.
     RCON only reads after baseline. Actual native position and original packet
     fields are separate from Client predictions and local close receipts.
     """
-    results = report['native_results']['dry_terrain'] = {}
-    for mode in ('survival', 'creative'):
+    results = report['native_results']['creative_flight' if flight else 'dry_terrain'] = {}
+    for mode in (('creative',) if flight else ('survival', 'creative')):
         until(lambda: matched(rcon.command('execute unless entity @a[name=UnifiedProbe]'), 'Test passed'))
         result = results[mode] = {'fixture': {}, 'records': []}
         for command in [
@@ -597,6 +597,55 @@ def run_dry_terrain(version, env, rcon, trace, report, probe_log, stderr_log):
             result['motion_frames'] = motion_frames
             result['storage_frames'] = storage_frames
             result['authority_limits'] = 'Same common consumer and one Client per mode. Actual dry slab/stair properties, 44 bounded predicted ticks, independent native final position and unchanged session through actual chest OPEN and once close. Survival captured-scene prediction also matches. Sent positions and local close are not server acknowledgements. No waterlogged, body-intersecting seed, tool/effect/posture, vehicle, flight-to-standing or arbitrary terrain support is claimed.'
+            if flight:
+                flight_boundary = trace.mark()
+                flown = stage(probe, messages, 'b3_flight_steps', result['records'])['value']
+                commands = flown['commands']
+                if len(commands)!=4 or commands[0]['command']!={'kind':'set_flying','flying':True}:
+                    raise RuntimeError('flight enable record differs from requested command')
+                if [r['attempt'] for r in commands]!=list(range(commands[0]['attempt'],commands[0]['attempt']+4)):
+                    raise RuntimeError('flight attempt identities do not increase')
+                if any(not r['dispatched'] or r['stage']!='submitted' or r['requires_inspection'] for r in commands):
+                    raise RuntimeError('flight command dispatch remained unresolved')
+                final = commands[-1]['command']['position']
+                def airborne_endpoint():
+                    raw = rcon.command('data get entity UnifiedProbe Pos')
+                    actual = [float(v) for v in re.findall(r'(-?\d+(?:\.\d+)?(?:[Ee][+-]?\d+)?)d',raw)]
+                    return raw if len(actual)==3 and all(abs(a-b)<1e-7 for a,b in zip(actual,final)) else None
+                result['flight_native_position'] = until(airborne_endpoint)
+                result['flight_native_abilities'] = rcon.command('data get entity UnifiedProbe abilities')
+                if not re.search(r'flying:\s*1b',result['flight_native_abilities']):
+                    raise RuntimeError('server did not apply requested flight flag')
+                flight_frames = until(lambda: (current if len([f for f in current if f['direction']=='serverbound'
+                    and f['phase']=='play' and f['packet_id']==position_id])>=3 else None)
+                    if (current := trace.since(flight_boundary)) else None)
+                sent = [f for f in flight_frames if f['direction']=='serverbound' and f['phase']=='play']
+                ability_id = 0x1a if version=='1.16.1' else 0x27
+                # Idle ground heartbeats can precede the owner acquiring flight.
+                ability_indexes = [i for i,f in enumerate(sent) if f['packet_id']==ability_id]
+                if len(ability_indexes)!=1 or sent[ability_indexes[0]]['body_hex']!='02':
+                    raise RuntimeError('native flight enable was not dispatched once')
+                poses = [f for f in sent[ability_indexes[0]+1:] if f['packet_id']==position_id]
+                if len(poses)!=3:
+                    raise RuntimeError('native flight steps replayed or missing')
+                for frame,record in zip(poses,commands[1:]):
+                    if fields(frame)!=(*record['command']['position'],0.,0.,0):
+                        raise RuntimeError('native flight frame differs from retained command')
+                if flown['player']['session']!=session or flown['player']['received_pose']!=flown['initial']['received_pose']:
+                    raise RuntimeError('flight forged receipt or changed connection')
+                result['flight_commands'] = commands
+                result['flight_frames'] = flight_frames
+                disable_boundary = trace.mark()
+                disabled = stage(probe, messages, 'b3_flight_disable', result['records'])['value']
+                result['disable_frames'] = until(lambda: (current if any(f['direction']=='serverbound'
+                    and f['phase']=='play' and f['packet_id']==ability_id for f in current) else None)
+                    if (current := trace.since(disable_boundary)) else None)
+                flags = [f['body_hex'] for f in result['disable_frames'] if f['direction']=='serverbound'
+                    and f['phase']=='play' and f['packet_id']==ability_id]
+                if flags!=['00'] or not disabled['record']['dispatched']:
+                    raise RuntimeError('native flight disable was not dispatched once')
+                result['flight_native_abilities_after_disable'] = until(lambda: raw if re.search(r'flying:\s*0b', (raw := rcon.command('data get entity UnifiedProbe abilities'))) else None)
+                result['authority_limits'] += ' Ground -> owned flight enable -> three once-only bounded submitted steps -> disable was validated; explicit landing/standing continuation remains required. Received pose and received velocity are never rewritten as flight endpoints.'
             trace.expect_disconnect()
             stage(probe, messages, 'b3_terrain_disconnect', result['records'])
             probe.wait(timeout=10)
@@ -1277,8 +1326,8 @@ network-compression-threshold=256
         for check in ["execute if block 0 65 1 minecraft:stone", "execute if block 1 65 0 minecraft:air"]:
             report.setdefault("fixture_verification", {})[check] = until(lambda: matched(rcon.command(check), "Test passed"))
         env = dict(os.environ, VOXRIG_MINECRAFT_VERSION=version, VOXRIG_PORT=str(trace.port))
-        if scenario == "dry-terrain":
-            run_dry_terrain(version,env,rcon,trace,report,probe_log,stderr_log)
+        if scenario in ("dry-terrain", "creative-flight"):
+            run_dry_terrain(version,env,rcon,trace,report,probe_log,stderr_log,flight=scenario=="creative-flight")
             report["scenario_result"]="passed"
             return retained
         if scenario == "vehicle":
@@ -2350,7 +2399,7 @@ def main():
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--accept-eula", action="store_true")
     parser.add_argument("--runtime-dir", type=Path, help="Optional disposable runtime parent, e.g. /dev/shm for isolating disk I/O; reports are exported to .local after JVM exit")
-    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "recording-scene", "manager-ui", "furnace", "vehicle", "dry-terrain"), default="full", help="Run the operation corpus or a focused common Client workflow")
+    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "recording-scene", "manager-ui", "furnace", "vehicle", "dry-terrain", "creative-flight"), default="full", help="Run the operation corpus or a focused common Client workflow")
     args = parser.parse_args()
     if bool(args.version) == args.all:
         parser.error("select exactly one of --version / --all")

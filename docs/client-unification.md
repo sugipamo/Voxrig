@@ -48,6 +48,12 @@
   waterlogged／未知形状は拒否し、道具・effect・姿勢・広い採掘／設置・Creative飛行後の立位は残る。
   詳細は[共通dry terrain](common-dry-terrain.md)。A6の利用側評価とBの全残機能を完了扱いにしない。
 
+- B3の一部完了: 地上移動と収納済みのClientからCreative飛行を要求し、
+  3つの短い飛行位置と飛行解除まで両版の公式vanillaで確認した。
+  flight commandをClient所有の一回送信として保持し、古い地上終点は診断履歴へ退避する。
+  明示的な着地・地上操作への継続は引き続き未完了。
+  詳細は[共通Creative飛行](common-creative-flight.md)。
+
 ## 選択と公開入口
 
 通常の利用側は`voxrig::client::prelude::*`を使う。
