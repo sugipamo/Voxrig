@@ -14,7 +14,7 @@
 A0〜A5の代表操作は両版で初回貫通済み。A6は資料・共通consumerを準備済みで、
 非公開の利用側から固定commitでの移行結果を受け取る段階にある。
 全機能の統合完了とは分ける。B4の結果転送に続き、B6の有限乗車入力を一連の操作として閉じた。
-次はvehicleの現在状態と下車後の地上継続を含む広いB6、およびB3〜B5の残機能を進める。
+vehicleの受信motion観測も両版・両modeで接続した。次は下車後の地上継続を含む広いB6、およびB3〜B5の残機能を進める。
 操作に不要なconstructor比較の拡大を先行させない。
 実サーバーや重い検査は一つずつ実行する。
 
@@ -107,7 +107,7 @@ A0〜A5の代表操作は両版で初回貫通済み。A6は資料・共通consu
   同じClientで短い地上移動→実乗車→12入力＋2neutral→実下車＋neutral→切断を、
   両版・両modeの4件で確認した。入力送信と実車両移動／停止の意味を区別し、
   完了済み地上runは元履歴を保持して退役させる。途中送信や乗車変更は解放・再送しない。
-  現在vehicle状態・paddle・広いphysics・下車後の地上継続、他UI/window/managerはB6へ残す。
+  受信motionは次の区切りで接続した。metadata・paddle・広いphysics・下車後の地上継続、他UI/window/managerはB6へ残す。
   詳細は[共通乗車入力](common-vehicles.md#有限の乗車入力)と[検証記録](common-client-native-validation.md#b6-finite-mounted-input-and-original-minecart-response)。
 
 ## 選択と公開入口
@@ -257,7 +257,7 @@ A5の代表例は初回貫通用であり、すべての特殊windowやentity／
 | scoreboard観測・ClientManager生成／取得／終了 | 共通・限定条件 | 共通・限定条件 | A5の一部を実装・検証。managerのmixed-version分離は軽量fixtureで確認 |
 | かまどslot観測・通常PICKUP・開閉 | 共通・限定条件 | 共通・限定条件 | A5の基本かまど精錬flow。溶鉱炉／燻製器はconstructor/slot規則の確認で、特殊レシピのlive検証は残る |
 | own-player乗車関係・明示的下車 | 共通・限定条件 | 共通・限定条件 | 実passenger list、owned一回送信→実除外→neutral。両版・両modeのnativeで確認。下車後の地上継続はB |
-| 有限digital乗車入力 | 共通・限定条件 | 共通・限定条件 | 受信MountIdへ有限入力＋最終neutral。現在の車両位置・physics・paddle・下車後の地上継続はB6 |
+| 有限digital乗車入力 | 共通・限定条件 | 共通・限定条件 | 受信MountIdへ有限入力＋最終neutral。受信位置は共通entity_motionで観測。特殊補間・physics・paddle・下車後の地上継続はB6 |
 | その他特殊window／UI／manager | 未共通化 | 未共通化 | 広い対応はB |
 | ownedレシピブック配置 | 共通・限定条件 | 共通・限定条件 | B4で通常Next／Maximumを接続。材料不足ghostと実返却も接続。結果のnative QUICK_MOVEは接続済み。広い製作条件はB4へ残る |
 
@@ -587,3 +587,18 @@ runの待機取消・遮断・同数値IDへの再乗車は送信所有と最初
 正確な16入力、下車後の重複拒否と切断後の履歴を確認した。
 [440入力と検証結果](evidence/common-vehicle-control-20261006.json)を保存した。
 この区切りは有限乗車入力であり、広いB6とB3〜B5、A6の利用側結果は継続する。
+
+
+### B6の受信vehicle motion: 代表フロー完了
+
+有限乗車入力の次に、`Client::entity_motion(EntityId)`で同じ元spawnの位置・回転・
+速度sample・ground flagを観測する。spawn履歴と最新fieldの受信根拠を分離する。
+今回の完了条件は、同じClientで乗車→有限入力→移動の受信観測→下車を両版・両modeで
+通すこと。native physicsの完全再現やconstructorの網羅はこの区切りに追加しない。
+下車後の地上継続、特殊minecart補間・paddle、その他UI/window/managerと広いB3〜B5、
+非公開利用側のA6結果は残る。[API契約](common-entity-motion.md)。
+
+両版・Survival/Creativeの4ケースが成功した。`trial-1.16.1-3cb7e10d`／
+`trial-1.21.11-e3b458d8`でfreshな受信位置の変化と不変のspawn履歴を確認し、
+元RCONの車両移動・乗車UUID・下車と独立に照合した。両JVM exit 0、proxy errorsなし。
+[固定runtime入力と結果](evidence/common-entity-motion-20261006.json)。

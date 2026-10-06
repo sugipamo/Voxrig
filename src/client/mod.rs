@@ -54,7 +54,10 @@ pub use crafting::{
     RecipePlacementId, RecipePlacementPlan, RecipePlacementRecord, RecipePlacementSend,
     RecipePlacementStage, RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern,
 };
-pub use entity::{EntityId, EntitySpawn, EntitySpawns};
+pub use entity::{
+    EntityId, EntityMotionObservation, EntityPosition, EntityPositionCorrection, EntitySpawn,
+    EntitySpawns,
+};
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
 pub use item::ItemProperties;
 pub(crate) use item::{modern_prototype_components, modern_weight_defaults};
@@ -119,9 +122,10 @@ pub mod prelude {
         ConnectionRevocation, CraftingGridReturnPlan, CraftingGridReturnStep,
         CraftingGridUnreturnedSplit, CraftingResultDestination, CraftingSource, CraftingTakeId,
         CraftingTakeRecord, CraftingTakeStage, Creative, DismountId, DismountRecord, DismountStage,
-        EntityId, EntitySpawn, EntitySpawns, Feature, FlightCommand, FlightLanding, FlightRecord,
-        FlightStage, FurnaceObservation, FurnaceSlot, GameMode, ItemComponent, ItemComponentPatch,
-        ItemData, ItemProperties, ItemStack, MountId, PlayerObservation, ReceivedCrafting,
+        EntityId, EntityMotionObservation, EntityPosition, EntityPositionCorrection, EntitySpawn,
+        EntitySpawns, Feature, FlightCommand, FlightLanding, FlightRecord, FlightStage,
+        FurnaceObservation, FurnaceSlot, GameMode, ItemComponent, ItemComponentPatch, ItemData,
+        ItemProperties, ItemStack, MountId, PlayerObservation, ReceivedCrafting,
         ReceivedCraftingContext, ReceivedInventory, ReceivedItem, ReceivedRecipe,
         ReceivedRecipeGhost, ReceivedRecipes, ReceivedSlot, RecipeBookMaterials, RecipeBookStock,
         RecipeCraftingCell, RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient,

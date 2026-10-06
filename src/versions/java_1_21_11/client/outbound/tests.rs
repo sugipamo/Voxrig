@@ -1207,6 +1207,27 @@ async fn common_entity_lifetime_rejects_reused_id_and_wrong_mode() {
             observed.entities[0].type_name.as_deref(),
             Some("minecraft:sheep")
         );
+        let initial = client.entity_motion(target).await.unwrap();
+        assert!(initial.on_ground.is_none());
+        assert_eq!(initial.velocity.as_ref().unwrap().value, [0.0; 3]);
+        let mut relative = vec![43];
+        for value in [4096i16, 0, 0] {
+            relative.extend(value.to_be_bytes());
+        }
+        relative.push(1);
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::REL_ENTITY_MOVE, &relative, 256)
+            .unwrap();
+        let moved = client.entity_motion(target).await.unwrap();
+        assert_eq!(
+            moved.position.as_ref().unwrap().value.position,
+            [10.0, 65.0, 8.5]
+        );
+        assert_eq!(moved.entity.spawn_position, initial.entity.spawn_position);
+        assert_eq!(moved.velocity, initial.velocity);
         let (ops, wrong) = match mode {
             GameMode::Survival => (
                 crate::client::entity::EntityAction::Attack { sneaking: false },
@@ -1233,6 +1254,7 @@ async fn common_entity_lifetime_rejects_reused_id_and_wrong_mode() {
             .receive(ids::play_clientbound::ENTITY_DESTROY, &[1, 43], 256)
             .unwrap();
         assert!(client.entity_spawns().await.unwrap().entities.is_empty());
+        assert!(client.entity_motion(target).await.is_err());
         assert!(
             client
                 .execute(mode, crate::client::operations::Action::Entity(target, ops))
@@ -1294,6 +1316,33 @@ async fn common_entity_lifetime_rejects_reused_id_and_wrong_mode() {
                 .await
                 .is_err()
         );
+        // Malformed receipt is terminal on this adapter. Check the retained
+        // ledger directly, and require all public live observations to fail.
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::SPAWN_ENTITY, &spawn, 256)
+            .unwrap();
+        let fresh = client.entity_spawns().await.unwrap().entities[0].id;
+        let before_failure = client.entity_motion(fresh).await.unwrap();
+        relative.push(0);
+        let mut state = session.state.lock().await;
+        assert!(
+            state
+                .receive(ids::play_clientbound::REL_ENTITY_MOVE, &relative, 256)
+                .is_err()
+        );
+        assert_eq!(
+            state
+                .entities
+                .capture_motion(observed.session, fresh, state.sequence)
+                .unwrap()
+                .position,
+            before_failure.position
+        );
+        drop(state);
+        assert!(client.entity_motion(fresh).await.is_err());
     }
 }
 

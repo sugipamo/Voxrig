@@ -23,6 +23,18 @@ impl Bot {
             .entities
             .capture(player.session, player.receive_sequence))
     }
+    pub(crate) async fn common_entity_motion(
+        &self,
+        target: api::EntityId,
+    ) -> Result<api::EntityMotionObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        self.common_receipts.lock().await.entities.capture_motion(
+            player.session,
+            target,
+            player.receive_sequence,
+        )
+    }
     pub(crate) async fn common_vehicle_state(&self) -> Result<api::VehicleObservation> {
         let _gate = self.coherent_state_gate.lock().await;
         let player = self.common_player_unlocked().await?;
@@ -1094,6 +1106,35 @@ mod tests {
             received.entities[0].type_name.as_deref(),
             Some("minecraft:sheep")
         );
+        let initial = client.entity_motion(target).await.unwrap();
+        assert!(initial.on_ground.is_none());
+        assert_eq!(initial.velocity.as_ref().unwrap().value, [0.0; 3]);
+        let mut relative = vec![42];
+        for value in [4096i16, 0, 0] {
+            relative.extend(value.to_be_bytes());
+        }
+        relative.push(1);
+        bot.apply_packet(0x28, relative.clone()).await.unwrap();
+        let moved = client.entity_motion(target).await.unwrap();
+        assert_eq!(
+            moved.position.as_ref().unwrap().value.position,
+            [3.0, 65.0, 0.5]
+        );
+        assert_eq!(moved.entity.spawn_position, initial.entity.spawn_position);
+        assert_eq!(moved.velocity, initial.velocity);
+        let stored = serde_json::to_value(&moved).unwrap();
+        relative.push(0);
+        assert!(bot.apply_packet(0x28, relative).await.is_err());
+        let after = client.entity_motion(target).await.unwrap();
+        assert_eq!(
+            serde_json::to_value(&after.position).unwrap(),
+            stored["position"]
+        );
+        bot.apply_packet(0x2b, vec![42]).await.unwrap();
+        assert_eq!(
+            client.entity_motion(target).await.unwrap().on_ground,
+            moved.on_ground
+        );
         assert!(
             client
                 .creative()
@@ -1110,6 +1151,7 @@ mod tests {
         assert_eq!(dispatch.interaction_sequence, None);
         bot.apply_packet(0x37, vec![1, 42]).await.unwrap();
         assert!(client.entity_spawns().await.unwrap().entities.is_empty());
+        assert!(client.entity_motion(target).await.is_err());
         assert!(
             client
                 .survival()

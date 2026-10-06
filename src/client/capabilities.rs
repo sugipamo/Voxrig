@@ -63,6 +63,8 @@ pub enum Feature {
     Crafting,
     /// Received entity spawn/despawn lifetimes, without current motion or metadata.
     EntityObservation,
+    /// Latest received entity spatial fields, independent from spawn history.
+    EntityMotion,
     /// Common general-entity interaction.
     EntityInteraction,
     /// Actual own-player passenger relationships and original mounted receipts.
@@ -150,6 +152,9 @@ impl Capabilities {
             ),
             Feature::EntityObservation => Support::Restricted(
                 "received spawn/despawn ledger; version-bound entity types and original spawn coordinates; opaque connection/world/spawn identity; current motion, metadata, hitboxes and health remain incomplete",
+            ),
+            Feature::EntityMotion => Support::Restricted(
+                "original connection/world/spawn lifetime; received position targets, body/head rotation, ground flags and velocity samples; native relative quantization; modern relative interpolation corrections remain unresolved; painting anchors, current physics, hitboxes and special minecart interpolation are not inferred",
             ),
             Feature::EntityInteraction => Support::Restricted(
                 "one native INTERACT or ATTACK on an original received lifetime; matching received handle mode; no auto-selection, cooldown, retry, reach/visibility proof or outcome ACK; position-specific interaction and broader entity state remain incomplete",

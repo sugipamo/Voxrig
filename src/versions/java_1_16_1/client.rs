@@ -4,6 +4,7 @@ mod common_api;
 mod common_click;
 mod common_container;
 mod common_crafting;
+mod common_entity_motion;
 mod common_flight;
 mod common_inventory;
 mod common_mining;
@@ -4729,6 +4730,20 @@ impl Bot {
                 local_player_basis,
             );
         }
+        if let Some((target, update)) = common_entity_motion::decode(id, &p)? {
+            let player = self.player.lock().await.entity_id;
+            let mut receipts = self.common_receipts.lock().await;
+            let target =
+                target.or_else(|| receipts.vehicles.mounted_entity(player, &receipts.entities));
+            if let Some(target) = target {
+                receipts.entities.receive_motion(
+                    crate::MinecraftVersion::Java1_16_1,
+                    target,
+                    update,
+                    packet_sequence,
+                );
+            }
+        }
         match id {
             0x00 => self.insert_entity(parse_spawn_object(&p)?).await?,
             0x01 => self.insert_entity(parse_spawn_orb(&p)?).await?,
@@ -5282,12 +5297,11 @@ impl Bot {
                 }
             }
             0x2b => {
+                // Original base MoveEntity contains only the entity ID, no ground flag.
                 let mut rest = p.as_slice();
                 let entity_id = get_varint(&mut rest)?;
-                let on_ground = *rest.first().context("missing entity ground flag")? != 0;
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
-                    entity.on_ground = on_ground;
-                    self.emit(Event::EntityUpdated(entity.clone()));
+                if entity_id < 0 || !rest.is_empty() {
+                    bail!("invalid base entity packet");
                 }
             }
             0x2c => {
@@ -6264,6 +6278,27 @@ impl Bot {
                 self.protocol_packet_sequence.load(Ordering::Acquire),
                 self.connection_options.max_entities,
             )?;
+            use crate::client::entity::NativeSpawnMotion;
+            use crate::versions::java_1_16_1::entity::EntityKind;
+            receipts.entities.initialize_motion(
+                entity.entity_id,
+                NativeSpawnMotion {
+                    position: (entity.kind != EntityKind::Painting).then_some([
+                        entity.position.x,
+                        entity.position.y,
+                        entity.position.z,
+                    ]),
+                    rotation: matches!(
+                        entity.kind,
+                        EntityKind::Object | EntityKind::Living | EntityKind::Player
+                    )
+                    .then_some([entity.yaw, entity.pitch]),
+                    head_yaw: (entity.kind == EntityKind::Living).then_some(entity.head_yaw),
+                    velocity: matches!(entity.kind, EntityKind::Object | EntityKind::Living)
+                        .then_some([entity.velocity.x, entity.velocity.y, entity.velocity.z]),
+                },
+                self.protocol_packet_sequence.load(Ordering::Acquire),
+            );
             receipts.vehicles.retire(entity.entity_id);
         }
         entities.entities.insert(entity.entity_id, entity.clone());

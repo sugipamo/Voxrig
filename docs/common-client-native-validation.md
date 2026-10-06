@@ -764,3 +764,29 @@ post-dismount ground admission. Those remain B6, alongside other windows/UI and
 managers. Wider B3/B4/B5 and private A6 are required before main integration.
 [Common API](common-vehicles.md#有限の乗車入力) /
 [440 inputs, codecs, original results and failed bounds](evidence/common-vehicle-control-20261006.json).
+
+
+## B6: received entity motion through mounted input and dismount
+
+```sh
+CARGO_INCREMENTAL=0 python3 scripts/run_common_native.py --all --scenario vehicle-control --accept-eula --runtime-dir /dev/shm/voxrig-b6-entity-motion
+```
+
+Java 1.16.1 / 1.21.11 × Survival / Creative: four passed workflows in
+`trial-1.16.1-3cb7e10d` and `trial-1.21.11-e3b458d8`. Before and after finite
+mounted input, the same `Client::entity_motion` checks fresh received position
+ordinals and a changed packet target with the original spawn receipt unchanged.
+Original RCON independently verifies UUID/mount, minecart displacement and actual
+dismount. Then explicit release and disconnect complete. Both JVM exit 0 and
+proxy errors empty; both runs use the same runtime source and consumer binary.
+[Fixed source and results](evidence/common-entity-motion-20261006.json).
+
+Original unchanged position codecs supply 64 samples per version, including
+fractional spawn bases, negative ties and mixed/zero deltas. Legacy base
+MoveEntity carries only ID, with no invented ground flag. Adapter regressions
+retain separate velocity/spawn ordinals, reject malformed frames without field
+mutation, and retire old spawn targets. Relative modern teleport baselines stay
+unresolved, with original correction fields retained and the separate delta
+codec base unchanged until native sync. Neither receive nor successful control
+proves current physical motion/stop or authorizes ground continuation. Metadata,
+special interpolation and broader B6/B3/B4/B5 plus private A6 remain.

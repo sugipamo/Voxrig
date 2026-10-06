@@ -124,3 +124,13 @@ frame数で、サーバーからの確認ではない。`Submitted`も移動・�
 両版の元codecに全18入力ずつを照合し、実サーバーでは短い地上移動→乗車→
 有限入力→neutral→実下車→切断を両modeで検証する。rail歩行やboat操縦・paddle、
 現在の車両位置観測や車両physics全体の共通化を含まない。
+
+
+## 乗車中の受信motion
+
+`mount.vehicle()`で取得した元spawnを`client.entity_motion(target).await?`へ渡すと、
+後続の位置target・body/head回転・速度sample・ground flagを読むことができる。
+それぞれの受信ordinalと、変化させないspawn履歴を保持する。
+両版・両modeで有限乗車入力による位置更新を観測し、独立RCONの移動と照合した。
+[観測契約と未解決の相対補正](common-entity-motion.md)を参照する。
+車両physics・停止・下車後の地上操作許可は、この観測から補完しない。

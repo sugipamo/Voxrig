@@ -854,13 +854,13 @@ fn apply_play(
     use ids::{play_clientbound as input, play_serverbound as output};
     let mut r = Reader::new(payload);
     let mut responses = Vec::new();
+    entity::receive(state, id, payload)?;
     if operations::receive(state, id, payload)? {
         return Ok(responses);
     }
     if recipes::receive(state, id, payload)? {
         return Ok(responses);
     }
-    entity::receive(state, id, payload)?;
     if state.players.receive(id, payload, state.sequence)? {
         operations::retirement_received(state, id, payload)?;
         return Ok(responses);

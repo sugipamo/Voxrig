@@ -4873,6 +4873,12 @@ async fn vehicle_probe(client: &Client) -> anyhow::Result<()> {
             }
             "b6_vehicle_control" => {
                 let mount = mounted.context("actual mount absent")?;
+                let target = mount.vehicle().context("original mounted spawn absent")?;
+                let motion_before = client.entity_motion(target).await?;
+                let before = motion_before
+                    .position
+                    .as_ref()
+                    .context("received vehicle position absent")?;
                 let mut inputs = vec![
                     VehicleInput {
                         forward: 1,
@@ -4902,6 +4908,23 @@ async fn vehicle_probe(client: &Client) -> anyhow::Result<()> {
                         && record.dispatched_ticks == 14
                         && record.requires_inspection.is_none()
                 );
+                let motion_after = tokio::time::timeout(Duration::from_secs(8), async {
+                    loop {
+                        let motion = client.entity_motion(target).await?;
+                        if motion.position.as_ref().is_some_and(|position| {
+                            position.value.position[2] > before.value.position[2] + 0.05
+                                && matches!((before.source, position.source),
+                                    (voxrig::client::ValueSource::Received { sequence: previous }, voxrig::client::ValueSource::Received { sequence: current }) if current > previous)
+                        }) { break Ok::<_, anyhow::Error>(motion); }
+                        tokio::time::sleep(Duration::from_millis(50)).await;
+                    }
+                }).await??;
+                anyhow::ensure!(
+                    motion_after.entity.id == target
+                        && motion_after.entity.spawn_position
+                            == motion_before.entity.spawn_position,
+                    "moving vehicle changed its historical spawn receipt"
+                );
                 let retired = client
                     .survival()
                     .motion_record()
@@ -4917,7 +4940,7 @@ async fn vehicle_probe(client: &Client) -> anyhow::Result<()> {
                 );
                 emit(
                     &command,
-                    serde_json::json!({"control":record,"retired_approach":retired}),
+                    serde_json::json!({"control":record,"retired_approach":retired,"motion_before":motion_before,"motion_after":motion_after}),
                 )?;
             }
             "a5_vehicle_request" => {

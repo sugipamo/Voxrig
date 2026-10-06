@@ -221,6 +221,17 @@ impl Client {
             Adapter::Java1_21_11(bot) => bot.operations().common_entity_spawns().await,
         }
     }
+    /// Capture the latest received motion fields for an original spawn lifetime.
+    /// Packet targets and velocity samples do not establish current native physics.
+    pub async fn entity_motion(
+        &self,
+        target: crate::client::EntityId,
+    ) -> Result<crate::client::EntityMotionObservation> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_entity_motion(target).await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_entity_motion(target).await,
+        }
+    }
     /// Capture actual own-player passenger relationships. Before an applicable
     /// receipt, the relationship is unknown. A received dismount does not prove
     /// default stationary motion or authorize a ground operation.

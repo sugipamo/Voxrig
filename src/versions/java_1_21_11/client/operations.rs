@@ -1231,6 +1231,16 @@ impl Operations {
         let player = self.common_player_unlocked(&state)?;
         Ok(state.entities.capture(player.session, state.sequence))
     }
+    pub(crate) async fn common_entity_motion(
+        &self,
+        target: crate::client::EntityId,
+    ) -> Result<crate::client::EntityMotionObservation> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        state
+            .entities
+            .capture_motion(player.session, target, state.sequence)
+    }
     pub(crate) async fn common_vehicle_state(&self) -> Result<crate::client::VehicleObservation> {
         let state = self.bot.session.state.lock().await;
         let player = self.common_player_unlocked(&state)?;

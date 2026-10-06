@@ -138,6 +138,16 @@ impl PassengerLedger {
             self.passengers = None;
         }
     }
+    /// Only a spawn already known at the actual continuous mounted receipt.
+    pub(crate) fn mounted_entity(&self, player: Option<i32>, spawns: &SpawnLedger) -> Option<i32> {
+        let relation = self.relation.as_ref()?.value;
+        let mount = relation.mount;
+        (relation.mounted
+            && player == Some(mount.player)
+            && mount.spawn_sequence.is_some()
+            && mount.spawn_sequence == spawns.spawn_sequence(mount.vehicle))
+        .then_some(mount.vehicle)
+    }
     pub(crate) fn motion_interrupted(&self) -> bool {
         self.motion_interrupted
     }

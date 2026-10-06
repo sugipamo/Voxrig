@@ -6,6 +6,9 @@ use super::{
 };
 use crate::{MinecraftVersion, Result};
 use std::collections::BTreeMap;
+mod motion;
+pub use motion::{EntityMotionObservation, EntityPosition, EntityPositionCorrection};
+pub(crate) use motion::{NativeMotion, NativeSpawnMotion};
 
 /// An original received spawn on one connection/world, independent of reusable numeric IDs.
 /// Saved diagnostics cannot construct live targets.
@@ -97,6 +100,7 @@ struct Spawn {
     entity_type: Option<BuiltinRegistryId>,
     name: Option<String>,
     position: [f64; 3],
+    motion: motion::Motion,
 }
 pub(crate) struct NativeSpawn {
     pub id: i32,
@@ -163,6 +167,7 @@ impl SpawnLedger {
                 entity_type,
                 name,
                 position: native.position,
+                motion: Default::default(),
             },
         );
         Ok(())
@@ -174,17 +179,12 @@ impl SpawnLedger {
             entities: self
                 .0
                 .iter()
-                .map(|(&native_id, spawn)| EntitySpawn {
-                    id: EntityId {
+                .map(|(&native_id, spawn)| {
+                    spawn.capture(EntityId {
                         session,
                         native_id,
                         spawn_sequence: spawn.sequence,
-                    },
-                    uuid: spawn.uuid,
-                    entity_type: spawn.entity_type.clone(),
-                    type_name: spawn.name.clone(),
-                    native_type_id: spawn.native_type,
-                    spawn_position: super::received(spawn.position, spawn.sequence),
+                    })
                 })
                 .collect(),
         }
@@ -201,6 +201,19 @@ impl SpawnLedger {
             ));
         }
         Ok(())
+    }
+}
+
+impl Spawn {
+    fn capture(&self, id: EntityId) -> EntitySpawn {
+        EntitySpawn {
+            id,
+            uuid: self.uuid,
+            entity_type: self.entity_type.clone(),
+            type_name: self.name.clone(),
+            native_type_id: self.native_type,
+            spawn_position: super::received(self.position, self.sequence),
+        }
     }
 }
 
