@@ -2380,6 +2380,43 @@ mod tests {
     }
 
     #[test]
+    fn partial_terrain_preserves_omitted_sections_and_invalidates_only_changed_redelivery() {
+        let mut world = World::default();
+        world
+            .apply_chunk(&uniform_chunk_packet(-1, -1, 1), 256)
+            .unwrap();
+        // A partial packet updates only section 1; it contains no biome array.
+        let full = uniform_chunk_packet(-1, -1, 2);
+        let mut partial = full[..12].to_vec();
+        partial[8] = 0; // Not ground-up.
+        partial[10] = 2; // Section 1 only.
+        partial.extend_from_slice(&full[12 + 1024 * 4..]);
+        world.apply_chunk(&partial, 256).unwrap();
+        assert_eq!(world.block(-16, 0, -16), Some(1));
+        assert_eq!(world.block(-16, 16, -16), Some(2));
+        let light = framed_light_packet(
+            [6, 6, 0, 0],
+            &[[0xff; 2048], [0xff; 2048], [0xee; 2048], [0xee; 2048]],
+        );
+        world.apply_light(&light, 256).unwrap();
+        let old = world.chunk_snapshot(ChunkPos { x: -1, z: -1 }).unwrap();
+        world.apply_chunk(&partial, 256).unwrap();
+        assert_eq!(world.light_at(-16, 0, -16), Some((14, 15)));
+        assert_eq!(world.light_at(-16, 16, -16), Some((14, 15)));
+        // Replace section 0 with air without deleting the omitted section 1.
+        let full = uniform_chunk_packet(-1, -1, 0);
+        let mut partial_air = full[..12].to_vec();
+        partial_air[8] = 0;
+        partial_air.extend_from_slice(&full[12 + 1024 * 4..]);
+        world.apply_chunk(&partial_air, 256).unwrap();
+        assert_eq!(world.block(-16, 0, -16), Some(0));
+        assert_eq!(world.block(-16, 16, -16), Some(2));
+        assert_eq!(world.light_at(-16, 0, -16), None);
+        assert_eq!(world.light_at(-16, 16, -16), None);
+        assert_eq!(old.block_light(0, 0, 0), Some(14));
+    }
+
+    #[test]
     fn every_truncated_framed_light_packet_leaves_cache_unchanged() {
         let initial = framed_light_packet([2, 2, 0, 0], &[[0x21; 2048], [0xa5; 2048]]);
         let replacement = framed_light_packet([2, 2, 0, 0], &[[0xff; 2048], [0xee; 2048]]);
