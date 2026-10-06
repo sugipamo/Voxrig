@@ -1885,6 +1885,111 @@ mod tests {
         drop(bot);
         server.await.unwrap();
     }
+    #[tokio::test]
+    async fn crafting_input_same_consumer_modes_requires_source_cursor_and_actual_reply() {
+        use api::inventory::{
+            InventoryClickButton as Button, InventoryClickStage as Stage, InventorySource as Source,
+        };
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let cursor = |count| {
+            let mut payload = vec![255, 255, 255];
+            write_slot(
+                &mut payload,
+                Some(&ItemStack {
+                    item_id: crate::item_id("oak_planks").unwrap(),
+                    count,
+                    nbt: None,
+                }),
+            );
+            payload
+        };
+        let stack = |name: &str, count| {
+            let definition =
+                api::registry::Registry::for_version(crate::MinecraftVersion::Java1_16_1)
+                    .item(&format!("minecraft:{name}"))
+                    .unwrap();
+            api::SlotKnowledge::Item {
+                item: api::ItemStack {
+                    id: definition.id,
+                    name: definition.name,
+                    count,
+                    data: api::ItemData::Default,
+                },
+            }
+        };
+        for mode in [api::GameMode::Survival, api::GameMode::Creative] {
+            let mut change = vec![3];
+            change.extend(
+                (if mode == api::GameMode::Creative {
+                    1f32
+                } else {
+                    0f32
+                })
+                .to_be_bytes(),
+            );
+            bot.apply_packet(0x1e, change).await.unwrap();
+            slot(&bot, 1, &api::SlotKnowledge::Empty, false).await;
+            bot.apply_packet(0x16, cursor(3)).await.unwrap();
+            let record = api::tests::common_crafting_input_start_scenario(&client, mode).await;
+            assert_eq!(packets.recv().await.unwrap().0, 0x09);
+            // Result display alone is never the input/cursor click outcome.
+            slot(&bot, 0, &stack("oak_button", 1), false).await;
+            assert_eq!(
+                client
+                    .survival()
+                    .inventory_click_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .stage,
+                Stage::Pending
+            );
+            slot(&bot, 1, &stack("oak_planks", 1), false).await;
+            assert_eq!(
+                client
+                    .survival()
+                    .inventory_click_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .stage,
+                Stage::Pending
+            );
+            bot.apply_packet(0x16, cursor(2)).await.unwrap();
+            assert_eq!(
+                client
+                    .survival()
+                    .inventory_click_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .stage,
+                Stage::Pending
+            );
+            ack(&bot, record.send.legacy_action.unwrap(), false).await;
+            assert_eq!(packets.recv().await.unwrap().0, 0x07);
+            api::tests::common_crafting_input_complete_scenario(&client, record.id).await;
+            assert!(
+                client
+                    .survival()
+                    .click_inventory(Source::Player, 0, Button::Left)
+                    .await
+                    .is_err()
+            );
+            assert!(
+                tokio::time::timeout(std::time::Duration::from_millis(20), packets.recv())
+                    .await
+                    .is_err()
+            );
+        }
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
     async fn seed(bot: &Bot) {
         super::super::common_motion::tests::seed_motion(bot).await;
         let mut slots = vec![0, 0, 46];

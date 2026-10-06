@@ -905,7 +905,7 @@ impl MotionGate {
                     };
                     if *id != run_id
                         || *sent
-                        || (*window == 0 && !(9..=44).contains(&slot))
+                        || (*window == 0 && !(1..=4).contains(&slot) && !(9..=44).contains(&slot))
                         || slot >= 4096
                         || button > 1
                         || comparison.as_ref().is_some_and(|s| {

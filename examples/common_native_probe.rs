@@ -50,6 +50,155 @@ async fn wait_block(client: &Client, position: [i32; 3], name: &str) -> anyhow::
     })
     .await?
 }
+async fn crafting_input_probe(
+    client: &Client,
+    mode: GameMode,
+) -> anyhow::Result<serde_json::Value> {
+    let initial = client
+        .received_crafting()
+        .await?
+        .context("player crafting unavailable")?;
+    anyhow::ensure!(initial.dimensions() == [2, 2], "player grid differs");
+    for y in 0..2 {
+        for x in 0..2 {
+            anyhow::ensure!(
+                initial
+                    .input(x, y)?
+                    .is_some_and(|r| *r.value() == SlotKnowledge::Empty),
+                "crafting input not received empty"
+            );
+        }
+    }
+    let (grid_source, grid_slot) = initial.input_source(0, 0)?;
+    let mut records = Vec::new();
+    let mut filled = None;
+    for (source, slot, button, ingredient, carried) in [
+        (
+            InventorySource::Player,
+            9,
+            InventoryClickButton::Left,
+            None,
+            3,
+        ),
+        (
+            grid_source,
+            grid_slot,
+            InventoryClickButton::Right,
+            Some(1),
+            2,
+        ),
+        (
+            InventorySource::Player,
+            9,
+            InventoryClickButton::Left,
+            None,
+            0,
+        ),
+        (
+            grid_source,
+            grid_slot,
+            InventoryClickButton::Left,
+            Some(0),
+            1,
+        ),
+        (
+            InventorySource::Player,
+            9,
+            InventoryClickButton::Left,
+            None,
+            0,
+        ),
+    ] {
+        let sent = match mode {
+            GameMode::Survival => {
+                client
+                    .survival()
+                    .click_inventory(source, slot, button)
+                    .await?
+            }
+            GameMode::Creative => {
+                client
+                    .creative()
+                    .click_inventory(source, slot, button)
+                    .await?
+            }
+            _ => anyhow::bail!("unexpected crafting mode"),
+        };
+        let complete = tokio::time::timeout(Duration::from_secs(15), async {
+            loop {
+                let record = client
+                    .survival()
+                    .inventory_click_record()
+                    .await?
+                    .context("crafting click missing")?;
+                anyhow::ensure!(
+                    record.id == sent.id && record.requires_inspection.is_none(),
+                    "crafting click interrupted: {:?}",
+                    record.requires_inspection
+                );
+                if record.stage == InventoryClickStage::ObservedClicked {
+                    return Ok::<_, anyhow::Error>(record);
+                }
+                tokio::time::sleep(Duration::from_millis(25)).await;
+            }
+        })
+        .await??;
+        let inventory = client.received_inventory().await?;
+        let cursor = inventory.cursor().context("crafting cursor missing")?;
+        anyhow::ensure!(
+            cursor.receive_sequence() > complete.send.after_sequence
+                && stack_count(cursor.value()) == carried,
+            "crafting cursor not freshly established"
+        );
+        if let Some(count) = ingredient {
+            let crafting = tokio::time::timeout(Duration::from_secs(15), async {
+                loop {
+                    let value = client
+                        .received_crafting()
+                        .await?
+                        .context("crafting disappeared")?;
+                    if value.input(0, 0)?.is_some_and(|r| {
+                        r.receive_sequence() > complete.send.after_sequence
+                            && stack_count(r.value()) == count
+                    }) && value.result().is_some_and(|r| {
+                        r.receive_sequence() > complete.send.after_sequence
+                            && if count == 0 {
+                                *r.value() == SlotKnowledge::Empty
+                            } else {
+                                r.item().is_some_and(|i| {
+                                    i.stack().name == "minecraft:oak_button" && i.stack().count == 1
+                                })
+                            }
+                    }) {
+                        return Ok::<_, anyhow::Error>(value);
+                    }
+                    tokio::time::sleep(Duration::from_millis(25)).await;
+                }
+            })
+            .await??;
+            if count == 1 {
+                filled = Some(crafting);
+            }
+        }
+        records.push(complete);
+    }
+    let final_inventory = client.received_inventory().await?;
+    anyhow::ensure!(
+        final_inventory
+            .slot(9)?
+            .and_then(ReceivedSlot::item)
+            .is_some_and(|i| i.stack().name == "minecraft:oak_planks" && i.stack().count == 3),
+        "crafting input round trip changed material"
+    );
+    let cleared = client
+        .received_crafting()
+        .await?
+        .context("final crafting unavailable")?;
+    Ok(
+        serde_json::json!({"mode":mode,"steps":records,"filled":filled,"cleared":cleared,"final_inventory":final_inventory,
+        "authority_limits":"Actual input/cursor receipts and native displayed oak-button result only; no result take or recipe consumption is submitted or claimed."}),
+    )
+}
 // A fresh connection isolates mining's unresolved continuation boundary from
 // the earlier motion scenario. Both versions execute this exact consumer.
 async fn mining_probe(client: &Client) -> anyhow::Result<()> {
@@ -1181,6 +1330,14 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 emit(&command, record)?;
             }
 
+            "crafting_input_survival" | "crafting_input_creative" => {
+                let mode = if command.ends_with("survival") {
+                    GameMode::Survival
+                } else {
+                    GameMode::Creative
+                };
+                emit(&command, crafting_input_probe(client, mode).await?)?;
+            }
             "held_cursor_take_survival"
             | "held_cursor_take_creative"
             | "held_cursor_restore_survival"

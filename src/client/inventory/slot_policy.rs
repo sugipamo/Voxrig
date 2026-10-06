@@ -28,10 +28,11 @@ struct Slot {
     policy: usize,
 }
 #[derive(serde::Deserialize)]
-pub(super) struct SlotPolicy {
-    pub(super) may_pickup: bool,
-    pub(super) base_capacity: u32,
-    pub(super) rejected_default_items: Vec<String>,
+pub(crate) struct SlotPolicy {
+    #[serde(alias = "may_pickup_empty")]
+    pub(crate) may_pickup: bool,
+    pub(crate) base_capacity: u32,
+    pub(crate) rejected_default_items: Vec<String>,
 }
 fn profiles(version: MinecraftVersion) -> &'static Profiles {
     static LEGACY: OnceLock<Profiles> = OnceLock::new();
@@ -63,6 +64,7 @@ pub(super) fn regular_slot(
         .find(|m| m.name == menu)
         .and_then(|m| m.slots.iter().find(|s| s.slot == index))
         .and_then(|s| profiles.slot_policies.get(s.policy))
+        .or_else(|| crate::client::crafting::regular_slot(version, menu, index))
         .ok_or_else(|| unavailable("native ordinary slot policy unavailable; update Voxrig"))
 }
 /// Original native default-stack capacity, tied to both registry ID and name.
@@ -121,13 +123,7 @@ fn pickup_inner(
     let (source, cursor) = values;
     use crate::client::{ItemData, registry::Registry};
     let profiles = profiles(version);
-    let slot = profiles
-        .menus
-        .iter()
-        .find(|m| m.name == menu_name)
-        .and_then(|m| m.slots.iter().find(|s| s.slot == source_slot))
-        .and_then(|s| profiles.slot_policies.get(s.policy))
-        .ok_or_else(|| unavailable("native PICKUP slot policy unavailable; update Voxrig"))?;
+    let slot = regular_slot(version, menu_name, source_slot)?;
     let ordinary = |value: &SlotKnowledge| match value {
         SlotKnowledge::Empty => true,
         SlotKnowledge::Item { item } => profiles

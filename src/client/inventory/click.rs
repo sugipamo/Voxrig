@@ -13,7 +13,7 @@ use crate::{MinecraftVersion, Result};
 pub enum InventorySource {
     /// Canonical player screen; each operation validates its supported slot range.
     Player,
-    /// Same received storage opening, including its appended player slots.
+    /// Same received audited opening, including its appended player slots.
     Container {
         /// Original session/world/opening.
         screen: ScreenId,
@@ -255,9 +255,9 @@ fn prepare_inner(
     }
     let (slots, menu, revision) = match source {
         InventoryClickSource::Player => {
-            if !(9..=44).contains(&source_slot) {
+            if !(1..=4).contains(&source_slot) && !(9..=44).contains(&source_slot) {
                 return Err(crate::client::registry::invalid(
-                    "ordinary player click requires screen slot 9..44",
+                    "ordinary player click requires input slot 1..4 or inventory slot 9..44",
                 ));
             }
             match initial.inventory.player_screen {
@@ -290,7 +290,7 @@ fn prepare_inner(
                         && initial.inventory.window_id == Some(id.window_id())
                         && s.full_contents_sequence.is_some()
                 })
-                .ok_or_else(|| unavailable("same live received storage opening/full required"))?;
+                .ok_or_else(|| unavailable("same live received audited opening/full required"))?;
             let layout = s
                 .layout
                 .as_ref()
@@ -298,8 +298,8 @@ fn prepare_inner(
             let menu = s
                 .menu_name
                 .as_deref()
-                .filter(|n| super::storage_menu(n))
-                .ok_or_else(|| unavailable("audited ordinary storage menu required"))?;
+                .filter(|n| super::storage_menu(n) || *n == "minecraft:crafting")
+                .ok_or_else(|| unavailable("audited ordinary menu required"))?;
             if usize::from(source_slot) >= layout.total_slots {
                 return Err(crate::client::registry::invalid(
                     "click outside native layout",

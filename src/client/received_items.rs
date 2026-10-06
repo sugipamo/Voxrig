@@ -56,37 +56,7 @@ impl ReceivedInventory {
             ));
         }
         let registries = Arc::new(registries);
-        let receipt = |observed: super::ObservedValue<SlotKnowledge>,
-                       location|
-         -> Result<ReceivedSlot> {
-            let ValueSource::Received { sequence } = observed.source else {
-                return Err(invalid("inventory value is not a received slot"));
-            };
-            if sequence > receive_sequence || sequence < registries.stamp().configuration_generation
-            {
-                return Err(invalid(
-                    "slot receipt is outside its registry configuration",
-                ));
-            }
-            if let SlotKnowledge::Item { item } = &observed.value {
-                let registry = super::registry::Registry::for_version(session.version);
-                let definition = registry.item_by_native_id(item.id.value())?;
-                if item.id.version() != session.version
-                    || definition.id != item.id
-                    || definition.name != item.name
-                {
-                    return Err(invalid(
-                        "received item identity belongs to another registry",
-                    ));
-                }
-            }
-            Ok(ReceivedSlot {
-                value: observed.value,
-                receive_sequence: sequence,
-                registries: Arc::clone(&registries),
-                location,
-            })
-        };
+        let receipt = |observed, location| ReceivedSlot::capture(&registries, observed, location);
         let slots = inventory
             .slots
             .iter()
@@ -122,8 +92,12 @@ pub struct ReceivedSlot {
     location: ReceiptLocation,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum ReceiptLocation {
+pub(crate) enum ReceiptLocation {
     PlayerSlot(usize),
+    ContainerSlot {
+        screen: super::container::ScreenId,
+        slot: usize,
+    },
     Cursor,
 }
 impl std::fmt::Debug for ReceivedSlot {
@@ -160,6 +134,41 @@ impl serde::Serialize for ReceivedSlot {
     }
 }
 impl ReceivedSlot {
+    pub(crate) fn capture(
+        registries: &Arc<ServerRegistryObservation>,
+        observed: super::ObservedValue<SlotKnowledge>,
+        location: ReceiptLocation,
+    ) -> Result<Self> {
+        let ValueSource::Received { sequence } = observed.source else {
+            return Err(invalid("inventory value is not a received slot"));
+        };
+        if sequence > registries.receive_sequence()
+            || sequence < registries.stamp().configuration_generation
+        {
+            return Err(invalid(
+                "slot receipt is outside its registry configuration",
+            ));
+        }
+        if let SlotKnowledge::Item { item } = &observed.value {
+            let version = registries.session().version;
+            let definition = super::registry::Registry::for_version(version)
+                .item_by_native_id(item.id.value())?;
+            if item.id.version() != version
+                || definition.id != item.id
+                || definition.name != item.name
+            {
+                return Err(invalid(
+                    "received item identity belongs to another registry",
+                ));
+            }
+        }
+        Ok(Self {
+            value: observed.value,
+            receive_sequence: sequence,
+            registries: Arc::clone(registries),
+            location,
+        })
+    }
     /// Exact received knowledge; unavailable and empty remain distinct.
     pub fn value(&self) -> &SlotKnowledge {
         &self.value

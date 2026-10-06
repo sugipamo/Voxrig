@@ -97,13 +97,13 @@ impl Capabilities {
                 "player main slots 9..35 and hotbar 0..8; received player UI or explicit complete local close; resolved NBT/components and effective capacity; received empty cursor/two fresh destinations; native legacy resync/comparison response",
             ),
             Feature::InventoryClick => Support::Restricted(
-                "ordinary PICKUP with resolved NBT/components; player slots 9..44 or same audited storage opening including appended player; separate prediction and fresh source/cursor receipts; modern bundle PICKUP override, unresolved item semantics and special PICKUP slots remain incomplete",
+                "ordinary PICKUP with resolved NBT/components; player input slots 1..4 and inventory slots 9..44 or same audited storage/crafting opening including appended player; separate prediction and fresh source/cursor receipts; result/armor/offhand PICKUP, modern bundle override and unresolved item semantics remain incomplete",
             ),
             Feature::InventoryTransfer => Support::Restricted(
                 "one ordinary native QUICK_MOVE; player slots 5..45 or same audited storage opening; resolved NBT/components and native effective capacity; preserve known received cursor; full write/all fresh changed slots/legacy reply; mode-specific armor pickup and effective equipment routing",
             ),
             Feature::ContainerObservation => Support::Restricted(
-                "regular OPEN_WINDOW screens and constructor-verified storage layouts; lossless modern component boundaries, common custom metadata and effective scalar item properties; general component semantics and special entity windows remain incomplete",
+                "regular OPEN_WINDOW screens and constructor-verified storage/crafting layouts; lossless modern component boundaries, common custom metadata and effective scalar item properties; general component semantics and special entity windows remain incomplete",
             ),
             Feature::Containers => Support::Restricted(
                 "empty-hand audited storage activation with distinct dispatch/OPEN/full/cursor/modern processing facts; opening-bound close with observed resolved-data cursor return; constructor-verified SWAP/PICKUP/QUICK_MOVE with separately received outcomes; general UI/special clicks and unresolved item semantics remain incomplete",
@@ -117,9 +117,12 @@ impl Capabilities {
                     "audited dry full-cube movement; plain inventory swaps; passive-cube placement; empty-hand dirt/stone mining and fresh recovery",
                 ),
             },
-            Feature::Crafting
-            | Feature::EntityInteraction
-            | Feature::RecordingAndReconstruction => Support::NotImplemented,
+            Feature::Crafting => Support::Restricted(
+                "received player/table input grids and displayed result with coherent registry ownership; ordinary input PICKUP; table activation, recipe planning/result take/consumption/remainders remain incomplete",
+            ),
+            Feature::EntityInteraction | Feature::RecordingAndReconstruction => {
+                Support::NotImplemented
+            }
         }
     }
 }

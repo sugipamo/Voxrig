@@ -945,6 +945,69 @@ pub(crate) async fn common_placement_completed_scenario(
     record
 }
 
+pub(crate) async fn common_crafting_input_start_scenario(
+    client: &Client,
+    mode: GameMode,
+) -> inventory::InventoryClickRecord {
+    let crafting = client.received_crafting().await.unwrap().unwrap();
+    assert_eq!(crafting.dimensions(), [2, 2]);
+    assert_eq!(
+        crafting.input(0, 0).unwrap().unwrap().value(),
+        &SlotKnowledge::Empty
+    );
+    let (source, slot) = crafting.input_source(0, 0).unwrap();
+    assert_eq!((source, slot), (inventory::InventorySource::Player, 1));
+    common_pickup_start_scenario(
+        client,
+        mode,
+        source,
+        slot,
+        inventory::InventoryClickButton::Right,
+    )
+    .await
+}
+pub(crate) async fn common_crafting_input_complete_scenario(
+    client: &Client,
+    id: inventory::InventoryClickId,
+) {
+    let record = client
+        .survival()
+        .inventory_click_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(record.id, id);
+    assert_eq!(
+        record.stage,
+        inventory::InventoryClickStage::ObservedClicked,
+        "{:?}",
+        record.requires_inspection
+    );
+    let crafting = client.received_crafting().await.unwrap().unwrap();
+    let input = crafting.input(0, 0).unwrap().unwrap();
+    assert!(input.receive_sequence() > record.send.after_sequence);
+    assert_eq!(input.value(), &record.source_receipt.unwrap().value);
+    let item = input.item().unwrap();
+    assert_eq!(
+        (item.stack().name.as_str(), item.stack().count),
+        ("minecraft:oak_planks", 1)
+    );
+    let result = crafting.result().unwrap().item().unwrap();
+    assert_eq!(
+        (result.stack().name.as_str(), result.stack().count),
+        ("minecraft:oak_button", 1)
+    );
+    assert!(std::ptr::eq(
+        crafting.registry_state(),
+        result.registry_state()
+    ));
+    let inventory = client.received_inventory().await.unwrap();
+    let cursor = inventory.cursor().unwrap();
+    assert!(cursor.receive_sequence() > record.send.after_sequence);
+    assert_eq!(cursor.value(), &record.cursor_receipt.unwrap().value);
+    assert_eq!(cursor.item().unwrap().stack().count, 2);
+}
+
 pub(crate) async fn common_pickup_start_scenario(
     client: &Client,
     mode: GameMode,

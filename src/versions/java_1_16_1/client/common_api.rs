@@ -43,6 +43,26 @@ impl Bot {
         let _gate = self.coherent_state_gate.lock().await;
         self.common_player_unlocked().await
     }
+    pub(crate) async fn common_received_crafting(&self) -> Result<Option<api::ReceivedCrafting>> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        let receipts = self.common_receipts.lock().await;
+        let screen = api::container::ScreenObservation {
+            session: player.session,
+            receive_sequence: player.receive_sequence,
+            active_window: receipts.inventory.window_id,
+            player_screen: player.inventory.player_screen,
+            screen: receipts
+                .container
+                .as_ref()
+                .map(|s| s.capture(player.session)),
+            cursor: receipts.inventory.cursor.clone(),
+        };
+        let registries = receipts
+            .registries
+            .capture(player.session, player.receive_sequence);
+        api::ReceivedCrafting::capture(&player, &screen, registries)
+    }
     pub(crate) async fn common_received_inventory(&self) -> Result<api::ReceivedInventory> {
         let _gate = self.coherent_state_gate.lock().await;
         if self.is_stopped() {

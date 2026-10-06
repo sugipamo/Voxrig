@@ -3037,6 +3037,74 @@ async fn data_pickup_same_consumer_both_modes_keeps_data_and_requires_fresh_resy
     }
     f.stop().await;
 }
+#[tokio::test]
+async fn crafting_input_same_consumer_modes_requires_fresh_source_and_cursor_not_result_display() {
+    use crate::client::{
+        GameMode as Mode,
+        inventory::{
+            InventoryClickButton as Button, InventoryClickStage as Stage, InventorySource as Source,
+        },
+    };
+    let mut f = CommonFixture::new().await;
+    f.api.bot.session.state.lock().await.registries.finish();
+    let client = f.client();
+    for mode in [Mode::Survival, Mode::Creative] {
+        let mut change = vec![3];
+        change.extend((if mode == Mode::Creative { 1f32 } else { 0f32 }).to_be_bytes());
+        f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &change)
+            .await;
+        f.slot(1, InventorySlot::Empty).await;
+        let mut cursor = Vec::new();
+        put_slot(&mut cursor, &plain("oak_planks", 3));
+        f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+            .await;
+        let record =
+            crate::client::tests::common_crafting_input_start_scenario(&client, mode).await;
+        let (id, payload) = read_packet(&mut f.peer, None).await.unwrap();
+        assert_eq!(id, ids::play_serverbound::WINDOW_CLICK);
+        assert_eq!(payload, super::click::payload(&record).unwrap());
+        f.slot(0, plain("oak_button", 1)).await;
+        assert_eq!(
+            client
+                .survival()
+                .inventory_click_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            Stage::Pending
+        );
+        f.slot(1, plain("oak_planks", 1)).await;
+        assert_eq!(
+            client
+                .survival()
+                .inventory_click_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            Stage::Pending
+        );
+        cursor.clear();
+        put_slot(&mut cursor, &plain("oak_planks", 2));
+        f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+            .await;
+        crate::client::tests::common_crafting_input_complete_scenario(&client, record.id).await;
+        assert!(
+            client
+                .survival()
+                .click_inventory(Source::Player, 0, Button::Left)
+                .await
+                .is_err()
+        );
+        assert!(
+            timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+                .await
+                .is_err()
+        );
+    }
+    f.stop().await;
+}
 
 #[tokio::test]
 async fn data_pickup_player_full_resync_cursor_requires_completed_matching_close() {

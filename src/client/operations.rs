@@ -75,7 +75,8 @@ impl Survival {
     ) -> Result<Option<super::container::ContainerCloseRecord>> {
         self.client.common_container_close_record().await
     }
-    /// One ordinary left/right click of player slots 9..44 or the same storage opening.
+    /// One ordinary left/right click of player input slots 1..4, inventory slots
+    /// 9..44, or ordinary slots in the same audited storage/crafting opening.
     /// Requires received predecessors with resolved native data; retains separate prediction before I/O.
     pub async fn click_inventory(
         &self,
@@ -299,7 +300,8 @@ impl Creative {
     ) -> Result<Option<super::container::ContainerCloseRecord>> {
         self.client.common_container_close_record().await
     }
-    /// One ordinary left/right click of player slots 9..44 or the same storage opening.
+    /// One ordinary left/right click of player input slots 1..4, inventory slots
+    /// 9..44, or ordinary slots in the same audited storage/crafting opening.
     /// Requires received predecessors with resolved native data; retains separate prediction before I/O.
     pub async fn click_inventory(
         &self,

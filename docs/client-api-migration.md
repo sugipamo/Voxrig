@@ -389,7 +389,7 @@ outline/menuを変えず、完全送信後だけ互換として扱う。他prope
 ## 通常クリック・split・返却
 
 両mode handleで`click_inventory(source, slot, InventoryClickButton::{Left,Right})`を使用する。
-プレイヤー在庫は`InventoryClickSource::Player`とslot 9..44、storageは受信した`ScreenId`を
+プレイヤー在庫は`InventoryClickSource::Player`とinput slot 1..4 / inventory slot 9..44、storage・crafting tableは受信した`ScreenId`を
 `InventoryClickSource::Container { screen }`へ渡す。storage側は付属player slotも指定できる。
 SWAPのhotbar引数とは異なり、ここはnative screen slot番号を渡す。
 
@@ -405,7 +405,7 @@ SWAPのhotbar引数とは異なり、ここはnative screen slot番号を渡す�
 `send.sent_screen_revision`は再同期用であり、実受信`screen_revision`と区別する。
 Leftはlegacy default constructorのNBTを保持して移動し、
 modern default bundleも空きcursor/空きslotとの移動に対応する。bundle内部の収納やRight override、
-未解決data・特殊item override、PICKUPのcrafting/result/armor/offhandは追加対応を要する。cursor付きcloseは下記の共通返却へ移行する。
+未解決data・特殊item override、PICKUPのresult/armor/offhandは追加対応を要する。cursor付きcloseは下記の共通返却へ移行する。
 詳細は[通常クリック契約](common-inventory-clicks.md)を参照する。
 
 
@@ -467,3 +467,23 @@ native modern拡張の`operations::InventorySlot`には`ItemWithComponents`が�
 全分岐を追加し、`ItemWithComponents`を`Item`やEmptyへ落とさない。
 native default SWAP/default cursor hashは非default patchを送信前に拒否する。
 対応範囲・原codecの証拠・次の操作対応は[共通item data](common-item-data.md)を参照。
+
+### 製作入力と受信表示
+
+`Client::received_crafting()`は両版共通で、playerの2×2または開いているcrafting tableの3×3を返す。
+ほかのUIや未確立のplayer UIでは`None`。グリッドの寸法、入力座標とscreen slotの対応は
+選択版の元menuコンストラクタから取得したデータを使用する。
+
+`ReceivedCrafting::input(x, y)`は受信済み`ReceivedSlot`を返す。未受信の`None`、受信したEmpty、
+Item、Unavailableは別々に保持する。`registry_state()`と各slotのregistry ownerは同じcapture境界に固定され、
+従来cacheやクリック予測を入力として使用しない。playerの`SubmittedClose`も`source()`で明示し、
+新しいplayer OPENを受信したことにはしない。tableはsession/world/開き直しを識別する`ScreenId`を保持する。
+
+`input_source(x, y)`が返す`(InventorySource, u16)`を、受信modeに一致するSurvival/Creativeの
+`click_inventory`へ渡して材料を置く・戻す操作を行う。結果のslot 0は通常PICKUPへ渡せない。
+`result()`はサーバーから受信した表示だけを返し、材料消費や製作完了を意味しない。
+新版のinput base capacityは99、旧版は64で、操作時には各itemの有効最大数との小さい方を使用する。
+
+この段階は入力操作と表示の統合。共通table activation、recipe計画・resultの取り出し、
+消費数・remainderの確認は後続対応を要する。旧版の`craft_once` / `take_crafting_result`で
+ローカルに減算した材料を共通APIの受信結果として扱わない。

@@ -373,7 +373,21 @@ fn native_menu(version: MinecraftVersion, id: i32) -> Option<NativeMenu> {
                 .expect("pinned native menus")
         }),
     };
-    definitions.iter().find(|m| m.native_id == id).cloned()
+    let mut menu = definitions.iter().find(|m| m.native_id == id).cloned()?;
+    if let Some(crafting) =
+        super::crafting::native_menu(version, &menu.name).filter(|m| m.native_id == Some(id))
+    {
+        menu.total_slots = Some(crafting.total_slots);
+        menu.player_slots = crafting
+            .player_slots
+            .iter()
+            .map(|m| NativePlayerSlot {
+                screen_slot: m.screen_slot,
+                raw_player_slot: m.raw_player_slot,
+            })
+            .collect();
+    }
+    Some(menu)
 }
 
 /// Adapter-owned opening receipts; no session identity is forged at packet decode time.

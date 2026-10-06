@@ -244,6 +244,32 @@ impl Client {
             Adapter::Java1_21_11(bot) => bot.operations().common_received_inventory().await,
         }
     }
+    /// Actual player/table crafting inputs and displayed result, with native
+    /// topology and registry ownership captured together. Other active UIs
+    /// return None. Missing receipts do not become empty ingredients.
+    ///
+    /// ```no_run
+    /// use voxrig::client::prelude::*;
+    /// async fn inspect(client: &Client) -> Result<()> {
+    ///     if let Some(grid) = client.received_crafting().await? {
+    ///         let [width, height] = grid.dimensions();
+    ///         for y in 0..height {
+    ///             for x in 0..width {
+    ///                 if let Some(input) = grid.input(x, y)? {
+    ///                     println!("({x},{y}): {:?}", input.value());
+    ///                 }
+    ///             }
+    ///         }
+    ///     }
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn received_crafting(&self) -> Result<Option<crate::client::ReceivedCrafting>> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_received_crafting().await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_received_crafting().await,
+        }
+    }
     /// Actual open-container contents and cursor at one native capture boundary.
     /// Numeric window IDs may be reused; use the session-bound screen identity.
     pub async fn screen_state(&self) -> Result<crate::client::container::ScreenObservation> {

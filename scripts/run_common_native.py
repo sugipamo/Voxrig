@@ -1205,6 +1205,25 @@ network-compression-threshold=256
                 raise RuntimeError("held cursor take/transfer/restore lacks three complete native clicks")
             held_transfer["authority_limits"] = "Same common Client takes damaged enchanted armor to received cursor, transfers a separate stack while preserving that cursor, then restores the carried item. Actual slot/cursor/reply receipts and independent native RCON inventory/counts/restored damage/marker are checked. RCON cannot directly read menu cursor; restored native item provides separate end-to-end metadata evidence. Legacy control stack is retained."
 
+            crafting = {"fixture": {}}
+            result["crafting_inputs"] = crafting
+            crafting["fixture"]["material"] = rcon.command("replaceitem entity UnifiedProbe inventory.0 minecraft:oak_planks 3" if version == "1.16.1" else "item replace entity UnifiedProbe inventory.0 with minecraft:oak_planks 3")
+            def received_crafting_material():
+                player = stage(probe, messages, "armor_fixture_state", report["container_records"])["value"]
+                slot = player["inventory"]["slots"][9]
+                if player["game_mode"] != mode or slot is None or slot["source"]["kind"] != "received":
+                    return None
+                value = slot["value"]
+                return player if value["kind"] == "item" and value["item"]["name"] == "minecraft:oak_planks" and value["item"]["count"] == 3 else None
+            crafting["received_before"] = until(received_crafting_material)
+            crafting_boundary = trace.mark()
+            crafting["client"] = stage(probe, messages, "crafting_input_" + mode, report["container_records"])["value"]
+            crafting["native_after"] = until(lambda: inventory_matches({**held_native,9:("minecraft:oak_planks",3),10:("minecraft:diamond_helmet",1)}))
+            crafting["frames"] = [f for f in trace.since(crafting_boundary) if f["phase"] == "play"]
+            if len([f for f in crafting["frames"] if f["direction"] == "serverbound" and f["packet_id"] == (0x09 if version == "1.16.1" else 0x11)]) != 5 or len(crafting["client"]["steps"]) != 5:
+                raise RuntimeError("crafting input round trip lacks five native clicks")
+            crafting["authority_limits"] = "Same public Client/mode handles place and retrieve one actual crafting ingredient, observe the native displayed result and its disappearance, and restore three planks. Fresh input/cursor/result receipts, actual native comparison replies and independent RCON final inventory are checked. No result take or recipe consumption is claimed."
+
             result["fixture"]["clear_after"] = rcon.command("clear UnifiedProbe")
             result["fixture"]["restore"] = rcon.command("replaceitem entity UnifiedProbe inventory.0 minecraft:dirt 2" if version == "1.16.1" else "item replace entity UnifiedProbe inventory.0 with minecraft:dirt 2")
         trace.expect_disconnect()
