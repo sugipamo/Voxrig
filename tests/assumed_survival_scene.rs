@@ -1,0 +1,125 @@
+//! Public read-only boundary; no connection or private received state.
+use std::collections::BTreeMap;
+use voxrig::checked_survival::{
+    AssumedSurvivalScene, AssumedSurvivalStart, HypotheticalSceneSource, SurvivalControl,
+    SurvivalMotionContract,
+};
+use voxrig::{BlockFace, NativeBlockState, Region};
+fn block(name: &str) -> NativeBlockState {
+    NativeBlockState {
+        name: format!("minecraft:{name}"),
+        properties: Default::default(),
+    }
+}
+fn input() -> (
+    Region,
+    BTreeMap<[i32; 3], NativeBlockState>,
+    AssumedSurvivalStart,
+) {
+    let region = Region {
+        min: [-4, -2, -4],
+        max: [4, 4, 4],
+    };
+    let mut blocks = BTreeMap::new();
+    for x in -4..=4 {
+        for y in -2..=4 {
+            for z in -4..=4 {
+                blocks.insert([x, y, z], block(if y < 0 { "stone" } else { "air" }));
+            }
+        }
+    }
+    (
+        region,
+        blocks,
+        AssumedSurvivalStart {
+            dimension: "minecraft:overworld".into(),
+            position: [0.5, 0.0, 0.5],
+            velocity: [0.0; 3],
+            planning_reserve: [0.0; 3],
+        },
+    )
+}
+#[test]
+fn complete_geometry_and_bounded_grounded_start_are_required() {
+    let (region, blocks, start) = input();
+    let mut missing = blocks.clone();
+    missing.remove(&[3, 3, 3]);
+    assert!(AssumedSurvivalScene::new(region, missing, start.clone()).is_err());
+    let mut replaced = blocks.clone();
+    replaced.remove(&[3, 3, 3]);
+    replaced.insert([5, 3, 3], block("air"));
+    assert!(AssumedSurvivalScene::new(region, replaced, start.clone()).is_err());
+    let mut dynamic = blocks.clone();
+    dynamic.insert([3, 3, 3], block("water"));
+    assert!(AssumedSurvivalScene::new(region, dynamic, start.clone()).is_err());
+    for invalid in [
+        AssumedSurvivalStart {
+            position: [f64::NAN, 0.0, 0.5],
+            ..start.clone()
+        },
+        AssumedSurvivalStart {
+            position: [0.5, 1.0, 0.5],
+            ..start.clone()
+        },
+        AssumedSurvivalStart {
+            planning_reserve: [-0.1, 0.0, 0.0],
+            ..start.clone()
+        },
+        AssumedSurvivalStart {
+            velocity: [f64::INFINITY, 0.0, 0.0],
+            ..start.clone()
+        },
+    ] {
+        assert!(AssumedSurvivalScene::new(region, blocks.clone(), invalid).is_err());
+    }
+    assert!(
+        AssumedSurvivalScene::new(
+            Region {
+                max: [i32::MAX; 3],
+                ..region
+            },
+            blocks.clone(),
+            start.clone()
+        )
+        .is_err()
+    );
+    assert!(AssumedSurvivalScene::new(region, blocks, start).is_ok());
+}
+#[test]
+fn native_checks_and_fork_isolation_keep_assumed_provenance() {
+    let (region, blocks, start) = input();
+    let scene = AssumedSurvivalScene::new(region, blocks, start.clone()).unwrap();
+    let scenario = scene.scenario_with_motion_contract(SurvivalMotionContract::Predicted);
+    assert!(scenario.block([5, 0, 0]).is_err());
+    let placement = scenario
+        .preview_cube_placement(
+            [2, -1, 0],
+            BlockFace::Up,
+            [-90.0, (1.62_f64 / 2.0).atan().to_degrees() as f32],
+            "minecraft:stone",
+        )
+        .unwrap();
+    let edited = scenario.after_edits(&[placement.edit]).unwrap();
+    assert_eq!(scenario.block([2, 0, 0]).unwrap(), block("air"));
+    assert_eq!(edited.block([2, 0, 0]).unwrap(), block("stone"));
+    let idle = [SurvivalControl {
+        yaw: 0.0,
+        input: Default::default(),
+    }; 3];
+    let preview = scenario.preview_path(&idle).unwrap();
+    assert!(!preview.shares_origin(&edited.preview_path(&idle).unwrap()));
+    assert!(
+        matches!(&preview.source, HypotheticalSceneSource::Assumed { start: s } if *s == start)
+    );
+    assert!(preview.source.captured().is_none());
+    let (reset, _) = edited.after_expected_reconnect().unwrap();
+    assert!(
+        reset
+            .preview_path(&idle)
+            .unwrap()
+            .source
+            .captured()
+            .is_none()
+    );
+    assert_eq!(scene.source(), &start);
+}
