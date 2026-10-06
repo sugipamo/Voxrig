@@ -10,7 +10,7 @@
 
 ## 利用者向け
 
-- [Client共通化の実装・検証計画](client-unification.md)
+- [Client共通化のロードマップ・現在地](client-unification.md)
 - [公開client APIの設計](public-client-api.md)
 - [0.2 client APIへの移行](client-api-migration.md)
 - [導入と最初の接続](getting-started.md)

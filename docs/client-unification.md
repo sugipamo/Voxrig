@@ -1,8 +1,13 @@
-# Clientの共通化
+# Client共通化の設計とロードマップ
 
 専用ブランチは`codex/client-api-unification`。developは使用しない。
 共通APIの整合性を優先し、依存プロジェクトには移行を要求する。各段階は同じブランチへ積み重ね、
 全機能の統合が終わるまではmainへ合流しない。
+
+2026-10-06に進め方を見直した。実装は一時停止中。下記のロードマップは、
+既存成果を使って全体を通す順序と、後から対応範囲を広げる順序を分けたもの。
+最終目標は、接続時の版選択を除いて同じClient APIで利用できること。
+新しい版・未知block/itemへの対応にはVoxrig更新を要求する。
 
 ## 選択と公開入口
 
@@ -80,16 +85,91 @@ connection、world generation、receive sequence、cache revisionは別の値で
 legacy共通操作はI/O前に未解決markerを保持し、取消・失敗後に自動再送しない。
 modernの既存intent・session guardも維持する。保存したreceiptは次の操作許可ではない。
 
-## 実装順序と完了条件
+## ロードマップと現在地
 
-| 段階 | 現状 | 完了条件 |
+調査基準はPR #4の実装commit `24fef69`。mainには別途PR #6・#7が取り込まれ、
+`344018c`になっている。mainの機能とPR #4の共通APIを区別して評価する。
+過去の[派生版rollout](client-rollout-roadmap.md)と
+[1.16.1 API拡張](headless-api-roadmap.md)は、この共通化の完了表ではない。
+
+| 段階 | 対象 | PR #4の現在地 | 全体を通す初回の到達点 |
+| --- | --- | --- | --- |
+| 1 | 接続設定・基本型・対応情報・registry | 共通入口と版選択の基盤は実装・検証済み | 同じ利用コードで接続でき、版・ID・registryの混同を拒否する |
+| 2 | player・world・inventoryの観測 | 基本captureと受信／予測／欠測の区別は実装・検証済み | 次の操作へ必要な実受信情報を同じ境界で取得できる |
+| 3 | 視点・選択・移動・採掘・設置 | 両版の限定条件で動作・実サーバー検証済み。広い条件と採掘後の共通復旧は残る | dry環境の基本操作から、明示的な復旧を挟んで次の操作へ進める |
+| 4 | 在庫・container・製作・装備・entity | 通常在庫・開閉・製作入力・空cursorへの結果取得は実装済み。レシピ配置などは途中、一般entityは未共通化 | 収納と通常の1回製作、基本装備、代表的なentity操作を同じAPIで通す |
+| 5 | context・記録・再構成・scene・復旧 | 共通化は残る。個別操作の送信記録はあるが、この段階全体とは別 | 受信記録の読み取り専用再生、限定scene、明示的な復旧から操作を継続できる |
+| 6 | UI・特殊window・vehicle・manager | 共通化は残る | 代表的なUI・特殊window・乗車状態／下車・複数Client管理を両版で通す |
+
+**直前の作業は第4段階の「レシピブック配置」だった。第4段階全体の完了ではない。**
+
+- 公開済み: 材料判定、盤面の配置幾何、返却計画、`recipe_placement_plan`。
+  配置planは読み取り専用で、配置packetを送信しない。
+- 中断時の作業: planからのowned送信、実入力と在庫の結果保持、取消・競合の扱い。
+  未コミット・未検証の変更を退避してあり、利用可能な機能として数えない。
+- 既に使える製作経路: `click_inventory`で通常の入力を置き、
+  `take_crafting_result`で空cursorへ結果を取得する。必要なrecipeと入力手順は利用側が選ぶ。
+
+レシピブック送信は有用な機能であり、最終的な残作業に含む。しかし、
+**既存の通常クリック経路で基本製作を通せるため、初回の全体貫通を待たせる必須条件にしない。**
+この区別が、これまでの「第4段階の前提を精密化し続ける」進め方との主な変更である。
+
+### A. まず全体を通す
+
+以下は再開時の推奨順序。代表例が動いた段階を「初回貫通」と呼び、
+全機能の統合完了やmain合流の許可とは分ける。各項目の未実装部分は実装する。
+型のre-export、版固有APIへの入口、`Unsupported`だけでは合格にしない。
+
+| 順序 | 利用者が完了できること | 合格条件 |
 | --- | --- | --- |
-| 1. 設定・基本型・対応情報・registry | 共通fixture・静的検証済み | 両版で同じ共通型。未知版/ID、誤ったnamespaceを拒否。設定を黙って無視しない |
-| 2. player/world/inventory共通観測 | 基本capture共通fixture・静的検証済み | 同じcapture境界、受信/予測/欠測を保持。NBTは保持、未対応componentsは欠測として保持 |
-| 3. 視点・選択・移動・採掘・設置 | creative基本操作・survival preview/有限dry移動・read-only狙い判定・限定採掘/default cube設置は両版native検証済み。広い移動/採掘/設置条件は残る | 共通request/resultと両版実装、native結果と物理の検証。片版Unsupportedだけでは完了しない |
-| 4. container/item data/製作/装備/entity | default player main/hotbar交換は両mode・両版で実装。共通container画面のidentity/内容/slot対応、既に開いたstorage/hotbar交換、opening-bound close、両modeのempty-hand storage openを実装。通常PICKUPで取り出し・split・1個置く・結合・返却も両mode/両版で実装。通常Shift転送とnative default防具への自動装備を両mode/両版で実装。cursor付きcloseのnative版差も両modeで確認し、同値再受信によるlegacy送信前の誤拒否を修正。cursor付き共通closeは実player在庫への返却とstepごとの実受信を組み合わせて実装。modern component全104型の追加値の境界と削除patchを共通観測へ保持。一般UI activation/複雑なitem data/製作/一般装備操作/entityは残る | modern側に受信/クリック/一般item操作を実装。同じ代表workflowと結果検証 |
-| 5. context/記録/再構成/scene/復旧 | 残る | 共通型を所有し、legacy側にも版別規則・lifecycleの監査済み実装 |
-| 6. UI/特殊window/vehicle/manager | 残る | 各機能の共通操作/観測と両版実装。raw操作自体の版依存は明示的な拡張へ残す |
+| A0 | 機能の対応範囲を判断する | mainのPR #6・#7との整合を確認し、共通／片版専用／未実装の一覧と代表シナリオを固定する |
+| A1 | 接続→観測→移動→収納→通常製作→設置→切断 | 既存APIを組み合わせた同じconsumerが両版で一連の操作を通す。Survivalはdry環境・通常item・1回製作、Creativeは受信modeに合う基本操作を使用。結果・残った在庫・cursor・画面を確認する |
+| A2 | 基本装備と代表的なentity操作を行う | 既存の装備転送をシナリオに組み込み、実在する同じentity instanceへの基本interactionを両版で実装・確認する。装備選択や戦術は利用側に残す |
+| A3 | 採掘後に明示的に復旧し、次の操作へ進む | 両版で共通のlifecycleと新しい受信基準を確認する。現状の採掘はair受信だけで次のmutationを許可しないため、復旧を実装するまで連続採掘や採掘→設置を成功扱いにしない |
+| A4 | 記録した場面を再確認し、限定sceneを検討する | 同じ共通APIで受信記録を各版decoderへ読み取り専用再生し、選んだplayer／block／inventory観測を照合する。限定sceneのcaptureと予測も両版へ接続し、保存値から実行許可を再生成しない |
+| A5 | 基本UI・特殊window・乗車状態・複数Clientを扱う | UIはscoreboard観測、特殊windowはかまどの基本slot操作、vehicleは実乗車状態の観測と明示的な下車、managerは生成・取得・終了と版／registryの分離を代表例にする。両版で実操作・実受信を通す |
+| A6 | 全体を利用側から評価する | 共通consumer、対応機能一覧、移行資料を揃えて固定commitを提示する。依存プロジェクトは非公開のまま移行・検証し、不足を返す |
+
+A1では採掘からの継続をまだ組み込まず、A3で追加する。初期資材やworld配置は
+試験fixtureとして準備できる。自動採集・経路選択・製作するものの決定はClientへ追加しない。
+原則として版の変更はsetupに限定し、consumerへ版別操作分岐を追加しない。
+modeの違いと宣言した対応条件は、利用者が判断できる形で残す。
+
+A5の代表例は初回貫通用であり、すべての特殊windowやentity／vehicle機能の統合を意味しない。
+混在版のmanager分離は軽いfixtureで確認し、実サーバーは各版を順番に実行する。
+全体を通した結果、代表例では足りない利用上の要件をBへ具体的なケースとして追加する。
+
+### B. 全体を通した後に広げる
+
+以下は最終目標の残作業であり、初回貫通から外したことで完了・不要にはならない。
+追加するケースは「どの利用操作が成立するか／どの誤動作を防ぐか」を明記する。
+
+| 段階 | 後続の対応範囲 |
+| --- | --- |
+| 3 | 広い移動・採掘・設置条件、道具・姿勢・非cube・effect等の対応、観測継続と復旧の範囲拡大 |
+| 4 | ownedレシピブック配置とghost結果、非空cursorへの結果結合、shift製作、製作台SWAP／QUICK_MOVE、一般装備・entity・item activation、任意item／text／dialogのconstructor・参照・比較と実server cache hash |
+| 5 | より広いcontext／記録／再構成／scene／復旧、履歴取得が書き込み停止で詰まる経路の解消、再設定・chunk欠測・再接続の範囲拡大 |
+| 6 | 各UI・特殊window・vehicle・manager機能の残差分。raw操作の版依存は明示的な拡張として管理する |
+
+失われるitem data、異なるitemの誤結合、古い接続／画面への送信、取消後の重複送信など、
+Aの代表操作で実害がある不足はその操作の前提として先に修正する。
+代表操作が使わないconstructorや特殊itemの網羅比較は、その機能を追加する段階で行う。
+既存の精密な実装と検証資産は維持し、完了済みの比較を繰り返して進捗に数えない。
+
+### 区切りと検証の運用
+
+- 一つの区切りは、利用者の操作・対応条件・公開API・実受信の結果・失敗時の扱いを揃える。
+- 変更した操作の検証を先に行う。新しい変更や失敗がない状態で全suite・全実サーバー・
+  package／hash確認を繰り返さない。節目の統合検証と最終配布検証でまとめて行う。
+- 元ゲームとの比較は、その操作のcodec・data比較・geometry・判定に必要な依存へ絞る。
+  実装から作った同じ期待値だけを使って、版の互換性を確認したとは扱わない。
+- build・test・実サーバーは一つずつ実行する。既存の試験harnessと検証記録を再利用する。
+- 各区切りで、使えるようになった操作、残る制約、次に進める理由を報告する。
+  必要な前提修正が広がる場合は、追加作業の前にロードマップ上の位置と影響を示す。
+
+実装再開前にこの順序と代表例を利用者と整理する。再開は自動では行わず、
+退避したレシピ配置の変更をそのまま最優先の実装として復元しない。
+初回貫通後も不足はこの文書と対応情報へ残し、全体統合とmain合流の判断を別に行う。
 
 現在の共通Creativeはdefault hotbar write、look/選択、server許可済みのflight requestと4block以内のstep、
 loaded/reachable targetへのcreative break/use-on-blockを実装する。衝突解決や設置成功の保証ではない。
