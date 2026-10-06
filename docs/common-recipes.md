@@ -131,9 +131,23 @@ Foreign/replaced recipe identities and displays that do not fit are errors.
 
 `context.grid_return_plan()` simulates returning current input stacks to received
 player inventory. Every main/hotbar/offhand destination and input must be known;
-the selected hotbar must have an actual received ordinal in this configuration.
+the selected hotbar must have an actual received ordinal in this configuration
+or a resolved local submission. The plan retains that basis as
+`selected_hotbar()`: `Submitted` never becomes a received acknowledgement. A local
+submission during an unresolved dispatch, model prediction or compatibility cache
+is not a selection basis. A received selection can still describe the captured
+historical boundary; this read-only plan does not grant mutation permission.
 Missing data is an error, never empty space. Native item/component equality,
 effective item capacity and the version's inventory limit govern merging.
+Positive native counts above the ordinary stack/inventory limit remain known
+counts, not empty slots or unavailable data. They can still split into safe space.
+The legacy recipe-book path offers one unit at a time; the modern path splits by
+item capacity and inserts at a fixed destination. Damaged copies follow the
+original successful insertion branch. When a modified item capacity exceeds the
+inventory limit, a native split can leave an uninserted copy even with other free
+slots. `unreturned_splits()` retains that count and destination; `remaining()`
+includes it, and `fits()` is false. This reports an unsafe hypothetical return,
+not a received loss.
 Selected hotbar, offhand and main inventory are searched in native order, then
 first-free hotbar/main slots. Empty offhand, armor, cursor and result are not free
 capacity. A carried cursor remains a separate close concern.
@@ -144,11 +158,13 @@ for every input. Partial predictions never authorize clearing or dropping stacks
 and successful predictions neither dispatch nor acknowledge a mutation. Captured
 contexts and plans remain historical after UI/session/registry changes.
 
-`scripts/export_recipe_placement.py` records 102 original geometry and placement
+`scripts/export_recipe_placement.py` records 102 original geometry, actual protocol registration and placement
 packet round-trip cases across both versions. These packet codecs are primitive
 evidence, not a common placement operation. `scripts/export_crafting_returns.py`
-records 50 original destination/resource-transfer cases, including native loaded
-block/item/entity tag declarations for modern tool comparisons. Helpers use
+records 64 original destination/split/resource-transfer cases, including native loaded
+block/item/entity tag declarations for modern tool comparisons. It also executes
+the entire original modern return handler for 22 successful owner-free cases;
+unknown-owner, creative fallback and drop branches are not executed. Helpers use
 unchanged original methods, sequential 512 MiB JVMs and retain JAR/mapping,
 classpath, request/helper and result hashes. The return helper's Inventory has an
 unused null owner; it calls no owner/world, creative fallback or drop behavior.

@@ -545,6 +545,10 @@ display into the actual player/table UI; it does not pick ingredient stacks.
 `context.grid_return_plan()` checks hypothetical main/hotbar/offhand return
 capacity and labels all resulting values `Predicted`. Do not dispatch its steps
 as click commands or replace actual inventory receipts with its predictions.
-Unknown destinations, missing selected-hotbar receipts and unresolved item data
-produce errors. The cursor requires its own return handling; it is excluded from
+Unknown destinations, missing selected-hotbar bases and unresolved item data
+produce errors. A resolved local selection stays `Submitted` in
+`plan.selected_hotbar()`; it never becomes a server acknowledgement. Positive
+native counts above ordinary limits remain known. Native fixed-destination
+leftovers appear in `unreturned_splits()` and prevent `fits()`, even when another
+slot is empty. The cursor requires its own return handling; it is excluded from
 this grid-only capacity simulation. See [common recipes](common-recipes.md).

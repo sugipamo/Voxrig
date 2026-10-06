@@ -534,5 +534,108 @@
     "slots": {},
     "offhand": null,
     "selected": 0
+  },
+  {
+    "case": "over-limit-source-100",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 100
+      }
+    ],
+    "fill": null,
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "over-limit-destination-100",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 4
+      }
+    ],
+    "fill": null,
+    "slots": {
+      "0": {
+        "item": "minecraft:stone",
+        "count": 100
+      }
+    },
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "damaged-two-tools",
+    "inputs": [
+      {
+        "item": "minecraft:iron_pickaxe",
+        "count": 2,
+        "damage": 1
+      }
+    ],
+    "fill": null,
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "damaged-custom-capacity-over-inventory",
+    "inputs": [
+      {
+        "item": "minecraft:iron_pickaxe",
+        "count": 100,
+        "damage": 1,
+        "capacity": 128
+      }
+    ],
+    "fill": null,
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "damaged-custom-capacity-16",
+    "inputs": [
+      {
+        "item": "minecraft:iron_pickaxe",
+        "count": 20,
+        "damage": 1,
+        "capacity": 16
+      }
+    ],
+    "fill": null,
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "modified-small-capacity-source-100",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 100,
+        "capacity": 16
+      }
+    ],
+    "fill": null,
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "modified-large-capacity-source-100",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 100,
+        "capacity": 128
+      }
+    ],
+    "fill": null,
+    "slots": {},
+    "offhand": null,
+    "selected": 0
   }
 ]

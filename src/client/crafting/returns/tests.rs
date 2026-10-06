@@ -41,18 +41,6 @@ fn crafting_grid_return_predictions_match_original_inventory_resource_methods() 
                 .iter()
                 .map(|s| receipts::value(version, s.as_str().unwrap()))
                 .collect::<Vec<_>>();
-            let invalid = initial
-                .iter()
-                .chain(case["inputs_encoded"].as_array().unwrap())
-                .any(|encoded| {
-                    let value = receipts::value(version, encoded.as_str().unwrap());
-                    if let SlotKnowledge::Item { item } = value {
-                        item.count > case["inventory_capacity"].as_u64().unwrap() as u32
-                            || item.count > item.properties().unwrap().max_stack_size as u32
-                    } else {
-                        false
-                    }
-                });
             for table in [false, true] {
                 if !table && inputs.len() > 4 {
                     continue;
@@ -64,10 +52,6 @@ fn crafting_grid_return_predictions_match_original_inventory_resource_methods() 
                     receipts::display(version, 1, 1, true, 1),
                 );
                 let result = context.grid_return_plan();
-                if invalid {
-                    assert!(result.is_err(), "{} {version:?}", case["case"]);
-                    continue;
-                }
                 let plan = result.unwrap();
                 assert_eq!(plan.session(), context.session());
                 assert_eq!(plan.receive_sequence(), 20);
@@ -101,6 +85,37 @@ fn crafting_grid_return_predictions_match_original_inventory_resource_methods() 
                     })
                     .collect::<Vec<_>>();
                 assert_eq!(actual, expected, "{} {version:?}", case["case"]);
+                let expected_stranded = case["stranded"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| {
+                        (
+                            v["input"].as_u64().unwrap() as usize,
+                            canonical(v["destination"].as_u64().unwrap() as usize),
+                            v["amount"].as_u64().unwrap() as u32,
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                let stranded = plan
+                    .unreturned_splits()
+                    .iter()
+                    .map(|v| {
+                        (
+                            v.input()[1] * width + v.input()[0],
+                            v.player_slot(),
+                            v.amount(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(stranded, expected_stranded, "{} {version:?}", case["case"]);
+                if version == MinecraftVersion::Java1_21_11 && plan.fits() {
+                    assert_eq!(
+                        case["original_successful_return_encoded"],
+                        case["after_encoded"]
+                    );
+                }
+
                 for (index, encoded) in case["after_encoded"].as_array().unwrap().iter().enumerate()
                 {
                     let index = canonical(if index == 36 { 40 } else { index });
@@ -145,7 +160,7 @@ fn crafting_grid_return_predictions_match_original_inventory_resource_methods() 
             }
         }
     }
-    assert_eq!(cases, 96);
+    assert_eq!(cases, 126);
 }
 #[test]
 fn crafting_grid_return_unknown_destinations_or_inputs_never_become_capacity() {
@@ -160,6 +175,68 @@ fn crafting_grid_return_unknown_destinations_or_inputs_never_become_capacity() {
                 receipts::display(version, 1, 1, true, 1),
             );
             assert!(context.grid_return_plan().is_err());
+        }
+        for index in [1, 4] {
+            let mut player = receipts::player(version);
+            player.inventory.slots[index] = None;
+            assert!(
+                receipts::context(
+                    player,
+                    false,
+                    &[],
+                    receipts::display(version, 1, 1, true, 1)
+                )
+                .grid_return_plan()
+                .is_err()
+            );
+        }
+        let mut player = receipts::player(version);
+        player.selected_hotbar = Some(ObservedValue {
+            value: 2,
+            source: ValueSource::Submitted,
+        });
+        let plan = receipts::context(
+            player.clone(),
+            false,
+            &[],
+            receipts::display(version, 1, 1, true, 1),
+        )
+        .grid_return_plan()
+        .unwrap();
+        assert_eq!(
+            plan.selected_hotbar(),
+            player.selected_hotbar.as_ref().unwrap()
+        );
+        assert!(plan.fits());
+        player.pending_dispatch = true;
+        assert!(
+            receipts::context(
+                player,
+                false,
+                &[],
+                receipts::display(version, 1, 1, true, 1)
+            )
+            .grid_return_plan()
+            .is_err()
+        );
+        for source in [
+            ValueSource::Predicted,
+            ValueSource::LocalCache,
+            ValueSource::Received { sequence: 9 },
+            ValueSource::Received { sequence: 21 },
+        ] {
+            let mut player = receipts::player(version);
+            player.selected_hotbar = Some(ObservedValue { value: 0, source });
+            assert!(
+                receipts::context(
+                    player,
+                    false,
+                    &[],
+                    receipts::display(version, 1, 1, true, 1)
+                )
+                .grid_return_plan()
+                .is_err()
+            );
         }
         let mut player = receipts::player(version);
         player.selected_hotbar = None;

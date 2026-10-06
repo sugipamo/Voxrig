@@ -30,6 +30,29 @@ impl CraftingGridReturnStep {
         self.amount
     }
 }
+/// A hypothetical native source split that cannot fully insert at its chosen
+/// destination. The caller does not reattach that copy. This is an unsafe return
+/// diagnostic, never a received loss or permission to clear an input.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct CraftingGridUnreturnedSplit {
+    input: [usize; 2],
+    player_slot: usize,
+    amount: u32,
+}
+impl CraftingGridUnreturnedSplit {
+    /// Original input x/y.
+    pub fn input(&self) -> [usize; 2] {
+        self.input
+    }
+    /// Fixed canonical player destination chosen by the native return path.
+    pub fn player_slot(&self) -> usize {
+        self.player_slot
+    }
+    /// Copy count that cannot safely return, not an actual loss receipt.
+    pub fn amount(&self) -> u32 {
+        self.amount
+    }
+}
 /// Hypothetical inventory capacity after returning all current crafting inputs.
 /// Uses native selected/offhand/main merge order and first-free main/hotbar order,
 /// with resolved native item data and effective capacity. Cursor/result/armor do
@@ -40,9 +63,11 @@ pub struct CraftingGridReturnPlan {
     receive_sequence: u64,
     registry_owner: ServerRegistryStamp,
     source: CraftingSource,
+    selected_hotbar: ObservedValue<u8>,
     steps: Vec<CraftingGridReturnStep>,
     predictions: Vec<(usize, ObservedValue<SlotKnowledge>)>,
     remaining: Vec<([usize; 2], ItemStack)>,
+    unreturned_splits: Vec<CraftingGridUnreturnedSplit>,
 }
 impl CraftingGridReturnPlan {
     /// Original coherent world/transport.
@@ -61,7 +86,13 @@ impl CraftingGridReturnPlan {
     pub fn source(&self) -> CraftingSource {
         self.source
     }
-    /// Whether every input can return without requiring a drop or loss.
+    /// Selected-slot basis used in the hypothetical native search. A completed
+    /// local submission stays Submitted, never a received server acknowledgement.
+    pub fn selected_hotbar(&self) -> &ObservedValue<u8> {
+        &self.selected_hotbar
+    }
+    /// Whether every input can return under this selection basis without
+    /// requiring a drop or leaving an unreturned split.
     pub fn fits(&self) -> bool {
         self.remaining.is_empty()
     }
@@ -73,22 +104,24 @@ impl CraftingGridReturnPlan {
     pub fn predictions(&self) -> &[(usize, ObservedValue<SlotKnowledge>)] {
         &self.predictions
     }
-    /// Inputs left without capacity in this simulation. No drop is predicted.
+    /// Native fixed-destination copies that cannot completely insert. Other
+    /// free slots do not repair this caller path; fits() is false even then.
+    pub fn unreturned_splits(&self) -> &[CraftingGridUnreturnedSplit] {
+        &self.unreturned_splits
+    }
+    /// Inputs left without safe capacity, including unreturned native split
+    /// copies. No actual loss or drop is claimed.
     pub fn remaining(&self) -> &[([usize; 2], ItemStack)] {
         &self.remaining
     }
 }
-fn valid(item: &ItemStack, version: crate::MinecraftVersion) -> Result<u32> {
+fn valid(item: &ItemStack) -> Result<u32> {
     let properties = item.properties()?;
     let capacity = u32::try_from(properties.max_stack_size)
         .ok()
         .filter(|v| *v > 0)
-        .ok_or_else(|| unavailable("crafting return capacity must be positive"))?
-        .min(match version {
-            crate::MinecraftVersion::Java1_16_1 => 64,
-            crate::MinecraftVersion::Java1_21_11 => 99,
-        });
-    if item.count == 0 || item.count > capacity {
+        .ok_or_else(|| unavailable("crafting return capacity must be positive"))?;
+    if item.count == 0 || item.count > i32::MAX as u32 {
         return Err(unavailable(
             "crafting return requires valid native stack counts",
         ));
@@ -100,8 +133,27 @@ pub(super) fn capture(context: &ReceivedCraftingContext) -> Result<CraftingGridR
     let grid = context.grid();
     let version = context.session().version;
     let semantic = ItemContext::new(inventory.registry_state().clone(), context.player())?;
-    let selected=context.player().selected_hotbar.as_ref().filter(|v|matches!(v.source,ValueSource::Received {sequence} if sequence <= context.receive_sequence() && sequence >= inventory.registry_state().stamp().configuration_generation))
-        .filter(|v|v.value<9).ok_or_else(||unavailable("crafting return requires received selected hotbar"))?.value;
+    let selected_hotbar = context
+        .player()
+        .selected_hotbar
+        .as_ref()
+        .filter(|v| {
+            v.value < 9
+                && match v.source {
+                    ValueSource::Received { sequence } => {
+                        sequence <= context.receive_sequence()
+                            && sequence
+                                >= inventory.registry_state().stamp().configuration_generation
+                    }
+                    ValueSource::Submitted => !context.player().pending_dispatch,
+                    ValueSource::Predicted | ValueSource::LocalCache => false,
+                }
+        })
+        .cloned()
+        .ok_or_else(|| {
+            unavailable("crafting return requires a received or resolved submitted selected hotbar")
+        })?;
+    let selected = selected_hotbar.value;
     // Native Inventory indices: hotbar 0..8, main 9..35, offhand 40. Keep its
     // ordering while retaining public canonical player-screen indices throughout.
     let order = (36..45).chain(9..36).collect::<Vec<_>>();
@@ -115,7 +167,7 @@ pub(super) fn capture(context: &ReceivedCraftingContext) -> Result<CraftingGridR
                 slots.insert(index, None);
             }
             SlotKnowledge::Item { item } => {
-                valid(item, version)?;
+                valid(item)?;
                 slots.insert(index, Some(item.clone()));
             }
             SlotKnowledge::Unavailable => {
@@ -125,6 +177,12 @@ pub(super) fn capture(context: &ReceivedCraftingContext) -> Result<CraftingGridR
     }
     let mut steps = Vec::new();
     let mut remaining = Vec::new();
+    let mut unreturned_splits = Vec::new();
+    let inventory_limit = if version == crate::MinecraftVersion::Java1_16_1 {
+        64
+    } else {
+        99
+    };
     let [width, height] = grid.dimensions();
     for y in 0..height {
         for x in 0..width {
@@ -135,13 +193,14 @@ pub(super) fn capture(context: &ReceivedCraftingContext) -> Result<CraftingGridR
             let mut item = match receipt.value() {
                 SlotKnowledge::Empty => continue,
                 SlotKnowledge::Item { item } => {
-                    valid(item, version)?;
+                    valid(item)?;
                     item.clone()
                 }
                 SlotKnowledge::Unavailable => {
                     return Err(unavailable("crafting return input is unavailable"));
                 }
             };
+            let mut unreturned = 0;
             while item.count > 0 {
                 let mut destination = None;
                 // Native merge search starts at selected, then offhand, then main list.
@@ -157,7 +216,7 @@ pub(super) fn capture(context: &ReceivedCraftingContext) -> Result<CraftingGridR
                     }
                     let properties = existing.properties()?;
                     if properties.stackable
-                        && existing.count < valid(existing, version)?
+                        && existing.count < valid(existing)?.min(inventory_limit)
                         && semantic.same_data(existing, &item)?
                     {
                         destination = Some(index);
@@ -170,39 +229,74 @@ pub(super) fn capture(context: &ReceivedCraftingContext) -> Result<CraftingGridR
                 let Some(index) = destination else {
                     break;
                 };
-                let amount =
-                    if let Some(existing) = slots.get_mut(&index).expect("known destination") {
-                        let amount = item.count.min(valid(existing, version)? - existing.count);
+                let destination_count = slots[&index].as_ref().map_or(0, |v| v.count);
+                let source_capacity = valid(&item)?;
+                let source_damaged = item.properties()?.damaged;
+                // Legacy recipe-book clearing offers one copied unit at a time.
+                // Modern placeItemBack splits by raw item capacity, then inserts
+                // repeatedly at this fixed destination. It does not retry a copy
+                // at another slot when the inventory limit leaves a remainder.
+                let offered = if version == crate::MinecraftVersion::Java1_16_1 {
+                    1
+                } else {
+                    item.count
+                        .min(source_capacity.saturating_sub(destination_count))
+                };
+                if offered == 0 {
+                    return Err(unavailable("crafting return native split made no progress"));
+                }
+                item.count -= offered;
+                let mut left = offered;
+                while left > 0 {
+                    let amount = if source_damaged {
+                        // Original successful Inventory.add uses copyAndClear for
+                        // damaged stacks, preserving the entire offered split.
+                        let mut placed = item.clone();
+                        placed.count = left;
+                        slots.insert(index, Some(placed));
+                        left
+                    } else if let Some(existing) = slots.get_mut(&index).expect("known destination")
+                    {
+                        let amount = left.min(
+                            valid(existing)?
+                                .min(inventory_limit)
+                                .saturating_sub(existing.count),
+                        );
                         existing.count += amount;
                         amount
                     } else {
-                        // Modern addResource copies an empty stack whose capacity getter is
-                        // initially 1; a later native pass merges the remaining amount.
-                        // Damaged stacks take Inventory.add's first-free whole-stack path.
-                        let amount = if version == crate::MinecraftVersion::Java1_21_11
-                            && !item.properties()?.damaged
-                        {
-                            1.min(item.count)
+                        // Modern addResource's initial empty getter capacity is
+                        // one; its next fixed-destination pass merges the rest.
+                        let amount = if version == crate::MinecraftVersion::Java1_21_11 {
+                            1.min(left)
                         } else {
-                            item.count.min(valid(&item, version)?)
+                            left.min(source_capacity.min(inventory_limit))
                         };
                         let mut placed = item.clone();
                         placed.count = amount;
                         slots.insert(index, Some(placed));
                         amount
                     };
-                if amount == 0 {
-                    return Err(unavailable(
-                        "crafting return made no native capacity progress",
-                    ));
+                    if amount == 0 {
+                        break;
+                    }
+                    left -= amount;
+                    steps.push(CraftingGridReturnStep {
+                        input,
+                        player_slot: index,
+                        amount,
+                    });
                 }
-                item.count -= amount;
-                steps.push(CraftingGridReturnStep {
-                    input,
-                    player_slot: index,
-                    amount,
-                });
+                if left > 0 {
+                    unreturned += left;
+                    unreturned_splits.push(CraftingGridUnreturnedSplit {
+                        input,
+                        player_slot: index,
+                        amount: left,
+                    });
+                }
             }
+            item.count += unreturned;
             if item.count > 0 {
                 remaining.push((input, item));
             }
@@ -225,9 +319,11 @@ pub(super) fn capture(context: &ReceivedCraftingContext) -> Result<CraftingGridR
         receive_sequence: context.receive_sequence(),
         registry_owner: inventory.registry_state().stamp(),
         source: grid.source(),
+        selected_hotbar,
         steps,
         predictions,
         remaining,
+        unreturned_splits,
     })
 }
 #[cfg(test)]

@@ -12,7 +12,7 @@ pub use context::ReceivedCraftingContext;
 pub(crate) mod layout;
 pub use layout::{RecipeCraftingCell, RecipeCraftingLayout};
 pub(crate) mod returns;
-pub use returns::{CraftingGridReturnPlan, CraftingGridReturnStep};
+pub use returns::{CraftingGridReturnPlan, CraftingGridReturnStep, CraftingGridUnreturnedSplit};
 pub(crate) mod materials;
 pub(crate) mod outline;
 pub(crate) mod recipes;

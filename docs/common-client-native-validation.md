@@ -262,3 +262,24 @@ consumer binary and actual source/data/Cargo/probe/controller hashes. The 102
 original geometry/packet cases and 50 destination/resource-transfer cases
 provide separate primitive evidence. Full grid-inclusive placement planning,
 recipe-book dispatch, result merge and shift crafting remain follow-up work.
+
+The return preflight now preserves positive over-limit counts instead of treating
+them as unavailable. Original legacy clearing offers individual units; modern
+returns split by item capacity and keep one destination while inserting that copy.
+The primitive corpus has 64 cases and 126 player/table comparisons, including
+damaged tools and modified capacities. It separately runs the entire original
+modern return handler for 22 successful owner-free cases. In native stream-only
+capacity-128 cases, fixed-destination copies can remain uninserted despite other
+free slots. The common diagnostic retains those copies in `unreturned_splits()`
+and reports `fits() == false`; it never calls an unused owner/drop path or claims
+an actual loss receipt.
+
+The live table consumer additionally calls the mode handle's `select_hotbar(2)`
+before capturing the return plan. Its basis remains `Submitted`, and RCON
+independently verifies actual native `SelectedItemSlot` 2. The existing actual
+cursor return and grid close still produce three planks without drops in both
+modes/versions. Sequential runs `trial-1.16.1-e5a3287d` and
+`trial-1.21.11-bd1851f1` passed all scenarios; both original JVMs exited zero.
+Original registration also establishes recipe-placement packet IDs 0x19 and
+0x26 respectively. Codec/registration evidence does not implement or authorize
+recipe placement; full placement planning and owned dispatch remain pending.

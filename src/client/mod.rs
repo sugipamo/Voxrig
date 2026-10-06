@@ -33,11 +33,11 @@ pub use crate::connection::{Client, ConnectionConfig, Observation, ObservedBlock
 pub use capabilities::{Capabilities, Feature, Support};
 pub use config::{ClientLimits, Server};
 pub use crafting::{
-    CraftingGridReturnPlan, CraftingGridReturnStep, CraftingSource, CraftingTakeId,
-    CraftingTakeRecord, CraftingTakeStage, ReceivedCrafting, ReceivedCraftingContext,
-    ReceivedRecipe, ReceivedRecipes, RecipeBookMaterials, RecipeBookStock, RecipeCraftingCell,
-    RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient, RecipeSlotDisplay,
-    RecipeTrimDefinition, RecipeTrimPattern,
+    CraftingGridReturnPlan, CraftingGridReturnStep, CraftingGridUnreturnedSplit, CraftingSource,
+    CraftingTakeId, CraftingTakeRecord, CraftingTakeStage, ReceivedCrafting,
+    ReceivedCraftingContext, ReceivedRecipe, ReceivedRecipes, RecipeBookMaterials, RecipeBookStock,
+    RecipeCraftingCell, RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient,
+    RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern,
 };
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
 pub use item::ItemProperties;
@@ -79,13 +79,13 @@ pub mod prelude {
     };
     pub use super::{
         Client, ClientLimits, ConnectionConfig, CraftingGridReturnPlan, CraftingGridReturnStep,
-        CraftingSource, CraftingTakeId, CraftingTakeRecord, CraftingTakeStage, Creative, Feature,
-        GameMode, ItemComponent, ItemComponentPatch, ItemData, ItemProperties, ItemStack,
-        PlayerObservation, ReceivedCrafting, ReceivedCraftingContext, ReceivedInventory,
-        ReceivedItem, ReceivedRecipe, ReceivedRecipes, ReceivedSlot, RecipeBookMaterials,
-        RecipeBookStock, RecipeCraftingCell, RecipeCraftingLayout, RecipeDisplay, RecipeId,
-        RecipeIngredient, RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern, Server,
-        Support, Survival,
+        CraftingGridUnreturnedSplit, CraftingSource, CraftingTakeId, CraftingTakeRecord,
+        CraftingTakeStage, Creative, Feature, GameMode, ItemComponent, ItemComponentPatch,
+        ItemData, ItemProperties, ItemStack, PlayerObservation, ReceivedCrafting,
+        ReceivedCraftingContext, ReceivedInventory, ReceivedItem, ReceivedRecipe, ReceivedRecipes,
+        ReceivedSlot, RecipeBookMaterials, RecipeBookStock, RecipeCraftingCell,
+        RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient, RecipeSlotDisplay,
+        RecipeTrimDefinition, RecipeTrimPattern, Server, Support, Survival,
     };
     pub use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Region, Result};
 }

@@ -329,3 +329,9 @@ recipe選択・計画・配置、記録・再構成・復旧等の残作業を�
 空き容量から盤面だけの仮の返却を計算する。値は`Predicted`であり、cursor返却や送信permissionは
 別に扱う。現gridを含む材料割当・UI容量・recipe-book送信・result merge/shift-craftingの
 実装は継続する。stage 4と全体goalは未完了。詳細は[共通レシピ](common-recipes.md)。
+
+配置前の返却判定は通常上限超過の実受信countも保持し、旧版の1個ずつの返却と新版の
+固定destinationへのsplit/insertを区別する。native splitの入り切らないcopyを
+`unreturned_splits()`に保持して`fits()`をfalseにする。損傷道具・変更されたcapacityも
+元Inventoryの成功経路へ照合する。送信完了したhotbar選択は`Submitted`のまま計画の
+条件として保持し、pending送信や予測を選択の実受信へ昇格しない。

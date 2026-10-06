@@ -1415,6 +1415,9 @@ network-compression-threshold=256
             prediction = table["filled"]["grid_return_plan"]
             if not prediction["remaining"] == [] or prediction["source"] != table["filled"]["grid"]["source"]:
                 raise RuntimeError("table return capacity prediction lacks actual opening identity")
+            if prediction["unreturned_splits"] or prediction["selected_hotbar"] != {"value":2,"source":{"kind":"submitted"}}:
+                raise RuntimeError("table return selection basis is not explicitly submitted")
+            table["native_selected_slot"]=until(lambda:matched(rcon.command("data get entity UnifiedProbe SelectedItemSlot"),r": 2$"))
             predicted_slot = next(v for index,v in prediction["predictions"] if index == 9)
             if predicted_slot["source"]["kind"] != "predicted" or predicted_slot["value"]["item"]["count"] != 2:
                 raise RuntimeError("grid return prediction includes cursor or is mislabeled as received")

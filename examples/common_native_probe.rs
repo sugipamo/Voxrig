@@ -634,6 +634,11 @@ async fn crafting_table_fill_probe(
         }
     })
     .await??;
+    let selection_dispatch = match mode {
+        GameMode::Survival => client.survival().select_hotbar(2).await?,
+        GameMode::Creative => client.creative().select_hotbar(2).await?,
+        _ => anyhow::bail!("unexpected selection mode"),
+    };
     let context = client
         .received_crafting_context()
         .await?
@@ -659,6 +664,9 @@ async fn crafting_table_fill_probe(
     let return_plan = context.grid_return_plan()?;
     anyhow::ensure!(
         return_plan.fits()
+            && return_plan.unreturned_splits().is_empty()
+            && return_plan.selected_hotbar().value == 2
+            && return_plan.selected_hotbar().source == voxrig::client::ValueSource::Submitted
             && return_plan.steps().len() == 1
             && return_plan.steps()[0].input() == [2, 2]
             && return_plan.steps()[0].player_slot() == 9
@@ -677,7 +685,7 @@ async fn crafting_table_fill_probe(
         "grid return improperly includes carried cursor material"
     );
     Ok(
-        serde_json::json!({"steps":steps,"grid":filled,"inventory":client.received_inventory().await?,"player_source_slot":player_slot,"input_slot":input_slot,"context_sequence":context.receive_sequence(),"recipe_layout":layout,"grid_return_plan":return_plan}),
+        serde_json::json!({"steps":steps,"grid":filled,"inventory":client.received_inventory().await?,"player_source_slot":player_slot,"input_slot":input_slot,"context_sequence":context.receive_sequence(),"recipe_layout":layout,"grid_return_plan":return_plan,"selection_dispatch":selection_dispatch}),
     )
 }
 // A fresh connection isolates mining's unresolved continuation boundary from

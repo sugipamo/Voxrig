@@ -1,4 +1,4 @@
-// Own passive caller of original placement geometry and packet codecs.
+// Own passive caller of original placement geometry, registration and packet codecs.
 // No player/world object, game replacement or independent placement algorithm.
 import com.google.gson.*;
 import io.netty.buffer.ByteBuf;
@@ -55,8 +55,10 @@ public final class ExportRecipePlacement {
     static JsonObject packet(JsonObject row,boolean old) throws Exception {
         int window=row.get("window").getAsInt();boolean maximum=row.get("maximum").getAsBoolean();
         JsonObject result=new JsonObject();Class<?> type=Class.forName(old?"rw":"ajg");
+        Object packet;
         if(old) {
             Object value=type.getConstructor().newInstance();
+            packet=value;
             ExportInventoryTransfers.field(value,type,"a",window);
             ExportInventoryTransfers.field(value,type,"b",Class.forName("uh").getConstructor(String.class).newInstance("minecraft:stick"));
             ExportInventoryTransfers.field(value,type,"c",maximum);
@@ -70,12 +72,33 @@ public final class ExportRecipePlacement {
         } else {
             Object id=Class.forName("dsa").getConstructor(int.class).newInstance(row.get("display_id").getAsInt());
             Object value=type.getConstructor(int.class,Class.forName("dsa"),boolean.class).newInstance(window,id,maximum);
+            packet=value;
             byte[] bytes=ExportItemComponents.roundtrip(type.getField("a").get(null),value);result.addProperty("encoded_hex",HexFormat.of().formatHex(bytes));
             ByteBuf raw=Unpooled.wrappedBuffer(bytes);try {
                 Object decoded=ExportItemProperties.stream.getMethod("decode",Object.class).invoke(type.getField("a").get(null),ExportItemComponents.buffer(raw));
                 result.addProperty("window",(Integer)type.getMethod("b").invoke(decoded));result.addProperty("display_id",(Integer)Class.forName("dsa").getMethod("a").invoke(type.getMethod("e").invoke(decoded)));
                 result.addProperty("maximum",(Boolean)type.getMethod("f").invoke(decoded));if(raw.isReadable())throw new IllegalStateException("trailing native packet");
             }finally{raw.release();}
+        }
+        if(old) {
+            Object play=Class.forName("mf").getField("b").get(null);
+            Object serverbound=Class.forName("nj").getField("a").get(null);
+            int nativeId=(Integer)Class.forName("mf").getMethod("a",Class.forName("nj"),Class.forName("ni")).invoke(play,serverbound,packet);
+            result.addProperty("native_packet_id",nativeId);
+        } else {
+            Object packetType=type.getMethod("a").invoke(packet);
+            Object template=Class.forName("aia").getField("b").get(null);
+            Object details=Class.forName("xn$b").getMethod("a").invoke(template);
+            Class<?> visitor=Class.forName("xn$a$a");List<Integer> ids=new ArrayList<>();
+            Object callback=Proxy.newProxyInstance(visitor.getClassLoader(),new Class<?>[]{visitor},(proxy,method,args)->{
+                if(method.getName().equals("accept")) {
+                    if(args[0].equals(packetType))ids.add((Integer)args[1]);return null;
+                }
+                throw new IllegalStateException("unexpected protocol visitor: "+method);
+            });
+            Class.forName("xn$a").getMethod("a",visitor).invoke(details,callback);
+            if(ids.size()!=1)throw new IllegalStateException("native place recipe registration count: "+ids.size());
+            result.addProperty("native_packet_id",ids.get(0));result.addProperty("native_packet_type",packetType.toString());
         }
         return result;
     }

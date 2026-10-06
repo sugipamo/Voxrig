@@ -1,34 +1,34 @@
 {
-  "authority": "Unmodified original Inventory destination lookup, first-free lookup, addResource transfer, item getters and stream codecs. Constructor-initialized Inventory with unused null owner and actual equipment; no player/world scaffolding or drop/creative fallback called.",
+  "authority": "Unmodified original Inventory destination lookup, first-free lookup, split and fixed-destination addResource/successful add transfer, item getters and stream codecs; entire original modern placeItemBack handler for successful owner-free cases. Constructor-initialized Inventory with unused null owner and actual equipment; no player/world scaffolding or drop/creative fallback called.",
   "generated_compiler_sha256": "e52f390392f02e494e1a0055515e3080bfc7cb9acec188ab5e1cd76526bcf340",
   "generators_sha256": {
-    "scripts/ExportCraftingReturns.java": "7999f470da390e8ab67943578cddf50c74257517e4c9fb784425de1962c2e277",
+    "scripts/ExportCraftingReturns.java": "7b64d946f834b61d05f64cd74959301fa083d2d8807b6b9074a90202b5786762",
     "scripts/ExportInventoryTransfers.java": "6c3208f45290c535ac510db4d0a308c944bd601331d61b577ab5235744db8806",
     "scripts/ExportItemComponents.java": "73f958c666f849b0d14d3676e89fdf5b861f4c959bde58df04aeab54c9d6a75f",
     "scripts/ExportItemProperties.java": "0484a43554a04e9fac8cf766e3d8c5bb80d51d3d12222b0922bfd08c3592217f",
-    "scripts/export_crafting_returns.py": "65091b49ade4dc93a1afcba0c22a075fd9048692f5a246f20b079ea77b39fa6b"
+    "scripts/export_crafting_returns.py": "e9584f34477fc4ca411d813eb0ad5cbf872d46c9d69aee24b8f8b87e9a462928"
   },
   "requests_sha256": {
-    "data/client_api/crafting_return_requests.json": "7c56bdd78641372f60b3727db0aa54e89f8b06ec47de23ba55b86611105de8d3"
+    "data/client_api/crafting_return_requests.json": "da6a5def4a2602a11b0d529fe5f2426c37db816766657bce8907be4c67173a88"
   },
   "runs": [
     {
-      "cases": 25,
+      "cases": 32,
       "files_sha256": {
-        "data/client_api/crafting_return_cases-1.16.1.json.gz": "dbae5a224f213dcc884e120b1c21493787e59359d543e17e25d559947edc41ff"
+        "data/client_api/crafting_return_cases-1.16.1.json.gz": "b70dcee57c5d33804dfbfbd3c8d838dfd16c846cc62b60314604cd9fa46b9b09"
       },
       "mappings_sha256": "9b19cc7d56e58258117e2fcc092f773b151682ecb2b1adb3de9832b3c450a30f",
       "original_classpath_entries_sha256": {
         "2782d547724bc3ffc0ef6e97b2790e75c1df89241f9d4645b58c706f5e6c935b": "1.16.1-server.jar"
       },
       "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
-      "raw_output_sha256": "c4d8ecdd0d51899e52e249ac5be4edc0e710554f5bd87ada87c6ecaca9fd24c0",
+      "raw_output_sha256": "8f2616b89d1cb32437d46cedbcc392ed9f125e00b73f592951880ea0e7e11bdc",
       "version": "1.16.1"
     },
     {
-      "cases": 25,
+      "cases": 32,
       "files_sha256": {
-        "data/client_api/crafting_return_cases-1.21.11.json.gz": "3669fce4337d13a4878e0c8c4065dfbf12e9db9093f896da7310047c1e00a980"
+        "data/client_api/crafting_return_cases-1.21.11.json.gz": "3daf4fdf660bb3da852c316ac0a97e973d8bbe611c480c42f5975c56b0699272"
       },
       "mappings_sha256": "7ffd98f77f403043748d56467aac287a58f8187a27d5d6b7ebcac70042b02b1c",
       "original_classpath_entries_sha256": {
@@ -74,10 +74,10 @@
         "faffe8c867d59f813fb4bd1edf5354bfe86125811a7c9b305e5d225da8e7ea54": "org/apache/logging/log4j/log4j-slf4j2-impl/2.25.2/log4j-slf4j2-impl-2.25.2.jar"
       },
       "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
-      "raw_output_sha256": "8e9c3c4b812897f1845178ddc1402b8f4771f9106767cdabc5a9618e144ebb34",
+      "raw_output_sha256": "044df579fa044b9f50d19807f88f026c6531c5289e62c023d87739ef6971db5d",
       "version": "1.21.11"
     }
   ],
   "schema": 1,
-  "scope": "Read-only capacity/resource return paths only, not full clear-grid/recipe execution, permission, creative fallback, drops, screen lifecycle or consumption. Live Client scenarios verify end-to-end behavior separately."
+  "scope": "Original destination/split/resource paths, successful inserts and complete successful modern returns. Unreturned fixed-destination splits are retained diagnostically before the unused owner/creative branch. Not full failing clear-grid/recipe execution, permission, creative fallback, drops, screen lifecycle or consumption. Live Client scenarios verify end-to-end behavior separately."
 }

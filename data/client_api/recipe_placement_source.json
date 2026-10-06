@@ -1,12 +1,12 @@
 {
-  "authority": "Unmodified original placement geometry methods and place-recipe packet stream codecs. Callbacks only retain emitted fields. No player/world scaffolding.",
+  "authority": "Unmodified original placement geometry methods, native protocol registration and place-recipe packet stream codecs. Callbacks only retain emitted fields. No player/world scaffolding.",
   "generated_compiler_sha256": "e52f390392f02e494e1a0055515e3080bfc7cb9acec188ab5e1cd76526bcf340",
   "generators_sha256": {
     "scripts/ExportInventoryTransfers.java": "6c3208f45290c535ac510db4d0a308c944bd601331d61b577ab5235744db8806",
     "scripts/ExportItemComponents.java": "73f958c666f849b0d14d3676e89fdf5b861f4c959bde58df04aeab54c9d6a75f",
     "scripts/ExportItemProperties.java": "0484a43554a04e9fac8cf766e3d8c5bb80d51d3d12222b0922bfd08c3592217f",
-    "scripts/ExportRecipePlacement.java": "93e5661f77fdf77a91f5d4739b3fae118eb81ba0faf23093655515503232577d",
-    "scripts/export_recipe_placement.py": "a96d2362f55600271a52e534191a11b744874d86204c7344bd260b616da20b7a"
+    "scripts/ExportRecipePlacement.java": "47b9759ea3b748c544ca21698ad6bb9be4b0bce7cc4b1da84e43f2758497e8ef",
+    "scripts/export_recipe_placement.py": "e3563f5f3a3595c7e1b5cacfdc2da3e278b9193cd2ce1d5ccd11f1b8c4ead02f"
   },
   "requests_sha256": {
     "data/client_api/recipe_placement_requests.json": "50a3beb991114ef3660243fa10e22dfe8530f0d12aff4b200ac99eaf307ceccd"
@@ -15,20 +15,20 @@
     {
       "cases": 51,
       "files_sha256": {
-        "data/client_api/recipe_placement_cases-1.16.1.json.gz": "d8b928235f85ecc7e1a57a9d13cab79ae7a9c5541a2a7008a2da68dceca1b0c6"
+        "data/client_api/recipe_placement_cases-1.16.1.json.gz": "d9049e523af9331b41586f97350f06e64e98f46ebbaf8cd2e945cc5f154127fb"
       },
       "mappings_sha256": "9b19cc7d56e58258117e2fcc092f773b151682ecb2b1adb3de9832b3c450a30f",
       "original_classpath_entries_sha256": {
         "2782d547724bc3ffc0ef6e97b2790e75c1df89241f9d4645b58c706f5e6c935b": "1.16.1-server.jar"
       },
       "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
-      "raw_output_sha256": "c3315bc62b7d55c2feb137826714dbda69ea2696587b254b30b7d5a5667aa77b",
+      "raw_output_sha256": "eed6ba2ca2fac82ea330379179ff6eeb76477fe718dc530b8e9bf07b315cfc8b",
       "version": "1.16.1"
     },
     {
       "cases": 51,
       "files_sha256": {
-        "data/client_api/recipe_placement_cases-1.21.11.json.gz": "ea9d46e98455edb19ac6462704963d8c7eb0d4d094d7aef4e27b401378783198"
+        "data/client_api/recipe_placement_cases-1.21.11.json.gz": "fe9abfac56f2df247b9489c0ab40d3e11402aecc70fa146cfd72c34435c3a8a1"
       },
       "mappings_sha256": "7ffd98f77f403043748d56467aac287a58f8187a27d5d6b7ebcac70042b02b1c",
       "original_classpath_entries_sha256": {
@@ -74,10 +74,10 @@
         "faffe8c867d59f813fb4bd1edf5354bfe86125811a7c9b305e5d225da8e7ea54": "org/apache/logging/log4j/log4j-slf4j2-impl/2.25.2/log4j-slf4j2-impl-2.25.2.jar"
       },
       "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
-      "raw_output_sha256": "0bcaa04ed03ec1b4ade07f374b9fdf6a6f5719f3644ec58609dc838bdfe40fdb",
+      "raw_output_sha256": "049b6da05678b3dbeffb962ade17e5ac0b135e8bc9af2cdbeea092dde5fb4168",
       "version": "1.21.11"
     }
   ],
   "schema": 1,
-  "scope": "Geometry/packet codec only; no recipe identity, active UI, return capacity, native placement or consumption authority."
+  "scope": "Geometry/registration/packet codec only; no recipe identity, active UI, return capacity, native placement or consumption authority."
 }
