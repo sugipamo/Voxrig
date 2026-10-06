@@ -55,6 +55,16 @@ impl ReceivedCraftingContext {
     pub fn grid_return_plan(&self) -> Result<super::CraftingGridReturnPlan> {
         super::returns::capture(self)
     }
+    /// Coherent recipe-book planning, including the existing grid, safe returns,
+    /// native material accounting and data-compatible post-return sources.
+    /// Plans remain read-only and never convert predictions into receipts.
+    pub fn recipe_placement_plan(
+        &self,
+        recipe: &RecipeId,
+        amount: super::RecipePlacementAmount,
+    ) -> Result<super::RecipePlacementPlan> {
+        super::placement::capture(self, recipe, amount)
+    }
     pub(crate) fn capture(
         player: PlayerObservation,
         screen: ScreenObservation,

@@ -335,3 +335,12 @@ recipe選択・計画・配置、記録・再構成・復旧等の残作業を�
 `unreturned_splits()`に保持して`fits()`をfalseにする。損傷道具・変更されたcapacityも
 元Inventoryの成功経路へ照合する。送信完了したhotbar選択は`Submitted`のまま計画の
 条件として保持し、pending送信や予測を選択の実受信へ昇格しない。
+
+Coherent recipe placement planning now uses `RecipePlacementAmount::{Next, Maximum}`
+through the same received crafting context in both versions/modes. It combines
+original grid matching, simple main stock and unfiltered input stock, the matched
+capacity guard, full safe returns and compatible source data after returns.
+Offhand returns cannot be counted as ingredient sources. The public plan remains
+read-only, keeps its actual source context and makes no native tie/ACK/consumption
+claim. Owned recipe-book submission, actual placement/ghost observations and all
+remaining full integration scope are still required.

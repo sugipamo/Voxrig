@@ -1277,6 +1277,21 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                     .await?
                     .context("coherent player crafting context missing")?;
                 let layout = context.recipe_layout(recipe.id())?;
+                let placement_next = context.recipe_placement_plan(
+                    recipe.id(),
+                    voxrig::client::RecipePlacementAmount::Next,
+                )?;
+                let placement_maximum = context.recipe_placement_plan(
+                    recipe.id(),
+                    voxrig::client::RecipePlacementAmount::Maximum,
+                )?;
+                anyhow::ensure!(
+                    placement_next.material_maximum() == if named { 0 } else { 1 }
+                        && placement_maximum.material_maximum() == if named { 0 } else { 1 }
+                        && placement_next.can_place() == !named
+                        && placement_maximum.can_place() == !named,
+                    "coherent recipe placement preflight differs from actual native fixture"
+                );
                 anyhow::ensure!(
                     layout.grid_dimensions() == [2, 2]
                         && layout
@@ -1293,7 +1308,7 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 );
                 emit(
                     &command,
-                    serde_json::json!({"single":single,"double":double,"context_sequence":context.receive_sequence(),"recipe_layout":layout}),
+                    serde_json::json!({"single":single,"double":double,"context_sequence":context.receive_sequence(),"recipe_layout":layout,"placement_next":placement_next,"placement_maximum":placement_maximum}),
                 )?;
             }
             "recipe_removed" => {

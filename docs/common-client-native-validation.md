@@ -283,3 +283,14 @@ modes/versions. Sequential runs `trial-1.16.1-e5a3287d` and
 Original registration also establishes recipe-placement packet IDs 0x19 and
 0x26 respectively. Codec/registration evidence does not implement or authorize
 recipe placement; full placement planning and owned dispatch remain pending.
+
+Sequential runs `trial-1.16.1-93038b7a` and `trial-1.21.11-6d198fe4` verify coherent
+`recipe_placement_plan` from the same public Client/binary in both modes. Next
+and Maximum see three actual planks as one material batch; custom-name presence
+excludes the stack and name removal restores the preflight. The controller
+independently checks the captured plan/session/mode/recipe/receive boundaries
+and that these read-only calls emit no recipe-placement request. Existing live
+scenarios, actual result takes, cursor/grid returns, RCON inventory and no-drop
+evidence also pass; both original JVMs exit zero. This is placement preflight
+evidence, not owned placement dispatch, placement acknowledgement or consumption.
+The entire original shaped/shapeless matchers separately contribute 102 cases.

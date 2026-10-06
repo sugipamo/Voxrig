@@ -60,52 +60,68 @@ impl RecipeBookStock {
     }
     pub(crate) fn capture(received: &ReceivedItem<'_>) -> Result<Self> {
         let item = received.stack();
-        let properties = item.properties()?;
-        let (enchanted, custom_named) = match item.id.version() {
-            MinecraftVersion::Java1_16_1 => {
-                let data = item.custom_data()?;
-                let root = data.as_ref().map(|v| v.root());
-                let enchanted = root
-                    .and_then(|r| r.get("Enchantments"))
-                    .and_then(|v| v.as_list())
-                    .is_some_and(|values| {
-                        values.first().is_some_and(|v| v.as_compound().is_some())
-                    });
-                let custom_named = root
-                    .and_then(|r| r.get("display"))
-                    .and_then(|v| v.as_compound())
-                    .and_then(|r| r.get("Name"))
-                    .is_some_and(|v| v.as_string().is_some());
-                (enchanted, custom_named)
-            }
-            MinecraftVersion::Java1_21_11 => {
-                crate::versions::java_1_21_11::item_components::recipe_book_flags(item)
-                    .map_err(|e| crate::Error::new(crate::ErrorKind::InvalidInput, e))?
-            }
-        };
-        let eligible = !properties.damaged && !enchanted && !custom_named;
-        let cap = match item.id.version() {
-            MinecraftVersion::Java1_16_1 => 64,
-            MinecraftVersion::Java1_21_11 => properties.max_stack_size,
-        };
-        let count = if eligible {
-            i32::try_from(item.count)
-                .map_err(|e| crate::Error::new(crate::ErrorKind::InvalidInput, e))?
-                .min(cap)
-        } else {
-            0
-        };
+        let (damaged, enchanted, custom_named, count) = native_facts(item)?;
         Ok(Self {
             session: received.registry_state().session(),
             registry_owner: received.registry_state().stamp(),
             receive_sequence: received.receive_sequence(),
             item: item.id,
-            damaged: properties.damaged,
+            damaged,
             enchanted,
             custom_named,
             count,
         })
     }
 }
+/// Raw native facts for hypothetical return/source simulation. These facts do
+/// not manufacture a ReceivedItem or supply any receipt ordinal.
+pub(super) fn native_facts(item: &crate::client::ItemStack) -> Result<(bool, bool, bool, i32)> {
+    let properties = item.properties()?;
+    let (enchanted, custom_named) = match item.id.version() {
+        MinecraftVersion::Java1_16_1 => {
+            let data = item.custom_data()?;
+            let root = data.as_ref().map(|v| v.root());
+            let enchanted = root
+                .and_then(|r| r.get("Enchantments"))
+                .and_then(|v| v.as_list())
+                .is_some_and(|values| values.first().is_some_and(|v| v.as_compound().is_some()));
+            let custom_named = root
+                .and_then(|r| r.get("display"))
+                .and_then(|v| v.as_compound())
+                .and_then(|r| r.get("Name"))
+                .is_some_and(|v| v.as_string().is_some());
+            (enchanted, custom_named)
+        }
+        MinecraftVersion::Java1_21_11 => {
+            crate::versions::java_1_21_11::item_components::recipe_book_flags(item)
+                .map_err(|e| crate::Error::new(crate::ErrorKind::InvalidInput, e))?
+        }
+    };
+    let eligible = !properties.damaged && !enchanted && !custom_named;
+    let cap = match item.id.version() {
+        MinecraftVersion::Java1_16_1 => 64,
+        MinecraftVersion::Java1_21_11 => properties.max_stack_size,
+    };
+    let count = if eligible {
+        i32::try_from(item.count)
+            .map_err(|e| crate::Error::new(crate::ErrorKind::InvalidInput, e))?
+            .min(cap)
+    } else {
+        0
+    };
+    Ok((properties.damaged, enchanted, custom_named, count))
+}
+/// Crafting grids use unfiltered accountStack; names/damage/enchantments remain
+/// available to the type-level picker even when inventory simple stock excludes them.
+pub(super) fn grid_count(item: &crate::client::ItemStack) -> Result<i32> {
+    let count = i32::try_from(item.count)
+        .map_err(|e| crate::Error::new(crate::ErrorKind::InvalidInput, e))?;
+    let cap = match item.id.version() {
+        MinecraftVersion::Java1_16_1 => 64,
+        MinecraftVersion::Java1_21_11 => item.properties()?.max_stack_size,
+    };
+    Ok(count.min(cap))
+}
+
 #[cfg(test)]
 mod tests;

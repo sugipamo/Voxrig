@@ -37,7 +37,8 @@ pub use crafting::{
     CraftingTakeId, CraftingTakeRecord, CraftingTakeStage, ReceivedCrafting,
     ReceivedCraftingContext, ReceivedRecipe, ReceivedRecipes, RecipeBookMaterials, RecipeBookStock,
     RecipeCraftingCell, RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient,
-    RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern,
+    RecipePlacementAmount, RecipePlacementPlan, RecipeSlotDisplay, RecipeTrimDefinition,
+    RecipeTrimPattern,
 };
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
 pub use item::ItemProperties;
@@ -84,8 +85,9 @@ pub mod prelude {
         ItemData, ItemProperties, ItemStack, PlayerObservation, ReceivedCrafting,
         ReceivedCraftingContext, ReceivedInventory, ReceivedItem, ReceivedRecipe, ReceivedRecipes,
         ReceivedSlot, RecipeBookMaterials, RecipeBookStock, RecipeCraftingCell,
-        RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient, RecipeSlotDisplay,
-        RecipeTrimDefinition, RecipeTrimPattern, Server, Support, Survival,
+        RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient, RecipePlacementAmount,
+        RecipePlacementPlan, RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern, Server,
+        Support, Survival,
     };
     pub use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Region, Result};
 }

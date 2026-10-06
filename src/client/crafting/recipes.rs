@@ -146,7 +146,7 @@ impl RecipeSlotDisplay {
         }
         Ok(())
     }
-    fn item_ids(&self, owner: &ServerRegistryObservation) -> Result<Vec<RegistryId>> {
+    pub(super) fn item_ids(&self, owner: &ServerRegistryObservation) -> Result<Vec<RegistryId>> {
         Ok(match self {
             Self::Empty => vec![],
             Self::Item { item } => vec![item.id],

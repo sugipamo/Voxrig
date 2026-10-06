@@ -169,8 +169,42 @@ unchanged original methods, sequential 512 MiB JVMs and retain JAR/mapping,
 classpath, request/helper and result hashes. The return helper's Inventory has an
 unused null owner; it calls no owner/world, creative fallback or drop behavior.
 
-Full recipe selection/placement planning still needs existing-grid material
-assignment and UI capacity together with return-space checks. Recipe-book
-placement, result merging and shift crafting remain required follow-up work. Displayed remainder associations
+Native recipe choice/dispatch and actual placement/ghost receipts, result merging
+and shift crafting remain required follow-up work. The coherent preflight below
+combines current-grid materials, native capacity guards and return-space checks. Displayed remainder associations
 are not actual inventory consumption/remainder receipts. The existing common
 result take retains those actual receipts separately.
+
+`context.recipe_placement_plan(recipe.id(), RecipePlacementAmount::Next)` combines
+the received recipe/grid/player inventory at one boundary. `Maximum` selects the
+native material maximum; Next selects one on an unmatched grid, or one more than
+the matched grid's minimum input count. Both intents respect the original matched
+input capacity guard, which can prevent even Maximum from increasing a full grid.
+`material_maximum()` and `requested_crafts()` are counts before selected native
+types' default UI caps, not output counts or exact native tie predictions.
+
+The plan validates displayed cell membership against actual declared requirements,
+then uses ingredient matching with legacy offsets/mirrors and modern normalized
+input dimensions. Main inventory uses simple-stock filters; actual inputs use
+unfiltered native accounting. Source checks use hypothetical returned main/hotbar
+stacks, native raw inventory order and exact item/data groups. Returned offhand
+items are not recipe sources. A cell cannot combine incompatible data. The source
+check covers possible native default-cap reductions and repicks without pretending
+the local deterministic assignment is the server's tie order. `source_data_safe()`
+is a conservative sufficient check; false can require a different arrangement.
+
+`can_place()` reports historical preflight facts only. It requires known book
+membership, mode and cursor, no pending mutation, safe full returns even in creative,
+and compatible sources. It neither reserves nor grants mutation permission.
+`source_context()` retains the actual original receipts; returned predictions stay
+separate. Missing requirements/receipts/tags, inconsistent display membership and
+foreign/replaced IDs are errors, never inferred ingredient authority.
+
+Original entire ShapedRecipe/ShapelessRecipe matchers validate 102 grid cases,
+including nonempty counts, scattered inputs, competing alternatives, mirrors,
+empty cells and modified/named/damaged stacks. A legacy pattern with an empty
+border can match where modern normalized dimensions reject it; version semantics
+remain explicit internally. Native Client runs verify both intents, named-stock
+exclusion and restoration in both versions/modes, and no recipe request is emitted
+by planning. Owned recipe dispatch and actual placement/ghost receipts remain
+required work; this preflight alone does not complete recipe placement.

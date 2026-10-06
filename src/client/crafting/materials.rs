@@ -163,7 +163,11 @@ impl RecipeBookMaterials {
 
 // Capacity matching: each ingredient consumes `crafts` of one type. Reassign
 // earlier ingredients along augmenting paths instead of greedily reserving stock.
-fn assign(choices: &[Vec<i32>], amounts: &BTreeMap<i32, i32>, crafts: u32) -> Option<Vec<i32>> {
+pub(super) fn assign(
+    choices: &[Vec<i32>],
+    amounts: &BTreeMap<i32, i32>,
+    crafts: u32,
+) -> Option<Vec<i32>> {
     if crafts == 0 {
         return None;
     }
@@ -177,14 +181,14 @@ fn assign(choices: &[Vec<i32>], amounts: &BTreeMap<i32, i32>, crafts: u32) -> Op
         seen: &mut Vec<i32>,
     ) -> bool {
         for &item in &choices[ingredient] {
-            if seen.contains(&item) {
-                continue;
-            }
-            seen.push(item);
             let capacity = amounts.get(&item).copied().unwrap_or(0).max(0) as u32 / crafts;
             if capacity == 0 {
                 continue;
             }
+            if seen.contains(&item) {
+                continue;
+            }
+            seen.push(item);
             if assigned.get(&item).map_or(0, Vec::len) < capacity as usize {
                 assigned.entry(item).or_default().push(ingredient);
                 return true;
@@ -225,7 +229,7 @@ fn assign(choices: &[Vec<i32>], amounts: &BTreeMap<i32, i32>, crafts: u32) -> Op
     }
     Some(result)
 }
-fn maximum(choices: &[Vec<i32>], amounts: &BTreeMap<i32, i32>, bound: u32) -> u32 {
+pub(super) fn maximum(choices: &[Vec<i32>], amounts: &BTreeMap<i32, i32>, bound: u32) -> u32 {
     let (mut low, mut high) = (0, bound);
     while low < high {
         let middle = low + (high - low).div_ceil(2);

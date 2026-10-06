@@ -157,10 +157,18 @@ pub(super) fn registries(player: &PlayerObservation) -> ServerRegistryObservatio
     r.capture(player.session, player.receive_sequence)
 }
 pub(super) fn recipes(player: &PlayerObservation, display: RecipeDisplay) -> ReceivedRecipes {
+    recipes_with_requirements(player, display, None, None)
+}
+pub(super) fn recipes_with_requirements(
+    player: &PlayerObservation,
+    display: RecipeDisplay,
+    requirements: Option<Vec<RecipeIngredient>>,
+    unlocked: Option<bool>,
+) -> ReceivedRecipes {
     let mut receipts = RecipeReceipts::default();
     let entry = RecipeEntry {
         display,
-        requirements: None,
+        requirements,
         group: None,
         category: None,
         highlighted: None,
@@ -171,6 +179,18 @@ pub(super) fn recipes(player: &PlayerObservation, display: RecipeDisplay) -> Rec
             [(NativeRecipeId::Legacy("voxrig:layout".into()), entry)].into(),
             11,
         );
+        if let Some(unlocked) = unlocked {
+            receipts.legacy_book(
+                if unlocked {
+                    ["voxrig:layout".into()].into()
+                } else {
+                    Default::default()
+                },
+                Default::default(),
+                true,
+                12,
+            );
+        }
     } else {
         receipts.add_modern(vec![(0, entry)], true, 11);
     }

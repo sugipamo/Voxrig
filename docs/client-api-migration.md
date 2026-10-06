@@ -552,3 +552,12 @@ native counts above ordinary limits remain known. Native fixed-destination
 leftovers appear in `unreturned_splits()` and prevent `fits()`, even when another
 slot is empty. The cursor requires its own return handling; it is excluded from
 this grid-only capacity simulation. See [common recipes](common-recipes.md).
+
+For coherent recipe-book planning, obtain `Client::received_crafting_context()`
+and call `recipe_placement_plan(recipe.id(), RecipePlacementAmount::Next)` or
+`Maximum` on that context. Next can increase an existing matched grid; it does
+not mean a fixed exact batch or one output item. Inspect grid matching, native
+material counts, full return capacity and compatible post-return sources together.
+`can_place()` is historical preflight, not an operation reservation or server ACK.
+Planning emits no recipe packet. Owned dispatch/actual placement receipts are
+still in progress; do not replace consumer placement with a successful plan alone.

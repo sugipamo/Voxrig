@@ -22,6 +22,8 @@ include = [
     "/scripts/export_crafting_returns.py",
     "/scripts/ExportRecipePlacement.java",
     "/scripts/export_recipe_placement.py",
+    "/scripts/ExportRecipeGridMatching.java",
+    "/scripts/export_recipe_grid_matching.py",
     "/scripts/ExportRecipeBookStock.java",
     "/scripts/ExportRecipeBookMatching.java",
     "/scripts/export_recipe_book_matching.py",

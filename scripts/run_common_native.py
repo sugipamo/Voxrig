@@ -1393,6 +1393,7 @@ network-compression-threshold=256
             recipe_results[mode] = catalogue
             catalogue["fixture"]["grant"] = rcon.command("recipe give UnifiedProbe *")
             catalogue["received"] = stage(probe,messages,"recipe_catalogue",report["container_records"])["value"]
+            preflight_boundary = trace.mark()
             catalogue["materials"] = stage(probe,messages,"recipe_materials",report["container_records"])["value"]
             catalogue["fixture"]["named_material"] = rcon.command(
                 "replaceitem entity UnifiedProbe inventory.0 minecraft:oak_planks{display:{Name:'\"RecipeBookNamed\"'}} 3"
@@ -1403,6 +1404,21 @@ network-compression-threshold=256
                 "replaceitem entity UnifiedProbe inventory.0 minecraft:oak_planks 3" if version == "1.16.1" else
                 "item replace entity UnifiedProbe inventory.0 with minecraft:oak_planks 3")
             catalogue["restored_materials"] = stage(probe,messages,"recipe_materials_restored",report["container_records"])["value"]
+            for name, named in [("materials",False),("named_materials",True),("restored_materials",False)]:
+                facts = catalogue[name]
+                for key, amount in [("placement_next","next"),("placement_maximum","maximum")]:
+                    plan = facts[key]
+                    if (plan["amount"] != amount or plan["mode"] != mode
+                        or plan["recipe"] != facts["single"]["recipe"]
+                        or plan["receive_sequence"] != facts["context_sequence"]
+                        or plan["material_maximum"] != (0 if named else 1)
+                        or plan["requested_crafts"] != (0 if named else 1)
+                        or plan["source_data_safe"] != (not named)
+                        or plan["grid_return"]["remaining"] or plan["grid_return"]["unreturned_splits"]):
+                        raise RuntimeError("common coherent recipe placement plan differs from native fixture")
+            catalogue["preflight_serverbound_packet_ids"] = [f["packet_id"] for f in trace.since(preflight_boundary) if f["phase"] == "play" and f["direction"] == "serverbound"]
+            if (0x19 if version == "1.16.1" else 0x26) in catalogue["preflight_serverbound_packet_ids"]:
+                raise RuntimeError("read-only recipe preflight dispatched a recipe request")
             catalogue["fixture"]["revoke"] = rcon.command("recipe take UnifiedProbe minecraft:stick")
             catalogue["removed"] = stage(probe,messages,"recipe_removed",report["container_records"])["value"]
             catalogue["fixture"]["regrant"] = rcon.command("recipe give UnifiedProbe minecraft:stick")
