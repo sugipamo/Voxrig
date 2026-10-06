@@ -3478,7 +3478,16 @@ impl Bot {
                 AcknowledgedOperation::DigFinish { position, face },
             )
             .await
-            .map_err(|error| crate::Error::new(crate::ErrorKind::State, anyhow::anyhow!(error)))?;
+            .map_err(|error| {
+                crate::Error::new(
+                    if matches!(error, DispatchError::DeliveryUnknown) {
+                        crate::ErrorKind::UncertainDispatch
+                    } else {
+                        crate::ErrorKind::State
+                    },
+                    anyhow::anyhow!(error),
+                )
+            })?;
         match transaction.wait().await {
             DispatchOutcome::Acknowledged => {}
             DispatchOutcome::Rejected => {
@@ -3781,7 +3790,14 @@ impl Bot {
                     sync_player_inventory_from_window(&mut inventory, window_id);
                 }
                 let message = anyhow::anyhow!(error.to_string());
-                return Err(crate::Error::new(crate::ErrorKind::State, message));
+                return Err(crate::Error::new(
+                    if matches!(error, DispatchError::DeliveryUnknown) {
+                        crate::ErrorKind::UncertainDispatch
+                    } else {
+                        crate::ErrorKind::State
+                    },
+                    message,
+                ));
             }
         };
         if !transaction.was_dispatched() {
