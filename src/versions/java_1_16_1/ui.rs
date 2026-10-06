@@ -230,7 +230,11 @@ impl UiState {
         let action = get_varint(&mut r)?;
         let objective = get_string(&mut r)?;
         if action == 1 {
-            self.scores.remove(&(item, objective));
+            if objective.is_empty() {
+                self.scores.retain(|(owner, _), _| owner != &item);
+            } else {
+                self.scores.remove(&(item, objective));
+            }
         } else {
             let value = get_varint(&mut r)?;
             self.scores.insert((item, objective), value);

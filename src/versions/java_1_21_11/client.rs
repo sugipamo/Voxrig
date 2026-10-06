@@ -79,6 +79,7 @@ struct State {
     operations: operations::OperationState,
     players: players::PlayerTracker,
     entities: crate::client::entity::SpawnLedger,
+    scoreboard: crate::client::ui::ScoreboardLedger,
     phase: Phase,
     world: World,
     reconstruction: Reconstruction,
@@ -120,6 +121,7 @@ impl Default for State {
             operations: operations::OperationState::default(),
             players: players::PlayerTracker::default(),
             entities: Default::default(),
+            scoreboard: Default::default(),
             phase: Phase::Configuration,
             world: World::default(),
             reconstruction: Reconstruction::default(),
@@ -849,6 +851,14 @@ fn apply_play(
             r.end()?;
             responses.push((output::PONG, payload.to_vec()));
         }
+        input::SCOREBOARD_OBJECTIVE
+        | input::SCOREBOARD_DISPLAY_OBJECTIVE
+        | input::SCOREBOARD_SCORE
+        | input::RESET_SCORE => {
+            state
+                .scoreboard
+                .receive(MinecraftVersion::Java1_21_11, id, payload, state.sequence)?;
+        }
         input::POSITION => {
             let teleport = r.varint()?;
             let correction = correction::Correction::read(&mut r)?;
@@ -1034,3 +1044,14 @@ mod movement_native_trials;
 mod placement_native_trials;
 #[cfg(test)]
 mod tests;
+
+impl Bot {
+    pub(crate) async fn common_scoreboard_state(
+        &self,
+    ) -> Result<crate::client::ui::ScoreboardObservation> {
+        let state = self.session.state.lock().await;
+        self.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.session.id, false)?;
+        Ok(state.scoreboard.capture(player.session, state.sequence))
+    }
+}

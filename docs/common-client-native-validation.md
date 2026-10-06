@@ -381,3 +381,28 @@ source切断後も同じ記録の再生とdetached予測が同じ結果を返し
 同じ34frameのnative予測と限定sceneの全frameが一致し、実地形更新・切断後の同一予測と
 同一受信再生を確認した。raw recording・独立RCON結果・全入力hashは各runに保持する。
 単体690件（8件ignored）、公開API2件、doctest26件、proxy境界3件とall-target Clippyが成功した。
+
+## A5のscoreboard観測とClientManager
+
+```bash
+CARGO_INCREMENTAL=0 python3 scripts/run_common_native.py --all --scenario manager-ui --accept-eula --runtime-dir /dev/shm/voxrig-a5-ui
+```
+
+同じconsumerからmanagerが2つの名前付きClientを生成し、それぞれのplay readinessを待つ。
+objective・sidebar・2つのscoreを両Clientで観測し、各値の受信ordinalから元packet全fieldの
+長さ・SHA-256を照合する。scoreの7→9更新、owner全objective reset、objective削除を実受信で確認し、
+値9と接続人数2→0を独立RCONでも検査する。重複name/profileは追加loginを発生させない。
+managerの明示的shutdown後は外部に保持した両Clientも閉じ、新規接続を拒否する。
+proxyの切断許可は実接続ごとに指定し、一つのClientの正常終了で他の接続の異常を隠さない。
+
+2026-10-06の成功runは`trial-1.16.1-09bd195f`と`trial-1.21.11-b61b968e`。
+同じ402入力・consumer binaryで各版の実login 2件と元field照合16件、両JVM exit 0、
+proxyエラーなしを確認した。両版は同時起動していない。
+先行した`trial-1.16.1-c102041c`は新共通decoderのlegacy score packet ID誤りで失敗した。
+既存native decoderと元受信packetに合わせて0x4dへ修正し、失敗記録を保持したまま再検証した。
+
+生成ごとのmixed-version／registry分離、接続取消・shutdown中のpending transport閉鎖は
+両版の軽量TCP fixtureで検査する。異なる版のJVMを同時に起動した証拠ではない。
+これはA5のscoreboardとmanager部分の検証で、かまどslot・実乗車／下車は引き続き必須作業。
+number formatの3種と任意displayの保存はcodec単体試験で確認し、実サーバーで全表示形式を
+操作したとは扱わない。契約は[基本UIとmanager](common-ui-manager.md)を参照。

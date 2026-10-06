@@ -47,6 +47,19 @@ class TraceTests(unittest.TestCase):
                 self.assertEqual(len(errors),1)
                 self.assertEqual(terminal,[])
 
+    def test_explicit_disconnect_scopes_only_the_requested_managed_connection(self):
+        with tempfile.TemporaryDirectory() as folder:
+            trace=PacketTraceProxy(1,'1.21.11',Path(folder)/'frames.jsonl')
+            try:
+                with trace.lock:
+                    trace.connection_states.extend([{'connection':1,'phase':'play'},{'connection':2,'phase':'play'}])
+                trace.expect_disconnect(1)
+                self.assertTrue(trace.connection_states[0]['disconnect_requested'])
+                self.assertFalse(trace.connection_states[1].get('disconnect_requested',False))
+                with self.assertRaises(RuntimeError):trace.expect_disconnect(99)
+                self.assertEqual(len(trace.terminal_events),1)
+            finally:trace.close()
+
     def test_partial_frames_never_become_complete_or_expected_deliveries(self):
         for direction in ['clientbound','serverbound']:
             for wire in [bytes([2]),bytes([2,0]),bytes([128])]:

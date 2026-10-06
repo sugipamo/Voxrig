@@ -69,6 +69,10 @@ pub enum Feature {
     PacketReplay,
     /// Immutable bounded dry-cube capture and native-model prediction.
     SurvivalScene,
+    /// Received scoreboard declarations, displays and entries.
+    Scoreboard,
+    /// Named ownership of independently configured Clients.
+    ClientManagement,
     /// Common recording and reconstruction API.
     RecordingAndReconstruction,
 }
@@ -149,6 +153,12 @@ impl Capabilities {
             ),
             Feature::SurvivalScene => Support::Restricted(
                 "immutable <=64 cells/axis and <=32768 loaded air/passive dry cubes; healthy stationary Survival defaults and complete standing halo; detached 1..120 input prediction without dispatch; edits/chaining remain version-specific",
+            ),
+            Feature::Scoreboard => Support::Restricted(
+                "received objective/display/score/reset facts and raw legacy JSON/modern NBT presentation; <=4096 entries; not a complete server catalogue or renderer; other UI remains incomplete",
+            ),
+            Feature::ClientManagement => Support::Restricted(
+                "explicit 1..64 named active/pending Clients; per-connection config/version/cache/registry; cancellation releases reservation; terminal shutdown closes external clones and pending connects; no automatic reconnect or event aggregation",
             ),
             Feature::RecordingAndReconstruction => Support::Restricted(
                 "bounded raw receive recording and selected read-only decoder replay; live dry-cube scene capture/prediction; broader reconstruction/piston/history contracts remain version-specific",

@@ -3576,6 +3576,141 @@ async fn equipment_entity_probe(client: &Client) -> anyhow::Result<()> {
     anyhow::bail!("A2 controller ended without disconnect")
 }
 
+async fn manager_ui_probe(config: ConnectionConfig) -> anyhow::Result<()> {
+    let manager = ClientManager::new(2)?;
+    let primary = manager.connect("primary", config.clone()).await?;
+    primary.wait_until_ready().await?;
+    let mut other = config.clone();
+    other.username = "ManagedPeer".into();
+    let peer = manager.connect("peer", other).await?;
+    peer.wait_until_ready().await?;
+    let a = primary.connection_identity().await?;
+    let b = peer.connection_identity().await?;
+    anyhow::ensure!(
+        a.session.connection_id != b.session.connection_id
+            && a.name == "UnifiedProbe"
+            && b.name == "ManagedPeer"
+    );
+    anyhow::ensure!(manager.names() == ["peer", "primary"]);
+    anyhow::ensure!(
+        manager
+            .get("primary")
+            .context("managed primary missing")?
+            .connection_identity()
+            .await?
+            .session
+            == a.session
+    );
+    anyhow::ensure!(manager.connect("primary", config.clone()).await.is_err());
+    anyhow::ensure!(
+        manager
+            .connect("duplicate-profile", config.clone())
+            .await
+            .is_err()
+    );
+    emit(
+        "a5_ui_ready",
+        serde_json::json!({"identities":{"primary":a,"peer":b},"names":manager.names(),"versions":[primary.version(),peer.version()]}),
+    )?;
+    let mut commands = BufReader::new(tokio::io::stdin()).lines();
+    let mut baseline = None;
+    while let Some(command) = commands.next_line().await? {
+        match command.as_str() {
+            "a5_ui_baseline" | "a5_ui_updated" | "a5_ui_reset" | "a5_ui_removed" => {
+                let snapshots = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let observations = [
+                            primary.scoreboard_state().await?,
+                            peer.scoreboard_state().await?,
+                        ];
+                        let good = observations.iter().all(|o| {
+                            let value = |owner: &str| {
+                                o.scores
+                                    .iter()
+                                    .find(|s| {
+                                        s.value.owner == owner && s.value.objective == "voxrigA5"
+                                    })
+                                    .map(|s| s.value.value)
+                            };
+                            match command.as_str() {
+                                "a5_ui_baseline" => {
+                                    o.objectives.iter().any(|r| r.value.name == "voxrigA5")
+                                        && o.displays.get(&1).is_some_and(|r| r.value == "voxrigA5")
+                                        && value("UnifiedProbe") == Some(7)
+                                        && value("ManagedPeer") == Some(3)
+                                }
+                                "a5_ui_updated" => {
+                                    value("UnifiedProbe") == Some(9)
+                                        && value("ManagedPeer") == Some(3)
+                                }
+                                "a5_ui_reset" => {
+                                    value("UnifiedProbe").is_none()
+                                        && value("ManagedPeer") == Some(3)
+                                }
+                                _ => {
+                                    o.objectives.is_empty()
+                                        && o.scores.is_empty()
+                                        && o.displays.is_empty()
+                                }
+                            }
+                        });
+                        if good {
+                            return Ok::<_, anyhow::Error>(observations);
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                if command == "a5_ui_baseline" {
+                    baseline = Some(snapshots.clone());
+                }
+                if command == "a5_ui_updated" {
+                    let prior = baseline.as_ref().context("scoreboard baseline absent")?;
+                    for (old, new) in prior.iter().zip(&snapshots) {
+                        let find = |o: &ScoreboardObservation| {
+                            o.scores
+                                .iter()
+                                .find(|r| r.value.owner == "UnifiedProbe")
+                                .unwrap()
+                                .source
+                        };
+                        anyhow::ensure!(
+                            find(old) != find(new),
+                            "score mutation has no fresh receive origin"
+                        );
+                    }
+                }
+                emit(&command, snapshots)?;
+            }
+            "a5_manager_shutdown" => {
+                manager.shutdown().await?;
+                anyhow::ensure!(
+                    manager.names().is_empty()
+                        && manager.get("primary").is_none()
+                        && manager.get("peer").is_none()
+                );
+                anyhow::ensure!(
+                    primary.player_state().await.is_err() && peer.player_state().await.is_err()
+                );
+                anyhow::ensure!(
+                    manager
+                        .connect("after-shutdown", config.clone())
+                        .await
+                        .is_err()
+                );
+                manager.shutdown().await?;
+                emit(
+                    &command,
+                    serde_json::json!({"closed_external_clones":true,"names":manager.names(),"shutdown_terminal":true}),
+                )?;
+                return Ok(());
+            }
+            _ => anyhow::bail!("unknown manager/UI command"),
+        }
+    }
+    anyhow::bail!("manager/UI controller ended before shutdown")
+}
+
 // The same consumer records before the first configuration/play receive, then
 // decodes only diagnostic facts. Scene forecasts own no live transport.
 async fn recording_scene_probe(client: &Client) -> anyhow::Result<()> {
@@ -3734,6 +3869,9 @@ async fn main() -> anyhow::Result<()> {
     let config =
         ConnectionConfig::offline_from_env(Server::new("127.0.0.1", port), "UnifiedProbe")?;
     let scenario = std::env::var("VOXRIG_NATIVE_SCENARIO").ok();
+    if scenario.as_deref() == Some("manager-ui") {
+        return manager_ui_probe(config).await;
+    }
     let client = if scenario.as_deref() == Some("recording-scene") {
         Client::connect_recorded(config.clone(), 16_777_216).await?
     } else {

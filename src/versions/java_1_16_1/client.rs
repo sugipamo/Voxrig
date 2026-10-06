@@ -1038,6 +1038,7 @@ pub struct Bot {
     inventory: Arc<RwLock<Versioned<InventoryState>>>,
     common_receipts: Arc<Mutex<crate::client::LegacyReceipts>>,
     packet_trace: Arc<Mutex<Option<crate::client::recording::TraceCapture>>>,
+    common_scoreboard: Arc<Mutex<crate::client::ui::ScoreboardLedger>>,
     common_motion: Arc<Mutex<Option<common_motion::NativeMotionRun>>>,
     common_mining: Arc<Mutex<Option<common_mining::NativeMiningRun>>>,
     common_placement: Arc<Mutex<Option<common_placement::NativePlacementRun>>>,
@@ -1141,6 +1142,7 @@ impl Bot {
             inventory: self.inventory.clone(),
             common_receipts: self.common_receipts.clone(),
             packet_trace: self.packet_trace.clone(),
+            common_scoreboard: self.common_scoreboard.clone(),
             common_motion: self.common_motion.clone(),
             common_mining: self.common_mining.clone(),
             common_placement: self.common_placement.clone(),
@@ -1307,6 +1309,7 @@ impl Bot {
             ))),
             common_receipts: Arc::new(Mutex::new(crate::client::LegacyReceipts::default())),
             packet_trace: Arc::new(Mutex::new(trace)),
+            common_scoreboard: Arc::new(Mutex::new(Default::default())),
             common_motion: Arc::new(Mutex::new(None)),
             common_mining: Arc::new(Mutex::new(None)),
             common_placement: Arc::new(Mutex::new(None)),
@@ -5514,6 +5517,12 @@ impl Bot {
                 self.emit(Event::SpawnPosition(position));
             }
             0x43 => {
+                self.common_scoreboard.lock().await.receive(
+                    crate::MinecraftVersion::Java1_16_1,
+                    id,
+                    &p,
+                    packet_sequence,
+                )?;
                 self.ui.write().await.apply_display(&p)?;
                 self.emit(Event::UiStateUpdated(UiUpdateKind::DisplayObjective));
             }
@@ -5611,6 +5620,12 @@ impl Bot {
                 self.emit(Event::Vitals(vitals));
             }
             0x4a => {
+                self.common_scoreboard.lock().await.receive(
+                    crate::MinecraftVersion::Java1_16_1,
+                    id,
+                    &p,
+                    packet_sequence,
+                )?;
                 self.ui.write().await.apply_objective(&p)?;
                 self.emit(Event::UiStateUpdated(UiUpdateKind::Objective));
             }
@@ -5638,6 +5653,12 @@ impl Bot {
                 self.emit(Event::UiStateUpdated(UiUpdateKind::Team));
             }
             0x4d => {
+                self.common_scoreboard.lock().await.receive(
+                    crate::MinecraftVersion::Java1_16_1,
+                    id,
+                    &p,
+                    packet_sequence,
+                )?;
                 self.ui.write().await.apply_score(&p)?;
                 self.emit(Event::UiStateUpdated(UiUpdateKind::Score));
             }
@@ -6575,6 +6596,23 @@ async fn next_operation_event(events: &mut broadcast::Receiver<Event>) -> Result
                 bail!("connection closed while waiting for operation response")
             }
         }
+    }
+}
+
+impl Bot {
+    pub(crate) async fn common_scoreboard_state(
+        &self,
+    ) -> Result<crate::client::ui::ScoreboardObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::client::inventory::unavailable("connection closed"));
+        }
+        let player = self.common_player_unlocked().await?;
+        Ok(self
+            .common_scoreboard
+            .lock()
+            .await
+            .capture(player.session, player.receive_sequence))
     }
 }
 

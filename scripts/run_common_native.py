@@ -273,12 +273,14 @@ class PacketTraceProxy:
         with self.lock:
             return len(self.frames)
 
-    def expect_disconnect(self):
+    def expect_disconnect(self, connection=None):
         """Scope terminal delivery diagnostics to the actual requested connection."""
         with self.lock:
             if not self.connection_states:
                 raise RuntimeError("disconnect requested without a traced connection")
-            state = self.connection_states[-1]
+            state = self.connection_states[-1] if connection is None else next((s for s in self.connection_states if s["connection"] == connection), None)
+            if state is None:
+                raise RuntimeError("disconnect requested for an unknown traced connection")
             state["disconnect_requested"] = True
             self.terminal_events.append({"connection":state["connection"],"direction":"caller",
                 "phase":state["phase"],"after_frame_ordinal":len(self.frames),"kind":"disconnect_requested"})
@@ -453,7 +455,7 @@ def outer_snbt_compounds(response):
 
 
 def stage(probe, messages, name, records, timeout=30, poll=None):
-    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready", "a2_ready", "a4_ready", "a4_captured"):
+    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready", "a2_ready", "a4_ready", "a4_captured", "a5_ui_ready"):
         probe.stdin.write(name + "\n")
         probe.stdin.flush()
     deadline = time.monotonic() + timeout
@@ -793,6 +795,92 @@ def run_recording_scene(version, env, rcon, trace, report, probe_log, stderr_log
             except subprocess.TimeoutExpired:probe.kill();probe.wait(timeout=5)
 
 
+def verify_scoreboard_frames(version, observations, identities, trace):
+    """Bind public per-value ordinals to actual original native peer frames."""
+    all_frames=trace.since(0);peers={}
+    for frame in all_frames:
+        if frame['direction']=='clientbound' and frame['phase']=='login' and frame['packet_id']==2:
+            body=bytes.fromhex(frame['body_hex']);length,size=PacketTraceProxy.varint(body[16:]);name=body[16+size:16+size+length].decode()
+            peers[name]=frame['connection']
+    verified=[]
+    def integer(n):
+        n &= 0xffffffff;out=bytearray()
+        while n>=128:out.append((n&127)|128);n>>=7
+        out.append(n);return bytes(out)
+    def string(s):
+        data=s.encode();return integer(len(data))+data
+    def text(t):
+        return string(t['json']) if t['kind']=='legacy_json' else bytes(t['bytes'])
+    def fmt(v):
+        if v is None:return b'\x00'
+        kinds={'blank':0,'styled':1,'fixed':2};out=b'\x01'+integer(kinds[v['kind']])
+        if v['kind']=='styled':out+=bytes(v['bytes'])
+        if v['kind']=='fixed':out+=text(v['text'])
+        return out
+    for observation,key in zip(observations,('primary','peer')):
+        identity=identities[key]
+        if observation['session']!=identity['session']:raise RuntimeError('scoreboard captured from another managed connection/world')
+        frames=[f for f in all_frames if f['connection']==peers[identity['name']] and f['direction']=='clientbound' and f['phase'] in ('configuration','play')]
+        def verify(value,kind,payload):
+            source=value['source']
+            if source['kind']!='received':raise RuntimeError('scoreboard invented a receive origin')
+            frame=frames[source['sequence']-1]
+            if frame['packet_id']!=kind or len(payload)!=frame['body_length'] or hashlib.sha256(payload).hexdigest()!=frame['body_sha256']:
+                raise RuntimeError('scoreboard field differs from the original native packet')
+            verified.append({k:frame[k] for k in ('connection','ordinal','packet_id','body_sha256')})
+        for declaration in observation['objectives']:
+            o=declaration['value'];source=frames[declaration['source']['sequence']-1];body=bytes.fromhex(source['body_hex']);_,size=PacketTraceProxy.varint(body);action=body[size+len(o['name'].encode())]
+            payload=string(o['name'])+bytes([action])+text(o['display'])+integer({'integer':0,'hearts':1}[o['render_type']])
+            if version!='1.16.1':payload+=fmt(o['number_format'])
+            verify(declaration,0x4a if version=='1.16.1' else 0x68,payload)
+        for slot,declaration in observation['displays'].items():verify(declaration,0x43 if version=='1.16.1' else 0x60,integer(int(slot))+string(declaration['value']))
+        for entry in observation['scores']:
+            e=entry['value'];payload=string(e['owner'])
+            if version=='1.16.1':payload+=b'\x00'
+            payload+=string(e['objective'])+integer(e['value'])
+            if version!='1.16.1':payload+=(b'\x00' if e['display'] is None else b'\x01'+text(e['display']))+fmt(e['number_format'])
+            verify(entry,0x4d if version=='1.16.1' else 0x6c,payload)
+    return verified,peers
+
+
+def run_manager_ui(version,env,rcon,trace,report,probe_log,stderr_log):
+    result=report['native_results']['manager_ui']={'fixture':{},'records':[]}
+    probe=subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')],cwd=REPO,env=dict(env,VOXRIG_NATIVE_SCENARIO='manager-ui'),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
+    messages=queue.Queue();reader=threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True);reader.start()
+    try:
+        ready=stage(probe,messages,'a5_ui_ready',result['records'])['value'];result['managed']=ready
+        result['native_players']=until(lambda:matched(rcon.command('list'),r'2 of'))
+        for command in ('tp UnifiedProbe 0.5 65 0.5','tp ManagedPeer 3.5 65 0.5','scoreboard objectives add voxrigA5 dummy {"text":"A5","color":"gold"}','scoreboard objectives setdisplay sidebar voxrigA5','scoreboard players set UnifiedProbe voxrigA5 7','scoreboard players set ManagedPeer voxrigA5 3'):
+            response=rcon.command(command);result['fixture'][command]=response
+            if any(word in response for word in ('Incorrect argument','Unknown or incomplete')):raise RuntimeError('manager/UI fixture rejected: '+response)
+        result['baseline']=stage(probe,messages,'a5_ui_baseline',result['records'])['value']
+        verified,peers=verify_scoreboard_frames(version,result['baseline'],ready['identities'],trace);result['original_fields']=verified
+        result['update_command']=rcon.command('scoreboard players set UnifiedProbe voxrigA5 9')
+        result['updated']=stage(probe,messages,'a5_ui_updated',result['records'])['value']
+        verified,_=verify_scoreboard_frames(version,result['updated'],ready['identities'],trace);result['original_fields']+=verified
+        result['native_score']=rcon.command('scoreboard players get UnifiedProbe voxrigA5')
+        if not re.search(r'has 9',result['native_score']):raise RuntimeError('native scoreboard value differs')
+        result['reset_command']=rcon.command('scoreboard players reset UnifiedProbe')
+        result['reset']=stage(probe,messages,'a5_ui_reset',result['records'])['value']
+        result['remove_command']=rcon.command('scoreboard objectives remove voxrigA5')
+        result['removed']=stage(probe,messages,'a5_ui_removed',result['records'])['value']
+        # Scope closure to both actual managed transports, not a global flag.
+        for connection in peers.values():trace.expect_disconnect(connection)
+        result['shutdown']=stage(probe,messages,'a5_manager_shutdown',result['records'])['value']
+        probe.wait(timeout=10);reader.join(timeout=2)
+        if probe.returncode!=0 or reader.is_alive():raise RuntimeError('manager/UI probe failed shutdown')
+        result['native_after_shutdown']=until(lambda:matched(rcon.command('list'),r'0 of'))
+        logins=[f for f in trace.since(0) if f['direction']=='clientbound' and f['phase']=='login' and f['packet_id']==2]
+        if len(logins)!=2:raise RuntimeError('duplicate admission or terminal shutdown performed another login')
+        result['actual_logins']=len(logins);result['result']='passed'
+        result['authority_limits']='Two actual named Client connections per version, coherent received scoreboard with exact original field payload hashes/ordinals, independent native score and player-list checks, fresh update/owner reset/objective removal, terminal manager shutdown closes externally held clones and refuses further login. Mixed-version registry identity separation and cancelled pending login closure use lightweight TCP fixtures; vehicle/furnace and other UI remain required A5 work.'
+    finally:
+        if probe.poll() is None:
+            probe.terminate()
+            try:probe.wait(timeout=10)
+            except subprocess.TimeoutExpired:probe.kill();probe.wait(timeout=5)
+
+
 def run(version, accept_eula, runtime_root=None, runtime_inputs=None, scenario="full"):
     if not accept_eula:
         raise RuntimeError("pass --accept-eula when authorized to run the official server")
@@ -878,6 +966,10 @@ network-compression-threshold=256
         for check in ["execute if block 0 65 1 minecraft:stone", "execute if block 1 65 0 minecraft:air"]:
             report.setdefault("fixture_verification", {})[check] = until(lambda: matched(rcon.command(check), "Test passed"))
         env = dict(os.environ, VOXRIG_MINECRAFT_VERSION=version, VOXRIG_PORT=str(trace.port))
+        if scenario == "manager-ui":
+            run_manager_ui(version,env,rcon,trace,report,probe_log,stderr_log)
+            report["scenario_result"]="passed"
+            return retained
         if scenario == "recording-scene":
             run_recording_scene(version, env, rcon, trace, report, probe_log, stderr_log, folder)
             report["scenario_result"] = "passed"
@@ -1935,7 +2027,7 @@ def main():
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--accept-eula", action="store_true")
     parser.add_argument("--runtime-dir", type=Path, help="Optional disposable runtime parent, e.g. /dev/shm for isolating disk I/O; reports are exported to .local after JVM exit")
-    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "recording-scene"), default="full", help="Run the operation corpus or a focused A1/A2/A3/A4 workflow")
+    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "recording-scene", "manager-ui"), default="full", help="Run the operation corpus or a focused A1-A5 workflow")
     args = parser.parse_args()
     if bool(args.version) == args.all:
         parser.error("select exactly one of --version / --all")

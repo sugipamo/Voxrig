@@ -29,7 +29,10 @@
   block再生、共通の限定scene captureとnative予測を両版で確認した。元の全packetをproxyで照合し、
   NBT/component bytesと受信ordinalを保持する。地形変更・切断後もsceneは不変で、保存値から
   操作ID・Clientを復元しない。詳細は[記録・再生・scene](common-recording-scenes.md)。
-- 次はA5の基本UI・特殊window・vehicle・manager。A5〜A6とBは未完了で、全統合完了とは扱わない。
+- A5作業中: 共通scoreboard観測とClientManagerを実装し、両版で2つの接続の値更新・owner reset・
+  objective削除・manager終了を確認した。生成ごとの版／registry分離と接続取消は軽量TCP試験で確認する。
+  かまどの基本slot操作と実乗車状態／下車が残る。詳細は[基本UIとmanager](common-ui-manager.md)。
+- 次はA5のかまど・vehicle。A5〜A6とBは未完了で、全統合完了とは扱わない。
   ownedレシピブック配置の未検証変更は退避したまま、Bまで復元しない。
 
 ## 選択と公開入口
@@ -174,7 +177,8 @@ A5の代表例は初回貫通用であり、すべての特殊windowやentity／
 | 限定captured scene・packet診断recordと選択観測の再生 | 共通・限定条件 | 共通・限定条件 | A4で同じconsumerを検証。live native予測と一致し、source更新・切断後も不変 |
 | checked拡張・assumed scene・仮想編集/連鎖・広い再構成 | 共通契約は未完了 | 版固有拡張 | PR #7の機能を維持し、Bで拡大。re-exportだけで両版対応としない |
 | entity spawn寿命・一回のINTERACT／ATTACK | 共通・限定条件 | 共通・限定条件 | A2で装備→攻撃→削除拒否→村人interactionを確認。現在のmotion/metadata・INTERACT_ATはB |
-| UI・特殊window・vehicle・manager | 未共通化 | 未共通化 | A5で代表操作を実装する。従来の版固有APIがあることと区別する |
+| scoreboard観測・ClientManager生成／取得／終了 | 共通・限定条件 | 共通・限定条件 | A5の一部を実装・検証。managerのmixed-version分離は軽量fixtureで確認 |
+| 特殊window・vehicle・その他UI／manager | 未共通化 | 未共通化 | A5のかまどslot・実乗車／下車が残る。広い対応はB |
 | ownedレシピブック配置 | 未公開 | 未公開 | 読み取り専用planを維持し、送信はBへ残す |
 
 A1の固定fixtureはstone床、空のsingle chest、oak planks 2個、収納用stone 2個、

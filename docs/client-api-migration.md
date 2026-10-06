@@ -610,3 +610,17 @@ position decoderのlocal入力、stop時のclient frameが記録fieldに加わ�
 返る共通`ScenePreview`は操作planではありません。modern専用の編集・連鎖・assumed scene等は
 従来の版固有入口を維持し、Bでより広い共通契約を検討します。
 詳細は[記録・再生・scene](common-recording-scenes.md)を参照してください。
+
+## 共通scoreboardとClientManager
+
+scoreboardは`Client::scoreboard_state()`へ移行できます。値ごとの元ordinalを保持し、
+objective/display/score/resetを扱います。表示方式は共通enumで、textとmodern number formatは
+元のnative dataを保持します。完全なserver catalogue・renderer・全UiStateの共通化ではありません。
+legacyの既存UiStateは維持し、空objective名のowner resetを修正しました。
+
+複数接続の基本lifecycleは`ClientManager::new(capacity)`と`connect(name, config)`／
+`get(name)`／`disconnect(name)`／`shutdown()`へ移行できます。
+旧BotManagerのserver-global setupを使わず、Clientごとにconfigを指定してください。
+manager生成とplay readinessは別です。shutdownはterminalで、外部にあるcloneも閉じます。
+event集約・physics metrics・shared chunk storage等の版固有入口は維持し、より広い移行はBへ残します。
+詳細は[共通UIとmanager](common-ui-manager.md)を参照してください。

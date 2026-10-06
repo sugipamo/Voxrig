@@ -10,6 +10,7 @@ pub mod reconstruction;
 #[cfg(test)]
 mod recovery_tests;
 mod wire;
+pub(crate) use wire::Reader as ScoreboardReader;
 mod world;
 pub use client::operations;
 pub use client::players;
