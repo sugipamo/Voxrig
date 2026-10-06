@@ -17,6 +17,7 @@ fn capture(state: &State, player: &api::PlayerObservation) -> api::VehicleObserv
     )
 }
 pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut State) {
+    vehicle_control_context_received(state);
     let previous = state
         .dismount_history
         .lock()
@@ -160,6 +161,186 @@ impl Operations {
         if self.bot.session.stopped.load(Ordering::Acquire) {
             if let Some(record) = history.as_mut() {
                 record.inspection("dismount connection closed or uncertain");
+            }
+        }
+        Ok(history.clone())
+    }
+}
+
+fn vehicle_control_context_received(state: &mut State) {
+    if !api::vehicle::control::unresolved(&state.vehicle_control_history) {
+        return;
+    }
+    let connection = state
+        .vehicle_control_history
+        .lock()
+        .expect("vehicle control history")
+        .as_ref()
+        .unwrap()
+        .id
+        .mount()
+        .session()
+        .connection_id;
+    let player = common_player_in_state(state, connection, false);
+    let vehicle = player.as_ref().ok().map(|p| capture(state, p));
+    let mut history = state
+        .vehicle_control_history
+        .lock()
+        .expect("vehicle control history");
+    if let Some(record) = history.as_mut() {
+        if !state.ready || state.failure.is_some() || !matches!(state.phase, Phase::Play) {
+            record.inspection("vehicle control native session unavailable");
+        } else {
+            match (player, vehicle) {
+                (Ok(player), Some(vehicle)) => {
+                    api::vehicle::control::receive(record, &player, &vehicle)
+                }
+                (Err(e), _) => record.inspection(e),
+                _ => record.inspection("vehicle control capture unavailable"),
+            }
+        }
+    }
+}
+impl Operations {
+    fn vehicle_control_snapshot(
+        &self,
+        id: api::VehicleControlId,
+    ) -> Result<api::VehicleControlRecord> {
+        self.bot
+            .vehicle_control_history
+            .lock()
+            .expect("vehicle control history")
+            .as_ref()
+            .filter(|r| r.id == id)
+            .cloned()
+            .ok_or_else(|| unavailable("vehicle control superseded or wrong Client"))
+    }
+    pub(crate) async fn common_vehicle_control(
+        &self,
+        mode: api::GameMode,
+        mount: MountId,
+        inputs: &[api::VehicleInput],
+    ) -> Result<api::VehicleControlRecord> {
+        let state = self.bot.session.state.lock().await;
+        self.mutable_for_dismount(&state)?;
+        let player = self.common_player_unlocked(&state)?;
+        let vehicle = capture(&state, &player);
+        let record = {
+            let mut history = self
+                .bot
+                .vehicle_control_history
+                .lock()
+                .expect("vehicle control history");
+            let record = api::vehicle::control::prepare(
+                player,
+                vehicle,
+                mode,
+                mount,
+                inputs,
+                history.as_ref(),
+            )?;
+            *history = Some(record.clone());
+            record
+        };
+        let id = record.id;
+        let bot = self.bot.clone();
+        let (reply, result) = tokio::sync::oneshot::channel();
+        tokio::spawn(async move {
+            let _ = reply.send(bot.operations().vehicle_control_send_owned(id).await);
+        });
+        drop(state);
+        result
+            .await
+            .map_err(|_| unavailable("vehicle control owner result unavailable"))?
+    }
+    async fn vehicle_control_send_owned(
+        &self,
+        id: api::VehicleControlId,
+    ) -> Result<api::VehicleControlRecord> {
+        let inputs = self.vehicle_control_snapshot(id)?.inputs;
+        let result = async {
+            for (index, input) in inputs.into_iter().enumerate() {
+                if index > 0 {
+                    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                }
+                let state = self.bot.session.state.lock().await;
+                self.ready(&state)?;
+                let record = self.vehicle_control_snapshot(id)?;
+                let player = self.common_player_unlocked(&state)?;
+                let vehicle = capture(&state, &player);
+                api::vehicle::control::validate(&record, &player, &vehicle)?;
+                if usize::from(record.dispatched_ticks) != index
+                    || usize::from(record.attempted_tick) != index
+                {
+                    return Err(unavailable(
+                        "vehicle control frame already claimed or uncertain",
+                    ));
+                }
+                self.bot
+                    .vehicle_control_history
+                    .lock()
+                    .expect("vehicle control history")
+                    .as_mut()
+                    .unwrap()
+                    .attempted_tick = (index + 1) as u16;
+                let (packet, payload) =
+                    api::vehicle::control::payload(id.mount().session().version, input);
+                self.bot.session.send(packet, &payload).await?;
+                let mut history = self
+                    .bot
+                    .vehicle_control_history
+                    .lock()
+                    .expect("vehicle control history");
+                let record = history
+                    .as_mut()
+                    .filter(|r| r.id == id)
+                    .ok_or_else(|| unavailable("vehicle control owner superseded"))?;
+                record.dispatched_ticks = (index + 1) as u16;
+                if self.bot.session.stopped.load(Ordering::Acquire) {
+                    record.inspection("vehicle control connection closed during write");
+                }
+                if record.stage != api::VehicleControlStage::Running
+                    || record.requires_inspection.is_some()
+                {
+                    return Err(unavailable("vehicle control interrupted during write"));
+                }
+                if index + 1 == record.inputs.len() {
+                    record.stage = api::VehicleControlStage::Submitted;
+                    // Return this owner's result before a subsequent run can replace history.
+                    return Ok(record.clone());
+                }
+            }
+            Err(unavailable("vehicle control missing final neutral"))
+        }
+        .await;
+        if let Err(e) = &result {
+            if let Some(record) = self
+                .bot
+                .vehicle_control_history
+                .lock()
+                .expect("vehicle control history")
+                .as_mut()
+                .filter(|r| r.id == id)
+            {
+                record.inspection(e);
+            }
+        }
+        result
+    }
+    pub(crate) async fn common_vehicle_control_record(
+        &self,
+    ) -> Result<Option<api::VehicleControlRecord>> {
+        if let Ok(mut state) = self.bot.session.state.try_lock() {
+            vehicle_control_context_received(&mut state);
+        }
+        let mut history = self
+            .bot
+            .vehicle_control_history
+            .lock()
+            .expect("vehicle control history");
+        if self.bot.session.stopped.load(Ordering::Acquire) {
+            if let Some(record) = history.as_mut() {
+                record.inspection("vehicle control connection closed");
             }
         }
         Ok(history.clone())

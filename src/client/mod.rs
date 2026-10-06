@@ -69,7 +69,9 @@ pub use received_items::{ReceivedInventory, ReceivedItem, ReceivedSlot};
 pub use recording::{PacketPhase, PacketRecord, PacketTrace};
 pub use survival::{BlockTargetHit, BlockTargetObservation, MiningEstimate};
 pub use vehicle::{
-    DismountId, DismountRecord, DismountStage, MountId, VehicleObservation, VehicleRelation,
+    DismountId, DismountRecord, DismountStage, MAX_VEHICLE_CONTROL_TICKS, MountId,
+    VehicleControlId, VehicleControlRecord, VehicleControlStage, VehicleInput, VehicleObservation,
+    VehicleRelation,
 };
 
 /// Imports for consumers selecting their Minecraft version at setup.
@@ -107,6 +109,10 @@ pub mod prelude {
     pub use super::ui::{
         ScoreNumberFormat, ScoreboardObjective, ScoreboardObservation, ScoreboardRenderType,
         ScoreboardScore, UiText,
+    };
+    pub use super::vehicle::control::{
+        MAX_VEHICLE_CONTROL_TICKS, VehicleControlId, VehicleControlRecord, VehicleControlStage,
+        VehicleInput,
     };
     pub use super::{
         Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,

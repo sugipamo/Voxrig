@@ -372,6 +372,10 @@ async fn survival_look_sends_native_ground_bit_and_refusal_sends_nothing() {
                 let state = session.state.try_lock().expect("new session");
                 state.flight_history.clone()
             },
+            vehicle_control_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.vehicle_control_history.clone()
+            },
             dismount_history: {
                 let state = session.state.try_lock().expect("new session");
                 state.dismount_history.clone()

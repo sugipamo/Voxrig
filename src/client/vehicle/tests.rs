@@ -234,3 +234,241 @@ fn passenger_frames_validate_all_ids_count_and_end_before_any_application() {
     assert_eq!(valid.vehicle, 128);
     assert_eq!(valid.passengers, [300, 42]);
 }
+
+#[test]
+fn vehicle_control_digital_fields_match_all_original_native_packet_codecs() {
+    let oracle: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../data/client_api/vehicle_control_packets.json"
+    ))
+    .unwrap();
+    for row in oracle["versions"].as_array().unwrap() {
+        let version = if row["version"] == "1.16.1" {
+            MinecraftVersion::Java1_16_1
+        } else {
+            MinecraftVersion::Java1_21_11
+        };
+        assert_eq!(row["inputs"].as_array().unwrap().len(), 18);
+        for sample in row["inputs"].as_array().unwrap() {
+            let input = control::VehicleInput {
+                forward: sample["forward"].as_i64().unwrap() as i8,
+                strafe: sample["strafe"].as_i64().unwrap() as i8,
+                jump: sample["jump"].as_bool().unwrap(),
+            };
+            assert_eq!(
+                hex::encode(control::payload(version, input).1),
+                sample["payload_hex"].as_str().unwrap()
+            );
+        }
+    }
+}
+#[test]
+fn vehicle_control_requires_final_neutral_and_latches_original_mount_conflicts() {
+    use crate::client::{GameMode, Health, InventoryObservation, PlayerObservation, received};
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        let session = SessionStamp {
+            version,
+            connection_id: 4,
+            world_generation: 7,
+        };
+        let spawns = SpawnLedger::default();
+        let mut ledger = PassengerLedger::default();
+        ledger.receive(
+            &NativePassengers {
+                vehicle: 10,
+                passengers: vec![42],
+            },
+            Some(42),
+            &spawns,
+            12,
+        );
+        let vehicle = ledger.capture(session, 12, Some(42), &spawns);
+        let VehicleRelation::Mounted { mount } = vehicle.relation.as_ref().unwrap().value else {
+            panic!()
+        };
+        let player = PlayerObservation {
+            session,
+            receive_sequence: 12,
+            pending_dispatch: false,
+            dimension: None,
+            position: None,
+            received_pose: None,
+            rotation: [0.; 2],
+            game_mode: Some(GameMode::Survival),
+            may_fly: None,
+            health: Some(received(
+                Health {
+                    health: 20.,
+                    food: 20,
+                    saturation: 5.,
+                },
+                11,
+            )),
+            selected_hotbar: None,
+            inventory: InventoryObservation::default(),
+        };
+        let forward = control::VehicleInput {
+            forward: 1,
+            ..Default::default()
+        };
+        let inputs = [forward, Default::default()];
+        for invalid in [
+            vec![],
+            vec![forward],
+            vec![forward; 121],
+            vec![
+                control::VehicleInput {
+                    forward: 2,
+                    ..Default::default()
+                },
+                Default::default(),
+            ],
+            vec![
+                control::VehicleInput {
+                    strafe: -2,
+                    ..Default::default()
+                },
+                Default::default(),
+            ],
+        ] {
+            assert!(
+                control::prepare(
+                    player.clone(),
+                    vehicle.clone(),
+                    GameMode::Survival,
+                    mount,
+                    &invalid,
+                    None
+                )
+                .is_err()
+            );
+        }
+        assert!(
+            control::prepare(
+                player.clone(),
+                vehicle.clone(),
+                GameMode::Creative,
+                mount,
+                &inputs,
+                None
+            )
+            .is_err()
+        );
+        let mut record = control::prepare(
+            player.clone(),
+            vehicle.clone(),
+            GameMode::Survival,
+            mount,
+            &inputs,
+            None,
+        )
+        .unwrap();
+        assert!(
+            control::prepare(
+                player.clone(),
+                vehicle.clone(),
+                GameMode::Survival,
+                mount,
+                &inputs,
+                Some(&record)
+            )
+            .is_err()
+        );
+        ledger.receive(
+            &NativePassengers {
+                vehicle: 10,
+                passengers: vec![43, 42],
+            },
+            Some(42),
+            &spawns,
+            13,
+        );
+        let mut newer = player.clone();
+        newer.receive_sequence = 13;
+        let same = ledger.capture(session, 13, Some(42), &spawns);
+        control::receive(&mut record, &newer, &same);
+        assert_eq!(record.stage, control::VehicleControlStage::Running);
+        ledger.receive(
+            &NativePassengers {
+                vehicle: 10,
+                passengers: vec![43],
+            },
+            Some(42),
+            &spawns,
+            14,
+        );
+        newer.receive_sequence = 14;
+        control::receive(
+            &mut record,
+            &newer,
+            &ledger.capture(session, 14, Some(42), &spawns),
+        );
+        assert_eq!(
+            record.stage,
+            control::VehicleControlStage::RequiresInspection
+        );
+        let first = record.requires_inspection.clone();
+        ledger.receive(
+            &NativePassengers {
+                vehicle: 10,
+                passengers: vec![42],
+            },
+            Some(42),
+            &spawns,
+            15,
+        );
+        newer.receive_sequence = 15;
+        control::receive(
+            &mut record,
+            &newer,
+            &ledger.capture(session, 15, Some(42), &spawns),
+        );
+        assert_eq!(record.requires_inspection, first);
+        assert!(control::validate(&record, &player, &vehicle).is_err());
+        let mut completed = control::prepare(
+            player.clone(),
+            vehicle.clone(),
+            GameMode::Survival,
+            mount,
+            &inputs,
+            None,
+        )
+        .unwrap();
+        completed.stage = control::VehicleControlStage::Submitted;
+        let next = control::prepare(
+            player.clone(),
+            vehicle.clone(),
+            GameMode::Survival,
+            mount,
+            &inputs,
+            Some(&completed),
+        )
+        .unwrap();
+        assert_eq!(next.id.attempt(), 2);
+        let mut changed = player.clone();
+        changed.pending_dispatch = true;
+        assert!(
+            control::prepare(
+                changed,
+                vehicle.clone(),
+                GameMode::Survival,
+                mount,
+                &inputs,
+                None
+            )
+            .is_err()
+        );
+        let mut changed = player.clone();
+        changed.session.world_generation += 1;
+        assert!(
+            control::prepare(
+                changed,
+                vehicle.clone(),
+                GameMode::Survival,
+                mount,
+                &inputs,
+                None
+            )
+            .is_err()
+        );
+    }
+}

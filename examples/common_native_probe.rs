@@ -4691,6 +4691,8 @@ async fn dry_terrain_probe(client: &Client) -> anyhow::Result<()> {
 }
 
 async fn vehicle_probe(client: &Client) -> anyhow::Result<()> {
+    let controlling = std::env::var("VOXRIG_NATIVE_SCENARIO").as_deref() == Ok("vehicle-control");
+    let mut approach = None;
     let mode = if std::env::var("VOXRIG_NATIVE_MODE").as_deref() == Ok("survival") {
         GameMode::Survival
     } else {
@@ -4737,7 +4739,13 @@ async fn vehicle_probe(client: &Client) -> anyhow::Result<()> {
                             .into_iter()
                             .filter(|e| {
                                 e.type_name.as_deref() == Some("minecraft:minecart")
-                                    && e.spawn_position.value == [0.5, 65.1, 2.5]
+                                    && if controlling {
+                                        e.spawn_position.value[0] == 0.5
+                                            && e.spawn_position.value[2] == 2.5
+                                            && (65.0..=65.25).contains(&e.spawn_position.value[1])
+                                    } else {
+                                        e.spawn_position.value == [0.5, 65.1, 2.5]
+                                    }
                             })
                             .max_by_key(|e| e.id.spawn_sequence())
                         {
@@ -4749,7 +4757,80 @@ async fn vehicle_probe(client: &Client) -> anyhow::Result<()> {
                 .await??;
                 anyhow::ensure!(spawn.id.session() == player.session);
                 cart = Some(spawn.id);
-                emit(&command, serde_json::json!({"player":player,"cart":spawn}))?;
+                if controlling {
+                    let mut controls = vec![SurvivalControl {
+                        yaw: 0.,
+                        input: SurvivalInput {
+                            forward: -1,
+                            strafe: 0,
+                            jump: false,
+                        },
+                    }];
+                    controls.extend(vec![
+                        SurvivalControl {
+                            yaw: 0.,
+                            input: Default::default()
+                        };
+                        14
+                    ]);
+                    // Teleport receipt precedes the local ground controller settling.
+                    // Read-only previews wait for actual ready geometry, never reset it.
+                    tokio::time::timeout(Duration::from_secs(15), async {
+                        loop {
+                            let preview = match mode {
+                                GameMode::Survival => {
+                                    client.survival().preview_path(&controls).await
+                                }
+                                _ => client.creative().preview_path(&controls).await,
+                            };
+                            match preview {
+                                Ok(_) => return Ok::<_, anyhow::Error>(()),
+                                Err(error) => {
+                                    eprintln!("vehicle approach awaiting native context: {error}");
+                                    tokio::time::sleep(Duration::from_millis(50)).await;
+                                }
+                            }
+                        }
+                    })
+                    .await
+                    .context("vehicle approach preview deadline")??;
+                    let started = match mode {
+                        GameMode::Survival => {
+                            client.survival().start_predicted_path(&controls).await?
+                        }
+                        _ => client.creative().start_predicted_path(&controls).await?,
+                    };
+                    approach = Some(
+                        tokio::time::timeout(Duration::from_secs(15), async {
+                            loop {
+                                let record = client
+                                    .survival()
+                                    .motion_record()
+                                    .await?
+                                    .context("vehicle approach missing")?;
+                                anyhow::ensure!(
+                                    record.run_id == started.run_id,
+                                    "vehicle approach owner changed"
+                                );
+                                if record.status.is_continuation_candidate() {
+                                    return Ok::<_, anyhow::Error>(record);
+                                }
+                                anyhow::ensure!(
+                                    record.status == MotionStatus::Running,
+                                    "vehicle approach interrupted: {:?}",
+                                    record.problem
+                                );
+                                tokio::time::sleep(Duration::from_millis(25)).await;
+                            }
+                        })
+                        .await
+                        .context("vehicle approach completion deadline")??,
+                    );
+                }
+                emit(
+                    &command,
+                    serde_json::json!({"player":player,"cart":spawn,"approach":approach}),
+                )?;
             }
             "a5_vehicle_mount" => {
                 let target = cart.context("vehicle baseline missing")?;
@@ -4788,6 +4869,55 @@ async fn vehicle_probe(client: &Client) -> anyhow::Result<()> {
                 emit(
                     &command,
                     serde_json::json!({"dispatch":dispatch,"vehicle":vehicle}),
+                )?;
+            }
+            "b6_vehicle_control" => {
+                let mount = mounted.context("actual mount absent")?;
+                let mut inputs = vec![
+                    VehicleInput {
+                        forward: 1,
+                        strafe: 0,
+                        jump: false
+                    };
+                    12
+                ];
+                inputs.extend([VehicleInput::default(); 2]);
+                let record = match mode {
+                    GameMode::Survival => {
+                        client
+                            .survival()
+                            .start_vehicle_control(mount, &inputs)
+                            .await?
+                    }
+                    _ => {
+                        client
+                            .creative()
+                            .start_vehicle_control(mount, &inputs)
+                            .await?
+                    }
+                };
+                anyhow::ensure!(
+                    record.stage == VehicleControlStage::Submitted
+                        && record.attempted_tick == 14
+                        && record.dispatched_ticks == 14
+                        && record.requires_inspection.is_none()
+                );
+                let retired = client
+                    .survival()
+                    .motion_record()
+                    .await?
+                    .context("retired approach absent")?;
+                anyhow::ensure!(
+                    retired.run_id == approach.as_ref().unwrap().run_id
+                        && retired.status
+                            == voxrig::client::survival::MotionStatus::RequiresInspection
+                        && retired.problem.is_some()
+                        && retired.dispatched_ticks == approach.as_ref().unwrap().dispatched_ticks
+                        && retired.attempted_tick == approach.as_ref().unwrap().attempted_tick
+                );
+                emit(
+                    &command,
+                    serde_json::json!({"control":record,"retired_approach":retired}),
                 )?;
             }
             "a5_vehicle_request" => {
@@ -4860,6 +4990,30 @@ async fn vehicle_probe(client: &Client) -> anyhow::Result<()> {
                         && duplicate_request.is_err()
                         && ground_preview.is_err()
                 );
+                if controlling {
+                    let mount = id.mount();
+                    let denied = match mode {
+                        GameMode::Survival => {
+                            client
+                                .survival()
+                                .start_vehicle_control(mount, &[VehicleInput::default()])
+                                .await
+                        }
+                        _ => {
+                            client
+                                .creative()
+                                .start_vehicle_control(mount, &[VehicleInput::default()])
+                                .await
+                        }
+                    };
+                    anyhow::ensure!(denied.is_err(), "retired mount accepted for vehicle input");
+                    anyhow::ensure!(
+                        client
+                            .vehicle_control_record()
+                            .await?
+                            .is_some_and(|r| r.stage == VehicleControlStage::Submitted)
+                    );
+                }
                 emit(
                     &command,
                     serde_json::json!({"complete":complete,"vehicle":client.vehicle_state().await?,"duplicate_release":duplicate_release.unwrap_err().to_string(),"duplicate_request":duplicate_request.unwrap_err().to_string(),"ground_guard":ground_preview.unwrap_err().to_string()}),
@@ -4872,6 +5026,14 @@ async fn vehicle_probe(client: &Client) -> anyhow::Result<()> {
                     .await?
                     .context("closed dismount missing")?;
                 anyhow::ensure!(retained.stage == DismountStage::Completed);
+                if controlling {
+                    anyhow::ensure!(
+                        client
+                            .vehicle_control_record()
+                            .await?
+                            .is_some_and(|r| r.stage == VehicleControlStage::Submitted)
+                    );
+                }
                 emit(
                     &command,
                     serde_json::json!({"disconnected":true,"retained":retained}),
@@ -5393,7 +5555,7 @@ async fn main() -> anyhow::Result<()> {
     if scenario.as_deref() == Some("furnace") {
         return furnace_probe(&client).await;
     }
-    if scenario.as_deref() == Some("vehicle") {
+    if matches!(scenario.as_deref(), Some("vehicle" | "vehicle-control")) {
         return vehicle_probe(&client).await;
     }
     if matches!(

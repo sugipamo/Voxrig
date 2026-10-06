@@ -1,6 +1,11 @@
 //! Actual received own-player passenger relationships, separate from motion.
 use super::{EntityId, ObservedValue, SessionStamp, entity::SpawnLedger, received};
 use crate::protocol::get_varint;
+pub mod control;
+pub use control::{
+    MAX_VEHICLE_CONTROL_TICKS, VehicleControlId, VehicleControlRecord, VehicleControlStage,
+    VehicleInput,
+};
 pub mod dismount;
 pub use dismount::{DismountId, DismountRecord, DismountStage};
 

@@ -79,6 +79,48 @@ async fn finish_when_received(client: &Client, id: DismountId) -> Result<bool> {
 別接続／world、mode変更、死亡、関係の消失・別車両への乗車、部分送信などは
 `RequiresInspection`を保持し、自動retryしない。実除外は観測事実であり、要求との因果ACKではない。
 
-legacyの自動地上physicsも乗車受信後に止める。下車の完了だけでは地上支持や立位の許可を戻さない。
-車両の現在位置・乗員の一般entity state・操縦／boat paddle・physicsや下車後の広いmotion継続は
+legacyの自動地上physicsも乗車受信後に止め、未完了の共通地上runは失敗履歴へ移して
+後続frameを送らない。下車の完了だけでは地上支持や立位の許可を戻さない。
+車両の現在位置・乗員の一般entity state・boat paddle・physicsや下車後の広いmotion継続は
 Bで統合する。実サーバーの検証範囲は[検証記録](common-client-native-validation.md)に記載する。
+
+
+## 有限の乗車入力
+
+`survival().start_vehicle_control(mount, &inputs)`と
+`creative().start_vehicle_control(mount, &inputs)`は同じAPIで、連続した実乗車に
+有限のdigital入力を送る。`VehicleInput`は前後・左右をそれぞれ-1/0/1、jumpをboolで指定する。
+1〜120入力まで、最後は必ず`VehicleInput::default()`のneutralとする。
+各入力の間に50ms待つが、サーバーのtick数・処理回数や車両の移動量は保証しない。
+sneakはこの入力に含めず、上記の明示的な下車を使う。
+
+```rust,no_run
+use voxrig::client::prelude::*;
+async fn drive(client: &Client, mount: MountId) -> Result<()> {
+    let inputs = [
+        VehicleInput { forward: 1, ..Default::default() },
+        VehicleInput::default(),
+    ];
+    let sent = client.survival().start_vehicle_control(mount, &inputs).await?;
+    assert_eq!(sent.stage, VehicleControlStage::Submitted);
+    Ok(())
+}
+```
+
+`VehicleControlRecord`は送信前に保持する。呼び出しfutureの取消は待機だけを取り消し、
+所有taskが有限の計画と最後のneutralを送る。`Client::vehicle_control_record()`はwriter待ち・
+遮断中にも読める。`attempted_tick`はI/O前のframe意図、`dispatched_ticks`は完全送信した
+frame数で、サーバーからの確認ではない。`Submitted`も移動・停止・制御ACKを意味しない。
+
+途中の下車、同じ数値IDへの再乗車、mode/world/健康状態の変化、遮断や不確かなwriteは、
+最初の理由を`RequiresInspection`へ保持する。後続入力やneutralを別の乗車へ送らず、
+自動再送しない。未解決run中の別操作も拒否する。完全送信後は同じ実乗車に新しい有限runを
+開始できるが、下車済みの`MountId`で再開できない。
+
+実乗車を受信すると、完了候補だった地上runの記録を残して実行許可を退役させる。
+乗車に伴う位置受信が先に届いて無効化されたrunも、全frame送信と最終予測restを
+確認できる場合だけ退役させ、既存の失敗理由を保持する。実行中・途中送信は強制解放しない。乗車入力と下車の完了だけでは
+地上のvelocity・支持・立位を補完しないため、下車後の地上継続は引き続きB6の残作業。
+両版の元codecに全18入力ずつを照合し、実サーバーでは短い地上移動→乗車→
+有限入力→neutral→実下車→切断を両modeで検証する。rail歩行やboat操縦・paddle、
+現在の車両位置観測や車両physics全体の共通化を含まない。

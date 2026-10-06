@@ -152,6 +152,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             .vehicles
             .receive(&update, player, &state.entities, state.sequence);
         if own {
+            super::movement::retire_common_for_mount(state)?;
             interrupt(state, id);
         }
         return Ok(true);

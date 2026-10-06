@@ -337,6 +337,10 @@ fn operations(session: &Arc<Session>) -> operations::Operations {
                 let state = session.state.try_lock().expect("new session");
                 state.flight_history.clone()
             },
+            vehicle_control_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.vehicle_control_history.clone()
+            },
             dismount_history: {
                 let state = session.state.try_lock().expect("new session");
                 state.dismount_history.clone()
@@ -1608,4 +1612,314 @@ async fn cancelled_common_landing_wait_retains_disable_neutral_and_two_ground_ti
         2
     );
     assert!(ops.land().await.is_err());
+}
+
+#[tokio::test]
+async fn cancelled_vehicle_control_waiter_keeps_finite_owner_and_final_neutral() {
+    use crate::client::{GameMode, VehicleControlStage, VehicleInput, VehicleRelation};
+    for mode in [GameMode::Survival, GameMode::Creative] {
+        let (session, api, mut peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 1, 42], 256)
+            .unwrap();
+        let VehicleRelation::Mounted { mount } = client
+            .vehicle_state()
+            .await
+            .unwrap()
+            .relation
+            .unwrap()
+            .value
+        else {
+            panic!()
+        };
+        let inputs = [
+            VehicleInput {
+                forward: 1,
+                ..Default::default()
+            },
+            VehicleInput {
+                forward: 1,
+                ..Default::default()
+            },
+            VehicleInput::default(),
+        ];
+        let writer = session.writer.lock().await;
+        let ops = client.survival();
+        let creative = client.creative();
+        let mut attempt = Box::pin(async {
+            if mode == GameMode::Survival {
+                ops.start_vehicle_control(mount, &inputs).await
+            } else {
+                creative.start_vehicle_control(mount, &inputs).await
+            }
+        });
+        assert!(
+            timeout(Duration::from_millis(20), attempt.as_mut())
+                .await
+                .is_err()
+        );
+        drop(attempt);
+        let pending = timeout(Duration::from_millis(50), client.vehicle_control_record())
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert_eq!(pending.stage, VehicleControlStage::Running);
+        assert_eq!(pending.attempted_tick, 1);
+        assert_eq!(pending.dispatched_ticks, 0);
+        drop(writer);
+        assert_eq!(read_packet(&mut peer, None).await.unwrap(), (0x2a, vec![1]));
+        let busy = if mode == GameMode::Survival {
+            client.survival().dismount(mount).await
+        } else {
+            client.creative().dismount(mount).await
+        };
+        assert!(busy.is_err());
+        assert_eq!(read_packet(&mut peer, None).await.unwrap(), (0x2a, vec![1]));
+        assert_eq!(read_packet(&mut peer, None).await.unwrap(), (0x2a, vec![0]));
+        let final_record = timeout(Duration::from_secs(1), async {
+            loop {
+                let r = client.vehicle_control_record().await.unwrap().unwrap();
+                if r.stage == VehicleControlStage::Submitted {
+                    break r;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(final_record.id, pending.id);
+        assert_eq!(
+            (final_record.attempted_tick, final_record.dispatched_ticks),
+            (3, 3)
+        );
+        assert!(
+            timeout(Duration::from_millis(20), read_packet(&mut peer, None))
+                .await
+                .is_err()
+        );
+        let _ = client.revoke_connection();
+        assert_eq!(
+            client
+                .vehicle_control_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            VehicleControlStage::Submitted
+        );
+    }
+}
+#[tokio::test]
+async fn vehicle_control_cannot_retire_partially_sent_ground_run() {
+    use crate::client::{
+        GameMode, VehicleInput, VehicleRelation,
+        survival::{MotionStatus, SurvivalControl},
+    };
+    let (session, api, mut peer) = common_ground_fixture(GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let controls = [SurvivalControl {
+        yaw: 0.0,
+        input: Default::default(),
+    }; 20];
+    let started = client
+        .survival()
+        .start_predicted_path(&controls)
+        .await
+        .unwrap();
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap().0,
+        ids::play_serverbound::PLAYER_INPUT
+    );
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap().0,
+        ids::play_serverbound::POSITION_LOOK
+    );
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 1, 42], 256)
+        .unwrap();
+    let VehicleRelation::Mounted { mount } = client
+        .vehicle_state()
+        .await
+        .unwrap()
+        .relation
+        .unwrap()
+        .value
+    else {
+        panic!()
+    };
+    assert!(
+        client
+            .survival()
+            .start_vehicle_control(mount, &[VehicleInput::default()])
+            .await
+            .is_err()
+    );
+    let retained = timeout(Duration::from_secs(1), async {
+        loop {
+            let record = client.survival().motion_record().await.unwrap().unwrap();
+            if record.status != MotionStatus::Running {
+                break record;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(retained.run_id, started.run_id);
+    assert_eq!(retained.dispatched_ticks, 1);
+    assert_eq!(retained.status, MotionStatus::RequiresInspection);
+    assert!(client.vehicle_control_record().await.unwrap().is_none());
+    assert!(
+        timeout(Duration::from_millis(20), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+    let _ = client.revoke_connection();
+}
+#[tokio::test]
+async fn vehicle_control_revocation_while_writer_waits_preserves_first_failure() {
+    use crate::client::{GameMode, VehicleControlStage, VehicleInput, VehicleRelation};
+    let (session, api, mut peer) = common_ground_fixture(GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 1, 42], 256)
+        .unwrap();
+    let VehicleRelation::Mounted { mount } = client
+        .vehicle_state()
+        .await
+        .unwrap()
+        .relation
+        .unwrap()
+        .value
+    else {
+        panic!()
+    };
+    let writer = session.writer.lock().await;
+    let ops = client.survival();
+    let inputs = [VehicleInput::default()];
+    let mut attempt = Box::pin(ops.start_vehicle_control(mount, &inputs));
+    assert!(
+        timeout(Duration::from_millis(20), attempt.as_mut())
+            .await
+            .is_err()
+    );
+    let before = timeout(Duration::from_millis(50), client.vehicle_control_record())
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    assert_eq!((before.attempted_tick, before.dispatched_ticks), (1, 0));
+    let _ = client.revoke_connection();
+    let revoked = timeout(Duration::from_millis(50), client.vehicle_control_record())
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    assert_eq!(revoked.stage, VehicleControlStage::RequiresInspection);
+    let first = revoked.requires_inspection.clone();
+    assert!(first.is_some());
+    drop(writer);
+    assert!(
+        timeout(Duration::from_secs(1), attempt.as_mut())
+            .await
+            .unwrap()
+            .is_err()
+    );
+    let after = client.vehicle_control_record().await.unwrap().unwrap();
+    assert_eq!(after.id, before.id);
+    assert_eq!(after.stage, VehicleControlStage::RequiresInspection);
+    assert_eq!(after.requires_inspection, first);
+    assert_eq!(after.dispatched_ticks, 0);
+    assert!(matches!(
+        timeout(Duration::from_millis(20), read_packet(&mut peer, None)).await,
+        Err(_) | Ok(Err(_))
+    ));
+}
+#[tokio::test]
+async fn vehicle_control_latches_unmount_before_same_numeric_vehicle_reappears() {
+    use crate::client::{GameMode, VehicleControlStage, VehicleInput, VehicleRelation};
+    let (session, api, mut peer) = common_ground_fixture(GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 1, 42], 256)
+        .unwrap();
+    let VehicleRelation::Mounted { mount } = client
+        .vehicle_state()
+        .await
+        .unwrap()
+        .relation
+        .unwrap()
+        .value
+    else {
+        panic!()
+    };
+    let ops = client.survival();
+    let waiter = tokio::spawn(async move {
+        ops.start_vehicle_control(
+            mount,
+            &[
+                VehicleInput {
+                    forward: 1,
+                    ..Default::default()
+                },
+                VehicleInput {
+                    forward: 1,
+                    ..Default::default()
+                },
+                VehicleInput::default(),
+            ],
+        )
+        .await
+    });
+    assert_eq!(read_packet(&mut peer, None).await.unwrap(), (0x2a, vec![1]));
+    {
+        let mut state = session.state.lock().await;
+        state
+            .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 0], 256)
+            .unwrap();
+        state
+            .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 1, 42], 256)
+            .unwrap();
+    }
+    assert!(waiter.await.unwrap().is_err());
+    let record = client.vehicle_control_record().await.unwrap().unwrap();
+    assert_eq!(record.stage, VehicleControlStage::RequiresInspection);
+    assert_eq!(record.dispatched_ticks, 1);
+    assert!(
+        client
+            .survival()
+            .start_vehicle_control(mount, &[VehicleInput::default()])
+            .await
+            .is_err()
+    );
+    assert!(client.survival().dismount(mount).await.is_err());
+    assert!(
+        timeout(Duration::from_millis(50), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+    let _ = client.revoke_connection();
+    assert_eq!(
+        client
+            .vehicle_control_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .requires_inspection,
+        record.requires_inspection
+    );
 }

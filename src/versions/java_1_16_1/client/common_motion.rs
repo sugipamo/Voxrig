@@ -300,6 +300,9 @@ impl Bot {
         mounted_history || self.common_motion_pauses_physics().await
     }
     pub(super) async fn common_motion_pauses_physics(&self) -> bool {
+        if crate::client::vehicle::control::unresolved(&self.vehicle_control_history) {
+            return true;
+        }
         if crate::client::flight::unresolved(&self.flight_history) {
             return true;
         }
@@ -413,6 +416,11 @@ impl Bot {
         self.common_motion_admission_inner(false).await
     }
     pub(super) async fn common_motion_admission_inner(&self, flight_owner: bool) -> Result<()> {
+        if crate::client::vehicle::control::unresolved(&self.vehicle_control_history) {
+            return Err(motion_state(
+                "vehicle control unresolved; inspect without replay",
+            ));
+        }
         if !flight_owner && crate::client::flight::unresolved(&self.flight_history) {
             return Err(motion_state(
                 "flight dispatch unresolved; inspect without replay",
@@ -1059,6 +1067,34 @@ impl Bot {
         self.player.lock().await.on_ground = true;
         *self.common_motion.lock().await = Some(run.clone());
         run
+    }
+}
+
+impl Bot {
+    pub(super) async fn retire_common_for_mount(&self) {
+        let previous = {
+            let mut motion = self.common_motion.lock().await;
+            if motion.as_ref().is_some_and(|r| {
+                let record = &r.record;
+                record.status != MotionStatus::Running
+                    && !record.preview.frames.is_empty()
+                    && usize::from(record.dispatched_ticks) == record.preview.frames.len()
+                    && record.attempted_tick == record.dispatched_ticks
+                    && record.preview.frames.last().is_some_and(|f| f.resting)
+            }) {
+                motion.take()
+            } else {
+                None
+            }
+        };
+        if let Some(mut previous) = previous {
+            previous.record.status = MotionStatus::RequiresInspection;
+            previous
+                .record
+                .problem
+                .get_or_insert_with(|| "actual mount superseded settled ground motion".into());
+            *self.retired_common_motion.lock().await = Some(previous.record);
+        }
     }
 }
 

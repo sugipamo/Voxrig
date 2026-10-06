@@ -721,3 +721,46 @@ manufactured quantity, recipe causation, no native drops in later partial rounds
 all crafting conditions, table input SWAP/QUICK_MOVE or full B4 completion.
 [Contract](common-recipes.md#native-result-quick_move-through-the-common-client) /
 [inputs and results](evidence/common-recipe-result-transfer-20261006.json).
+
+
+## B6: finite mounted input and original minecart response
+
+```sh
+CARGO_INCREMENTAL=0 python3 scripts/run_common_native.py --all --scenario vehicle-control --accept-eula --runtime-dir /dev/shm/voxrig-b6-control
+```
+
+Both versions and Survival/Creative: four successful workflows on one common
+Client/session per mode. A short backward dry-ground approach finishes with
+released rest, then original empty-hand INTERACT mounts the received minecart.
+The common owned 14-frame input run sends 12 forward inputs and 2 neutral inputs.
+Independent read-only native Pos shows original minecart displacement; original
+RootVehicle.Attach and SET_PASSENGERS verify the received continuous mount.
+The completed ground run is retired with its original input/dispatch history and
+first conflict retained even when a mount-position receipt arrives before the
+passenger receipt. Partially dispatched ground runs cannot be retired this way.
+
+Owned dismount then actual passenger absence then explicit neutral completes.
+Stale mounted control and duplicate dismount/release send nothing. Disconnect
+retains Submitted control and Completed dismount. The proxy sees exactly one
+INTERACT and 16 original input frames after the approach; codecs and original
+passenger fields/receive ordinals agree. Both JVMs exit 0, proxy errors are empty;
+both reports share 440 actual source inputs and the same consumer binary hash.
+
+All 18 signed-axis/jump combinations per version match the unchanged original
+packet reader/writer and decoded fields. TCP regressions cover cancelled waiting,
+prompt retained history while the writer waits, revoke before any delivery,
+first unmount/remount conflict and partially sent ground rejection.
+
+Three prior failed old-version trials are retained: missing locally stationary
+teleport baseline, unsupported rail in the forward approach geometry, and the
+completed-ground history invalidated before actual mounted receipt. Those runs
+are not successful workflows. Waiting for genuine local readiness, using a short
+backward approach away from rail, and retiring only fully sent terminal-rest
+history address those specific failures. Rail terrain support remains B3.
+
+Input submission does not prove vehicle stopping, native control ACK, current
+vehicle position observation, boat/paddle control, general vehicle physics or
+post-dismount ground admission. Those remain B6, alongside other windows/UI and
+managers. Wider B3/B4/B5 and private A6 are required before main integration.
+[Common API](common-vehicles.md#有限の乗車入力) /
+[440 inputs, codecs, original results and failed bounds](evidence/common-vehicle-control-20261006.json).

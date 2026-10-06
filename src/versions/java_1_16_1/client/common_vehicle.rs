@@ -139,6 +139,7 @@ impl Bot {
         result
     }
     pub(super) async fn common_dismount_context_received(&self) {
+        self.vehicle_control_context_received().await;
         let active = self
             .dismount_history
             .lock()
@@ -165,6 +166,173 @@ impl Bot {
         if self.is_stopped() {
             if let Some(record) = history.as_mut() {
                 record.inspection("dismount connection closed");
+            }
+        }
+        Ok(history.clone())
+    }
+}
+
+impl Bot {
+    fn vehicle_control_snapshot(
+        &self,
+        id: api::VehicleControlId,
+    ) -> Result<api::VehicleControlRecord> {
+        self.vehicle_control_history
+            .lock()
+            .expect("vehicle control history")
+            .as_ref()
+            .filter(|r| r.id == id)
+            .cloned()
+            .ok_or_else(|| unavailable("vehicle control superseded or wrong Client"))
+    }
+    pub(crate) async fn common_vehicle_control(
+        &self,
+        mode: api::GameMode,
+        mount: MountId,
+        inputs: &[api::VehicleInput],
+    ) -> Result<api::VehicleControlRecord> {
+        let gate = self.coherent_state_gate.lock().await;
+        self.common_motion_admission().await?;
+        if self.connection_state() != ConnectionState::Ready
+            || self.control().await != ControlState::default()
+        {
+            return Err(unavailable(
+                "vehicle control requires ready released native controls",
+            ));
+        }
+        let (player, vehicle) = self.vehicle_capture_unlocked().await?;
+        let record = {
+            let mut history = self
+                .vehicle_control_history
+                .lock()
+                .expect("vehicle control history");
+            let record = api::vehicle::control::prepare(
+                player,
+                vehicle,
+                mode,
+                mount,
+                inputs,
+                history.as_ref(),
+            )?;
+            *history = Some(record.clone());
+            record
+        };
+        let id = record.id;
+        let bot = self.clone_internal();
+        let (reply, result) = tokio::sync::oneshot::channel();
+        tokio::spawn(async move {
+            let _ = reply.send(bot.vehicle_control_send_owned(id).await);
+        });
+        drop(gate);
+        result
+            .await
+            .map_err(|_| unavailable("vehicle control owner result unavailable"))?
+    }
+    async fn vehicle_control_send_owned(
+        &self,
+        id: api::VehicleControlId,
+    ) -> Result<api::VehicleControlRecord> {
+        let inputs = self.vehicle_control_snapshot(id)?.inputs;
+        let result = async {
+            for (index, input) in inputs.into_iter().enumerate() {
+                if index > 0 {
+                    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+                }
+                let _gate = self.coherent_state_gate.lock().await;
+                if self.connection_state() != ConnectionState::Ready
+                    || self.control().await != ControlState::default()
+                {
+                    return Err(unavailable(
+                        "vehicle control connection/native control changed",
+                    ));
+                }
+                let record = self.vehicle_control_snapshot(id)?;
+                let (player, vehicle) = self.vehicle_capture_unlocked().await?;
+                api::vehicle::control::validate(&record, &player, &vehicle)?;
+                if usize::from(record.dispatched_ticks) != index
+                    || usize::from(record.attempted_tick) != index
+                {
+                    return Err(unavailable(
+                        "vehicle control frame already claimed or uncertain",
+                    ));
+                }
+                self.vehicle_control_history
+                    .lock()
+                    .expect("vehicle control history")
+                    .as_mut()
+                    .unwrap()
+                    .attempted_tick = (index + 1) as u16;
+                let (packet, payload) =
+                    api::vehicle::control::payload(id.mount().session().version, input);
+                self.send(packet, &payload).await?;
+                let mut history = self
+                    .vehicle_control_history
+                    .lock()
+                    .expect("vehicle control history");
+                let record = history
+                    .as_mut()
+                    .filter(|r| r.id == id)
+                    .ok_or_else(|| unavailable("vehicle control owner superseded"))?;
+                record.dispatched_ticks = (index + 1) as u16;
+                if self.is_stopped() {
+                    record.inspection("vehicle control connection closed during write");
+                }
+                if record.stage != api::VehicleControlStage::Running
+                    || record.requires_inspection.is_some()
+                {
+                    return Err(unavailable("vehicle control interrupted during write"));
+                }
+                if index + 1 == record.inputs.len() {
+                    record.stage = api::VehicleControlStage::Submitted;
+                    // Return this owner's result before a subsequent run can replace history.
+                    return Ok(record.clone());
+                }
+            }
+            Err(unavailable("vehicle control missing final neutral"))
+        }
+        .await;
+        if let Err(e) = &result {
+            if let Some(record) = self
+                .vehicle_control_history
+                .lock()
+                .expect("vehicle control history")
+                .as_mut()
+                .filter(|r| r.id == id)
+            {
+                record.inspection(e);
+            }
+        }
+        result
+    }
+    async fn vehicle_control_context_received(&self) {
+        if !api::vehicle::control::unresolved(&self.vehicle_control_history) {
+            return;
+        }
+        let context = self.vehicle_capture_unlocked().await;
+        let mut history = self
+            .vehicle_control_history
+            .lock()
+            .expect("vehicle control history");
+        if let Some(record) = history.as_mut() {
+            match context {
+                Ok((player, vehicle)) => api::vehicle::control::receive(record, &player, &vehicle),
+                Err(e) => record.inspection(e),
+            }
+        }
+    }
+    pub(crate) async fn common_vehicle_control_record(
+        &self,
+    ) -> Result<Option<api::VehicleControlRecord>> {
+        if let Ok(_gate) = self.coherent_state_gate.try_lock() {
+            self.vehicle_control_context_received().await;
+        }
+        let mut history = self
+            .vehicle_control_history
+            .lock()
+            .expect("vehicle control history");
+        if self.is_stopped() {
+            if let Some(record) = history.as_mut() {
+                record.inspection("vehicle control connection closed");
             }
         }
         Ok(history.clone())

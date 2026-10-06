@@ -697,3 +697,15 @@ crafting remains follow-up work. Ghost completion may progress from an original
 player SubmittedClose basis to actual Received player zero without rebinding
 a table opening; each historical source retains its own basis.
 See [common recipe placement](common-recipes.md#owned-recipe-placement-through-the-common-client).
+
+
+## 乗車入力
+
+版固有の持続的なmounted入力から共通APIへ移す場合は、実`vehicle_state()`の
+`Mounted { mount }`と有限の`VehicleInput`列を使って、mode handleの
+`start_vehicle_control(mount, &inputs)`を呼ぶ。最後はneutralを明示する。
+待機の取消だけでは所有runは止まらず、遮断や乗車変更の失敗は履歴へ保持する。
+履歴の`Submitted`を車両停止・位置の実受信や操作ACKに置き換えない。
+下車は`dismount`→実除外→`complete_dismount`の別の手順で行う。
+boat paddle、車両の現在状態、広いphysicsと下車後の地上継続は未共通化。
+[共通乗車関係と入力](common-vehicles.md)を参照。

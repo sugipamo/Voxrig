@@ -1055,6 +1055,7 @@ pub struct Bot {
     pub(crate) flight_history: crate::client::flight::History,
     retired_common_motion: Arc<Mutex<Option<crate::client::survival::MotionRecord>>>,
     dismount_history: crate::client::vehicle::dismount::History,
+    vehicle_control_history: crate::client::vehicle::control::History,
     common_container_close: Arc<Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
     common_container_open: Arc<Mutex<Option<common_container::NativeContainerOpen>>>,
     exact_window_barriers: Arc<Mutex<HashMap<(i8, i16), ExactWindowBarrier>>>,
@@ -1164,6 +1165,7 @@ impl Bot {
             flight_history: self.flight_history.clone(),
             retired_common_motion: self.retired_common_motion.clone(),
             dismount_history: self.dismount_history.clone(),
+            vehicle_control_history: self.vehicle_control_history.clone(),
             common_container_close: self.common_container_close.clone(),
             common_container_open: self.common_container_open.clone(),
             exact_window_barriers: self.exact_window_barriers.clone(),
@@ -1336,6 +1338,7 @@ impl Bot {
             flight_history: Arc::default(),
             retired_common_motion: Arc::default(),
             dismount_history: Arc::default(),
+            vehicle_control_history: Arc::default(),
             common_container_close: Arc::new(Mutex::new(None)),
             common_container_open: Arc::new(Mutex::new(None)),
             exact_window_barriers: Arc::new(Mutex::new(HashMap::new())),
@@ -5747,6 +5750,13 @@ impl Bot {
                         &receipts.entities,
                         packet_sequence,
                     );
+                }
+                if player_id.is_some_and(|id| update.passengers.contains(&id)) {
+                    self.retire_common_for_mount().await;
+                    self.interrupt_common_motion_operations(
+                        "actual own mount interrupted ground operations",
+                    )
+                    .await;
                 }
                 if let Some(vehicle) = self
                     .entities

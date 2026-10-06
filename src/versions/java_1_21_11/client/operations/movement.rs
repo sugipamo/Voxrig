@@ -12,7 +12,7 @@ pub use control::{
 };
 pub(super) use control::{
     flight_can_retire, landing_common_record, landing_plan, retire_common_for_flight,
-    standing_basis, submitted_flight_stop,
+    retire_common_for_mount, standing_basis, submitted_flight_stop,
 };
 pub use scenario::{
     AssumedSurvivalScene, AssumedSurvivalStart, CapturedSurvivalScene, HypotheticalAimRequirement,

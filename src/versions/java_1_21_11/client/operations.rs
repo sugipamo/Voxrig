@@ -734,6 +734,11 @@ impl Operations {
         flight_owner: bool,
     ) -> Result<()> {
         self.ready(state)?;
+        if crate::client::vehicle::control::unresolved(&state.vehicle_control_history) {
+            return Err(crate::client::inventory::unavailable(
+                "vehicle control unresolved; inspect without replay",
+            ));
+        }
         if !flight_owner && crate::client::flight::unresolved(&state.flight_history) {
             return Err(crate::client::inventory::unavailable(
                 "flight dispatch unresolved; inspect without replay",
@@ -1463,7 +1468,9 @@ pub(super) fn common_player_in_state(
             world_generation: state.loading.generation,
         },
         receive_sequence: state.sequence,
-        pending_dispatch: crate::client::flight::unresolved(&state.flight_history)
+        pending_dispatch: crate::client::vehicle::control::unresolved(
+            &state.vehicle_control_history,
+        ) || crate::client::flight::unresolved(&state.flight_history)
             || state
                 .dismount_history
                 .lock()

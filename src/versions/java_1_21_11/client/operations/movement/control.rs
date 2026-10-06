@@ -1037,3 +1037,21 @@ pub(in super::super) fn landing_common_record(
 ) -> Result<crate::client::survival::MotionRecord> {
     common_record(run.clone())
 }
+
+pub(in super::super) fn retire_common_for_mount(state: &mut State) -> Result<()> {
+    if state.survival_motion.as_ref().is_some_and(|r| {
+        r.common_initial.is_some()
+            && r.status != SurvivalMotionStatus::Running
+            && !r.preview.frames.is_empty()
+            && usize::from(r.dispatched_ticks) == r.preview.frames.len()
+            && r.attempted_tick == r.dispatched_ticks
+            && r.preview.frames.last().is_some_and(|f| f.resting)
+    }) {
+        let mut run = state.survival_motion.take().unwrap();
+        run.status = SurvivalMotionStatus::RequiresInspection;
+        run.problem
+            .get_or_insert_with(|| "actual mount superseded settled ground motion".into());
+        state.retired_common_motion = Some(common_record(run)?);
+    }
+    Ok(())
+}
