@@ -151,6 +151,62 @@ mod protocol_fairness_tests {
     }
 
     #[tokio::test]
+    async fn keepalive_timing_does_not_bypass_the_disconnect_barrier() {
+        let (bot, server, echo) = echo_probe_bot().await;
+        bot.connection.begin_disconnect().await.unwrap();
+        let result = bot
+            .apply_packet(0x20, 98765_i64.to_be_bytes().to_vec())
+            .await;
+        assert!(result.is_err());
+        assert_eq!(bot.connection_state(), ConnectionState::Disconnecting);
+        assert!(timeout(Duration::from_millis(50), echo).await.is_err());
+        bot.cancel.notify_waiters();
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn slow_capture_wait_is_measured_without_changing_the_keepalive_echo() {
+        let (bot, server, echo) = echo_probe_bot().await;
+        let (mut wire, reader) = tokio::io::duplex(128);
+        let keepalive = 54321_i64.to_be_bytes();
+        write_packet(&mut wire, None, 0x20, &keepalive)
+            .await
+            .unwrap();
+        let (capture_tx, capture_rx) = mpsc::channel(1);
+        let (_movement_tx, movement_rx) = mpsc::channel(1);
+        let (reply, response) = oneshot::channel();
+        capture_tx
+            .send(crate::observation::CaptureCommand {
+                request: CoherentObservationRequest::default(),
+                reply,
+            })
+            .await
+            .unwrap();
+        let gate = bot.coherent_state_gate.lock().await;
+        let read = bot.read_loop(reader, capture_rx, movement_rx);
+        tokio::pin!(read);
+        poll_fn(|cx| {
+            assert!(read.as_mut().poll(cx).is_pending());
+            Poll::Ready(())
+        })
+        .await;
+        tokio::time::sleep(Duration::from_millis(110)).await;
+        assert_eq!(bot.protocol_packet_sequence.load(Ordering::Acquire), 0);
+        drop(gate);
+        tokio::select! {
+            result = &mut read => panic!("reader ended before echo: {result:?}"),
+            result = timeout(Duration::from_secs(2), echo) => assert_eq!(result.unwrap().unwrap(), keepalive),
+        }
+        assert!(response.await.unwrap().is_ok());
+        bot.cancel.notify_waiters();
+        timeout(Duration::from_secs(2), read)
+            .await
+            .unwrap()
+            .unwrap();
+        server.abort();
+    }
+
+    #[tokio::test]
     async fn expired_packet_deadline_is_checked_between_queued_captures() {
         let (mut bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
         bot.connection_options.play_packet_timeout = Duration::from_millis(100);
