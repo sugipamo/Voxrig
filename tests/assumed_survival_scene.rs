@@ -2,7 +2,7 @@
 use std::collections::BTreeMap;
 use voxrig::checked_survival::{
     AssumedSurvivalScene, AssumedSurvivalStart, HypotheticalSceneSource, SurvivalControl,
-    SurvivalMotionContract,
+    SurvivalInput, SurvivalMotionContract, TerminalClearance,
 };
 use voxrig::{BlockFace, NativeBlockState, Region};
 fn block(name: &str) -> NativeBlockState {
@@ -122,4 +122,96 @@ fn native_checks_and_fork_isolation_keep_assumed_provenance() {
             .is_none()
     );
     assert_eq!(scene.source(), &start);
+}
+
+#[test]
+fn movement_transition_preserves_native_continuation_and_refuses_unsafe_stops() {
+    let (region, blocks, start) = input();
+    let scene = AssumedSurvivalScene::new(region, blocks, start).unwrap();
+    let scenario = scene.scenario_with_motion_contract(SurvivalMotionContract::Predicted);
+    let controls: Vec<_> = (0..28)
+        .map(|tick| SurvivalControl {
+            yaw: -90.0,
+            input: SurvivalInput {
+                forward: i8::from(tick < 4),
+                ..Default::default()
+            },
+        })
+        .collect();
+    let expected = scenario.preview_path(&controls).unwrap();
+    let expected_next = scenario.after_path(&controls).unwrap();
+    let transition = scenario.preview_path_transition(&controls).unwrap();
+    assert!(scenario.matches_preview(transition.preview()));
+    assert_eq!(transition.preview().frames, expected.frames);
+    let (preview, next) = transition.into_parts().unwrap();
+    assert_eq!(preview.initial_frame, expected.initial_frame);
+    assert_eq!(preview.terminal_clearance, expected.terminal_clearance);
+    assert_eq!(next.position(), expected_next.position());
+    assert!(!next.matches_preview(&preview));
+    assert_eq!(scenario.position(), scene.source().position);
+    let jump = [SurvivalControl {
+        yaw: 0.0,
+        input: SurvivalInput {
+            jump: true,
+            ..Default::default()
+        },
+    }; 3];
+    assert_eq!(
+        next.preview_path(&jump).unwrap().frames,
+        expected_next.preview_path(&jump).unwrap().frames
+    );
+    let mut combined = controls.clone();
+    combined.extend(jump);
+    let uninterrupted = scenario.preview_path(&combined).unwrap();
+    let continued = next.preview_path(&jump).unwrap();
+    for (actual, expected) in continued
+        .frames
+        .iter()
+        .zip(&uninterrupted.frames[controls.len()..])
+    {
+        let mut expected = expected.clone();
+        expected.tick = actual.tick;
+        assert_eq!(actual, &expected);
+    }
+    let unsafe_stop = scenario.preview_path_transition(&controls[..1]).unwrap();
+    assert!(matches!(
+        unsafe_stop.preview().terminal_clearance,
+        TerminalClearance::RequiresReplan { .. }
+    ));
+    assert!(unsafe_stop.into_parts().is_err());
+    assert_eq!(
+        scenario.preview_path(&controls).unwrap().frames,
+        expected.frames
+    );
+}
+
+#[test]
+fn removal_transition_is_atomic_and_keeps_support_admission() {
+    let (region, mut blocks, start) = input();
+    blocks.insert([2, 0, 0], block("stone"));
+    let scene = AssumedSurvivalScene::new(region, blocks, start).unwrap();
+    let scenario = scene.scenario_with_motion_contract(SurvivalMotionContract::Predicted);
+    let rotation = [-90.0, (1.12_f64 / 1.5).atan().to_degrees() as f32];
+    let expected = scenario
+        .preview_cube_removal([2, 0, 0], BlockFace::West, rotation)
+        .unwrap();
+    let (edit, next) = scenario
+        .preview_cube_removal_with_successor([2, 0, 0], BlockFace::West, rotation)
+        .unwrap();
+    assert_eq!(edit.position, expected.position);
+    assert_eq!(edit.before, expected.before);
+    assert_eq!(edit.after, expected.after);
+    assert_eq!(next.block([2, 0, 0]).unwrap(), block("air"));
+    assert_eq!(scenario.block([2, 0, 0]).unwrap(), block("stone"));
+    assert!(
+        scenario
+            .preview_cube_removal_with_successor([0, -1, 0], BlockFace::Up, [0.0, 90.0])
+            .is_err()
+    );
+    assert_eq!(scenario.block([0, -1, 0]).unwrap(), block("stone"));
+    assert!(
+        scenario
+            .preview_cube_removal_with_successor([2, 0, 0], BlockFace::East, rotation)
+            .is_err()
+    );
 }

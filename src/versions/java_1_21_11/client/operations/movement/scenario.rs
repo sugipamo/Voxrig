@@ -382,6 +382,32 @@ impl HypotheticalMovementPreview {
         Arc::ptr_eq(&self.origin, &other.origin)
     }
 }
+/// One detached prediction and its native successor, computed together.
+/// No live operation, received evidence or deserializable state is created.
+#[derive(Debug)]
+pub struct HypotheticalMovementTransition {
+    preview: HypotheticalMovementPreview,
+    next: SurvivalScenario,
+}
+impl HypotheticalMovementTransition {
+    /// Inspect every predicted frame before applying caller-specific constraints.
+    pub fn preview(&self) -> &HypotheticalMovementPreview {
+        &self.preview
+    }
+    /// Consume the result at a conservatively admitted stop. The successor retains
+    /// the complete native model, including velocity and jump cooldown.
+    pub fn into_parts(self) -> Result<(HypotheticalMovementPreview, SurvivalScenario)> {
+        if !matches!(
+            self.preview.terminal_clearance,
+            TerminalClearance::Admitted { .. }
+        ) {
+            return Err(invalid(
+                "hypothetical path must end with terminal clearance",
+            ));
+        }
+        Ok((self.preview, self.next))
+    }
+}
 diagnostic_record! {
     /// Geometric possibility only: no material reservation, action sequence or receipt.
     #[derive(Clone, Debug, Serialize)]
@@ -579,6 +605,17 @@ impl SurvivalScenario {
         face: crate::BlockFace,
         rotation: [f32; 2],
     ) -> Result<HypotheticalBlockEdit> {
+        self.preview_cube_removal_with_successor(target, face, rotation)
+            .map(|(edit, _)| edit)
+    }
+    /// Check the native hit and retained standing support once, returning both
+    /// the edit and its detached successor. No inventory or mining timing is inferred.
+    pub fn preview_cube_removal_with_successor(
+        &self,
+        target: [i32; 3],
+        face: crate::BlockFace,
+        rotation: [f32; 2],
+    ) -> Result<(HypotheticalBlockEdit, Self)> {
         validate_pose(self.position(), rotation)?;
         let p = self.position();
         let eye = [p[0], p[1] + f64::from(1.62f32), p[2]];
@@ -607,8 +644,8 @@ impl SurvivalScenario {
                 properties: Default::default(),
             },
         };
-        self.after_edits(std::slice::from_ref(&edit))?;
-        Ok(edit)
+        let next = self.after_edits(std::slice::from_ref(&edit))?;
+        Ok((edit, next))
     }
     /// Whether the preview was produced from this exact immutable scenario.
     /// Serialized diagnostics cannot recreate this in-memory identity.
@@ -666,18 +703,15 @@ impl SurvivalScenario {
         };
         Ok((model, result))
     }
-    /// Fork at a newly predicted safe stop. No live player state is modified.
-    pub fn after_path(&self, controls: &[SurvivalControl]) -> Result<Self> {
+    /// Compute a prediction together with its native successor. Callers inspect
+    /// `preview()` for their own constraints, then consume `into_parts()` at an
+    /// admitted stop. No model replay or reconstruction from public frames is needed.
+    pub fn preview_path_transition(
+        &self,
+        controls: &[SurvivalControl],
+    ) -> Result<HypotheticalMovementTransition> {
         let (model, result) = self.advance(controls)?;
-        if !matches!(
-            result.terminal_clearance,
-            TerminalClearance::Admitted { .. }
-        ) {
-            return Err(invalid(
-                "hypothetical path must end with terminal clearance",
-            ));
-        }
-        Ok(Self {
+        let next = Self {
             origin: Arc::new(()),
             model,
             ticks: self.ticks + controls.len(),
@@ -693,7 +727,17 @@ impl SurvivalScenario {
                 }
             },
             ..self.clone()
+        };
+        Ok(HypotheticalMovementTransition {
+            preview: result,
+            next,
         })
+    }
+    /// Fork at a newly predicted safe stop. No live player state is modified.
+    pub fn after_path(&self, controls: &[SurvivalControl]) -> Result<Self> {
+        self.preview_path_transition(controls)?
+            .into_parts()
+            .map(|(_, next)| next)
     }
     /// Fork with the native model's new-connection initialization at these feet.
     /// This explicitly plans a lifecycle boundary; it does not perform a reset,
