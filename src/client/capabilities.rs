@@ -65,6 +65,8 @@ pub enum Feature {
     EntityInteraction,
     /// Actual own-player passenger relationships and original mounted receipts.
     VehicleObservation,
+    /// Owned dismount request, actual absence, and explicit neutral input.
+    VehicleDismount,
     /// Exact received packets, bounded without resuming after overflow.
     PacketRecording,
     /// Detached selected received-state decoding, without execution authority.
@@ -148,7 +150,10 @@ impl Capabilities {
                 "one native INTERACT or ATTACK on an original received lifetime; matching received handle mode; no auto-selection, cooldown, retry, reach/visibility proof or outcome ACK; position-specific interaction and broader entity state remain incomplete",
             ),
             Feature::VehicleObservation => Support::Restricted(
-                "actual own-player passenger lists; unknown before applicable receipt, explicit same-vehicle absence after mounted receipt; source ordinal and optional original spawn lifetime; no current motion/vehicle physics, dismount dispatch or ground admission",
+                "actual own-player passenger lists; unknown before applicable receipt, explicit same-vehicle absence after continuous mounted lifetime; source ordinal and optional original spawn lifetime; no current motion/vehicle physics or ground admission",
+            ),
+            Feature::VehicleDismount => Support::Restricted(
+                "one actor-owned request on an original received mount, actual same-vehicle absence, then one explicit neutral input; matching live received mode/world, retained cancellation/closure/uncertain-I/O history and no replay; no causal server ACK, vehicle physics/control or ground continuation",
             ),
             Feature::PacketRecording => Support::Restricted(
                 "exact configuration/play receive payloads and local position decoder inputs; 16MiB/65536 records; no authentication packets; from-connect capture is required for replay",

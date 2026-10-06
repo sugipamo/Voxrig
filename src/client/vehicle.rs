@@ -1,8 +1,10 @@
 //! Actual received own-player passenger relationships, separate from motion.
 use super::{EntityId, ObservedValue, SessionStamp, entity::SpawnLedger, received};
 use crate::protocol::get_varint;
+pub mod dismount;
+pub use dismount::{DismountId, DismountRecord, DismountStage};
 
-/// One original mounted receipt on one connection/world. It cannot be restored
+/// One continuous mounted lifetime on one connection/world. It cannot be restored
 /// from saved diagnostics or constructed from a reusable numeric vehicle ID.
 /// ```compile_fail
 /// let mount: voxrig::client::MountId = serde_json::from_str("{}").unwrap();
@@ -143,14 +145,25 @@ impl PassengerLedger {
     ) {
         let Some(player) = player else { return };
         if update.passengers.contains(&player) {
+            let mount = self
+                .relation
+                .as_ref()
+                .filter(|r| r.value.mounted)
+                .map(|r| r.value.mount)
+                .filter(|m| {
+                    m.player == player
+                        && m.vehicle == update.vehicle
+                        && m.spawn_sequence == spawns.spawn_sequence(update.vehicle)
+                })
+                .unwrap_or(NativeMount {
+                    player,
+                    vehicle: update.vehicle,
+                    sequence,
+                    spawn_sequence: spawns.spawn_sequence(update.vehicle),
+                });
             self.relation = Some(received(
                 NativeRelation {
-                    mount: NativeMount {
-                        player,
-                        vehicle: update.vehicle,
-                        sequence,
-                        spawn_sequence: spawns.spawn_sequence(update.vehicle),
-                    },
+                    mount,
                     mounted: true,
                 },
                 sequence,

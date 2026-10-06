@@ -3576,6 +3576,200 @@ async fn equipment_entity_probe(client: &Client) -> anyhow::Result<()> {
     anyhow::bail!("A2 controller ended without disconnect")
 }
 
+async fn vehicle_probe(client: &Client) -> anyhow::Result<()> {
+    let mode = if std::env::var("VOXRIG_NATIVE_MODE").as_deref() == Ok("survival") {
+        GameMode::Survival
+    } else {
+        GameMode::Creative
+    };
+    let ready = client.player_state().await?;
+    emit("a5_vehicle_ready", &ready)?;
+    let mut lines = BufReader::new(tokio::io::stdin()).lines();
+    let mut cart = None;
+    let mut mounted = None;
+    let mut attempt = None;
+    while let Some(command) = lines.next_line().await? {
+        match command.as_str() {
+            "a5_vehicle_baseline" => {
+                let player = wait_player(client, |p| {
+                    p.game_mode == Some(mode)
+                        && p.received_pose.as_ref().is_some_and(|pose| {
+                            pose.position == [0.5, 65.0, 0.5]
+                                && pose.receive_sequence > ready.receive_sequence
+                        })
+                        && p.inventory.slots[36]
+                            .as_ref()
+                            .is_some_and(|slot| slot.value == SlotKnowledge::Empty)
+                        && p.inventory
+                            .cursor
+                            .as_ref()
+                            .is_some_and(|slot| slot.value == SlotKnowledge::Empty)
+                        && p.health.as_ref().is_some_and(|h| h.value.health > 0.)
+                })
+                .await?;
+                match mode {
+                    GameMode::Survival => {
+                        client.survival().select_hotbar(0).await?;
+                    }
+                    _ => {
+                        client.creative().select_hotbar(0).await?;
+                    }
+                }
+                let spawn = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let spawns = client.entity_spawns().await?;
+                        if let Some(spawn) = spawns
+                            .entities
+                            .into_iter()
+                            .filter(|e| {
+                                e.type_name.as_deref() == Some("minecraft:minecart")
+                                    && e.spawn_position.value == [0.5, 65.1, 2.5]
+                            })
+                            .max_by_key(|e| e.id.spawn_sequence())
+                        {
+                            return Ok::<_, anyhow::Error>(spawn);
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                anyhow::ensure!(spawn.id.session() == player.session);
+                cart = Some(spawn.id);
+                emit(&command, serde_json::json!({"player":player,"cart":spawn}))?;
+            }
+            "a5_vehicle_mount" => {
+                let target = cart.context("vehicle baseline missing")?;
+                let dispatch = match mode {
+                    GameMode::Survival => {
+                        client
+                            .survival()
+                            .interact_entity(target, voxrig::client::Hand::Main, false)
+                            .await?
+                    }
+                    _ => {
+                        client
+                            .creative()
+                            .interact_entity(target, voxrig::client::Hand::Main, false)
+                            .await?
+                    }
+                };
+                let vehicle = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let vehicle = client.vehicle_state().await?;
+                        if let Some(mount) = vehicle.relation.as_ref().and_then(|r| match r.value {
+                            VehicleRelation::Mounted { mount }
+                                if mount.vehicle() == Some(target) =>
+                            {
+                                Some(mount)
+                            }
+                            _ => None,
+                        }) {
+                            mounted = Some(mount);
+                            return Ok::<_, anyhow::Error>(vehicle);
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                emit(
+                    &command,
+                    serde_json::json!({"dispatch":dispatch,"vehicle":vehicle}),
+                )?;
+            }
+            "a5_vehicle_request" => {
+                let mount = mounted.context("actual mount missing")?;
+                let request = match mode {
+                    GameMode::Survival => client.survival().dismount(mount).await?,
+                    _ => client.creative().dismount(mount).await?,
+                };
+                anyhow::ensure!(request.request_dispatched && !request.release_dispatched);
+                attempt = Some(request.id);
+                let duplicate = match mode {
+                    GameMode::Survival => client.survival().dismount(mount).await,
+                    _ => client.creative().dismount(mount).await,
+                };
+                anyhow::ensure!(duplicate.is_err(), "duplicate dismount accepted");
+                emit(
+                    &command,
+                    serde_json::json!({"request":request,"duplicate":duplicate.unwrap_err().to_string()}),
+                )?;
+            }
+            "a5_vehicle_observed" => {
+                let id = attempt.context("dismount attempt missing")?;
+                let record = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let record = client
+                            .dismount_record()
+                            .await?
+                            .context("owned dismount missing")?;
+                        anyhow::ensure!(
+                            record.id == id && record.requires_inspection.is_none(),
+                            "dismount conflict: {:?}",
+                            record.requires_inspection
+                        );
+                        if record.stage == DismountStage::ObservedUnmounted {
+                            return Ok::<_, anyhow::Error>(record);
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                anyhow::ensure!(!record.release_claimed && !record.release_dispatched);
+                emit(&command, record)?;
+            }
+            "a5_vehicle_complete" => {
+                let id = attempt.context("dismount attempt missing")?;
+                let complete = match mode {
+                    GameMode::Survival => client.survival().complete_dismount(id).await?,
+                    _ => client.creative().complete_dismount(id).await?,
+                };
+                anyhow::ensure!(
+                    complete.stage == DismountStage::Completed
+                        && complete.request_dispatched
+                        && complete.release_dispatched
+                        && complete.observed_unmounted.is_some()
+                );
+                let duplicate_release = match mode {
+                    GameMode::Survival => client.survival().complete_dismount(id).await,
+                    _ => client.creative().complete_dismount(id).await,
+                };
+                let duplicate_request = match mode {
+                    GameMode::Survival => client.survival().dismount(id.mount()).await,
+                    _ => client.creative().dismount(id.mount()).await,
+                };
+                let ground_preview = match mode {
+                    GameMode::Survival => client.survival().preview_path(&[]).await,
+                    _ => client.creative().preview_path(&[]).await,
+                };
+                anyhow::ensure!(
+                    duplicate_release.is_err()
+                        && duplicate_request.is_err()
+                        && ground_preview.is_err()
+                );
+                emit(
+                    &command,
+                    serde_json::json!({"complete":complete,"vehicle":client.vehicle_state().await?,"duplicate_release":duplicate_release.unwrap_err().to_string(),"duplicate_request":duplicate_request.unwrap_err().to_string(),"ground_guard":ground_preview.unwrap_err().to_string()}),
+                )?;
+            }
+            "a5_vehicle_disconnect" => {
+                client.disconnect().await?;
+                let retained = client
+                    .dismount_record()
+                    .await?
+                    .context("closed dismount missing")?;
+                anyhow::ensure!(retained.stage == DismountStage::Completed);
+                emit(
+                    &command,
+                    serde_json::json!({"disconnected":true,"retained":retained}),
+                )?;
+                return Ok(());
+            }
+            _ => anyhow::bail!("unknown vehicle command"),
+        }
+    }
+    anyhow::bail!("vehicle controller ended without explicit disconnect")
+}
+
 async fn furnace_probe(client: &Client) -> anyhow::Result<()> {
     use voxrig::client::ValueSource;
     let mode = if std::env::var("VOXRIG_NATIVE_MODE").as_deref() == Ok("survival") {
@@ -4072,6 +4266,9 @@ async fn main() -> anyhow::Result<()> {
     }
     if scenario.as_deref() == Some("furnace") {
         return furnace_probe(&client).await;
+    }
+    if scenario.as_deref() == Some("vehicle") {
+        return vehicle_probe(&client).await;
     }
     if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("equipment-entity") {
         return equipment_entity_probe(&client).await;

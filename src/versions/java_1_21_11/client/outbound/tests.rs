@@ -7,6 +7,196 @@ use std::{
 };
 use tokio::io::{AsyncReadExt, AsyncWrite};
 
+#[tokio::test]
+async fn common_dismount_requires_receipt_before_release_and_never_replays() {
+    use crate::client::{
+        GameMode,
+        vehicle::{DismountStage, VehicleRelation},
+    };
+    for mode in [GameMode::Survival, GameMode::Creative] {
+        let (session, api, mut peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 1, 42], 256)
+            .unwrap();
+        let VehicleRelation::Mounted { mount } = client
+            .vehicle_state()
+            .await
+            .unwrap()
+            .relation
+            .unwrap()
+            .value
+        else {
+            panic!()
+        };
+        let wrong = if mode == GameMode::Survival {
+            client.creative().dismount(mount).await
+        } else {
+            client.survival().dismount(mount).await
+        };
+        assert!(wrong.is_err());
+        let record = if mode == GameMode::Survival {
+            client.survival().dismount(mount).await.unwrap()
+        } else {
+            client.creative().dismount(mount).await.unwrap()
+        };
+        assert_eq!(record.stage, DismountStage::Submitted);
+        assert_eq!(
+            read_packet(&mut peer, None).await.unwrap(),
+            (0x2a, vec![32])
+        );
+        let early = if mode == GameMode::Survival {
+            client.survival().complete_dismount(record.id).await
+        } else {
+            client.creative().complete_dismount(record.id).await
+        };
+        assert!(early.is_err());
+        assert!(
+            !client
+                .dismount_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .release_claimed
+        );
+        let duplicate = if mode == GameMode::Survival {
+            client.survival().dismount(mount).await
+        } else {
+            client.creative().dismount(mount).await
+        };
+        assert!(duplicate.is_err());
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 2, 43, 42], 256)
+            .unwrap();
+        assert_eq!(
+            client.dismount_record().await.unwrap().unwrap().stage,
+            DismountStage::Submitted
+        );
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::SET_PASSENGERS, &[11, 0], 256)
+            .unwrap();
+        assert_eq!(
+            client.dismount_record().await.unwrap().unwrap().stage,
+            DismountStage::Submitted
+        );
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 1, 43], 256)
+            .unwrap();
+        assert_eq!(
+            client.dismount_record().await.unwrap().unwrap().stage,
+            DismountStage::ObservedUnmounted
+        );
+        let done = if mode == GameMode::Survival {
+            client
+                .survival()
+                .complete_dismount(record.id)
+                .await
+                .unwrap()
+        } else {
+            client
+                .creative()
+                .complete_dismount(record.id)
+                .await
+                .unwrap()
+        };
+        assert_eq!(done.stage, DismountStage::Completed);
+        assert_eq!(read_packet(&mut peer, None).await.unwrap(), (0x2a, vec![0]));
+        let duplicate = if mode == GameMode::Survival {
+            client.survival().complete_dismount(record.id).await
+        } else {
+            client.creative().complete_dismount(record.id).await
+        };
+        assert!(duplicate.is_err());
+        session.stop();
+        assert_eq!(
+            client.dismount_record().await.unwrap().unwrap().stage,
+            DismountStage::Completed
+        );
+        assert!(
+            timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+                .await
+                .is_err()
+        );
+    }
+}
+
+#[tokio::test]
+async fn cancelled_dismount_caller_keeps_one_owner_and_readable_intent() {
+    use crate::client::{
+        GameMode,
+        vehicle::{DismountStage, VehicleRelation},
+    };
+    let (session, api, mut peer) = common_ground_fixture(GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 1, 42], 256)
+        .unwrap();
+    let VehicleRelation::Mounted { mount } = client
+        .vehicle_state()
+        .await
+        .unwrap()
+        .relation
+        .unwrap()
+        .value
+    else {
+        panic!()
+    };
+    let writer = session.writer.lock().await;
+    let ops = client.survival();
+    let mut attempt = Box::pin(ops.dismount(mount));
+    assert!(
+        timeout(Duration::from_millis(20), attempt.as_mut())
+            .await
+            .is_err()
+    );
+    drop(attempt);
+    let record = timeout(Duration::from_millis(50), client.dismount_record())
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    assert_eq!(record.stage, DismountStage::Prepared);
+    assert!(!record.request_dispatched);
+    drop(writer);
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap(),
+        (0x2a, vec![32])
+    );
+    assert!(client.survival().dismount(mount).await.is_err());
+    assert!(
+        timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 0], 256)
+        .unwrap();
+    client
+        .survival()
+        .complete_dismount(record.id)
+        .await
+        .unwrap();
+    assert_eq!(read_packet(&mut peer, None).await.unwrap(), (0x2a, vec![0]));
+}
+
 async fn fixture() -> (Arc<Session>, OwnedReadHalf, TcpStream) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let client = TcpStream::connect(listener.local_addr().unwrap())
@@ -46,6 +236,10 @@ fn operations(session: &Arc<Session>) -> operations::Operations {
             crafting_take_history: {
                 let state = session.state.try_lock().expect("new session");
                 state.crafting_take_history.clone()
+            },
+            dismount_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.dismount_history.clone()
             },
             close_history: session
                 .state

@@ -12,6 +12,7 @@ mod profile_recovery;
 mod recovery;
 mod retirement;
 mod survival;
+pub(super) mod vehicle;
 pub use movement::{
     AssumedSurvivalScene, AssumedSurvivalStart, CapturedSurvivalScene, HypotheticalAimRequirement,
     HypotheticalBlockEdit, HypotheticalMovementPreview, HypotheticalPlacement,
@@ -701,7 +702,24 @@ impl Operations {
         Ok(())
     }
     pub(super) fn mutable(&self, state: &State) -> Result<()> {
+        self.mutable_with_ground_requirement(state, true)
+    }
+    fn mutable_for_dismount(&self, state: &State) -> Result<()> {
+        self.mutable_with_ground_requirement(state, false)
+    }
+    fn mutable_with_ground_requirement(&self, state: &State, ground: bool) -> Result<()> {
         self.ready(state)?;
+        if state
+            .dismount_history
+            .lock()
+            .expect("dismount history")
+            .as_ref()
+            .is_some_and(|r| r.unresolved())
+        {
+            return Err(crate::client::inventory::unavailable(
+                "dismount input unresolved; inspect and explicitly complete without replay",
+            ));
+        }
         if state
             .common_container_open
             .as_ref()
@@ -771,7 +789,7 @@ impl Operations {
                 "survival motion unresolved; inspect retained run before another mutation",
             ));
         }
-        if state.survival_motion.is_some() {
+        if ground && state.survival_motion.is_some() {
             movement::standing_basis(state)?;
         }
         if state.motion.position_basis == PositionBasis::PendingSubmission {
@@ -1385,9 +1403,15 @@ pub(super) fn common_player_in_state(
         },
         receive_sequence: state.sequence,
         pending_dispatch: state
-            .common_container_open
+            .dismount_history
+            .lock()
+            .expect("dismount history")
             .as_ref()
-            .is_some_and(|o| o.unresolved())
+            .is_some_and(|r| r.unresolved())
+            || state
+                .common_container_open
+                .as_ref()
+                .is_some_and(|o| o.unresolved())
             || interrupted
             || state
                 .common_container_close

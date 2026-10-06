@@ -141,6 +141,10 @@ impl Fixture {
                     let state = session.state.try_lock().expect("new session");
                     state.crafting_take_history.clone()
                 },
+                dismount_history: {
+                    let state = session.state.try_lock().expect("new session");
+                    state.dismount_history.clone()
+                },
                 close_history: session
                     .state
                     .try_lock()

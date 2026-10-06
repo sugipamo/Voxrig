@@ -63,7 +63,9 @@ pub use operations::{Creative, DispatchReceipt, Survival};
 pub use received_items::{ReceivedInventory, ReceivedItem, ReceivedSlot};
 pub use recording::{PacketPhase, PacketRecord, PacketTrace};
 pub use survival::{BlockTargetHit, BlockTargetObservation};
-pub use vehicle::{MountId, VehicleObservation, VehicleRelation};
+pub use vehicle::{
+    DismountId, DismountRecord, DismountStage, MountId, VehicleObservation, VehicleRelation,
+};
 
 /// Imports for consumers selecting their Minecraft version at setup.
 pub mod prelude {
@@ -104,15 +106,15 @@ pub mod prelude {
     pub use super::{
         Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,
         CraftingGridReturnPlan, CraftingGridReturnStep, CraftingGridUnreturnedSplit,
-        CraftingSource, CraftingTakeId, CraftingTakeRecord, CraftingTakeStage, Creative, EntityId,
-        EntitySpawn, EntitySpawns, Feature, FurnaceObservation, FurnaceSlot, GameMode,
-        ItemComponent, ItemComponentPatch, ItemData, ItemProperties, ItemStack, MountId,
-        PlayerObservation, ReceivedCrafting, ReceivedCraftingContext, ReceivedInventory,
-        ReceivedItem, ReceivedRecipe, ReceivedRecipes, ReceivedSlot, RecipeBookMaterials,
-        RecipeBookStock, RecipeCraftingCell, RecipeCraftingLayout, RecipeDisplay, RecipeId,
-        RecipeIngredient, RecipePlacementAmount, RecipePlacementPlan, RecipeSlotDisplay,
-        RecipeTrimDefinition, RecipeTrimPattern, Server, Support, Survival, VehicleObservation,
-        VehicleRelation,
+        CraftingSource, CraftingTakeId, CraftingTakeRecord, CraftingTakeStage, Creative,
+        DismountId, DismountRecord, DismountStage, EntityId, EntitySpawn, EntitySpawns, Feature,
+        FurnaceObservation, FurnaceSlot, GameMode, ItemComponent, ItemComponentPatch, ItemData,
+        ItemProperties, ItemStack, MountId, PlayerObservation, ReceivedCrafting,
+        ReceivedCraftingContext, ReceivedInventory, ReceivedItem, ReceivedRecipe, ReceivedRecipes,
+        ReceivedSlot, RecipeBookMaterials, RecipeBookStock, RecipeCraftingCell,
+        RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient, RecipePlacementAmount,
+        RecipePlacementPlan, RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern, Server,
+        Support, Survival, VehicleObservation, VehicleRelation,
     };
     pub use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Region, Result};
 }

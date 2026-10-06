@@ -1,4 +1,89 @@
 use super::*;
+#[test]
+fn continuous_mount_keeps_identity_while_other_passengers_change() {
+    let session = SessionStamp {
+        version: MinecraftVersion::Java1_21_11,
+        connection_id: 4,
+        world_generation: 7,
+    };
+    let spawns = SpawnLedger::default();
+    let mut ledger = PassengerLedger::default();
+    ledger.receive(
+        &NativePassengers::decode(&[10, 1, 42]).unwrap(),
+        Some(42),
+        &spawns,
+        12,
+    );
+    let VehicleRelation::Mounted { mount } = ledger
+        .capture(session, 12, Some(42), &spawns)
+        .relation
+        .unwrap()
+        .value
+    else {
+        panic!()
+    };
+    ledger.receive(
+        &NativePassengers::decode(&[10, 2, 43, 42]).unwrap(),
+        Some(42),
+        &spawns,
+        13,
+    );
+    let refreshed = ledger.capture(session, 13, Some(42), &spawns);
+    assert_eq!(
+        refreshed.relation.as_ref().unwrap().value,
+        VehicleRelation::Mounted { mount }
+    );
+    assert_eq!(
+        refreshed.relation.unwrap().source,
+        ValueSource::Received { sequence: 13 }
+    );
+    ledger.receive(
+        &NativePassengers::decode(&[10, 1, 43]).unwrap(),
+        Some(42),
+        &spawns,
+        14,
+    );
+    assert_eq!(
+        ledger
+            .capture(session, 14, Some(42), &spawns)
+            .relation
+            .unwrap()
+            .value,
+        VehicleRelation::Unmounted {
+            previous_mount: mount
+        }
+    );
+}
+
+#[test]
+fn dismount_inputs_and_passenger_fields_match_original_packet_codecs() {
+    let oracle: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../data/client_api/vehicle_input_packets.json"
+    ))
+    .unwrap();
+    for v in oracle["versions"].as_array().unwrap() {
+        let version = if v["version"] == "1.16.1" {
+            MinecraftVersion::Java1_16_1
+        } else {
+            MinecraftVersion::Java1_21_11
+        };
+        for row in v["inputs"].as_array().unwrap() {
+            let (_, payload) = super::dismount::payload(version, !row["shift"].as_bool().unwrap());
+            assert_eq!(hex::encode(payload), row["payload_hex"].as_str().unwrap());
+        }
+        for row in v["passengers"].as_array().unwrap() {
+            let decoded = NativePassengers::decode(
+                &hex::decode(row["payload_hex"].as_str().unwrap()).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(
+                decoded.vehicle,
+                i32::try_from(row["vehicle"].as_i64().unwrap()).unwrap()
+            );
+            assert_eq!(serde_json::json!(decoded.passengers), row["passengers"]);
+        }
+    }
+}
 use crate::{
     MinecraftVersion,
     client::{ValueSource, entity::NativeSpawn},

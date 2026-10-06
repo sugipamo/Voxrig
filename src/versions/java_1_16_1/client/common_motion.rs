@@ -285,7 +285,28 @@ pub(super) struct NativeMotionRun {
     movement_attribute: Option<Attribute>,
 }
 impl Bot {
+    // Native automatic ground physics must not predict a standing pose during
+    // or after mounted motion. This is separate from pending dispatch: a received
+    // mount can still admit an explicit owned dismount.
+    pub(super) async fn common_native_physics_paused(&self) -> bool {
+        let mounted_history = self
+            .common_receipts
+            .lock()
+            .await
+            .vehicles
+            .motion_interrupted();
+        mounted_history || self.common_motion_pauses_physics().await
+    }
     pub(super) async fn common_motion_pauses_physics(&self) -> bool {
+        if self
+            .dismount_history
+            .lock()
+            .expect("dismount history")
+            .as_ref()
+            .is_some_and(|r| r.unresolved())
+        {
+            return true;
+        }
         if self
             .common_container_open
             .lock()
@@ -377,6 +398,17 @@ impl Bot {
         }
     }
     pub(super) async fn common_motion_admission(&self) -> Result<()> {
+        if self
+            .dismount_history
+            .lock()
+            .expect("dismount history")
+            .as_ref()
+            .is_some_and(|r| r.unresolved())
+        {
+            return Err(motion_state(
+                "dismount input unresolved; inspect and explicitly complete without replay",
+            ));
+        }
         if self
             .common_container_open
             .lock()

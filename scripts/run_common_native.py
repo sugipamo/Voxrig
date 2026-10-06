@@ -455,7 +455,7 @@ def outer_snbt_compounds(response):
 
 
 def stage(probe, messages, name, records, timeout=30, poll=None):
-    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready", "a2_ready", "a4_ready", "a4_captured", "a5_ui_ready", "a5_furnace_ready"):
+    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready", "a2_ready", "a4_ready", "a4_captured", "a5_ui_ready", "a5_furnace_ready", "a5_vehicle_ready"):
         probe.stdin.write(name + "\n")
         probe.stdin.flush()
     deadline = time.monotonic() + timeout
@@ -475,6 +475,117 @@ def stage(probe, messages, name, records, timeout=30, poll=None):
             print("native", name, "received", flush=True)
             return record
     raise TimeoutError("probe stage timed out: " + name)
+
+
+def run_vehicle(version, env, rcon, trace, report, probe_log, stderr_log):
+    """One common mount -> owned request -> actual absence -> explicit neutral.
+    Native RootVehicle.Attach provides an independent original player-state check.
+    After baseline RCON is read-only. Player entities cannot be assumed to appear
+    in vehicle saveAsPassenger NBT, so that serialization is not used as proof.
+    """
+    results = report['native_results']['vehicle'] = {}
+    for mode in ('survival', 'creative'):
+        until(lambda: matched(rcon.command('execute unless entity @a[name=UnifiedProbe]'), 'Test passed'))
+        result = results[mode] = {'fixture': {}, 'records': []}
+        for command in ['kill @e[tag=UnifiedMount]', 'setblock 0 65 1 minecraft:air',
+                        'summon minecraft:minecart 0.5 65.1 2.5 {Tags:["UnifiedMount"],NoGravity:1b,Invulnerable:1b}']:
+            result['fixture'][command] = rcon.command(command)
+        probe = subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')], cwd=REPO,
+            env=dict(env, VOXRIG_NATIVE_SCENARIO='vehicle', VOXRIG_NATIVE_MODE=mode),
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+        messages = queue.Queue()
+        reader = threading.Thread(target=pump, args=(probe.stdout, messages, probe_log), daemon=True)
+        reader.start()
+        try:
+            stage(probe, messages, 'a5_vehicle_ready', result['records'])
+            for command in ['gamemode '+mode+' UnifiedProbe', 'tp UnifiedProbe 0.5 65 0.5 0 0', 'clear UnifiedProbe']:
+                result['fixture'][command] = rcon.command(command)
+            baseline = stage(probe, messages, 'a5_vehicle_baseline', result['records'])['value']
+            cart = baseline['cart']
+            result['cart_uuid'] = rcon.command('data get entity @e[tag=UnifiedMount,limit=1] UUID')
+            def native_uuid(response):
+                match = re.search(r'\[I;\s*([^\]]+)\]', response)
+                if not match: raise RuntimeError('missing native UUID array: '+response)
+                return b''.join(struct.pack('>i', int(s.strip())) for s in match[1].split(','))
+            expected_uuid = bytes(cart['uuid'])
+            if native_uuid(result['cart_uuid']) != expected_uuid:
+                raise RuntimeError('received vehicle UUID differs from original native entity')
+            boundary = trace.mark()
+            mounted = stage(probe, messages, 'a5_vehicle_mount', result['records'])['value']
+            result['native_mounted'] = rcon.command('data get entity UnifiedProbe RootVehicle.Attach')
+            if native_uuid(result['native_mounted']) != expected_uuid:
+                raise RuntimeError('original native player is not riding the received vehicle')
+            requested = stage(probe, messages, 'a5_vehicle_request', result['records'])['value']
+            observed = stage(probe, messages, 'a5_vehicle_observed', result['records'])['value']
+            result['native_player_present'] = matched(rcon.command(
+                'execute if entity @a[name=UnifiedProbe]'), 'Test passed')
+            if not result['native_player_present']:
+                raise RuntimeError('original native player disappeared during dismount')
+            result['native_unmounted'] = until(lambda: matched(rcon.command(
+                'execute unless entity @a[name=UnifiedProbe,nbt={RootVehicle:{}}]'), 'Test passed'))
+            completed = stage(probe, messages, 'a5_vehicle_complete', result['records'])['value']
+            entity_id = 0x0e if version == '1.16.1' else 0x19
+            input_id = 0x1d if version == '1.16.1' else 0x2a
+            # A complete Client write can precede the transparent proxy thread's
+            # append. Wait for that original frame, without synthesizing an ACK.
+            frames = until(lambda: (current if len([f for f in current
+                if f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==input_id])>=2 else None)
+                if (current := trace.since(boundary)) else None)
+            interact = [f for f in frames if f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==entity_id]
+            inputs = [f for f in frames if f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==input_id]
+            if len(interact)!=1 or len(inputs)!=2:
+                raise RuntimeError('vehicle workflow needs exactly one INTERACT and two input frames')
+            raw = bytes.fromhex(interact[0]['body_hex']); target, offset = PacketTraceProxy.varint(raw)
+            if target != cart['id']['native_id'] or raw[offset:] != b'\x00\x00\x00':
+                raise RuntimeError('vehicle interaction fields differ from the public intent')
+            expected = ['000000000000000002','000000000000000000'] if version=='1.16.1' else ['20','00']
+            if [f['body_hex'] for f in inputs] != expected:
+                raise RuntimeError('native dismount request/neutral differ from original packet codecs')
+            connection = interact[0]['connection']
+            peers = [f for f in trace.since(0) if f['connection']==connection and f['direction']=='clientbound' and f['phase'] in ('configuration','play')]
+            source_proof = []
+            def verify(observation, wanted_mounted):
+                if observation['session'] != baseline['player']['session']:
+                    raise RuntimeError('vehicle workflow changed connection/world')
+                relation, passengers = observation['relation'], observation['passengers']
+                if relation['source'] != passengers['source'] or relation['source']['kind']!='received':
+                    raise RuntimeError('vehicle relationship lacks one original passenger source')
+                source = peers[relation['source']['sequence']-1]
+                if source['packet_id'] != (0x4b if version=='1.16.1' else 0x69):
+                    raise RuntimeError('passenger receive ordinal points at another native packet')
+                payload=bytes.fromhex(source['body_hex']); vehicle, offset = PacketTraceProxy.varint(payload)
+                count,width=PacketTraceProxy.varint(payload[offset:]);offset+=width
+                ids=[]
+                for _ in range(count):
+                    identity,width=PacketTraceProxy.varint(payload[offset:]);offset+=width;ids.append(identity)
+                if offset!=len(payload) or vehicle!=cart['id']['native_id'] or ids!=passengers['value']:
+                    raise RuntimeError('vehicle fields differ from original native passenger list')
+                if (observation['player_native_id'] in ids)!=wanted_mounted:
+                    raise RuntimeError('native passenger membership differs from claimed relationship')
+                source_proof.append({k:source[k] for k in ('connection','ordinal','packet_id','body_sha256')})
+                return source
+            mount_source = verify(mounted['vehicle'], True)
+            unmount_source = verify(completed['vehicle'], False)
+            mount = mounted['vehicle']['relation']['value']['mount']
+            if mount != requested['request']['id']['mount'] or observed['id'] != completed['complete']['id']:
+                raise RuntimeError('owned dismount changed its original identity')
+            if completed['vehicle']['relation']['value']['previous_mount'] != mount or observed['observed_unmounted'] != completed['vehicle']['relation']:
+                raise RuntimeError('actual absence is not bound to original continuous mount')
+            if not (mount_source['ordinal'] < inputs[0]['ordinal'] < unmount_source['ordinal'] < inputs[1]['ordinal']):
+                raise RuntimeError('native neutral was not sent after the original actual unmount receipt')
+            result['source_proof']=source_proof
+            result['operation_frames']=frames
+            result['authority_limits']='Same common Client/session per mode: one original empty-hand INTERACT mounts the received minecart UUID; original player RootVehicle.Attach independently confirms native riding. Owned request is sent once, actual same-vehicle SET_PASSENGERS absence precedes one explicit neutral, native RootVehicle is independently absent, duplicate requests/releases emit no extra input, and ground preview remains refused. Original input bytes and received passenger fields/ordinals are checked. No causal server ACK, vehicle physics/control or ground continuation is inferred.'
+            trace.expect_disconnect()
+            stage(probe, messages, 'a5_vehicle_disconnect', result['records'])
+            probe.wait(timeout=10); reader.join(timeout=2)
+            if probe.returncode!=0 or reader.is_alive(): raise RuntimeError('vehicle probe failed at disconnect')
+            result['result']='passed'
+        finally:
+            if probe.poll() is None:
+                probe.terminate()
+                try: probe.wait(timeout=10)
+                except subprocess.TimeoutExpired: probe.kill(); probe.wait(timeout=5)
 
 
 def run_furnace(version, env, rcon, trace, report, probe_log, stderr_log):
@@ -1030,6 +1141,10 @@ network-compression-threshold=256
         for check in ["execute if block 0 65 1 minecraft:stone", "execute if block 1 65 0 minecraft:air"]:
             report.setdefault("fixture_verification", {})[check] = until(lambda: matched(rcon.command(check), "Test passed"))
         env = dict(os.environ, VOXRIG_MINECRAFT_VERSION=version, VOXRIG_PORT=str(trace.port))
+        if scenario == "vehicle":
+            run_vehicle(version,env,rcon,trace,report,probe_log,stderr_log)
+            report["scenario_result"]="passed"
+            return retained
         if scenario == "furnace":
             run_furnace(version,env,rcon,trace,report,probe_log,stderr_log)
             report["scenario_result"]="passed"
@@ -2095,7 +2210,7 @@ def main():
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--accept-eula", action="store_true")
     parser.add_argument("--runtime-dir", type=Path, help="Optional disposable runtime parent, e.g. /dev/shm for isolating disk I/O; reports are exported to .local after JVM exit")
-    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "recording-scene", "manager-ui", "furnace"), default="full", help="Run the operation corpus or a focused A1-A5 workflow")
+    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "recording-scene", "manager-ui", "furnace", "vehicle"), default="full", help="Run the operation corpus or a focused A1-A5 workflow")
     args = parser.parse_args()
     if bool(args.version) == args.all:
         parser.error("select exactly one of --version / --all")

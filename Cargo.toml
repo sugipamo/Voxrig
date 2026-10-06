@@ -110,6 +110,8 @@ include = [
     "/scripts/export_crafting_menus.py",
     "/scripts/ExportCraftingOutlines.java",
     "/scripts/export_crafting_outlines.py",
+    "/scripts/ExportVehicleInput.java",
+    "/scripts/export_vehicle_input.py",
     "/README.md",
     "/LICENSE",
     "/THIRD_PARTY_NOTICES.md",

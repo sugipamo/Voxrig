@@ -68,6 +68,7 @@ struct State {
     common_crafting_take: Option<crate::client::crafting::CraftingTakeRecord>,
     common_inventory_transfer: Option<crate::client::inventory::InventoryTransferRecord>,
     common_container_close: Option<crate::client::container::ContainerCloseRecord>,
+    dismount_history: crate::client::vehicle::dismount::History,
     close_history: Arc<std::sync::Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
     crafting_take_history:
         Arc<std::sync::Mutex<Option<crate::client::crafting::CraftingTakeRecord>>>,
@@ -112,6 +113,7 @@ impl Default for State {
             common_crafting_take: None,
             common_inventory_transfer: None,
             common_container_close: None,
+            dismount_history: Arc::default(),
             close_history: Arc::default(),
             crafting_take_history: Arc::default(),
             common_container_open: None,
@@ -174,6 +176,7 @@ impl State {
             Phase::Play => apply_play(self, id, payload, max_chunks),
         };
         if result.is_ok() {
+            operations::vehicle::context_received(self);
             operations::placement_context_received(self);
             operations::placement::common_placement_context_received(self);
             operations::inventory::common::context_received(self);
@@ -226,6 +229,7 @@ impl Drop for Lease {
 
 #[derive(Clone)]
 pub(crate) struct Bot {
+    dismount_history: crate::client::vehicle::dismount::History,
     close_history: Arc<std::sync::Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
     crafting_take_history:
         Arc<std::sync::Mutex<Option<crate::client::crafting::CraftingTakeRecord>>>,
@@ -451,6 +455,10 @@ impl Bot {
             crafting_take_history: {
                 let state = session.state.try_lock().expect("new session");
                 state.crafting_take_history.clone()
+            },
+            dismount_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.dismount_history.clone()
             },
             close_history: session
                 .state

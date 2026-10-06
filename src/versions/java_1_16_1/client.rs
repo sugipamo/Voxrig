@@ -13,6 +13,7 @@ mod common_scene;
 pub(crate) use common_recording::replay_packets;
 pub(crate) use common_scene::LegacyCapturedScene;
 mod common_transfer;
+mod common_vehicle;
 
 use crate::versions::java_1_16_1::Result;
 use crate::versions::java_1_16_1::{
@@ -1046,6 +1047,7 @@ pub struct Bot {
     common_inventory_click: Arc<Mutex<Option<common_click::NativeInventoryClick>>>,
     common_crafting_take: Arc<Mutex<Option<common_crafting::NativeCraftingTake>>>,
     common_inventory_transfer: Arc<Mutex<Option<common_transfer::NativeInventoryTransfer>>>,
+    dismount_history: crate::client::vehicle::dismount::History,
     common_container_close: Arc<Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
     common_container_open: Arc<Mutex<Option<common_container::NativeContainerOpen>>>,
     exact_window_barriers: Arc<Mutex<HashMap<(i8, i16), ExactWindowBarrier>>>,
@@ -1150,6 +1152,7 @@ impl Bot {
             common_inventory_click: self.common_inventory_click.clone(),
             common_crafting_take: self.common_crafting_take.clone(),
             common_inventory_transfer: self.common_inventory_transfer.clone(),
+            dismount_history: self.dismount_history.clone(),
             common_container_close: self.common_container_close.clone(),
             common_container_open: self.common_container_open.clone(),
             exact_window_barriers: self.exact_window_barriers.clone(),
@@ -1317,6 +1320,7 @@ impl Bot {
             common_inventory_click: Arc::new(Mutex::new(None)),
             common_crafting_take: Arc::new(Mutex::new(None)),
             common_inventory_transfer: Arc::new(Mutex::new(None)),
+            dismount_history: Arc::default(),
             common_container_close: Arc::new(Mutex::new(None)),
             common_container_open: Arc::new(Mutex::new(None)),
             exact_window_barriers: Arc::new(Mutex::new(HashMap::new())),
@@ -4275,7 +4279,7 @@ impl Bot {
         let mut sneaking = false;
         while !self.stopped.load(Ordering::Acquire) {
             let scheduled = ticker.tick().await;
-            if self.common_motion_pauses_physics().await {
+            if self.common_native_physics_paused().await {
                 continue;
             }
             let lag = tokio::time::Instant::now().saturating_duration_since(scheduled);
@@ -4302,7 +4306,7 @@ impl Bot {
                     // A finite owner may acquire actor admission after this
                     // loop sampled released controls. Keep the loop alive;
                     // retry posture reconciliation only after the run settles.
-                    if self.common_motion_pauses_physics().await {
+                    if self.common_native_physics_paused().await {
                         continue;
                     }
                     break;
@@ -4318,7 +4322,7 @@ impl Bot {
                     // A finite owner may acquire actor admission after this
                     // loop sampled released controls. Keep the loop alive;
                     // retry posture reconciliation only after the run settles.
-                    if self.common_motion_pauses_physics().await {
+                    if self.common_native_physics_paused().await {
                         continue;
                     }
                     break;
@@ -4355,7 +4359,7 @@ impl Bot {
         movement_fraction: f64,
     ) -> Result<()> {
         let _coherent_state = self.coherent_state_gate.lock().await;
-        if self.common_motion_pauses_physics().await {
+        if self.common_native_physics_paused().await {
             return Ok(());
         }
         let survival = self.survival.read().await;
@@ -5810,6 +5814,7 @@ impl Bot {
             }
             _ => {}
         }
+        self.common_dismount_context_received().await;
         self.common_mining_context_received().await?;
         self.common_placement_context_received().await?;
         self.common_inventory_context_received().await?;

@@ -403,7 +403,7 @@ proxyエラーなしを確認した。両版は同時起動していない。
 
 生成ごとのmixed-version／registry分離、接続取消・shutdown中のpending transport閉鎖は
 両版の軽量TCP fixtureで検査する。異なる版のJVMを同時に起動した証拠ではない。
-これはA5のscoreboardとmanager部分の検証。かまどslotの検証は次節に記載し、実乗車／下車は引き続き必須作業。
+これはA5のscoreboardとmanager部分の検証。かまどslotと実乗車／下車の検証は後の節に記載する。
 number formatの3種と任意displayの保存はcodec単体試験で確認し、実サーバーで全表示形式を
 操作したとは扱わない。契約は[基本UIとmanager](common-ui-manager.md)を参照。
 
@@ -446,8 +446,40 @@ modernの不正packetは接続のProtocol failureを保持し、以後の受信�
 両版の公式JARは元passenger packetとinput serializer／handlerを読み取り専用で調査した。
 [JARと元inspectionのhash](evidence/common-vehicle-observation-20261006.json)を保持するが、
 そのinspectionだけで下車操作をnative検証済みとは扱わない。
-owned下車送信・結果record・両版の実乗車→下車は次のA5必須作業。
+owned下車送信・結果record・両版の実乗車→下車は次節で検証する。
 観測契約は[共通乗車関係](common-vehicles.md)を参照。
 
 乗車観測追加後の回帰検査は単体704件（8件ignored）、公開API2件、doctest27件、
 all-target Clippy `-D warnings`、Rust 1.85.0 lib checkが成功した。
+
+
+## A5の一回の下車要求と実受信
+
+`--scenario vehicle`は同じpublic consumerから各modeで一つのClientを保ち、
+受信したminecart spawnへ空手で一度INTERACTし、実乗車→owned下車入力→実除外→明示的neutral→切断を行う。
+固定fixture後のRCONは読み取り専用。乗車時の元player `RootVehicle.Attach`をcartの実UUIDと照合し、
+実除外時にはplayerが接続したままでRootVehicleがないことを独立確認する。
+playerはvehicleのsaveAsPassenger NBTに保存されるとは限らないため、車両のPassengers NBTは証拠に使わない。
+
+成功runは`trial-1.16.1-677755d2`／`trial-1.21.11-52997305`。
+同じ414 source/data入力とconsumer binaryを使い、各JVMはexit 0、proxy errorなし。
+検証後のCargo.toml差分はobserverの2ファイルをpackage includeへ追加するだけで、
+依存・build設定・sourceに変更はない。この差分を証拠manifestへ分けて保持し、元の実行入力を更新しない。
+各modeでINTERACTは一回、下車入力は要求とneutralの二frameのみ。
+元のSET_PASSENGERS fields／受信ordinalとopaque mount寿命を照合し、proxy上の
+乗車→要求→実除外→neutralの順序も確認する。重複要求／解除と下車後の地上previewは拒否する。
+
+旧版のPLAYER_INPUTはneutral axesとshift flag、modernはInput shift bit。
+[元packet codecの観測](../data/client_api/vehicle_input_source.json)と
+[元JAR／読み取り専用inspection・native証拠](evidence/common-owned-dismount-20261006.json)を保持する。
+要求とneutralをtick前に続けて送らず、実除外を受信してから解除する。
+呼び出し取消後にもactorが一回のintentを保持し、writerが詰まっていても記録は読める。
+単体fixtureでは早い解除、mode違い、他車両のlist、他乗員変更、重複送信を検査する。
+初回native試行は独立RCON queryのselector構文の誤りで失敗し、修正後に両版・両modeを検証した。
+
+これはA5の代表的な乗車／下車操作の検証であり、要求との因果ACK・操縦・車両physics・地上復旧を意味しない。
+その広い範囲はBに残る。観測・送信の契約は[共通乗車と下車](common-vehicles.md)を参照。
+
+下車追加後の回帰検査は単体709件（8件ignored）、公開API2件、doctest28件が成功。
+all-target clippy、Rust 1.85.0のall-target check、rustdoc `-D warnings`、fmtも成功した。
+配布allowlistには新しいsource/dataとobserver toolを含め、開発用directoryを混ぜない。

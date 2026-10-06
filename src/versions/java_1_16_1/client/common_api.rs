@@ -210,6 +210,12 @@ impl Bot {
                     .collect::<Result<_>>()?,
             );
         }
+        let dismount_pending = self
+            .dismount_history
+            .lock()
+            .expect("dismount history")
+            .as_ref()
+            .is_some_and(|r| r.unresolved());
         Ok(api::PlayerObservation {
             session: api::SessionStamp {
                 version: crate::MinecraftVersion::Java1_16_1,
@@ -217,7 +223,8 @@ impl Bot {
                 world_generation: receipts.generation,
             },
             receive_sequence: self.protocol_packet_sequence.load(Ordering::Acquire),
-            pending_dispatch: receipts.pending_dispatch
+            pending_dispatch: dismount_pending
+                || receipts.pending_dispatch
                 || self.common_motion_pauses_physics().await,
             dimension: survival.dimension.as_ref().map(|name| api::Dimension {
                 name: name.clone(),
@@ -531,6 +538,96 @@ fn common_state(message: &str) -> crate::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn common_dismount_requires_receipt_before_release_and_never_replays() {
+        use api::vehicle::{DismountStage, VehicleRelation};
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.player.lock().await.entity_id = Some(42);
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        bot.apply_packet(0x4b, vec![10, 1, 42]).await.unwrap();
+        let VehicleRelation::Mounted { mount } = client
+            .vehicle_state()
+            .await
+            .unwrap()
+            .relation
+            .unwrap()
+            .value
+        else {
+            panic!()
+        };
+        assert!(client.creative().dismount(mount).await.is_err());
+        let record = client.survival().dismount(mount).await.unwrap();
+        assert_eq!(record.stage, DismountStage::Submitted);
+        assert_eq!(
+            packets.recv().await.unwrap(),
+            (0x1d, vec![0, 0, 0, 0, 0, 0, 0, 0, 2])
+        );
+        assert!(client.survival().dismount(mount).await.is_err());
+        assert!(
+            client
+                .survival()
+                .complete_dismount(record.id)
+                .await
+                .is_err()
+        );
+        assert!(
+            !client
+                .dismount_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .release_claimed
+        );
+        bot.apply_packet(0x4b, vec![10, 2, 43, 42]).await.unwrap();
+        assert_eq!(
+            client.dismount_record().await.unwrap().unwrap().stage,
+            DismountStage::Submitted
+        );
+        bot.apply_packet(0x4b, vec![11, 0]).await.unwrap();
+        assert_eq!(
+            client.dismount_record().await.unwrap().unwrap().stage,
+            DismountStage::Submitted
+        );
+        bot.apply_packet(0x4b, vec![10, 1, 43]).await.unwrap();
+        assert_eq!(
+            client.dismount_record().await.unwrap().unwrap().stage,
+            DismountStage::ObservedUnmounted
+        );
+        assert!(
+            client
+                .creative()
+                .complete_dismount(record.id)
+                .await
+                .is_err()
+        );
+        let completed = client
+            .survival()
+            .complete_dismount(record.id)
+            .await
+            .unwrap();
+        assert_eq!(completed.stage, DismountStage::Completed);
+        assert!(completed.observed_unmounted.is_some());
+        assert_eq!(packets.recv().await.unwrap(), (0x1d, vec![0; 9]));
+        assert!(
+            client
+                .survival()
+                .complete_dismount(record.id)
+                .await
+                .is_err()
+        );
+        assert!(client.survival().dismount(mount).await.is_err());
+        assert!(
+            timeout(Duration::from_millis(30), packets.recv())
+                .await
+                .is_err()
+        );
+        release.send(()).unwrap();
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
     #[tokio::test]
     async fn common_vehicle_receipts_refuse_stale_ground_authority() {
         use api::vehicle::VehicleRelation;
