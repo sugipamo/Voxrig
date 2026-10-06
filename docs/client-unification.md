@@ -45,13 +45,17 @@
 - B3の一部完了: 乾いた登録stairs/slabを両版の有限地上歩行・立位検査・Survival sceneへ接続した。
   同じconsumerで段差を上り、同じClientで収納の開閉と切断まで両版・両modeで確認した。
   公式combined VoxelShapeの境界を保持し、実受信propertyから形状を選ぶ。
-  waterlogged／未知形状は拒否し、道具・effect・姿勢・広い採掘／設置・Creative飛行後の立位は残る。
+  waterlogged／未知形状は拒否し、道具・effect・姿勢・広い採掘／設置は残る。
   詳細は[共通dry terrain](common-dry-terrain.md)。A6の利用側評価とBの全残機能を完了扱いにしない。
 
 - B3の一部完了: 地上移動と収納済みのClientからCreative飛行を要求し、
   3つの短い飛行位置と飛行解除まで両版の公式vanillaで確認した。
   flight commandをClient所有の一回送信として保持し、古い地上終点は診断履歴へ退避する。
-  明示的な着地・地上操作への継続は引き続き未完了。
+  続いて`creative().land()`を接続し、同じClientで床へ戻る→明示的解除／neutral→
+  2つのreleased ground model ticks→新しい27tick地上移動→収納の再開閉まで両版で確認した。
+  zero controller seedは宣言値として保持し、実受信pose／velocity／abilitiesを上書きしない。
+  正常なstanding・通常attribute・effect／未解決impulseなし・既知dry supportに限定する。
+  飛行物理全体や別姿勢／effectへの拡張は残る。
   詳細は[共通Creative飛行](common-creative-flight.md)。
 
 ## 選択と公開入口
@@ -244,7 +248,10 @@ Aの代表操作で実害がある不足はその操作の前提として先に�
 初回貫通後も不足はこの文書と対応情報へ残し、全体統合とmain合流の判断を別に行う。
 
 現在の共通Creativeはdefault hotbar write、look/選択、server許可済みのflight requestと4block以内のstep、
-loaded/reachable targetへのcreative break/use-on-blockを実装する。衝突解決や設置成功の保証ではない。
+loaded/reachable targetへのcreative break/use-on-blockを実装する。
+直前のowned飛行stepで既知のdry floorへ戻った後は`land()`から新しい有限地上移動・収納へ継続できる。
+着地は正常なstanding・通常attribute・effect／未解決impulseなしに限定し、明示的なlocal stop modelを保持する。
+一般飛行の衝突解決や設置成功の保証ではない。
 Survivalの追加検査契約は`Client::survival().checked()?`または`Client::checked_survival()`で明示的に選ぶ。
 canonical moduleは`client::survival::checked`、旧`checked_survival`は互換alias。
 この拡張は現時点で1.21.11専用で、基本共通handleと機能parityを混同しない。

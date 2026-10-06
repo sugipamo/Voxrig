@@ -1174,4 +1174,120 @@ mod tests {
         drop(bot);
         server.await.unwrap();
     }
+    #[tokio::test]
+    async fn common_landing_retains_received_flight_flag_and_ground_continuation() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.survival.write().await.game_mode = Some(1);
+        let mut abilities = vec![6];
+        abilities.extend(0.05f32.to_be_bytes());
+        abilities.extend(0.1f32.to_be_bytes());
+        bot.apply_packet(0x31, abilities.clone()).await.unwrap();
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        crate::client::tests::common_creative_landing_scenario(&client).await;
+        let mut frames = Vec::new();
+        while let Ok(Some(f)) = timeout(Duration::from_millis(20), packets.recv()).await {
+            frames.push(f);
+        }
+        assert_eq!(
+            frames
+                .iter()
+                .filter(|f| f.0 == 0x1a)
+                .map(|f| f.1.clone())
+                .collect::<Vec<_>>(),
+            vec![vec![2], vec![0]]
+        );
+        assert_eq!(frames.iter().filter(|f| f.0 == 0x13).count(), 6);
+        assert_eq!(
+            frames
+                .iter()
+                .filter(|f| f.0 == 0x1d)
+                .map(|f| f.1.clone())
+                .collect::<Vec<_>>(),
+            vec![vec![0; 9]]
+        );
+        assert!(bot.survival.read().await.flying);
+        assert!(!bot.common_receipts.lock().await.requested_flying);
+        bot.apply_packet(0x31, abilities).await.unwrap();
+        assert!(
+            client
+                .creative()
+                .preview_path(&[api::survival::SurvivalControl {
+                    yaw: 0.,
+                    input: Default::default()
+                }])
+                .await
+                .is_err()
+        );
+        release.send(()).unwrap();
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn cancelled_common_landing_wait_retains_disable_neutral_and_two_ground_ticks() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.survival.write().await.game_mode = Some(1);
+        let mut abilities = vec![4];
+        abilities.extend(0.05f32.to_be_bytes());
+        abilities.extend(0.1f32.to_be_bytes());
+        bot.apply_packet(0x31, abilities).await.unwrap();
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let ops = client.creative();
+        let position = client.player_state().await.unwrap().position.unwrap().value;
+        ops.set_flying(true).await.unwrap();
+        ops.move_flying(position, [0.; 2]).await.unwrap();
+        packets.recv().await.unwrap();
+        packets.recv().await.unwrap();
+        let writer = bot.writer.lock().await;
+        let mut wait = Box::pin(ops.land());
+        assert!(
+            timeout(Duration::from_millis(20), wait.as_mut())
+                .await
+                .is_err()
+        );
+        drop(wait);
+        let pending = client.flight_record().unwrap();
+        assert_eq!(pending.command, api::FlightCommand::Land);
+        assert_eq!(pending.stage, api::FlightStage::Prepared);
+        assert!(!pending.landing.as_ref().unwrap().disable_dispatched);
+        drop(writer);
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                let r = client.flight_record().unwrap();
+                assert!(r.requires_inspection.is_none());
+                if r.stage == api::FlightStage::Submitted {
+                    let l = r.landing.unwrap();
+                    assert!(l.disable_dispatched && l.neutral_dispatched);
+                    assert_eq!(l.motion.dispatched_ticks, 2);
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        let mut frames = Vec::new();
+        while let Ok(Some(f)) = timeout(Duration::from_millis(20), packets.recv()).await {
+            frames.push(f);
+        }
+        assert_eq!(
+            frames
+                .iter()
+                .filter(|f| f.0 == 0x1a)
+                .map(|f| f.1.clone())
+                .collect::<Vec<_>>(),
+            vec![vec![0]]
+        );
+        assert_eq!(frames.iter().filter(|f| f.0 == 0x13).count(), 2);
+        assert!(ops.land().await.is_err());
+        release.send(()).unwrap();
+        drop(ops);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
 }

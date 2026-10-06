@@ -1376,3 +1376,140 @@ async fn cancelled_common_flight_wait_keeps_one_owner_and_nonblocking_record() {
             .is_err()
     );
 }
+
+#[tokio::test]
+async fn common_landing_retains_received_flight_flag_and_ground_continuation() {
+    let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Creative).await;
+    let mut abilities = vec![6];
+    abilities.extend(0.05f32.to_be_bytes());
+    abilities.extend(0.1f32.to_be_bytes());
+    {
+        let mut state = session.state.lock().await;
+        state.sequence += 1;
+        operations::receive(&mut state, ids::play_clientbound::ABILITIES, &abilities).unwrap();
+    }
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    crate::client::tests::common_creative_landing_scenario(&client).await;
+    let mut frames = Vec::new();
+    while let Ok(Ok(frame)) = timeout(Duration::from_millis(20), read_packet(&mut peer, None)).await
+    {
+        frames.push(frame);
+    }
+    assert_eq!(
+        frames
+            .iter()
+            .filter(|f| f.0 == ids::play_serverbound::ABILITIES)
+            .map(|f| f.1.clone())
+            .collect::<Vec<_>>(),
+        vec![vec![2], vec![0]]
+    );
+    assert_eq!(
+        frames
+            .iter()
+            .filter(|f| f.0 == ids::play_serverbound::POSITION_LOOK)
+            .count(),
+        6
+    );
+    assert_eq!(
+        frames
+            .iter()
+            .filter(|f| f.0 == ids::play_serverbound::PLAYER_INPUT)
+            .map(|f| f.1.clone())
+            .collect::<Vec<_>>(),
+        vec![vec![0]; 5]
+    );
+    {
+        let state = session.state.lock().await;
+        assert_eq!(state.operations.abilities_receipt().unwrap().value, 6);
+        assert_eq!(
+            state.operations.local_player.velocity.unwrap().value,
+            [0.; 3]
+        );
+    }
+    assert!(!api.player_state().await.unwrap().requested_flying);
+    // A later abilities packet can supersede the submitted stop even with identical flags.
+    {
+        let mut state = session.state.lock().await;
+        state.sequence += 1;
+        operations::receive(&mut state, ids::play_clientbound::ABILITIES, &abilities).unwrap();
+    }
+    assert!(
+        client
+            .creative()
+            .preview_path(&[crate::client::survival::SurvivalControl {
+                yaw: 0.,
+                input: Default::default()
+            }])
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn cancelled_common_landing_wait_retains_disable_neutral_and_two_ground_ticks() {
+    let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Creative).await;
+    let mut abilities = vec![4];
+    abilities.extend(0.05f32.to_be_bytes());
+    abilities.extend(0.1f32.to_be_bytes());
+    operations::receive(
+        &mut *session.state.lock().await,
+        ids::play_clientbound::ABILITIES,
+        &abilities,
+    )
+    .unwrap();
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let ops = client.creative();
+    let position = client.player_state().await.unwrap().position.unwrap().value;
+    ops.set_flying(true).await.unwrap();
+    ops.move_flying(position, [0.; 2]).await.unwrap();
+    read_packet(&mut peer, None).await.unwrap();
+    read_packet(&mut peer, None).await.unwrap();
+    let writer = session.writer.lock().await;
+    let mut wait = Box::pin(ops.land());
+    assert!(
+        timeout(Duration::from_millis(20), wait.as_mut())
+            .await
+            .is_err()
+    );
+    drop(wait);
+    let pending = client.flight_record().unwrap();
+    assert_eq!(pending.command, crate::client::FlightCommand::Land);
+    assert_eq!(pending.stage, crate::client::FlightStage::Prepared);
+    assert!(!pending.landing.as_ref().unwrap().disable_dispatched);
+    drop(writer);
+    tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            let r = client.flight_record().unwrap();
+            assert!(r.requires_inspection.is_none());
+            if r.stage == crate::client::FlightStage::Submitted {
+                let l = r.landing.unwrap();
+                assert!(l.disable_dispatched && l.neutral_dispatched);
+                assert_eq!(l.motion.dispatched_ticks, 2);
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    let mut frames = Vec::new();
+    while let Ok(Ok(f)) = timeout(Duration::from_millis(20), read_packet(&mut peer, None)).await {
+        frames.push(f);
+    }
+    assert_eq!(
+        frames
+            .iter()
+            .filter(|f| f.0 == ids::play_serverbound::ABILITIES)
+            .map(|f| f.1.clone())
+            .collect::<Vec<_>>(),
+        vec![vec![0]]
+    );
+    assert_eq!(
+        frames
+            .iter()
+            .filter(|f| f.0 == ids::play_serverbound::POSITION_LOOK)
+            .count(),
+        2
+    );
+    assert!(ops.land().await.is_err());
+}

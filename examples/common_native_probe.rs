@@ -3809,6 +3809,82 @@ async fn dry_terrain_probe(client: &Client) -> anyhow::Result<()> {
                     "player":player,"retired_ground":retired,"ground_refusal":refusal}),
                 )?;
             }
+            "b3_flight_land" => {
+                let initial = client.player_state().await?;
+                let p = initial
+                    .position
+                    .as_ref()
+                    .context("landing current position")?
+                    .value;
+                let floor = [p[0], p[1] - 2., p[2]];
+                client.creative().move_flying(floor, [0.; 2]).await?;
+                let flight_step = client.flight_record().context("landing returned step")?;
+                let record = client.creative().land().await?;
+                let landing = record.landing.as_ref().context("landing model absent")?;
+                anyhow::ensure!(
+                    record.dispatched
+                        && record.requires_inspection.is_none()
+                        && landing.disable_dispatched
+                        && landing.neutral_dispatched
+                        && landing.motion.status == MotionStatus::Predicted
+                        && landing.motion.dispatched_ticks == 2
+                );
+                let player = client.player_state().await?;
+                anyhow::ensure!(
+                    player.session == initial.session
+                        && player.received_pose == initial.received_pose,
+                    "landing forged receipt or changed connection"
+                );
+                let controls: Vec<_> = (0..27)
+                    .map(|i| SurvivalControl {
+                        yaw: 0.,
+                        input: SurvivalInput {
+                            forward: if i < 3 { 1 } else { 0 },
+                            ..Default::default()
+                        },
+                    })
+                    .collect();
+                let preview = client.creative().preview_path(&controls).await?;
+                emit(
+                    &command,
+                    serde_json::json!({"initial":initial,"flight_step":flight_step,
+                    "record":record,"player":player,"ground_preview":preview}),
+                )?;
+            }
+            "b3_landing_ground_move" => {
+                let controls: Vec<_> = (0..27)
+                    .map(|i| SurvivalControl {
+                        yaw: 0.,
+                        input: SurvivalInput {
+                            forward: if i < 3 { 1 } else { 0 },
+                            ..Default::default()
+                        },
+                    })
+                    .collect();
+                let started = client.creative().start_predicted_path(&controls).await?;
+                let record = tokio::time::timeout(Duration::from_secs(10), async {
+                    loop {
+                        let record = client
+                            .creative()
+                            .motion_record()
+                            .await?
+                            .context("post-landing motion absent")?;
+                        anyhow::ensure!(
+                            record.run_id == started.run_id && record.problem.is_none(),
+                            "post-landing run interrupted"
+                        );
+                        if record.status == MotionStatus::Predicted {
+                            break Ok::<_, anyhow::Error>(record);
+                        }
+                        tokio::time::sleep(Duration::from_millis(20)).await;
+                    }
+                })
+                .await??;
+                emit(
+                    &command,
+                    serde_json::json!({"record":record,"player":client.player_state().await?}),
+                )?;
+            }
             "b3_flight_disable" => {
                 client.creative().set_flying(false).await?;
                 let record = client.flight_record().context("flight disable record")?;
@@ -4522,7 +4598,10 @@ async fn main() -> anyhow::Result<()> {
     if scenario.as_deref() == Some("vehicle") {
         return vehicle_probe(&client).await;
     }
-    if matches!(scenario.as_deref(), Some("dry-terrain" | "creative-flight")) {
+    if matches!(
+        scenario.as_deref(),
+        Some("dry-terrain" | "creative-flight" | "creative-landing")
+    ) {
         return dry_terrain_probe(&client).await;
     }
     if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("equipment-entity") {

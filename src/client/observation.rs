@@ -379,6 +379,7 @@ pub(crate) struct LegacyReceipts {
     pub inventory: InventoryObservation,
     pub player_starts: std::collections::HashMap<i8, usize>,
     pub requested_flying: bool,
+    pub abilities: Option<ObservedValue<u8>>,
     pub pending_dispatch: bool,
 }
 impl LegacyReceipts {

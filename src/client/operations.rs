@@ -545,6 +545,14 @@ impl Creative {
             .execute(GameMode::Creative, Action::MoveFlying(position, rotation))
             .await
     }
+    /// Explicitly stop owned flight at its current fully submitted position.
+    /// First use `move_flying` to return to known dry support. This checks standing
+    /// clearance, disables flight, releases input and owns two released ground ticks.
+    /// The zero controller seed is declared model state, never a received velocity
+    /// or landing ACK. Inspect `Client::flight_record()` after cancelling the wait.
+    pub async fn land(&self) -> Result<super::flight::FlightRecord> {
+        self.client.land_creative().await
+    }
     /// Write a default stack by namespaced name, or clear a hotbar slot.
     /// Inventory remains unknown until received; no local result prediction.
     pub async fn set_hotbar(&self, slot: u8, item: Option<(&str, u8)>) -> Result<DispatchReceipt> {

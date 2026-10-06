@@ -1445,3 +1445,78 @@ pub(crate) async fn common_data_cursor_close_complete_scenario(
         assert_eq!(*slot.value(), step.source_receipt.as_ref().unwrap().value);
     }
 }
+
+pub(crate) async fn common_creative_landing_scenario(client: &Client) {
+    use super::survival::{MotionStatus, SurvivalControl};
+    let ops = client.creative();
+    let before = client.player_state().await.unwrap();
+    let p = before.position.as_ref().unwrap().value;
+    ops.set_flying(true).await.unwrap();
+    assert!(ops.land().await.is_err());
+    ops.move_flying([p[0], p[1] + 1., p[2]], [0.; 2])
+        .await
+        .unwrap();
+    let airborne = client.flight_record().unwrap();
+    assert!(ops.land().await.is_err());
+    assert_eq!(client.flight_record().unwrap().attempt, airborne.attempt);
+    ops.move_flying(p, [0.; 2]).await.unwrap();
+    let ground_flight = client.flight_record().unwrap();
+    let record = ops.land().await.unwrap();
+    assert!(record.dispatched && record.requires_inspection.is_none());
+    assert_eq!(record.stage, super::FlightStage::Submitted);
+    assert_eq!(record.command, super::FlightCommand::Land);
+    let landing = record.landing.unwrap();
+    assert_eq!(landing.flight_attempt, ground_flight.attempt);
+    assert_eq!(landing.declared_controller_velocity, [0.; 3]);
+    assert!(landing.disable_dispatched && landing.neutral_dispatched);
+    assert_eq!(landing.motion.dispatched_ticks, 2);
+    assert_eq!(landing.motion.attempted_tick, 2);
+    assert_eq!(landing.motion.status, MotionStatus::Predicted);
+    assert_eq!(landing.motion.preview.initial_frame.velocity, [0.; 3]);
+    assert!(!landing.motion.preview.frames[0].on_ground);
+    assert!(landing.motion.preview.frames[1].on_ground && landing.motion.preview.frames[1].resting);
+    assert!(
+        landing
+            .motion
+            .preview
+            .frames
+            .iter()
+            .all(|f| f.position == p)
+    );
+    let after = client.player_state().await.unwrap();
+    assert_eq!(after.session, before.session);
+    assert_eq!(after.received_pose, before.received_pose);
+    let ground = ops
+        .preview_path(&[SurvivalControl {
+            yaw: 0.,
+            input: Default::default(),
+        }])
+        .await
+        .unwrap();
+    assert_eq!(ground.initial_frame.position, p);
+    assert!(ground.frames[0].resting);
+    assert!(ops.land().await.is_err());
+    let started = ops
+        .start_predicted_path(
+            &[SurvivalControl {
+                yaw: 0.,
+                input: Default::default(),
+            }; 2],
+        )
+        .await
+        .unwrap();
+    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        loop {
+            let r = ops.motion_record().await.unwrap().unwrap();
+            assert_eq!(r.run_id, started.run_id);
+            assert!(r.problem.is_none());
+            if r.status == MotionStatus::Predicted {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(started.run_id > landing.motion.run_id);
+}

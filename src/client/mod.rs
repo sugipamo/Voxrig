@@ -10,7 +10,7 @@ pub(crate) mod entity;
 pub mod flight;
 pub(crate) mod fraction;
 pub mod furnace;
-pub use flight::{FlightCommand, FlightRecord, FlightStage};
+pub use flight::{FlightCommand, FlightLanding, FlightRecord, FlightStage};
 mod geometry;
 mod hash_ops;
 pub(crate) mod identifier;
@@ -110,8 +110,8 @@ pub mod prelude {
         CraftingGridReturnPlan, CraftingGridReturnStep, CraftingGridUnreturnedSplit,
         CraftingSource, CraftingTakeId, CraftingTakeRecord, CraftingTakeStage, Creative,
         DismountId, DismountRecord, DismountStage, EntityId, EntitySpawn, EntitySpawns, Feature,
-        FlightCommand, FlightRecord, FlightStage, FurnaceObservation, FurnaceSlot, GameMode,
-        ItemComponent, ItemComponentPatch, ItemData, ItemProperties, ItemStack, MountId,
+        FlightCommand, FlightLanding, FlightRecord, FlightStage, FurnaceObservation, FurnaceSlot,
+        GameMode, ItemComponent, ItemComponentPatch, ItemData, ItemProperties, ItemStack, MountId,
         PlayerObservation, ReceivedCrafting, ReceivedCraftingContext, ReceivedInventory,
         ReceivedItem, ReceivedRecipe, ReceivedRecipes, ReceivedSlot, RecipeBookMaterials,
         RecipeBookStock, RecipeCraftingCell, RecipeCraftingLayout, RecipeDisplay, RecipeId,

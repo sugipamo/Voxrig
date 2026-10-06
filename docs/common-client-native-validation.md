@@ -520,3 +520,29 @@ baseline後のRCONは読み取りだけで位置・abilitiesを独立確認す�
 同じ422 source/dataとbinaryで成功、両JVM exit 0・proxy errorなし。
 明示的な着地→地上操作の継続とvanilla飛行物理全体は、この区切りの検証範囲に含めない。
 [共通Creative飛行](common-creative-flight.md)／[入力と結果](evidence/common-creative-flight-20261006.json)。
+
+## B3: Creative着地から地上移動・再収納へ（2026-10-06）
+
+```bash
+CARGO_INCREMENTAL=0 python3 scripts/run_common_native.py --all --scenario creative-landing --accept-eula
+```
+
+同じcommon consumerとClientで、44tickのdry slab/stair移動→chest開閉→flight要求と3step→
+`move_flying`で既知の床へ戻る→`land`→27tickの新しい地上移動→fresh chest開閉→切断まで通す。
+着地は明示的disable／neutralと、宣言したzero controller seedからの2 released ground model ticks。
+最初のground falseと次のground trueを元packetへ照合し、受信poseやabilitiesを合成しない。
+新しい地上移動は着地終点から予測し、別run IDと送信数、独立したnative終点を確認する。
+再収納の実OPENは新しいscreen ID／受信ordinalを持ち、activationとmatching closeは各一回。
+fixture後のRCONは読み取りのみで、着地後のflying false・位置・再収納後の空chestを確認する。
+
+成功runは1.16.1 `trial-1.16.1-547b9037`／1.21.11 `trial-1.21.11-001bd50b`。
+両版は同じ422 source/data入力とconsumer binaryを使い、両JVM exit 0、proxy errorなし。
+初回1.16.1 `trial-1.16.1-cede15da`は再収納closeのproxy到着前に回数を数えた検証側の誤りで失敗した。
+実到着を待つよう修正し、両版を再実行した。失敗reportと当時の入力も保持する。
+[入力と結果](evidence/common-creative-landing-20261006.json)を参照。
+
+正常なstanding・通常attribute・effect／未解決impulseなし・完全なdry supportに限定した操作である。
+自動降下、native飛行物理全体、他姿勢／effect／水中、一般vehicleの地上復旧はBに残る。
+受信abilitiesが同じflagsで再到着してもordinalが変われば古い解除根拠を無効にする。
+軽量TCP試験は両版でwriter停止中の待機取消、同期診断、一回の解除／neutral／2tick、
+後続ground run、新しいabilities受信による拒否を確認する。

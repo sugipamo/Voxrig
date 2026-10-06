@@ -312,6 +312,7 @@ pub(super) struct OperationState {
     messages_dropped_through: u64,
     game_mode: Option<GameMode>,
     abilities: Option<u8>,
+    abilities_sequence: Option<u64>,
     requested_flying: bool,
     ack: Option<i32>,
     ack_receive_sequence: Option<u64>,
@@ -320,6 +321,11 @@ pub(super) struct OperationState {
     pub(super) local_player: LocalPlayerState,
 }
 impl OperationState {
+    pub(super) fn abilities_receipt(&self) -> Option<crate::client::ObservedValue<u8>> {
+        self.abilities
+            .zip(self.abilities_sequence)
+            .map(|(flags, sequence)| crate::client::received(flags, sequence))
+    }
     pub fn reset_configuration(&mut self, sequence: u64) {
         *self = Self {
             messages_dropped_through: sequence,
@@ -1036,6 +1042,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             r.f32()?;
             r.end()?;
             next.abilities = Some(flags);
+            next.abilities_sequence = Some(state.sequence);
             if flags & 4 == 0 {
                 next.requested_flying = false;
             }

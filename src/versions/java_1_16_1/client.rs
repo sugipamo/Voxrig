@@ -5358,6 +5358,10 @@ impl Bot {
                 state.flying_allowed = flags & 0x04 != 0;
                 let mut receipts = self.common_receipts.lock().await;
                 receipts.may_fly = Some(state.flying_allowed);
+                receipts.abilities = Some(crate::client::received(
+                    flags,
+                    self.protocol_packet_sequence.load(Ordering::Acquire),
+                ));
                 if !state.flying_allowed {
                     receipts.requested_flying = false;
                 }

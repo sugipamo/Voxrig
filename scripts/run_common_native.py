@@ -477,12 +477,12 @@ def stage(probe, messages, name, records, timeout=30, poll=None):
     raise TimeoutError("probe stage timed out: " + name)
 
 
-def run_dry_terrain(version, env, rcon, trace, report, probe_log, stderr_log, flight=False):
+def run_dry_terrain(version, env, rcon, trace, report, probe_log, stderr_log, flight=False, landing=False):
     """Walk a dry slab/stair route, then open/close storage on the same Client.
     RCON only reads after baseline. Actual native position and original packet
     fields are separate from Client predictions and local close receipts.
     """
-    results = report['native_results']['creative_flight' if flight else 'dry_terrain'] = {}
+    results = report['native_results']['creative_landing' if landing else ('creative_flight' if flight else 'dry_terrain')] = {}
     for mode in (('creative',) if flight else ('survival', 'creative')):
         until(lambda: matched(rcon.command('execute unless entity @a[name=UnifiedProbe]'), 'Test passed'))
         result = results[mode] = {'fixture': {}, 'records': []}
@@ -635,17 +635,77 @@ def run_dry_terrain(version, env, rcon, trace, report, probe_log, stderr_log, fl
                     raise RuntimeError('flight forged receipt or changed connection')
                 result['flight_commands'] = commands
                 result['flight_frames'] = flight_frames
-                disable_boundary = trace.mark()
-                disabled = stage(probe, messages, 'b3_flight_disable', result['records'])['value']
-                result['disable_frames'] = until(lambda: (current if any(f['direction']=='serverbound'
-                    and f['phase']=='play' and f['packet_id']==ability_id for f in current) else None)
-                    if (current := trace.since(disable_boundary)) else None)
-                flags = [f['body_hex'] for f in result['disable_frames'] if f['direction']=='serverbound'
-                    and f['phase']=='play' and f['packet_id']==ability_id]
-                if flags!=['00'] or not disabled['record']['dispatched']:
-                    raise RuntimeError('native flight disable was not dispatched once')
-                result['flight_native_abilities_after_disable'] = until(lambda: raw if re.search(r'flying:\s*0b', (raw := rcon.command('data get entity UnifiedProbe abilities'))) else None)
-                result['authority_limits'] += ' Ground -> owned flight enable -> three once-only bounded submitted steps -> disable was validated; explicit landing/standing continuation remains required. Received pose and received velocity are never rewritten as flight endpoints.'
+                if landing:
+                    landing_boundary=trace.mark()
+                    landed=stage(probe,messages,'b3_flight_land',result['records'])['value']
+                    record=landed['record'];stop=record['landing'];frames=stop['motion']['preview']['frames']
+                    if record['command']!={'kind':'land'} or not record['dispatched'] or not stop['disable_dispatched'] or not stop['neutral_dispatched']:
+                        raise RuntimeError('landing did not finish owned disable/neutral/ground writes')
+                    if stop['declared_controller_velocity']!=[0.,0.,0.] or len(frames)!=2 or stop['motion']['dispatched_ticks']!=2:
+                        raise RuntimeError('landing declared seed or bounded tick counts differ')
+                    expected=frames[-1]['position']
+                    result['native_landing_position']=until(endpoint)
+                    result['native_landing_abilities']=until(lambda: raw if re.search(r'flying:\s*0b',(raw:=rcon.command('data get entity UnifiedProbe abilities'))) else None)
+                    def landing_snapshot():
+                        current=trace.since(landing_boundary)
+                        poses=[f for f in current if f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==position_id]
+                        return current if len(poses)>=3 else None
+                    landing_frames=until(landing_snapshot)
+                    sent=[f for f in landing_frames if f['direction']=='serverbound' and f['phase']=='play']
+                    disables=[f for f in sent if f['packet_id']==ability_id]
+                    if len(disables)!=1 or disables[0]['body_hex']!='00':raise RuntimeError('landing disable repeated or absent')
+                    after_disable=[f for f in sent if f['ordinal']>disables[0]['ordinal'] and f['packet_id']==position_id]
+                    if len(after_disable)<2 or [fields(f) for f in after_disable[:2]]!=[(*f['position'],0.,0.,int(f['on_ground'])) for f in frames]:
+                        raise RuntimeError('landing original ground frames differ from declared stop model')
+                    if version=='1.16.1' and any(fields(f)!=fields(after_disable[1]) for f in after_disable[2:]):
+                        raise RuntimeError('legacy idle changed landing endpoint')
+                    neutrals=[f['body_hex'] for f in sent if f['packet_id']==(0x1d if version=='1.16.1' else 0x2a)]
+                    if neutrals!=(['00'*9] if version=='1.16.1' else ['00']*3):raise RuntimeError('landing native neutral inputs differ')
+                    if landed['player']['session']!=session or landed['player']['received_pose']!=flown['player']['received_pose']:
+                        raise RuntimeError('landing invented receipt or changed session')
+                    result['landing_frames']=landing_frames
+                    ground_boundary=trace.mark()
+                    moved_again=stage(probe,messages,'b3_landing_ground_move',result['records'])['value']
+                    predicted=landed['ground_preview']['frames'];expected=predicted[-1]['position']
+                    result['native_post_landing_move_position']=until(endpoint)
+                    if moved_again['record']['preview']['frames']!=predicted or moved_again['record']['dispatched_ticks']!=27:
+                        raise RuntimeError('post-landing ground run differs from prediction')
+                    result['post_landing_move_frames']=trace.since(ground_boundary)
+                    second_storage_boundary=trace.mark()
+                    again=stage(probe,messages,'b3_terrain_storage',result['records'])['value']
+                    if again['player']['session']!=session or not again['close']['dispatched']:
+                        raise RuntimeError('landing ground/storage continuation changed connection or left close unresolved')
+                    second_open=again['opening']['observed_screen']['id']
+                    peers=[f for f in trace.since(0) if f['connection']==connection and f['direction']=='clientbound' and f['phase'] in ('configuration','play')]
+                    actual_open=peers[second_open['opened_sequence']-1]
+                    if actual_open['packet_id']!=(0x2e if version=='1.16.1' else 0x39):raise RuntimeError('post-landing opening source is not native OPEN')
+                    raw=bytes.fromhex(actual_open['body_hex']);window,offset=PacketTraceProxy.varint(raw);menu,_=PacketTraceProxy.varint(raw[offset:])
+                    if window!=second_open['window'] or menu!=2 or second_open==opening:raise RuntimeError('post-landing opening did not establish a fresh native chest screen')
+                    def second_storage_snapshot():
+                        current=trace.since(second_storage_boundary)
+                        return current if any(f['direction']=='serverbound' and f['phase']=='play'
+                            and f['packet_id']==(0x0a if version=='1.16.1' else 0x12) for f in current) else None
+                    second_frames=until(second_storage_snapshot)
+                    for packet in (0x2d,0x0a) if version=='1.16.1' else (0x3f,0x12):
+                        if len([f for f in second_frames if f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==packet])!=1:
+                            raise RuntimeError('post-landing activation/close missing or replayed')
+                    result['post_landing_storage_frames']=second_frames
+                    result['post_landing_open_source']={k:actual_open[k] for k in ('connection','ordinal','packet_id','body_sha256')}
+                    result['post_landing_chest_contents']=rcon.command('data get block 2 67 5 Items')
+                    if outer_snbt_compounds(result['post_landing_chest_contents']):raise RuntimeError('post-landing storage altered native chest')
+                    result['authority_limits']+=' Explicit landing uses one fully submitted return to known dry floor, one disable, one neutral release and two released declared ground ticks; then 27 ground ticks and another real chest OPEN/close on the same Client. Received pose/velocity/abilities remain receipts; zero stop velocity is explicitly local controller intent, never server rest ACK.'
+                else:
+                    disable_boundary = trace.mark()
+                    disabled = stage(probe, messages, 'b3_flight_disable', result['records'])['value']
+                    result['disable_frames'] = until(lambda: (current if any(f['direction']=='serverbound'
+                        and f['phase']=='play' and f['packet_id']==ability_id for f in current) else None)
+                        if (current := trace.since(disable_boundary)) else None)
+                    flags = [f['body_hex'] for f in result['disable_frames'] if f['direction']=='serverbound'
+                        and f['phase']=='play' and f['packet_id']==ability_id]
+                    if flags!=['00'] or not disabled['record']['dispatched']:
+                        raise RuntimeError('native flight disable was not dispatched once')
+                    result['flight_native_abilities_after_disable'] = until(lambda: raw if re.search(r'flying:\s*0b', (raw := rcon.command('data get entity UnifiedProbe abilities'))) else None)
+                    result['authority_limits'] += ' Ground -> owned flight enable -> three once-only bounded submitted steps -> disable was validated; explicit landing/standing continuation remains required. Received pose and received velocity are never rewritten as flight endpoints.'
             trace.expect_disconnect()
             stage(probe, messages, 'b3_terrain_disconnect', result['records'])
             probe.wait(timeout=10)
@@ -1326,8 +1386,8 @@ network-compression-threshold=256
         for check in ["execute if block 0 65 1 minecraft:stone", "execute if block 1 65 0 minecraft:air"]:
             report.setdefault("fixture_verification", {})[check] = until(lambda: matched(rcon.command(check), "Test passed"))
         env = dict(os.environ, VOXRIG_MINECRAFT_VERSION=version, VOXRIG_PORT=str(trace.port))
-        if scenario in ("dry-terrain", "creative-flight"):
-            run_dry_terrain(version,env,rcon,trace,report,probe_log,stderr_log,flight=scenario=="creative-flight")
+        if scenario in ("dry-terrain", "creative-flight", "creative-landing"):
+            run_dry_terrain(version,env,rcon,trace,report,probe_log,stderr_log,flight=scenario in ("creative-flight","creative-landing"),landing=scenario=="creative-landing")
             report["scenario_result"]="passed"
             return retained
         if scenario == "vehicle":
@@ -2399,7 +2459,7 @@ def main():
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--accept-eula", action="store_true")
     parser.add_argument("--runtime-dir", type=Path, help="Optional disposable runtime parent, e.g. /dev/shm for isolating disk I/O; reports are exported to .local after JVM exit")
-    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "recording-scene", "manager-ui", "furnace", "vehicle", "dry-terrain", "creative-flight"), default="full", help="Run the operation corpus or a focused common Client workflow")
+    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "recording-scene", "manager-ui", "furnace", "vehicle", "dry-terrain", "creative-flight", "creative-landing"), default="full", help="Run the operation corpus or a focused common Client workflow")
     args = parser.parse_args()
     if bool(args.version) == args.all:
         parser.error("select exactly one of --version / --all")

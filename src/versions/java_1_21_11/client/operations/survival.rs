@@ -381,6 +381,31 @@ pub(super) fn context_with_basis(
     tick: u64,
     position_basis: StandingPositionBasis,
 ) -> Result<StandingContext> {
+    context_core(state, connection_id, tick, position_basis, false)
+}
+pub(super) fn landing_context(
+    state: &mut State,
+    connection_id: u64,
+    tick: u64,
+    position_basis: StandingPositionBasis,
+) -> Result<StandingContext> {
+    if !matches!(
+        position_basis,
+        StandingPositionBasis::DeclaredCreativeStop { .. }
+    ) {
+        return Err(unavailable(
+            "landing requires its declared private controller basis",
+        ));
+    }
+    context_core(state, connection_id, tick, position_basis, true)
+}
+fn context_core(
+    state: &mut State,
+    connection_id: u64,
+    tick: u64,
+    position_basis: StandingPositionBasis,
+    landing: bool,
+) -> Result<StandingContext> {
     let player = &state.operations.local_player;
     if let Some(interruption) = &player.motion_interruption {
         return Err(unavailable(format!(
@@ -396,7 +421,11 @@ pub(super) fn context_with_basis(
             "stationary context requires known normal-size standing posture",
         ));
     }
-    if state.operations.requested_flying || state.operations.abilities.is_some_and(|a| a & 2 != 0) {
+    if !landing
+        && (state.operations.requested_flying
+            || (state.operations.abilities.is_some_and(|a| a & 2 != 0)
+                && !super::movement::submitted_flight_stop(state)))
+    {
         return Err(unavailable("stationary context refuses active flight"));
     }
     if player.health.as_ref().is_some_and(|h| h.health <= 0.0) {
@@ -411,8 +440,11 @@ pub(super) fn context_with_basis(
         return Err(unavailable("client reconstruction incomplete"));
     }
     let geometry = standing_geometry(state, position, position_basis.geometry_reserve())?;
-    if matches!(position_basis, StandingPositionBasis::Predicted { .. })
-        && geometry.support.is_empty()
+    if matches!(
+        position_basis,
+        StandingPositionBasis::Predicted { .. }
+            | StandingPositionBasis::DeclaredCreativeStop { .. }
+    ) && geometry.support.is_empty()
     {
         return Err(unavailable(
             "predicted standing lost its currently received floor support",

@@ -57,6 +57,8 @@ diagnostic_record! {
         #[serde(skip)]
         common_initial: Option<crate::client::PlayerObservation>,
         #[serde(skip)]
+        flight_stop: Option<crate::client::ObservedValue<u8>>,
+        #[serde(skip)]
         received_pose_sequence: u64,
         #[serde(skip)]
         observer_session: Option<Weak<Session>>,
@@ -67,6 +69,14 @@ diagnostic_record! {
 #[derive(Clone, Debug, Serialize, serde::Deserialize, PartialEq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum StandingPositionBasis {
+    /// Private landing admission supplies this declared local controller seed.
+    /// It is not a received velocity or server rest acknowledgement.
+    DeclaredCreativeStop {
+        /// Latest fully dispatched owned flight attempt.
+        flight_attempt: u64,
+        /// Last actual own pose before the submitted flight position.
+        received_pose_sequence: u64,
+    },
     /// Own native position packet with zero resolved packet velocity.
     Received {
         /// Position packet ordinal; no server-rest acknowledgement is implied.
@@ -99,6 +109,7 @@ impl StandingPositionBasis {
     pub(in super::super::super) fn geometry_reserve(&self) -> [f64; 3] {
         match self {
             Self::Received { .. } => [0.0; 3],
+            Self::DeclaredCreativeStop { .. } => [TERMINAL_MARGIN, 0.0, TERMINAL_MARGIN],
             Self::Predicted {
                 planning_reserve, ..
             } => *planning_reserve,
@@ -133,7 +144,8 @@ fn stable_context(state: &State, r: &SurvivalMotionRecord) -> Result<()> {
                 .as_ref()
                 .map_or(Some(GameMode::Survival), |p| p.game_mode)
         || state.operations.requested_flying
-        || state.operations.abilities.is_some_and(|a| a & 2 != 0)
+        || (state.operations.abilities.is_some_and(|a| a & 2 != 0)
+            && !flight_stop_matches(state, r))
         || now.velocity != before.velocity
         || now.pose != before.pose
         || now.scale != before.scale
@@ -472,6 +484,10 @@ impl Operations {
             problem: None,
             recheck: None,
             common_initial,
+            flight_stop: state
+                .survival_motion
+                .as_ref()
+                .and_then(|r| r.flight_stop.clone()),
             observer_session: observer.map(|o| Arc::downgrade(&o.bot.session)),
             received_pose_sequence: state
                 .motion
@@ -525,7 +541,7 @@ impl Operations {
         inspect_motion(&mut state);
         state.survival_motion.clone()
     }
-    async fn run_survival_motion(
+    pub(in super::super) async fn run_survival_motion(
         &self,
         run: &SurvivalMotionRecord,
         observer: Option<&Operations>,
@@ -585,6 +601,7 @@ impl Operations {
                 .motion
                 .begin(run.generation, sequence, expected.position, rotation)?;
             state.survival_motion.as_mut().unwrap().attempted_tick = expected.tick;
+            sync_landing_motion(&state);
             self.bot
                 .session
                 .send(ids::play_serverbound::PLAYER_INPUT, &[input_bits(input)])
@@ -598,6 +615,7 @@ impl Operations {
             state.rotation = rotation;
             state.motion.dispatched();
             state.survival_motion.as_mut().unwrap().dispatched_ticks = expected.tick;
+            sync_landing_motion(&state);
         }
         if observer.is_none() {
             let mut state = self.bot.session.state.lock().await;
@@ -608,6 +626,7 @@ impl Operations {
                 survival::context_with_basis(&mut state, self.bot.session.id, tick, basis)?;
             validate_initial(&context)?;
             state.survival_motion.as_mut().unwrap().status = SurvivalMotionStatus::Predicted;
+            sync_landing_motion(&state);
             self.bot.session.changed.notify_waiters();
             return Ok(());
         }
@@ -902,4 +921,119 @@ pub(in super::super) fn flight_can_retire(state: &State) -> bool {
         .survival_motion
         .as_ref()
         .is_none_or(|r| r.common_initial.is_some())
+}
+
+fn flight_stop_matches(state: &State, run: &SurvivalMotionRecord) -> bool {
+    run.flight_stop
+        .as_ref()
+        .is_some_and(|s| Some(s) == state.operations.abilities_receipt().as_ref())
+}
+pub(in super::super) fn submitted_flight_stop(state: &State) -> bool {
+    !state.operations.requested_flying
+        && state
+            .survival_motion
+            .as_ref()
+            .is_some_and(|r| flight_stop_matches(state, r))
+}
+fn sync_landing_motion(state: &State) {
+    if let Some(r) = state
+        .survival_motion
+        .as_ref()
+        .filter(|r| r.common_initial.is_some())
+    {
+        if let Ok(r) = common_record(r.clone()) {
+            crate::client::flight::sync_motion(&state.flight_history, &r);
+        }
+    }
+}
+pub(in super::super) fn landing_plan(
+    state: &mut State,
+    connection_id: u64,
+    tick: u64,
+    initial: crate::client::PlayerObservation,
+    flight_attempt: u64,
+) -> Result<SurvivalMotionRecord> {
+    let pose = state
+        .motion
+        .received_pose
+        .as_ref()
+        .ok_or_else(|| invalid("landing requires received pose"))?
+        .receive_sequence;
+    if state.operations.local_player.velocity.map(|v| v.value) != Some([0.; 3]) {
+        return Err(invalid(
+            "landing refuses unresolved received impulse velocity",
+        ));
+    }
+    if state.motion.position_basis != PositionBasis::Submitted
+        || state.motion.last_submission.as_ref().is_none_or(|s| {
+            !s.dispatched
+                || s.superseded_at.is_some()
+                || s.generation != state.loading.generation
+                || Some(s.position) != state.position
+        })
+    {
+        return Err(invalid(
+            "landing requires fully dispatched unsuperseded flight position",
+        ));
+    }
+    let basis = StandingPositionBasis::DeclaredCreativeStop {
+        flight_attempt,
+        received_pose_sequence: pose,
+    };
+    let context = survival::landing_context(state, connection_id, tick, basis)?;
+    validate_initial(&context)?;
+    let controls = vec![
+        SurvivalControl {
+            yaw: initial.rotation[0],
+            input: Default::default()
+        };
+        2
+    ];
+    let mut model = Model::new(crate::MinecraftVersion::Java1_21_11, context.position);
+    let initial_frame = model.initial_frame();
+    let frames = predict(state, &mut model, &controls)?;
+    terminal_clearance(state, frames.last().unwrap())?;
+    if frames.iter().any(|f| f.position != context.position) {
+        return Err(invalid("landing model displaced submitted position"));
+    }
+    let generation = state.loading.generation;
+    let run_id = state
+        .retired_common_motion
+        .as_ref()
+        .map_or(0, |r| r.run_id)
+        .checked_add(1)
+        .ok_or_else(|| invalid("motion run IDs exhausted"))?;
+    let terminal_clearance = clearance(state, frames.last().unwrap());
+    Ok(SurvivalMotionRecord {
+        run_id,
+        connection_id,
+        generation,
+        preview: SurvivalMovementPreview {
+            initial: context,
+            initial_frame,
+            generation,
+            controls,
+            frames,
+            terminal_clearance,
+        },
+        dispatched_ticks: 0,
+        attempted_tick: 0,
+        status: SurvivalMotionStatus::Running,
+        contract: SurvivalMotionContract::Predicted,
+        observer_connection_id: None,
+        initial_watch: None,
+        final_watch: None,
+        observed: None,
+        problem: None,
+        recheck: None,
+        common_initial: Some(initial),
+        flight_stop: state.operations.abilities_receipt(),
+        received_pose_sequence: pose,
+        observer_session: None,
+    })
+}
+pub(in super::super) fn landing_common_record(
+    run: &SurvivalMotionRecord,
+) -> Result<crate::client::survival::MotionRecord> {
+    common_record(run.clone())
 }

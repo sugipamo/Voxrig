@@ -646,5 +646,9 @@ event集約・physics metrics・shared chunk storage等の版固有入口は維�
 Clientが元intentを保持して処理する。`Client::flight_record()`は同期読み取りで、
 writer停止中にも元commandとdispatch stageを確認できる。送信途中・失敗時に自動で再送しない。
 飛行を有効にすると直前の地上移動結果は診断履歴へ退避される。飛行解除だけでは
-その地上終点の操作許可を戻さない。着地から地上操作へ継続する共通契約はB3で作業中。
+その地上終点の操作許可を戻さない。
+`move_flying`で現在位置を既知のdry supportまで戻した後に`creative().land()`を呼ぶ。
+これはdeclared zero-controller seedと2つのreleased ground ticksを保持する明示的な操作で、
+実受信velocity・pose・abilitiesやserver rest ACKへ読み替えない。成功後は同じhandleで
+有限地上歩行・収納へ進める。空中・未対応姿勢／effect／attribute／impulseは拒否する。
 詳細は[共通Creative飛行](common-creative-flight.md)。

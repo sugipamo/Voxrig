@@ -208,8 +208,9 @@ impl Bot {
                 "stationary geometry requires healthy matching received mode and native standing pose",
             ));
         }
+        let submitted_flight_stop = self.common_submitted_flight_stop().await;
         let survival = self.survival.read().await;
-        if survival.flying
+        if (survival.flying && !submitted_flight_stop)
             || !survival.effects.is_empty()
             || survival.attributes.values().any(|attribute| {
                 matches!(
@@ -281,6 +282,7 @@ impl Bot {
 #[derive(Clone)]
 pub(super) struct NativeMotionRun {
     pub(super) record: MotionRecord,
+    flight_stop: Option<crate::client::ObservedValue<u8>>,
     expected_motion_revision: u64,
     movement_attribute: Option<Attribute>,
 }
@@ -572,7 +574,14 @@ impl Bot {
             .map_or(Some(1), |id| id.checked_add(1))
             .ok_or_else(|| motion_state("motion run IDs exhausted"))?;
         let movement_attribute = legacy_movement_attribute(&**self.survival.read().await).cloned();
+        let flight_stop = self
+            .common_motion
+            .lock()
+            .await
+            .as_ref()
+            .and_then(|r| r.flight_stop.clone());
         let run = NativeMotionRun {
+            flight_stop,
             expected_motion_revision: self.motion.lock().await.revision(),
             movement_attribute,
             record: MotionRecord {
@@ -668,13 +677,17 @@ impl Bot {
                 "world/pose correction or other unresolved dispatch interrupted motion",
             ));
         }
+        let submitted_flight_stop = run
+            .flight_stop
+            .as_ref()
+            .is_some_and(|s| Some(s) == receipts.abilities.as_ref());
         drop(receipts);
         let survival = self.survival.read().await;
         if survival
             .game_mode
             .and_then(|id| GameMode::decode(id & 7).ok())
             != run.record.preview.initial.game_mode
-            || survival.flying
+            || (survival.flying && !submitted_flight_stop)
             || !survival.effects.is_empty()
             || !survival.vitals.as_ref().is_some_and(|v| v.health > 0.0)
             || legacy_movement_attribute(&survival) != run.movement_attribute.as_ref()
@@ -712,7 +725,11 @@ impl Bot {
         }
         Ok(())
     }
-    async fn run_common_path(&self, mut run: NativeMotionRun, revision: u64) -> Result<()> {
+    pub(super) async fn run_common_path(
+        &self,
+        mut run: NativeMotionRun,
+        revision: u64,
+    ) -> Result<()> {
         self.connection
             .begin_bounded_motion(run.record.run_id, revision)
             .await
@@ -770,6 +787,10 @@ impl Bot {
                 .unwrap()
                 .record
                 .attempted_tick = expected.tick;
+            crate::client::flight::sync_motion(
+                &self.flight_history,
+                &self.common_motion.lock().await.as_ref().unwrap().record,
+            );
             let mut payload = Vec::with_capacity(33);
             for value in expected.position {
                 payload.extend(value.to_be_bytes());
@@ -813,6 +834,7 @@ impl Bot {
             run.record.attempted_tick = expected.tick;
             run.record.dispatched_ticks = expected.tick;
             *self.common_motion.lock().await = Some(run.clone());
+            crate::client::flight::sync_motion(&self.flight_history, &run.record);
             self.common_receipts.lock().await.position_source =
                 Some(crate::client::ValueSource::Predicted);
         }
@@ -837,6 +859,10 @@ impl Bot {
             .unwrap()
             .record
             .status = MotionStatus::Predicted;
+        crate::client::flight::sync_motion(
+            &self.flight_history,
+            &self.common_motion.lock().await.as_ref().unwrap().record,
+        );
         Ok(())
     }
 }
@@ -904,6 +930,118 @@ pub(super) fn legacy_clearance(
 }
 fn motion_state(message: &str) -> crate::Error {
     crate::Error::new(crate::ErrorKind::State, anyhow::anyhow!("{message}"))
+}
+
+impl Bot {
+    async fn common_submitted_flight_stop(&self) -> bool {
+        let stop = self
+            .common_motion
+            .lock()
+            .await
+            .as_ref()
+            .and_then(|r| r.flight_stop.clone());
+        let receipts = self.common_receipts.lock().await;
+        !receipts.requested_flying
+            && stop
+                .as_ref()
+                .is_some_and(|s| Some(s) == receipts.abilities.as_ref())
+    }
+    pub(super) async fn landing_plan(
+        &self,
+        initial: crate::client::PlayerObservation,
+    ) -> Result<NativeMotionRun> {
+        let state = self.survival.read().await;
+        if *self.local_pose.lock().await != Some(0)
+            || !state.effects.is_empty()
+            || legacy_movement_attribute(&state).is_some_and(|a| a.value() as f32 != 0.1f32)
+        {
+            return Err(motion_state(
+                "landing requires standing dry default motion without received effects",
+            ));
+        }
+        let movement_attribute = legacy_movement_attribute(&state).cloned();
+        drop(state);
+        let position = initial.position.as_ref().unwrap().value;
+        let motion = self.motion.lock().await;
+        if motion.velocity.x != 0.0
+            || motion.velocity.z != 0.0
+            || (motion.velocity.y != 0.0
+                && (motion.velocity.y + 0.08 * f64::from(0.98f32)).abs() > 1e-8)
+        {
+            return Err(motion_state(
+                "landing refuses unresolved impulse in native local motion",
+            ));
+        }
+        let revision = motion.revision();
+        drop(motion);
+        let controls = vec![
+            SurvivalControl {
+                yaw: initial.rotation[0],
+                input: Default::default()
+            };
+            2
+        ];
+        let mut model = model::Model::new(crate::MinecraftVersion::Java1_16_1, position);
+        let initial_frame = model.initial_frame();
+        let world = self.world.lock().await;
+        legacy_clearance(&|p| legacy_motion_block(&world, p), position, 1.0 / 16.0)?;
+        let frames = model::predict(|p| legacy_motion_block(&world, p), &mut model, &controls)?;
+        if !frames.last().unwrap().resting || frames.iter().any(|f| f.position != position) {
+            return Err(motion_state(
+                "landing stop model did not settle at submitted dry support",
+            ));
+        }
+        let preview = MotionPreview {
+            initial,
+            world_revision: world.revision(),
+            initial_frame,
+            controls,
+            frames,
+            terminal_clearance: TerminalClearance::Admitted {
+                horizontal_margin: 1.0 / 16.0,
+            },
+        };
+        drop(world);
+        let previous = self
+            .retired_common_motion
+            .lock()
+            .await
+            .as_ref()
+            .map_or(0, |r| r.run_id);
+        let run_id = previous
+            .checked_add(1)
+            .ok_or_else(|| motion_state("motion run IDs exhausted"))?;
+        Ok(NativeMotionRun {
+            movement_attribute,
+            expected_motion_revision: revision,
+            flight_stop: self.common_receipts.lock().await.abilities.clone(),
+            record: MotionRecord {
+                session: preview.initial.session,
+                run_id,
+                preview,
+                attempted_tick: 0,
+                dispatched_ticks: 0,
+                status: MotionStatus::Running,
+                problem: None,
+            },
+        })
+    }
+    pub(super) async fn install_landing_model(&self, mut run: NativeMotionRun) -> NativeMotionRun {
+        // Explicit controller reset, separately recorded from every received value.
+        let mut motion = self.motion.lock().await;
+        motion.velocity = Vec3 {
+            x: 0.,
+            y: 0.,
+            z: 0.,
+        };
+        motion.collided_horizontal = false;
+        motion.collided_vertical = true;
+        run.expected_motion_revision = motion.revision();
+        drop(motion);
+        self.player.lock().await.on_ground = true;
+        *self.common_motion.lock().await = Some(run.clone());
+        run
+    }
 }
 
 #[cfg(test)]
