@@ -1412,10 +1412,17 @@ network-compression-threshold=256
             table["open"]=stage(probe,messages,"table_open_"+mode,report["container_records"])["value"]
             table["opened"]=stage(probe,messages,"table_observed_"+mode,report["container_records"])["value"]
             table["filled"]=stage(probe,messages,"table_fill_"+mode,report["container_records"])["value"]
+            prediction = table["filled"]["grid_return_plan"]
+            if not prediction["remaining"] == [] or prediction["source"] != table["filled"]["grid"]["source"]:
+                raise RuntimeError("table return capacity prediction lacks actual opening identity")
+            predicted_slot = next(v for index,v in prediction["predictions"] if index == 9)
+            if predicted_slot["source"]["kind"] != "predicted" or predicted_slot["value"]["item"]["count"] != 2:
+                raise RuntimeError("grid return prediction includes cursor or is mislabeled as received")
             table["native_filled"]=until(lambda:inventory_matches({9:("minecraft:oak_planks",1)}))
             table["close"]=stage(probe,messages,"table_close_"+mode,report["container_records"])["value"]
             table["after_close"]=stage(probe,messages,"table_after_close_"+mode,report["container_records"])["value"]
             table["native_returned"]=until(lambda:inventory_matches({9:("minecraft:oak_planks",3)}))
+            table["return_prediction_evidence"] = "Received inventory has one plank, grid one and cursor one. Grid-only return prediction is two, explicitly Predicted; native close separately returns cursor and grid, producing three actual planks verified by RCON without drops."
             table["native_no_drop"]=until(lambda:matched(rcon.command("execute unless entity @e[type=minecraft:item]"),"Test passed"))
             table["frames"]= [f for f in trace.since(boundary) if f["phase"]=="play"]
             click_id=0x09 if version=="1.16.1" else 0x11

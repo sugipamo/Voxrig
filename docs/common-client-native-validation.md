@@ -238,3 +238,27 @@ fixture commandと各stackの実受信ordinalを別に保持し、実送信やgr
 この試験は元stock getter/accountingの72ケース、ingredient pickerの80ケースの照合と組み合わせる。
 サーバーは順次実行し、両版の正常終了・同一consumer binaryとsrc/data/Cargo/probe/controller hashを要求する。
 現grid material・返却space・UI容量を含む配置plan、recipe-book配置、result merge/shift-craftingは残る。
+
+## Coherent crafting context, layout and grid return capacity
+
+The common native consumer now calls `Client::received_crafting_context()` in
+survival and creative on both original versions. For the received stick display,
+player 2x2 inputs map to (0,0)/(0,1); table 3x3 inputs map to (1,0)/(1,1). The
+context's inventory, grid and catalogue share the adapter packet boundary while
+actual slot ordinals remain separate.
+
+The table scenario receives one plank in inventory, one in input (2,2) and one
+on the cursor. Its grid-only return plan predicts inventory count two and one
+input-to-slot-9 transfer, explicitly `Predicted`; it excludes the cursor. The
+existing close operation separately returns that cursor using actual receipts,
+then the native menu returns its grid input. Independent RCON verifies three
+planks after close, no dropped item, and unchanged player position. Predictions
+are retained alongside actual receipts; they never replace them.
+
+Sequential runs `trial-1.16.1-15d95d0c` and `trial-1.21.11-88c4a9f0` passed all
+existing native scenarios plus these context/layout/return assertions. Both
+original JVMs exited normally with code zero. Their reports retain the same
+consumer binary and actual source/data/Cargo/probe/controller hashes. The 102
+original geometry/packet cases and 50 destination/resource-transfer cases
+provide separate primitive evidence. Full grid-inclusive placement planning,
+recipe-book dispatch, result merge and shift crafting remain follow-up work.

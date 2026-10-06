@@ -115,8 +115,46 @@ three plain planks provide one stick batch, cannot provide two, and stop countin
 when the stack is custom-named; removing the name restores the same material facts
 in both modes and versions.
 
-Full recipe selection/placement planning (including existing grid material,
-return space and UI capacity), recipe-book placement, result merging and shift
-crafting remain required follow-up work. Displayed remainder associations
+`Client::received_crafting_context()` captures the player view, actual player
+inventory, current player/table grid and recipe/tag catalogue under the same
+adapter locks and packet boundary. It returns `None` for another active UI.
+Individual inputs retain their own received sequence; the player view retains
+explicitly tagged submitted/model fields. The sealed context prevents consumers
+from combining independently captured components.
+
+`context.recipe_layout(recipe.id())` validates shaped dimensions and exact cell
+counts, or shapeless nonempty counts, against the received 2x2/3x3 UI. It preserves
+empty display cells and returns actual opening-bound native input slots. The
+original center rule places a 1x1 display at (0,0) in 2x2 and (1,1) in 3x3. This is
+geometry, not proof of ingredient membership, a material assignment or permission.
+Foreign/replaced recipe identities and displays that do not fit are errors.
+
+`context.grid_return_plan()` simulates returning current input stacks to received
+player inventory. Every main/hotbar/offhand destination and input must be known;
+the selected hotbar must have an actual received ordinal in this configuration.
+Missing data is an error, never empty space. Native item/component equality,
+effective item capacity and the version's inventory limit govern merging.
+Selected hotbar, offhand and main inventory are searched in native order, then
+first-free hotbar/main slots. Empty offhand, armor, cursor and result are not free
+capacity. A carried cursor remains a separate close concern.
+
+The plan retains ordered hypothetical steps and remaining inputs. Its inventory
+values are explicitly `Predicted`; `fits()` only means the simulation has capacity
+for every input. Partial predictions never authorize clearing or dropping stacks,
+and successful predictions neither dispatch nor acknowledge a mutation. Captured
+contexts and plans remain historical after UI/session/registry changes.
+
+`scripts/export_recipe_placement.py` records 102 original geometry and placement
+packet round-trip cases across both versions. These packet codecs are primitive
+evidence, not a common placement operation. `scripts/export_crafting_returns.py`
+records 50 original destination/resource-transfer cases, including native loaded
+block/item/entity tag declarations for modern tool comparisons. Helpers use
+unchanged original methods, sequential 512 MiB JVMs and retain JAR/mapping,
+classpath, request/helper and result hashes. The return helper's Inventory has an
+unused null owner; it calls no owner/world, creative fallback or drop behavior.
+
+Full recipe selection/placement planning still needs existing-grid material
+assignment and UI capacity together with return-space checks. Recipe-book
+placement, result merging and shift crafting remain required follow-up work. Displayed remainder associations
 are not actual inventory consumption/remainder receipts. The existing common
 result take retains those actual receipts separately.

@@ -323,3 +323,9 @@ recipe選択・計画・配置、記録・再構成・復旧等の残作業を�
 `ReceivedItem::recipe_book_stock`はnativeの損傷・enchantments・custom name除外と版別stack計数を保持する。
 72の元stockケースと80の元ingredient pickerケースで照合する。これは現grid、返却space、UI容量を含む
 配置planではなく、stage 4全体の完了も意味しない。詳細は[共通レシピ](common-recipes.md)。
+
+`Client::received_crafting_context()`はplayer・在庫・盤面・recipe/tagを同じ境界で取得する。
+`recipe_layout`は両版のnative幾何規則を受信UIへ適用し、`grid_return_plan`は実item dataと
+空き容量から盤面だけの仮の返却を計算する。値は`Predicted`であり、cursor返却や送信permissionは
+別に扱う。現gridを含む材料割当・UI容量・recipe-book送信・result merge/shift-craftingの
+実装は継続する。stage 4と全体goalは未完了。詳細は[共通レシピ](common-recipes.md)。

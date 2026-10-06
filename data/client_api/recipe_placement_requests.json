@@ -1,0 +1,481 @@
+[
+  {
+    "case": "shaped-2-1x1-1",
+    "domain": "geometry",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "entries": 1,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-2-1x2-1",
+    "domain": "geometry",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 2,
+    "entries": 1,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-2-1x2-2",
+    "domain": "geometry",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 2,
+    "entries": 2,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-2-2x1-1",
+    "domain": "geometry",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 1,
+    "entries": 1,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-2-2x1-2",
+    "domain": "geometry",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 1,
+    "entries": 2,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-2-2x2-1",
+    "domain": "geometry",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 2,
+    "entries": 1,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-2-2x2-4",
+    "domain": "geometry",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 2,
+    "entries": 4,
+    "crafts": 2
+  },
+  {
+    "case": "shapeless-2-1",
+    "domain": "geometry",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": false,
+    "entries": 1,
+    "crafts": 2
+  },
+  {
+    "case": "shapeless-2-2",
+    "domain": "geometry",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": false,
+    "entries": 2,
+    "crafts": 2
+  },
+  {
+    "case": "shapeless-2-3",
+    "domain": "geometry",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": false,
+    "entries": 3,
+    "crafts": 2
+  },
+  {
+    "case": "shapeless-2-4",
+    "domain": "geometry",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": false,
+    "entries": 4,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-3-1x1-1",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "entries": 1,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-3-1x2-1",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 2,
+    "entries": 1,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-3-1x2-2",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 2,
+    "entries": 2,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-3-1x3-1",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 3,
+    "entries": 1,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-3-1x3-3",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 3,
+    "entries": 3,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-3-2x1-1",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 1,
+    "entries": 1,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-3-2x1-2",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 1,
+    "entries": 2,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-3-2x2-1",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 2,
+    "entries": 1,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-3-2x2-4",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 2,
+    "entries": 4,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-3-2x3-1",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 3,
+    "entries": 1,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-3-2x3-6",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 3,
+    "entries": 6,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-3-3x1-1",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 3,
+    "recipe_height": 1,
+    "entries": 1,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-3-3x1-3",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 3,
+    "recipe_height": 1,
+    "entries": 3,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-3-3x2-1",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 3,
+    "recipe_height": 2,
+    "entries": 1,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-3-3x2-6",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 3,
+    "recipe_height": 2,
+    "entries": 6,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-3-3x3-1",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 3,
+    "recipe_height": 3,
+    "entries": 1,
+    "crafts": 2
+  },
+  {
+    "case": "shaped-3-3x3-9",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 3,
+    "recipe_height": 3,
+    "entries": 9,
+    "crafts": 2
+  },
+  {
+    "case": "shapeless-3-1",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": false,
+    "entries": 1,
+    "crafts": 2
+  },
+  {
+    "case": "shapeless-3-2",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": false,
+    "entries": 2,
+    "crafts": 2
+  },
+  {
+    "case": "shapeless-3-3",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": false,
+    "entries": 3,
+    "crafts": 2
+  },
+  {
+    "case": "shapeless-3-4",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": false,
+    "entries": 4,
+    "crafts": 2
+  },
+  {
+    "case": "shapeless-3-5",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": false,
+    "entries": 5,
+    "crafts": 2
+  },
+  {
+    "case": "shapeless-3-6",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": false,
+    "entries": 6,
+    "crafts": 2
+  },
+  {
+    "case": "shapeless-3-7",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": false,
+    "entries": 7,
+    "crafts": 2
+  },
+  {
+    "case": "shapeless-3-8",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": false,
+    "entries": 8,
+    "crafts": 2
+  },
+  {
+    "case": "shapeless-3-9",
+    "domain": "geometry",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": false,
+    "entries": 9,
+    "crafts": 2
+  },
+  {
+    "case": "packet-0-False",
+    "domain": "packet",
+    "window": 0,
+    "display_id": 130,
+    "maximum": false
+  },
+  {
+    "case": "packet-0-True",
+    "domain": "packet",
+    "window": 0,
+    "display_id": 130,
+    "maximum": true
+  },
+  {
+    "case": "packet-1-False",
+    "domain": "packet",
+    "window": 1,
+    "display_id": 130,
+    "maximum": false
+  },
+  {
+    "case": "packet-1-True",
+    "domain": "packet",
+    "window": 1,
+    "display_id": 130,
+    "maximum": true
+  },
+  {
+    "case": "packet-3-False",
+    "domain": "packet",
+    "window": 3,
+    "display_id": 130,
+    "maximum": false
+  },
+  {
+    "case": "packet-3-True",
+    "domain": "packet",
+    "window": 3,
+    "display_id": 130,
+    "maximum": true
+  },
+  {
+    "case": "packet-127-False",
+    "domain": "packet",
+    "window": 127,
+    "display_id": 130,
+    "maximum": false
+  },
+  {
+    "case": "packet-127-True",
+    "domain": "packet",
+    "window": 127,
+    "display_id": 130,
+    "maximum": true
+  },
+  {
+    "case": "packet-128-False",
+    "domain": "packet",
+    "window": 128,
+    "display_id": 130,
+    "maximum": false
+  },
+  {
+    "case": "packet-128-True",
+    "domain": "packet",
+    "window": 128,
+    "display_id": 130,
+    "maximum": true
+  },
+  {
+    "case": "packet-300-False",
+    "domain": "packet",
+    "window": 300,
+    "display_id": 130,
+    "maximum": false
+  },
+  {
+    "case": "packet-300-True",
+    "domain": "packet",
+    "window": 300,
+    "display_id": 130,
+    "maximum": true
+  },
+  {
+    "case": "packet--1-False",
+    "domain": "packet",
+    "window": -1,
+    "display_id": 130,
+    "maximum": false
+  },
+  {
+    "case": "packet--1-True",
+    "domain": "packet",
+    "window": -1,
+    "display_id": 130,
+    "maximum": true
+  }
+]

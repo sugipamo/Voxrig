@@ -1110,6 +1110,33 @@ impl Operations {
             state.registries.capture(player.session, state.sequence),
         )
     }
+    pub(crate) async fn common_received_crafting_context(
+        &self,
+    ) -> Result<Option<crate::client::ReceivedCraftingContext>> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let screen = crate::client::container::ScreenObservation {
+            session: player.session,
+            receive_sequence: player.receive_sequence,
+            active_window: state.operations.inventory.window_id,
+            player_screen: player.inventory.player_screen,
+            screen: state
+                .operations
+                .inventory
+                .container
+                .as_ref()
+                .map(|s| s.capture(player.session)),
+            cursor: player.inventory.cursor.clone(),
+        };
+        let registries = state
+            .registries
+            .capture(player.session, player.receive_sequence);
+        let recipes =
+            state
+                .recipes
+                .capture(player.session, player.receive_sequence, registries.clone())?;
+        crate::client::ReceivedCraftingContext::capture(player, screen, registries, recipes)
+    }
     pub(crate) async fn common_recipe_book_materials(
         &self,
         recipe: &crate::client::RecipeId,

@@ -253,6 +253,18 @@ impl Client {
         }
     }
 
+    /// Capture recipes/tags, player inventory and the active player/table grid
+    /// together. Other active UIs return None. This is read-only planning data,
+    /// not permission to mutate the grid or evidence of recipe consumption.
+    pub async fn received_crafting_context(
+        &self,
+    ) -> Result<Option<crate::client::ReceivedCraftingContext>> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_received_crafting_context().await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_received_crafting_context().await,
+        }
+    }
+
     /// Inventory-only recipe-book material assignment and bounded maximum.
     /// Captures actual recipes/tags and main/hotbar receipts at one adapter boundary.
     /// Positive native batch sizes are required. Missing stock/requirements are errors.

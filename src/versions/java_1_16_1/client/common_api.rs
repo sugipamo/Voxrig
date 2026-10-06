@@ -55,6 +55,33 @@ impl Bot {
                 .capture(player.session, player.receive_sequence),
         )
     }
+    pub(crate) async fn common_received_crafting_context(
+        &self,
+    ) -> Result<Option<api::ReceivedCraftingContext>> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        let receipts = self.common_receipts.lock().await;
+        let screen = api::container::ScreenObservation {
+            session: player.session,
+            receive_sequence: player.receive_sequence,
+            active_window: receipts.inventory.window_id,
+            player_screen: player.inventory.player_screen,
+            screen: receipts
+                .container
+                .as_ref()
+                .map(|s| s.capture(player.session)),
+            cursor: receipts.inventory.cursor.clone(),
+        };
+        let registries = receipts
+            .registries
+            .capture(player.session, player.receive_sequence);
+        let recipes = receipts.recipes.capture(
+            player.session,
+            player.receive_sequence,
+            registries.clone(),
+        )?;
+        api::ReceivedCraftingContext::capture(player, screen, registries, recipes)
+    }
     pub(crate) async fn common_recipe_book_materials(
         &self,
         recipe: &api::RecipeId,

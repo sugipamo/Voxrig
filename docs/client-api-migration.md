@@ -536,3 +536,15 @@ for the native inventory filter rather than using ingredient membership as an
 eligibility predicate. This shared API is available in both versions and modes.
 See [common recipes](common-recipes.md) for provenance, missing-data errors, batch
 semantics and the separate placement/consumption work that remains.
+
+### Coherent crafting context and read-only planning
+
+Use `Client::received_crafting_context()` when recipe, inventory and crafting grid
+must share one received boundary. `context.recipe_layout(id)` maps the received
+display into the actual player/table UI; it does not pick ingredient stacks.
+`context.grid_return_plan()` checks hypothetical main/hotbar/offhand return
+capacity and labels all resulting values `Predicted`. Do not dispatch its steps
+as click commands or replace actual inventory receipts with its predictions.
+Unknown destinations, missing selected-hotbar receipts and unresolved item data
+produce errors. The cursor requires its own return handling; it is excluded from
+this grid-only capacity simulation. See [common recipes](common-recipes.md).

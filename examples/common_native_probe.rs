@@ -634,8 +634,50 @@ async fn crafting_table_fill_probe(
         }
     })
     .await??;
+    let context = client
+        .received_crafting_context()
+        .await?
+        .context("filled coherent table context missing")?;
+    anyhow::ensure!(
+        context.grid().source() == filled.source()
+            && context.receive_sequence() >= filled.receive_sequence(),
+        "coherent table boundary differs"
+    );
+    let recipe =
+        find_stick_recipe(context.recipes(), client).context("table stick display missing")?;
+    let layout = context.recipe_layout(recipe.id())?;
+    anyhow::ensure!(
+        layout.grid_dimensions() == [3, 3]
+            && layout
+                .cells()
+                .iter()
+                .map(|c| c.coordinate())
+                .collect::<Vec<_>>()
+                == [[1, 0], [1, 1]],
+        "table stick layout differs"
+    );
+    let return_plan = context.grid_return_plan()?;
+    anyhow::ensure!(
+        return_plan.fits()
+            && return_plan.steps().len() == 1
+            && return_plan.steps()[0].input() == [2, 2]
+            && return_plan.steps()[0].player_slot() == 9
+            && return_plan.steps()[0].amount() == 1,
+        "filled table return prediction differs"
+    );
+    let predicted = &return_plan
+        .predictions()
+        .iter()
+        .find(|(i, _)| *i == 9)
+        .context("table return prediction missing")?
+        .1;
+    anyhow::ensure!(
+        predicted.source == voxrig::client::ValueSource::Predicted
+            && stack_count(&predicted.value) == 2,
+        "grid return improperly includes carried cursor material"
+    );
     Ok(
-        serde_json::json!({"steps":steps,"grid":filled,"inventory":client.received_inventory().await?,"player_source_slot":player_slot,"input_slot":input_slot}),
+        serde_json::json!({"steps":steps,"grid":filled,"inventory":client.received_inventory().await?,"player_source_slot":player_slot,"input_slot":input_slot,"context_sequence":context.receive_sequence(),"recipe_layout":layout,"grid_return_plan":return_plan}),
     )
 }
 // A fresh connection isolates mining's unresolved continuation boundary from
@@ -1222,9 +1264,28 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                     double.assignment().is_none(),
                     "three planks permit two stick batches"
                 );
+                let context = client
+                    .received_crafting_context()
+                    .await?
+                    .context("coherent player crafting context missing")?;
+                let layout = context.recipe_layout(recipe.id())?;
+                anyhow::ensure!(
+                    layout.grid_dimensions() == [2, 2]
+                        && layout
+                            .cells()
+                            .iter()
+                            .map(|c| c.coordinate())
+                            .collect::<Vec<_>>()
+                            == [[0, 0], [0, 1]]
+                        && context.grid().receive_sequence()
+                            == context.recipes().receive_sequence()
+                        && context.grid().receive_sequence()
+                            == context.inventory().receive_sequence(),
+                    "player crafting context/layout differs"
+                );
                 emit(
                     &command,
-                    serde_json::json!({"single":single,"double":double}),
+                    serde_json::json!({"single":single,"double":double,"context_sequence":context.receive_sequence(),"recipe_layout":layout}),
                 )?;
             }
             "recipe_removed" => {

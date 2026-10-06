@@ -7,6 +7,12 @@ use super::registry::ServerRegistryObservation;
 use super::{PlayerObservation, ReceivedSlot, SessionStamp};
 use crate::{MinecraftVersion, Result};
 use std::sync::{Arc, OnceLock};
+pub(crate) mod context;
+pub use context::ReceivedCraftingContext;
+pub(crate) mod layout;
+pub use layout::{RecipeCraftingCell, RecipeCraftingLayout};
+pub(crate) mod returns;
+pub use returns::{CraftingGridReturnPlan, CraftingGridReturnStep};
 pub(crate) mod materials;
 pub(crate) mod outline;
 pub(crate) mod recipes;
@@ -292,3 +298,6 @@ mod tests;
 
 pub(crate) mod stock;
 pub use stock::RecipeBookStock;
+
+#[cfg(test)]
+mod test_receipts;
