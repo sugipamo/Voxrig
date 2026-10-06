@@ -56,6 +56,9 @@ prove a common cause. No patched production run has been performed.
 
 ## Opt-In Timing Evidence
 
+The original scheduling fix was merged as PR #6 (`4aba2ac`). Timing diagnostics
+are a separate follow-up, PR #8; they were not part of that merge.
+
 Set `VOXRIG_TRACE_PROTOCOL=1` before starting a diagnostic process to emit
 `voxrig_protocol_timing` JSON lines to stderr. Logging is off by default and
 bounded to 65,536 records per process, followed by one `capacity_exhausted`
@@ -107,3 +110,7 @@ passed. Mock-server trace records were parsed to check generation/KeepAlive
 pairing, exact echo, a measured 100+ ms coherent-gate wait and reply rejection
 without barrier bypass. Production stayed stopped, retaining all holds; these
 checks do not attribute the historical server timeout.
+
+After incorporating concurrently merged main `344018c`, all-target validation
+passes 372 tests (8 opt-in ignored), thirteen doc tests and warnings-denied Clippy.
+The PR #8 diff remains limited to these diagnostics, regression tests and docs.
