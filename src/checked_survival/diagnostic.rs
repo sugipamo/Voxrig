@@ -42,13 +42,14 @@ pub use super::{SurvivalCapabilities, SurvivalContract};
 pub use crate::MinecraftVersion;
 pub use crate::diagnostic_projection::ToDiagnostic;
 pub use crate::versions::java_1_21_11::operations::{
-    AttributeValue, GameMode, HotbarSelection, InteractionLoading, InventorySlot, LoadingAttempt,
-    LocalPlayerState, MiningInventoryChange, MiningInventoryChangeKind, MiningRecoveryAttempt,
-    MiningRecoveryMethod, MiningRecoveryTarget, MiningSend, MiningTargetReceipt,
-    MotionInterruption, OwnMotion, PlainItem, PlayerHealth, PositionBasis, PositionSubmission,
-    PredictedMotionFrame, ReceivedEffect, ReceivedPose, RecordedHypotheticalAimRequirement,
-    RecordedHypotheticalBlockEdit, RecordedHypotheticalMovementPreview,
-    RecordedHypotheticalPlacement, RecordedHypotheticalReconnectBoundary, RecordedInventory,
+    AssumedSurvivalStart, AttributeValue, GameMode, HotbarSelection, InteractionLoading,
+    InventorySlot, LoadingAttempt, LocalPlayerState, MiningInventoryChange,
+    MiningInventoryChangeKind, MiningRecoveryAttempt, MiningRecoveryMethod, MiningRecoveryTarget,
+    MiningSend, MiningTargetReceipt, MotionInterruption, OwnMotion, PlainItem, PlayerHealth,
+    PositionBasis, PositionSubmission, PredictedMotionFrame, ReceivedEffect, ReceivedPose,
+    RecordedHypotheticalAimRequirement, RecordedHypotheticalBlockEdit,
+    RecordedHypotheticalMovementPreview, RecordedHypotheticalPlacement,
+    RecordedHypotheticalReconnectBoundary, RecordedHypotheticalSceneSource, RecordedInventory,
     RecordedInventorySwap, RecordedInventorySwapObservation, RecordedMiningIntent,
     RecordedMiningRecord, RecordedMiningRecoveryBoundary, RecordedMiningRecoveryEvidence,
     RecordedMiningRemoval, RecordedMiningRetirementRecord, RecordedMiningRetirementWatch,

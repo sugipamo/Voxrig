@@ -12,11 +12,12 @@ mod recovery;
 mod retirement;
 mod survival;
 pub use movement::{
-    CapturedSurvivalScene, HypotheticalAimRequirement, HypotheticalBlockEdit,
-    HypotheticalMovementPreview, HypotheticalPlacement, HypotheticalReconnectBoundary,
-    MAX_SURVIVAL_CONTROL_TICKS, PredictedMotionFrame, StandingPositionBasis, SurvivalControl,
-    SurvivalInput, SurvivalMotionContract, SurvivalMotionRecheck, SurvivalMotionRecord,
-    SurvivalMotionStatus, SurvivalMovementPreview, SurvivalScenario, TerminalClearance,
+    AssumedSurvivalScene, AssumedSurvivalStart, CapturedSurvivalScene, HypotheticalAimRequirement,
+    HypotheticalBlockEdit, HypotheticalMovementPreview, HypotheticalPlacement,
+    HypotheticalReconnectBoundary, HypotheticalSceneSource, MAX_SURVIVAL_CONTROL_TICKS,
+    PredictedMotionFrame, StandingPositionBasis, SurvivalControl, SurvivalInput,
+    SurvivalMotionContract, SurvivalMotionRecheck, SurvivalMotionRecord, SurvivalMotionStatus,
+    SurvivalMovementPreview, SurvivalScenario, TerminalClearance,
 };
 #[cfg(test)]
 mod tests;
@@ -38,8 +39,8 @@ pub use movement::RecordedSurvivalMovementPreview;
 pub use movement::{
     RecordedHypotheticalAimRequirement, RecordedHypotheticalBlockEdit,
     RecordedHypotheticalMovementPreview, RecordedHypotheticalPlacement,
-    RecordedHypotheticalReconnectBoundary, RecordedSurvivalMotionRecheck,
-    RecordedSurvivalMotionRecord,
+    RecordedHypotheticalReconnectBoundary, RecordedHypotheticalSceneSource,
+    RecordedSurvivalMotionRecheck, RecordedSurvivalMotionRecord,
 };
 pub use placement::{PlacementIntent, PlacementObservation, PlacementRecord, PlacementStatus};
 pub use placement::{

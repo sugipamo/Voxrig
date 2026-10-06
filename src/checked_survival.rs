@@ -32,16 +32,16 @@ use std::time::Duration;
 pub use crate::versions::java_1_21_11::players::PlayerObservations;
 
 pub use native::{
-    CapturedSurvivalScene, HypotheticalAimRequirement, HypotheticalBlockEdit,
-    HypotheticalMovementPreview, HypotheticalPlacement, HypotheticalReconnectBoundary,
-    InventorySlot, InventorySwap, InventorySwapObservation, LocalPlayerState,
-    MAX_SURVIVAL_CONTROL_TICKS, MiningIntent, MiningInventoryChange, MiningInventoryChangeKind,
-    MiningRecord, MiningRecoveryAttempt, MiningRecoveryBoundary, MiningRecoveryEvidence,
-    MiningRecoveryMethod, MiningRecoveryTarget, MiningRetirementStatus, MiningStatus,
-    OperationHistory, PlacementIntent, PlacementStatus, PlayerState, PredictedMotionFrame,
-    StandingContext, StandingPositionBasis, SurvivalControl, SurvivalInput, SurvivalMotionContract,
-    SurvivalMotionRecheck, SurvivalMotionRecord, SurvivalMotionStatus, SurvivalMovementPreview,
-    SurvivalScenario, TerminalClearance,
+    AssumedSurvivalScene, AssumedSurvivalStart, CapturedSurvivalScene, HypotheticalAimRequirement,
+    HypotheticalBlockEdit, HypotheticalMovementPreview, HypotheticalPlacement,
+    HypotheticalReconnectBoundary, HypotheticalSceneSource, InventorySlot, InventorySwap,
+    InventorySwapObservation, LocalPlayerState, MAX_SURVIVAL_CONTROL_TICKS, MiningIntent,
+    MiningInventoryChange, MiningInventoryChangeKind, MiningRecord, MiningRecoveryAttempt,
+    MiningRecoveryBoundary, MiningRecoveryEvidence, MiningRecoveryMethod, MiningRecoveryTarget,
+    MiningRetirementStatus, MiningStatus, OperationHistory, PlacementIntent, PlacementStatus,
+    PlayerState, PredictedMotionFrame, StandingContext, StandingPositionBasis, SurvivalControl,
+    SurvivalInput, SurvivalMotionContract, SurvivalMotionRecheck, SurvivalMotionRecord,
+    SurvivalMotionStatus, SurvivalMovementPreview, SurvivalScenario, TerminalClearance,
 };
 
 /// Versioned semantics, separate from a wire protocol number.

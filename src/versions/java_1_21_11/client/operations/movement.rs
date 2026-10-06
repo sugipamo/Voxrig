@@ -13,14 +13,14 @@ pub use control::{
     SurvivalMotionStatus,
 };
 pub use scenario::{
-    CapturedSurvivalScene, HypotheticalAimRequirement, HypotheticalBlockEdit,
-    HypotheticalMovementPreview, HypotheticalPlacement, HypotheticalReconnectBoundary,
-    SurvivalScenario,
+    AssumedSurvivalScene, AssumedSurvivalStart, CapturedSurvivalScene, HypotheticalAimRequirement,
+    HypotheticalBlockEdit, HypotheticalMovementPreview, HypotheticalPlacement,
+    HypotheticalReconnectBoundary, HypotheticalSceneSource, SurvivalScenario,
 };
 pub use scenario::{
     RecordedHypotheticalAimRequirement, RecordedHypotheticalBlockEdit,
     RecordedHypotheticalMovementPreview, RecordedHypotheticalPlacement,
-    RecordedHypotheticalReconnectBoundary,
+    RecordedHypotheticalReconnectBoundary, RecordedHypotheticalSceneSource,
 };
 
 /// Digital walking input for one predicted native game tick, without sprint/sneak.
