@@ -74,8 +74,8 @@ pub use inventory::{
     MerchantOffers, OpenWindow, PendingClick, SlotUpdate, WindowProperty, WindowTransaction,
 };
 pub use lifecycle::{
-    ConnectionGeneration, ConnectionState, OperationAdmissionError, OperationClass,
-    OperationContext, ProtocolTransaction,
+    ConnectionGeneration, ConnectionState, GenerationRevocation, OperationAdmissionError,
+    OperationClass, OperationContext, ProtocolTransaction,
 };
 pub use manager::{BotEvent, BotManager};
 pub use map::{MapData, MapIcon, MapRectangle, MapStore, MapUpdate};

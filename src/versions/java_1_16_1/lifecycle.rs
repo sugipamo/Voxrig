@@ -2,12 +2,13 @@
 //!
 //! This actor is the sole mutable owner of whether a connection may accept
 //! normal or cleanup operations. Packet/cache ownership moves behind the same
-//! actor boundary in the coherent-observation phase.
+//! actor boundary in the coherent-observation phase. Emergency revocation is an
+//! irreversible generation fence independent of this owner's queued work.
 
 use std::{
     collections::{HashMap, HashSet},
     fmt::{Display, Formatter},
-    sync::atomic::{AtomicU64, Ordering},
+    sync::atomic::{AtomicBool, AtomicU64, Ordering},
 };
 
 use tokio::{
@@ -64,6 +65,20 @@ impl ConnectionGeneration {
     #[must_use]
     pub const fn get(self) -> u64 {
         self.0
+    }
+}
+
+/// Local, irreversible revocation of one connection generation.
+/// This does not certify transport closure, delivery or server-side stillness.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct GenerationRevocation {
+    generation: ConnectionGeneration,
+}
+impl GenerationRevocation {
+    /// The exact generation irreversibly fenced by this local action.
+    #[must_use]
+    pub const fn generation(self) -> ConnectionGeneration {
+        self.generation
     }
 }
 
@@ -374,6 +389,10 @@ pub(crate) struct ConnectionActor {
     control: Arc<RwLock<crate::snapshot::Versioned<crate::ControlState>>>,
     commands: mpsc::Sender<Command>,
     lifecycle: watch::Receiver<ConnectionState>,
+    revoked: Arc<AtomicBool>,
+    owner: tokio::task::AbortHandle,
+    writer: Arc<Mutex<crate::client::PacketWriter>>,
+    runtime: tokio::runtime::Handle,
 }
 
 impl ConnectionActor {
@@ -387,7 +406,10 @@ impl ConnectionActor {
         let expiry_commands = commands.clone();
         let (lifecycle_tx, lifecycle) = watch::channel(ConnectionState::Connecting);
         let actor_control = control.clone();
-        tokio::spawn(async move {
+        let revoked = Arc::new(AtomicBool::new(false));
+        let actor_revoked = revoked.clone();
+        let termination_writer = writer.clone();
+        let owner = tokio::spawn(async move {
             let mut state = ConnectionState::Connecting;
             let mut next_actions = HashMap::<i8, i16>::new();
             let mut pending_transactions =
@@ -400,6 +422,9 @@ impl ConnectionActor {
             let mut latest_observation_sequence = None;
             let mut active_output_sequence = None;
             while let Some(command) = receiver.recv().await {
+                if actor_revoked.load(Ordering::Acquire) {
+                    break;
+                }
                 match command {
                     Command::RecordObservation { sequence, reply } => {
                         let result = if state != ConnectionState::Ready || sequence == 0 {
@@ -508,6 +533,9 @@ impl ConnectionActor {
                         let result = match admission {
                             Ok(()) => {
                                 let mut writer = writer.lock().await;
+                                if actor_revoked.load(Ordering::Acquire) {
+                                    return;
+                                }
                                 let compression = writer.compression;
                                 crate::protocol::write_packet(
                                     &mut writer.inner,
@@ -560,6 +588,9 @@ impl ConnectionActor {
                             Ok(()) => {
                                 let write_result = {
                                     let mut writer = writer.lock().await;
+                                    if actor_revoked.load(Ordering::Acquire) {
+                                        return;
+                                    }
                                     let compression = writer.compression;
                                     crate::protocol::write_packet(
                                         &mut writer.inner,
@@ -678,6 +709,9 @@ impl ConnectionActor {
                             Ok(()) => {
                                 let write_result = {
                                     let mut writer = writer.lock().await;
+                                    if actor_revoked.load(Ordering::Acquire) {
+                                        return;
+                                    }
                                     let compression = writer.compression;
                                     let mut result = Ok(());
                                     for (packet_id, payload) in packets {
@@ -811,6 +845,9 @@ impl ConnectionActor {
                         };
                         let write_result = {
                             let mut writer = writer.lock().await;
+                            if actor_revoked.load(Ordering::Acquire) {
+                                return;
+                            }
                             let compression = writer.compression;
                             crate::protocol::write_packet(
                                 &mut writer.inner,
@@ -1037,6 +1074,9 @@ impl ConnectionActor {
                             matches!(state, ConnectionState::Connecting | ConnectionState::Ready);
                         let result = if admitted {
                             let mut writer = writer.lock().await;
+                            if actor_revoked.load(Ordering::Acquire) {
+                                return;
+                            }
                             let compression = writer.compression;
                             crate::protocol::write_packet(
                                 &mut writer.inner,
@@ -1123,7 +1163,29 @@ impl ConnectionActor {
             control,
             commands,
             lifecycle,
+            revoked,
+            owner: owner.abort_handle(),
+            writer: termination_writer,
+            runtime: tokio::runtime::Handle::current(),
         }
+    }
+
+    /// Revoke this generation independently of the owner's command/write queue.
+    /// An already admitted write may be partial; the generation is never reused.
+    pub(crate) fn revoke(&self) -> GenerationRevocation {
+        let receipt = GenerationRevocation {
+            generation: self.generation,
+        };
+        if self.revoked.swap(true, Ordering::AcqRel) {
+            return receipt;
+        }
+        self.owner.abort();
+        let writer = self.writer.clone();
+        self.runtime.spawn(async move {
+            let mut writer = writer.lock().await;
+            let _ = writer.inner.shutdown().await;
+        });
+        receipt
     }
 
     pub(crate) const fn generation(&self) -> ConnectionGeneration {
@@ -1131,7 +1193,11 @@ impl ConnectionActor {
     }
 
     pub(crate) fn lifecycle(&self) -> ConnectionState {
-        *self.lifecycle.borrow()
+        if self.revoked.load(Ordering::Acquire) {
+            ConnectionState::ConnectionStateUnknown
+        } else {
+            *self.lifecycle.borrow()
+        }
     }
 
     pub(crate) async fn mark_ready(&self) {
@@ -1252,7 +1318,11 @@ impl ConnectionActor {
             })?;
         result.await.map_err(|_| {
             crate::Error::new(
-                crate::ErrorKind::State,
+                if self.revoked.load(Ordering::Acquire) {
+                    crate::ErrorKind::UncertainDispatch
+                } else {
+                    crate::ErrorKind::State
+                },
                 anyhow::anyhow!("connection actor dropped packet dispatch result"),
             )
         })?
@@ -1308,7 +1378,13 @@ impl ConnectionActor {
             })
             .await
             .map_err(|_| self.terminal_admission_error())?;
-        result.await.map_err(|_| self.terminal_admission_error())?
+        match result.await {
+            Ok(result) => result,
+            Err(_) if self.revoked.load(Ordering::Acquire) => {
+                Ok(crate::DispatchOutcome::DeliveryUnknown)
+            }
+            Err(_) => Err(self.terminal_admission_error()),
+        }
     }
 
     pub(crate) async fn dispatch_interaction_batch(
@@ -1329,7 +1405,13 @@ impl ConnectionActor {
             })
             .await
             .map_err(|_| self.terminal_admission_error())?;
-        result.await.map_err(|_| self.terminal_admission_error())?
+        match result.await {
+            Ok(result) => result,
+            Err(_) if self.revoked.load(Ordering::Acquire) => {
+                Ok(crate::DispatchOutcome::DeliveryUnknown)
+            }
+            Err(_) => Err(self.terminal_admission_error()),
+        }
     }
 
     #[cfg(test)]
@@ -1341,6 +1423,13 @@ impl ConnectionActor {
     ) -> std::result::Result<ProtocolTransaction, OperationAdmissionError> {
         self.dispatch_acknowledged_with_diagnostic(context, class, operation, None)
             .await
+            .map_err(|error| match error {
+                crate::DispatchError::Admission(error) => error,
+                crate::DispatchError::DeliveryUnknown => {
+                    OperationAdmissionError::ConnectionStateUnknown
+                }
+                crate::DispatchError::InvalidInput => OperationAdmissionError::InvalidOperation,
+            })
     }
 
     pub(crate) async fn dispatch_acknowledged_with_diagnostic(
@@ -1349,7 +1438,7 @@ impl ConnectionActor {
         class: OperationClass,
         operation: crate::AcknowledgedOperation,
         diagnostic_correlation: Option<crate::DiagnosticCorrelationId>,
-    ) -> std::result::Result<ProtocolTransaction, OperationAdmissionError> {
+    ) -> std::result::Result<ProtocolTransaction, crate::DispatchError> {
         let (reply, result) = oneshot::channel();
         self.commands
             .send(Command::DispatchAcknowledged {
@@ -1360,8 +1449,16 @@ impl ConnectionActor {
                 reply,
             })
             .await
-            .map_err(|_| self.terminal_admission_error())?;
-        result.await.map_err(|_| self.terminal_admission_error())?
+            .map_err(|_| crate::DispatchError::Admission(self.terminal_admission_error()))?;
+        match result.await {
+            Ok(result) => result.map_err(crate::DispatchError::Admission),
+            Err(_) if self.revoked.load(Ordering::Acquire) => {
+                Err(crate::DispatchError::DeliveryUnknown)
+            }
+            Err(_) => Err(crate::DispatchError::Admission(
+                self.terminal_admission_error(),
+            )),
+        }
     }
 
     pub(crate) async fn observe_window_confirmation(
@@ -1480,7 +1577,11 @@ impl ConnectionActor {
             })?;
         result.await.map_err(|_| {
             crate::Error::new(
-                crate::ErrorKind::State,
+                if self.revoked.load(Ordering::Acquire) {
+                    crate::ErrorKind::UncertainDispatch
+                } else {
+                    crate::ErrorKind::State
+                },
                 anyhow::anyhow!("connection actor dropped protocol dispatch result"),
             )
         })?
@@ -1508,7 +1609,11 @@ impl ConnectionActor {
     pub(crate) async fn wait_for_terminal(&self) -> ConnectionState {
         let mut lifecycle = self.lifecycle.clone();
         loop {
-            let state = *lifecycle.borrow_and_update();
+            let state = if self.revoked.load(Ordering::Acquire) {
+                ConnectionState::ConnectionStateUnknown
+            } else {
+                *lifecycle.borrow_and_update()
+            };
             if state.is_terminal() {
                 return state;
             }
@@ -2782,6 +2887,127 @@ mod tests {
                 .is_err()
         );
         assert!(actor.dispatch_protocol(0x07, &[]).await.is_err());
+        no_packet(&mut server).await;
+    }
+    #[tokio::test]
+    async fn revocation_interrupts_a_writer_lock_and_discards_queued_packets() {
+        let (actor, mut server, writer) = actor_fixture_with_writer().await;
+        actor.mark_ready().await;
+        let guard = writer.lock().await;
+        let mut replies = Vec::new();
+        for _ in 0..64 {
+            let (reply, result) = oneshot::channel();
+            actor
+                .commands
+                .try_send(Command::DispatchProtocol {
+                    packet_id: 0x10,
+                    payload: vec![1],
+                    reply,
+                })
+                .unwrap();
+            replies.push(result);
+        }
+        let receipt = actor.revoke();
+        assert_eq!(receipt.generation(), actor.generation());
+        assert_eq!(actor.lifecycle(), ConnectionState::ConnectionStateUnknown);
+        assert_eq!(actor.revoke(), receipt);
+        for result in replies {
+            assert!(
+                timeout(Duration::from_secs(1), result)
+                    .await
+                    .unwrap()
+                    .is_err()
+            );
+        }
+        drop(guard);
+        no_packet(&mut server).await;
+        assert!(actor.dispatch_protocol(0x10, &[2]).await.is_err());
+        assert_eq!(
+            actor.wait_for_terminal().await,
+            ConnectionState::ConnectionStateUnknown
+        );
+    }
+
+    #[tokio::test]
+    async fn revocation_preserves_written_prefix_and_marks_pending_ack_unknown() {
+        let (actor, mut server) = actor_fixture().await;
+        actor.mark_ready().await;
+        let context = OperationContext {
+            generation: actor.generation(),
+            source_observation_sequence: 0,
+        };
+        let transaction = actor
+            .dispatch_acknowledged(
+                context,
+                OperationClass::Normal,
+                crate::AcknowledgedOperation::DigFinish {
+                    position: crate::BlockPos { x: 3, y: 4, z: 5 },
+                    face: crate::BlockFace::Up,
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(read_packet(&mut server, None).await.unwrap().0, 0x1b);
+        let _ = actor.revoke();
+        assert_eq!(
+            timeout(Duration::from_secs(1), transaction.wait())
+                .await
+                .unwrap(),
+            crate::DispatchOutcome::DeliveryUnknown
+        );
+        assert!(
+            actor
+                .dispatch(context, OperationClass::Cleanup, 0x02, &[])
+                .await
+                .is_err()
+        );
+        no_packet(&mut server).await;
+    }
+
+    #[tokio::test]
+    async fn revoking_one_generation_does_not_revoke_another_connection() {
+        let (first, _) = actor_fixture().await;
+        let (second, mut server) = actor_fixture().await;
+        first.mark_ready().await;
+        second.mark_ready().await;
+        let _ = first.revoke();
+        assert_ne!(first.generation(), second.generation());
+        second.dispatch_protocol(0x10, &[7]).await.unwrap();
+        assert_eq!(
+            read_packet(&mut server, None).await.unwrap(),
+            (0x10, vec![7])
+        );
+        assert_eq!(second.lifecycle(), ConnectionState::Ready);
+    }
+    #[tokio::test]
+    async fn revocation_marks_a_lost_ack_creation_receipt_unknown_not_rejected() {
+        let (actor, mut server, writer) = actor_fixture_with_writer().await;
+        actor.mark_ready().await;
+        let guard = writer.lock().await;
+        let pending = actor.dispatch_acknowledged_with_diagnostic(
+            OperationContext {
+                generation: actor.generation(),
+                source_observation_sequence: 0,
+            },
+            OperationClass::Normal,
+            crate::AcknowledgedOperation::DigFinish {
+                position: crate::BlockPos { x: 1, y: 2, z: 3 },
+                face: crate::BlockFace::Up,
+            },
+            None,
+        );
+        tokio::pin!(pending);
+        std::future::poll_fn(|cx| {
+            assert!(std::future::Future::poll(pending.as_mut(), cx).is_pending());
+            std::task::Poll::Ready(())
+        })
+        .await;
+        let _ = actor.revoke();
+        assert!(matches!(
+            timeout(Duration::from_secs(1), pending).await.unwrap(),
+            Err(crate::DispatchError::DeliveryUnknown)
+        ));
+        drop(guard);
         no_packet(&mut server).await;
     }
 }

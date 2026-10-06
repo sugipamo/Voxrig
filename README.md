@@ -83,3 +83,11 @@ cargo clippy --all-targets -- -D warnings
 
 Voxrigは[MIT License](LICENSE)で提供します。組み込まれたregistry dataと
 fixtureの出典・ライセンスは[Third-party notices](THIRD_PARTY_NOTICES.md)を参照してください。
+
+### Java 1.16.1の期限超過時の接続隔離
+
+`Bot::revoke_connection()` は通常のdisconnectキューを待たずに、当該generationを不可逆に
+無効化します。戻り値 `GenerationRevocation` はローカルの新規受付遮断を示します。
+進行中の送信・ack・inventoryへの影響は未確認であり、正常logoutやserverの静止を
+示しません。owner/readerを停止させ、writerのshutdownを別途開始します。
+遮断したBotは再利用せず、保留解除・再接続・再送は利用側が別の証拠で判断します。

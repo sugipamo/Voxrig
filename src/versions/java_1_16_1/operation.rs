@@ -194,10 +194,12 @@ pub enum CleanupDispatchOutcome {
     DeliveryUnknown,
 }
 
-/// A typed failure that occurs before a primitive packet is written.
+/// Typed dispatch failure, separating pre-write rejection from lost delivery evidence.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum DispatchError {
+    /// The revoked owner lost its receipt; writes may have been partial.
+    DeliveryUnknown,
     /// The connection actor rejected the context or lifecycle class.
     Admission(OperationAdmissionError),
     /// The operation contains a value that cannot be encoded safely.
@@ -236,6 +238,9 @@ impl Display for DispatchError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Admission(error) => write!(formatter, "primitive admission failed: {error}"),
+            Self::DeliveryUnknown => {
+                formatter.write_str("primitive delivery is unknown after generation revocation")
+            }
             Self::InvalidInput => formatter.write_str("primitive input is invalid"),
         }
     }
@@ -245,7 +250,7 @@ impl std::error::Error for DispatchError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Admission(error) => Some(error),
-            Self::InvalidInput => None,
+            Self::InvalidInput | Self::DeliveryUnknown => None,
         }
     }
 }
