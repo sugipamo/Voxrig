@@ -369,3 +369,86 @@ fn recipe_display_malformed_unknown_and_bounded_inputs_fail_without_allocating_d
         );
     }
 }
+
+#[test]
+fn original_ghost_display_only_windows_and_atomic_packet_boundaries() {
+    let mut text = String::new();
+    GzDecoder::new(
+        include_bytes!("../../../../../data/client_api/recipe_ghost_cases-1.21.11.json.gz")
+            .as_slice(),
+    )
+    .read_to_string(&mut text)
+    .unwrap();
+    let oracle: Value = serde_json::from_str(&text).unwrap();
+    let session = SessionStamp {
+        version: MinecraftVersion::Java1_21_11,
+        connection_id: 7,
+        world_generation: 3,
+    };
+    let mut state = state();
+    state.loading.generation = 3;
+    let mut contents = vec![0, 0, 46];
+    contents.extend([0; 47]);
+    operations::receive(&mut state, ids::play_clientbound::WINDOW_ITEMS, &contents).unwrap();
+    for case in oracle["cases"].as_array().unwrap() {
+        let packet = bytes(case["encoded_hex"].as_str().unwrap());
+        let mut r = Reader::new(&packet);
+        assert_eq!(i64::from(r.varint().unwrap()), case["decoded_window"]);
+        let display = display(&mut r, &mut MAX_DISPLAY_NODES.clone()).unwrap();
+        r.end().unwrap();
+        assert_eq!(display_json(&display), case["native_display"]);
+        assert_eq!(case["has_recipe_id"], false);
+        state.sequence += 1;
+        receive(
+            &mut state,
+            ids::play_clientbound::CRAFT_RECIPE_RESPONSE,
+            &packet,
+        )
+        .unwrap();
+        let before = state.recipe_ghost.clone().unwrap();
+        let capture = before.capture(session).unwrap();
+        if case["decoded_window"] == 0 {
+            let capture = capture.unwrap();
+            assert!(capture.recipe().is_none());
+            assert!(capture.recipe_name().is_none());
+            assert_eq!(
+                display_json(capture.display().unwrap()),
+                case["native_display"]
+            );
+            assert_eq!(capture.receive_sequence(), state.sequence);
+        } else {
+            assert!(
+                capture.is_none(),
+                "unknown UI must not bind to player screen"
+            );
+        }
+        for end in 0..packet.len() {
+            assert!(
+                receive(
+                    &mut state,
+                    ids::play_clientbound::CRAFT_RECIPE_RESPONSE,
+                    &packet[..end]
+                )
+                .is_err()
+            );
+            assert_eq!(
+                format!("{:?}", state.recipe_ghost),
+                format!("{:?}", Some(&before))
+            );
+        }
+        let mut trailing = packet;
+        trailing.push(0);
+        assert!(
+            receive(
+                &mut state,
+                ids::play_clientbound::CRAFT_RECIPE_RESPONSE,
+                &trailing
+            )
+            .is_err()
+        );
+        assert_eq!(
+            format!("{:?}", state.recipe_ghost),
+            format!("{:?}", Some(&before))
+        );
+    }
+}

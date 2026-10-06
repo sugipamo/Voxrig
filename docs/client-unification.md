@@ -238,7 +238,7 @@ A5の代表例は初回貫通用であり、すべての特殊windowやentity／
 | かまどslot観測・通常PICKUP・開閉 | 共通・限定条件 | 共通・限定条件 | A5の基本かまど精錬flow。溶鉱炉／燻製器はconstructor/slot規則の確認で、特殊レシピのlive検証は残る |
 | own-player乗車関係・明示的下車 | 共通・限定条件 | 共通・限定条件 | 実passenger list、owned一回送信→実除外→neutral。両版・両modeのnativeで確認。下車後の地上継続はB |
 | vehicle操縦・その他特殊window／UI／manager | 未共通化 | 未共通化 | 広い対応はB |
-| ownedレシピブック配置 | 共通・限定条件 | 共通・限定条件 | B4で通常Next／Maximumを接続。ghost／自動shift製作は残る |
+| ownedレシピブック配置 | 共通・限定条件 | 共通・限定条件 | B4で通常Next／Maximumを接続。材料不足ghostと実返却も接続。自動shift製作は残る |
 
 A1の固定fixtureはstone床、空のsingle chest、oak planks 2個、収納用stone 2個、
 設置用dirt 3個とする。初期配置後にfixtureから操作結果を上書きせず、
@@ -256,7 +256,7 @@ close送信と実受信screen履歴を混同せず、サーバー側でも位置
 | 段階 | 後続の対応範囲 |
 | --- | --- |
 | 3 | 広い移動・採掘・設置条件、道具・姿勢・非cube・effect等の対応、観測継続と復旧の範囲拡大、別姿勢／effectを含むCreative飛行後の立位操作への継続 |
-| 4 | レシピブック配置のghost結果と未対応条件、非空cursorへの結果結合、shift製作、製作台SWAP／QUICK_MOVE、一般装備・entity・item activation、任意item／text／dialogのconstructor・参照・比較と実server cache hash |
+| 4 | レシピブック配置の残る未対応条件、非空cursorへの結果結合、shift製作、製作台SWAP／QUICK_MOVE、一般装備・entity・item activation、任意item／text／dialogのconstructor・参照・比較と実server cache hash |
 | 5 | より広いcontext／記録／再構成／scene／復旧、履歴取得が書き込み停止で詰まる経路の解消、共通遮断後の各履歴取得と不確実性保持、再設定・chunk欠測・再接続の範囲拡大 |
 | 6 | 各UI・特殊window・vehicle・manager機能の残差分。raw操作の版依存は明示的な拡張として管理する |
 
@@ -534,5 +534,16 @@ original grid matching, simple main stock and unfiltered input stock, the matche
 capacity guard, full safe returns and compatible source data after returns.
 Offhand returns cannot be counted as ingredient sources. The public plan remains
 read-only, keeps its actual source context and makes no native tie/ACK/consumption
-claim. Owned recipe-book submission, actual placement/ghost observations and all
-remaining full integration scope are still required.
+claim. Owned recipe-book submission now retains actual conserved placement or
+material-shortage ghosts. Remaining full integration scope is still required.
+
+
+B4の材料不足ghostは共通観測型とowned要求へ接続した。ghost表示と実盤面・在庫は別に保持し、
+実返却と保存が揃うまで操作を解放しない。新版応答にはrecipe IDがないため、表示内容から
+選択recipeや因果関係を補完しない。同じ画面番号の再利用・world変更とold planの再送を拒否する。
+次のB4区切りは非空cursorへの結果結合とshift製作。一般装備・entity／任意data等を含む
+B4全体とA6の利用側検証は継続中。[共通ghost契約](common-recipes.md#received-ghosts-and-conserved-material-shortage-completion)。
+
+Owned ghostは現在sourceの根拠も完全一致を要求する。table closeを根拠にしたplayer planの
+`SubmittedClose`が実player画面の`Received`へ移る境界は、B4の残るadmission項目。
+その場合のpending履歴を実完了へ変換せず、再送もしない。今回の16ケースはこの境界を含まない。

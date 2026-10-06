@@ -48,11 +48,11 @@ pub use config::{ClientLimits, Server};
 pub use crafting::{
     CraftingGridReturnPlan, CraftingGridReturnStep, CraftingGridUnreturnedSplit, CraftingSource,
     CraftingTakeId, CraftingTakeRecord, CraftingTakeStage, ReceivedCrafting,
-    ReceivedCraftingContext, ReceivedRecipe, ReceivedRecipes, RecipeBookMaterials, RecipeBookStock,
-    RecipeCraftingCell, RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient,
-    RecipePlacementAmount, RecipePlacementId, RecipePlacementPlan, RecipePlacementRecord,
-    RecipePlacementSend, RecipePlacementStage, RecipeSlotDisplay, RecipeTrimDefinition,
-    RecipeTrimPattern,
+    ReceivedCraftingContext, ReceivedRecipe, ReceivedRecipeGhost, ReceivedRecipes,
+    RecipeBookMaterials, RecipeBookStock, RecipeCraftingCell, RecipeCraftingLayout, RecipeDisplay,
+    RecipeId, RecipeIngredient, RecipePlacementAmount, RecipePlacementId, RecipePlacementPlan,
+    RecipePlacementRecord, RecipePlacementSend, RecipePlacementStage, RecipeSlotDisplay,
+    RecipeTrimDefinition, RecipeTrimPattern,
 };
 pub use entity::{EntityId, EntitySpawn, EntitySpawns};
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
@@ -116,12 +116,12 @@ pub mod prelude {
         EntitySpawn, EntitySpawns, Feature, FlightCommand, FlightLanding, FlightRecord,
         FlightStage, FurnaceObservation, FurnaceSlot, GameMode, ItemComponent, ItemComponentPatch,
         ItemData, ItemProperties, ItemStack, MountId, PlayerObservation, ReceivedCrafting,
-        ReceivedCraftingContext, ReceivedInventory, ReceivedItem, ReceivedRecipe, ReceivedRecipes,
-        ReceivedSlot, RecipeBookMaterials, RecipeBookStock, RecipeCraftingCell,
-        RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient, RecipePlacementAmount,
-        RecipePlacementId, RecipePlacementPlan, RecipePlacementRecord, RecipePlacementSend,
-        RecipePlacementStage, RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern, Server,
-        Support, Survival, VehicleObservation, VehicleRelation,
+        ReceivedCraftingContext, ReceivedInventory, ReceivedItem, ReceivedRecipe,
+        ReceivedRecipeGhost, ReceivedRecipes, ReceivedSlot, RecipeBookMaterials, RecipeBookStock,
+        RecipeCraftingCell, RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient,
+        RecipePlacementAmount, RecipePlacementId, RecipePlacementPlan, RecipePlacementRecord,
+        RecipePlacementSend, RecipePlacementStage, RecipeSlotDisplay, RecipeTrimDefinition,
+        RecipeTrimPattern, Server, Support, Survival, VehicleObservation, VehicleRelation,
     };
     pub use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Region, Result};
 }

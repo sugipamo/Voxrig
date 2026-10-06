@@ -280,6 +280,16 @@ impl Client {
         }
     }
 
+    /// Last actual ghost UI packet with its original opening and frozen context.
+    /// It is display evidence, not received ingredients or crafted output.
+    pub async fn received_recipe_ghost(
+        &self,
+    ) -> Result<Option<crate::client::ReceivedRecipeGhost>> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_received_recipe_ghost().await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_received_recipe_ghost().await,
+        }
+    }
     /// Capture recipes/tags, player inventory and the active player/table grid
     /// together. Other active UIs return None. This is read-only planning data,
     /// not permission to mutate the grid or evidence of recipe consumption.

@@ -240,12 +240,25 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
     use ids::play_clientbound as input;
     if !matches!(
         id,
-        input::RECIPE_BOOK_ADD | input::RECIPE_BOOK_REMOVE | input::RECIPE_BOOK_SETTINGS
+        input::RECIPE_BOOK_ADD
+            | input::RECIPE_BOOK_REMOVE
+            | input::RECIPE_BOOK_SETTINGS
+            | input::CRAFT_RECIPE_RESPONSE
     ) {
         return Ok(false);
     }
     let mut r = Reader::new(payload);
     match id {
+        input::CRAFT_RECIPE_RESPONSE => {
+            let window = r.varint()?;
+            let mut budget = MAX_DISPLAY_NODES;
+            let display = display(&mut r, &mut budget)?;
+            r.end()?;
+            let context = operations::recipe_ghost_context(state);
+            state.recipe_ghost = Some(crate::client::crafting::ghost::GhostReceipts::displayed(
+                context, window, display,
+            ));
+        }
         input::RECIPE_BOOK_ADD => {
             let count = r.count(MAX_ENTRIES)?;
             let mut budget = MAX_DISPLAY_NODES;

@@ -354,6 +354,16 @@ impl OperationState {
 pub struct Operations {
     pub(super) bot: Bot,
 }
+pub(super) fn recipe_ghost_context(state: &State) -> crate::client::crafting::ghost::GhostContext {
+    crate::client::crafting::ghost::GhostContext {
+        generation: state.loading.generation,
+        sequence: state.sequence,
+        active_window: state.operations.inventory.window_id,
+        screen: state.operations.inventory.container.clone(),
+        close: state.common_container_close.clone(),
+        registries: state.registries.clone(),
+    }
+}
 impl Operations {
     pub(crate) async fn common_screen_state(
         &self,
@@ -1253,6 +1263,18 @@ impl Operations {
             state.sequence,
             state.registries.capture(player.session, state.sequence),
         )
+    }
+    pub(crate) async fn common_received_recipe_ghost(
+        &self,
+    ) -> Result<Option<crate::client::ReceivedRecipeGhost>> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        state
+            .recipe_ghost
+            .as_ref()
+            .map(|ghost| ghost.capture(player.session))
+            .transpose()
+            .map(Option::flatten)
     }
     pub(crate) async fn common_received_crafting_context(
         &self,

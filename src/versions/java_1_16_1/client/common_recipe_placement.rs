@@ -81,6 +81,14 @@ impl Bot {
             .as_ref()
             .map_or(Some(1), |r| r.record.id.attempt().checked_add(1))
             .ok_or_else(|| unavailable("recipe placement attempts exhausted"))?;
+        dispatch::validate_plan_history(
+            plan,
+            self.common_recipe_placement
+                .lock()
+                .await
+                .as_ref()
+                .map(|r| &r.record),
+        )?;
         let record = dispatch::prepare(plan, &current, mode, attempt)?;
         self.recipe_placement_cache(&record).await?;
         dispatch::payload(&record)?;
@@ -193,11 +201,24 @@ impl Bot {
         }
         let current = self.recipe_placement_capture().await;
         let cache = self.recipe_placement_cache(&snapshot.record).await;
+        let ghost = self
+            .common_receipts
+            .lock()
+            .await
+            .recipe_ghost
+            .as_ref()
+            .filter(|g| g.receive_sequence() > snapshot.record.send.after_sequence)
+            .map(|g| g.capture(snapshot.record.id.session()))
+            .transpose()
+            .map(Option::flatten);
         let complete = {
             let mut guard = self.common_recipe_placement.lock().await;
             let record = &mut guard.as_mut().expect("retained").record;
             match current {
-                Ok(current) => dispatch::receive(record, &current),
+                Ok(current) => match &ghost {
+                    Ok(ghost) => dispatch::receive_with_ghost(record, &current, ghost.as_ref()),
+                    Err(error) => record.inspection(error),
+                },
                 Err(e) => record.inspection(e),
             }
             if let Err(e) = cache {
@@ -215,7 +236,11 @@ impl Bot {
                     let mut guard = self.common_recipe_placement.lock().await;
                     let r = guard.as_mut().expect("retained");
                     r.released = true;
-                    r.record.stage = RecipePlacementStage::ObservedPlaced;
+                    r.record.stage = if r.record.ghost.is_some() {
+                        RecipePlacementStage::ObservedGhost
+                    } else {
+                        RecipePlacementStage::ObservedPlaced
+                    };
                 }
                 Err(e) => {
                     self.interrupt_common_recipe_placement(format!(
@@ -226,5 +251,68 @@ impl Bot {
             }
         }
         Ok(())
+    }
+}
+
+/// Original signed-byte window and resource name; parse fully before publishing.
+pub(super) fn decode_ghost(payload: &[u8]) -> anyhow::Result<(i8, String)> {
+    let (&window, mut rest) = payload.split_first().context("missing ghost window")?;
+    let recipe = crate::protocol::get_string(&mut rest)?;
+    if !rest.is_empty() {
+        anyhow::bail!("trailing ghost recipe packet");
+    }
+    let (namespace, name) = recipe.split_once(':').unwrap_or(("minecraft", &recipe));
+    if namespace.is_empty()
+        || name.is_empty()
+        || !namespace
+            .bytes()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || b"_.-".contains(&c))
+        || !name
+            .bytes()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || b"/_.-".contains(&c))
+    {
+        anyhow::bail!("invalid ghost recipe identifier");
+    }
+    Ok((window as i8, format!("{namespace}:{name}")))
+}
+#[cfg(test)]
+mod ghost_codec_tests {
+    use super::*;
+    use std::io::Read;
+    #[test]
+    fn original_ghost_signed_windows_and_packet_boundaries() {
+        let mut text = String::new();
+        flate2::read::GzDecoder::new(
+            include_bytes!("../../../../data/client_api/recipe_ghost_cases-1.16.1.json.gz")
+                .as_slice(),
+        )
+        .read_to_string(&mut text)
+        .unwrap();
+        let oracle: serde_json::Value = serde_json::from_str(&text).unwrap();
+        for case in oracle["cases"].as_array().unwrap() {
+            let hex = case["encoded_hex"].as_str().unwrap();
+            let packet: Vec<u8> = (0..hex.len())
+                .step_by(2)
+                .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
+                .collect();
+            let (window, name) = decode_ghost(&packet).unwrap();
+            assert_eq!(i64::from(window), case["decoded_window"]);
+            assert_eq!(name, case["recipe_name"]);
+            assert_eq!(case["native_packet_id"], 0x30);
+            for end in 0..packet.len() {
+                assert!(decode_ghost(&packet[..end]).is_err());
+            }
+            let mut trailing = packet;
+            trailing.push(0);
+            assert!(decode_ghost(&trailing).is_err());
+        }
+        for name in [":stick", "minecraft:", "BAD:stick", "minecraft:bad path"] {
+            let mut packet = vec![0];
+            crate::protocol::put_string(&mut packet, name);
+            assert!(decode_ghost(&packet).is_err());
+        }
+        let mut packet = vec![0];
+        crate::protocol::put_string(&mut packet, "stick");
+        assert_eq!(decode_ghost(&packet).unwrap().1, "minecraft:stick");
     }
 }

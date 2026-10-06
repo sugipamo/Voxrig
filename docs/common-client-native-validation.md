@@ -626,3 +626,34 @@ main `686f414`を取り込んだmerge `291da13`でも同じ16ケースを通し�
 照明／診断／仮想transitionのmain側の追加試験もこの統合suiteへ含める。
 fmt／all-target Clippy／Rust 1.85 all-target check／rustdoc／trace境界／配布allowlist・Cargo package buildも成功。
 配布対象は772ファイルで、利用側logsと私的な`.local`のruntimeを含めない。
+
+
+## B4: 材料不足ghostから通常製作への継続（2026-10-06）
+
+```bash
+CARGO_INCREMENTAL=0 python3 scripts/run_common_native.py --all --scenario recipe-ghost --accept-eula
+```
+
+同じcommon consumerで両mode・player/table・Next/Maximumの8通りを各版で実行する。
+初期fixtureはplanks 1個とdirt 1個、受信bookのみ。以降のRCONは読み取りのみ。
+まずdirt、次にplankを明示的PICKUPで入力へ置き、stickの材料不足要求を各一回送信する。
+実ghostと空入力・結果・在庫保存が揃うまで解放しない。両回ともold planを拒否する。
+続いてfresh oak_button recipeを普通に配置し、結果取得・格納、空grid/result/cursor、元table close、
+新しいhotbar選択と正常disconnectまで通す。RCONでdirt 1個とbutton 1個だけ、位置不変を照合する。
+元packetはghost要求2回＋通常配置1回、実ghost応答2回で、再送していない。
+新版ghost応答にrecipe IDはない。選択recipeの因果関係や実入力・完成品へ昇格しない。
+
+成功runは`trial-1.16.1-92425d6b`／`trial-1.21.11-330f5838`。
+同じ436 source/data入力とconsumer binaryで16ケース成功、両JVM exit 0、proxy errorなし。
+先行2回の旧版runでは最初のworkflowは成功したが、次のcaseでclick再送後の追加input receiptが
+planの元ordinalを変え、送信直前の検査が拒否した。consumer側で実full-grid/result/cursorと
+その後の実input broadcastを待つよう修正した。guardは維持し、失敗reportも保存する。
+元codec 13ケース、両adapterの空／非空入力・old/別UI ghost・実返却不足・old plan拒否、
+元opening/configuration/world束縛の軽量試験も通過した。
+[契約](common-recipes.md#received-ghosts-and-conserved-material-shortage-completion)／
+[入力と結果](evidence/common-recipe-ghost-20261006.json)。
+非空cursor結合・shift製作・製作台SWAP/QUICK_MOVEと広いB4、B3/B5/B6、私的A6は継続中。
+
+この区切りの単体754件・公開API4件・doctest30件、fmt・all-target Clippy・Rust 1.85の
+all-target check・rustdoc・trace境界・配布allowlistとCargo package buildは成功した。
+専用環境等の8件はignored。配布対象は780ファイルで、私的runtimeと利用側logsを含めない。

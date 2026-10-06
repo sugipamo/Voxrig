@@ -24,6 +24,8 @@ pub use recipes::{
     ReceivedRecipe, ReceivedRecipes, RecipeDisplay, RecipeId, RecipeIngredient, RecipeSlotDisplay,
     RecipeTrimDefinition, RecipeTrimPattern,
 };
+pub(crate) mod ghost;
+pub use ghost::ReceivedRecipeGhost;
 pub(crate) mod dispatch;
 pub use dispatch::{
     RecipePlacementId, RecipePlacementRecord, RecipePlacementSend, RecipePlacementStage,

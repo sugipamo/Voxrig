@@ -67,6 +67,45 @@ pub(crate) async fn common_recipe_placement_plan(client: &Client) -> RecipePlace
     plan
 }
 
+pub(crate) async fn common_ghost_recipe_plan(client: &Client) -> RecipePlacementPlan {
+    let context = client.received_crafting_context().await.unwrap().unwrap();
+    let plan = context
+        .recipe_placement_plan(
+            context.recipes().entries()[0].id(),
+            RecipePlacementAmount::Next,
+        )
+        .unwrap();
+    assert_eq!(plan.material_maximum(), 0);
+    assert!(!plan.can_place() && plan.can_request());
+    plan
+}
+
+pub(crate) async fn common_ghost_completed(client: &Client, id: RecipePlacementId) {
+    let record = client
+        .survival()
+        .recipe_placement_record()
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(record.id, id);
+    assert_eq!(record.stage, RecipePlacementStage::ObservedGhost);
+    let ghost = record.ghost.as_ref().unwrap();
+    assert_eq!(ghost.session(), id.session());
+    assert_eq!(ghost.source(), record.plan.layout().source());
+    assert!(ghost.receive_sequence() > record.send.after_sequence);
+    assert!(ghost.display().is_some());
+    assert_eq!(
+        client
+            .received_recipe_ghost()
+            .await
+            .unwrap()
+            .unwrap()
+            .receive_sequence(),
+        ghost.receive_sequence()
+    );
+    assert!(record.after.is_some() && record.inventory_after.is_some());
+}
+
 /// The same synchronous consumer must work even when capture/writer locks are held.
 pub(crate) fn common_revocation_scenario(
     client: &Client,

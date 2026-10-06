@@ -50,7 +50,17 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
     };
     if record.unresolved() {
         match capture(state, record.id.session().connection_id) {
-            Ok(current) => dispatch::receive(&mut record, &current),
+            Ok(current) => match state
+                .recipe_ghost
+                .as_ref()
+                .filter(|g| g.receive_sequence() > record.send.after_sequence)
+                .map(|g| g.capture(record.id.session()))
+                .transpose()
+                .map(Option::flatten)
+            {
+                Ok(ghost) => dispatch::receive_with_ghost(&mut record, &current, ghost.as_ref()),
+                Err(error) => record.inspection(error),
+            },
             Err(e) => record.inspection(e),
         }
         let inventory = &state.operations.inventory;
@@ -66,7 +76,11 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
                 .inspection("recipe placement native session/inventory/loading ownership changed");
         }
         if record.ready() {
-            record.stage = RecipePlacementStage::ObservedPlaced;
+            record.stage = if record.ghost.is_some() {
+                RecipePlacementStage::ObservedGhost
+            } else {
+                RecipePlacementStage::ObservedPlaced
+            };
         }
     }
     state.common_recipe_placement = Some(record);
@@ -104,6 +118,7 @@ impl Operations {
             .as_ref()
             .map_or(Some(1), |r| r.id.attempt().checked_add(1))
             .ok_or_else(|| unavailable("recipe placement attempts exhausted"))?;
+        dispatch::validate_plan_history(plan, state.common_recipe_placement.as_ref())?;
         let record = dispatch::prepare(plan, &current, mode, attempt)?;
         dispatch::payload(&record)?;
         let id = record.id;

@@ -232,5 +232,8 @@ coherent contextの実recipe IDからsealed Next／Maximum planを作り、送�
 `ObservedPlaced`は実入力と在庫の保存を確認した履歴で、完成品取得の保証ではない。
 待機取消後もClient所有の一回送信を保持し、検査による再送は行わない。
 結果は新しいgridから明示的に取り、通常clickで格納する。
-ghost、非空cursorへの結果結合、自動shift製作は後続対応。
+`can_request()`で安全な材料不足の要求も扱い、実ghostと空盤面・在庫保存を確認すると
+`ObservedGhost`になる。`Client::received_recipe_ghost()`は元UI・registryへ固定した実表示を返す。
+新版応答はrecipe IDを持たず、選択recipeの応答や完成品と断定しない。古いplanは再送できない。
+非空cursorへの結果結合、自動shift製作は後続対応。
 [共通レシピ](common-recipes.md)に公開契約と制限を記載する。

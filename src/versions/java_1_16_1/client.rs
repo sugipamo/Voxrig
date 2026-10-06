@@ -5373,11 +5373,24 @@ impl Bot {
                 });
             }
             0x30 => {
-                let mut rest = p.as_slice();
-                let window = get_varint(&mut rest)?;
-                let window_id =
-                    i8::try_from(window).context("craft response window ID out of range")?;
-                let recipe_id = get_string(&mut rest)?;
+                let (window_id, recipe_id) = common_recipe_placement::decode_ghost(&p)?;
+                let close = self.common_container_close.lock().await.clone();
+                let mut receipts = self.common_receipts.lock().await;
+                let context = crate::client::crafting::ghost::GhostContext {
+                    generation: receipts.generation,
+                    sequence: packet_sequence,
+                    active_window: receipts.inventory.window_id,
+                    screen: receipts.container.clone(),
+                    close,
+                    registries: receipts.registries.clone(),
+                };
+                receipts.recipe_ghost = Some(crate::client::crafting::ghost::GhostReceipts::named(
+                    context,
+                    i32::from(window_id),
+                    recipe_id.clone(),
+                    &receipts.recipes,
+                ));
+                drop(receipts);
                 self.emit(Event::CraftRecipeResponse {
                     window_id,
                     recipe_id,

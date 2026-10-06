@@ -20,6 +20,8 @@ include = [
     "/scripts/ExportRecipeDisplays.java",
     "/scripts/ExportCraftingReturns.java",
     "/scripts/export_crafting_returns.py",
+    "/scripts/ExportRecipeGhosts.java",
+    "/scripts/export_recipe_ghost.py",
     "/scripts/ExportRecipePlacement.java",
     "/scripts/export_recipe_placement.py",
     "/scripts/ExportRecipeGridMatching.java",

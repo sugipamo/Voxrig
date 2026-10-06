@@ -101,6 +101,12 @@ impl RecipePlacementPlan {
     pub fn unlocked(&self) -> bool {
         self.unlocked
     }
+    /// A safe ordinary placement or an insufficient-material request that can
+    /// produce a ghost display. This never predicts an actual server response.
+    /// Matched grids that cannot increase and unsafe return/data cases are refused.
+    pub fn can_request(&self) -> bool {
+        self.can_place() || (self.unlocked && self.material_maximum == 0 && self.grid_return.fits())
+    }
     /// Captured facts pass recipe-book preflight. This read-only result does not
     /// reserve or authorize a future operation; the live owner must recheck it.
     pub fn can_place(&self) -> bool {

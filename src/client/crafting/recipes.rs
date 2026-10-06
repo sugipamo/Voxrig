@@ -301,7 +301,7 @@ impl RecipeDisplay {
             Self::Special { .. } => None,
         }
     }
-    fn bind(&mut self, owner: &ServerRegistryObservation) -> Result<()> {
+    pub(crate) fn bind(&mut self, owner: &ServerRegistryObservation) -> Result<()> {
         match self {
             Self::Shaped {
                 ingredients,
@@ -386,6 +386,13 @@ pub struct RecipeId {
     native: NativeRecipeId,
 }
 impl RecipeId {
+    pub(crate) fn declared_ghost(name: String, ordinal: u64, owner: ServerRegistryStamp) -> Self {
+        Self {
+            owner,
+            entry_sequence: ordinal,
+            native: NativeRecipeId::Legacy(name),
+        }
+    }
     pub(crate) fn native(&self) -> &NativeRecipeId {
         &self.native
     }
@@ -528,6 +535,11 @@ pub(crate) struct RecipeReceipts {
     legacy_highlight_unknown: BTreeSet<String>,
 }
 impl RecipeReceipts {
+    pub(crate) fn ghost_declaration(&self, name: &str) -> Option<(u64, RecipeDisplay)> {
+        self.entries
+            .get(&NativeRecipeId::Legacy(name.into()))
+            .map(|(ordinal, entry)| (*ordinal, entry.display.clone()))
+    }
     pub(crate) fn declare_legacy(
         &mut self,
         entries: BTreeMap<NativeRecipeId, RecipeEntry>,

@@ -28,6 +28,8 @@ pub enum RecipePlacementStage {
     Pending,
     /// Complete write, actual target inputs and conserved actual inventory/grid.
     ObservedPlaced,
+    /// Fresh actual ghost display and conserved empty inputs; no placement or output.
+    ObservedGhost,
     /// Persistent first ownership conflict or uncertain delivery.
     RequiresInspection,
 }
@@ -54,6 +56,9 @@ pub struct RecipePlacementRecord {
     pub after: Option<ReceivedCrafting>,
     /// Actual inventory at the same boundary, including return destinations.
     pub inventory_after: Option<ReceivedInventory>,
+    /// Actual server UI display, separate from inputs and crafted results. A display-only
+    /// response supplies no recipe identity or proof of request causation.
+    pub ghost: Option<super::ReceivedRecipeGhost>,
     /// Persistent first conflict; retained even when later packets look plausible.
     pub requires_inspection: Option<String>,
     /// Historical operation status, independent of later inventory edits.
@@ -69,7 +74,10 @@ impl RecipePlacementRecord {
         }
     }
     pub(crate) fn unresolved(&self) -> bool {
-        self.stage != RecipePlacementStage::ObservedPlaced
+        !matches!(
+            self.stage,
+            RecipePlacementStage::ObservedPlaced | RecipePlacementStage::ObservedGhost
+        )
     }
     pub(crate) fn inspection(&mut self, reason: impl std::fmt::Display) {
         if self.unresolved() {
@@ -202,7 +210,10 @@ pub(crate) fn prepare(
     mode: GameMode,
     attempt: u64,
 ) -> Result<RecipePlacementRecord> {
-    if attempt == 0 || mode != plan.mode() || !plan.can_place() || current.player().pending_dispatch
+    if attempt == 0
+        || mode != plan.mode()
+        || !plan.can_request()
+        || current.player().pending_dispatch
     {
         return Err(unavailable(
             "recipe placement requires matching mode, safe plan and no pending mutation",
@@ -220,6 +231,7 @@ pub(crate) fn prepare(
         },
         after: None,
         inventory_after: None,
+        ghost: None,
         requires_inspection: None,
         stage: RecipePlacementStage::Pending,
         semantic: Arc::new(ItemContext::new(
@@ -321,13 +333,58 @@ fn conserved(record: &RecipePlacementRecord, current: &ReceivedCraftingContext) 
     }
     Ok(groups.iter().all(|(_, n)| *n == 0))
 }
+#[cfg(test)]
 pub(crate) fn receive(record: &mut RecipePlacementRecord, current: &ReceivedCraftingContext) {
+    receive_with_ghost(record, current, None)
+}
+pub(crate) fn receive_with_ghost(
+    record: &mut RecipePlacementRecord,
+    current: &ReceivedCraftingContext,
+    ghost: Option<&super::ReceivedRecipeGhost>,
+) {
     if !record.unresolved() || record.requires_inspection.is_some() {
         return;
     }
-    if let Err(e) = receive_inner(record, current) {
-        record.inspection(e);
+    let result = (|| {
+        identity(record, current)?;
+        if let Some(ghost) = ghost.filter(|g| {
+            g.receive_sequence() > record.send.after_sequence
+                && g.session() == record.id.session()
+                && g.source() == record.plan.layout().source()
+        }) {
+            if ghost.recipe_name().is_some_and(|name| {
+                record.plan.recipe().native() != &recipes::NativeRecipeId::Legacy(name.into())
+            }) {
+                return Err(unavailable("ghost response names another recipe"));
+            }
+            if ghost.registry_state().stamp()
+                != record
+                    .plan
+                    .source_context()
+                    .inventory()
+                    .registry_state()
+                    .stamp()
+            {
+                return Err(unavailable("ghost display configuration changed"));
+            }
+            record.ghost = Some(ghost.clone());
+        }
+        receive_inner(record, current)
+    })();
+    if let Err(error) = result {
+        record.inspection(error);
     }
+}
+pub(crate) fn validate_plan_history(
+    plan: &RecipePlacementPlan,
+    previous: Option<&RecipePlacementRecord>,
+) -> Result<()> {
+    if previous.is_some_and(|r| plan.receive_sequence() <= r.send.after_sequence) {
+        return Err(unavailable(
+            "capture a fresh crafting context after the previous request",
+        ));
+    }
+    Ok(())
 }
 fn receive_inner(
     record: &mut RecipePlacementRecord,
@@ -338,6 +395,50 @@ fn receive_inner(
         return Ok(());
     }
     let before = record.plan.source_context();
+    if record.ghost.is_some() {
+        for y in 0..current.grid().dimensions()[1] {
+            for x in 0..current.grid().dimensions()[0] {
+                let actual = current
+                    .grid()
+                    .input(x, y)?
+                    .ok_or_else(|| unavailable("ghost input missing"))?;
+                let old = before.grid().input(x, y)?.expect("complete baseline");
+                if *actual.value() != SlotKnowledge::Empty
+                    || (actual.value() != old.value()
+                        && actual.receive_sequence() <= record.send.after_sequence)
+                {
+                    return Ok(());
+                }
+            }
+        }
+        let Some(result) = current.grid().result() else {
+            return Ok(());
+        };
+        if *result.value() != SlotKnowledge::Empty
+            || before.grid().result().is_some_and(|old| {
+                old.value() != result.value()
+                    && result.receive_sequence() <= record.send.after_sequence
+            })
+            || !conserved(record, current)?
+        {
+            return Ok(());
+        }
+        for index in 9..46 {
+            let old = before.inventory().slot(index)?.expect("complete baseline");
+            let actual = current
+                .inventory()
+                .slot(index)?
+                .ok_or_else(|| unavailable("ghost inventory missing"))?;
+            if actual.value() != old.value()
+                && actual.receive_sequence() <= record.send.after_sequence
+            {
+                return Ok(());
+            }
+        }
+        record.after = Some(current.grid().clone());
+        record.inventory_after = Some(current.inventory().clone());
+        return Ok(());
+    }
     let pattern = matching::resolve(before, record.plan.recipe())?;
     let [w, h] = before.grid().dimensions();
     let mut counts = std::collections::BTreeSet::new();

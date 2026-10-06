@@ -2205,6 +2205,132 @@ mod tests {
             server.await.unwrap();
         }
     }
+
+    #[tokio::test]
+    async fn recipe_ghost_requires_actual_returns_and_fresh_context_even_without_slot_changes() {
+        use api::RecipePlacementStage;
+        for with_input in [false, true] {
+            let (bot, mut packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            seed(&bot).await;
+            bot.apply_packet(0x3f, vec![0]).await.unwrap();
+            let item = |name: &str, count| {
+                let definition =
+                    api::registry::Registry::for_version(crate::MinecraftVersion::Java1_16_1)
+                        .item(name)
+                        .unwrap();
+                api::SlotKnowledge::Item {
+                    item: api::ItemStack {
+                        id: definition.id,
+                        name: definition.name,
+                        count,
+                        data: api::ItemData::Default,
+                    },
+                }
+            };
+            slot(&bot, 9, &item("minecraft:oak_planks", 1), false).await;
+            slot(&bot, 36, &api::SlotKnowledge::Empty, false).await;
+            if with_input {
+                slot(&bot, 1, &item("minecraft:dirt", 1), false).await;
+            }
+            {
+                let mut receipts = bot.common_receipts.lock().await;
+                receipts.registries.finish();
+                receipts.recipes = api::tests::recipe_placement_book_fixture(
+                    crate::MinecraftVersion::Java1_16_1,
+                    bot.protocol_packet_sequence.load(Ordering::Acquire),
+                );
+            }
+            let ghost = |window| {
+                let mut packet = vec![window];
+                put_string(&mut packet, "minecraft:stick");
+                packet
+            };
+            bot.apply_packet(0x30, ghost(0)).await.unwrap();
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            let prior = client.received_recipe_ghost().await.unwrap().unwrap();
+            assert!(prior.recipe().is_some());
+            assert_eq!(prior.recipe_name(), Some("minecraft:stick"));
+            let plan = api::tests::common_ghost_recipe_plan(&client).await;
+            let request = client.survival().place_recipe(&plan).await.unwrap();
+            assert_eq!(packets.recv().await.unwrap().0, 0x19);
+            assert_eq!(
+                client
+                    .survival()
+                    .recipe_placement_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .stage,
+                RecipePlacementStage::Pending
+            );
+            bot.apply_packet(0x30, ghost(3)).await.unwrap();
+            assert!(client.received_recipe_ghost().await.unwrap().is_none());
+            assert_eq!(
+                client
+                    .survival()
+                    .recipe_placement_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .stage,
+                RecipePlacementStage::Pending
+            );
+            bot.apply_packet(0x30, ghost(0)).await.unwrap();
+            if with_input {
+                let pending = client
+                    .survival()
+                    .recipe_placement_record()
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert!(pending.ghost.is_some() && pending.after.is_none());
+                assert!(client.survival().select_hotbar(0).await.is_err());
+                slot(&bot, 1, &api::SlotKnowledge::Empty, false).await;
+                assert_eq!(
+                    client
+                        .survival()
+                        .recipe_placement_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .stage,
+                    RecipePlacementStage::Pending
+                );
+                slot(&bot, 36, &item("minecraft:dirt", 1), false).await;
+            }
+            api::tests::common_ghost_completed(&client, request.id).await;
+            assert!(client.survival().place_recipe(&plan).await.is_err());
+            let fresh = api::tests::common_ghost_recipe_plan(&client).await;
+            let second = client.survival().place_recipe(&fresh).await.unwrap();
+            assert_eq!(packets.recv().await.unwrap().0, 0x19);
+            bot.apply_packet(0x30, ghost(0)).await.unwrap();
+            api::tests::common_ghost_completed(&client, second.id).await;
+            assert!(client.survival().place_recipe(&fresh).await.is_err());
+            client.survival().select_hotbar(0).await.unwrap();
+            assert_eq!(packets.recv().await.unwrap().0, 0x24);
+            assert!(
+                timeout(Duration::from_millis(20), packets.recv())
+                    .await
+                    .is_err()
+            );
+            bot.disconnect().await.unwrap();
+            assert_eq!(
+                client
+                    .survival()
+                    .recipe_placement_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .stage,
+                RecipePlacementStage::ObservedGhost
+            );
+            drop(release);
+            drop(client);
+            drop(bot);
+            server.await.unwrap();
+        }
+    }
     async fn seed(bot: &Bot) {
         super::super::common_motion::tests::seed_motion(bot).await;
         let mut slots = vec![0, 0, 46];

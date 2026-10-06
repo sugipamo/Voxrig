@@ -683,5 +683,9 @@ for actual conserved `ObservedPlaced`; complete write alone is not placement or
 crafted output. Caller cancellation retains the one owned attempt, including
 pending or uncertain history, and never retries it. Old plans cannot be reused.
 Use fresh grid captures for explicit result takes and ordinary cursor deposits.
-Ghost/nonempty-result-cursor/shift crafting remain required follow-up work.
+Use `plan.can_request()` to include safe material-shortage requests;
+`ObservedGhost` records a fresh actual display plus conserved empty inputs.
+Inspect `record.ghost` separately from actual grid/output. Modern responses have
+no recipe ID. Recapture after any prior request, even when no slots changed.
+Nonempty-result-cursor/shift crafting remain required follow-up work.
 See [common recipe placement](common-recipes.md#owned-recipe-placement-through-the-common-client).

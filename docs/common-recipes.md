@@ -169,8 +169,8 @@ unchanged original methods, sequential 512 MiB JVMs and retain JAR/mapping,
 classpath, request/helper and result hashes. The return helper's Inventory has an
 unused null owner; it calls no owner/world, creative fallback or drop behavior.
 
-Native ghost receipts, nonempty-cursor result merging and shift crafting remain
-required follow-up work. Normal owned recipe dispatch is described below. The coherent preflight below
+Native ghost observations and owned material-shortage requests are available below.
+Nonempty-cursor result merging and shift crafting remain required follow-up work. Normal owned recipe dispatch is described below. The coherent preflight below
 combines current-grid materials, native capacity guards and return-space checks. Displayed remainder associations
 are not actual inventory consumption/remainder receipts. The existing common
 result take retains those actual receipts separately.
@@ -217,7 +217,9 @@ Both handles expose `place_recipe(&RecipePlacementPlan)` and
 and construct a sealed Next/Maximum plan. The adapter rechecks the original
 connection/world, mode, recipe membership, registry/tags, screen opening, selected
 hand, actual empty cursor and exact input/inventory receipt ordinals before I/O.
-A plan with `can_place() == false` cannot be submitted. No recipe name or numeric
+`can_request()` admits a safe ordinary placement or a material-shortage request
+with a fully fitting grid return. `can_place()` still means material placement is
+possible; it is false for the material-shortage case. No recipe name or numeric
 protocol ID is accepted at this common operation boundary.
 
 ```rust,no_run
@@ -225,7 +227,7 @@ use voxrig::client::prelude::*;
 async fn request(client: &Client, recipe: &RecipeId) -> Result<Option<RecipePlacementRecord>> {
     let Some(context) = client.received_crafting_context().await? else { return Ok(None) };
     let plan = context.recipe_placement_plan(recipe, RecipePlacementAmount::Next)?;
-    if !plan.can_place() { return Ok(None) }
+    if !plan.can_request() { return Ok(None) }
     Ok(Some(client.survival().place_recipe(&plan).await?))
 }
 ```
@@ -249,7 +251,7 @@ fences the owned request and leaves its uncertainty available for inspection.
 Once placement is observed, use a fresh `received_crafting()` capture for each
 explicit `take_crafting_result`, then ordinary cursor deposit and actual inventory
 inspection. Maximum placement does not perform automatic shift crafting. Taking
-into a nonempty cursor, ghost placement, table SWAP/QUICK_MOVE and the remaining
+into a nonempty cursor, table SWAP/QUICK_MOVE and the remaining
 B4 equipment/entity/data work still require implementation.
 
 The version-independent native consumer covers both modes, both 2x2/player and
@@ -263,3 +265,50 @@ A table at `[0, 65, 2]` uses the previously supported standing/ray fixture. A ta
 at `[0, 65, 1]` falls inside the bounded dry collision neighborhood and is currently
 rejected by common `look`: crafting-table collision is not yet part of that model.
 This remains a B3 terrain integration item, not a successful near-table test.
+
+
+## Received ghosts and conserved material-shortage completion
+
+`Client::received_recipe_ghost()` returns the latest actual ghost receipt for its
+original crafting UI. `ReceivedRecipeGhost` freezes the transport/world, opening,
+packet ordinal and registry/tag context. A later screen with the same numeric ID
+never becomes that original opening. Another world is not admitted. A player
+source can retain an explicit submitted-close basis rather than inventing a
+received close. The receipt is historical and does not authorize a new request.
+
+Java 1.16.1 sends a signed-byte window and recipe name. `recipe_name()` retains
+that actual normalized name; `recipe()` and `display()` are present only when the
+original declaration was received. Java 1.21.11 sends a container ID and actual
+`RecipeDisplay`, **no recipe ID**. Both identity accessors remain `None` there;
+no catalogue entry or selected recipe is inferred from matching display fields.
+Missing dynamic registry references are errors, not bundled substitutes.
+
+A safe material-shortage plan can be submitted once through the same
+`place_recipe` operation. The owned record exposes the actual receipt as `ghost`.
+`ObservedGhost` requires a fresh ghost on the original UI, unchanged context,
+actual empty inputs/result and semantic conservation across input/player stock.
+Changed slots must have actual post-send ordinals. A ghost alone never clears
+inputs, returns items or creates outputs. An explicitly different legacy name
+latches inspection. A modern display has no selected-recipe causation guarantee.
+The state reports receipt and conservation, not successful placement or crafting.
+
+A prior plan remains invalid even if no slots changed: capture a fresh coherent
+context after the previous request. Completed ghost history does not attach to a
+later ordinary placement. Pending and uncertain attempts keep the same ownership,
+cancellation, revocation and no-replay rules as ordinary placement.
+
+The original response-codec corpus covers 13 cases across both versions, including
+signed legacy windows and multi-byte modern windows. `recipe_ghost_source.json`
+records original JAR/mapping, classpath, request/helper and result digests. Tests
+reject every truncation and trailing data without replacing the previous modern
+receipt, and distinguish frozen openings/configurations/worlds. The native
+`recipe-ghost` workflow covers both modes, both crafting UIs and Next/Maximum:
+dirt and a single plank are explicitly placed then returned by two native ghosts;
+a fresh button recipe is normally placed, taken and stored before disconnect.
+
+Owned completion currently requires the ghost's exact captured source, including
+its player-screen access basis. A transition from a plan's `SubmittedClose` basis
+to an actual `Received` player screen is a remaining B4 admission boundary: that
+differently based ghost does not complete the pending attempt. Keep inspecting
+that retained attempt without replay; this workflow has not been validated by the
+16 player/table fixture cases above.

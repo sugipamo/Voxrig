@@ -4094,3 +4094,149 @@ async fn recipe_placement_cancelled_waiter_keeps_one_write_conservation_and_revo
         );
     }
 }
+
+fn ghost_packet(window: i32) -> Vec<u8> {
+    let registry =
+        crate::client::registry::Registry::for_version(crate::MinecraftVersion::Java1_21_11);
+    let mut bytes = Vec::new();
+    for number in [window, 1, 1, 2, 2] {
+        put_varint(&mut bytes, number);
+    }
+    for name in ["oak_planks", "oak_planks", "stick", "crafting_table"] {
+        put_varint(&mut bytes, 2);
+        put_varint(
+            &mut bytes,
+            registry
+                .item(&format!("minecraft:{name}"))
+                .unwrap()
+                .id
+                .value(),
+        );
+    }
+    bytes
+}
+#[tokio::test]
+async fn recipe_ghost_requires_actual_returns_and_fresh_context_even_without_slot_changes() {
+    use crate::client::RecipePlacementStage;
+    for with_input in [false, true] {
+        let mut f = CommonFixture::new().await;
+        f.receive(ids::play_clientbound::HELD_ITEM_SLOT, &[0]).await;
+        f.slot(9, plain("oak_planks", 1)).await;
+        f.slot(36, InventorySlot::Empty).await;
+        if with_input {
+            f.slot(1, plain("dirt", 1)).await;
+        }
+        {
+            let mut state = f.api.bot.session.state.lock().await;
+            state.registries.finish();
+            state.recipes = crate::client::tests::recipe_placement_book_fixture(
+                crate::MinecraftVersion::Java1_21_11,
+                state.sequence,
+            );
+        }
+        f.receive(
+            ids::play_clientbound::CRAFT_RECIPE_RESPONSE,
+            &ghost_packet(0),
+        )
+        .await;
+        let client = f.client();
+        let prior = client.received_recipe_ghost().await.unwrap().unwrap();
+        assert!(prior.recipe().is_none() && prior.recipe_name().is_none());
+        let plan = crate::client::tests::common_ghost_recipe_plan(&client).await;
+        let request = client.survival().place_recipe(&plan).await.unwrap();
+        assert_eq!(
+            read_packet(&mut f.peer, None).await.unwrap().0,
+            ids::play_serverbound::CRAFT_RECIPE_REQUEST
+        );
+        assert_eq!(
+            client
+                .survival()
+                .recipe_placement_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            RecipePlacementStage::Pending
+        );
+        // An unrelated window is not a response on this actual player UI.
+        f.receive(
+            ids::play_clientbound::CRAFT_RECIPE_RESPONSE,
+            &ghost_packet(3),
+        )
+        .await;
+        assert!(client.received_recipe_ghost().await.unwrap().is_none());
+        assert_eq!(
+            client
+                .survival()
+                .recipe_placement_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            RecipePlacementStage::Pending
+        );
+        f.receive(
+            ids::play_clientbound::CRAFT_RECIPE_RESPONSE,
+            &ghost_packet(0),
+        )
+        .await;
+        if with_input {
+            let pending = client
+                .survival()
+                .recipe_placement_record()
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(pending.ghost.is_some() && pending.after.is_none());
+            assert!(client.survival().select_hotbar(0).await.is_err());
+            f.slot(1, InventorySlot::Empty).await;
+            assert_eq!(
+                client
+                    .survival()
+                    .recipe_placement_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .stage,
+                RecipePlacementStage::Pending
+            );
+            f.slot(36, plain("dirt", 1)).await;
+        }
+        crate::client::tests::common_ghost_completed(&client, request.id).await;
+        assert!(client.survival().place_recipe(&plan).await.is_err());
+        let fresh = crate::client::tests::common_ghost_recipe_plan(&client).await;
+        let second = client.survival().place_recipe(&fresh).await.unwrap();
+        assert_eq!(
+            read_packet(&mut f.peer, None).await.unwrap().0,
+            ids::play_serverbound::CRAFT_RECIPE_REQUEST
+        );
+        f.receive(
+            ids::play_clientbound::CRAFT_RECIPE_RESPONSE,
+            &ghost_packet(0),
+        )
+        .await;
+        crate::client::tests::common_ghost_completed(&client, second.id).await;
+        assert!(client.survival().place_recipe(&fresh).await.is_err());
+        client.survival().select_hotbar(0).await.unwrap();
+        assert_eq!(
+            read_packet(&mut f.peer, None).await.unwrap().0,
+            ids::play_serverbound::HELD_ITEM_SLOT
+        );
+        assert!(
+            timeout(Duration::from_millis(20), read_packet(&mut f.peer, None))
+                .await
+                .is_err()
+        );
+        f.stop().await;
+        assert_eq!(
+            client
+                .survival()
+                .recipe_placement_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .stage,
+            RecipePlacementStage::ObservedGhost
+        );
+    }
+}

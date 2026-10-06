@@ -369,6 +369,7 @@ pub(crate) struct LegacyReceipts {
     pub vehicles: super::vehicle::PassengerLedger,
     pub registries: super::registry::received::ReceivedRegistries,
     pub recipes: super::crafting::recipes::RecipeReceipts,
+    pub recipe_ghost: Option<super::crafting::ghost::GhostReceipts>,
     pub container: Option<super::container::ScreenReceipts>,
     pub generation: u64,
     pub pose: Option<ReceivedPose>,

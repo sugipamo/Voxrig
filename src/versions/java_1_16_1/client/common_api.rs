@@ -88,6 +88,19 @@ impl Bot {
                 .capture(player.session, player.receive_sequence),
         )
     }
+    pub(crate) async fn common_received_recipe_ghost(
+        &self,
+    ) -> Result<Option<api::ReceivedRecipeGhost>> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        let receipts = self.common_receipts.lock().await;
+        receipts
+            .recipe_ghost
+            .as_ref()
+            .map(|ghost| ghost.capture(player.session))
+            .transpose()
+            .map(Option::flatten)
+    }
     pub(crate) async fn common_received_crafting_context(
         &self,
     ) -> Result<Option<api::ReceivedCraftingContext>> {
