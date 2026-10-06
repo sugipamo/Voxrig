@@ -604,6 +604,7 @@ Nextはplanks 8個とsticks 4個、Maximumはsticks 20個のみ。元tableのclo
 
 B4単独の固定入力runは`trial-1.16.1-6239a947`／`trial-1.21.11-c43b7cc9`。
 同じ431 source/data入力とbinaryで16ケース成功、両JVM exit 0、proxy errorなし。
+全431入力はB4 commit `3f85021`のblobと一致する。後続main取り込み前の固定証拠として保持する。
 両adapterの軽量TCP試験ではwriter保持中の履歴取得、待機取消後の一回送信、
 実入力だけでは解放しないこと、保存確認後の次操作、old plan拒否、
 writer保持中のcommon revocationによる要求の遮断を確認する。

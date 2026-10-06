@@ -16,11 +16,11 @@ mod survival;
 pub(super) mod vehicle;
 pub use movement::{
     AssumedSurvivalScene, AssumedSurvivalStart, CapturedSurvivalScene, HypotheticalAimRequirement,
-    HypotheticalBlockEdit, HypotheticalMovementPreview, HypotheticalPlacement,
-    HypotheticalReconnectBoundary, HypotheticalSceneSource, MAX_SURVIVAL_CONTROL_TICKS,
-    PredictedMotionFrame, StandingPositionBasis, SurvivalControl, SurvivalInput,
-    SurvivalMotionContract, SurvivalMotionRecheck, SurvivalMotionRecord, SurvivalMotionStatus,
-    SurvivalMovementPreview, SurvivalScenario, TerminalClearance,
+    HypotheticalBlockEdit, HypotheticalMovementPreview, HypotheticalMovementTransition,
+    HypotheticalPlacement, HypotheticalReconnectBoundary, HypotheticalSceneSource,
+    MAX_SURVIVAL_CONTROL_TICKS, PredictedMotionFrame, StandingPositionBasis, SurvivalControl,
+    SurvivalInput, SurvivalMotionContract, SurvivalMotionRecheck, SurvivalMotionRecord,
+    SurvivalMotionStatus, SurvivalMovementPreview, SurvivalScenario, TerminalClearance,
 };
 #[cfg(test)]
 mod component_tests;

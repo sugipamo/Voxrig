@@ -4628,9 +4628,11 @@ impl Bot {
                         let Some(request) = request else {
                             return Ok(());
                         };
+                        let started = std::time::Instant::now();
                         let result = self
                             .capture_observation_at_sequence(request.request, next_observation_sequence)
                             .await;
+                        self.trace_slow_capture("coherent", next_observation_sequence, started.elapsed(), result.is_ok());
                         if result.is_ok() {
                             next_observation_sequence = next_observation_sequence
                                 .checked_add(1)
@@ -4642,12 +4644,14 @@ impl Bot {
                         let Some(request) = request else {
                             return Ok(());
                         };
+                        let started = std::time::Instant::now();
                         let result = self
                             .capture_traversal_movement_facts_at_sequence(
                                 request.request,
                                 next_observation_sequence,
                             )
                             .await;
+                        self.trace_slow_capture("movement", next_observation_sequence, started.elapsed(), result.is_ok());
                         if result.is_ok() {
                             next_observation_sequence = next_observation_sequence
                                 .checked_add(1)
@@ -4679,7 +4683,23 @@ impl Bot {
         Ok(())
     }
 
+    fn trace_slow_capture(&self, kind: &str, sequence: u64, elapsed: Duration, success: bool) {
+        if elapsed >= Duration::from_millis(100) {
+            crate::lifecycle::emit_protocol_timing(|| {
+                serde_json::json!({"stage":"slow_capture","generation":self.connection_generation().get(),
+                    "kind":kind,"sequence":sequence,"elapsed_ms":elapsed.as_millis(),"success":success})
+            });
+        }
+    }
+
     async fn apply_packet(&self, id: i32, p: Vec<u8>) -> Result<bool> {
+        let keepalive_started = (id == 0x20).then(std::time::Instant::now);
+        if keepalive_started.is_some() {
+            crate::lifecycle::emit_protocol_timing(|| {
+                serde_json::json!({"stage":"keepalive_frame_decoded","generation":self.connection_generation().get(),
+                    "keepalive_id":p.as_slice().try_into().ok().map(i64::from_be_bytes)})
+            });
+        }
         let _coherent_state = self.coherent_state_gate.lock().await;
         let packet_sequence = self
             .protocol_packet_sequence
@@ -5144,7 +5164,17 @@ impl Bot {
                 *self.furnace_window_position.lock().await = None;
                 self.emit(Event::WindowOpened(window));
             }
-            0x20 => self.send_protocol(0x10, &p).await?,
+            0x20 => {
+                let result = self.send_protocol(0x10, &p).await;
+                crate::lifecycle::emit_protocol_timing(|| {
+                    serde_json::json!({"stage":if result.is_ok() {"keepalive_reply_write_completed"} else {"keepalive_reply_failed"},
+                        "generation":self.connection_generation().get(),
+                        "keepalive_id":p.as_slice().try_into().ok().map(i64::from_be_bytes),
+                        "elapsed_ms":keepalive_started.expect("keepalive packet starts timing").elapsed().as_millis(),
+                        "error":result.as_ref().err().map(|error|error.to_string().chars().take(512).collect::<String>())})
+                });
+                result?;
+            }
             0x21 => match self
                 .world
                 .lock()
@@ -8165,7 +8195,9 @@ mod tests {
         for value in [0, 0, 1, 1 << 1, 1 << 1, 0, 0] {
             put_varint(&mut packet, value);
         }
+        put_varint(&mut packet, 2048);
         packet.extend([0x21; 2048]);
+        put_varint(&mut packet, 2048);
         packet.extend([0xa5; 2048]);
         packet
     }
@@ -8988,7 +9020,9 @@ mod tests {
         for value in [0, 0, 1, 1 << 1, 1 << 1, 0, 0] {
             put_varint(&mut packet, value);
         }
+        put_varint(&mut packet, 2048);
         packet.extend([0x21; 2048]);
+        put_varint(&mut packet, 2048);
         packet.extend([0xa5; 2048]);
         assert_eq!(
             bot.world.lock().await.apply_light(&packet, 256).unwrap(),
@@ -9312,7 +9346,9 @@ mod tests {
         for value in [0, 0, 1, 1 << 1, 1 << 1, 0, 0] {
             put_varint(&mut light_packet, value);
         }
+        put_varint(&mut light_packet, 2048);
         light_packet.extend([0x21; 2048]);
+        put_varint(&mut light_packet, 2048);
         light_packet.extend([0xa5; 2048]);
         assert_eq!(
             bot.world
@@ -9341,11 +9377,25 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(observation.interest.cells[0].state_id, Some(42));
-        assert_eq!(observation.interest.cells[0].state_id, Some(42));
         assert_eq!(
             observation.interest.cells[0].light,
-            crate::CoherentLightState::Observed { block: 5, sky: 1 }
+            crate::CoherentLightState::Unknown
         );
+        bot.world
+            .lock()
+            .await
+            .apply_light(&light_packet, 256)
+            .unwrap();
+        let observation = bot
+            .capture_coherent_observation(CoherentObservationRequest {
+                entity_radius: 0.0,
+                max_entities: 0,
+                max_events: 0,
+                interest_generation: Some(2),
+                interest: vec![position],
+            })
+            .await
+            .unwrap();
         assert_eq!(
             observation.interest.cells[0].light,
             crate::CoherentLightState::Observed { block: 5, sky: 1 }

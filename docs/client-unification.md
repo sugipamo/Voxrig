@@ -76,6 +76,12 @@
   広いcontext／記録／再構成／復旧と各履歴取得経路は継続する。
   詳細は[共通緊急遮断](common-connection-revocation.md)。B3／B4／B6とA6も残る。
 
+- main `686f414`（PR #8・#9・#11・#12）との整合を更新した。
+  旧版のlength-prefixed light arrays、地形更新時のlight鮮度無効化、opt-in protocol診断、
+  modern detached movement／removal successorを維持する。
+  checked APIのexport競合は共通motion型を維持し、新しいtransition型を追加して解決する。
+  これらの取り込みはB5全体の共通化完了を意味しない。
+
 - B4の一部完了: sealed `recipe_placement_plan`から一回のowned配置を送信し、
   実入力と在庫の保存を確認した後、明示的結果取得→格納→空grid／cursor→製作台close→切断を通した。
   両版・両mode・player／table・Next／Maximumの16ケースでnative在庫と位置を独立確認する。
@@ -164,7 +170,8 @@ modernの既存intent・session guardも維持する。保存したreceiptは次
 
 見直し時の調査基準はPR #4の実装commit `24fef69`、当時のmainはPR #6・#7を含む
 `344018c`。再開後の進捗は上の一覧に記録する。後続のmain `b38e8b4`（PR #10）も
-専用ブランチへ取り込み、mainのnative機能とClient共通化の完了を区別する。
+専用ブランチへ取り込み、その後`686f414`の照明・診断・仮想transitionも取り込んだ。
+mainのnative機能とClient共通化の完了を区別する。
 過去の[派生版rollout](client-rollout-roadmap.md)と
 [1.16.1 API拡張](headless-api-roadmap.md)は、この共通化の完了表ではない。
 

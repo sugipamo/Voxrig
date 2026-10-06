@@ -11,6 +11,11 @@ the supporting floor, and target-ray cells in the capture.
 sender or live inventory. `preview_path` and `after_path` share the exact native
 motion model and static geometry reader with live prediction. Chained branches
 retain velocity/jump cooldown and require conservative terminal clearance.
+`preview_path_transition` computes the preview and the complete native successor
+in one pass. Callers inspect `preview()` for their own constraints, then consume
+`into_parts()`; an unsafe terminal stop still refuses. The successor is private
+until that check succeeds. This detached value has no serialization or live-action
+authority, and never reconstructs native state from public diagnostic frames.
 `after_edits` requires unique in-bounds cells with exact predecessors and admitted
 successors. It cannot remove current foot support or intersect the standing body.
 Changes are atomic and copy-on-write. Each branch admits at most 256 cumulative
@@ -24,6 +29,13 @@ uncertainty checks, dirt/stone mining admission, and retained support. It does
 not establish mining duration, empty-hand inventory, drop recovery or continuation
 after a real mining action. Raw `after_edits` expresses assumed future changes,
 not proof that a player can carry them out.
+`preview_cube_removal_with_successor` returns the exact edit and its checked
+detached successor together, avoiding a second copy-and-support-check of the
+same edit. Existing preview-only and `after_path` APIs retain their checks.
+
+These APIs take caller-selected inputs. They do not select paths or removal
+targets, recognize construction goals, reserve materials, deduplicate planner
+states or change search budgets. Those responsibilities remain with the caller.
 
 `HypotheticalMovementPreview` is distinct from `SurvivalMovementPreview` and
 cannot be passed to the real movement API. A compile-fail doc test checks that

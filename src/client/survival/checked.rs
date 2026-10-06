@@ -37,9 +37,9 @@ pub use crate::versions::java_1_21_11::players::PlayerObservations;
 
 pub use native::{
     AssumedSurvivalScene, AssumedSurvivalStart, CapturedSurvivalScene, HypotheticalAimRequirement,
-    HypotheticalBlockEdit, HypotheticalMovementPreview, HypotheticalPlacement,
-    HypotheticalReconnectBoundary, HypotheticalSceneSource, InventorySlot, InventorySwap,
-    InventorySwapObservation, LocalPlayerState, MiningIntent, MiningInventoryChange,
+    HypotheticalBlockEdit, HypotheticalMovementPreview, HypotheticalMovementTransition,
+    HypotheticalPlacement, HypotheticalReconnectBoundary, HypotheticalSceneSource, InventorySlot,
+    InventorySwap, InventorySwapObservation, LocalPlayerState, MiningIntent, MiningInventoryChange,
     MiningInventoryChangeKind, MiningRecord, MiningRecoveryAttempt, MiningRecoveryBoundary,
     MiningRecoveryEvidence, MiningRecoveryMethod, MiningRecoveryTarget, MiningRetirementStatus,
     MiningStatus, OperationHistory, PlacementIntent, PlacementStatus, PlayerState, StandingContext,
