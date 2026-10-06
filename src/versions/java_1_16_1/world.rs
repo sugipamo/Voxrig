@@ -97,6 +97,7 @@ fn prune_dead_sections(sections: &mut HashMap<u64, Vec<Weak<[i32; 4096]>>>) {
 
 #[derive(Default)]
 struct Chunk {
+    terrain_received: bool,
     sections: HashMap<i32, Arc<[i32; 4096]>>,
     biomes: Option<Arc<[i32; 1024]>>,
     heightmaps_nbt: Arc<[u8]>,
@@ -1204,9 +1205,16 @@ impl World {
             block_entities_nbt.push(Arc::from(payload[start..end].to_vec()));
         }
         let previous = self.chunks.remove(&(x, z)).unwrap_or_default();
+        if !ground_up {
+            for (section, states) in &previous.sections {
+                sections.entry(*section).or_insert_with(|| states.clone());
+            }
+        }
+        let changed = previous.terrain_received && previous.sections != sections;
         self.chunks.insert(
             (x, z),
             Chunk {
+                terrain_received: true,
                 sections,
                 biomes: biomes.or(previous.biomes),
                 heightmaps_nbt,
@@ -1216,6 +1224,9 @@ impl World {
                 block_entities: previous.block_entities,
             },
         );
+        if changed {
+            self.invalidate_light_neighborhood(x, z);
+        }
         self.rebuild_resource_index_chunk(x, z);
         Ok((x, z))
     }
@@ -1327,7 +1338,23 @@ impl World {
         let i = ((y.rem_euclid(16) * 256) + (z.rem_euclid(16) * 16) + x.rem_euclid(16)) as usize;
         let old_state_id = Arc::make_mut(section)[i];
         Arc::make_mut(section)[i] = state_id;
+        if old_state_id != state_id {
+            self.invalidate_light_neighborhood(x.div_euclid(16), z.div_euclid(16));
+        }
         self.update_resource_index_block(position, old_state_id, state_id);
+    }
+
+    fn invalidate_light_neighborhood(&mut self, x: i32, z: i32) {
+        // Block changes can affect propagation across a chunk boundary. Until
+        // the server supplies new arrays, cached lighting is unknown, not current.
+        for dx in -1..=1 {
+            for dz in -1..=1 {
+                if let Some(chunk) = self.chunks.get_mut(&(x + dx, z + dz)) {
+                    chunk.sky_light.clear();
+                    chunk.block_light.clear();
+                }
+            }
+        }
     }
 
     #[cfg(test)]
@@ -2286,6 +2313,107 @@ mod tests {
             .apply_light(&framed_light_packet([0, 0, 0, 2], &[]), 256)
             .unwrap();
         assert_eq!(world.light_at(-16, 0, -16), Some((0, 1)));
+    }
+
+    #[test]
+    fn changed_geometry_invalidates_light_and_neighbors_without_rewriting_snapshots() {
+        let mut world = World::default();
+        for x in -2..=0 {
+            world.chunks.insert(
+                (x, -1),
+                Chunk {
+                    sky_light: HashMap::from([(0, Arc::new([0xff; 2048]))]),
+                    block_light: HashMap::from([(0, Arc::new([0xee; 2048]))]),
+                    ..Default::default()
+                },
+            );
+        }
+        let old = world.chunk_snapshot(ChunkPos { x: -1, z: -1 }).unwrap();
+        world.set_block(-1, 0, -1, 1);
+        for x in -2..=0 {
+            assert_eq!(world.light_at(x * 16, 0, -16), None);
+        }
+        assert_eq!(old.block_light(0, 0, 0), Some(14));
+        world
+            .apply_light(&framed_light_packet([0, 2, 0, 0], &[[0xee; 2048]]), 256)
+            .unwrap();
+        let restored = world.chunk_snapshot(ChunkPos { x: -1, z: -1 }).unwrap();
+        assert_eq!(restored.block_light(0, 0, 0), Some(14));
+        assert_eq!(restored.sky_light(0, 0, 0), None);
+        world.set_block(-1, 0, -1, 1);
+        assert_eq!(
+            world
+                .chunk_snapshot(ChunkPos { x: -1, z: -1 })
+                .unwrap()
+                .block_light(0, 0, 0),
+            Some(14)
+        );
+    }
+
+    #[test]
+    fn initial_light_before_terrain_and_identical_chunk_delivery_remain_known() {
+        let mut world = World::default();
+        let packet = uniform_chunk_packet(-1, -1, 1);
+        world
+            .apply_light(
+                &framed_light_packet([2, 2, 0, 0], &[[0xff; 2048], [0xee; 2048]]),
+                256,
+            )
+            .unwrap();
+        world.apply_chunk(&packet, 256).unwrap();
+        assert_eq!(world.light_at(-16, 0, -16), Some((14, 15)));
+        world.apply_chunk(&packet, 256).unwrap();
+        assert_eq!(world.light_at(-16, 0, -16), Some((14, 15)));
+        world
+            .apply_chunk(&uniform_chunk_packet(-1, -1, 2), 256)
+            .unwrap();
+        assert_eq!(world.light_at(-16, 0, -16), None);
+        world.unload_chunk(&unload_chunk_packet(-1, -1)).unwrap();
+        world
+            .apply_light(
+                &framed_light_packet([2, 2, 0, 0], &[[0xff; 2048], [0xee; 2048]]),
+                256,
+            )
+            .unwrap();
+        world.apply_chunk(&packet, 256).unwrap();
+        assert_eq!(world.light_at(-16, 0, -16), Some((14, 15)));
+    }
+
+    #[test]
+    fn partial_terrain_preserves_omitted_sections_and_invalidates_only_changed_redelivery() {
+        let mut world = World::default();
+        world
+            .apply_chunk(&uniform_chunk_packet(-1, -1, 1), 256)
+            .unwrap();
+        // A partial packet updates only section 1; it contains no biome array.
+        let full = uniform_chunk_packet(-1, -1, 2);
+        let mut partial = full[..12].to_vec();
+        partial[8] = 0; // Not ground-up.
+        partial[10] = 2; // Section 1 only.
+        partial.extend_from_slice(&full[12 + 1024 * 4..]);
+        world.apply_chunk(&partial, 256).unwrap();
+        assert_eq!(world.block(-16, 0, -16), Some(1));
+        assert_eq!(world.block(-16, 16, -16), Some(2));
+        let light = framed_light_packet(
+            [6, 6, 0, 0],
+            &[[0xff; 2048], [0xff; 2048], [0xee; 2048], [0xee; 2048]],
+        );
+        world.apply_light(&light, 256).unwrap();
+        let old = world.chunk_snapshot(ChunkPos { x: -1, z: -1 }).unwrap();
+        world.apply_chunk(&partial, 256).unwrap();
+        assert_eq!(world.light_at(-16, 0, -16), Some((14, 15)));
+        assert_eq!(world.light_at(-16, 16, -16), Some((14, 15)));
+        // Replace section 0 with air without deleting the omitted section 1.
+        let full = uniform_chunk_packet(-1, -1, 0);
+        let mut partial_air = full[..12].to_vec();
+        partial_air[8] = 0;
+        partial_air.extend_from_slice(&full[12 + 1024 * 4..]);
+        world.apply_chunk(&partial_air, 256).unwrap();
+        assert_eq!(world.block(-16, 0, -16), Some(0));
+        assert_eq!(world.block(-16, 16, -16), Some(2));
+        assert_eq!(world.light_at(-16, 0, -16), None);
+        assert_eq!(world.light_at(-16, 16, -16), None);
+        assert_eq!(old.block_light(0, 0, 0), Some(14));
     }
 
     #[test]

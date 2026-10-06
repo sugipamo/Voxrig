@@ -8934,11 +8934,25 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(observation.interest.cells[0].state_id, Some(42));
-        assert_eq!(observation.interest.cells[0].state_id, Some(42));
         assert_eq!(
             observation.interest.cells[0].light,
-            crate::CoherentLightState::Observed { block: 5, sky: 1 }
+            crate::CoherentLightState::Unknown
         );
+        bot.world
+            .lock()
+            .await
+            .apply_light(&light_packet, 256)
+            .unwrap();
+        let observation = bot
+            .capture_coherent_observation(CoherentObservationRequest {
+                entity_radius: 0.0,
+                max_entities: 0,
+                max_events: 0,
+                interest_generation: Some(2),
+                interest: vec![position],
+            })
+            .await
+            .unwrap();
         assert_eq!(
             observation.interest.cells[0].light,
             crate::CoherentLightState::Observed { block: 5, sky: 1 }
