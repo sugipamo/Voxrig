@@ -154,6 +154,17 @@ impl Bot {
             return Err(motion_state("connection not ready"));
         }
         let initial = self.common_player_unlocked().await?;
+        if self
+            .common_receipts
+            .lock()
+            .await
+            .vehicles
+            .motion_interrupted()
+        {
+            return Err(motion_state(
+                "received mounted context requires a fresh world motion baseline",
+            ));
+        }
         let owns_operation = owner.is_some_and(|o| o.session() == initial.session)
             && match owner {
                 Some(CommonOwner::ContainerOpen(id)) => self

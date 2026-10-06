@@ -434,3 +434,20 @@ Creative fixtureに以前の燃焼時間が残ったため失敗した。元受�
 
 この変更の回帰検査では単体699件（8件ignored）、公開API2件、doctest26件、
 all-target Clippy `-D warnings`、Rust 1.85.0のlib checkが成功した。
+
+## A5の乗車関係の受信経路
+
+`Client::vehicle_state()`へ両adapterの実SET_PASSENGERS decoderを接続した。
+共通ledgerとadapter fixtureで、未知・実乗車・同じ車両からの実除外、別車両の無関係なlist、
+spawn寿命／ID再利用／world reset、不正packetの原子的拒否、下車後にも続くground admission拒否を確認する。
+modernの不正packetは接続のProtocol failureを保持し、以後の受信とlive captureを拒否する。
+
+これは受信経路と共通観測の検査で、実サーバーの乗車→owned下車workflowとは区別する。
+両版の公式JARは元passenger packetとinput serializer／handlerを読み取り専用で調査した。
+[JARと元inspectionのhash](evidence/common-vehicle-observation-20261006.json)を保持するが、
+そのinspectionだけで下車操作をnative検証済みとは扱わない。
+owned下車送信・結果record・両版の実乗車→下車は次のA5必須作業。
+観測契約は[共通乗車関係](common-vehicles.md)を参照。
+
+乗車観測追加後の回帰検査は単体704件（8件ignored）、公開API2件、doctest27件、
+all-target Clippy `-D warnings`、Rust 1.85.0 lib checkが成功した。

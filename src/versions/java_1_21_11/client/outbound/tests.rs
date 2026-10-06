@@ -994,3 +994,122 @@ async fn common_entity_lifetime_rejects_reused_id_and_wrong_mode() {
         );
     }
 }
+
+#[tokio::test]
+async fn common_vehicle_receipts_refuse_stale_ground_authority() {
+    use crate::client::{GameMode, survival::SurvivalControl, vehicle::VehicleRelation};
+    for mode in [GameMode::Survival, GameMode::Creative] {
+        let (session, api, mut peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        let controls = [SurvivalControl {
+            yaw: 0.0,
+            input: Default::default(),
+        }];
+        client.preview_motion_path(mode, &controls).await.unwrap();
+        assert!(client.vehicle_state().await.unwrap().relation.is_none());
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 1, 42], 256)
+            .unwrap();
+        let mounted = client.vehicle_state().await.unwrap();
+        let VehicleRelation::Mounted { mount } = mounted.relation.as_ref().unwrap().value else {
+            panic!()
+        };
+        assert_eq!(mount.session(), mounted.session);
+        assert_eq!(mount.native_vehicle_id(), 10);
+        assert!(mount.vehicle().is_none());
+        assert!(client.preview_motion_path(mode, &controls).await.is_err());
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::SET_PASSENGERS, &[11, 0], 256)
+            .unwrap();
+        assert_eq!(
+            client
+                .vehicle_state()
+                .await
+                .unwrap()
+                .relation
+                .unwrap()
+                .value,
+            VehicleRelation::Mounted { mount }
+        );
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 0], 256)
+            .unwrap();
+        let unmounted = client.vehicle_state().await.unwrap();
+        assert_eq!(
+            unmounted.relation.unwrap().value,
+            VehicleRelation::Unmounted {
+                previous_mount: mount
+            }
+        );
+        assert!(unmounted.passengers.unwrap().value.is_empty());
+        assert!(client.preview_motion_path(mode, &controls).await.is_err());
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::ENTITY_DESTROY, &[1, 10], 256)
+            .unwrap();
+        assert!(client.vehicle_state().await.unwrap().relation.is_none());
+        assert!(client.preview_motion_path(mode, &controls).await.is_err());
+        assert!(
+            timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+                .await
+                .is_err()
+        );
+    }
+}
+
+#[tokio::test]
+async fn malformed_passenger_frame_preserves_relation_and_terminates_receive() {
+    use crate::client::{GameMode, vehicle::VehicleRelation};
+    for payload in [&[10, 0, 0][..], &[10, 2, 42, 42]] {
+        let (session, api, _) = common_ground_fixture(GameMode::Survival).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 1, 42], 256)
+            .unwrap();
+        let before = client.vehicle_state().await.unwrap();
+        let VehicleRelation::Mounted { mount } = before.relation.as_ref().unwrap().value else {
+            panic!()
+        };
+        let mut state = session.state.lock().await;
+        assert!(
+            state
+                .receive(ids::play_clientbound::SET_PASSENGERS, payload, 256)
+                .is_err()
+        );
+        assert!(!state.ready);
+        assert!(state.failure.is_some());
+        let retained =
+            state
+                .vehicles
+                .capture(before.session, state.sequence, Some(42), &state.entities);
+        assert_eq!(
+            retained.relation.as_ref().unwrap().value,
+            VehicleRelation::Mounted { mount }
+        );
+        assert_eq!(
+            retained.relation.unwrap().source,
+            before.relation.unwrap().source
+        );
+        assert!(
+            state
+                .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 0], 256)
+                .is_err()
+        );
+        drop(state);
+        assert!(client.vehicle_state().await.is_err());
+    }
+}

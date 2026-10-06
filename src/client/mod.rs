@@ -37,6 +37,7 @@ pub(crate) mod text;
 pub mod ui;
 pub(crate) mod uri;
 pub(crate) mod uuid;
+pub mod vehicle;
 pub use crate::connection::{Client, ConnectionConfig, Observation, ObservedBlock, Region};
 pub use capabilities::{Capabilities, Feature, Support};
 pub use config::{ClientLimits, Server};
@@ -62,6 +63,7 @@ pub use operations::{Creative, DispatchReceipt, Survival};
 pub use received_items::{ReceivedInventory, ReceivedItem, ReceivedSlot};
 pub use recording::{PacketPhase, PacketRecord, PacketTrace};
 pub use survival::{BlockTargetHit, BlockTargetObservation};
+pub use vehicle::{MountId, VehicleObservation, VehicleRelation};
 
 /// Imports for consumers selecting their Minecraft version at setup.
 pub mod prelude {
@@ -104,12 +106,13 @@ pub mod prelude {
         CraftingGridReturnPlan, CraftingGridReturnStep, CraftingGridUnreturnedSplit,
         CraftingSource, CraftingTakeId, CraftingTakeRecord, CraftingTakeStage, Creative, EntityId,
         EntitySpawn, EntitySpawns, Feature, FurnaceObservation, FurnaceSlot, GameMode,
-        ItemComponent, ItemComponentPatch, ItemData, ItemProperties, ItemStack, PlayerObservation,
-        ReceivedCrafting, ReceivedCraftingContext, ReceivedInventory, ReceivedItem, ReceivedRecipe,
-        ReceivedRecipes, ReceivedSlot, RecipeBookMaterials, RecipeBookStock, RecipeCraftingCell,
-        RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient, RecipePlacementAmount,
-        RecipePlacementPlan, RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern, Server,
-        Support, Survival,
+        ItemComponent, ItemComponentPatch, ItemData, ItemProperties, ItemStack, MountId,
+        PlayerObservation, ReceivedCrafting, ReceivedCraftingContext, ReceivedInventory,
+        ReceivedItem, ReceivedRecipe, ReceivedRecipes, ReceivedSlot, RecipeBookMaterials,
+        RecipeBookStock, RecipeCraftingCell, RecipeCraftingLayout, RecipeDisplay, RecipeId,
+        RecipeIngredient, RecipePlacementAmount, RecipePlacementPlan, RecipeSlotDisplay,
+        RecipeTrimDefinition, RecipeTrimPattern, Server, Support, Survival, VehicleObservation,
+        VehicleRelation,
     };
     pub use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Region, Result};
 }

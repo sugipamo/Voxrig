@@ -106,6 +106,16 @@ pub(crate) struct NativeSpawn {
     pub position: [f64; 3],
 }
 impl SpawnLedger {
+    pub(crate) fn spawn_sequence(&self, native_id: i32) -> Option<u64> {
+        self.0.get(&native_id).map(|spawn| spawn.sequence)
+    }
+    pub(crate) fn identity(&self, session: SessionStamp, native_id: i32) -> Option<EntityId> {
+        self.0.get(&native_id).map(|spawn| EntityId {
+            session,
+            native_id,
+            spawn_sequence: spawn.sequence,
+        })
+    }
     pub(crate) fn clear(&mut self) {
         self.0.clear();
     }

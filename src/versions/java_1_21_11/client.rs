@@ -79,6 +79,7 @@ struct State {
     operations: operations::OperationState,
     players: players::PlayerTracker,
     entities: crate::client::entity::SpawnLedger,
+    vehicles: crate::client::vehicle::PassengerLedger,
     scoreboard: crate::client::ui::ScoreboardLedger,
     phase: Phase,
     world: World,
@@ -121,6 +122,7 @@ impl Default for State {
             operations: operations::OperationState::default(),
             players: players::PlayerTracker::default(),
             entities: Default::default(),
+            vehicles: Default::default(),
             scoreboard: Default::default(),
             phase: Phase::Configuration,
             world: World::default(),
@@ -790,6 +792,7 @@ fn spawn_info(state: &mut State, r: &mut Reader<'_>) -> anyhow::Result<()> {
     state.operations.reset_world(game_mode)?;
     state.players.reset_world();
     state.entities.clear();
+    state.vehicles.clear();
     state.ready = false;
     state.position = None;
     Ok(())
@@ -1007,6 +1010,7 @@ fn apply_play(
             state.operations.reset_configuration(state.sequence);
             state.players = players::PlayerTracker::default();
             state.entities.clear();
+            state.vehicles.clear();
             if let Some(capture) = &mut state.recording {
                 capture.invalidate(recording::RecordingIssue::WorldChanged);
             }

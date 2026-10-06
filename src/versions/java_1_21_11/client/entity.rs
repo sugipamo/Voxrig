@@ -26,6 +26,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
                 state.sequence,
                 4096,
             )?;
+            state.vehicles.retire(entity_id);
         }
         ids::play_clientbound::ENTITY_DESTROY => {
             let mut removed = Vec::new();
@@ -35,6 +36,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             r.end()?;
             for id in removed {
                 state.entities.remove(id);
+                state.vehicles.retire(id);
             }
         }
         _ => {}

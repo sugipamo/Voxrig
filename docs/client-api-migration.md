@@ -627,3 +627,8 @@ legacyの既存UiStateは維持し、空objective名のowner resetを修正し�
 manager生成とplay readinessは別です。shutdownはterminalで、外部にあるcloneも閉じます。
 event集約・physics metrics・shared chunk storage等の版固有入口は維持し、より広い移行はBへ残します。
 詳細は[共通UIとmanager](common-ui-manager.md)を参照してください。
+
+乗車関係は版固有`vehicle()`／passengers cacheの走査から`Client::vehicle_state()`へ移す。
+未受信と実下車を区別し、spawn位置を車両の現在位置として扱わない。
+この変更は観測の共通化で、版固有raw dismount／操縦はまだ共通mutationへ移行していない。
+契約は[共通乗車関係](common-vehicles.md)を参照。

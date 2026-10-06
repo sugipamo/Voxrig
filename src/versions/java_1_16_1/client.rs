@@ -5131,6 +5131,7 @@ impl Bot {
                     let mut receipts = self.common_receipts.lock().await;
                     receipts.generation = packet_sequence;
                     receipts.entities.clear();
+                    receipts.vehicles.clear();
                     receipts
                         .registries
                         .legacy_join(join.registry_codec.clone(), packet_sequence)?;
@@ -5375,7 +5376,9 @@ impl Bot {
                 for _ in 0..count {
                     let entity_id = get_varint(&mut rest)?;
                     entities.entities.remove(&entity_id);
-                    self.common_receipts.lock().await.entities.remove(entity_id);
+                    let mut receipts = self.common_receipts.lock().await;
+                    receipts.entities.remove(entity_id);
+                    receipts.vehicles.retire(entity_id);
                     entity_ids.push(entity_id);
                 }
                 drop(entities);
@@ -5405,6 +5408,7 @@ impl Bot {
                     let mut receipts = self.common_receipts.lock().await;
                     receipts.generation = packet_sequence;
                     receipts.entities.clear();
+                    receipts.vehicles.clear();
                     receipts.pose = None;
                     receipts.position_source = None;
                     receipts.health = None;
@@ -5630,22 +5634,30 @@ impl Bot {
                 self.emit(Event::UiStateUpdated(UiUpdateKind::Objective));
             }
             0x4b => {
-                let mut rest = p.as_slice();
-                let vehicle_id = get_varint(&mut rest)?;
-                let count = get_varint(&mut rest)?;
-                if !(0..=1024).contains(&count) {
-                    bail!("invalid passenger count {count}");
+                let update = crate::client::vehicle::NativePassengers::decode(&p)?;
+                let player_id = self.player.lock().await.entity_id;
+                {
+                    let mut receipts = self.common_receipts.lock().await;
+                    let receipts = &mut *receipts;
+                    receipts.vehicles.receive(
+                        &update,
+                        player_id,
+                        &receipts.entities,
+                        packet_sequence,
+                    );
                 }
-                let mut passengers = Vec::with_capacity(count as usize);
-                for _ in 0..count {
-                    passengers.push(get_varint(&mut rest)?);
-                }
-                if let Some(vehicle) = self.entities.write().await.entities.get_mut(&vehicle_id) {
-                    vehicle.passengers = passengers.clone();
+                if let Some(vehicle) = self
+                    .entities
+                    .write()
+                    .await
+                    .entities
+                    .get_mut(&update.vehicle)
+                {
+                    vehicle.passengers = update.passengers.clone();
                 }
                 self.emit(Event::PassengersUpdated {
-                    vehicle_id,
-                    passengers,
+                    vehicle_id: update.vehicle,
+                    passengers: update.passengers,
                 });
             }
             0x4c => {
@@ -6124,18 +6136,22 @@ impl Bot {
         {
             bail!("entity cache limit exceeded");
         }
-        self.common_receipts.lock().await.entities.insert(
-            crate::MinecraftVersion::Java1_16_1,
-            crate::client::entity::NativeSpawn {
-                id: entity.entity_id,
-                uuid: entity.uuid,
-                type_id: entity.type_id,
-                dedicated_type_name: entity.type_name,
-                position: [entity.position.x, entity.position.y, entity.position.z],
-            },
-            self.protocol_packet_sequence.load(Ordering::Acquire),
-            self.connection_options.max_entities,
-        )?;
+        {
+            let mut receipts = self.common_receipts.lock().await;
+            receipts.entities.insert(
+                crate::MinecraftVersion::Java1_16_1,
+                crate::client::entity::NativeSpawn {
+                    id: entity.entity_id,
+                    uuid: entity.uuid,
+                    type_id: entity.type_id,
+                    dedicated_type_name: entity.type_name,
+                    position: [entity.position.x, entity.position.y, entity.position.z],
+                },
+                self.protocol_packet_sequence.load(Ordering::Acquire),
+                self.connection_options.max_entities,
+            )?;
+            receipts.vehicles.retire(entity.entity_id);
+        }
         entities.entities.insert(entity.entity_id, entity.clone());
         drop(entities);
         self.emit(Event::EntitySpawned(entity));

@@ -366,6 +366,7 @@ pub(crate) fn received<T>(value: T, sequence: u64) -> ObservedValue<T> {
 #[derive(Default)]
 pub(crate) struct LegacyReceipts {
     pub entities: super::entity::SpawnLedger,
+    pub vehicles: super::vehicle::PassengerLedger,
     pub registries: super::registry::received::ReceivedRegistries,
     pub recipes: super::crafting::recipes::RecipeReceipts,
     pub container: Option<super::container::ScreenReceipts>,

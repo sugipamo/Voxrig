@@ -221,6 +221,15 @@ impl Client {
             Adapter::Java1_21_11(bot) => bot.operations().common_entity_spawns().await,
         }
     }
+    /// Capture actual own-player passenger relationships. Before an applicable
+    /// receipt, the relationship is unknown. A received dismount does not prove
+    /// default stationary motion or authorize a ground operation.
+    pub async fn vehicle_state(&self) -> Result<crate::client::VehicleObservation> {
+        match &self.adapter {
+            Adapter::Java1_16_1(bot) => bot.common_vehicle_state().await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_vehicle_state().await,
+        }
+    }
     /// Survival-mode handle available on each adapter. Does not change game mode.
     pub fn survival(&self) -> crate::client::Survival {
         crate::client::Survival {

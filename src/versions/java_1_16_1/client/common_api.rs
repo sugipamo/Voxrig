@@ -23,6 +23,18 @@ impl Bot {
             .entities
             .capture(player.session, player.receive_sequence))
     }
+    pub(crate) async fn common_vehicle_state(&self) -> Result<api::VehicleObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        let native_id = self.player.lock().await.entity_id;
+        let receipts = self.common_receipts.lock().await;
+        Ok(receipts.vehicles.capture(
+            player.session,
+            player.receive_sequence,
+            native_id,
+            &receipts.entities,
+        ))
+    }
 
     pub(crate) async fn common_server_registry_state(
         &self,
@@ -519,6 +531,72 @@ fn common_state(message: &str) -> crate::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn common_vehicle_receipts_refuse_stale_ground_authority() {
+        use api::vehicle::VehicleRelation;
+        let (bot, server, release) =
+            super::super::tests::ready_test_bot(ConnectionOptions::default()).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.player.lock().await.entity_id = Some(42);
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let controls = [api::survival::SurvivalControl {
+            yaw: 0.0,
+            input: Default::default(),
+        }];
+        client.survival().preview_path(&controls).await.unwrap();
+        assert!(client.vehicle_state().await.unwrap().relation.is_none());
+        bot.apply_packet(0x4b, vec![10, 1, 42]).await.unwrap();
+        let mounted = client.vehicle_state().await.unwrap();
+        let VehicleRelation::Mounted { mount } = mounted.relation.as_ref().unwrap().value else {
+            panic!()
+        };
+        assert_eq!(mount.session(), mounted.session);
+        assert_eq!(mount.native_vehicle_id(), 10);
+        assert!(mount.vehicle().is_none());
+        assert!(client.survival().preview_path(&controls).await.is_err());
+        for payload in [vec![10, 0, 0], vec![10, 2, 42, 42]] {
+            assert!(bot.apply_packet(0x4b, payload).await.is_err());
+            assert_eq!(
+                client
+                    .vehicle_state()
+                    .await
+                    .unwrap()
+                    .relation
+                    .unwrap()
+                    .value,
+                VehicleRelation::Mounted { mount }
+            );
+        }
+        bot.apply_packet(0x4b, vec![11, 0]).await.unwrap();
+        assert_eq!(
+            client
+                .vehicle_state()
+                .await
+                .unwrap()
+                .relation
+                .unwrap()
+                .value,
+            VehicleRelation::Mounted { mount }
+        );
+        bot.apply_packet(0x4b, vec![10, 0]).await.unwrap();
+        let unmounted = client.vehicle_state().await.unwrap();
+        assert_eq!(
+            unmounted.relation.unwrap().value,
+            VehicleRelation::Unmounted {
+                previous_mount: mount
+            }
+        );
+        assert!(unmounted.passengers.unwrap().value.is_empty());
+        // Receipt of absence and zero local motion are not a new standing basis.
+        assert!(client.survival().preview_path(&controls).await.is_err());
+        bot.apply_packet(0x37, vec![1, 10]).await.unwrap();
+        assert!(client.vehicle_state().await.unwrap().relation.is_none());
+        assert!(client.survival().preview_path(&controls).await.is_err());
+        release.send(()).unwrap();
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
     #[tokio::test]
     async fn common_entity_lifetime_rejects_reused_id_and_wrong_mode() {
         let (bot, server, release) =

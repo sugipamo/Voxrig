@@ -145,20 +145,12 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         return Ok(true);
     }
     if id == input::SET_PASSENGERS {
-        let mut r = Reader::new(payload);
-        let vehicle = r.varint()?;
-        if vehicle < 0 {
-            bail!("invalid vehicle entity ID");
-        }
-        let mut own = false;
-        for _ in 0..r.count(1024)? {
-            let passenger = r.varint()?;
-            if passenger < 0 {
-                bail!("invalid passenger entity ID");
-            }
-            own |= Some(passenger) == state.operations.local_player.entity_id;
-        }
-        r.end()?;
+        let update = crate::client::vehicle::NativePassengers::decode(payload)?;
+        let player = state.operations.local_player.entity_id;
+        let own = player.is_some_and(|id| update.passengers.contains(&id));
+        state
+            .vehicles
+            .receive(&update, player, &state.entities, state.sequence);
         if own {
             interrupt(state, id);
         }

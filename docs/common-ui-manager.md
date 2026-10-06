@@ -58,5 +58,6 @@ pendingの個別disconnectはerrorで、接続callerの取消かshutdownを使�
 単なるmanagerのdropはshutdownではない。event集約・自動reconnect・版固有metrics/cache共有は未統合。
 
 この変更はA5のscoreboardとmanager部分。[かまど基本slot操作](common-furnaces.md)も接続したが、
-実乗車状態と下車は引き続きA5の必須作業。
+[乗車関係の観測](common-vehicles.md)も両adapterへ接続した。
+owned下車送信と実乗車→下車の両版検証は引き続きA5の必須作業。
 A5全体やより広いUI・vehicle・manager統合の完了とは扱わない。
