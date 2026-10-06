@@ -102,7 +102,7 @@ pub(crate) fn air(state: &NativeBlockState) -> bool {
 pub(crate) fn selected_material(p: &PlayerObservation) -> Result<(ItemStack, u64)> {
     if p.received_pose.is_none()
         || p.dimension.is_none()
-        || p.inventory.window_id != Some(0)
+        || p.inventory.player_screen.is_none()
         || !matches!(
             p.inventory.cursor.as_ref(),
             Some(ObservedValue {
@@ -112,7 +112,7 @@ pub(crate) fn selected_material(p: &PlayerObservation) -> Result<(ItemStack, u64
         )
     {
         return Err(unavailable(
-            "placement requires received own pose, world, player screen and empty cursor",
+            "placement requires received own pose/world, received player screen or complete local close, and empty cursor",
         ));
     }
     let selection = p

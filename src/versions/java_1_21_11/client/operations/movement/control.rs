@@ -128,7 +128,10 @@ fn stable_context(state: &State, r: &SurvivalMotionRecord) -> Result<()> {
             .as_ref()
             .map(|p| p.receive_sequence)
             != Some(r.received_pose_sequence)
-        || state.operations.game_mode != Some(GameMode::Survival)
+        || state.operations.game_mode
+            != r.common_initial
+                .as_ref()
+                .map_or(Some(GameMode::Survival), |p| p.game_mode)
         || state.operations.requested_flying
         || state.operations.abilities.is_some_and(|a| a & 2 != 0)
         || now.velocity != before.velocity
@@ -288,7 +291,7 @@ impl Operations {
         inputs: &[SurvivalInput],
         observer: &Operations,
     ) -> Result<SurvivalMotionRecord> {
-        self.start_control_path(&fixed_controls(yaw, inputs)?, Some(observer), None, false)
+        self.start_control_path(&fixed_controls(yaw, inputs)?, Some(observer), None, None)
             .await
     }
     /// Start a caller-selected multi-heading path, revalidating current geometry.
@@ -297,7 +300,7 @@ impl Operations {
         controls: &[SurvivalControl],
         observer: &Operations,
     ) -> Result<SurvivalMotionRecord> {
-        self.start_control_path(controls, Some(observer), None, false)
+        self.start_control_path(controls, Some(observer), None, None)
             .await
     }
     /// Recompute an earlier preview under the send-intent lock. Changed initial
@@ -308,7 +311,7 @@ impl Operations {
         expected: &SurvivalMovementPreview,
         observer: &Operations,
     ) -> Result<SurvivalMotionRecord> {
-        self.start_control_path(&expected.controls, Some(observer), Some(expected), false)
+        self.start_control_path(&expected.controls, Some(observer), Some(expected), None)
             .await
     }
     /// Explicit model-based continuation. No observer, receipt or error bound is
@@ -317,21 +320,25 @@ impl Operations {
         &self,
         controls: &[SurvivalControl],
     ) -> Result<SurvivalMotionRecord> {
-        self.start_control_path(controls, None, None, false).await
+        self.start_control_path(controls, None, None, None).await
     }
     /// Revalidate a preview and dispatch under the prediction-only contract.
     pub async fn start_previewed_predicted_survival_motion(
         &self,
         expected: &SurvivalMovementPreview,
     ) -> Result<SurvivalMotionRecord> {
-        self.start_control_path(&expected.controls, None, Some(expected), false)
+        self.start_control_path(&expected.controls, None, Some(expected), None)
             .await
     }
     pub(crate) async fn common_start_predicted_path(
         &self,
+        mode: GameMode,
         controls: &[SurvivalControl],
     ) -> Result<crate::client::survival::MotionRecord> {
-        common_record(self.start_control_path(controls, None, None, true).await?)
+        common_record(
+            self.start_control_path(controls, None, None, Some(mode))
+                .await?,
+        )
     }
     pub(crate) async fn common_motion_record(
         &self,
@@ -353,7 +360,7 @@ impl Operations {
         controls: &[SurvivalControl],
         observer: Option<&Operations>,
         expected: Option<&SurvivalMovementPreview>,
-        capture_common: bool,
+        common_mode: Option<GameMode>,
     ) -> Result<SurvivalMotionRecord> {
         if observer.is_some_and(|o| self.bot.session.id == o.bot.session.id) {
             return Err(invalid("motion requires an independent observer"));
@@ -402,7 +409,13 @@ impl Operations {
             return Err(invalid("inventory swap unresolved"));
         }
         let tick = self.bot.session.started.elapsed().as_millis() as u64 / 50;
-        let preview = preview(&mut state, self.bot.session.id, tick, controls)?;
+        let preview = preview_in_mode(
+            &mut state,
+            self.bot.session.id,
+            tick,
+            controls,
+            common_mode.unwrap_or(GameMode::Survival),
+        )?;
         if let Some(expected) = expected {
             if expected.generation != preview.generation
                 || expected.initial.connection_id != preview.initial.connection_id
@@ -432,7 +445,8 @@ impl Operations {
             .as_ref()
             .map_or(Some(1), |r| r.run_id.checked_add(1))
             .ok_or_else(|| invalid("motion run IDs exhausted"))?;
-        let common_initial = capture_common
+        let common_initial = common_mode
+            .is_some()
             .then(|| self.common_player_unlocked(&state))
             .transpose()?;
         let record = SurvivalMotionRecord {
@@ -463,7 +477,7 @@ impl Operations {
                 .unwrap()
                 .receive_sequence,
         };
-        if !capture_common {
+        if common_mode.is_none() {
             if let Some(previous) = state
                 .survival_motion
                 .as_ref()

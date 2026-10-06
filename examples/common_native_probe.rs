@@ -219,11 +219,8 @@ async fn crafting_result_take(
             && matches!(&cursor.value, SlotKnowledge::Item {item} if item.name == expected),
         "output not freshly received"
     );
-    if client.version() == MinecraftVersion::Java1_16_1 {
-        anyhow::ensure!(
-            complete.legacy_reply.as_ref().is_some_and(|r| !r.accepted),
-            "actual resync comparison reply absent"
-        );
+    if let Some(reply) = &complete.legacy_reply {
+        anyhow::ensure!(!reply.accepted, "actual resync comparison reply absent");
     }
     // This sealed predecessor now differs. Refusal must not resend the take.
     let refusal = match mode {
@@ -2895,6 +2892,317 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
     }
     anyhow::bail!("container fixture ended without disconnect")
 }
+// A1: each mode runs on one connection, with no fixture mutation between steps.
+// Version-specific protocol assertions live in adapter tests, not this consumer.
+async fn workflow_look(client: &Client, mode: GameMode, target: [f64; 3]) -> anyhow::Result<()> {
+    let p = client
+        .player_state()
+        .await?
+        .position
+        .context("workflow position missing")?
+        .value;
+    let dx = target[0] - p[0];
+    let dz = target[2] - p[2];
+    let rotation = [
+        (-dx.atan2(dz)).to_degrees() as f32,
+        ((p[1] + 1.62 - target[1]).atan2(dx.hypot(dz))).to_degrees() as f32,
+    ];
+    match mode {
+        GameMode::Survival => {
+            client.survival().look(rotation).await?;
+        }
+        GameMode::Creative => {
+            client.creative().look(rotation).await?;
+        }
+        _ => anyhow::bail!("unsupported workflow mode"),
+    }
+    Ok(())
+}
+async fn basic_workflow_probe(client: &Client) -> anyhow::Result<()> {
+    let ready = client.player_state().await?;
+    let session = ready.session;
+    emit("workflow_ready", &ready)?;
+    let mut commands = BufReader::new(tokio::io::stdin()).lines();
+    let mut mode = None;
+    while let Some(command) = commands.next_line().await? {
+        match command.as_str() {
+            "workflow_baseline" => {
+                let player = wait_player(client, |p| {
+                    matches!(p.game_mode, Some(GameMode::Survival | GameMode::Creative))
+                        && p.received_pose.as_ref().is_some_and(|pose| pose.receive_sequence > ready.receive_sequence && pose.position == [0.5,65.0,0.5])
+                        && matches!(p.inventory.slots[9].as_ref().map(|v| &v.value), Some(SlotKnowledge::Item {item}) if item.name == "minecraft:oak_planks" && item.count == 2)
+                        && matches!(p.inventory.slots[11].as_ref().map(|v| &v.value), Some(SlotKnowledge::Item {item}) if item.name == "minecraft:stone" && item.count == 2)
+                        && matches!(p.inventory.slots[37].as_ref().map(|v| &v.value), Some(SlotKnowledge::Item {item}) if item.name == "minecraft:dirt" && item.count == 3)
+                        && p.inventory.cursor.as_ref().is_some_and(|c| c.value == SlotKnowledge::Empty)
+                }).await?;
+                mode = player.game_mode;
+                match mode.context("workflow mode absent")? {
+                    GameMode::Survival => {
+                        client.survival().select_hotbar(0).await?;
+                    }
+                    _ => {
+                        client.creative().select_hotbar(0).await?;
+                    }
+                }
+                wait_block(client, [0, 65, 2], "minecraft:chest").await?;
+                emit(
+                    &command,
+                    client
+                        .capture(Region {
+                            min: [-2, 64, -2],
+                            max: [3, 67, 3],
+                        })
+                        .await?,
+                )?;
+            }
+            "workflow_move" => {
+                let mode = mode.context("workflow baseline missing")?;
+                let controls: Vec<_> = (0..30)
+                    .map(|tick| SurvivalControl {
+                        yaw: -90.0,
+                        input: SurvivalInput {
+                            forward: i8::from(tick < 3),
+                            ..Default::default()
+                        },
+                    })
+                    .collect();
+                tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let preview = match mode {
+                            GameMode::Survival => client.survival().preview_path(&controls).await,
+                            _ => client.creative().preview_path(&controls).await,
+                        };
+                        if preview.is_ok() {
+                            break;
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await?;
+                let started = match mode {
+                    GameMode::Survival => client.survival().start_predicted_path(&controls).await?,
+                    _ => client.creative().start_predicted_path(&controls).await?,
+                };
+                let completed = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let record = client
+                            .survival()
+                            .motion_record()
+                            .await?
+                            .context("workflow motion missing")?;
+                        anyhow::ensure!(record.run_id == started.run_id, "motion owner changed");
+                        match record.status {
+                            MotionStatus::Predicted => return Ok::<_, anyhow::Error>(record),
+                            MotionStatus::Running => {
+                                tokio::time::sleep(Duration::from_millis(25)).await
+                            }
+                            _ => anyhow::bail!("workflow motion interrupted: {:?}", record.problem),
+                        }
+                    }
+                })
+                .await??;
+                emit("workflow_motion_record", completed)?;
+                emit(&command, client.player_state().await?)?;
+            }
+            "workflow_storage" => {
+                let mode = mode.context("workflow baseline missing")?;
+                workflow_look(client, mode, [0.5, 65.5, 2.5]).await?;
+                // Read-only readiness polling, followed by exactly one activation.
+                tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let target = match mode {
+                            GameMode::Survival => client.survival().target_block(4.5).await,
+                            _ => client.creative().target_block(4.5).await,
+                        };
+                        if target.is_ok_and(|t| t.hit.is_some_and(|h| h.position == [0, 65, 2])) {
+                            break;
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await?;
+                let submitted = match mode {
+                    GameMode::Survival => client.survival().open_container([0, 65, 2]).await?,
+                    _ => client.creative().open_container([0, 65, 2]).await?,
+                };
+                let opened = wait_container_open(client).await?;
+                anyhow::ensure!(opened.id == submitted.id, "opening owner changed");
+                let screen = opened
+                    .observed_screen
+                    .as_ref()
+                    .context("workflow screen missing")?;
+                let slot = screen
+                    .layout
+                    .as_ref()
+                    .context("workflow layout missing")?
+                    .player_slots
+                    .iter()
+                    .find(|mapping| mapping.player_slot == 11)
+                    .context("workflow player mapping missing")?
+                    .screen_slot as u16;
+                let source = InventorySource::Container { screen: screen.id };
+                let sent = match mode {
+                    GameMode::Survival => {
+                        client.survival().transfer_inventory(source, slot).await?
+                    }
+                    _ => client.creative().transfer_inventory(source, slot).await?,
+                };
+                let transfer = wait_transfer(client).await?;
+                anyhow::ensure!(transfer.id == sent.id, "transfer owner changed");
+                let close = match mode {
+                    GameMode::Survival => client.survival().close_container(screen.id).await?,
+                    _ => client.creative().close_container(screen.id).await?,
+                };
+                anyhow::ensure!(close.dispatched, "workflow close not dispatched");
+                emit(
+                    &command,
+                    serde_json::json!({"open":opened,"transfer":transfer,"close":close,"player":client.player_state().await?}),
+                )?;
+            }
+            "workflow_craft" => {
+                let mode = mode.context("workflow baseline missing")?;
+                let grid = client
+                    .received_crafting()
+                    .await?
+                    .context("workflow crafting grid missing")?;
+                anyhow::ensure!(
+                    grid.dimensions() == [2, 2]
+                        && matches!(grid.source(), CraftingSource::Player { .. }),
+                    "workflow player grid missing after close"
+                );
+                let mut clicks = vec![
+                    crafting_pickup(
+                        client,
+                        mode,
+                        InventorySource::Player,
+                        9,
+                        InventoryClickButton::Left,
+                    )
+                    .await?,
+                ];
+                for y in 0..2 {
+                    let (source, slot) = grid.input_source(0, y)?;
+                    clicks.push(
+                        crafting_pickup(client, mode, source, slot, InventoryClickButton::Right)
+                            .await?,
+                    );
+                }
+                let take = crafting_result_take(client, mode, "minecraft:stick").await?;
+                let after = take
+                    .after
+                    .as_ref()
+                    .context("workflow result grid missing")?;
+                for y in 0..2 {
+                    for x in 0..2 {
+                        anyhow::ensure!(
+                            after
+                                .input(x, y)?
+                                .is_some_and(|r| *r.value() == SlotKnowledge::Empty),
+                            "workflow ingredients remain"
+                        );
+                    }
+                }
+                anyhow::ensure!(
+                    after
+                        .result()
+                        .is_some_and(|r| *r.value() == SlotKnowledge::Empty),
+                    "workflow result not depleted"
+                );
+                clicks.push(
+                    crafting_pickup(
+                        client,
+                        mode,
+                        InventorySource::Player,
+                        10,
+                        InventoryClickButton::Left,
+                    )
+                    .await?,
+                );
+                emit(
+                    &command,
+                    serde_json::json!({"take":take,"clicks":clicks,"player":client.player_state().await?}),
+                )?;
+            }
+            "workflow_place" => {
+                let mode = mode.context("workflow baseline missing")?;
+                match mode {
+                    GameMode::Survival => {
+                        client.survival().select_hotbar(1).await?;
+                    }
+                    _ => {
+                        client.creative().select_hotbar(1).await?;
+                    }
+                }
+                workflow_look(client, mode, [2.5, 65.0, 0.5]).await?;
+                if mode == GameMode::Survival {
+                    let sent = client
+                        .survival()
+                        .place_cube([2, 64, 0], BlockFace::Up)
+                        .await?;
+                    let placed = tokio::time::timeout(Duration::from_secs(15), async {
+                        loop {
+                            let record = client
+                                .survival()
+                                .placement_record()
+                                .await?
+                                .context("workflow placement missing")?;
+                            anyhow::ensure!(record.id == sent.id, "placement owner changed");
+                            match record.stage {
+                                PlacementStage::ObservedPlaced => {
+                                    return Ok::<_, anyhow::Error>(record);
+                                }
+                                PlacementStage::RequiresInspection => anyhow::bail!(
+                                    "workflow placement interrupted: {:?}",
+                                    record.requires_inspection
+                                ),
+                                _ => tokio::time::sleep(Duration::from_millis(25)).await,
+                            }
+                        }
+                    })
+                    .await??;
+                    emit("workflow_placement_record", placed)?;
+                } else {
+                    client
+                        .creative()
+                        .use_on_block([2, 64, 0], BlockFace::Up, [0.5, 1.0, 0.5])
+                        .await?;
+                }
+                wait_block(client, [2, 65, 0], "minecraft:dirt").await?;
+                let final_capture = client
+                    .capture(Region {
+                        min: [2, 65, 0],
+                        max: [2, 65, 0],
+                    })
+                    .await?;
+                anyhow::ensure!(
+                    final_capture.player.session == session,
+                    "workflow reconnected"
+                );
+                anyhow::ensure!(
+                    final_capture
+                        .player
+                        .inventory
+                        .cursor
+                        .as_ref()
+                        .is_some_and(|c| c.value == SlotKnowledge::Empty),
+                    "workflow cursor not empty"
+                );
+                emit(&command, final_capture)?;
+            }
+            "workflow_disconnect" => {
+                client.disconnect().await?;
+                emit(
+                    &command,
+                    serde_json::json!({"session":session,"version":client.version()}),
+                )?;
+                return Ok(());
+            }
+            _ => anyhow::bail!("unknown workflow command"),
+        }
+    }
+    anyhow::bail!("workflow controller ended without disconnect")
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let port: u16 = std::env::var("VOXRIG_PORT")?.parse()?;
@@ -2902,6 +3210,9 @@ async fn main() -> anyhow::Result<()> {
         ConnectionConfig::offline_from_env(Server::new("127.0.0.1", port), "UnifiedProbe")?;
     let client = Client::connect(config).await?;
     client.wait_until_ready().await?;
+    if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("basic-workflow") {
+        return basic_workflow_probe(&client).await;
+    }
     if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("container") {
         return container_probe(&client).await;
     }

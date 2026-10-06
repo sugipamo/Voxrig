@@ -120,15 +120,13 @@ impl Bot {
     }
     pub(crate) async fn common_preview_path(
         &self,
+        mode: GameMode,
         controls: &[SurvivalControl],
     ) -> Result<MotionPreview> {
         model::validate_controls(controls)?;
         let _gate = self.coherent_state_gate.lock().await;
         self.common_motion_admission().await?;
-        self.common_preview_unlocked(controls).await
-    }
-    async fn common_preview_unlocked(&self, controls: &[SurvivalControl]) -> Result<MotionPreview> {
-        self.common_preview_core(controls, None).await
+        self.common_preview_in_mode(controls, None, mode).await
     }
     pub(super) async fn common_preview_core(
         &self,
@@ -477,6 +475,7 @@ impl Bot {
     }
     pub(crate) async fn common_start_predicted_path(
         &self,
+        mode: GameMode,
         controls: &[SurvivalControl],
     ) -> Result<MotionRecord> {
         model::validate_controls(controls)?;
@@ -489,7 +488,7 @@ impl Bot {
             .motion_admission_revision()
             .await
             .map_err(|e| motion_state(&format!("bounded admission rejected: {e:?}")))?;
-        let preview = self.common_preview_unlocked(controls).await?;
+        let preview = self.common_preview_in_mode(controls, None, mode).await?;
         if preview.initial.received_pose.is_none() {
             return Err(motion_state(
                 "finite motion requires native own-pose receipt",
@@ -604,7 +603,10 @@ impl Bot {
         }
         drop(receipts);
         let survival = self.survival.read().await;
-        if survival.game_mode.map(|id| id & 7) != Some(0)
+        if survival
+            .game_mode
+            .and_then(|id| GameMode::decode(id & 7).ok())
+            != run.record.preview.initial.game_mode
             || survival.flying
             || !survival.effects.is_empty()
             || !survival.vitals.as_ref().is_some_and(|v| v.health > 0.0)
@@ -1042,6 +1044,88 @@ pub(super) mod tests {
         server.await.unwrap();
     }
     #[tokio::test]
+    async fn creative_ground_motion_keeps_mode_and_prediction_contract() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed_motion(&bot).await;
+        let mut creative = vec![3];
+        creative.extend(1f32.to_be_bytes());
+        bot.apply_packet(0x1e, creative.clone()).await.unwrap();
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let controls = [SurvivalControl {
+            yaw: 0.0,
+            input: Default::default(),
+        }; 2];
+        assert!(client.survival().preview_path(&controls).await.is_err());
+        assert!(
+            client
+                .survival()
+                .start_predicted_path(&controls)
+                .await
+                .is_err()
+        );
+        let preview = client.creative().preview_path(&controls).await.unwrap();
+        assert_eq!(preview.initial.game_mode, Some(GameMode::Creative));
+        let sent = client
+            .creative()
+            .start_predicted_path(&controls)
+            .await
+            .unwrap();
+        for _ in 0..2 {
+            assert_eq!(
+                timeout(Duration::from_secs(1), packets.recv())
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .0,
+                0x13
+            );
+        }
+        let completed = timeout(Duration::from_secs(2), async {
+            loop {
+                let r = client.creative().motion_record().await.unwrap().unwrap();
+                if r.status != MotionStatus::Running {
+                    break r;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(completed.run_id, sent.run_id);
+        assert_eq!(completed.status, MotionStatus::Predicted);
+        assert_eq!(
+            completed.preview.initial.received_pose,
+            preview.initial.received_pose
+        );
+        let mut survival = vec![3];
+        survival.extend(0f32.to_be_bytes());
+        bot.apply_packet(0x1e, survival).await.unwrap();
+        assert_eq!(
+            client
+                .creative()
+                .motion_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .status,
+            MotionStatus::RequiresInspection
+        );
+        bot.apply_packet(0x1e, creative).await.unwrap();
+        assert!(
+            client
+                .creative()
+                .start_predicted_path(&controls)
+                .await
+                .is_err()
+        );
+        assert!(packets.try_recv().is_err());
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+    #[tokio::test]
     async fn finite_motion_retains_attempt_before_io_and_caller_cancellation() {
         let (bot, mut packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
@@ -1051,7 +1135,10 @@ pub(super) mod tests {
             yaw: 0.0,
             input: Default::default(),
         }; 2];
-        let started = bot.common_start_predicted_path(&controls).await.unwrap();
+        let started = bot
+            .common_start_predicted_path(GameMode::Survival, &controls)
+            .await
+            .unwrap();
         timeout(Duration::from_secs(1), async {
             loop {
                 if bot
@@ -1126,7 +1213,11 @@ pub(super) mod tests {
         bot.apply_packet(0x46, velocity).await.unwrap();
         let record = bot.common_motion_record().await.unwrap().unwrap();
         assert_eq!(record.status, MotionStatus::RequiresInspection);
-        assert!(bot.common_start_predicted_path(&controls).await.is_err());
+        assert!(
+            bot.common_start_predicted_path(GameMode::Survival, &controls)
+                .await
+                .is_err()
+        );
         drop(release);
         drop(bot);
         server.await.unwrap();
@@ -1145,7 +1236,9 @@ pub(super) mod tests {
                 },
             })
             .collect();
-        bot.common_start_predicted_path(&controls).await.unwrap();
+        bot.common_start_predicted_path(GameMode::Survival, &controls)
+            .await
+            .unwrap();
         timeout(Duration::from_secs(1), packets.recv())
             .await
             .unwrap()
@@ -1171,7 +1264,11 @@ pub(super) mod tests {
         assert_eq!(record.status, MotionStatus::RequiresInspection);
         assert!(record.dispatched_ticks < 35);
         assert!(record.problem.unwrap().contains("geometry"));
-        assert!(bot.common_start_predicted_path(&controls).await.is_err());
+        assert!(
+            bot.common_start_predicted_path(GameMode::Survival, &controls)
+                .await
+                .is_err()
+        );
         while packets.try_recv().is_ok() {}
         assert!(
             timeout(Duration::from_millis(80), packets.recv())

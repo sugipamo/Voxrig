@@ -29,6 +29,7 @@ async fn captured_placement_uses_the_live_native_cursor_and_target_checks() {
         0,
         SUPPORT,
         crate::BlockFace::West as u8,
+        false,
     )
     .unwrap();
     assert_eq!(imagined.cursor, actual.cursor);
@@ -354,17 +355,17 @@ async fn cancelled_send_retains_intent_without_replay_and_closed_history_survive
 #[test]
 fn admission_rejects_body_unknown_target_wrong_hit_empty_or_unsupported_material() {
     let mut s = fixture_state();
-    assert!(prepare(&mut s, 1, 0, SUPPORT, 4).is_ok());
-    assert!(prepare(&mut s, 1, 0, SUPPORT, 1).is_err());
+    assert!(prepare(&mut s, 1, 0, SUPPORT, 4, false).is_ok());
+    assert!(prepare(&mut s, 1, 0, SUPPORT, 1, false).is_err());
     s.world.seed_replay_cell(TARGET, 1);
-    assert!(prepare(&mut s, 1, 0, SUPPORT, 4).is_err());
+    assert!(prepare(&mut s, 1, 0, SUPPORT, 4, false).is_err());
     let mut s = fixture_state();
     s.operations.inventory.slots[36] = InventorySlot::Empty;
-    assert!(prepare(&mut s, 1, 0, SUPPORT, 4).is_err());
+    assert!(prepare(&mut s, 1, 0, SUPPORT, 4, false).is_err());
     s.operations.inventory.slots[36] = InventorySlot::Item {
         item: default_item("sand", 5).unwrap(),
     };
-    assert!(prepare(&mut s, 1, 0, SUPPORT, 4).is_err());
+    assert!(prepare(&mut s, 1, 0, SUPPORT, 4, false).is_err());
     assert!(survival::standing_intersects([0.5, 1.0, 0.5], [0, 2, 0]));
     assert!(!survival::standing_intersects([0.5, 1.0, 0.5], TARGET));
 }
@@ -394,13 +395,13 @@ fn packet_and_admitted_materials_match_native_oracle() {
         let item = default_item(m["name"].as_str().unwrap(), 5).unwrap();
         assert_eq!(i64::from(item.item_id), m["item_id"].as_i64().unwrap());
         s.operations.inventory.slots[36] = InventorySlot::Item { item };
-        let i = prepare(&mut s, 1, 0, SUPPORT, 4).unwrap();
+        let i = prepare(&mut s, 1, 0, SUPPORT, 4, false).unwrap();
         assert_eq!(
             i64::from(state_id(&i.expected).unwrap()),
             m["state_id"].as_i64().unwrap()
         );
     }
-    let mut i = prepare(&mut s, 1, 0, SUPPORT, 4).unwrap();
+    let mut i = prepare(&mut s, 1, 0, SUPPORT, 4, false).unwrap();
     i.support = [-2, -61, 3];
     i.sequence = 17;
     for p in oracle["packets"].as_array().unwrap() {
@@ -486,6 +487,92 @@ async fn common_placement_same_consumer_requires_real_processing_and_retains_nat
     assert_eq!(next.held_before.count, 4);
     read_packet(&mut f.peer, None).await.unwrap();
     f.stop().await;
+}
+#[tokio::test]
+async fn common_placement_after_no_echo_close_keeps_opening_history_and_reopen_conflicts() {
+    use crate::client::{container::PlayerScreenAccess, survival::PlacementStage};
+    for reopen in [false, true] {
+        let mut f = Fixture::new().await;
+        f.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 2, 10, 0])
+            .await;
+        let mut full = vec![3, 5, 63];
+        for slot in 0..63 {
+            if slot == 54 {
+                full.push(5);
+                put_varint(&mut full, default_item("dirt", 5).unwrap().item_id);
+                full.extend([0, 0]);
+            } else {
+                full.push(0);
+            }
+        }
+        full.push(0);
+        f.receive(ids::play_clientbound::WINDOW_ITEMS, &full).await;
+        let client = crate::Client::from_java_1_21_11(f.api.bot.clone());
+        let screen = client.screen_state().await.unwrap().screen.unwrap().id;
+        assert!(
+            client
+                .survival()
+                .place_cube(SUPPORT, crate::BlockFace::West)
+                .await
+                .is_err()
+        );
+        let close = client.survival().close_container(screen).await.unwrap();
+        assert_eq!(
+            read_packet(&mut f.peer, None).await.unwrap(),
+            (ids::play_serverbound::CLOSE_WINDOW, vec![3])
+        );
+        crate::client::tests::common_closed_player_screen_scenario(&client, close.id).await;
+        // The native-only checked API still requires its original received-player-screen contract.
+        assert!(
+            f.api
+                .place_survival_cube(SUPPORT, crate::BlockFace::West)
+                .await
+                .is_err()
+        );
+        let record = client
+            .survival()
+            .place_cube(SUPPORT, crate::BlockFace::West)
+            .await
+            .unwrap();
+        assert_eq!(
+            read_packet(&mut f.peer, None).await.unwrap().0,
+            ids::play_serverbound::BLOCK_PLACE
+        );
+        assert_eq!(record.initial.inventory.window_id, Some(3));
+        assert_eq!(
+            record.initial.inventory.player_screen,
+            Some(PlayerScreenAccess::SubmittedClose { close: close.id })
+        );
+        if reopen {
+            f.receive(ids::play_clientbound::OPEN_WINDOW, &[3, 2, 10, 0])
+                .await;
+            assert!(
+                client
+                    .player_state()
+                    .await
+                    .unwrap()
+                    .inventory
+                    .player_screen
+                    .is_none()
+            );
+        }
+        f.block(TARGET, "dirt").await;
+        f.stack(4).await;
+        f.ack(record.send.interaction_sequence.unwrap()).await;
+        let final_record = client.survival().placement_record().await.unwrap().unwrap();
+        assert_eq!(
+            final_record.stage,
+            if reopen {
+                PlacementStage::RequiresInspection
+            } else {
+                PlacementStage::ObservedPlaced
+            }
+        );
+        if reopen {
+            assert!(client.survival().select_hotbar(1).await.is_err());
+        }
+        f.stop().await;
+    }
 }
 #[tokio::test]
 async fn common_placement_cancelled_before_writer_retains_intent_without_inventing_dispatch_or_release()

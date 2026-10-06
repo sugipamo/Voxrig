@@ -143,6 +143,7 @@ impl Operations {
     }
     pub(crate) async fn common_preview_path(
         &self,
+        mode: GameMode,
         controls: &[SurvivalControl],
     ) -> Result<crate::client::survival::MotionPreview> {
         let mut state = self.bot.session.state.lock().await;
@@ -152,11 +153,12 @@ impl Operations {
                 "prior dispatch unresolved; inspect retained record",
             ));
         }
-        let native = preview(
+        let native = preview_in_mode(
             &mut state,
             self.bot.session.id,
             self.bot.session.started.elapsed().as_millis() as u64 / 50,
             controls,
+            mode,
         )?;
         let initial = self.common_player_unlocked(&state)?;
         Ok(crate::client::survival::MotionPreview {
@@ -202,8 +204,21 @@ fn preview(
     tick: u64,
     controls: &[SurvivalControl],
 ) -> Result<SurvivalMovementPreview> {
-    if state.operations.game_mode != Some(GameMode::Survival) {
-        return Err(invalid("survival mode required"));
+    preview_in_mode(state, connection_id, tick, controls, GameMode::Survival)
+}
+fn preview_in_mode(
+    state: &mut State,
+    connection_id: u64,
+    tick: u64,
+    controls: &[SurvivalControl],
+    mode: GameMode,
+) -> Result<SurvivalMovementPreview> {
+    if !matches!(mode, GameMode::Survival | GameMode::Creative)
+        || state.operations.game_mode != Some(mode)
+    {
+        return Err(invalid(
+            "ground motion requires matching received survival/creative mode",
+        ));
     }
     let initial = survival::context(state, connection_id, tick)?;
     validate_initial(&initial)?;

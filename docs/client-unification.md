@@ -9,6 +9,17 @@
 最終目標は、接続時の版選択を除いて同じClient APIで利用できること。
 新しい版・未知block/itemへの対応にはVoxrig更新を要求する。
 
+## 再開後の進捗
+
+- A0完了: mainのPR #6・#7を専用ブランチへ取り込んだ（`ab3b5aa`）。
+  共通のcomponent付き在庫も診断recordへ元bytes・削除patch・版を保持し、
+  保存データから検証済みIDや操作guardを復元しない。
+- A1完了: 同じconsumerを使い、各modeで接続を変えずに観測・地上移動・収納・通常製作・
+  設置・切断を両版の公式vanillaで確認した。収納後のno-echo closeから設置へ進む契約を接続し、
+  Creative handleにも有限地上歩行を実装した。予測位置と受信pose、close送信と受信画面は分離する。
+- 次はA2の基本装備・代表的なentity操作。A3〜A6とBは未完了で、全統合完了とは扱わない。
+  ownedレシピブック配置の未検証変更は退避したまま、Bまで復元しない。
+
 ## 選択と公開入口
 
 通常の利用側は`voxrig::client::prelude::*`を使う。
@@ -144,7 +155,7 @@ A5の代表例は初回貫通用であり、すべての特殊windowやentity／
 | API／機能 | 1.16.1 | 1.21.11 | 初回の扱い |
 | --- | --- | --- | --- |
 | 接続・registry・player/world/inventory観測 | 共通 | 共通 | A1で同じconsumerの受信基準に使う |
-| 視点・選択・乾いた地形での有限移動 | 共通・限定条件 | 共通・限定条件 | Survivalは歩行、Creativeは許可された短い飛行stepから着地 |
+| 視点・選択・乾いた地形での有限移動 | 共通・限定条件 | 共通・限定条件 | 両handleの有限地上歩行。Creativeでも飛行中は拒否する |
 | storage開閉・通常クリック・転送・空cursorへの製作結果取得 | 共通・限定条件 | 共通・限定条件 | 一つの接続で収納の後に通常製作へ進む |
 | passive cube設置・空手のdirt/stone採掘 | 共通・限定条件 | 共通・限定条件 | A1は設置。採掘後の共通復旧はA3 |
 | 装備への通常転送 | 共通・限定条件 | 共通・限定条件 | A2の代表シナリオに組み込む |
@@ -168,7 +179,7 @@ close送信と実受信screen履歴を混同せず、サーバー側でも位置
 
 | 段階 | 後続の対応範囲 |
 | --- | --- |
-| 3 | 広い移動・採掘・設置条件、道具・姿勢・非cube・effect等の対応、観測継続と復旧の範囲拡大 |
+| 3 | 広い移動・採掘・設置条件、道具・姿勢・非cube・effect等の対応、観測継続と復旧の範囲拡大、Creative飛行後の立位操作への継続 |
 | 4 | ownedレシピブック配置とghost結果、非空cursorへの結果結合、shift製作、製作台SWAP／QUICK_MOVE、一般装備・entity・item activation、任意item／text／dialogのconstructor・参照・比較と実server cache hash |
 | 5 | より広いcontext／記録／再構成／scene／復旧、履歴取得が書き込み停止で詰まる経路の解消、再設定・chunk欠測・再接続の範囲拡大 |
 | 6 | 各UI・特殊window・vehicle・manager機能の残差分。raw操作の版依存は明示的な拡張として管理する |

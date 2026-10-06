@@ -41,6 +41,8 @@ pub enum Feature {
     SurvivalMovement,
     /// Creative flight, default-stack writes and block interactions.
     CreativeControls,
+    /// Finite ground walking/jump with flight inactive and received Creative mode.
+    CreativeMovement,
     /// Extra audited dry-cube survival contract.
     CheckedSurvival,
     /// Ordinary received storage/hotbar exchanges; broader container commands remain.
@@ -108,7 +110,7 @@ impl Capabilities {
             Feature::Containers => Support::Restricted(
                 "empty-hand audited storage/crafting-table activation with distinct dispatch/OPEN/full/cursor/modern processing facts; opening-bound close with observed resolved-data cursor return; constructor-verified ordinary slots; SWAP/QUICK_MOVE remain storage/player only; general UI/special clicks and unresolved item semantics remain incomplete",
             ),
-            Feature::SurvivalMovement => Support::Restricted(
+            Feature::SurvivalMovement | Feature::CreativeMovement => Support::Restricted(
                 "1..120 dry walking/jump ticks with released-rest endpoint; retained intent/failure; predicted completion is not received acceptance",
             ),
             Feature::CheckedSurvival => match self.version {

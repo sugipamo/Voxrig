@@ -453,7 +453,7 @@ def outer_snbt_compounds(response):
 
 
 def stage(probe, messages, name, records, timeout=30, poll=None):
-    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready"):
+    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready"):
         probe.stdin.write(name + "\n")
         probe.stdin.flush()
     deadline = time.monotonic() + timeout
@@ -475,7 +475,96 @@ def stage(probe, messages, name, records, timeout=30, poll=None):
     raise TimeoutError("probe stage timed out: " + name)
 
 
-def run(version, accept_eula, runtime_root=None, runtime_inputs=None):
+def run_basic_workflow(version, env, rcon, trace, report, probe_log, stderr_log):
+    """One connection per mode; after baseline the driver only reads native state."""
+    results = report['native_results']['basic_workflow'] = {}
+    def exact_items(command, expected):
+        response = rcon.command(command)
+        stacks = outer_snbt_compounds(response)
+        if len(stacks) != len(expected):
+            return None
+        for slot, (item, count) in expected.items():
+            if not any(re.search(rf'Slot: {slot}b(?:,|\s|}})', stack)
+                       and f'id: "minecraft:{item}"' in stack
+                       and re.search(rf'(?:Count|count): {count}(?:b)?(?:,|\s|}})', stack)
+                       for stack in stacks):
+                return None
+        return response
+    def inventory(expected):
+        return exact_items('data get entity UnifiedProbe Inventory', expected)
+    for mode in ('survival', 'creative'):
+        until(lambda: matched(rcon.command('execute unless entity @a[name=UnifiedProbe]'), 'Test passed'))
+        result = results[mode] = {'fixture':{}, 'records':[]}
+        for command in ['setblock 0 65 1 minecraft:air', 'setblock 0 65 2 minecraft:chest[facing=north,type=single,waterlogged=false]',
+                        'data merge block 0 65 2 {Items:[]}', 'setblock 2 65 0 minecraft:air']:
+            result['fixture'][command] = rcon.command(command)
+        probe = subprocess.Popen([str(REPO / 'target/debug/examples/common_native_probe')], cwd=REPO,
+            env=dict(env, VOXRIG_NATIVE_SCENARIO='basic-workflow'), stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+        messages = queue.Queue()
+        reader = threading.Thread(target=pump, args=(probe.stdout, messages, probe_log), daemon=True)
+        reader.start()
+        try:
+            stage(probe, messages, 'workflow_ready', result['records'])
+            commands = ['gamemode '+mode+' UnifiedProbe', 'tp UnifiedProbe 0.5 65 0.5 0 0', 'clear UnifiedProbe']
+            for slot, item, count in [('inventory.0','oak_planks',2), ('inventory.2','stone',2), ('hotbar.1','dirt',3)]:
+                commands.append(f'replaceitem entity UnifiedProbe {slot} minecraft:{item} {count}' if version == '1.16.1'
+                    else f'item replace entity UnifiedProbe {slot} with minecraft:{item} {count}')
+            for command in commands:
+                result['fixture'][command] = rcon.command(command)
+            baseline = stage(probe, messages, 'workflow_baseline', result['records'])['value']
+            result['baseline_inventory'] = until(lambda:inventory({9:('oak_planks',2),11:('stone',2),1:('dirt',3)}))
+            result['baseline_position'] = rcon.command('data get entity UnifiedProbe Pos')
+            boundary = trace.mark()
+            moved = stage(probe, messages, 'workflow_move', result['records'])['value']
+            expected = moved['position']['value']
+            def endpoint():
+                raw = rcon.command('data get entity UnifiedProbe Pos')
+                actual = [float(v) for v in re.findall(r'(-?\d+(?:\.\d+)?(?:[Ee][+-]?\d+)?)d', raw)]
+                return raw if len(actual)==3 and all(abs(a-b)<1e-7 for a,b in zip(actual,expected)) else None
+            result['moved_position'] = until(endpoint)
+            if abs(expected[0]-0.5) < 0.1 or abs(expected[1]-65.0)>1e-7:
+                raise RuntimeError('workflow did not make a grounded horizontal movement')
+            stored = stage(probe, messages, 'workflow_storage', result['records'])['value']
+            result['storage_items'] = until(lambda:exact_items('data get block 0 65 2 Items',{0:('stone',2)}))
+            result['storage_inventory'] = until(lambda:inventory({9:('oak_planks',2),1:('dirt',3)}))
+            crafted = stage(probe, messages, 'workflow_craft', result['records'])['value']
+            result['crafted_inventory'] = until(lambda:inventory({10:('stick',4),1:('dirt',3)}))
+            placed = stage(probe, messages, 'workflow_place', result['records'])['value']
+            result['placed_block'] = until(lambda:matched(rcon.command('execute if block 2 65 0 minecraft:dirt'),'Test passed'))
+            result['final_inventory'] = until(lambda:inventory({10:('stick',4),1:('dirt',2 if mode=='survival' else 3)}))
+            result['final_position'] = until(endpoint)
+            stamp = baseline['player']['session']
+            if any(p['session'] != stamp for p in (moved,stored['player'],crafted['player'],placed['player'])):
+                raise RuntimeError('workflow changed connection/world during operations')
+            for player in (stored['player'],crafted['player'],placed['player']):
+                if player['inventory']['cursor']['value']['kind'] != 'empty':
+                    raise RuntimeError('workflow left a carried stack')
+            # Retained actual foreign OPEN is honest history after no-echo close.
+            # SubmittedClose is the separate local basis for player-menu operations.
+            if not stored['close']['dispatched'] or stored['close']['id']['screen'] != stored['open']['observed_screen']['id']:
+                raise RuntimeError('workflow close was not bound to the actual opening')
+            result['operation_frames'] = trace.since(boundary)
+            result['authority_limits'] = 'One unchanged Client per mode; dry ordinary-items fixture only. Native position, chest contents, ingredient/output totals and placed block verified independently through RCON. Client retains actual screen/cursor/slot/block receipts and separately records predicted movement/local close. No mining continuation, recipe-book placement or full feature parity is claimed.'
+            trace.expect_disconnect()
+            stage(probe, messages, 'workflow_disconnect', result['records'])
+            probe.wait(timeout=10)
+            if probe.returncode != 0:
+                raise RuntimeError('workflow probe failed after disconnect')
+            reader.join(timeout=2)
+            if reader.is_alive():
+                raise RuntimeError('workflow probe reader did not finish')
+            result['result'] = 'passed'
+        finally:
+            if probe.poll() is None:
+                probe.terminate()
+                try:
+                    probe.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    probe.kill(); probe.wait(timeout=5)
+
+
+def run(version, accept_eula, runtime_root=None, runtime_inputs=None, scenario="full"):
     if not accept_eula:
         raise RuntimeError("pass --accept-eula when authorized to run the official server")
     jar, source = download(version)
@@ -560,6 +649,10 @@ network-compression-threshold=256
         for check in ["execute if block 0 65 1 minecraft:stone", "execute if block 1 65 0 minecraft:air"]:
             report.setdefault("fixture_verification", {})[check] = until(lambda: matched(rcon.command(check), "Test passed"))
         env = dict(os.environ, VOXRIG_MINECRAFT_VERSION=version, VOXRIG_PORT=str(trace.port))
+        if scenario == "basic-workflow":
+            run_basic_workflow(version, env, rcon, trace, report, probe_log, stderr_log)
+            report["scenario_result"] = "passed"
+            return retained
         probe = subprocess.Popen([str(REPO / "target/debug/examples/common_native_probe")], cwd=REPO, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
         messages = queue.Queue()
         thread = threading.Thread(target=pump, args=(probe.stdout, messages, probe_log), daemon=True)
@@ -1600,6 +1693,7 @@ def main():
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--accept-eula", action="store_true")
     parser.add_argument("--runtime-dir", type=Path, help="Optional disposable runtime parent, e.g. /dev/shm for isolating disk I/O; reports are exported to .local after JVM exit")
+    parser.add_argument("--scenario", choices=("full", "basic-workflow"), default="full", help="Run the complete operation corpus or the focused A1 workflow")
     args = parser.parse_args()
     if bool(args.version) == args.all:
         parser.error("select exactly one of --version / --all")
@@ -1620,7 +1714,13 @@ def main():
     runtime_inputs["consumer_binary_sha256"] = hashlib.sha256(
         (REPO / "target/debug/examples/common_native_probe").read_bytes()).hexdigest()
     for version in VERSIONS if args.all else [args.version]:
-        run(version, args.accept_eula, args.runtime_dir.resolve() if args.runtime_dir else None, runtime_inputs)
+        folder = run(version, args.accept_eula,
+            args.runtime_dir.resolve() if args.runtime_dir else None, runtime_inputs, args.scenario)
+        retained = ROOT / folder.name
+        report = json.loads((retained / "report.json").read_text())
+        if report["result"] != "passed":
+            raise RuntimeError(report.get("error", "native trial failed"))
+        print(version, args.scenario, "PASSED", retained, flush=True)
 
 
 if __name__ == "__main__":

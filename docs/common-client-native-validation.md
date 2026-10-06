@@ -21,6 +21,28 @@ JVMを回収してから`.local/native-client-unification/`へ記録とworldを�
 `--all`は1.16.1の終了後に1.21.11を起動する。ビルドもサーバー起動前に`-j1`で完了させる。
 同時に別のビルド・検証サーバーを起動しない。
 
+## A1の一連操作
+
+```bash
+CARGO_INCREMENTAL=0 python3 scripts/run_common_native.py --all --scenario basic-workflow --accept-eula --runtime-dir /dev/shm/voxrig-a1
+```
+
+各版でSurvival、Creativeを順番に実行する。それぞれ一つのClientで接続・観測・有限地上歩行・
+single chestへのstone 2個の収納・player 2×2でstick 4個の製作・dirtの設置・切断を通す。
+modeの受信後にhotbar 0を明示的に選ぶ。fixture準備の後はcontrollerから状態を上書きしない。
+移動の実終点、チェストの内容、材料と製作結果の在庫、設置blockをRCONで独立確認する。
+Client側でも同じsession、実cursor、入力/result grid、変更slot、設置結果を確認する。
+Survivalの設置ではdirt 3→2、Creativeでは3個を維持する。
+
+画面closeは完全送信と実受信履歴を区別し、echoのないclose後でも通常製作と設置へ進む。
+移動は予測契約で、終点を実受信poseへ書き換えない。両modeの同じ地上歩行入口を使い、
+飛行後の立位操作、採掘後の復旧、レシピブック配置や全機能の統合完了はこの試験で主張しない。
+`--scenario full`（既定値）は従来の操作別corpusを実行する。
+
+2026-10-06のA1試験は`trial-1.16.1-301ed803`と`trial-1.21.11-32a8a663`で成功した。
+同じconsumer binaryとsource/dataを使い、両modeの結果とJVMのexit code 0を確認した。
+保存した各`report.json`に入力hash、操作記録、実サーバー側の結果を保持する。
+
 ## 検証する結果
 
 | 共通APIの操作 | Voxrigとは別のサーバー側確認 |

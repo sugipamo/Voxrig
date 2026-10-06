@@ -4,6 +4,10 @@
 版は接続時の`ConnectionConfig.version`に固定され、利用側が版別の操作型を選ぶ必要はない。
 `Survival::start_predicted_path(&controls)`は両版で有限入力列を実行し、
 `Survival::motion_record()`で共通の`MotionRecord`を参照できる。
+`Client::creative()`にも同じ`preview_path`、`start_predicted_path`、`motion_record`を用意し、
+飛行中でない地上歩行を同じ有限入力で扱う。各handleは一致する実受信modeを要求する。
+共通runの開始modeを保持して、途中のmode変更は競合として残す。
+Creativeの飛行stepから立位操作への継続はこの契約の対象外である。
 独立したobserver契約、さらに広い物理・移動条件と高度な記録/復旧の共通化は後続段階に残る。
 
 ```rust,no_run
@@ -27,7 +31,7 @@ let predicted_endpoint = preview.frames.last();
 ```
 
 1〜120個のdigital controls、有限yaw、forward/strafeが-1〜1であることを共通に検査する。
-予測は健康な通常立位のsurvival、静止した初期状態、native defaultの移動値、
+予測は健康な通常立位でhandleと一致するsurvival/creative、静止した初期状態、native defaultの移動値、
 受信済みのdry full-cube geometryに限定する。歩行とjumpを扱い、sprint/sneak、fluid、
 任意のblock形状、動くgeometry、effect付き移動を通常歩行へ補完しない。
 不足したchunk、native world boundsを跨ぐ問い合わせ、未対応形状はエラーにする。

@@ -538,23 +538,27 @@ impl Client {
             Adapter::Java1_21_11(bot) => bot.operations().common_target_block(mode, distance).await,
         }
     }
-    pub(crate) async fn preview_survival_path(
+    pub(crate) async fn preview_motion_path(
         &self,
+        mode: crate::client::GameMode,
         controls: &[crate::client::survival::SurvivalControl],
     ) -> Result<crate::client::survival::MotionPreview> {
         match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_preview_path(controls).await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_preview_path(controls).await,
+            Adapter::Java1_16_1(bot) => bot.common_preview_path(mode, controls).await,
+            Adapter::Java1_21_11(bot) => bot.operations().common_preview_path(mode, controls).await,
         }
     }
-    pub(crate) async fn start_predicted_survival_path(
+    pub(crate) async fn start_predicted_motion_path(
         &self,
+        mode: crate::client::GameMode,
         controls: &[crate::client::survival::SurvivalControl],
     ) -> Result<crate::client::survival::MotionRecord> {
         match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_start_predicted_path(controls).await,
+            Adapter::Java1_16_1(bot) => bot.common_start_predicted_path(mode, controls).await,
             Adapter::Java1_21_11(bot) => {
-                bot.operations().common_start_predicted_path(controls).await
+                bot.operations()
+                    .common_start_predicted_path(mode, controls)
+                    .await
             }
         }
     }

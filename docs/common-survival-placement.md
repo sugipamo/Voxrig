@@ -21,7 +21,12 @@ let diagnostics = survival.placement_record().await?;
 ## 前提と送信
 
 健康な通常立位・接地・乾いた既知geometry・通常属性・受信済みsurvival modeとown poseを要求する。
-player screen、空のcursor、選択中のdefault passive cube stackにも実受信の根拠が必要。
+空のcursorと選択中のdefault passive cube stackには実受信の根拠が必要。
+player screenへの操作基準は、実受信のwindow 0、または同じ接続・世代・openingに結び付いた
+完全な`close_container`送信とする。vanillaがcloseをechoしなくても、収納・通常製作の後に
+共通設置へ進める。`initial.inventory.player_screen`にその基準を保持し、受信windowやscreenを
+window 0へ書き換えない。再OPEN・ID再利用・不完全なcloseはこの基準を失わせ、
+送信前は拒否、設置の実受信待ちでは競合を保持する。modern版固有のchecked設置契約は維持する。
 材料は共通dry modelのcubeからgrass blockを除いた範囲。NBT/components付き材料、工具、液体、
 未ロード・未知形状はこの入口では扱わない。legacyのgeometryは監査済みのair/12種のcubeに限定する。
 effect更新がないことを、serverのeffect一覧が完全に空である証明にはしない。

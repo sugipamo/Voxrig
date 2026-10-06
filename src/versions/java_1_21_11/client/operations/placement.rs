@@ -136,6 +136,7 @@ fn prepare(
     tick: u64,
     support: [i32; 3],
     face: u8,
+    common_player_screen: bool,
 ) -> Result<PlacementIntent> {
     if state.operations.game_mode != Some(GameMode::Survival) {
         return Err(unavailable("placement requires received survival mode"));
@@ -161,7 +162,7 @@ fn prepare(
         .ok_or_else(|| unavailable("selected hand unavailable or incomplete"))?;
     let inventory = &state.operations.inventory;
     let slot = 36 + usize::from(selection.slot);
-    if inventory.window_id != Some(0)
+    if (!common_player_screen && inventory.window_id != Some(0))
         || inventory.cursor != InventorySlot::Empty
         || inventory.unsupported_components
         || inventory.pending_swap.is_some()
@@ -335,6 +336,9 @@ impl Operations {
             self.bot.session.started.elapsed().as_millis() as u64 / 50,
             support,
             face as u8,
+            initial
+                .as_ref()
+                .is_some_and(|p| p.inventory.player_screen.is_some()),
         )?;
         intent.sequence = self.next_sequence()?;
         if !capture_common && state.common_placement.is_some() {
@@ -475,6 +479,13 @@ fn observe_in(
 /// Called after every successfully applied receive packet, so a conflicting
 /// intermediate inventory/world state cannot be erased by a later matching one.
 pub(in crate::versions::java_1_21_11::client) fn placement_context_received(state: &mut State) {
+    let screen_matches = state.common_placement.as_ref().map_or(
+        state.operations.inventory.window_id == Some(0),
+        |capture| {
+            common_player_screen_access(state, capture.initial.session)
+                .is_some_and(|basis| Some(basis) == capture.initial.inventory.player_screen)
+        },
+    );
     let Some(r) = &mut state.placement else {
         return;
     };
@@ -503,7 +514,7 @@ pub(in crate::versions::java_1_21_11::client) fn placement_context_received(stat
         || state.world.dimension.as_ref().map(|d| &d.0) != Some(&i.dimension)
         || state.operations.game_mode != Some(GameMode::Survival)
         || state.operations.selected_hotbar.as_ref().map(|s| s.slot) != Some(i.selection.slot)
-        || inventory.window_id != Some(0)
+        || !screen_matches
         || inventory.cursor != InventorySlot::Empty
         || inventory.unsupported_components
         || inventory.pending_swap.is_some()
@@ -572,6 +583,19 @@ mod tests;
 pub(in crate::versions::java_1_21_11::client) struct CommonPlacementCapture {
     initial: crate::client::PlayerObservation,
     sequence: i32,
+}
+fn common_player_screen_access(
+    state: &State,
+    mut session: crate::client::SessionStamp,
+) -> Option<crate::client::container::PlayerScreenAccess> {
+    session.world_generation = state.loading.generation;
+    let inventory = &state.operations.inventory;
+    crate::client::container::player_screen_access(
+        session,
+        inventory.window_id,
+        inventory.container.as_ref().map(|s| s.capture(session).id),
+        state.common_container_close.as_ref(),
+    )
 }
 fn common_record_in(state: &State) -> Result<Option<crate::client::survival::PlacementRecord>> {
     use crate::client::{self as common, survival as api};
@@ -708,6 +732,7 @@ pub(in crate::versions::java_1_21_11::client) fn common_placement_context_receiv
     let check = (|| -> Result<()> {
         let p = &capture.initial;
         if state.loading.generation != p.session.world_generation
+            || common_player_screen_access(state, p.session) != p.inventory.player_screen
             || state.position != p.position.as_ref().map(|p| p.value)
             || state.rotation != p.rotation
             || state.operations.selected_hotbar.as_ref()

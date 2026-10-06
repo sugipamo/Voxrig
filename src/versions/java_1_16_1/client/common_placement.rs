@@ -184,6 +184,7 @@ impl Bot {
                 || current.initial.received_pose != initial.received_pose
                 || current.initial.rotation != initial.rotation
                 || current.initial.selected_hotbar != initial.selected_hotbar
+                || current.initial.inventory.player_screen != initial.inventory.player_screen
                 || current.support_state != run.record.support_state
                 || current.before != run.record.before
                 || current.held_before != run.record.held_before
@@ -312,7 +313,8 @@ impl Bot {
             })
         );
         let inventory = self.inventory.read().await;
-        if current.inventory.window_id != Some(0)
+        if current.inventory.player_screen != initial.inventory.player_screen
+            || current.inventory.player_screen.is_none()
             || !valid_cursor
             || inventory.cursor.is_some()
             || inventory.open_window.is_some()
@@ -583,6 +585,101 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
+    }
+    #[tokio::test]
+    async fn common_placement_after_no_echo_close_keeps_opening_history_and_reopen_conflicts() {
+        for reopen in [false, true] {
+            let (bot, mut packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            seed(&bot).await;
+            let mut open = vec![3, 2];
+            put_string(&mut open, "{}");
+            bot.apply_packet(0x2e, open.clone()).await.unwrap();
+            let mut full = vec![3, 0, 63];
+            for slot in 0..63 {
+                write_slot(
+                    &mut full,
+                    (slot == 54).then_some(&ItemStack {
+                        item_id: crate::item_id("dirt").unwrap(),
+                        count: 5,
+                        nbt: None,
+                    }),
+                );
+            }
+            bot.apply_packet(0x14, full).await.unwrap();
+            bot.apply_packet(0x16, vec![255, 255, 255, 0])
+                .await
+                .unwrap();
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            client.survival().select_hotbar(0).await.unwrap();
+            packets.recv().await.unwrap();
+            let screen = client.screen_state().await.unwrap().screen.unwrap().id;
+            assert!(
+                client
+                    .survival()
+                    .place_cube(SUPPORT, crate::BlockFace::West)
+                    .await
+                    .is_err()
+            );
+            assert!(packets.try_recv().is_err());
+            let close = client.survival().close_container(screen).await.unwrap();
+            assert_eq!(packets.recv().await.unwrap(), (0x0a, vec![3]));
+            crate::client::tests::common_closed_player_screen_scenario(&client, close.id).await;
+            let record = client
+                .survival()
+                .place_cube(SUPPORT, crate::BlockFace::West)
+                .await
+                .unwrap();
+            assert_eq!(packets.recv().await.unwrap().0, 0x2d);
+            assert_eq!(record.initial.inventory.window_id, Some(3));
+            assert_eq!(
+                record.initial.inventory.player_screen,
+                Some(
+                    crate::client::container::PlayerScreenAccess::SubmittedClose {
+                        close: close.id
+                    }
+                )
+            );
+            if reopen {
+                bot.apply_packet(0x2e, open).await.unwrap();
+                // Reusing the native window ID does not restore the old close basis.
+                assert!(
+                    client
+                        .player_state()
+                        .await
+                        .unwrap()
+                        .inventory
+                        .player_screen
+                        .is_none()
+                );
+            }
+            change(
+                &bot,
+                TARGET,
+                crate::versions::java_1_16_1::state_id(&record.expected).unwrap(),
+            )
+            .await;
+            stack(&bot, 4).await;
+            let final_record = client.survival().placement_record().await.unwrap().unwrap();
+            assert_eq!(
+                final_record.stage,
+                if reopen {
+                    PlacementStage::RequiresInspection
+                } else {
+                    PlacementStage::ObservedPlaced
+                }
+            );
+            if reopen {
+                assert!(client.survival().select_hotbar(1).await.is_err());
+            }
+            drop(release);
+            drop(client);
+            drop(bot);
+            timeout(Duration::from_secs(2), server)
+                .await
+                .unwrap()
+                .unwrap();
+        }
     }
     #[tokio::test]
     async fn common_placement_cached_target_and_material_cannot_confirm_and_transient_receipts_stay_conflicted()

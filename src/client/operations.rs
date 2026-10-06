@@ -233,7 +233,9 @@ impl Survival {
         controls: &[super::survival::SurvivalControl],
     ) -> Result<super::survival::MotionPreview> {
         super::survival::model::validate_controls(controls)?;
-        self.client.preview_survival_path(controls).await
+        self.client
+            .preview_motion_path(GameMode::Survival, controls)
+            .await
     }
     /// Retain and start a finite path under the explicit prediction contract.
     /// The connection owns dispatch after this call returns or its future drops.
@@ -244,7 +246,9 @@ impl Survival {
         controls: &[super::survival::SurvivalControl],
     ) -> Result<super::survival::MotionRecord> {
         super::survival::model::validate_controls(controls)?;
-        self.client.start_predicted_survival_path(controls).await
+        self.client
+            .start_predicted_motion_path(GameMode::Survival, controls)
+            .await
     }
     /// Read the latest retained common run, including failure after closure.
     /// Pure inspection; never resumes, cancels or replays input.
@@ -274,6 +278,32 @@ impl Survival {
     }
 }
 impl Creative {
+    /// Read-only finite ground walking/jump preview while flight is inactive.
+    /// Uses the selected adapter's native dry defaults and received Creative mode.
+    pub async fn preview_path(
+        &self,
+        controls: &[super::survival::SurvivalControl],
+    ) -> Result<super::survival::MotionPreview> {
+        super::survival::model::validate_controls(controls)?;
+        self.client
+            .preview_motion_path(GameMode::Creative, controls)
+            .await
+    }
+    /// Start a finite ground path under the explicit prediction contract.
+    /// Flight must be inactive. Complete dispatch is not a received position.
+    pub async fn start_predicted_path(
+        &self,
+        controls: &[super::survival::SurvivalControl],
+    ) -> Result<super::survival::MotionRecord> {
+        super::survival::model::validate_controls(controls)?;
+        self.client
+            .start_predicted_motion_path(GameMode::Creative, controls)
+            .await
+    }
+    /// Read the retained common ground run without replaying any input.
+    pub async fn motion_record(&self) -> Result<Option<super::survival::MotionRecord>> {
+        self.client.survival_motion_record().await
+    }
     /// Activate one received first-outline storage or crafting-table target with empty hands/cursor.
     /// Retains intent before I/O; complete dispatch and received screen/content facts
     /// are separate. OPEN packets contain no causal target-block identity.
