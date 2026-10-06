@@ -14,8 +14,9 @@ pub use control::{
 };
 pub use scenario::{
     AssumedSurvivalScene, AssumedSurvivalStart, CapturedSurvivalScene, HypotheticalAimRequirement,
-    HypotheticalBlockEdit, HypotheticalMovementPreview, HypotheticalPlacement,
-    HypotheticalReconnectBoundary, HypotheticalSceneSource, SurvivalScenario,
+    HypotheticalBlockEdit, HypotheticalMovementPreview, HypotheticalMovementTransition,
+    HypotheticalPlacement, HypotheticalReconnectBoundary, HypotheticalSceneSource,
+    SurvivalScenario,
 };
 pub use scenario::{
     RecordedHypotheticalAimRequirement, RecordedHypotheticalBlockEdit,
