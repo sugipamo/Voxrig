@@ -236,4 +236,20 @@ mod protocol_fairness_tests {
         server.abort();
         drop(release);
     }
+    #[tokio::test]
+    async fn generation_revocation_interrupts_a_capture_behind_the_coherent_gate() {
+        let (bot, server, _) = echo_probe_bot().await;
+        let gate = bot.coherent_state_gate.lock().await;
+        let other = bot.clone();
+        let capture = tokio::spawn(async move { other.capture_coherent_observation(CoherentObservationRequest::default()).await });
+        tokio::task::yield_now().await;
+        let receipt = bot.revoke_connection();
+        assert_eq!(receipt.generation(), bot.connection_generation());
+        assert_eq!(bot.connection_state(), ConnectionState::ConnectionStateUnknown);
+        assert!(timeout(Duration::from_secs(1), capture).await.unwrap().unwrap().is_err());
+        drop(gate);
+        assert!(bot.apply_packet(0x20, 98765_i64.to_be_bytes().to_vec()).await.is_err());
+        server.abort();
+    }
+
 }
