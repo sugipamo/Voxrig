@@ -82,7 +82,7 @@ impl Capabilities {
                 "default items; permitted flight steps <=4 blocks; loaded reachable targets",
             ),
             Feature::BlockTargeting | Feature::SurvivalTargeting => Support::Restricted(
-                "healthy dry stationary normal posture, matching handle mode; reach <=4.5; audited static outlines; legacy passive full cubes and seven storage blocks; animated/world-dependent shapes remain incomplete",
+                "healthy dry stationary normal posture, matching handle mode; reach <=4.5; audited static outlines; legacy passive full cubes, seven storage blocks and crafting table; animated/world-dependent shapes remain incomplete",
             ),
             Feature::SurvivalPreview => Support::Restricted(
                 "read-only 1..120 walking/jump inputs; healthy stationary normal survival posture; native defaults; loaded dry full cubes",
@@ -106,7 +106,7 @@ impl Capabilities {
                 "regular OPEN_WINDOW screens and constructor-verified storage/crafting layouts; lossless modern component boundaries, common custom metadata and effective scalar item properties; general component semantics and special entity windows remain incomplete",
             ),
             Feature::Containers => Support::Restricted(
-                "empty-hand audited storage activation with distinct dispatch/OPEN/full/cursor/modern processing facts; opening-bound close with observed resolved-data cursor return; constructor-verified SWAP/PICKUP/QUICK_MOVE with separately received outcomes; general UI/special clicks and unresolved item semantics remain incomplete",
+                "empty-hand audited storage/crafting-table activation with distinct dispatch/OPEN/full/cursor/modern processing facts; opening-bound close with observed resolved-data cursor return; constructor-verified ordinary slots; SWAP/QUICK_MOVE remain storage/player only; general UI/special clicks and unresolved item semantics remain incomplete",
             ),
             Feature::SurvivalMovement => Support::Restricted(
                 "1..120 dry walking/jump ticks with released-rest endpoint; retained intent/failure; predicted completion is not received acceptance",
@@ -118,7 +118,7 @@ impl Capabilities {
                 ),
             },
             Feature::Crafting => Support::Restricted(
-                "received player/table input grids and displayed result with coherent registry ownership; ordinary input PICKUP; table activation, recipe planning/result take/consumption/remainders remain incomplete",
+                "received player/table input grids and displayed result with coherent registry ownership; empty-hand table activation, ordinary input PICKUP and opening-bound close with cursor return; native input disposal on close is not locally predicted or a close ACK; recipe planning/result take/consumption/remainders remain incomplete",
             ),
             Feature::EntityInteraction | Feature::RecordingAndReconstruction => {
                 Support::NotImplemented

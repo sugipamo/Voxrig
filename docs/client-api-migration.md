@@ -484,6 +484,24 @@ Item、Unavailableは別々に保持する。`registry_state()`と各slotのregi
 `result()`はサーバーから受信した表示だけを返し、材料消費や製作完了を意味しない。
 新版のinput base capacityは99、旧版は64で、操作時には各itemの有効最大数との小さい方を使用する。
 
-この段階は入力操作と表示の統合。共通table activation、recipe計画・resultの取り出し、
+この段階は入力操作・表示・table activationの統合。recipe計画・resultの取り出し、
 消費数・remainderの確認は後続対応を要する。旧版の`craft_once` / `take_crafting_result`で
 ローカルに減算した材料を共通APIの受信結果として扱わない。
+
+### 製作台の開閉
+
+Survival/Creativeの`open_container(target)`は、両版でnative first outlineの製作台も扱う。
+実受信の空の両手・cursor、受信mode、健康な停止姿勢と届く距離を確認し、同じ公開APIで
+OPEN・46slot full・cursor・新版processing ACKを個別に保持する。`ObservedContents`後の
+`received_crafting()`は、元menuから取得した3×3座標とその開き直しを区別する`ScreenId`を返す。
+
+`close_container(screen)`はその開きを一度だけ閉じる。既知cursorがあればnative mappingで
+player側のslotを選び、各PICKUPの実source/cursor応答を確認してからCLOSEを送る。
+盤面の材料はnative crafting menuのclose処理に任せ、Clientは消去や在庫への加算を予測値で
+書き込まない。`dispatched`はCLOSE送信の事実であり、材料が戻ったこと・server closureのACKではない。
+閉じる前の材料は`ContainerCloseRecord.initial_screen`の受信状態に保持する。
+
+元サーバーで生存・在庫空きのある条件の材料返却を検証するが、満杯・死亡・切断時などの
+材料の処理は同じ保証にしない。必要な材料の保存確認には、その後の実player slot受信や
+在庫の調査を用いる。再度開いた画面では新しい`ScreenId`を取得し、古いinput/close要求を再送しない。
+結果slotを取る操作、recipe消費・remainder、製作台でのSWAP/QUICK_MOVEは後続対応を要する。

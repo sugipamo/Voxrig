@@ -39,6 +39,7 @@ pub(crate) fn lookup(version: MinecraftVersion, state: &NativeBlockState) -> Opt
         .iter()
         .find(|s| s.state == *state)
         .map(|s| (s.outline.as_slice(), s.auxiliary.as_slice()))
+        .or_else(|| crate::client::crafting::outline::lookup(version, state))
 }
 #[cfg(test)]
 mod tests {

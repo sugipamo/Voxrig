@@ -7,6 +7,7 @@ use super::registry::ServerRegistryObservation;
 use super::{PlayerObservation, ReceivedSlot, SessionStamp};
 use crate::{MinecraftVersion, Result};
 use std::sync::{Arc, OnceLock};
+pub(crate) mod outline;
 
 /// UI supplying the captured grid. Access basis does not grant click authority.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]

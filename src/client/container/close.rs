@@ -62,8 +62,8 @@ pub(super) fn plan(
     let menu = screen
         .menu_name
         .as_deref()
-        .filter(|m| inventory::storage_menu(m))
-        .ok_or_else(|| inventory::unavailable("cursor return requires audited storage menu"))?;
+        .filter(|m| inventory::storage_menu(m) || *m == "minecraft:crafting")
+        .ok_or_else(|| inventory::unavailable("cursor return requires audited container menu"))?;
     if screen.full_contents_sequence.is_none() || screen.slots.len() != layout.total_slots {
         return Err(inventory::unavailable(
             "cursor return requires actual full screen",

@@ -1,4 +1,4 @@
-# 共通Clientでstorageを開く
+# 共通Clientでstorage・製作台を開く
 
 `client.survival().open_container(target)`と`client.creative().open_container(target)`は、
 両版で同じ`ContainerOpenRecord`を返す。受信modeに対応するhandleを選ぶ。
@@ -22,10 +22,12 @@ async fn activate(client: &Client) -> Result<()> {
 
 ## 対象と事前条件
 
-監査済みのchest、trapped chest、barrel、hopper、dispenser、dropper、ender chestに限定する。
+監査済みのchest、trapped chest、barrel、hopper、dispenser、dropper、ender chest、crafting tableに限定する。
 NativeBlockStateの全propertyと、そのClientが選択した版のoutlineを照合する。
 chestはtypeに応じて9×3または9×6、barrel/ender chestは9×3、hopperはhopper、
-dispenser/dropperは3×3を期待する。未監査のshulkerアニメーション、entity window、
+dispenser/dropperは3×3のstorage、crafting tableは入力3×3と結果1のcrafting menuを期待する。
+製作台の全46slotとplayer mappingは元menuコンストラクタから取得し、packet長からoffsetを推測しない。
+未監査のshulkerアニメーション、entity window、
 その他UIは対象外。既に受信したshulker等のstorageを観測・交換できることとは別の範囲。
 
 健康なdry standing、default movement attributes、停止した受信姿勢、4.5以下のfirst outline、

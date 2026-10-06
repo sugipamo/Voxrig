@@ -199,6 +199,125 @@ async fn crafting_input_probe(
         "authority_limits":"Actual input/cursor receipts and native displayed oak-button result only; no result take or recipe consumption is submitted or claimed."}),
     )
 }
+async fn crafting_table_fill_probe(
+    client: &Client,
+    mode: GameMode,
+) -> anyhow::Result<serde_json::Value> {
+    let grid = client
+        .received_crafting()
+        .await?
+        .context("table grid unavailable")?;
+    anyhow::ensure!(grid.dimensions() == [3, 3], "table dimensions differ");
+    let CraftingSource::Table { screen: id } = grid.source() else {
+        anyhow::bail!("received table identity missing")
+    };
+    for y in 0..3 {
+        for x in 0..3 {
+            anyhow::ensure!(
+                grid.input(x, y)?
+                    .is_some_and(|r| *r.value() == SlotKnowledge::Empty),
+                "table input not received empty"
+            );
+        }
+    }
+    let screen = client
+        .screen_state()
+        .await?
+        .screen
+        .context("table screen missing")?;
+    anyhow::ensure!(screen.id == id, "table opening changed");
+    let player_slot = u16::try_from(
+        screen
+            .layout
+            .as_ref()
+            .context("table layout missing")?
+            .player_slots
+            .iter()
+            .find(|m| m.player_slot == 9)
+            .context("table main inventory mapping missing")?
+            .screen_slot,
+    )?;
+    let (source, input_slot) = grid.input_source(2, 2)?;
+    let mut steps = Vec::new();
+    for (slot, button, count) in [
+        (player_slot, InventoryClickButton::Left, 3),
+        (input_slot, InventoryClickButton::Right, 2),
+        (player_slot, InventoryClickButton::Right, 1),
+    ] {
+        let sent = match mode {
+            GameMode::Survival => {
+                client
+                    .survival()
+                    .click_inventory(source, slot, button)
+                    .await?
+            }
+            GameMode::Creative => {
+                client
+                    .creative()
+                    .click_inventory(source, slot, button)
+                    .await?
+            }
+            _ => anyhow::bail!("unexpected table mode"),
+        };
+        let record = tokio::time::timeout(Duration::from_secs(15), async {
+            loop {
+                let r = client
+                    .survival()
+                    .inventory_click_record()
+                    .await?
+                    .context("table input click missing")?;
+                anyhow::ensure!(
+                    r.id == sent.id && r.requires_inspection.is_none(),
+                    "table input interrupted: {:?}",
+                    r.requires_inspection
+                );
+                if r.stage == InventoryClickStage::ObservedClicked {
+                    return Ok::<_, anyhow::Error>(r);
+                }
+                tokio::time::sleep(Duration::from_millis(25)).await;
+            }
+        })
+        .await??;
+        anyhow::ensure!(
+            record
+                .cursor_receipt
+                .as_ref()
+                .is_some_and(|v| stack_count(&v.value) == count),
+            "table carried count differs"
+        );
+        steps.push(record);
+    }
+    let filled = tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            let value = client
+                .received_crafting()
+                .await?
+                .context("filled table unavailable")?;
+            let after = steps[1].send.after_sequence;
+            if value.source() == (CraftingSource::Table { screen: id })
+                && value.input(2, 2)?.is_some_and(|r| {
+                    r.receive_sequence() > after
+                        && r.item().is_some_and(|i| {
+                            i.stack().name == "minecraft:oak_planks" && i.stack().count == 1
+                        })
+                })
+                && value.result().is_some_and(|r| {
+                    r.receive_sequence() > after
+                        && r.item().is_some_and(|i| {
+                            i.stack().name == "minecraft:oak_button" && i.stack().count == 1
+                        })
+                })
+            {
+                return Ok::<_, anyhow::Error>(value);
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await??;
+    Ok(
+        serde_json::json!({"steps":steps,"grid":filled,"inventory":client.received_inventory().await?,"player_source_slot":player_slot,"input_slot":input_slot}),
+    )
+}
 // A fresh connection isolates mining's unresolved continuation boundary from
 // the earlier motion scenario. Both versions execute this exact consumer.
 async fn mining_probe(client: &Client) -> anyhow::Result<()> {
@@ -652,6 +771,7 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
     emit("container_ready", ready)?;
     let mut commands = BufReader::new(tokio::io::stdin()).lines();
     let mut opening = None;
+    let mut old_table_opening = None;
     let mut content_sequence = 0;
     while let Some(command) = commands.next_line().await? {
         match command.as_str() {
@@ -807,6 +927,219 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 client.disconnect().await?;
                 emit(&command, serde_json::json!({"version":client.version()}))?;
                 return Ok(());
+            }
+            "table_open_survival"
+            | "table_open_creative"
+            | "table_reopen_survival"
+            | "table_reopen_creative" => {
+                let mode = if command.ends_with("survival") {
+                    GameMode::Survival
+                } else {
+                    GameMode::Creative
+                };
+                wait_player(client, |p| {
+                    p.game_mode == Some(mode)
+                        && p.received_pose.as_ref().is_some_and(|r| {
+                            r.position == [0.5, 65., 0.5] && r.rotation == [0., 35.]
+                        })
+                })
+                .await?;
+                let target = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let value = match mode {
+                            GameMode::Survival => client.survival().target_block(4.5).await,
+                            _ => client.creative().target_block(4.5).await,
+                        };
+                        if let Ok(value) = value {
+                            if value.hit.as_ref().is_some_and(|h| {
+                                h.position == [0, 65, 2]
+                                    && h.state.name == "minecraft:crafting_table"
+                            }) {
+                                return Ok::<_, anyhow::Error>(value);
+                            }
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                anyhow::ensure!(
+                    target
+                        .hit
+                        .context("table target missing")?
+                        .state
+                        .properties
+                        .is_empty(),
+                    "table properties differ"
+                );
+                let sent = match mode {
+                    GameMode::Survival => client.survival().open_container([0, 65, 2]).await?,
+                    _ => client.creative().open_container([0, 65, 2]).await?,
+                };
+                anyhow::ensure!(
+                    sent.send.dispatched && sent.expected_menu == "minecraft:crafting",
+                    "table intent differs"
+                );
+                emit(&command, sent)?;
+            }
+            "table_observed_survival" | "table_observed_creative" => {
+                let record = wait_container_open(client).await?;
+                let grid = client
+                    .received_crafting()
+                    .await?
+                    .context("observed table grid missing")?;
+                let id = record
+                    .observed_screen
+                    .as_ref()
+                    .context("observed table screen missing")?
+                    .id;
+                anyhow::ensure!(
+                    grid.dimensions() == [3, 3]
+                        && grid.source() == CraftingSource::Table { screen: id },
+                    "table grid/opening mismatch"
+                );
+                opening = Some(id);
+                emit(&command, serde_json::json!({"record":record,"grid":grid}))?;
+            }
+            "table_fill_survival" | "table_fill_creative" => {
+                let mode = if command.ends_with("survival") {
+                    GameMode::Survival
+                } else {
+                    GameMode::Creative
+                };
+                emit(&command, crafting_table_fill_probe(client, mode).await?)?;
+            }
+            "table_close_survival"
+            | "table_close_creative"
+            | "table_close_empty_survival"
+            | "table_close_empty_creative" => {
+                let mode = if command.ends_with("survival") {
+                    GameMode::Survival
+                } else {
+                    GameMode::Creative
+                };
+                let id = opening.context("table opening missing")?;
+                let before = client
+                    .received_crafting()
+                    .await?
+                    .context("close table grid missing")?;
+                let record = match mode {
+                    GameMode::Survival => client.survival().close_container(id).await?,
+                    _ => client.creative().close_container(id).await?,
+                };
+                anyhow::ensure!(record.dispatched, "table close incomplete");
+                if command.starts_with("table_close_empty") {
+                    anyhow::ensure!(
+                        record.return_steps.is_empty(),
+                        "empty table close unexpectedly returns cursor"
+                    );
+                } else {
+                    anyhow::ensure!(
+                        record.return_steps.len() == 1,
+                        "table close cursor return differs"
+                    );
+                    old_table_opening = Some(id);
+                }
+                emit(
+                    &command,
+                    serde_json::json!({"record":record,"grid_before":before}),
+                )?;
+            }
+            "table_after_close_survival" | "table_after_close_creative" => {
+                let close = client
+                    .survival()
+                    .container_close_record()
+                    .await?
+                    .context("table close history missing")?;
+                let after = close
+                    .return_steps
+                    .last()
+                    .and_then(|r| r.source_receipt.as_ref())
+                    .context("table close return receipt missing")?;
+                let ValueSource::Received { sequence: after } = after.source else {
+                    anyhow::bail!("table close return is not received")
+                };
+                let inventory = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let value = client.received_inventory().await?;
+                        if value.slot(9)?.is_some_and(|r| {
+                            r.receive_sequence() > after
+                                && r.item().is_some_and(|i| {
+                                    i.stack().name == "minecraft:oak_planks" && i.stack().count == 3
+                                })
+                        }) && value
+                            .cursor()
+                            .is_some_and(|r| *r.value() == SlotKnowledge::Empty)
+                        {
+                            return Ok::<_, anyhow::Error>(value);
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                let grid = client
+                    .received_crafting()
+                    .await?
+                    .context("player grid after table close missing")?;
+                anyhow::ensure!(
+                    grid.dimensions() == [2, 2],
+                    "closed table still admitted as active crafting table"
+                );
+                emit(
+                    &command,
+                    serde_json::json!({"inventory":inventory,"grid":grid,"close":close}),
+                )?;
+            }
+            "table_stale_refusal_survival" | "table_stale_refusal_creative" => {
+                let mode = if command.ends_with("survival") {
+                    GameMode::Survival
+                } else {
+                    GameMode::Creative
+                };
+                let old = old_table_opening.context("old table opening missing")?;
+                let current = opening.context("new table opening missing")?;
+                anyhow::ensure!(old != current, "table opening identity reused");
+                let click = match mode {
+                    GameMode::Survival => {
+                        client
+                            .survival()
+                            .click_inventory(
+                                InventorySource::Container { screen: old },
+                                9,
+                                InventoryClickButton::Left,
+                            )
+                            .await
+                    }
+                    _ => {
+                        client
+                            .creative()
+                            .click_inventory(
+                                InventorySource::Container { screen: old },
+                                9,
+                                InventoryClickButton::Left,
+                            )
+                            .await
+                    }
+                };
+                let close = match mode {
+                    GameMode::Survival => client.survival().close_container(old).await,
+                    _ => client.creative().close_container(old).await,
+                };
+                anyhow::ensure!(
+                    click.is_err() && close.is_err(),
+                    "stale table operation admitted"
+                );
+                let grid = client
+                    .received_crafting()
+                    .await?
+                    .context("new table lost after stale request")?;
+                anyhow::ensure!(
+                    grid.source() == CraftingSource::Table { screen: current },
+                    "stale request changed current table"
+                );
+                emit(
+                    &command,
+                    serde_json::json!({"old":old,"current":current,"click_error":click.unwrap_err().to_string(),"close_error":close.unwrap_err().to_string(),"grid":grid}),
+                )?;
             }
             "barrel_open_creative" | "barrel_open_survival" => {
                 let mode = if command == "barrel_open_creative" {

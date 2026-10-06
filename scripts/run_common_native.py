@@ -1361,6 +1361,68 @@ network-compression-threshold=256
                 raise RuntimeError("native forced-close audit failed after disconnect")
             forced_close_results[mode] = {"held_cursor_actual":held,"native_forced_close_snapshot":closed,"actual_original_close_frames":close_frames,"native_inventory":inventory_after,"native_item_entity":item,"authority_limits":"Server closes original menu when native range fails after an external fixture teleport; read-only trace forwards exact original compressed bytes and records real incoming CLOSE, with no client close submission. Independent RCON distinguishes native legacy dropped cursor from modern returned cursor. This is a native disposal audit, not implementation or completion of common cursor-bearing close."}
         report["native_results"]["native_cursor_close_audit"] = forced_close_results
+        table_results = {}
+        report["native_results"]["crafting_table_lifecycle"] = table_results
+        for mode in ("survival", "creative"):
+            until(lambda:matched(rcon.command("execute unless entity @a[name=UnifiedProbe]"),"Test passed"))
+            rcon.command("setblock 0 65 2 minecraft:crafting_table")
+            rcon.command("kill @e[type=minecraft:item]")
+            probe = subprocess.Popen([str(REPO / "target/debug/examples/common_native_probe")], cwd=REPO, env=dict(env, VOXRIG_NATIVE_SCENARIO="container"), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+            messages = queue.Queue()
+            threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True).start()
+            stage(probe,messages,"container_ready",report["container_records"])
+            table = {"fixture":{}}
+            table_results[mode] = table
+            for name, command in {
+                "mode":"gamemode " + mode + " UnifiedProbe",
+                "position":"tp UnifiedProbe 0.5 65 0.5 0 35",
+                "clear":"clear UnifiedProbe",
+                "material":"replaceitem entity UnifiedProbe inventory.0 minecraft:oak_planks 3" if version=="1.16.1" else "item replace entity UnifiedProbe inventory.0 with minecraft:oak_planks 3",
+            }.items():table["fixture"][name]=rcon.command(command)
+            def table_baseline():
+                player=stage(probe,messages,"armor_fixture_state",report["container_records"])["value"]
+                slot=player["inventory"]["slots"][9]
+                if player["game_mode"]!=mode or slot is None or slot["source"]["kind"]!="received":return None
+                value=slot["value"]
+                return player if value["kind"]=="item" and value["item"]["name"]=="minecraft:oak_planks" and value["item"]["count"]==3 else None
+            table["received_before"]=until(table_baseline)
+            table["native_before"]=until(lambda:inventory_matches({9:("minecraft:oak_planks",3)}))
+            table["position_before"]=rcon.command("data get entity UnifiedProbe Pos")
+            boundary=trace.mark()
+            table["open"]=stage(probe,messages,"table_open_"+mode,report["container_records"])["value"]
+            table["opened"]=stage(probe,messages,"table_observed_"+mode,report["container_records"])["value"]
+            table["filled"]=stage(probe,messages,"table_fill_"+mode,report["container_records"])["value"]
+            table["native_filled"]=until(lambda:inventory_matches({9:("minecraft:oak_planks",1)}))
+            table["close"]=stage(probe,messages,"table_close_"+mode,report["container_records"])["value"]
+            table["after_close"]=stage(probe,messages,"table_after_close_"+mode,report["container_records"])["value"]
+            table["native_returned"]=until(lambda:inventory_matches({9:("minecraft:oak_planks",3)}))
+            table["native_no_drop"]=until(lambda:matched(rcon.command("execute unless entity @e[type=minecraft:item]"),"Test passed"))
+            table["frames"]= [f for f in trace.since(boundary) if f["phase"]=="play"]
+            click_id=0x09 if version=="1.16.1" else 0x11
+            close_id=0x0a if version=="1.16.1" else 0x12
+            outgoing=[f for f in table["frames"] if f["direction"]=="serverbound"]
+            if len([f for f in outgoing if f["packet_id"]==click_id])!=4 or len([f for f in outgoing if f["packet_id"]==close_id])!=1:
+                raise RuntimeError("table lifecycle lacks three ingredient clicks, one actual cursor-return click and one close")
+            table["reopen"]=stage(probe,messages,"table_reopen_"+mode,report["container_records"])["value"]
+            table["reopened"]=stage(probe,messages,"table_observed_"+mode,report["container_records"])["value"]
+            stale_boundary=trace.mark()
+            table["stale_refusal"]=stage(probe,messages,"table_stale_refusal_"+mode,report["container_records"])["value"]
+            table["stale_frames"]=[f for f in trace.since(stale_boundary) if f["phase"]=="play"]
+            if any(f["direction"]=="serverbound" and f["packet_id"] in (click_id,close_id) for f in table["stale_frames"]):
+                raise RuntimeError("stale table handle sent inventory mutation or close")
+            empty_boundary=trace.mark()
+            table["empty_close"]=stage(probe,messages,"table_close_empty_"+mode,report["container_records"])["value"]
+            table["empty_close_frames"]=[f for f in trace.since(empty_boundary) if f["phase"]=="play"]
+            if len([f for f in table["empty_close_frames"] if f["direction"]=="serverbound" and f["packet_id"]==close_id])!=1:
+                raise RuntimeError("empty table close did not write exactly one close")
+            table["native_final"]=until(lambda:inventory_matches({9:("minecraft:oak_planks",3)}))
+            table["position_after"]=rcon.command("data get entity UnifiedProbe Pos")
+            if table["position_after"]!=table["position_before"]:raise RuntimeError("table lifecycle moved native player")
+            table["authority_limits"]="Same public Client/mode handles receive native table OPEN/full/cursor/modern processing, place one input in 3x3, observe displayed result, return carried cursor through actual player-slot receipts, and dispatch one close. Fresh player receipt and independent RCON verify native ingredient return with space/living player and no drops. Reopening changes opaque identity; stale input/close requests write nothing. Native empty close is separately dispatched. No result take, recipe consumption/remainder, full-inventory/death disposal guarantee or fabricated close ACK."
+            trace.expect_disconnect()
+            stage(probe,messages,"container_disconnect",report["container_records"])
+            probe.wait(timeout=10)
+            if probe.returncode!=0:raise RuntimeError("table lifecycle probe failed after disconnect")
         report["scenario_result"] = "passed"
         print(version, "native scenario verified; waiting for clean shutdown", flush=True)
     except BaseException as error:

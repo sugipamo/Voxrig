@@ -41,7 +41,7 @@ pub(crate) enum Action<'a> {
     UseOnBlock([i32; 3], BlockFace, [f32; 3]),
 }
 impl Survival {
-    /// Activate one received first-outline storage target with empty hands/cursor.
+    /// Activate one received first-outline storage or crafting-table target with empty hands/cursor.
     /// Retains intent before I/O; complete dispatch and received screen/content facts
     /// are separate. OPEN packets contain no causal target-block identity.
     pub async fn open_container(
@@ -60,7 +60,9 @@ impl Survival {
     }
 
     /// Close one actual opening once. Complete dispatch is not server closure.
-    /// Requires matching received mode and empty cursor; retains intent before I/O.
+    /// Requires matching received mode; returns a known cursor through actual
+    /// player-slot receipts before dispatch. Native crafting inputs are disposed
+    /// by the server on close; dispatch does not prove their return.
     pub async fn close_container(
         &self,
         screen: super::container::ScreenId,
@@ -254,7 +256,7 @@ impl Survival {
     }
 }
 impl Creative {
-    /// Activate one received first-outline storage target with empty hands/cursor.
+    /// Activate one received first-outline storage or crafting-table target with empty hands/cursor.
     /// Retains intent before I/O; complete dispatch and received screen/content facts
     /// are separate. OPEN packets contain no causal target-block identity.
     pub async fn open_container(
@@ -286,6 +288,8 @@ impl Creative {
     }
     /// Close one received opening once. This ordinary operation does not change mode.
     /// Vanilla need not acknowledge it; inspect `dispatched` separately from actual closure.
+    /// Cursor return uses actual player-slot receipts. Native crafting inputs
+    /// are disposed by the server on close; dispatch does not prove their return.
     pub async fn close_container(
         &self,
         screen: super::container::ScreenId,

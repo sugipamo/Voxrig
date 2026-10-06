@@ -1,4 +1,4 @@
-//! At-most-once storage activation and separately received screen/content facts.
+//! At-most-once container activation and separately received screen/content facts.
 use super::*;
 use crate::client::{
     BlockTargetHit, BlockTargetObservation, GameMode, PlayerObservation, ReceivedPose, ValueSource,
@@ -65,7 +65,7 @@ pub struct ContainerOpenTargetState {
     /// Packet ordinal at the capture boundary, not the last block-update ordinal.
     pub capture_sequence: u64,
 }
-/// Intent and facts for one empty-hand storage activation on either mode handle.
+/// Intent and facts for one empty-hand container activation on either mode handle.
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct ContainerOpenRecord {
     /// Local opaque attempt, retained before I/O.
@@ -84,7 +84,7 @@ pub struct ContainerOpenRecord {
     pub eye: [f64; 3],
     /// Mode checked against actual receive, not changed by this operation.
     pub mode: GameMode,
-    /// Native menu expected from this storage state; title does not prove ownership.
+    /// Native menu expected from this block state; title does not prove ownership.
     pub expected_menu: String,
     /// Exact main-hand cursor derived from the native outline point.
     pub cursor: [f32; 3],
@@ -124,8 +124,9 @@ fn menu(state: &NativeBlockState) -> Result<&'static str> {
         "minecraft:barrel" | "minecraft:ender_chest" => Ok("minecraft:generic_9x3"),
         "minecraft:hopper" => Ok("minecraft:hopper"),
         "minecraft:dispenser" | "minecraft:dropper" => Ok("minecraft:generic_3x3"),
+        "minecraft:crafting_table" => Ok("minecraft:crafting"),
         _ => Err(crate::client::inventory::unavailable(
-            "native storage opening not implemented",
+            "native container opening not implemented",
         )),
     }
 }
@@ -163,7 +164,7 @@ pub(crate) fn prepare_open(
         || !empty(initial.inventory.cursor.as_ref())
     {
         return Err(crate::client::inventory::unavailable(
-            "storage open requires current player UI, received pose/world, matching mode, empty hands/cursor and no pending mutation",
+            "container open requires current player UI, received pose/world, matching mode, empty hands/cursor and no pending mutation",
         ));
     }
     if previous.is_some_and(ContainerOpenRecord::unresolved) {
@@ -181,7 +182,7 @@ pub(crate) fn prepare_open(
         })?;
     if outline::lookup(initial.session.version, &target.state).is_none() {
         return Err(crate::client::inventory::unavailable(
-            "target storage shape/properties not audited for selected version",
+            "target container shape/properties not audited for selected version",
         ));
     }
     let expected_menu = menu(&target.state)?.to_owned();

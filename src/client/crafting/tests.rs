@@ -263,3 +263,90 @@ fn crafting_original_evidence_binds_owned_sources_and_outputs() {
         );
     }
 }
+
+#[test]
+fn crafting_table_close_plans_player_cursor_return_and_retains_received_ingredients() {
+    use crate::client::{GameMode, Health, ValueSource};
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        for mode in [GameMode::Survival, GameMode::Creative] {
+            let mut p = player(version);
+            p.game_mode = Some(mode);
+            p.inventory.window_id = Some(3);
+            p.inventory.player_screen = None;
+            p.health = Some(received(
+                Health {
+                    health: 20.,
+                    food: 20,
+                    saturation: 5.,
+                },
+                12,
+            ));
+            let mut single = item(version);
+            let SlotKnowledge::Item { item: stack } = &mut single else {
+                unreachable!()
+            };
+            stack.count = 1;
+            p.inventory.cursor = Some(received(single.clone(), 15));
+            let mut table = ScreenReceipts::open(
+                version,
+                3,
+                native_menu(version, "minecraft:crafting")
+                    .unwrap()
+                    .native_id,
+                ScreenTitle::Unavailable,
+                11,
+            );
+            let mut slots = vec![Some(received(SlotKnowledge::Empty, 15)); 46];
+            slots[9] = Some(received(single.clone(), 15));
+            let player_mapping = table
+                .layout
+                .as_ref()
+                .unwrap()
+                .player_slots
+                .iter()
+                .find(|m| m.player_slot == 9)
+                .unwrap()
+                .clone();
+            slots[player_mapping.screen_slot] = Some(received(single.clone(), 15));
+            table.full_items(slots, Some(7), 15).unwrap();
+            let current = table.capture(p.session);
+            for mapping in &current.layout.as_ref().unwrap().player_slots {
+                p.inventory.slots[mapping.player_slot] = current.slots[mapping.screen_slot].clone();
+            }
+            let record = crate::client::container::prepare_close(
+                p.clone(),
+                current.clone(),
+                current.id,
+                mode,
+                None,
+            )
+            .unwrap();
+            assert_eq!(record.return_plan.len(), 1);
+            let step = &record.return_plan[0];
+            assert_eq!((step.screen_slot, step.player_slot), (10, 9));
+            assert_eq!(step.source_prediction.source, ValueSource::Predicted);
+            assert_eq!(step.cursor_prediction_after.value, SlotKnowledge::Empty);
+            assert_eq!(
+                record.initial_screen.slots[9],
+                Some(received(single.clone(), 15))
+            );
+            assert_eq!(
+                record.initial.inventory.slots[9],
+                Some(received(single.clone(), 15))
+            );
+            assert!(!record.dispatched);
+            let fresh = ScreenReceipts::open(
+                version,
+                3,
+                table.native_menu_id,
+                ScreenTitle::Unavailable,
+                17,
+            )
+            .capture(p.session);
+            assert_ne!(fresh.id, current.id);
+            assert!(
+                crate::client::container::prepare_close(p, current, fresh.id, mode, None).is_err()
+            );
+        }
+    }
+}
