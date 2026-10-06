@@ -3576,6 +3576,177 @@ async fn equipment_entity_probe(client: &Client) -> anyhow::Result<()> {
     anyhow::bail!("A2 controller ended without disconnect")
 }
 
+async fn dry_terrain_probe(client: &Client) -> anyhow::Result<()> {
+    use voxrig::client::survival::{SurvivalControl, SurvivalInput, TerminalClearance};
+    let mode = if std::env::var("VOXRIG_NATIVE_MODE").as_deref() == Ok("survival") {
+        GameMode::Survival
+    } else {
+        GameMode::Creative
+    };
+    let ready = client.player_state().await?;
+    emit("b3_terrain_ready", &ready)?;
+    let controls: Vec<_> = (0..44)
+        .map(|i| SurvivalControl {
+            yaw: 0.,
+            input: SurvivalInput {
+                forward: if i < 20 { 1 } else { 0 },
+                ..Default::default()
+            },
+        })
+        .collect();
+    let mut lines = BufReader::new(tokio::io::stdin()).lines();
+    let mut initial_session = None;
+    while let Some(command) = lines.next_line().await? {
+        match command.as_str() {
+            "b3_terrain_baseline" => {
+                let player = wait_player(client, |p| {
+                    p.game_mode == Some(mode)
+                        && p.received_pose.as_ref().is_some_and(|pose| {
+                            pose.position == [0.5, 65., 0.5]
+                                && pose.receive_sequence > ready.receive_sequence
+                        })
+                        && p.inventory.slots[36]
+                            .as_ref()
+                            .is_some_and(|s| s.value == SlotKnowledge::Empty)
+                        && p.inventory
+                            .cursor
+                            .as_ref()
+                            .is_some_and(|s| s.value == SlotKnowledge::Empty)
+                })
+                .await?;
+                initial_session = Some(player.session);
+                for (p, name) in [
+                    ([0, 65, 1], "minecraft:stone_slab"),
+                    ([0, 66, 3], "minecraft:oak_stairs"),
+                    ([0, 66, 5], "minecraft:stone"),
+                ] {
+                    wait_block(client, p, name).await?;
+                }
+                match mode {
+                    GameMode::Survival => {
+                        client.survival().select_hotbar(0).await?;
+                    }
+                    _ => {
+                        client.creative().select_hotbar(0).await?;
+                    }
+                }
+                let preview = match mode {
+                    GameMode::Survival => client.survival().preview_path(&controls).await?,
+                    _ => client.creative().preview_path(&controls).await?,
+                };
+                anyhow::ensure!(matches!(
+                    preview.terminal_clearance,
+                    TerminalClearance::Admitted { .. }
+                ));
+                let last = preview.frames.last().unwrap();
+                anyhow::ensure!(
+                    last.position[1] == 67. && last.position[2] >= 4. && last.resting,
+                    "terrain route did not reach raised platform: {:?}",
+                    last
+                );
+                let captured = if mode == GameMode::Survival {
+                    let scene = client
+                        .survival()
+                        .capture_scene(Region {
+                            min: [-1, 63, -1],
+                            max: [1, 70, 8],
+                        })
+                        .await?;
+                    let prediction = scene.preview_path(&controls)?;
+                    anyhow::ensure!(
+                        prediction.frames == preview.frames,
+                        "captured noncube scene differs from live native preview"
+                    );
+                    Some(prediction)
+                } else {
+                    None
+                };
+                emit(
+                    &command,
+                    serde_json::json!({"player":player,"preview":preview,"captured":captured}),
+                )?;
+            }
+            "b3_terrain_move" => {
+                let started = match mode {
+                    GameMode::Survival => client.survival().start_predicted_path(&controls).await?,
+                    _ => client.creative().start_predicted_path(&controls).await?,
+                };
+                let record = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let r = client
+                            .survival()
+                            .motion_record()
+                            .await?
+                            .context("terrain motion absent")?;
+                        anyhow::ensure!(
+                            r.run_id == started.run_id && r.problem.is_none(),
+                            "terrain motion changed: {:?}",
+                            r.problem
+                        );
+                        if r.status == MotionStatus::Predicted {
+                            return Ok::<_, anyhow::Error>(r);
+                        }
+                        anyhow::ensure!(
+                            r.status == MotionStatus::Running,
+                            "terrain motion interrupted"
+                        );
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                let player = client.player_state().await?;
+                anyhow::ensure!(Some(player.session) == initial_session);
+                emit(
+                    &command,
+                    serde_json::json!({"record":record,"player":player}),
+                )?;
+            }
+            "b3_terrain_storage" => {
+                workflow_look(client, mode, [2.5, 67.5, 5.5]).await?;
+                let target = match mode {
+                    GameMode::Survival => client.survival().target_block(4.5).await?,
+                    _ => client.creative().target_block(4.5).await?,
+                };
+                anyhow::ensure!(
+                    target
+                        .hit
+                        .as_ref()
+                        .is_some_and(|h| h.position == [2, 67, 5])
+                );
+                match mode {
+                    GameMode::Survival => {
+                        client.survival().open_container([2, 67, 5]).await?;
+                    }
+                    _ => {
+                        client.creative().open_container([2, 67, 5]).await?;
+                    }
+                }
+                let opening = wait_container_open(client).await?;
+                let id = opening
+                    .observed_screen
+                    .as_ref()
+                    .context("terrain screen absent")?
+                    .id;
+                let close = match mode {
+                    GameMode::Survival => client.survival().close_container(id).await?,
+                    _ => client.creative().close_container(id).await?,
+                };
+                emit(
+                    &command,
+                    serde_json::json!({"target":target,"opening":opening,"close":close,"player":client.player_state().await?}),
+                )?;
+            }
+            "b3_terrain_disconnect" => {
+                client.disconnect().await?;
+                emit(&command, serde_json::json!({"disconnected":true}))?;
+                return Ok(());
+            }
+            _ => anyhow::bail!("unknown terrain command"),
+        }
+    }
+    anyhow::bail!("terrain controller ended without disconnect")
+}
+
 async fn vehicle_probe(client: &Client) -> anyhow::Result<()> {
     let mode = if std::env::var("VOXRIG_NATIVE_MODE").as_deref() == Ok("survival") {
         GameMode::Survival
@@ -4269,6 +4440,9 @@ async fn main() -> anyhow::Result<()> {
     }
     if scenario.as_deref() == Some("vehicle") {
         return vehicle_probe(&client).await;
+    }
+    if scenario.as_deref() == Some("dry-terrain") {
+        return dry_terrain_probe(&client).await;
     }
     if std::env::var("VOXRIG_NATIVE_SCENARIO").ok().as_deref() == Some("equipment-entity") {
         return equipment_entity_probe(&client).await;

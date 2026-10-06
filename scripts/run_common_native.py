@@ -455,7 +455,7 @@ def outer_snbt_compounds(response):
 
 
 def stage(probe, messages, name, records, timeout=30, poll=None):
-    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready", "a2_ready", "a4_ready", "a4_captured", "a5_ui_ready", "a5_furnace_ready", "a5_vehicle_ready"):
+    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready", "a2_ready", "a4_ready", "a4_captured", "a5_ui_ready", "a5_furnace_ready", "a5_vehicle_ready", "b3_terrain_ready"):
         probe.stdin.write(name + "\n")
         probe.stdin.flush()
     deadline = time.monotonic() + timeout
@@ -475,6 +475,108 @@ def stage(probe, messages, name, records, timeout=30, poll=None):
             print("native", name, "received", flush=True)
             return record
     raise TimeoutError("probe stage timed out: " + name)
+
+
+def run_dry_terrain(version, env, rcon, trace, report, probe_log, stderr_log):
+    """Walk a dry slab/stair route, then open/close storage on the same Client.
+    RCON only reads after baseline. Actual native position and original packet
+    fields are separate from Client predictions and local close receipts.
+    """
+    results = report['native_results']['dry_terrain'] = {}
+    for mode in ('survival', 'creative'):
+        until(lambda: matched(rcon.command('execute unless entity @a[name=UnifiedProbe]'), 'Test passed'))
+        result = results[mode] = {'fixture': {}, 'records': []}
+        for command in [
+            'fill -1 65 -1 2 70 8 minecraft:air',
+            'fill -1 65 1 1 65 1 minecraft:stone_slab[type=bottom,waterlogged=false]',
+            'fill -1 65 2 1 65 3 minecraft:stone',
+            'fill -1 66 3 1 66 3 minecraft:oak_stairs[facing=south,half=bottom,shape=straight,waterlogged=false]',
+            'fill -1 65 4 1 66 8 minecraft:stone',
+            'setblock 2 67 5 minecraft:chest[facing=west,type=single,waterlogged=false]',
+        ]:
+            response = rcon.command(command)
+            result['fixture'][command] = response
+            if any(text in response for text in ('Incorrect argument', 'Unknown or incomplete', 'not loaded')):
+                raise RuntimeError('dry terrain fixture rejected: '+response)
+        probe = subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')], cwd=REPO,
+            env=dict(env, VOXRIG_NATIVE_SCENARIO='dry-terrain', VOXRIG_NATIVE_MODE=mode),
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+        messages = queue.Queue()
+        reader = threading.Thread(target=pump, args=(probe.stdout, messages, probe_log), daemon=True)
+        reader.start()
+        try:
+            stage(probe, messages, 'b3_terrain_ready', result['records'])
+            for command in ['gamemode '+mode+' UnifiedProbe', 'tp UnifiedProbe 0.5 65 0.5 0 0', 'clear UnifiedProbe']:
+                result['fixture'][command] = rcon.command(command)
+            baseline = stage(probe, messages, 'b3_terrain_baseline', result['records'])['value']
+            result['position_before'] = rcon.command('data get entity UnifiedProbe Pos')
+            boundary = trace.mark()
+            moved = stage(probe, messages, 'b3_terrain_move', result['records'])['value']
+            frames = baseline['preview']['frames']
+            expected = frames[-1]['position']
+            def endpoint():
+                raw = rcon.command('data get entity UnifiedProbe Pos')
+                actual = [float(v) for v in re.findall(r'(-?\d+(?:\.\d+)?(?:[Ee][+-]?\d+)?)d', raw)]
+                return raw if len(actual)==3 and all(abs(a-b)<1e-7 for a,b in zip(actual,expected)) else None
+            result['position_after_move'] = until(endpoint)
+            if len(frames)!=44 or expected[1]!=67.0 or expected[2]<4.0:
+                raise RuntimeError('dry terrain route did not reach raised platform')
+            position_id = 0x13 if version=='1.16.1' else 0x1e
+            motion_frames = until(lambda: (current if len([f for f in current
+                if f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==position_id])>=44 else None)
+                if (current := trace.since(boundary)) else None)
+            positions = [f for f in motion_frames if f['direction']=='serverbound'
+                and f['phase']=='play' and f['packet_id']==position_id]
+            if len(positions)!=44:
+                raise RuntimeError('dry terrain motion emitted unexpected full-position frames: '+str(len(positions)))
+            for actual, predicted in zip(positions, frames):
+                body = bytes.fromhex(actual['body_hex'])
+                values = struct.unpack('>dddff', body[:32])
+                if list(values[:3])!=predicted['position'] or values[3]!=0.0 or values[4]!=0.0:
+                    raise RuntimeError('dry terrain original frame differs from declared predicted position/rotation')
+                flags = int(predicted['on_ground']) | (int(predicted['horizontal_collision'])<<1 if version!='1.16.1' else 0)
+                if len(body)!=33 or body[32]!=flags:
+                    raise RuntimeError('dry terrain original ground flag differs from prediction')
+            if version!='1.16.1':
+                inputs = [f for f in motion_frames if f['direction']=='serverbound'
+                    and f['phase']=='play' and f['packet_id']==0x2a]
+                if [f['body_hex'] for f in inputs]!=['01']*20+['00']*24:
+                    raise RuntimeError('dry terrain native input differs from fixed common controls')
+            storage_boundary = trace.mark()
+            stored = stage(probe, messages, 'b3_terrain_storage', result['records'])['value']
+            result['position_after_storage'] = until(endpoint)
+            result['chest_contents'] = rcon.command('data get block 2 67 5 Items')
+            if outer_snbt_compounds(result['chest_contents']):
+                raise RuntimeError('dry terrain opening altered native chest contents')
+            session = baseline['player']['session']
+            if any(p['session']!=session for p in (moved['player'], stored['player'])):
+                raise RuntimeError('dry terrain workflow changed Client/session')
+            opening = stored['opening']['observed_screen']['id']
+            if not stored['close']['dispatched'] or stored['close']['id']['screen']!=opening:
+                raise RuntimeError('dry terrain close did not refer to received opening')
+            storage_frames = until(lambda: (current if any(f['direction']=='serverbound' and f['phase']=='play'
+                and f['packet_id']==(0x0a if version=='1.16.1' else 0x12) for f in current) else None)
+                if (current := trace.since(storage_boundary)) else None)
+            for packet in (0x2e,0x0a) if version=='1.16.1' else (0x3f,0x12):
+                if len([f for f in storage_frames if f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==packet])!=1:
+                    raise RuntimeError('dry terrain storage did not dispatch activation/close exactly once')
+            result['motion_frames'] = motion_frames
+            result['storage_frames'] = storage_frames
+            result['authority_limits'] = 'Same common consumer and one Client per mode. Actual dry slab/stair properties, 44 bounded predicted ticks, independent native final position and unchanged session through actual chest OPEN and once close. Survival captured-scene prediction also matches. Sent positions and local close are not server acknowledgements. No waterlogged, body-intersecting seed, tool/effect/posture, vehicle, flight-to-standing or arbitrary terrain support is claimed.'
+            trace.expect_disconnect()
+            stage(probe, messages, 'b3_terrain_disconnect', result['records'])
+            probe.wait(timeout=10)
+            reader.join(timeout=2)
+            if probe.returncode!=0 or reader.is_alive():
+                raise RuntimeError('dry terrain probe failed at disconnect')
+            result['result'] = 'passed'
+        finally:
+            if probe.poll() is None:
+                probe.terminate()
+                try:
+                    probe.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    probe.kill(); probe.wait(timeout=5)
 
 
 def run_vehicle(version, env, rcon, trace, report, probe_log, stderr_log):
@@ -1141,6 +1243,10 @@ network-compression-threshold=256
         for check in ["execute if block 0 65 1 minecraft:stone", "execute if block 1 65 0 minecraft:air"]:
             report.setdefault("fixture_verification", {})[check] = until(lambda: matched(rcon.command(check), "Test passed"))
         env = dict(os.environ, VOXRIG_MINECRAFT_VERSION=version, VOXRIG_PORT=str(trace.port))
+        if scenario == "dry-terrain":
+            run_dry_terrain(version,env,rcon,trace,report,probe_log,stderr_log)
+            report["scenario_result"]="passed"
+            return retained
         if scenario == "vehicle":
             run_vehicle(version,env,rcon,trace,report,probe_log,stderr_log)
             report["scenario_result"]="passed"
@@ -2210,7 +2316,7 @@ def main():
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--accept-eula", action="store_true")
     parser.add_argument("--runtime-dir", type=Path, help="Optional disposable runtime parent, e.g. /dev/shm for isolating disk I/O; reports are exported to .local after JVM exit")
-    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "recording-scene", "manager-ui", "furnace", "vehicle"), default="full", help="Run the operation corpus or a focused A1-A5 workflow")
+    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "recording-scene", "manager-ui", "furnace", "vehicle", "dry-terrain"), default="full", help="Run the operation corpus or a focused common Client workflow")
     args = parser.parse_args()
     if bool(args.version) == args.all:
         parser.error("select exactly one of --version / --all")

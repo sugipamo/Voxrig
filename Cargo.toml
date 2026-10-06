@@ -112,6 +112,8 @@ include = [
     "/scripts/export_crafting_outlines.py",
     "/scripts/ExportVehicleInput.java",
     "/scripts/export_vehicle_input.py",
+    "/scripts/ExportDryTerrain.java",
+    "/scripts/export_dry_terrain.py",
     "/README.md",
     "/LICENSE",
     "/THIRD_PARTY_NOTICES.md",

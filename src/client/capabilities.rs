@@ -71,7 +71,7 @@ pub enum Feature {
     PacketRecording,
     /// Detached selected received-state decoding, without execution authority.
     PacketReplay,
-    /// Immutable bounded dry-cube capture and native-model prediction.
+    /// Immutable bounded known dry-terrain capture and native-model prediction.
     SurvivalScene,
     /// Received scoreboard declarations, displays and entries.
     Scoreboard,
@@ -102,10 +102,10 @@ impl Capabilities {
                 "default items; permitted flight steps <=4 blocks; loaded reachable targets",
             ),
             Feature::BlockTargeting | Feature::SurvivalTargeting => Support::Restricted(
-                "healthy dry stationary normal posture, matching handle mode; reach <=4.5; audited static outlines; legacy passive full cubes, seven storage blocks and crafting table; animated/world-dependent shapes remain incomplete",
+                "healthy dry stationary normal posture, matching handle mode; reach <=4.5; audited static outlines; legacy passive full cubes, registered dry slabs/stairs, storage, crafting table and furnace; animated/world-dependent shapes remain incomplete",
             ),
             Feature::SurvivalPreview => Support::Restricted(
-                "read-only 1..120 walking/jump inputs; healthy stationary normal survival posture; native defaults; loaded dry full cubes",
+                "read-only 1..120 walking/jump inputs; healthy stationary normal posture; native defaults; loaded passive dry full cubes and originally registered dry slabs/stairs",
             ),
             Feature::SurvivalMining => Support::Restricted(
                 "healthy dry standing; received empty selected hand/cursor; dirt/stone first outline; retained explicit commands/target conflicts; removal does not permit continuation",
@@ -162,7 +162,7 @@ impl Capabilities {
                 "complete from-connect history; exact native version decoder; selected received player/inventory/block facts only; legacy unhandled IDs explicit; saved facts never restore execution IDs or a Client",
             ),
             Feature::SurvivalScene => Support::Restricted(
-                "immutable <=64 cells/axis and <=32768 loaded air/passive dry cubes; healthy stationary Survival defaults and complete standing halo; detached 1..120 input prediction without dispatch; edits/chaining remain version-specific",
+                "immutable <=64 cells/axis and <=32768 loaded air/passive dry cubes/registered dry slabs/stairs; healthy stationary Survival defaults and complete standing halo; detached 1..120 input prediction without dispatch; edits/chaining remain version-specific",
             ),
             Feature::Scoreboard => Support::Restricted(
                 "received objective/display/score/reset facts and raw legacy JSON/modern NBT presentation; <=4096 entries; not a complete server catalogue or renderer; other UI remains incomplete",
@@ -171,7 +171,7 @@ impl Capabilities {
                 "explicit 1..64 named active/pending Clients; per-connection config/version/cache/registry; cancellation releases reservation; terminal shutdown closes external clones and pending connects; no automatic reconnect or event aggregation",
             ),
             Feature::RecordingAndReconstruction => Support::Restricted(
-                "bounded raw receive recording and selected read-only decoder replay; live dry-cube scene capture/prediction; broader reconstruction/piston/history contracts remain version-specific",
+                "bounded raw receive recording and selected read-only decoder replay; live known dry-terrain scene capture/prediction; broader reconstruction/piston/history contracts remain version-specific",
             ),
         }
     }

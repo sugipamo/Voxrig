@@ -1,4 +1,4 @@
-//! Version-selected bounded dry-cube motion rules, shared by adapter admission.
+//! Version-selected bounded dry-terrain motion rules, shared by adapter admission.
 //! Native float/trig/input and collision fixtures are independently generated.
 use super::{MAX_SURVIVAL_CONTROL_TICKS, PredictedMotionFrame, SurvivalControl, SurvivalInput};
 use crate::{Error, ErrorKind, MinecraftVersion, Result};
@@ -33,7 +33,7 @@ pub(crate) fn predict(
         if proposed.iter().any(|value| value.abs() > 1.0) {
             return Err(invalid("motion exceeds bounded dry preview step"));
         }
-        let boxes = geometry(&mut block_at, model.frame.position, proposed)?;
+        let boxes = geometry(model.version, &mut block_at, model.frame.position, proposed)?;
         model.advance(control.input, proposed, &boxes);
         if model.frame.position[1] < origin_y - 3.0 {
             return Err(invalid("preview falls outside bounded construction height"));
@@ -86,42 +86,89 @@ pub(crate) fn body(p: [f64; 3]) -> [f64; 6] {
         p[2] + half,
     ]
 }
+/// Preserve each original VoxelShape boundary: native epsilon handling occurs
+/// once per shape, rather than once per component of a stairs union.
+#[derive(Default)]
+pub(crate) struct CollisionGeometry {
+    boxes: Vec<[f64; 6]>,
+    shapes: Vec<std::ops::Range<usize>>,
+}
+impl std::ops::Deref for CollisionGeometry {
+    type Target = [[f64; 6]];
+    fn deref(&self) -> &Self::Target {
+        &self.boxes
+    }
+}
+impl CollisionGeometry {
+    #[cfg(test)]
+    pub(crate) fn joined(boxes: &[[f64; 6]]) -> Self {
+        Self {
+            boxes: boxes.to_vec(),
+            shapes: std::iter::once(0..boxes.len()).collect(),
+        }
+    }
+    fn groups(&self) -> impl Iterator<Item = &[[f64; 6]]> + Clone {
+        self.shapes.iter().map(|range| &self.boxes[range.clone()])
+    }
+}
 pub(crate) fn geometry(
+    version: MinecraftVersion,
     mut block_at: impl FnMut([i32; 3]) -> Result<crate::NativeBlockState>,
     p: [f64; 3],
     motion: [f64; 3],
-) -> Result<Vec<[f64; 6]>> {
+) -> Result<CollisionGeometry> {
     let a = body(p);
     let b = body(std::array::from_fn(|i| p[i] + motion[i]));
     let min: [i32; 3] = std::array::from_fn(|i| a[i].min(b[i]).floor() as i32 - 1);
     let max: [i32; 3] = std::array::from_fn(|i| a[i + 3].max(b[i + 3]).floor() as i32 + 1);
-    let mut boxes = Vec::new();
+    let mut geometry = CollisionGeometry::default();
     for x in min[0]..=max[0] {
         for y in min[1]..=max[1] {
             for z in min[2]..=max[2] {
                 let p = [x, y, z];
                 let block = block_at(p)?;
-                match block.name.as_str() {
-                    "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air" => {}
-                    name if DRY_CUBES.contains(&name) => boxes.push([
-                        x as f64,
-                        y as f64,
-                        z as f64,
-                        (x + 1) as f64,
-                        (y + 1) as f64,
-                        (z + 1) as f64,
-                    ]),
-                    _ => {
-                        return Err(Error::new(
-                            ErrorKind::Unsupported,
-                            anyhow::anyhow!("unsupported motion geometry {} at {p:?}", block.name),
-                        ));
-                    }
+                let start = geometry.boxes.len();
+                for bounds in collision_shape(version, &block)? {
+                    geometry.boxes.push(std::array::from_fn(|axis| {
+                        bounds[axis] + f64::from(p[axis % 3])
+                    }));
+                }
+                if geometry.boxes.len() > start {
+                    geometry.shapes.push(start..geometry.boxes.len());
                 }
             }
         }
     }
-    Ok(boxes)
+    Ok(geometry)
+}
+/// Default dry cubes or a complete originally registered dry slab/stair state.
+/// Fluids and unmodeled shape/effect semantics remain explicitly unsupported.
+pub(crate) fn collision_shape(
+    version: MinecraftVersion,
+    block: &crate::NativeBlockState,
+) -> Result<&'static [[f64; 6]]> {
+    const CUBE: &[[f64; 6]] = &[[0., 0., 0., 1., 1., 1.]];
+    if matches!(
+        block.name.as_str(),
+        "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air"
+    ) {
+        return Ok(&[]);
+    }
+    if DRY_CUBES.contains(&block.name.as_str()) {
+        return Ok(CUBE);
+    }
+    super::terrain::lookup(version, block)
+        .map(|shape| shape.collision.as_slice())
+        .ok_or_else(|| {
+            Error::new(
+                ErrorKind::Unsupported,
+                anyhow::anyhow!(
+                    "unsupported dry terrain state {} {:?}",
+                    block.name,
+                    block.properties
+                ),
+            )
+        })
 }
 pub(crate) fn acceleration(
     version: MinecraftVersion,
@@ -170,7 +217,22 @@ pub(crate) fn acceleration(
     );
     [x * c - z * s, 0.0, z * c + x * s]
 }
-pub(crate) fn collide(mut bounds: [f64; 6], motion: [f64; 3], boxes: &[[f64; 6]]) -> [f64; 3] {
+#[cfg(test)]
+pub(crate) fn collide(bounds: [f64; 6], motion: [f64; 3], boxes: &[[f64; 6]]) -> [f64; 3] {
+    collide_groups(bounds, motion, boxes.iter().map(std::slice::from_ref))
+}
+pub(crate) fn collide_geometry(
+    bounds: [f64; 6],
+    motion: [f64; 3],
+    geometry: &CollisionGeometry,
+) -> [f64; 3] {
+    collide_groups(bounds, motion, geometry.groups())
+}
+fn collide_groups<'a>(
+    mut bounds: [f64; 6],
+    motion: [f64; 3],
+    shapes: impl Iterator<Item = &'a [[f64; 6]]> + Clone,
+) -> [f64; 3] {
     let mut result = [0.0; 3];
     let order = if motion[0].abs() < motion[2].abs() {
         [1, 2, 0]
@@ -182,22 +244,26 @@ pub(crate) fn collide(mut bounds: [f64; 6], motion: [f64; 3], boxes: &[[f64; 6]]
         if distance == 0.0 {
             continue;
         }
-        for cube in boxes {
+        for shape in shapes.clone() {
             if distance.abs() < 1e-7 {
                 distance = 0.0;
                 break;
             }
-            if (0..3).any(|i| {
-                i != axis && (bounds[i] + 1e-7 >= cube[i + 3] || bounds[i + 3] - 1e-7 <= cube[i])
-            }) {
-                continue;
-            }
-            let ahead = cube[axis] - bounds[axis + 3];
-            let behind = cube[axis + 3] - bounds[axis];
-            if distance > 0.0 && ahead >= -1e-7 {
-                distance = distance.min(ahead);
-            } else if distance < 0.0 && behind <= 1e-7 {
-                distance = distance.max(behind);
+            let positive = distance > 0.0;
+            for cube in shape {
+                if (0..3).any(|i| {
+                    i != axis
+                        && (bounds[i] + 1e-7 >= cube[i + 3] || bounds[i + 3] - 1e-7 <= cube[i])
+                }) {
+                    continue;
+                }
+                let ahead = cube[axis] - bounds[axis + 3];
+                let behind = cube[axis + 3] - bounds[axis];
+                if positive && ahead >= -1e-7 {
+                    distance = distance.min(ahead);
+                } else if !positive && behind <= 1e-7 {
+                    distance = distance.max(behind);
+                }
             }
         }
         result[axis] = distance;
@@ -207,12 +273,12 @@ pub(crate) fn collide(mut bounds: [f64; 6], motion: [f64; 3], boxes: &[[f64; 6]]
     result
 }
 // Native Entity.adjustMovementForCollisions step search, restricted to the
-// already admitted full cubes and native 0.6f step height.
+// already admitted dry terrain and native 0.6f step height.
 fn collide_with_step(
     version: MinecraftVersion,
     bounds: [f64; 6],
     motion: [f64; 3],
-    boxes: &[[f64; 6]],
+    boxes: &CollisionGeometry,
     on_ground: bool,
 ) -> [f64; 3] {
     match version {
@@ -225,32 +291,32 @@ fn collide_with_step(
 fn legacy_collide_with_step(
     bounds: [f64; 6],
     motion: [f64; 3],
-    boxes: &[[f64; 6]],
+    boxes: &CollisionGeometry,
     on_ground: bool,
 ) -> [f64; 3] {
-    let adjusted = collide(bounds, motion, boxes);
+    let adjusted = collide_geometry(bounds, motion, boxes);
     if !(on_ground || (motion[1] < 0.0 && motion[1] != adjusted[1]))
         || (motion[0] == adjusted[0] && motion[2] == adjusted[2])
     {
         return adjusted;
     }
     let height = f64::from(0.6f32);
-    let mut candidate = collide(bounds, [motion[0], height, motion[2]], boxes);
+    let mut candidate = collide_geometry(bounds, [motion[0], height, motion[2]], boxes);
     let mut expanded = bounds;
     expanded[0] += motion[0].min(0.0);
     expanded[3] += motion[0].max(0.0);
     expanded[2] += motion[2].min(0.0);
     expanded[5] += motion[2].max(0.0);
-    let up = collide(expanded, [0.0, height, 0.0], boxes);
+    let up = collide_geometry(expanded, [0.0, height, 0.0], boxes);
     if up[1] < height {
-        let alternate = collide(shifted(bounds, up), [motion[0], 0.0, motion[2]], boxes);
+        let alternate = collide_geometry(shifted(bounds, up), [motion[0], 0.0, motion[2]], boxes);
         let alternate = std::array::from_fn(|i| alternate[i] + up[i]);
         if horizontal_length(alternate) > horizontal_length(candidate) {
             candidate = alternate;
         }
     }
     if horizontal_length(candidate) > horizontal_length(adjusted) {
-        let down = collide(
+        let down = collide_geometry(
             shifted(bounds, candidate),
             [0.0, motion[1] - candidate[1], 0.0],
             boxes,
@@ -269,10 +335,10 @@ fn horizontal_length(delta: [f64; 3]) -> f64 {
 fn modern_collide_with_step(
     bounds: [f64; 6],
     motion: [f64; 3],
-    boxes: &[[f64; 6]],
+    boxes: &CollisionGeometry,
     on_ground: bool,
 ) -> [f64; 3] {
-    let adjusted = collide(bounds, motion, boxes);
+    let adjusted = collide_geometry(bounds, motion, boxes);
     let downward = motion[1] < 0.0 && motion[1] != adjusted[1];
     if !(downward || on_ground) || (motion[0] == adjusted[0] && motion[2] == adjusted[2]) {
         return adjusted;
@@ -301,7 +367,8 @@ fn modern_collide_with_step(
     heights.sort_by(f32::total_cmp);
     heights.dedup();
     for height in heights {
-        let mut candidate = collide(base, [motion[0], f64::from(height), motion[2]], boxes);
+        let mut candidate =
+            collide_geometry(base, [motion[0], f64::from(height), motion[2]], boxes);
         if candidate[0] * candidate[0] + candidate[2] * candidate[2]
             > adjusted[0] * adjusted[0] + adjusted[2] * adjusted[2]
         {
@@ -376,7 +443,12 @@ impl Model {
         let a = acceleration(self.version, input, yaw, speed);
         std::array::from_fn(|i| v[i] + a[i])
     }
-    pub(crate) fn advance(&mut self, input: SurvivalInput, proposed: [f64; 3], boxes: &[[f64; 6]]) {
+    pub(crate) fn advance(
+        &mut self,
+        input: SurvivalInput,
+        proposed: [f64; 3],
+        boxes: &CollisionGeometry,
+    ) {
         let adjusted = collide_with_step(
             self.version,
             body(self.frame.position),

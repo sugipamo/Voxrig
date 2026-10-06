@@ -50,7 +50,8 @@ entityの現在状態、画面の全動作、完全な履歴復元、piston等�
 ## 限定scene
 
 `Survival::capture_scene(region)`は健康・通常姿勢・stationary・dry・Survivalのnative条件を使い、
-loadedなair/passive dry full cubesとモデル初期値を一つの境界でコピーする。
+loadedなair/passive dry full cubes・登録された乾いたstairs/slabとモデル初期値を一つの境界でコピーする。
+stairs/slabの受信propertyと形状の対応は[共通dry terrain](common-dry-terrain.md)を参照。
 64cell/axis、32768cell totalが上限で、初期立位の周囲・支持blockもregionに含める。
 未観測・未対応形状・不足したhaloは拒否する。
 

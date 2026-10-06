@@ -411,15 +411,7 @@ impl GeometryView for CapturedSurvivalScene {
 }
 fn admitted(block: &crate::NativeBlockState) -> Result<()> {
     super::super::super::super::state_id(block)?;
-    if !matches!(
-        block.name.as_str(),
-        "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air"
-    ) && !survival::DRY_CUBES.contains(&block.name.as_str())
-    {
-        return Err(invalid(
-            "hypothetical scenes require admitted dry cubes and air",
-        ));
-    }
+    crate::client::survival::model::collision_shape(crate::MinecraftVersion::Java1_21_11, block)?;
     Ok(())
 }
 fn scene_volume(region: crate::Region) -> Result<usize> {

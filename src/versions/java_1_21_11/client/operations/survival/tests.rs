@@ -40,6 +40,44 @@ fn state() -> State {
     s.world.seed_replay_cell([0, 0, 0], 1); // Native stone.
     s
 }
+#[test]
+fn dry_terrain_standing_accepts_slab_support_and_refuses_embedded_body_or_water() {
+    let mut s = state();
+    for x in -1..=1 {
+        for y in -1..=3 {
+            for z in -1..=1 {
+                s.world.seed_replay_cell([x, y, z], 0);
+            }
+        }
+    }
+    let mut terrain = crate::NativeBlockState {
+        name: "minecraft:stone_slab".into(),
+        properties: [
+            ("type".into(), "bottom".into()),
+            ("waterlogged".into(), "false".into()),
+        ]
+        .into(),
+    };
+    s.world
+        .seed_replay_cell([0, 0, 0], state_id(&terrain).unwrap());
+    assert_eq!(
+        standing_geometry(&s, [0.5, 0.5, 0.5], [0.; 3])
+            .unwrap()
+            .support,
+        vec![[0, 0, 0]]
+    );
+    terrain.properties.insert("type".into(), "top".into());
+    s.world
+        .seed_replay_cell([0, 0, 0], state_id(&terrain).unwrap());
+    assert!(standing_geometry(&s, [0.5, 0.5, 0.5], [0.; 3]).is_err());
+    terrain.properties.insert("type".into(), "bottom".into());
+    terrain
+        .properties
+        .insert("waterlogged".into(), "true".into());
+    s.world
+        .seed_replay_cell([0, 0, 0], state_id(&terrain).unwrap());
+    assert!(standing_geometry(&s, [0.5, 0.5, 0.5], [0.; 3]).is_err());
+}
 fn owned(id: i32, tail: &[u8]) -> Vec<u8> {
     let mut p = Vec::new();
     put_varint(&mut p, id);

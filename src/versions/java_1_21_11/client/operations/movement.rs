@@ -1,4 +1,4 @@
-//! Bounded dry-cube prediction and separately observed native controls.
+//! Bounded dry-terrain prediction and separately observed native controls.
 mod control;
 mod endpoint;
 mod scenario;
@@ -170,7 +170,7 @@ impl Operations {
             terminal_clearance: native.terminal_clearance,
         })
     }
-    /// Preview at most 120 dry-cube walking/jump ticks. Uses native default motion
+    /// Preview at most 120 known dry-terrain walking/jump ticks. Uses native default motion
     /// attributes, normal posture and no received effect updates. This is a
     /// prediction from the projection, not evidence that effects are absent on
     /// the server, that motion occurred, or that future geometry will stay fixed.
@@ -271,8 +271,17 @@ fn clearance(state: &impl GeometryView, frame: &PredictedMotionFrame) -> Termina
 use crate::client::survival::model::Model;
 #[cfg(test)]
 use crate::client::survival::model::body;
-fn geometry(state: &impl GeometryView, p: [f64; 3], motion: [f64; 3]) -> Result<Vec<[f64; 6]>> {
-    crate::client::survival::model::geometry(|p| state.block(p), p, motion)
+fn geometry(
+    state: &impl GeometryView,
+    p: [f64; 3],
+    motion: [f64; 3],
+) -> Result<crate::client::survival::model::CollisionGeometry> {
+    crate::client::survival::model::geometry(
+        crate::MinecraftVersion::Java1_21_11,
+        |p| state.block(p),
+        p,
+        motion,
+    )
 }
 #[cfg(test)]
 fn acceleration(input: SurvivalInput, yaw: f32, speed: f32) -> [f64; 3] {
@@ -349,7 +358,9 @@ mod tests {
     }
     #[test]
     fn jump_lands_and_released_walking_brakes_with_gravity_retained() {
-        let floor = [[-20.0, 0.0, -20.0, 20.0, 1.0, 20.0]];
+        let floor = crate::client::survival::model::CollisionGeometry::joined(&[[
+            -20.0, 0.0, -20.0, 20.0, 1.0, 20.0,
+        ]]);
         let mut model = Model::new(crate::MinecraftVersion::Java1_21_11, [0.5, 1.0, 0.5]);
         let mut peak = 1.0f64;
         for tick in 0..35 {

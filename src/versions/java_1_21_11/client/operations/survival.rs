@@ -460,51 +460,37 @@ pub(super) fn standing_geometry(
             for z in min[2]..=max[2] {
                 let p = [x, y, z];
                 let block = state.block(p)?;
-                match block.name.as_str() {
-                    "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air" => {}
-                    name if DRY_CUBES.contains(&name) => {
-                        let cube = [
-                            f64::from(x),
-                            f64::from(y),
-                            f64::from(z),
-                            f64::from(x + 1),
-                            f64::from(y + 1),
-                            f64::from(z + 1),
-                        ];
-                        let horizontal = bounds[0] < cube[3]
-                            && bounds[3] > cube[0]
-                            && bounds[2] < cube[5]
-                            && bounds[5] > cube[2];
-                        if horizontal && bounds[1] < cube[4] && bounds[4] > cube[1] {
-                            return Err(unavailable(format!(
-                                "standing body intersects solid geometry at {p:?}"
-                            )));
-                        }
-                        let gap = bounds[1] - cube[4];
-                        // Native VoxelShape axis probing shrinks the other two axes by 1e-7.
-                        let probe_horizontal = bounds[0] + 1e-7 < cube[3]
-                            && bounds[3] - 1e-7 > cube[0]
-                            && bounds[2] + 1e-7 < cube[5]
-                            && bounds[5] - 1e-7 > cube[2];
-                        if probe_horizontal
-                            && (0.0..1e-7).contains(&gap)
-                            && (error == [0.0; 3]
-                                || (bounds[0] + 2.0 * error[0] + 1e-7 < cube[3]
-                                    && bounds[3] - 2.0 * error[0] - 1e-7 > cube[0]
-                                    && bounds[2] + 2.0 * error[2] + 1e-7 < cube[5]
-                                    && bounds[5] - 2.0 * error[2] - 1e-7 > cube[2]))
-                        {
-                            support.push(p);
-                        }
+                for local in crate::client::survival::model::collision_shape(
+                    crate::MinecraftVersion::Java1_21_11,
+                    &block,
+                )? {
+                    let cube: [f64; 6] =
+                        std::array::from_fn(|axis| local[axis] + f64::from(p[axis % 3]));
+                    let horizontal = bounds[0] < cube[3]
+                        && bounds[3] > cube[0]
+                        && bounds[2] < cube[5]
+                        && bounds[5] > cube[2];
+                    if horizontal && bounds[1] < cube[4] && bounds[4] > cube[1] {
+                        return Err(unavailable(format!(
+                            "standing body intersects solid geometry at {p:?}"
+                        )));
                     }
-                    _ => {
-                        return Err(Error::new(
-                            ErrorKind::Unsupported,
-                            anyhow::anyhow!(
-                                "unsupported standing geometry {} at {p:?}",
-                                block.name
-                            ),
-                        ));
+                    let gap = bounds[1] - cube[4];
+                    // Native VoxelShape axis probing shrinks the other two axes by 1e-7.
+                    let probe_horizontal = bounds[0] + 1e-7 < cube[3]
+                        && bounds[3] - 1e-7 > cube[0]
+                        && bounds[2] + 1e-7 < cube[5]
+                        && bounds[5] - 1e-7 > cube[2];
+                    if probe_horizontal
+                        && (0.0..1e-7).contains(&gap)
+                        && (error == [0.0; 3]
+                            || (bounds[0] + 2.0 * error[0] + 1e-7 < cube[3]
+                                && bounds[3] - 2.0 * error[0] - 1e-7 > cube[0]
+                                && bounds[2] + 2.0 * error[2] + 1e-7 < cube[5]
+                                && bounds[5] - 2.0 * error[2] - 1e-7 > cube[2]))
+                        && !support.contains(&p)
+                    {
+                        support.push(p);
                     }
                 }
             }

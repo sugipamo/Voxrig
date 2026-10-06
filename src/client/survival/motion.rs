@@ -24,7 +24,7 @@ pub struct SurvivalControl {
 }
 /// Bound on a single finite connection-owned control run.
 pub const MAX_SURVIVAL_CONTROL_TICKS: usize = 120;
-/// Read-only dry full-cube forecast under the selected adapter's native defaults.
+/// Read-only known dry-terrain forecast under the selected adapter's native defaults.
 /// All initial values share one capture boundary. No packet is sent and no
 /// reusable action authority, server tick or physical error bound is created.
 #[derive(Clone, Debug, serde::Serialize)]

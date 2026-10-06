@@ -4,6 +4,7 @@ pub mod checked;
 pub(crate) mod mining;
 pub(crate) mod model;
 pub(crate) mod placement;
+pub(crate) mod terrain;
 pub use placement::{
     PlacementId, PlacementProcessing, PlacementRecord, PlacementSend, PlacementStage,
 };

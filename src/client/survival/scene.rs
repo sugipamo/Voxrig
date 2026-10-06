@@ -17,7 +17,7 @@ pub struct SceneSource {
     /// Complete immutable geometry bounds, including the standing halo.
     pub region: Region,
 }
-/// Detached, dry-cube prediction. Saving it never permits dispatch or continuation.
+/// Detached, known dry-terrain prediction. Saving it never permits dispatch or continuation.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ScenePreview {
@@ -49,7 +49,7 @@ pub(crate) enum SceneAdapter {
     Modern(Box<crate::versions::java_1_21_11::operations::CapturedSurvivalScene>),
 }
 impl super::Survival {
-    /// Capture complete, loaded air/dry passive cubes under healthy stationary
+    /// Capture complete, loaded air/dry passive cubes and registered dry slabs/stairs under healthy stationary
     /// Survival defaults. At most 64 cells per axis and 32768 total; the initial
     /// standing halo must be included. No packet is sent. Broader edits, chained
     /// hypothetical scenes and reconstruction contracts remain version-specific.

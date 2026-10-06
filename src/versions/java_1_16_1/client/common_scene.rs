@@ -71,15 +71,7 @@ impl Bot {
                 for z in region.min[2]..=region.max[2] {
                     let p = [x, y, z];
                     let state = common_motion::legacy_motion_block(&world, p)?;
-                    if !matches!(
-                        state.name.as_str(),
-                        "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air"
-                    ) && !model::DRY_CUBES.contains(&state.name.as_str())
-                    {
-                        return Err(crate::client::recording::invalid(
-                            "captured scenes require admitted dry cubes and air",
-                        ));
-                    }
+                    model::collision_shape(crate::MinecraftVersion::Java1_16_1, &state)?;
                     cells.insert(p, state);
                 }
             }

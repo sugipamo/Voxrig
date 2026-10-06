@@ -727,6 +727,7 @@ impl Bot {
             {
                 let world = self.world.lock().await;
                 let boxes = model::geometry(
+                    crate::MinecraftVersion::Java1_16_1,
                     &|p| legacy_motion_block(&world, p),
                     model.frame.position,
                     proposed,
@@ -847,14 +848,19 @@ pub(super) fn legacy_clearance(
     bounds[2] -= margin;
     bounds[3] += margin;
     bounds[5] += margin;
-    let cubes = model::geometry(block_at, position, [0.0; 3])?;
+    let cubes = model::geometry(
+        crate::MinecraftVersion::Java1_16_1,
+        block_at,
+        position,
+        [0.0; 3],
+    )?;
     if cubes.iter().any(|cube| {
         (0..3).all(|axis| {
             bounds[axis] + 1e-7 < cube[axis + 3] && bounds[axis + 3] - 1e-7 > cube[axis]
         })
     }) {
         return Err(motion_state(
-            "standing body or reserve intersects a dry cube",
+            "standing body or reserve intersects known dry terrain",
         ));
     }
     let supported_area: f64 = cubes
@@ -879,6 +885,41 @@ fn motion_state(message: &str) -> crate::Error {
 #[cfg(test)]
 pub(super) mod tests {
     use super::*;
+    #[test]
+    fn dry_terrain_standing_accepts_slab_support_and_refuses_embedded_body_or_water() {
+        let mut terrain = crate::NativeBlockState {
+            name: "minecraft:stone_slab".into(),
+            properties: [
+                ("type".into(), "bottom".into()),
+                ("waterlogged".into(), "false".into()),
+            ]
+            .into(),
+        };
+        let check = |terrain: &crate::NativeBlockState| {
+            legacy_clearance(
+                &|cell| {
+                    Ok(if cell == [0, 0, 0] {
+                        terrain.clone()
+                    } else {
+                        crate::NativeBlockState {
+                            name: "minecraft:air".into(),
+                            properties: Default::default(),
+                        }
+                    })
+                },
+                [0.5, 0.5, 0.5],
+                0.01,
+            )
+        };
+        assert!(check(&terrain).is_ok());
+        terrain.properties.insert("type".into(), "top".into());
+        assert!(check(&terrain).is_err());
+        terrain.properties.insert("type".into(), "bottom".into());
+        terrain
+            .properties
+            .insert("waterlogged".into(), "true".into());
+        assert!(check(&terrain).is_err());
+    }
     pub(in crate::versions::java_1_16_1::client) async fn seed_motion(bot: &Bot) {
         bot.teleport_barrier_ticks.store(u8::MAX, Ordering::Release);
         bot.survival.write().await.game_mode = Some(0);
