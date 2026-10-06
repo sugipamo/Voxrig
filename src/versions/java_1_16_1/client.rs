@@ -20,8 +20,9 @@ use crate::versions::java_1_16_1::{
         write_slot,
     },
     lifecycle::{
-        ConnectionActor, ConnectionGeneration, ConnectionState, OperationAdmissionError,
-        OperationClass, OperationContext, ProtocolTransaction, TerminalClassification,
+        ConnectionActor, ConnectionGeneration, ConnectionState, GenerationRevocation,
+        OperationAdmissionError, OperationClass, OperationContext, ProtocolTransaction,
+        TerminalClassification,
     },
     map::{MapData, MapStore, MapUpdate, parse_map_update},
     operation::{
@@ -1021,6 +1022,7 @@ struct ObservationEventQueue {
 /// State and protocol data represented by `Bot`.
 pub struct Bot {
     connection: ConnectionActor,
+    reader_abort: Arc<std::sync::OnceLock<tokio::task::AbortHandle>>,
     server: Server,
     writer: Arc<Mutex<PacketWriter>>,
     player: Arc<Mutex<Versioned<Player>>>,
@@ -1112,6 +1114,7 @@ impl Bot {
         }
         Self {
             connection: self.connection.clone(),
+            reader_abort: self.reader_abort.clone(),
             server: self.server.clone(),
             writer: self.writer.clone(),
             player: self.player.clone(),
@@ -1241,6 +1244,7 @@ impl Bot {
             mpsc::channel(4);
         let bot = Self {
             connection,
+            reader_abort: Arc::new(std::sync::OnceLock::new()),
             server,
             writer,
             player: Arc::new(Mutex::new(Versioned::new(player, connected_at))),
@@ -1346,6 +1350,7 @@ impl Bot {
                 .read_loop(reader, capture_receiver, traversal_movement_facts_receiver)
                 .await
         });
+        let _ = bot.reader_abort.set(reader_task.abort_handle());
         let supervisor = bot.clone_internal();
         tokio::spawn(async move {
             match reader_task.await {
@@ -1439,6 +1444,26 @@ impl Bot {
     pub fn connection_state(&self) -> ConnectionState {
         self.connection.lifecycle()
     }
+    /// Irreversibly fence this connection generation without waiting for capture,
+    /// writer admission, pending writes or ordinary disconnect cleanup.
+    ///
+    /// This is emergency quarantine, not successful cancellation or clean logout.
+    /// Already admitted writes can have unknown partial effects. Native tasks are
+    /// aborted and writer shutdown is scheduled; transport end is not certified.
+    /// This Bot cannot be reconnected or reused after this call.
+    #[must_use]
+    pub fn revoke_connection(&self) -> GenerationRevocation {
+        let receipt = self.connection.revoke();
+        self.stopped.store(true, Ordering::Release);
+        if let Some(reader) = self.reader_abort.get() {
+            reader.abort();
+        }
+        self.cancel.notify_waiters();
+        self.ready.notify_waiters();
+        self.world_updated.notify_waiters();
+        receipt
+    }
+
     /// Creates an operation correlation context for this connection.
     #[must_use]
     pub const fn operation_context(&self, source_observation_sequence: u64) -> OperationContext {
@@ -1922,7 +1947,6 @@ impl Bot {
                 diagnostic_correlation,
             )
             .await
-            .map_err(DispatchError::Admission)
     }
 
     /// Dispatches one finite cleanup primitive through the disconnect barrier.
@@ -3454,7 +3478,16 @@ impl Bot {
                 AcknowledgedOperation::DigFinish { position, face },
             )
             .await
-            .map_err(|error| crate::Error::new(crate::ErrorKind::State, anyhow::anyhow!(error)))?;
+            .map_err(|error| {
+                crate::Error::new(
+                    if matches!(error, DispatchError::DeliveryUnknown) {
+                        crate::ErrorKind::UncertainDispatch
+                    } else {
+                        crate::ErrorKind::State
+                    },
+                    anyhow::anyhow!(error),
+                )
+            })?;
         match transaction.wait().await {
             DispatchOutcome::Acknowledged => {}
             DispatchOutcome::Rejected => {
@@ -3757,7 +3790,14 @@ impl Bot {
                     sync_player_inventory_from_window(&mut inventory, window_id);
                 }
                 let message = anyhow::anyhow!(error.to_string());
-                return Err(crate::Error::new(crate::ErrorKind::State, message));
+                return Err(crate::Error::new(
+                    if matches!(error, DispatchError::DeliveryUnknown) {
+                        crate::ErrorKind::UncertainDispatch
+                    } else {
+                        crate::ErrorKind::State
+                    },
+                    message,
+                ));
             }
         };
         if !transaction.was_dispatched() {
@@ -7696,7 +7736,9 @@ mod tests {
         for value in [0, 0, 1, 1 << 1, 1 << 1, 0, 0] {
             put_varint(&mut packet, value);
         }
+        put_varint(&mut packet, 2048);
         packet.extend([0x21; 2048]);
+        put_varint(&mut packet, 2048);
         packet.extend([0xa5; 2048]);
         packet
     }
@@ -8505,7 +8547,9 @@ mod tests {
         for value in [0, 0, 1, 1 << 1, 1 << 1, 0, 0] {
             put_varint(&mut packet, value);
         }
+        put_varint(&mut packet, 2048);
         packet.extend([0x21; 2048]);
+        put_varint(&mut packet, 2048);
         packet.extend([0xa5; 2048]);
         assert_eq!(
             bot.world.lock().await.apply_light(&packet, 256).unwrap(),
@@ -8829,7 +8873,9 @@ mod tests {
         for value in [0, 0, 1, 1 << 1, 1 << 1, 0, 0] {
             put_varint(&mut light_packet, value);
         }
+        put_varint(&mut light_packet, 2048);
         light_packet.extend([0x21; 2048]);
+        put_varint(&mut light_packet, 2048);
         light_packet.extend([0xa5; 2048]);
         assert_eq!(
             bot.world
