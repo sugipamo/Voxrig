@@ -394,6 +394,15 @@ impl crate::client::adapter::CoreOps for Bot {
             player.receive_sequence,
         )
     }
+    async fn entities(&self) -> Result<api::EntitiesObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        Ok(self.common_receipts.lock().await.entities.capture_all(
+            crate::MinecraftVersion::Java1_16_1,
+            player.session,
+            player.receive_sequence,
+        ))
+    }
     async fn vehicle_state(&self) -> Result<api::VehicleObservation> {
         let _gate = self.coherent_state_gate.lock().await;
         let player = self.common_player_unlocked().await?;

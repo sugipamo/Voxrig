@@ -53,6 +53,23 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
                 state.vehicles.retire(id);
             }
         }
+        // Health and equipment are best-effort: a payload this reader cannot
+        // follow is left to the other receivers and records nothing here.
+        ids::play_clientbound::ENTITY_METADATA => {
+            if let Some((entity, health)) = living_health(state, payload) {
+                state
+                    .entities
+                    .receive_health(entity, health, state.sequence);
+            }
+        }
+        ids::play_clientbound::ENTITY_EQUIPMENT => {
+            let (entity, slots) = equipment(payload);
+            for (slot, item) in slots {
+                state
+                    .entities
+                    .receive_equipment(entity, slot, item, state.sequence);
+            }
+        }
         _ => {
             if let Some((target, update)) = decode(id, payload)? {
                 let target = target.or_else(|| {
@@ -72,6 +89,64 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         }
     }
     Ok(())
+}
+
+/// Health (LivingEntity metadata index 9, float) of a living entity type.
+fn living_health(state: &State, payload: &[u8]) -> Option<(i32, f32)> {
+    let mut r = Reader::new(payload);
+    let entity = r.varint().ok()?;
+    if !crate::client::entity::modern_living(state.entities.type_name(entity)?) {
+        return None;
+    }
+    loop {
+        let key = r.u8().ok()?;
+        if key == 255 {
+            return None;
+        }
+        let kind = r.varint().ok()?;
+        if key == 9 {
+            return (kind == 3)
+                .then(|| r.f32().ok())
+                .flatten()
+                .map(|h| (entity, h));
+        }
+        if key > 9 || !super::players::skip_metadata(&mut r, kind).ok()? {
+            return None;
+        }
+    }
+}
+
+/// Equipment entries up to the first one that cannot be decoded.
+fn equipment(
+    payload: &[u8],
+) -> (
+    i32,
+    Vec<(crate::client::EquipmentSlot, crate::client::SlotKnowledge)>,
+) {
+    let mut r = Reader::new(payload);
+    let mut slots = Vec::new();
+    let Ok(entity) = r.varint() else {
+        return (-1, slots);
+    };
+    for _ in 0..16 {
+        let Ok(raw) = r.u8() else { break };
+        let Some(slot) = crate::client::EquipmentSlot::from_native(
+            crate::MinecraftVersion::Java1_21_11,
+            raw & 0x7f,
+        ) else {
+            break;
+        };
+        let Ok(Some(item)) = super::operations::slot(&mut r) else {
+            break;
+        };
+        let item = super::operations::common_slot(&item)
+            .unwrap_or(crate::client::SlotKnowledge::Unavailable);
+        slots.push((slot, item));
+        if raw & 0x80 == 0 {
+            break;
+        }
+    }
+    (entity, slots)
 }
 
 fn angle(r: &mut Reader<'_>) -> anyhow::Result<f32> {

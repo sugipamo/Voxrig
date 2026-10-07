@@ -7,8 +7,11 @@ use super::{
 use crate::{MinecraftVersion, Result};
 use std::collections::BTreeMap;
 mod motion;
+mod state;
 pub use motion::{EntityMotionObservation, EntityPosition, EntityPositionCorrection};
 pub(crate) use motion::{NativeMotion, NativeSpawnMotion};
+pub(crate) use state::modern_living;
+pub use state::{EntitiesObservation, EntityObservation, EquipmentSlot};
 
 /// An original received spawn on one connection/world, independent of reusable numeric IDs.
 /// Saved diagnostics cannot construct live targets.
@@ -101,6 +104,7 @@ struct Spawn {
     name: Option<String>,
     position: [f64; 3],
     motion: motion::Motion,
+    extra: state::Extra,
 }
 pub(crate) struct NativeSpawn {
     pub id: i32,
@@ -168,6 +172,7 @@ impl SpawnLedger {
                 name,
                 position: native.position,
                 motion: Default::default(),
+                extra: Default::default(),
             },
         );
         Ok(())

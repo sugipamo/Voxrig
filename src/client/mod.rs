@@ -1,6 +1,8 @@
 //! Common client entry points and data. Wire formats and physics belong to adapters.
 pub(crate) mod adapter;
 pub(crate) use adapter::dispatch;
+pub mod blocks;
+pub use blocks::{BlockRaycast, BlockRaycastObservation, BlockSearch};
 pub(crate) mod books;
 pub mod chat;
 pub mod events;
@@ -64,8 +66,8 @@ pub use crafting::{
     RecipePlacementStage, RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern,
 };
 pub use entity::{
-    EntityId, EntityMotionObservation, EntityPosition, EntityPositionCorrection, EntitySpawn,
-    EntitySpawns,
+    EntitiesObservation, EntityId, EntityMotionObservation, EntityObservation, EntityPosition,
+    EntityPositionCorrection, EntitySpawn, EntitySpawns, EquipmentSlot,
 };
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
 pub use item::ItemProperties;
@@ -88,6 +90,7 @@ pub use vehicle::{
 
 /// Imports for consumers selecting their Minecraft version at setup.
 pub mod prelude {
+    pub use super::blocks::{BlockRaycast, BlockRaycastObservation, BlockSearch};
     pub use super::chat::{ChatKind, ChatLog, ChatText, ReceivedChat};
     pub use super::container::{
         ContainerCloseId, ContainerCloseRecord, ContainerCloseStage, ContainerOpenId,
@@ -95,6 +98,7 @@ pub mod prelude {
         ContainerOpenTargetState, ContainerScreen, CursorReturnPlanStep, PlayerScreenAccess,
         ScreenId, ScreenObservation,
     };
+    pub use super::entity::{EntitiesObservation, EntityObservation, EquipmentSlot};
     pub use super::events::{ClientEvent, EventKind, EventLog};
     pub use super::inventory::{
         InventoryClickButton, InventoryClickId, InventoryClickRecord, InventoryClickSource,
@@ -103,6 +107,7 @@ pub mod prelude {
         InventoryTransferStage,
     };
     pub use super::nbt::{NbtCompound, NbtData, NbtEntry, NbtString, NbtValue};
+    pub use super::observation::SlotKnowledge;
     pub use super::recording::{
         LocalPlayerBasis, PacketPhase, PacketRecord, PacketTrace, RecordedItemData,
         RecordedItemStack, RecordedSlotKnowledge, RecordedValue, ReplayedBlock, ReplayedInventory,

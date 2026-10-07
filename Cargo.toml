@@ -44,6 +44,7 @@ include = [
     "/scripts/VerifySurvivalMovement.java",
     "/scripts/VerifyPositionCorrection.java",
     "/scripts/VerifyDryMovement.java",
+    "/scripts/ExportEntityDimensions.java",
     "/scripts/VerifyLegacyDryMovement.java",
     "/scripts/VerifyLegacyTargeting.java",
     "/scripts/VerifyLegacyInventorySwap.java",

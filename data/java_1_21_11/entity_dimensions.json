@@ -1,0 +1,947 @@
+{
+"entities": {
+"minecraft:acacia_boat": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:acacia_chest_boat": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:allay": {
+"eye_height": 0.36,
+"height": 0.6,
+"living": true,
+"width": 0.35
+},
+"minecraft:area_effect_cloud": {
+"eye_height": 0.425,
+"height": 0.5,
+"living": false,
+"width": 6.0
+},
+"minecraft:armadillo": {
+"eye_height": 0.26,
+"height": 0.65,
+"living": true,
+"width": 0.7
+},
+"minecraft:armor_stand": {
+"eye_height": 1.7775,
+"height": 1.975,
+"living": true,
+"width": 0.5
+},
+"minecraft:arrow": {
+"eye_height": 0.13,
+"height": 0.5,
+"living": false,
+"width": 0.5
+},
+"minecraft:axolotl": {
+"eye_height": 0.2751,
+"height": 0.42,
+"living": true,
+"width": 0.75
+},
+"minecraft:bamboo_chest_raft": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:bamboo_raft": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:bat": {
+"eye_height": 0.45,
+"height": 0.9,
+"living": true,
+"width": 0.5
+},
+"minecraft:bee": {
+"eye_height": 0.3,
+"height": 0.6,
+"living": true,
+"width": 0.7
+},
+"minecraft:birch_boat": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:birch_chest_boat": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:blaze": {
+"eye_height": 1.53,
+"height": 1.8,
+"living": true,
+"width": 0.6
+},
+"minecraft:block_display": {
+"eye_height": 0.0,
+"height": 0.0,
+"living": false,
+"width": 0.0
+},
+"minecraft:bogged": {
+"eye_height": 1.74,
+"height": 1.99,
+"living": true,
+"width": 0.6
+},
+"minecraft:breeze": {
+"eye_height": 1.3452,
+"height": 1.77,
+"living": true,
+"width": 0.6
+},
+"minecraft:breeze_wind_charge": {
+"eye_height": 0.0,
+"height": 0.3125,
+"living": false,
+"width": 0.3125
+},
+"minecraft:camel": {
+"eye_height": 2.275,
+"height": 2.375,
+"living": true,
+"width": 1.7
+},
+"minecraft:camel_husk": {
+"eye_height": 2.275,
+"height": 2.375,
+"living": true,
+"width": 1.7
+},
+"minecraft:cat": {
+"eye_height": 0.35,
+"height": 0.7,
+"living": true,
+"width": 0.6
+},
+"minecraft:cave_spider": {
+"eye_height": 0.45,
+"height": 0.5,
+"living": true,
+"width": 0.7
+},
+"minecraft:cherry_boat": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:cherry_chest_boat": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:chest_minecart": {
+"eye_height": 0.595,
+"height": 0.7,
+"living": false,
+"width": 0.98
+},
+"minecraft:chicken": {
+"eye_height": 0.644,
+"height": 0.7,
+"living": true,
+"width": 0.4
+},
+"minecraft:cod": {
+"eye_height": 0.195,
+"height": 0.3,
+"living": true,
+"width": 0.5
+},
+"minecraft:command_block_minecart": {
+"eye_height": 0.595,
+"height": 0.7,
+"living": false,
+"width": 0.98
+},
+"minecraft:copper_golem": {
+"eye_height": 0.8125,
+"height": 0.98,
+"living": true,
+"width": 0.49
+},
+"minecraft:cow": {
+"eye_height": 1.3,
+"height": 1.4,
+"living": true,
+"width": 0.9
+},
+"minecraft:creaking": {
+"eye_height": 2.3,
+"height": 2.7,
+"living": true,
+"width": 0.9
+},
+"minecraft:creeper": {
+"eye_height": 1.445,
+"height": 1.7,
+"living": true,
+"width": 0.6
+},
+"minecraft:dark_oak_boat": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:dark_oak_chest_boat": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:dolphin": {
+"eye_height": 0.3,
+"height": 0.6,
+"living": true,
+"width": 0.9
+},
+"minecraft:donkey": {
+"eye_height": 1.425,
+"height": 1.5,
+"living": true,
+"width": 1.3964844
+},
+"minecraft:dragon_fireball": {
+"eye_height": 0.85,
+"height": 1.0,
+"living": false,
+"width": 1.0
+},
+"minecraft:drowned": {
+"eye_height": 1.74,
+"height": 1.95,
+"living": true,
+"width": 0.6
+},
+"minecraft:egg": {
+"eye_height": 0.2125,
+"height": 0.25,
+"living": false,
+"width": 0.25
+},
+"minecraft:elder_guardian": {
+"eye_height": 0.99875,
+"height": 1.9975,
+"living": true,
+"width": 1.9975
+},
+"minecraft:end_crystal": {
+"eye_height": 1.7,
+"height": 2.0,
+"living": false,
+"width": 2.0
+},
+"minecraft:ender_dragon": {
+"eye_height": 6.8,
+"height": 8.0,
+"living": true,
+"width": 16.0
+},
+"minecraft:ender_pearl": {
+"eye_height": 0.2125,
+"height": 0.25,
+"living": false,
+"width": 0.25
+},
+"minecraft:enderman": {
+"eye_height": 2.55,
+"height": 2.9,
+"living": true,
+"width": 0.6
+},
+"minecraft:endermite": {
+"eye_height": 0.13,
+"height": 0.3,
+"living": true,
+"width": 0.4
+},
+"minecraft:evoker": {
+"eye_height": 1.6575,
+"height": 1.95,
+"living": true,
+"width": 0.6
+},
+"minecraft:evoker_fangs": {
+"eye_height": 0.68,
+"height": 0.8,
+"living": false,
+"width": 0.5
+},
+"minecraft:experience_bottle": {
+"eye_height": 0.2125,
+"height": 0.25,
+"living": false,
+"width": 0.25
+},
+"minecraft:experience_orb": {
+"eye_height": 0.425,
+"height": 0.5,
+"living": false,
+"width": 0.5
+},
+"minecraft:eye_of_ender": {
+"eye_height": 0.2125,
+"height": 0.25,
+"living": false,
+"width": 0.25
+},
+"minecraft:falling_block": {
+"eye_height": 0.83300006,
+"height": 0.98,
+"living": false,
+"width": 0.98
+},
+"minecraft:fireball": {
+"eye_height": 0.85,
+"height": 1.0,
+"living": false,
+"width": 1.0
+},
+"minecraft:firework_rocket": {
+"eye_height": 0.2125,
+"height": 0.25,
+"living": false,
+"width": 0.25
+},
+"minecraft:fishing_bobber": {
+"eye_height": 0.2125,
+"height": 0.25,
+"living": false,
+"width": 0.25
+},
+"minecraft:fox": {
+"eye_height": 0.4,
+"height": 0.7,
+"living": true,
+"width": 0.6
+},
+"minecraft:frog": {
+"eye_height": 0.425,
+"height": 0.5,
+"living": true,
+"width": 0.5
+},
+"minecraft:furnace_minecart": {
+"eye_height": 0.595,
+"height": 0.7,
+"living": false,
+"width": 0.98
+},
+"minecraft:ghast": {
+"eye_height": 2.6,
+"height": 4.0,
+"living": true,
+"width": 4.0
+},
+"minecraft:giant": {
+"eye_height": 10.44,
+"height": 12.0,
+"living": true,
+"width": 3.6
+},
+"minecraft:glow_item_frame": {
+"eye_height": 0.0,
+"height": 0.5,
+"living": false,
+"width": 0.5
+},
+"minecraft:glow_squid": {
+"eye_height": 0.4,
+"height": 0.8,
+"living": true,
+"width": 0.8
+},
+"minecraft:goat": {
+"eye_height": 1.105,
+"height": 1.3,
+"living": true,
+"width": 0.9
+},
+"minecraft:guardian": {
+"eye_height": 0.425,
+"height": 0.85,
+"living": true,
+"width": 0.85
+},
+"minecraft:happy_ghast": {
+"eye_height": 2.6,
+"height": 4.0,
+"living": true,
+"width": 4.0
+},
+"minecraft:hoglin": {
+"eye_height": 1.19,
+"height": 1.4,
+"living": true,
+"width": 1.3964844
+},
+"minecraft:hopper_minecart": {
+"eye_height": 0.595,
+"height": 0.7,
+"living": false,
+"width": 0.98
+},
+"minecraft:horse": {
+"eye_height": 1.52,
+"height": 1.6,
+"living": true,
+"width": 1.3964844
+},
+"minecraft:husk": {
+"eye_height": 1.74,
+"height": 1.95,
+"living": true,
+"width": 0.6
+},
+"minecraft:illusioner": {
+"eye_height": 1.6575,
+"height": 1.95,
+"living": true,
+"width": 0.6
+},
+"minecraft:interaction": {
+"eye_height": 0.0,
+"height": 0.0,
+"living": false,
+"width": 0.0
+},
+"minecraft:iron_golem": {
+"eye_height": 2.295,
+"height": 2.7,
+"living": true,
+"width": 1.4
+},
+"minecraft:item": {
+"eye_height": 0.2125,
+"height": 0.25,
+"living": false,
+"width": 0.25
+},
+"minecraft:item_display": {
+"eye_height": 0.0,
+"height": 0.0,
+"living": false,
+"width": 0.0
+},
+"minecraft:item_frame": {
+"eye_height": 0.0,
+"height": 0.5,
+"living": false,
+"width": 0.5
+},
+"minecraft:jungle_boat": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:jungle_chest_boat": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:leash_knot": {
+"eye_height": 0.0625,
+"height": 0.5,
+"living": false,
+"width": 0.375
+},
+"minecraft:lightning_bolt": {
+"eye_height": 0.0,
+"height": 0.0,
+"living": false,
+"width": 0.0
+},
+"minecraft:lingering_potion": {
+"eye_height": 0.2125,
+"height": 0.25,
+"living": false,
+"width": 0.25
+},
+"minecraft:llama": {
+"eye_height": 1.7765,
+"height": 1.87,
+"living": true,
+"width": 0.9
+},
+"minecraft:llama_spit": {
+"eye_height": 0.2125,
+"height": 0.25,
+"living": false,
+"width": 0.25
+},
+"minecraft:magma_cube": {
+"eye_height": 0.325,
+"height": 0.52,
+"living": true,
+"width": 0.52
+},
+"minecraft:mangrove_boat": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:mangrove_chest_boat": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:mannequin": {
+"eye_height": 1.62,
+"height": 1.8,
+"living": true,
+"width": 0.6
+},
+"minecraft:marker": {
+"eye_height": 0.0,
+"height": 0.0,
+"living": false,
+"width": 0.0
+},
+"minecraft:minecart": {
+"eye_height": 0.595,
+"height": 0.7,
+"living": false,
+"width": 0.98
+},
+"minecraft:mooshroom": {
+"eye_height": 1.3,
+"height": 1.4,
+"living": true,
+"width": 0.9
+},
+"minecraft:mule": {
+"eye_height": 1.52,
+"height": 1.6,
+"living": true,
+"width": 1.3964844
+},
+"minecraft:nautilus": {
+"eye_height": 0.2751,
+"height": 0.95,
+"living": true,
+"width": 0.875
+},
+"minecraft:oak_boat": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:oak_chest_boat": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:ocelot": {
+"eye_height": 0.595,
+"height": 0.7,
+"living": true,
+"width": 0.6
+},
+"minecraft:ominous_item_spawner": {
+"eye_height": 0.2125,
+"height": 0.25,
+"living": false,
+"width": 0.25
+},
+"minecraft:painting": {
+"eye_height": 0.425,
+"height": 0.5,
+"living": false,
+"width": 0.5
+},
+"minecraft:pale_oak_boat": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:pale_oak_chest_boat": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:panda": {
+"eye_height": 1.0625,
+"height": 1.25,
+"living": true,
+"width": 1.3
+},
+"minecraft:parched": {
+"eye_height": 1.74,
+"height": 1.99,
+"living": true,
+"width": 0.6
+},
+"minecraft:parrot": {
+"eye_height": 0.54,
+"height": 0.9,
+"living": true,
+"width": 0.5
+},
+"minecraft:phantom": {
+"eye_height": 0.175,
+"height": 0.5,
+"living": true,
+"width": 0.9
+},
+"minecraft:pig": {
+"eye_height": 0.765,
+"height": 0.9,
+"living": true,
+"width": 0.9
+},
+"minecraft:piglin": {
+"eye_height": 1.79,
+"height": 1.95,
+"living": true,
+"width": 0.6
+},
+"minecraft:piglin_brute": {
+"eye_height": 1.79,
+"height": 1.95,
+"living": true,
+"width": 0.6
+},
+"minecraft:pillager": {
+"eye_height": 1.6575,
+"height": 1.95,
+"living": true,
+"width": 0.6
+},
+"minecraft:player": {
+"eye_height": 1.62,
+"height": 1.8,
+"living": true,
+"width": 0.6
+},
+"minecraft:polar_bear": {
+"eye_height": 1.19,
+"height": 1.4,
+"living": true,
+"width": 1.4
+},
+"minecraft:pufferfish": {
+"eye_height": 0.455,
+"height": 0.7,
+"living": true,
+"width": 0.7
+},
+"minecraft:rabbit": {
+"eye_height": 0.425,
+"height": 0.5,
+"living": true,
+"width": 0.4
+},
+"minecraft:ravager": {
+"eye_height": 1.8700001,
+"height": 2.2,
+"living": true,
+"width": 1.95
+},
+"minecraft:salmon": {
+"eye_height": 0.26,
+"height": 0.4,
+"living": true,
+"width": 0.7
+},
+"minecraft:sheep": {
+"eye_height": 1.235,
+"height": 1.3,
+"living": true,
+"width": 0.9
+},
+"minecraft:shulker": {
+"eye_height": 0.5,
+"height": 1.0,
+"living": true,
+"width": 1.0
+},
+"minecraft:shulker_bullet": {
+"eye_height": 0.265625,
+"height": 0.3125,
+"living": false,
+"width": 0.3125
+},
+"minecraft:silverfish": {
+"eye_height": 0.13,
+"height": 0.3,
+"living": true,
+"width": 0.4
+},
+"minecraft:skeleton": {
+"eye_height": 1.74,
+"height": 1.99,
+"living": true,
+"width": 0.6
+},
+"minecraft:skeleton_horse": {
+"eye_height": 1.52,
+"height": 1.6,
+"living": true,
+"width": 1.3964844
+},
+"minecraft:slime": {
+"eye_height": 0.325,
+"height": 0.52,
+"living": true,
+"width": 0.52
+},
+"minecraft:small_fireball": {
+"eye_height": 0.265625,
+"height": 0.3125,
+"living": false,
+"width": 0.3125
+},
+"minecraft:sniffer": {
+"eye_height": 1.05,
+"height": 1.75,
+"living": true,
+"width": 1.9
+},
+"minecraft:snow_golem": {
+"eye_height": 1.7,
+"height": 1.9,
+"living": true,
+"width": 0.7
+},
+"minecraft:snowball": {
+"eye_height": 0.2125,
+"height": 0.25,
+"living": false,
+"width": 0.25
+},
+"minecraft:spawner_minecart": {
+"eye_height": 0.595,
+"height": 0.7,
+"living": false,
+"width": 0.98
+},
+"minecraft:spectral_arrow": {
+"eye_height": 0.13,
+"height": 0.5,
+"living": false,
+"width": 0.5
+},
+"minecraft:spider": {
+"eye_height": 0.65,
+"height": 0.9,
+"living": true,
+"width": 1.4
+},
+"minecraft:splash_potion": {
+"eye_height": 0.2125,
+"height": 0.25,
+"living": false,
+"width": 0.25
+},
+"minecraft:spruce_boat": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:spruce_chest_boat": {
+"eye_height": 0.5625,
+"height": 0.5625,
+"living": false,
+"width": 1.375
+},
+"minecraft:squid": {
+"eye_height": 0.4,
+"height": 0.8,
+"living": true,
+"width": 0.8
+},
+"minecraft:stray": {
+"eye_height": 1.74,
+"height": 1.99,
+"living": true,
+"width": 0.6
+},
+"minecraft:strider": {
+"eye_height": 1.445,
+"height": 1.7,
+"living": true,
+"width": 0.9
+},
+"minecraft:tadpole": {
+"eye_height": 0.19500001,
+"height": 0.3,
+"living": true,
+"width": 0.4
+},
+"minecraft:text_display": {
+"eye_height": 0.0,
+"height": 0.0,
+"living": false,
+"width": 0.0
+},
+"minecraft:tnt": {
+"eye_height": 0.15,
+"height": 0.98,
+"living": false,
+"width": 0.98
+},
+"minecraft:tnt_minecart": {
+"eye_height": 0.595,
+"height": 0.7,
+"living": false,
+"width": 0.98
+},
+"minecraft:trader_llama": {
+"eye_height": 1.7765,
+"height": 1.87,
+"living": true,
+"width": 0.9
+},
+"minecraft:trident": {
+"eye_height": 0.13,
+"height": 0.5,
+"living": false,
+"width": 0.5
+},
+"minecraft:tropical_fish": {
+"eye_height": 0.26,
+"height": 0.4,
+"living": true,
+"width": 0.5
+},
+"minecraft:turtle": {
+"eye_height": 0.34,
+"height": 0.4,
+"living": true,
+"width": 1.2
+},
+"minecraft:vex": {
+"eye_height": 0.51875,
+"height": 0.8,
+"living": true,
+"width": 0.4
+},
+"minecraft:villager": {
+"eye_height": 1.62,
+"height": 1.95,
+"living": true,
+"width": 0.6
+},
+"minecraft:vindicator": {
+"eye_height": 1.6575,
+"height": 1.95,
+"living": true,
+"width": 0.6
+},
+"minecraft:wandering_trader": {
+"eye_height": 1.62,
+"height": 1.95,
+"living": true,
+"width": 0.6
+},
+"minecraft:warden": {
+"eye_height": 2.4650002,
+"height": 2.9,
+"living": true,
+"width": 0.9
+},
+"minecraft:wind_charge": {
+"eye_height": 0.0,
+"height": 0.3125,
+"living": false,
+"width": 0.3125
+},
+"minecraft:witch": {
+"eye_height": 1.62,
+"height": 1.95,
+"living": true,
+"width": 0.6
+},
+"minecraft:wither": {
+"eye_height": 2.9750001,
+"height": 3.5,
+"living": true,
+"width": 0.9
+},
+"minecraft:wither_skeleton": {
+"eye_height": 2.1,
+"height": 2.4,
+"living": true,
+"width": 0.7
+},
+"minecraft:wither_skull": {
+"eye_height": 0.265625,
+"height": 0.3125,
+"living": false,
+"width": 0.3125
+},
+"minecraft:wolf": {
+"eye_height": 0.68,
+"height": 0.85,
+"living": true,
+"width": 0.6
+},
+"minecraft:zoglin": {
+"eye_height": 1.19,
+"height": 1.4,
+"living": true,
+"width": 1.3964844
+},
+"minecraft:zombie": {
+"eye_height": 1.74,
+"height": 1.95,
+"living": true,
+"width": 0.6
+},
+"minecraft:zombie_horse": {
+"eye_height": 1.52,
+"height": 1.6,
+"living": true,
+"width": 1.3964844
+},
+"minecraft:zombie_nautilus": {
+"eye_height": 0.2751,
+"height": 0.95,
+"living": true,
+"width": 0.875
+},
+"minecraft:zombie_villager": {
+"eye_height": 1.74,
+"height": 1.95,
+"living": true,
+"width": 0.6
+},
+"minecraft:zombified_piglin": {
+"eye_height": 1.79,
+"height": 1.95,
+"living": true,
+"width": 0.6
+}
+},
+"minecraft": "1.21.11"
+}

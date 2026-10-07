@@ -239,6 +239,11 @@ impl Client {
     ) -> Result<crate::client::EntityMotionObservation> {
         crate::client::dispatch!(&self.adapter, a => CoreOps::entity_motion(a, target).await)
     }
+    /// Every received entity with its latest motion, health, equipment and a
+    /// default-dimension bounding box, at one receive boundary.
+    pub async fn entities(&self) -> Result<crate::client::EntitiesObservation> {
+        crate::client::dispatch!(&self.adapter, a => CoreOps::entities(a).await)
+    }
     /// Capture actual own-player passenger relationships. Before an applicable
     /// receipt, the relationship is unknown. A received dismount does not prove
     /// default stationary motion or authorize a ground operation.

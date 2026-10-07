@@ -52,6 +52,12 @@ using the same remap/access-only development oracle; no game method bodies are
 copied. Source/output hashes and validation scope are recorded in the manifest
 and `docs/survival-standing-context.md`.
 
+`data/java_1_21_11/entity_dimensions*.json` contains factual default entity-type
+widths, heights and eye heights. The original `scripts/ExportEntityDimensions.java`
+reads them reflectively from the unmodified official 1.21.11 server using names
+from Mojang's published server mappings; no game code is copied. Hashes are in
+the source manifest; the scope is recorded in `docs/common-entities.md`.
+
 `docs/evidence/survival-mining-*20261002*` contains locally recorded packet,
 block/player observations and console diagnostics from an isolated official
 Java 1.21.11 server. The driver is original test-private code and invokes native

@@ -504,7 +504,7 @@ pub(super) fn read_pose(
         }
     }
 }
-fn skip_metadata(r: &mut Reader<'_>, kind: i32) -> anyhow::Result<bool> {
+pub(super) fn skip_metadata(r: &mut Reader<'_>, kind: i32) -> anyhow::Result<bool> {
     match kind {
         0 => {
             r.take(1)?;

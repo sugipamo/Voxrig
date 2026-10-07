@@ -5733,6 +5733,31 @@ impl Bot {
                         *self.oxygen_level.lock().await = oxygen_level_from_air_ticks(*air_ticks);
                     }
                 }
+                let health = match metadata.get(&8) {
+                    Some(MetadataValue::Float(health)) => Some(*health),
+                    _ => None,
+                };
+                // Index 8 is LivingEntity health in protocol 736. Read the kind
+                // first so no two locks are held at once.
+                let living = self
+                    .entities
+                    .read()
+                    .await
+                    .entities
+                    .get(&entity_id)
+                    .is_some_and(|entity| {
+                        matches!(
+                            entity.kind,
+                            crate::EntityKind::Living | crate::EntityKind::Player
+                        )
+                    });
+                if let (true, Some(health)) = (living, health) {
+                    self.common_receipts.lock().await.entities.receive_health(
+                        entity_id,
+                        health,
+                        packet_sequence,
+                    );
+                }
                 if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
                     entity.metadata.extend(metadata);
                     self.emit(Event::EntityUpdated(entity.clone()));
@@ -5785,6 +5810,22 @@ impl Bot {
                     equipment.push(((raw_slot & 0x7f) as i8, read_slot(&mut rest)?));
                     if raw_slot & 0x80 == 0 {
                         break;
+                    }
+                }
+                {
+                    let mut receipts = self.common_receipts.lock().await;
+                    for (slot, stack) in &equipment {
+                        let Some(slot) = crate::client::EquipmentSlot::from_native(
+                            crate::MinecraftVersion::Java1_16_1,
+                            *slot as u8,
+                        ) else {
+                            continue;
+                        };
+                        let item = crate::client::legacy_slot(stack.as_ref())
+                            .unwrap_or(crate::client::SlotKnowledge::Unavailable);
+                        receipts
+                            .entities
+                            .receive_equipment(entity_id, slot, item, packet_sequence);
                     }
                 }
                 if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {

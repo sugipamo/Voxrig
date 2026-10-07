@@ -1531,6 +1531,15 @@ impl crate::client::adapter::CoreOps for Operations {
             .entities
             .capture_motion(player.session, target, state.sequence)
     }
+    async fn entities(&self) -> Result<crate::client::EntitiesObservation> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        Ok(state.entities.capture_all(
+            crate::MinecraftVersion::Java1_21_11,
+            player.session,
+            state.sequence,
+        ))
+    }
     async fn vehicle_state(&self) -> Result<crate::client::VehicleObservation> {
         let state = self.bot.session.state.lock().await;
         let player = self.common_player_unlocked(&state)?;

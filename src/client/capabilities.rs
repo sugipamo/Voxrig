@@ -99,6 +99,10 @@ pub enum Feature {
     Waits,
     /// Cursor-read change notifications, bounded to the latest 4096 per connection.
     Events,
+    /// Block search and collision raycasts over one capture.
+    BlockQueries,
+    /// Current received entity motion, health, equipment and default bounding boxes.
+    EntityState,
     /// Received boss-bar ADD, partial updates and REMOVE.
     BossBars,
     /// Received scoreboard declarations, displays and entries.
@@ -148,6 +152,8 @@ impl Feature {
         Feature::Chat,
         Feature::Waits,
         Feature::Events,
+        Feature::BlockQueries,
+        Feature::EntityState,
         Feature::BossBars,
         Feature::Scoreboard,
         Feature::ClientManagement,
@@ -285,6 +291,14 @@ impl Capabilities {
             Feature::DisplayObservation => restricted(
                 "received titles, tab header/footer and world border fields",
                 "docs/common-ui-display.md",
+            ),
+            Feature::BlockQueries => restricted(
+                "name search and collision-shape raycasts up to 32 blocks; unloaded cells reported",
+                "docs/common-blocks.md",
+            ),
+            Feature::EntityState => restricted(
+                "received health and equipment; boxes use default type dimensions only",
+                "docs/common-entities.md",
             ),
             Feature::Chat => restricted(
                 "unsigned chat and commands; last 256 received messages in native encoding",

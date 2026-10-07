@@ -63,6 +63,7 @@ pub(crate) trait CoreOps {
     async fn respawn(&self) -> Result<RespawnRecord>;
     async fn entity_spawns(&self) -> Result<EntitySpawns>;
     async fn entity_motion(&self, target: EntityId) -> Result<EntityMotionObservation>;
+    async fn entities(&self) -> Result<super::EntitiesObservation>;
     async fn vehicle_state(&self) -> Result<VehicleObservation>;
     async fn screen_state(&self) -> Result<ScreenObservation>;
     async fn capture(&self, region: Region) -> Result<Capture>;

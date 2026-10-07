@@ -15,6 +15,8 @@
 - [共通chat・command](common-chat.md)
 - [共通の待機API](common-waits.md)
 - [共通のchange通知（event）](common-events.md)
+- [共通のblock検索とraycast](common-blocks.md)
+- [共通のentity現在状態](common-entities.md)
 - [共通event streamの設計メモ](event-stream-design.md)
 - [Client共通化のロードマップ・現在地](client-unification.md)
 - [公開client APIの設計](public-client-api.md)

@@ -104,13 +104,13 @@ trait objectは使わない（`async fn`を`dyn`にするとbox化とSend境界�
 | --- | --- | --- | --- | --- |
 | 領域のblock観測 | ◎ | `observe_region` `capture` | `observe_region_snapshot` | `observe_region` |
 | registry（静的・server受信） | ◎ | `registry` `server_registry_state` | | |
-| block検索・geometry query | ▲ | — | `query_loaded_blocks` `query_geometry` `capture_loaded_geometry` | なし |
+| block検索・geometry query | ○ | `find_blocks`（[block検索](common-blocks.md)）。geometry queryは未共通化 | `query_loaded_blocks` `query_geometry` `capture_loaded_geometry` | なし |
 | 一貫観測（light・時間・entity同時） | ▲ | — | `capture_coherent_observation` | light配列は検証のみで保持しない |
 | chunk待機・block変化待機 | ◎ | `wait_for_loaded` `wait_for_block` `wait_for_receive`（[待機API](common-waits.md)） | `wait_for_chunk(s)` `wait_for_block_*` | |
 | ピストン・隣接更新の再構成 | △ | — | なし | `observe_client_region` |
 | block NBT・entity NBT query | ▲ | — | `query_block_nbt` `query_entity_nbt` | なし |
 | map・tag・command tree | ▲ | — | `maps_snapshot` `tags_snapshot` `command_tree_snapshot` | なし |
-| raycast（block・entity） | ○ | `target_block`（静的outlineのみ） | `raycast_blocks` `raycast_entities` `can_see_*` | `observe_player_target` |
+| raycast（block・entity） | ○ | blockは`raycast_blocks`（衝突形状）と`target_block`（outline）。entityは未共通化 | `raycast_blocks` `raycast_entities` `can_see_*` | `observe_player_target` |
 
 ### 自身の状態
 
@@ -127,7 +127,7 @@ trait objectは使わない（`async fn`を`dyn`にするとbox化とSend境界�
 | --- | --- | --- | --- | --- |
 | spawn/despawn一覧 | ◎ | `entity_spawns` | | |
 | 受信motion | ◎ | `entity_motion` | | |
-| metadata・装備・hitbox・体力 | ▲ | — | `entities` `entity` (`EntityState`) | なし |
+| metadata・装備・hitbox・体力 | ◎ | `entities()`（体力・装備・既定の箱。[entity現在状態](common-entities.md)）。その他のmetadataは未共通化 | `entities` `entity` (`EntityState`) | |
 | 他playerの観測 | ○ | — | `entities` | `visible_players` |
 | interact・attack | ◎ | `Survival::interact_entity` `attack_entity` | | |
 | 位置指定interact | ▲ | — | `interact_entity_at` | なし |
@@ -176,8 +176,8 @@ trait objectは使わない（`async fn`を`dyn`にするとbox化とSend境界�
 
 1. ✅ **event streamと待機API**: 待機API（`WaitOps`）とchange通知（`EventOps`）。両版の実サーバーで確認済み。
 2. ✅ **chat送受信・command**: `ChatOps`で共通化し、両版の実サーバーで確認した。
-3. **entityの現在状態**（metadata・装備・hitbox・他player）: 1.21.11で受信しているが捨てているpacketが多い。
-4. **block検索・geometry query・raycast**: 共通の`Capture`上に版非依存で実装できる。
+3. ✅ **entityの現在状態**: 体力・装備・既定の箱（両版の実サーバーで確認）。他のmetadataは未対応。
+4. ✅ **block検索・raycast**: `find_blocks`・`raycast_blocks`（両版の実サーバーで確認）。entityへのraycastとgeometry queryは未対応。
 5. **汎用物理（`set_control`）**: 1.21.11の物理を乾いた地形以外へ広げる。最も大きい作業。
 6. **特殊container**（取引・エンチャント・金床など）と編集系。
 
