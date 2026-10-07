@@ -21,7 +21,7 @@ closeのcomplete dispatchとactual replyは[共通container close](common-contai
 close後も同じ`swap_hotbar`を使えます。actual received windowと明示的なlocal UIを分ける
 `player_screen` / `player_screen_revision`は[共通プレイヤー画面](common-player-screen.md)を参照してください。
 下記の追加検査契約は
-`Client::checked_survival()`または`Client::survival().checked()?`で明示的に選ぶ1.21.11用の拡張です。
+`client.java_1_21_11()?.checked_survival()`で明示的に選ぶ1.21.11用の拡張です。
 
 
 2026-10-03。deepplanning、minetool、DustRouteの改良をVoxrigへ集約する際の設計正本。
@@ -43,11 +43,11 @@ package名は`voxrig`、Rust crate名も`voxrig`とする。公開APIを再設�
 - `versions::java_1_16_1`と`versions::java_1_21_11`は版別の型・registry・操作・保証。
   1.21.11は1.16.1の全機能を持つとは扱わない。版依存のIDやinventory形式を共通型へ丸めない。
 - `Bot`/`BotManager`とrootの互換importは1.16.1へ固定する。
-- `Client::survival_capabilities()`と`checked_survival::SurvivalCapabilities::for_version()`は
-  接続前にも確認できる静的な対応契約。`Client::checked_survival()`はセッションに結び付いた検査付き操作を返す。
+- `checked::SurvivalCapabilities::for_version()`は
+  接続前にも確認できる静的な対応契約。`client.java_1_21_11()?.checked_survival()`はセッションに結び付いた検査付き操作を返す。
   現在は1.21.11の`ObservedDryCubeV1`と明示的に選ぶ`PredictedDryCubeV1`で、
   1.16.1はI/O前に`Unsupported`を返す。
-  対応情報は現在の操作許可ではない。`checked_survival`の型は現在のnative 1.21.11表現を共有し、
+  対応情報は現在の操作許可ではない。`java_1_21_11::checked`の型は現在のnative 1.21.11表現を共有し、
   他版で同じ意味を持つとは約束しない。従来の`survival::SurvivalState`は1.16.1用として維持する。
 - 1.16.1の`lifecycle`、`observation`、`operation`は汎用controllerのための公開API。
   同じ名前の型が存在しても、1.21.11の接続に同じ保証があるとは推論しない。

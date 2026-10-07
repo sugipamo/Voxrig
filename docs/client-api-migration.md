@@ -168,8 +168,8 @@ stackを上限までまとめます。player windowでは収納可能なoffhand�
 ## 検査付きサバイバル入口と追加の互換性変更
 
 版固有の1.21.11操作APIは共存します。対応するサバイバル操作は
-`Client::checked_survival()`から取得し、型を`voxrig::client::survival::checked`からimportできます。
-`survival_capabilities()`は静的な対応情報で、実行時の状態・権限確認は各呼出しに残ります。
+`client.java_1_21_11()?.checked_survival()`から取得し、型を`voxrig::versions::java_1_21_11::checked`からimportします。
+`checked::SurvivalCapabilities::for_version(version)`は静的な対応情報で、実行時の状態・権限確認は各呼出しに残ります。
 1.16.1にはこの契約を適用できず、従来の`Bot`と`survival`モジュールを使います。
 
 | 型・入口 | 今回の変更と利用側の対応 |
@@ -259,8 +259,13 @@ DustRoute: native observation、piston/recovery、照準、配置・除去・取
 | rootの1.16.1型（`voxrig::Bot`、`voxrig::BotManager`、`voxrig::Event`等） | `voxrig::versions::java_1_16_1::…`。rootには共通API（`Client`、`ConnectionConfig`、`Region`、`MinecraftVersion`、`Error`等）だけを残す |
 | `voxrig::client::{Bot, Event, Player, ConnectionOptions}` | 版固有APIを使い続ける場合は`voxrig::versions::java_1_16_1`からimport |
 | `ConnectionConfig.limits: ConnectionOptions` | `ClientLimits`。共通の4 timeoutとmax_chunksのみ。版固有設定はBot APIに残る |
-| `client.survival()?`の検査付き操作 | `client.survival().checked()?`または`client.checked_survival()?`。既存の制約・証拠は維持 |
-| `voxrig::checked_survival` | canonicalは`voxrig::client::survival::checked`。旧pathはaliasとして維持 |
+| `client.survival().checked()?` / `client.checked_survival()?` | `client.java_1_21_11()?.checked_survival()`。既存の制約・証拠は維持 |
+| `voxrig::checked_survival` / `voxrig::client::survival::checked` | `voxrig::versions::java_1_21_11::checked`。aliasは削除 |
+| `client.survival_capabilities()` | `voxrig::versions::java_1_21_11::checked::SurvivalCapabilities::for_version(client.version())` |
+| `Feature::CheckedSurvival` | 削除。共通の能力表は版をまたぐ機能だけを扱う |
+| `client.java_1_21_11_operations()?` | `client.java_1_21_11()?.operations()` |
+| `client.observe_client_region(r)` / `observe_shared_client_region(r)` | `client.java_1_21_11()?.observe_client_region(r)` 等 |
+| `client.interact_block(pos, face)`（モード検査なし） | 共通では`client.survival()` / `client.creative()`の操作。生の送信は`client.java_1_21_11()?.interact_block`、1.16.1は`client.java_1_16_1()?.place_block` |
 | modern/checkedの`SurvivalInput` / `SurvivalControl` / `PredictedMotionFrame` / `TerminalClearance` | canonicalは`voxrig::client::survival`。従来importも同じ型をre-exportする |
 | finite `start_predicted_survival_path` / `survival_motion` | 共通は`client.survival().start_predicted_path` / `motion_record`。`MotionRecord`を保持し、prediction契約・取消後のowner・before-I/O intentを両版で維持 |
 | read-only `preview_survival_path` | 共通では`client.survival().preview_path`。両版で`MotionPreview`を返す。追加checked契約の戻り値とは区別 |

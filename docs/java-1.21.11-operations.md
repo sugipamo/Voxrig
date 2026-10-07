@@ -1,11 +1,11 @@
 # Java 1.21.11 construction operations
 
-`Client::java_1_21_11_operations()` returns a version-specific operations handle.
+`client.java_1_21_11()?.operations()` returns a version-specific operations handle.
 The existing Java 1.16.1 Bot API remains available. No protocol IDs or item IDs
 are shared implicitly across versions.
 
-For checked survival operations, `Client::checked_survival()` provides the common
-entry point and `checked_survival` exposes the current native contract types.
+For checked survival operations, `client.java_1_21_11()?.checked_survival()` provides the common
+entry point and `versions::java_1_21_11::checked` exposes the current native contract types.
 Static capability discovery does not grant current action admission. The checked
 handle shares the native guards/history and offers no creative commands or raw
 packet sending. Explicit mining retirement returns a resumable in-process handle

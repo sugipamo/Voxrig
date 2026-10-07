@@ -1,10 +1,10 @@
 //! Public read-only boundary; no connection or private received state.
 use std::collections::BTreeMap;
-use voxrig::checked_survival::{
+use voxrig::versions::java_1_16_1::BlockFace;
+use voxrig::versions::java_1_21_11::checked::{
     AssumedSurvivalScene, AssumedSurvivalStart, HypotheticalSceneSource, SurvivalControl,
     SurvivalInput, SurvivalMotionContract, TerminalClearance,
 };
-use voxrig::versions::java_1_16_1::BlockFace;
 use voxrig::{NativeBlockState, Region};
 fn block(name: &str) -> NativeBlockState {
     NativeBlockState {

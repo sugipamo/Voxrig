@@ -51,7 +51,7 @@ async fn main() -> Result<()> {
 > [!IMPORTANT]
 > 従来の `Bot` / `BotManager` とcrate rootの操作型は1.16.1専用です。
 > 1.21.11は領域観測・記録・照準・remote player観測に対応し、
-> `Client::java_1_21_11_operations()`で限定的なクリエイティブ移動・inventory・設置・除去を扱います。
+> `client.java_1_21_11()?.operations()`で限定的なクリエイティブ移動・inventory・設置・除去を扱います。
 > `observe_client_region` には、通常・粘着ピストンの移動中状態と階段形状を扱う
 > [限定的なクライアント更新機構](docs/client-piston-reconstruction.md)があります。
 > 受信状態と計算結果を分けて公開し、不足する処理・情報は明示します。
@@ -60,7 +60,7 @@ async fn main() -> Result<()> {
 > [静止した通常立位の接地判定と自身の受信状態](docs/survival-standing-context.md)も提供します。
 > さらに限定的な[通常採掘](docs/survival-mining.md)、[配置](docs/survival-placement.md)、
 > [歩行・ジャンプ制御](docs/survival-motion-controls.md)があります。
-> `Client::checked_survival()`で検査付きの操作を選び、`survival_capabilities()`で版ごとの対応を確認できます。
+> `client.java_1_21_11()?.checked_survival()`で検査付きの操作を選び、`SurvivalCapabilities::for_version()`で版ごとの対応を確認できます。
 > [公開契約](docs/survival-api.md)は経路・権限・永続jobを利用側へ残します。
 > 移動後の立位は予測と別接続の観測を区別します。明示的な[予測契約](docs/survival-predicted-motion.md)では
 > observerなしでmodel終点を使えますが、実測位置や物理誤差の保証ではありません。

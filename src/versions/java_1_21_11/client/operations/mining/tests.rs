@@ -845,11 +845,13 @@ async fn retirement_requires_exact_post_watch_receipt_and_local_closure() {
     let intent = miner.start().await;
     let mut observer = Fixture::new_id(43).await;
     let source = crate::Client::from_java_1_21_11(miner.api.bot.clone())
-        .checked_survival()
-        .unwrap();
+        .java_1_21_11()
+        .unwrap()
+        .checked_survival();
     let independent = crate::Client::from_java_1_21_11(observer.api.bot.clone())
-        .checked_survival()
-        .unwrap();
+        .java_1_21_11()
+        .unwrap()
+        .checked_survival();
     assert!(
         source
             .prepare_mining_retirement(&intent, &source)
@@ -1004,11 +1006,13 @@ async fn cancelled_recovery_login_retains_attempt_and_refuses_another_connection
     let intent = miner.start().await;
     observer.profile(42).await;
     let source = crate::Client::from_java_1_21_11(miner.api.bot.clone())
-        .checked_survival()
-        .unwrap();
+        .java_1_21_11()
+        .unwrap()
+        .checked_survival();
     let independent = crate::Client::from_java_1_21_11(observer.api.bot.clone())
-        .checked_survival()
-        .unwrap();
+        .java_1_21_11()
+        .unwrap()
+        .checked_survival();
     let retirement = source
         .prepare_mining_retirement(&intent, &independent)
         .await

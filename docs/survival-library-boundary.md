@@ -64,7 +64,7 @@ passed with independent endpoint and placement observations, exact hypothetical
 frames/cursor/target, one dirt consumed and an exact final region. See
 [evidence and all attempts](evidence/survival-edge-20261002-source.json).
 
-`Client::checked_survival()` now selects the checked contract; `checked_survival`
+`client.java_1_21_11()?.checked_survival()` now selects the checked contract; `checked_survival`
 provides its public data and operation surface. The existing legacy `survival`
 module and 1.16.1 API remain intact. Capability discovery is static and explicitly
 refuses that adapter's use of the new contract. The new `MiningRetirement` handle

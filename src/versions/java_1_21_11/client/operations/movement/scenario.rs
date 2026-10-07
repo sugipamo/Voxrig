@@ -210,7 +210,7 @@ impl HypotheticalSceneSource {
 
 /// Validated read-only assumptions, deliberately incompatible with live validation.
 /// ```compile_fail
-/// use voxrig::checked_survival::{Operations, AssumedSurvivalScene};
+/// use voxrig::versions::java_1_21_11::checked::{Operations, AssumedSurvivalScene};
 /// async fn cannot_validate(api: &Operations, scene: &AssumedSurvivalScene) {
 ///     api.validate_survival_scene(scene).await.unwrap();
 /// }

@@ -346,8 +346,8 @@ loaded/reachable targetへのcreative break/use-on-blockを実装する。
 直前のowned飛行stepで既知のdry floorへ戻った後は`land()`から新しい有限地上移動・収納へ継続できる。
 着地は正常なstanding・通常attribute・effect／未解決impulseなしに限定し、明示的なlocal stop modelを保持する。
 一般飛行の衝突解決や設置成功の保証ではない。
-Survivalの追加検査契約は`Client::survival().checked()?`または`Client::checked_survival()`で明示的に選ぶ。
-canonical moduleは`client::survival::checked`、旧`checked_survival`は互換alias。
+Survivalの追加検査契約は`client.java_1_21_11()?.checked_survival()`で明示的に選ぶ。
+moduleは`versions::java_1_21_11::checked`（旧`checked_survival`・`client::survival::checked`は削除）。
 この拡張は現時点で1.21.11専用で、基本共通handleと機能parityを混同しない。
 `client::survival::{SurvivalInput, SurvivalControl, PredictedMotionFrame, TerminalClearance}`は
 共通側が所有する。従来のmodern/checked importは同じ型をre-exportする。

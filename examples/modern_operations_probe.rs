@@ -15,7 +15,7 @@ async fn observe(
         max: [100, 181, 100],
     };
     for _ in 0..80 {
-        let view = client.observe_client_region(region).await?;
+        let view = client.java_1_21_11()?.observe_client_region(region).await?;
         anyhow::ensure!(
             view.issue.is_none(),
             "incomplete observation: {:?}",
@@ -57,7 +57,7 @@ async fn main() -> anyhow::Result<()> {
     .await??;
     anyhow::ensure!(count > 0, "closed stdin");
     tokio::time::sleep(Duration::from_secs(2)).await;
-    let operations = client.java_1_21_11_operations()?;
+    let operations = client.java_1_21_11()?.operations();
     let before = operations.player_state().await?;
     let initial = observe(&client, "minecraft:air").await?;
     client.start_packet_trace(4_194_304).await?;

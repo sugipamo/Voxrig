@@ -85,7 +85,7 @@ async fn native_survival_mining_api_finish_abort_and_disconnect() {
 #[tokio::test]
 #[ignore = "requires isolated vanilla 1.21.11 non-OP fixture and explicit console controller"]
 async fn native_survival_same_profile_mining_recovery() {
-    use crate::checked_survival::{
+    use crate::versions::java_1_21_11::checked::{
         MiningRecoveryBoundary, MiningRecoveryTarget, MiningStatus, PlacementStatus,
     };
     use std::io::{Seek, Write};
@@ -117,8 +117,9 @@ async fn native_survival_same_profile_mining_recovery() {
         // Fixture writes precede the case, not a production readiness/retirement fence.
         tokio::time::sleep(Duration::from_millis(500)).await;
         let source = crate::Client::from_java_1_21_11(bot.clone())
-            .checked_survival()
-            .unwrap();
+            .java_1_21_11()
+            .unwrap()
+            .checked_survival();
         source.select_hotbar(1).await.unwrap();
         source.look([-90.0, 3.0]).await.unwrap();
         bot.start_packet_trace(8_388_608).await.unwrap();
@@ -301,7 +302,13 @@ async fn native_survival_same_profile_mining_recovery() {
         serde_json::to_writer(&mut file,&json!({"minecraft_version":"Java 1.21.11","all_cases_executed":cases.len()==3,"observer_role":"independent test comparison only; no production retirement watch","cases":cases})).unwrap();
         file.flush().unwrap();
         println!("PROFILE_CASE_VERIFIED {name}");
-        bot = fresh.client.java_1_21_11_operations().unwrap().bot.clone();
+        bot = fresh
+            .client
+            .java_1_21_11()
+            .unwrap()
+            .operations()
+            .bot
+            .clone();
     }
     bot.disconnect().await.unwrap();
     viewer.disconnect().await.unwrap();

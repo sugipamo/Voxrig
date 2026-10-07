@@ -1,5 +1,5 @@
 use super::*;
-use crate::checked_survival::MiningRecoveryTarget;
+use crate::versions::java_1_21_11::checked::MiningRecoveryTarget;
 
 #[tokio::test]
 async fn profile_recovery_requires_original_closed_source_before_any_login() {
@@ -17,8 +17,9 @@ async fn profile_recovery_requires_original_closed_source_before_any_login() {
         .server = endpoint.clone();
     let intent = miner.start().await;
     let source = crate::Client::from_java_1_21_11(miner.api.bot.clone())
-        .checked_survival()
-        .unwrap();
+        .java_1_21_11()
+        .unwrap()
+        .checked_survival();
     let recovery = source
         .prepare_mining_profile_recovery(&intent)
         .await
@@ -104,11 +105,13 @@ async fn profile_recovery_cancelled_login_blocks_clones_and_independent_method()
     let intent = miner.start().await;
     observer.profile(42).await;
     let source = crate::Client::from_java_1_21_11(miner.api.bot.clone())
-        .checked_survival()
-        .unwrap();
+        .java_1_21_11()
+        .unwrap()
+        .checked_survival();
     let independent = crate::Client::from_java_1_21_11(observer.api.bot.clone())
-        .checked_survival()
-        .unwrap();
+        .java_1_21_11()
+        .unwrap()
+        .checked_survival();
     let observed_recovery = source
         .prepare_mining_retirement(&intent, &independent)
         .await
@@ -179,8 +182,9 @@ async fn profile_recovery_cannot_retry_an_independent_login_attempt() {
     let mut miner = Fixture::new().await;
     let intent = miner.start().await;
     let source = crate::Client::from_java_1_21_11(miner.api.bot.clone())
-        .checked_survival()
-        .unwrap();
+        .java_1_21_11()
+        .unwrap()
+        .checked_survival();
     let recovery = source
         .prepare_mining_profile_recovery(&intent)
         .await

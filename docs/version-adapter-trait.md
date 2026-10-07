@@ -198,6 +198,6 @@ trait objectは使わない（`async fn`を`dyn`にするとbox化とSend境界�
 
 1. ✅ `VersionAdapter` traitと`dispatch!`の導入（挙動は不変、全test通過）。
 2. ✅ crate rootの整理: 1.16.1型のglob再exportを外し、`voxrig::prelude`を共通APIへ切り替える。
-3. 版固有機能を`Client::native()`へ移す。
+3. ✅ 版固有機能を`Client::native()`へ移す（`checked_survival`は`versions::java_1_21_11::checked`へ移設し、`Client`・`Survival`からの入口と`Feature::CheckedSurvival`を削除）。
 4. `VersionAdapter`の分割と、転送層の除去。
 5. 上記の優先順位で差分を埋める。

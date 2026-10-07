@@ -1,6 +1,6 @@
 # Read-only assumed survival scenes
 
-`checked_survival::AssumedSurvivalScene::new(region, blocks, start)` admits
+`java_1_21_11::checked::AssumedSurvivalScene::new(region, blocks, start)` admits
 caller-supplied geometry for the same Java 1.21.11 dry-cube model as captured
 scenes. It performs no network I/O and never constructs `StandingContext`.
 

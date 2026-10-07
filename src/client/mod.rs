@@ -28,7 +28,7 @@ pub use furnace::{FurnaceObservation, FurnaceSlot};
 pub mod manager;
 pub use manager::ClientManager;
 pub mod nbt;
-mod observation;
+pub(crate) mod observation;
 pub(crate) mod operations;
 pub(crate) mod profile;
 mod received_items;

@@ -1,4 +1,6 @@
-//! Additional bounded checked-survival contract selected from the client's immutable version adapter.
+//! Java 1.21.11's audited dry-cube survival contract, reached through
+//! `client.java_1_21_11()?.checked_survival()`. The common `Client::survival()`
+//! handle is the cross-version API; this module is a version-native extension.
 //!
 //! Capability discovery describes implemented semantics, never current readiness,
 //! permission, observation freshness, or authority to replay a serialized plan.
@@ -10,9 +12,14 @@
 //! ```
 //! let _: Option<voxrig::versions::java_1_16_1::survival::SurvivalState> = None;
 //! ```
-//! Creative/command shortcuts are not part of this surface:
+//! Survival controls are reachable; creative/command shortcuts are not:
+//! ```no_run
+//! async fn look(ops: &voxrig::versions::java_1_21_11::checked::Operations) {
+//!     ops.look([0.0, 0.0]).await.unwrap();
+//! }
+//! ```
 //! ```compile_fail
-//! async fn bypass(ops: &voxrig::client::survival::checked::Operations) {
+//! async fn bypass(ops: &voxrig::versions::java_1_21_11::checked::Operations) {
 //!     ops.send_command("setblock 0 0 0 stone").await.unwrap();
 //! }
 //! ```
@@ -20,14 +27,14 @@
 //! Route selection, building designs, resource reservations and durable jobs
 //! belong to the caller. This surface exposes no commands or creative controls.
 
-pub use super::{
+pub use crate::client::survival::{
     MAX_SURVIVAL_CONTROL_TICKS, PredictedMotionFrame, SurvivalControl, SurvivalInput,
     TerminalClearance,
 };
 /// Diagnostic-only projections; persisted data never restores checked authority.
 pub mod diagnostic;
 
-use crate::versions::java_1_21_11::operations as native;
+use super::operations as native;
 use crate::{
     BlockFace, Client, ConnectionConfig, MinecraftVersion, NativeBlockState, Region, Result,
 };
@@ -102,18 +109,10 @@ pub struct Operations {
     client: Client,
     native: native::Operations,
 }
-impl Client {
-    /// Static adapter capabilities; no I/O and no current-state admission.
-    pub fn survival_capabilities(&self) -> SurvivalCapabilities {
-        SurvivalCapabilities::for_version(self.version())
-    }
-    /// Select checked survival semantics, refusing unsupported versions before I/O.
-    /// The legacy version-specific API continues to coexist.
-    pub fn checked_survival(&self) -> Result<Operations> {
-        Ok(Operations {
-            client: self.clone(),
-            native: self.java_1_21_11_operations()?,
-        })
+impl Operations {
+    /// Bind checked operations to a Java 1.21.11 client.
+    pub(crate) fn new(client: Client, native: native::Operations) -> Self {
+        Self { client, native }
     }
 }
 impl Operations {
@@ -124,7 +123,7 @@ impl Operations {
     }
     /// Contract and version of this handle; not permission to perform an action.
     pub fn capabilities(&self) -> SurvivalCapabilities {
-        self.client.survival_capabilities()
+        SurvivalCapabilities::for_version(self.client.version())
     }
     /// Inspect received player state; unavailable values remain explicit.
     pub async fn player_state(&self) -> Result<PlayerState> {
@@ -382,7 +381,7 @@ impl MiningProfileRecovery {
             .await?;
         let client = recovered.client();
         Ok(RecoveredSurvivalClient {
-            operations: client.checked_survival()?,
+            operations: client.java_1_21_11()?.checked_survival(),
             client,
             evidence: recovered.evidence,
         })
@@ -440,7 +439,7 @@ impl MiningRetirement {
             .reconnect_survival_mining(&self.watch, &self.observer.native, config, expected_target)
             .await?;
         let client = recovered.client();
-        let operations = client.checked_survival()?;
+        let operations = client.java_1_21_11()?.checked_survival();
         Ok(RecoveredSurvivalClient {
             client,
             operations,

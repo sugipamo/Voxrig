@@ -7,19 +7,19 @@
 //! Native inputs remain non-deserializable:
 //! ```compile_fail
 //! fn restore<'de, T: serde::Deserialize<'de>>() {}
-//! restore::<voxrig::checked_survival::MiningIntent>();
+//! restore::<voxrig::versions::java_1_21_11::checked::MiningIntent>();
 //! ```
 //! ```compile_fail
 //! fn restore<'de, T: serde::Deserialize<'de>>() {}
-//! restore::<voxrig::checked_survival::PlacementIntent>();
+//! restore::<voxrig::versions::java_1_21_11::checked::PlacementIntent>();
 //! ```
 //! ```compile_fail
 //! fn restore<'de, T: serde::Deserialize<'de>>() {}
-//! restore::<voxrig::checked_survival::StandingContext>();
+//! restore::<voxrig::versions::java_1_21_11::checked::StandingContext>();
 //! ```
 //! ```compile_fail
 //! fn restore<'de, T: serde::Deserialize<'de>>() {}
-//! restore::<voxrig::checked_survival::HypotheticalMovementPreview>();
+//! restore::<voxrig::versions::java_1_21_11::checked::HypotheticalMovementPreview>();
 //! ```
 //! ```compile_fail
 //! fn restore<'de, T: serde::Deserialize<'de>>() {}
@@ -27,7 +27,7 @@
 //! ```
 //! ```compile_fail
 //! fn restore<'de, T: serde::Deserialize<'de>>() {}
-//! restore::<voxrig::checked_survival::SurvivalMotionRecord>();
+//! restore::<voxrig::versions::java_1_21_11::checked::SurvivalMotionRecord>();
 //! ```
 //! Validated registry identities are also projected into facts, never restored:
 //! ```compile_fail
@@ -36,16 +36,16 @@
 //! ```
 //! ```compile_fail
 //! use voxrig::client::registry::RegistryId;
-//! use voxrig::checked_survival::diagnostic::RecordedRegistryId;
+//! use voxrig::versions::java_1_21_11::checked::diagnostic::RecordedRegistryId;
 //! fn promote(record: RecordedRegistryId) -> RegistryId { record.into() }
 //! ```
 //! A deserialized record cannot be passed back as a live intent:
 //! ```compile_fail
-//! use voxrig::checked_survival::{MiningIntent, diagnostic::RecordedMiningIntent};
+//! use voxrig::versions::java_1_21_11::checked::{MiningIntent, diagnostic::RecordedMiningIntent};
 //! fn promote(record: RecordedMiningIntent) -> MiningIntent { record.into() }
 //! ```
 //! ```compile_fail
-//! use voxrig::checked_survival::{StandingContext, diagnostic::RecordedStandingContext};
+//! use voxrig::versions::java_1_21_11::checked::{StandingContext, diagnostic::RecordedStandingContext};
 //! fn promote(record: RecordedStandingContext) -> StandingContext { record.into() }
 //! ```
 pub use super::{SurvivalCapabilities, SurvivalContract};
@@ -168,7 +168,7 @@ mod tests {
 
     #[test]
     fn cancelled_mining_facts_roundtrip_without_recategorizing_the_outcome() {
-        use crate::checked_survival::{MiningIntent, MiningRecord, MiningStatus};
+        use crate::versions::java_1_21_11::checked::{MiningIntent, MiningRecord, MiningStatus};
         let intent = MiningIntent {
             connection_id: 9,
             after_sequence: 12,

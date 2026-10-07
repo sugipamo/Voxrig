@@ -162,6 +162,24 @@ pub(crate) enum Adapter {
     Java1_21_11(crate::versions::java_1_21_11::Bot),
 }
 
+/// Version-specific access returned by [`Client::native`].
+pub enum Native<'a> {
+    /// The established Java 1.16.1 API.
+    Java1_16_1(&'a legacy::Bot),
+    /// Java 1.21.11 reconstruction, unrestricted operations and the checked contract.
+    Java1_21_11(crate::versions::java_1_21_11::NativeClient),
+}
+
+fn wrong_version(expected: MinecraftVersion) -> Error {
+    Error::new(
+        ErrorKind::Unsupported,
+        anyhow::anyhow!(
+            "this client does not use the Java {} adapter",
+            expected.name()
+        ),
+    )
+}
+
 /// A client whose protocol, registry and behavior belong to one version adapter.
 #[derive(Clone)]
 pub struct Client {
@@ -506,44 +524,27 @@ impl Client {
             adapter: Adapter::Java1_21_11(bot),
         }
     }
-    /// Version-specific modern controls. The established 1.16.1 Bot API coexists.
-    pub fn java_1_21_11_operations(
-        &self,
-    ) -> Result<crate::versions::java_1_21_11::operations::Operations> {
+    /// Version-specific functionality outside the common API.
+    pub fn native(&self) -> Native<'_> {
         match &self.adapter {
-            Adapter::Java1_21_11(bot) => Ok(bot.operations()),
-            Adapter::Java1_16_1(_) => Err(Error::new(
-                ErrorKind::Unsupported,
-                anyhow::anyhow!("Java 1.21.11 operations require that version adapter"),
-            )),
+            Adapter::Java1_16_1(bot) => Native::Java1_16_1(bot),
+            Adapter::Java1_21_11(bot) => Native::Java1_21_11(
+                crate::versions::java_1_21_11::NativeClient::new(self.clone(), bot.clone()),
+            ),
         }
     }
-    /// Returns the Java 1.21.11 client reconstruction alongside the unchanged received cache.
-    /// Inspect both the typed issue and cell availability; this is not server confirmation.
-    pub async fn observe_client_region(
-        &self,
-        region: Region,
-    ) -> Result<crate::versions::java_1_21_11::reconstruction::ClientObservation> {
-        match &self.adapter {
-            Adapter::Java1_21_11(bot) => bot.observe_client_region(region).await,
-            Adapter::Java1_16_1(_) => Err(Error::new(
-                ErrorKind::Unsupported,
-                anyhow::anyhow!("client piston reconstruction is not implemented for Java 1.16.1"),
-            )),
+    /// The Java 1.16.1 `Bot`, or `Unsupported` for other versions.
+    pub fn java_1_16_1(&self) -> Result<&legacy::Bot> {
+        match self.native() {
+            Native::Java1_16_1(bot) => Ok(bot),
+            _ => Err(wrong_version(MinecraftVersion::Java1_16_1)),
         }
     }
-    /// Shares immutable region cells within one receive/reconstruction generation.
-    /// Every call still captures a new receive boundary and local frame.
-    pub async fn observe_shared_client_region(
-        &self,
-        region: Region,
-    ) -> Result<crate::versions::java_1_21_11::reconstruction::SharedClientRegion> {
-        match &self.adapter {
-            Adapter::Java1_21_11(bot) => bot.observe_shared_client_region(region).await,
-            Adapter::Java1_16_1(_) => Err(Error::new(
-                ErrorKind::Unsupported,
-                anyhow::anyhow!("client piston reconstruction is not implemented for Java 1.16.1"),
-            )),
+    /// The Java 1.21.11 native handle, or `Unsupported` for other versions.
+    pub fn java_1_21_11(&self) -> Result<crate::versions::java_1_21_11::NativeClient> {
+        match self.native() {
+            Native::Java1_21_11(native) => Ok(native),
+            _ => Err(wrong_version(MinecraftVersion::Java1_21_11)),
         }
     }
     /// Captures exact incoming packets for a bounded diagnostic interval on either version.
@@ -556,27 +557,6 @@ impl Client {
     /// Finish exact received evidence. Overflow and original ordinals are retained.
     pub async fn stop_packet_trace(&self) -> Result<crate::client::PacketTrace> {
         crate::client::dispatch!(&self.adapter, a => VersionAdapter::stop_packet_trace(a).await)
-    }
-
-    /// Sends an ordinary use-on-block interaction. Dispatch is not acceptance.
-    pub async fn interact_block(&self, position: [i32; 3], face: crate::BlockFace) -> Result<()> {
-        match &self.adapter {
-            Adapter::Java1_21_11(bot) => bot.interact_block(position, face).await,
-            Adapter::Java1_16_1(bot) => {
-                bot.place_block(
-                    legacy::Hand::Main,
-                    legacy::BlockPos {
-                        x: position[0],
-                        y: position[1],
-                        z: position[2],
-                    },
-                    face,
-                    [0.5; 3],
-                    false,
-                )
-                .await
-            }
-        }
     }
 
     /// Connects using only the selected version. Unsupported adapters fail before I/O.
@@ -789,8 +769,14 @@ mod tests {
             max: [0, 0, 0],
         };
         let one = Client::connect(config.clone()).await.unwrap();
-        assert_eq!(one.survival_capabilities().checked_contract, None);
-        assert!(matches!(one.checked_survival(), Err(e) if e.kind() == ErrorKind::Unsupported));
+        assert_eq!(
+            crate::versions::java_1_21_11::checked::SurvivalCapabilities::for_version(
+                one.version()
+            )
+            .checked_contract,
+            None
+        );
+        assert!(matches!(one.java_1_21_11(), Err(e) if e.kind() == ErrorKind::Unsupported));
         let identity = one.connection_identity().await.unwrap();
         assert_eq!(identity.uuid, [3; 16]);
         assert_eq!(identity.name, "Observe");

@@ -26,7 +26,7 @@ async fn main() -> anyhow::Result<()> {
         let failure = async {
             client.wait_until_ready().await?;
             for _ in 0..100 {
-                let sample = client.observe_client_region(region).await?;
+                let sample = client.java_1_21_11()?.observe_client_region(region).await?;
                 loaded |= sample.received.blocks.iter().all(|b| b.state.is_some());
                 restored |= sample.blocks.iter().any(|b| {
                     b.moving

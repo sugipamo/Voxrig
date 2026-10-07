@@ -1,6 +1,5 @@
 //! Survival-mode operations and explicitly restricted additional contracts.
 pub use super::Survival;
-pub mod checked;
 pub(crate) mod mining;
 pub(crate) mod mining_tools;
 pub use mining_tools::MiningEstimate;

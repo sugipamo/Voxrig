@@ -346,11 +346,6 @@ impl Survival {
             .execute(GameMode::Survival, Action::SelectHotbar(slot))
             .await
     }
-    /// Select the additional audited dry-cube contract, when implemented.
-    /// This remains an explicitly restricted extension, not general survival parity.
-    pub fn checked(&self) -> Result<crate::checked_survival::Operations> {
-        self.client.checked_survival()
-    }
 }
 impl Creative {
     /// Dispatch one interaction with an original received entity lifetime.

@@ -12,9 +12,9 @@
 //! received-result-checked survival inventory swaps, and bounded stationary
 //! standing contact with own-player state observations. Bounded survival mining,
 //! material-accounted placement and dry-cube walking/jump controls through
-//! [`Client::checked_survival`] use separate intent, dispatch, prediction and result evidence.
+//! [`versions::java_1_21_11::NativeClient::checked_survival`] use separate intent, dispatch, prediction and result evidence.
 //! Mining removal alone does not authorize another mutation, and motion is not
-//! server-confirmed rest. [`Client::observe_client_region`] additionally
+//! server-confirmed rest. [`versions::java_1_21_11::NativeClient::observe_client_region`] additionally
 //! reconstructs a bounded set of piston and neighbor effects, including independent
 //! moving carriers, while preserving the unchanged received-state view.
 //! Neither adapter's local cache is independent confirmation of server state.
@@ -47,8 +47,6 @@
 #![warn(missing_docs)]
 
 pub mod block_state;
-/// Compatibility path for the restricted checked contract.
-pub use client::survival::checked as checked_survival;
 pub mod client;
 pub mod connection;
 mod diagnostic_projection;
@@ -59,7 +57,7 @@ pub mod versions;
 
 // The established 1.16.1 API remains source-compatible and explicitly pinned.
 pub use block_state::NativeBlockState;
-pub use connection::{Client, ConnectionConfig, Observation, ObservedBlock, Region};
+pub use connection::{Client, ConnectionConfig, Native, Observation, ObservedBlock, Region};
 pub use error::{Error, ErrorKind, Result};
 pub use versions::MinecraftVersion;
 // Java 1.16.1 types stay reachable inside the crate by their historical root

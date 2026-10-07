@@ -63,11 +63,13 @@ async fn hand_change_is_latched_before_poll_and_survives_empty_and_air() {
     let mut observer = Fixture::new_id(43).await;
     observer.profile(42).await;
     let source = crate::Client::from_java_1_21_11(f.api.bot.clone())
-        .checked_survival()
-        .unwrap();
+        .java_1_21_11()
+        .unwrap()
+        .checked_survival();
     let independent = crate::Client::from_java_1_21_11(observer.api.bot.clone())
-        .checked_survival()
-        .unwrap();
+        .java_1_21_11()
+        .unwrap()
+        .checked_survival();
     let retirement = source
         .prepare_mining_retirement(&intent, &independent)
         .await

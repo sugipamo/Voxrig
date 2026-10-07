@@ -3,15 +3,15 @@
 Client共通化ブランチでは`Client::survival()` / `Client::creative()`を両版の共通入口とします。
 共通型・受信/予測を区別したcapture・版別registryと移行変更は
 [Client共通化](client-unification.md)を参照してください。下記の追加検査契約は
-`Client::checked_survival()`または`Client::survival().checked()?`で明示的に選ぶ1.21.11用の拡張です。
+`client.java_1_21_11()?.checked_survival()`で明示的に選ぶ1.21.11用の拡張です。
 
 
 ## バージョン別の入口
 
 - Java 1.16.1 / protocol 736: 従来の `Bot` API。以下の従来機能一覧はこの版のものです。
 - Java 1.21.11 / protocol 774: `Client` の明示的な版アダプタ。受信ブロック・プレイヤー・所持品、限定的なピストン再構成、通常操作、独立観測付きまたは明示的な予測契約の歩行とジャンプ、限定的な設置・採掘と接続回復に対応します。
-- `Client::checked_survival()` は [検査付きサバイバルAPI](survival-api.md) を選択します。現時点では1.21.11のみがこの契約を実装し、1.16.1には `Unsupported` を返します。従来APIの機能が同じ観測・検査契約を満たすとは扱いません。
-- 静的な対応状況は `survival_capabilities()` で取得できます。各操作の現在の可否は、その時点の受信状態と未解決操作から別途判定します。
+- `client.java_1_21_11()?.checked_survival()` は [検査付きサバイバルAPI](survival-api.md) を選択します。現時点では1.21.11のみがこの契約を実装し、1.16.1には `Unsupported` を返します。従来APIの機能が同じ観測・検査契約を満たすとは扱いません。
+- 静的な対応状況は `SurvivalCapabilities::for_version()` で取得できます。各操作の現在の可否は、その時点の受信状態と未解決操作から別途判定します。
 
 共通通常在庫では両版・両modeで`click_inventory`による取り出し・split・1個置く・結合・返却を
 実装します。監査済みstorage/player main/hotbarのdefault stackを対象とし、予測と実source/cursor受信を
