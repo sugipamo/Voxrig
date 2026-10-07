@@ -241,7 +241,10 @@ recipeの表現と実行を提供しますが、材料の再帰計算やresource
 
 - `interact_entity(...)`
 - `interact_entity_at(...)`
-- `attack(entity_id)`
+- `attack(entity_id)`：ローカルで計算した威力回復を待って送信する。
+- `attack_immediate(entity_id)`（Java 1.16.1）：威力回復を待たずに送信する。威力低下やserver拒否はあり得る。
+
+両APIは攻撃時刻を共有するため、即時攻撃の後の通常攻撃も回復を待つ。送信成功は命中・ノックバック・Mobの行動変更を保証しない。
 
 target、装備、接近、照準、戦術は利用側が決定します。
 
