@@ -16,6 +16,14 @@ legacyのdimension codecは個別entryも取得できる。新旧とも未受信
 両版のchest等7種類・全102storage stateを狙えるようになりましたが、採掘/設置の許可や
 共通container openの結果へ読み替えないでください。詳細は[狙い判定](common-survival-targeting.md)を参照。
 
+死亡後の要求は`Client::respawn().await?`に揃えます。現在worldの実healthが必要で、同worldへ再送しません。
+取消・失敗・切断後も同期`respawn_record()`で記録を確認できます。dispatch直後のReadyだけを使わず、
+実`received_spawn`と同じworldのfresh pose／正のhealth／inventoryを待ってから操作します。
+床より高いspawnは読み取り専用`preview_path()`で開始条件を待ち、released入力だけの有限
+`start_predicted_path()`で接地します。新版の空中開始にはowned実respawnとfreshゼロvelocityが必要です。
+予測終点・送信済み座標を実受信poseへ上書きせず、旧screen／entity／vehicle IDを再利用しません。
+詳細と検証範囲は[共通respawn](common-respawn.md)を参照。
+
 ## deepplanning派生版から
 
 共通の基本entity操作には、`Client::entity_spawns()`で受信した`EntityId`を渡す。

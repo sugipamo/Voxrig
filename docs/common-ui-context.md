@@ -19,7 +19,9 @@ field値と元のordinalを保持する。title-familyのlast updateはその保
 
 通常のrespawnはplay listener／server registry configurationを維持する別の境界。
 この実装はそこでglobal UIをresetせず、world-bound borderだけを新しいworld generationへ分ける。
-通常respawn・chunk欠測・再接続の広い実操作検証はB5の後続範囲に残す。
+通常死亡後の実respawn・fresh pose／health・接地・新しい収納操作でも、global UI／registryを保持し、
+全7観測の`context_reset_sequence == None`と別Clientの独立性を確認した。
+[共通respawn](common-respawn.md)を参照。chunk欠測・再接続と広いB5は後続範囲に残す。
 
 再設定中も読み取り専用getterは欠測・空の新contextと未完了registryを返す。
 `wait_until_ready()`と新しい実受信baselineを経るまで操作は許可しない。

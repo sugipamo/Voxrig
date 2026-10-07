@@ -1154,6 +1154,32 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
 }
 
 impl Operations {
+    pub(crate) async fn common_respawn(&self) -> Result<crate::client::RespawnRecord> {
+        let owned = self.clone();
+        tokio::spawn(async move {
+            let state = owned.bot.session.state.lock().await;
+            owned.ready(&state)?;
+            if state.phase != Phase::Play {
+                return Err(invalid("respawn requires play context"));
+            }
+            let player = owned.common_player_unlocked(&state)?;
+            crate::client::respawn::prepare(&owned.bot.respawn_history, &player)?;
+            let result = owned
+                .bot
+                .session
+                .send(ids::play_serverbound::CLIENT_COMMAND, &[0])
+                .await;
+            crate::client::respawn::dispatched(&owned.bot.respawn_history, &result);
+            result?;
+            Ok(
+                crate::client::respawn::snapshot(&owned.bot.respawn_history)
+                    .expect("owned respawn"),
+            )
+        })
+        .await
+        .map_err(|error| Error::from(anyhow::anyhow!("respawn owner failed: {error}")))?
+    }
+
     pub(crate) async fn execute_common(
         &self,
         mode: GameMode,

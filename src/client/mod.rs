@@ -31,6 +31,8 @@ pub(crate) mod operations;
 pub(crate) mod profile;
 mod received_items;
 pub mod recording;
+pub mod respawn;
+pub use respawn::{RespawnRecord, RespawnStage};
 pub mod registry;
 pub(crate) mod selector;
 pub(crate) mod selector_snbt;
@@ -136,7 +138,8 @@ pub mod prelude {
         RecipeCraftingCell, RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient,
         RecipePlacementAmount, RecipePlacementId, RecipePlacementPlan, RecipePlacementRecord,
         RecipePlacementSend, RecipePlacementStage, RecipeSlotDisplay, RecipeTrimDefinition,
-        RecipeTrimPattern, Server, Support, Survival, VehicleObservation, VehicleRelation,
+        RecipeTrimPattern, RespawnRecord, RespawnStage, Server, Support, Survival,
+        VehicleObservation, VehicleRelation,
     };
     pub use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Region, Result};
 }

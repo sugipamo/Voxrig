@@ -21,6 +21,8 @@ pub enum Support {
 pub enum Feature {
     /// Synchronous irreversible transport fencing independent of capture/writer locks.
     ConnectionRevocation,
+    /// One owned dead-player respawn request and separate new-world receipt.
+    Respawn,
     /// Namespaced state and version-bound item lookup.
     Registry,
     /// Region observations, including missing cells.
@@ -115,6 +117,9 @@ impl Capabilities {
             | Feature::WorldObservation
             | Feature::PlayerObservation
             | Feature::BasicControls => Support::Available,
+            Feature::Respawn => Support::Restricted(
+                "actual received nonpositive health in current world; one owned request per world; retained dispatch/cancellation and actual RESPawn separately; fresh readiness/pose/health/inventory still required",
+            ),
             Feature::CreativeControls => Support::Restricted(
                 "default items; permitted flight steps <=4 blocks; loaded reachable targets",
             ),
@@ -149,7 +154,7 @@ impl Capabilities {
                 "empty-hand audited storage/crafting-table/furnace-family activation with distinct dispatch/OPEN/full/cursor/modern processing facts; opening-bound close with observed resolved-data cursor return; constructor-verified ordinary slots and furnace PICKUP roles with received native fuel-tag guard/bucket capacity/output refusal; SWAP/QUICK_MOVE remain storage/player only; smelting/XP prediction, custom fuel rules and other special windows remain incomplete",
             ),
             Feature::SurvivalMovement | Feature::CreativeMovement => Support::Restricted(
-                "1..120 dry walking/jump ticks with released-rest endpoint; retained intent/failure; predicted completion is not received acceptance",
+                "1..120 dry walking/jump ticks with released-rest endpoint; modern airborne start permits only released inputs after an owned actual respawn with fresh zero packet velocity and positive health; retained intent/failure; predicted completion is not received acceptance",
             ),
             Feature::CheckedSurvival => match self.version {
                 MinecraftVersion::Java1_16_1 => Support::NotImplemented,

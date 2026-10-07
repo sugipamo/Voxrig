@@ -360,6 +360,10 @@ async fn survival_look_sends_native_ground_bit_and_refusal_sends_nothing() {
     });
     let operations = Operations {
         bot: Bot {
+            respawn_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.respawn_history.clone()
+            },
             recipe_placement_history: {
                 let state = session.state.try_lock().expect("new session");
                 state.recipe_placement_history.clone()

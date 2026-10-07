@@ -462,7 +462,7 @@ def outer_snbt_compounds(response):
 
 
 def stage(probe, messages, name, records, timeout=30, poll=None):
-    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready", "a2_ready", "a4_ready", "a4_captured", "a5_ui_ready", "b5_config_ready", "a5_furnace_ready", "a5_vehicle_ready", "b3_terrain_ready", "b5_revocation_ready", "b4_recipe_ready", "b4_ghost_ready"):
+    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready", "a2_ready", "a4_ready", "a4_captured", "a5_ui_ready", "b5_config_ready", "b5_respawn_ready", "a5_furnace_ready", "a5_vehicle_ready", "b3_terrain_ready", "b5_revocation_ready", "b4_recipe_ready", "b4_ghost_ready"):
         probe.stdin.write(name + "\n")
         probe.stdin.flush()
     deadline = time.monotonic() + timeout
@@ -2029,6 +2029,103 @@ def run_manager_ui(version,env,rcon,trace,report,probe_log,stderr_log):
             except subprocess.TimeoutExpired:probe.kill();probe.wait(timeout=5)
 
 
+def run_respawn(version, env, rcon, trace, report, probe_log, stderr_log):
+    result=report['native_results']['respawn']={'records':[],'rounds':[],'fixture':{},'original_fields':[]}
+    probe=subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')],cwd=REPO,env=dict(env,VOXRIG_NATIVE_SCENARIO='respawn'),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
+    messages=queue.Queue();reader=threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True);reader.start()
+    def capture(name):return stage(probe,messages,name,result['records'])['value']
+    def command(value):
+        answer=rcon.command(value);result['fixture'][value]=answer
+        if any(x in answer for x in ('Incorrect argument','Unknown or incomplete','not loaded')):raise RuntimeError('respawn fixture rejected: '+value+': '+answer)
+        return answer
+    def fields(value,target):
+        pairs=[value['current'],value['other']]if target=='primary'else[value['other'],value['current']]
+        owners={key:dict(identities[key],session=pairs[i]['player']['session'])for i,key in enumerate(('primary','peer'))}
+        boards,_=verify_scoreboard_frames(version,[p['board']for p in pairs],owners,trace)
+        displays=verify_display_frames(version,{'titles':[p['titles']for p in pairs],'tabs':[p['tab']for p in pairs],'borders':[p['border']for p in pairs]},owners,trace,peers)
+        social=verify_social_frames(version,{'rosters':[p['roster']for p in pairs],'teams':[p['teams']for p in pairs]},owners,trace,peers)
+        return boards+displays+social
+    def receipt(connection,sequence,packet):
+        incoming=[f for f in trace.since(0)if f['connection']==connection and f['direction']=='clientbound'and f['phase']in('configuration','play')]
+        frame=incoming[sequence-1]
+        if frame['packet_id']!=packet or frame['phase']!='play':raise RuntimeError('respawn receive origin points to a different packet')
+        return frame
+    def health(received,connection):
+        source=received['source']
+        if source['kind']!='received':raise RuntimeError('invented health')
+        frame=receipt(connection,source['sequence'],0x49 if version=='1.16.1'else 0x66)
+        raw=bytes.fromhex(frame['body_hex']);food,offset=PacketTraceProxy.varint(raw[4:]);original={'health':struct.unpack('>f',raw[:4])[0],'food':food,'saturation':struct.unpack('>f',raw[4+offset:])[0]}
+        if original!=received['value']:raise RuntimeError('health differs from original native packet')
+        return frame
+    try:
+        identities=capture('b5_respawn_ready');result['identities']=identities
+        until(lambda:matched(rcon.command('list'),r'2 of'))
+        peers={}
+        for frame in trace.since(0):
+            if frame['direction']=='serverbound'and frame['phase']=='login'and frame['packet_id']==0:
+                raw=bytes.fromhex(frame['body_hex']);length,offset=PacketTraceProxy.varint(raw);peers[raw[offset:offset+length].decode()]=frame['connection']
+        if set(peers)!={'UnifiedProbe','ManagedPeer'}:raise RuntimeError('respawn native identities differ')
+        rules = ('doImmediateRespawn', 'keepInventory') if version == '1.16.1' else ('minecraft:immediate_respawn', 'minecraft:keep_inventory')
+        for value in (f'gamerule {rules[0]} false',f'gamerule {rules[1]} true','gamemode survival UnifiedProbe','gamemode creative ManagedPeer','clear @a','tp UnifiedProbe 0.5 65 0.5','tp ManagedPeer 0.5 65 0.5','spawnpoint @a 0 65 0','setblock 0 65 1 minecraft:air','setblock 0 65 2 minecraft:chest[facing=north,type=single,waterlogged=false]','team add respawn','team join respawn @a','scoreboard objectives add respawn dummy','scoreboard objectives setdisplay sidebar respawn','scoreboard players set UnifiedProbe respawn 7','scoreboard players set ManagedPeer respawn 7','title @a title {"text":"RespawnTitle"}','title @a actionbar {"text":"RespawnAction"}'):
+            command(value)
+        for target,name,mode in [('primary','UnifiedProbe','survival'),('peer','ManagedPeer','creative')]:
+            command('clear '+name)
+            if version=='1.16.1':command('data merge block 0 65 2 {Items:[{Slot:0b,id:"minecraft:stone",Count:1b}]}')
+            else:command('item replace block 0 65 2 container.0 with minecraft:stone 1')
+            before=capture('b5_respawn_before_'+target);result['original_fields']+=fields(before,target)
+            command('kill '+name)
+            dead_native=until(lambda:matched(rcon.command('data get entity '+name+' Health'),r'\b0(?:\.0)?f\s*$'))
+            dead=capture('b5_respawn_dead_'+target)
+            fresh=capture('b5_respawn_fresh_'+target);result['original_fields']+=fields(fresh,target)
+            request=fresh['request'];old=before['current']['player']['session'];current=fresh['current']['player'];connection=peers[name]
+            if request['session']!=old or current['session']['connection_id']!=old['connection_id']or current['session']['world_generation']<=old['world_generation']:raise RuntimeError('respawn transport/world boundary differs')
+            if request['death']!=dead['death']['health']or not request['dispatched']or request['stage']!='respawn_received':raise RuntimeError('respawn request facts differ')
+            if dead['saved']!=before['current']or fresh['saved']!=before['current']:raise RuntimeError('respawn rebound immutable saved capture')
+            for key in ('teams','roster','board','bars','titles','tab','border'):
+                if fresh['current'][key]['context_reset_sequence']is not None:raise RuntimeError('ordinary respawn became a configuration reset')
+            if fresh['other']['player']['session']!=before['other']['player']['session']:raise RuntimeError('respawn changed another Client world')
+            if fresh['current']['registry']['stamp']!=before['current']['registry']['stamp']:raise RuntimeError('ordinary respawn changed registry owner')
+            death_frame=health(request['death'],connection);live_health=health(current['health'],connection)
+            spawn=request['received_spawn'];spawn_frame=receipt(connection,spawn['source']['sequence'],0x3a if version=='1.16.1'else 0x50)
+            if spawn['value']!=current['session']or spawn['value']['world_generation']!=spawn['source']['sequence']:raise RuntimeError('spawn record not bound to actual new-world packet')
+            pose_frame=receipt(connection,current['received_pose']['receive_sequence'],0x35 if version=='1.16.1'else 0x46)
+            settling=fresh['settling'];preview=settling['preview'];endpoint=preview['frames'][-1]
+            if settling['session']!=current['session']or settling['status']!='predicted'or settling['problem']is not None or settling['dispatched_ticks']!=4 or settling['attempted_tick']!=4:raise RuntimeError('respawn neutral settling not fully dispatched')
+            if len(preview['controls'])!=4 or any(c['input']!={'forward':0,'strafe':0,'jump':False}for c in preview['controls']):raise RuntimeError('respawn settling contains active input')
+            if preview['initial']['received_pose']!=current['received_pose']or not endpoint['on_ground']or not endpoint['resting']:raise RuntimeError('respawn settling overwrote actual pose or lacks floor rest')
+            expected_origin='predicted'if version=='1.16.1'else'submitted'
+            if current['position']['value']!=endpoint['position']or current['position']['source']['kind']!=expected_origin:raise RuntimeError('settled position lost model/dispatch origin')
+            outgoing=[f for f in trace.since(0)if f['connection']==connection and f['direction']=='serverbound'and f['phase']=='play']
+            requests=[f for f in outgoing if f['packet_id']==(0x04 if version=='1.16.1'else 0x0b)]
+            if len(requests)!=1 or requests[0]['body_hex']!='00' or not death_frame['ordinal']<requests[0]['ordinal']<spawn_frame['ordinal']:raise RuntimeError('missing/duplicated/non-native respawn request')
+            clicks=[f for f in outgoing if f['packet_id']==(0x09 if version=='1.16.1'else 0x11)and f['ordinal']>spawn_frame['ordinal']]
+            if len(clicks)!=2:raise RuntimeError('stale/duplicated respawn chest click')
+            inventory=until(lambda:matched(rcon.command('data get entity '+name+' Inventory[{Slot:9b}]'),r'Count: ?1b|count: ?1'))
+            if 'minecraft:stone'not in inventory:raise RuntimeError('fresh respawn stone inventory differs')
+            empty_chest=command('data get block 0 65 2 Items')
+            if not re.search(r'\[\]\s*$',empty_chest):raise RuntimeError('respawn chest not emptied')
+            native_health=until(lambda:matched(rcon.command('data get entity '+name+' Health'),r'\b20(?:\.0)?f\s*$'))
+            native_score=command('scoreboard players get '+name+' respawn')
+            native_position=command('data get entity '+name+' Pos')
+            numbers=re.findall(r'(-?\d+(?:\.\d+)?(?:[Ee][+-]?\d+)?)d',native_position)
+            if len(numbers)!=3 or abs(float(numbers[0])-0.5)>1e-7 or abs(float(numbers[2])-0.5)>1e-7 or not 65.0-1e-7<=float(numbers[1])<=65.2:raise RuntimeError('native respawn position differs')
+            if any(abs(float(n)-p)>1e-7 for n,p in zip(numbers,endpoint['position'])):raise RuntimeError('native position differs from respawn settled endpoint')
+            result['rounds'].append({'target':target,'mode':mode,'before':before,'dead':dead,'fresh':fresh,'frames':{'death':death_frame,'request':requests[0],'spawn':spawn_frame,'healthy':live_health,'pose':pose_frame,'clicks':clicks},'native_dead_health':dead_native,'native_health':native_health,'native_position':native_position,'native_inventory':inventory,'native_empty_chest':empty_chest,'native_score':native_score})
+        for connection in peers.values():trace.expect_disconnect(connection)
+        result['shutdown']=capture('b5_respawn_shutdown');probe.wait(timeout=10);reader.join(timeout=2)
+        if probe.returncode!=0 or reader.is_alive():raise RuntimeError('respawn consumer shutdown failed')
+        result['native_after_shutdown']=until(lambda:matched(rcon.command('list'),r'0 of'))
+        logins=[f for f in trace.since(0)if f['direction']=='clientbound'and f['phase']=='login'and f['packet_id']==2]
+        if len(logins)!=2:raise RuntimeError('respawn used replacement logins')
+        if version=='1.21.11'and any(f['direction']=='clientbound'and f['phase']=='play'and f['packet_id']==0x74 for f in trace.since(0)):raise RuntimeError('ordinary respawn used reconfiguration')
+        result['actual_logins']=len(logins);result['result']='passed'
+        result['authority_limits']='Same two actual common Client TCP connections, received Survival/Creative deaths, one original PERFORM_RESPAWN request each, original RESPawn/new pose/health/world, four released settling ticks and fresh chest take/store/close. Actual received spawn pose remains separate from the fully dispatched predicted floor endpoint and independently checked native position. Received UI/registry retention, other Client isolation, immutable historical capture, no healthy or duplicate request or stale click are checked against original frames and independent RCON. No causal ACK, auto-respawn, Hardcore/end-credit semantics, dimensional travel, chunk unload/reconnect, rendering or complete B claimed.'
+    finally:
+        if probe.poll()is None:
+            probe.terminate()
+            try:probe.wait(timeout=10)
+            except subprocess.TimeoutExpired:probe.kill();probe.wait(timeout=5)
+
 def run_reconfiguration(version, env, rcon, trace, report, probe_log, stderr_log, folder):
     """Original switch/configuration tasks, unchanged codecs and two real Client sessions."""
     result = report['native_results']['reconfiguration'] = {'records': [], 'rounds': [], 'control': [], 'fixture': {}}
@@ -2295,6 +2392,10 @@ network-compression-threshold=256
         if scenario == "furnace":
             run_furnace(version,env,rcon,trace,report,probe_log,stderr_log)
             report["scenario_result"]="passed"
+            return retained
+        if scenario == "respawn":
+            run_respawn(version,env,rcon,trace,report,probe_log,stderr_log)
+            report["scenario_result"] = "passed"
             return retained
         if scenario == "reconfiguration":
             run_reconfiguration(version, env, rcon, trace, report, probe_log, stderr_log, folder)
@@ -3371,7 +3472,7 @@ def main():
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--accept-eula", action="store_true")
     parser.add_argument("--runtime-dir", type=Path, help="Optional disposable runtime parent, e.g. /dev/shm for isolating disk I/O; reports are exported to .local after JVM exit")
-    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "mining-tools", "connection-revocation", "recipe-placement", "recipe-result-merge", "recipe-result-transfer", "recipe-ghost", "recording-scene", "manager-ui", "reconfiguration", "furnace", "vehicle", "vehicle-control", "dry-terrain", "creative-flight", "creative-landing"), default="full", help="Run the operation corpus or a focused common Client workflow")
+    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "mining-tools", "connection-revocation", "recipe-placement", "recipe-result-merge", "recipe-result-transfer", "recipe-ghost", "recording-scene", "manager-ui", "reconfiguration", "respawn", "furnace", "vehicle", "vehicle-control", "dry-terrain", "creative-flight", "creative-landing"), default="full", help="Run the operation corpus or a focused common Client workflow")
     args = parser.parse_args()
     if bool(args.version) == args.all:
         parser.error("select exactly one of --version / --all")

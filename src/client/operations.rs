@@ -300,6 +300,7 @@ impl Survival {
     }
     /// Forecast bounded walking/jump controls against one captured dry-cube world.
     /// Uses version-specific native defaults and current stationary admission.
+    /// Fresh owned respawn may admit released-only settling onto known dry support.
     /// This is read-only; returned frames are predictions, never action authority.
     pub async fn preview_path(
         &self,
@@ -313,6 +314,7 @@ impl Survival {
     /// Retain and start a finite path under the explicit prediction contract.
     /// The connection owns dispatch after this call returns or its future drops.
     /// Requires a freshly validated, released-rest endpoint. Never auto-replays.
+    /// Fresh owned respawn permits released-only settling with received zero velocity.
     /// Predicted completion is not an independent position observation.
     pub async fn start_predicted_path(
         &self,
@@ -388,6 +390,7 @@ impl Creative {
 
     /// Read-only finite ground walking/jump preview while flight is inactive.
     /// Uses the selected adapter's native dry defaults and received Creative mode.
+    /// Fresh owned respawn may admit released-only settling onto known dry support.
     pub async fn preview_path(
         &self,
         controls: &[super::survival::SurvivalControl],
@@ -399,6 +402,7 @@ impl Creative {
     }
     /// Start a finite ground path under the explicit prediction contract.
     /// Flight must be inactive. Complete dispatch is not a received position.
+    /// Fresh owned respawn permits released-only settling with received zero velocity.
     pub async fn start_predicted_path(
         &self,
         controls: &[super::survival::SurvivalControl],

@@ -226,7 +226,7 @@ fn preview_in_mode(
         ));
     }
     let initial = survival::context(state, connection_id, tick)?;
-    validate_initial(&initial)?;
+    validate_motion_initial(state, &initial, controls)?;
     let mut model = Model::from_context(&initial);
     let initial_frame = model.initial_frame();
     let frames = predict(state, &mut model, controls)?;
@@ -240,10 +240,57 @@ fn preview_in_mode(
         frames,
     })
 }
+fn validate_motion_initial(
+    state: &State,
+    initial: &StandingContext,
+    controls: &[SurvivalControl],
+) -> Result<()> {
+    if initial.on_ground {
+        return validate_initial(initial);
+    }
+    let spawn = crate::client::respawn::snapshot(&state.respawn_history)
+        .filter(|r| r.dispatched && r.requires_inspection.is_none())
+        .and_then(|r| r.received_spawn);
+    let valid_spawn = spawn.as_ref().is_some_and(|s| {
+        s.value.connection_id == initial.connection_id
+            && s.value.world_generation == state.loading.generation
+            && matches!(s.source, crate::client::ValueSource::Received {sequence}
+            if sequence == state.loading.generation)
+    });
+    let valid_pose = matches!(initial.position_basis, StandingPositionBasis::Received {receive_sequence}
+        if receive_sequence > state.loading.generation);
+    if !valid_spawn
+        || !valid_pose
+        || controls.is_empty()
+        || controls.iter().any(|c| c.input != SurvivalInput::default())
+        || initial
+            .player
+            .velocity
+            .as_ref()
+            .is_none_or(|v| v.value != [0.; 3] || v.receive_sequence <= state.loading.generation)
+        || initial.player.health.as_ref().is_none_or(|h| {
+            !h.health.is_finite()
+                || h.health <= 0.0
+                || h.receive_sequence <= state.loading.generation
+        })
+    {
+        return Err(invalid(
+            "airborne settling requires owned received respawn, fresh zero-velocity pose/healthy player and released inputs",
+        ));
+    }
+    validate_motion_attributes(initial)
+}
 pub(super) fn validate_initial(initial: &StandingContext) -> Result<()> {
+    if !initial.on_ground {
+        return Err(invalid(
+            "dry motion preview requires grounded native default movement attributes and no received effects",
+        ));
+    }
+    validate_motion_attributes(initial)
+}
+fn validate_motion_attributes(initial: &StandingContext) -> Result<()> {
     let p = &initial.player;
-    if !initial.on_ground
-        || !p.effect_updates.is_empty()
+    if !p.effect_updates.is_empty()
         || p.movement_speed.map(|v| v.value) != Some(f64::from(0.1f32))
         || p.gravity.map(|v| v.value) != Some(0.08)
         || p.jump_strength.map(|v| v.value) != Some(f64::from(0.42f32))
@@ -302,6 +349,8 @@ use crate::client::survival::model::collide;
 impl Model {
     fn from_context(context: &StandingContext) -> Self {
         let mut model = Self::new(crate::MinecraftVersion::Java1_21_11, context.position);
+        model.frame.on_ground = context.on_ground;
+        model.frame.resting = context.on_ground;
         if let StandingPositionBasis::PredictedAndObserved { predicted, .. }
         | StandingPositionBasis::Predicted { predicted, .. } = &context.position_basis
         {

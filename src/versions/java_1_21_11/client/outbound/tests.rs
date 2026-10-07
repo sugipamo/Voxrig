@@ -325,6 +325,10 @@ async fn common_revocation_keeps_partial_write_unknown_and_other_connection_live
 fn operations(session: &Arc<Session>) -> operations::Operations {
     operations::Operations {
         bot: Bot {
+            respawn_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.respawn_history.clone()
+            },
             recipe_placement_history: {
                 let state = session.state.try_lock().expect("new session");
                 state.recipe_placement_history.clone()
@@ -2654,5 +2658,253 @@ async fn common_reconfiguration_resets_ui_and_requires_fresh_registration() {
         );
         assert_eq!(before.context_reset_sequence, None); // Detached observations remain unchanged.
         client.disconnect().await.unwrap();
+    }
+}
+
+#[tokio::test]
+async fn common_respawn_uses_received_death_once_and_retains_actual_new_world() {
+    use crate::client::{GameMode, RespawnStage};
+    for mode in [GameMode::Survival, GameMode::Creative] {
+        let (session, api, mut peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        assert!(client.respawn().await.is_err());
+        assert!(client.respawn_record().is_none());
+        let mut health = 0f32.to_be_bytes().to_vec();
+        health.push(20);
+        health.extend(5f32.to_be_bytes());
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::UPDATE_HEALTH, &health, 256)
+            .unwrap();
+        let sent = client.respawn().await.unwrap();
+        assert!(sent.dispatched);
+        assert_eq!(sent.stage, RespawnStage::Submitted);
+        assert_eq!(
+            read_packet(&mut peer, None).await.unwrap(),
+            (ids::play_serverbound::CLIENT_COMMAND, vec![0])
+        );
+        assert!(client.clone().respawn().await.is_err());
+        let mut spawn = vec![0];
+        put_string(&mut spawn, "minecraft:overworld");
+        spawn.extend([0; 8]);
+        spawn.extend([
+            if mode == GameMode::Creative { 1 } else { 0 },
+            255,
+            0,
+            1,
+            0,
+            0,
+            63,
+            0,
+        ]);
+        let received_sequence = {
+            let mut state = session.state.lock().await;
+            state.dimensions = vec![Dimension::new(-64, 384).unwrap()];
+            state
+                .receive(ids::play_clientbound::RESPAWN, &spawn, 256)
+                .unwrap();
+            state.sequence
+        };
+        let fresh = client.respawn_record().unwrap();
+        assert_eq!(fresh.stage, RespawnStage::RespawnReceived);
+        let received = fresh.received_spawn.unwrap();
+        assert_eq!(received.value.connection_id, sent.session.connection_id);
+        assert_eq!(received.value.world_generation, received_sequence);
+        assert_eq!(
+            received.source,
+            crate::client::ValueSource::Received {
+                sequence: received_sequence
+            }
+        );
+        assert!(sent.received_spawn.is_none());
+        assert!(client.respawn().await.is_err()); // No fresh dead health or ready baseline.
+        session.stop();
+        assert!(client.respawn_record().unwrap().dispatched);
+        assert!(
+            tokio::time::timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+                .await
+                .is_err()
+        );
+    }
+}
+
+#[tokio::test]
+async fn common_respawn_cancelled_waiter_keeps_owned_send_and_readable_history() {
+    use crate::client::{GameMode, RespawnStage};
+    let (session, api, mut peer) = common_ground_fixture(GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(api.bot);
+    let mut health = 0f32.to_be_bytes().to_vec();
+    health.push(20);
+    health.extend(5f32.to_be_bytes());
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::UPDATE_HEALTH, &health, 256)
+        .unwrap();
+    let writer = session.writer.lock().await;
+    let waiter = tokio::spawn({
+        let client = client.clone();
+        async move { client.respawn().await }
+    });
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while client.respawn_record().is_none() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        client.respawn_record().unwrap().stage,
+        RespawnStage::Prepared
+    );
+    assert!(!client.respawn_record().unwrap().dispatched);
+    waiter.abort();
+    assert!(waiter.await.unwrap_err().is_cancelled());
+    drop(writer);
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap(),
+        (ids::play_serverbound::CLIENT_COMMAND, vec![0])
+    );
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while !client.respawn_record().unwrap().dispatched {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(client.respawn().await.is_err());
+    session.stop();
+    assert_eq!(
+        client.respawn_record().unwrap().stage,
+        RespawnStage::Submitted
+    );
+}
+
+#[tokio::test]
+async fn common_respawn_settling_requires_owned_world_and_only_released_inputs() {
+    use crate::client::prelude::{GameMode, SurvivalControl, SurvivalInput};
+    for mode in [GameMode::Survival, GameMode::Creative] {
+        let (session, api, mut peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        let controls = vec![
+            SurvivalControl {
+                yaw: 0.0,
+                input: SurvivalInput::default()
+            };
+            4
+        ];
+        let mut health = 0f32.to_be_bytes().to_vec();
+        health.push(20);
+        health.extend(5f32.to_be_bytes());
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::UPDATE_HEALTH, &health, 256)
+            .unwrap();
+        client.respawn().await.unwrap();
+        read_packet(&mut peer, None).await.unwrap();
+        {
+            let mut state = session.state.lock().await;
+            let floor = std::mem::take(&mut state.world);
+            state.dimensions = vec![Dimension::new(-64, 384).unwrap()];
+            let mut spawn = vec![0];
+            put_string(&mut spawn, "minecraft:overworld");
+            spawn.extend([0; 8]);
+            spawn.extend([
+                if mode == GameMode::Creative { 1 } else { 0 },
+                255,
+                0,
+                1,
+                0,
+                0,
+                63,
+                0,
+            ]);
+            state
+                .receive(ids::play_clientbound::RESPAWN, &spawn, 256)
+                .unwrap();
+            let generation = state.loading.generation;
+            state.world = floor; // Unit fixture's received static floor for the new world.
+            let mut pose = vec![3];
+            for v in [8.5f64, 65.1, 8.5, 0., 0., 0.] {
+                pose.extend(v.to_be_bytes());
+            }
+            for v in [0f32, 0.] {
+                pose.extend(v.to_be_bytes());
+            }
+            pose.extend(0i32.to_be_bytes());
+            state
+                .receive(ids::play_clientbound::POSITION, &pose, 256)
+                .unwrap();
+            health[..4].copy_from_slice(&20f32.to_be_bytes());
+            state
+                .receive(ids::play_clientbound::UPDATE_HEALTH, &health, 256)
+                .unwrap();
+            state.ready = true;
+            state.loading = loading::InteractionLoading::completed_fixture();
+            state.loading.generation = generation;
+        }
+        let preview = api.common_preview_path(mode, &controls).await.unwrap();
+        assert!(!preview.initial_frame.on_ground);
+        assert_eq!(
+            preview.initial.received_pose.as_ref().unwrap().position,
+            [8.5, 65.1, 8.5]
+        );
+        let last = preview.frames.last().unwrap();
+        assert_eq!(last.position, [8.5, 65.0, 8.5]);
+        assert!(last.on_ground && last.resting);
+        assert_eq!(
+            client.player_state().await.unwrap().received_pose,
+            preview.initial.received_pose
+        );
+        let active = [SurvivalControl {
+            yaw: 0.,
+            input: SurvivalInput {
+                forward: 1,
+                ..Default::default()
+            },
+        }; 4];
+        assert!(api.common_preview_path(mode, &active).await.is_err());
+        assert!(client.survival().target_block(4.5).await.is_err()); // No landing authority from a preview.
+        let history = api.bot.respawn_history.clone();
+        let saved = history.lock().unwrap().take().unwrap();
+        assert!(api.common_preview_path(mode, &controls).await.is_err());
+        *history.lock().unwrap() = Some(saved);
+        {
+            let mut state = session.state.lock().await;
+            state
+                .operations
+                .local_player
+                .health
+                .as_mut()
+                .unwrap()
+                .health = f32::NAN;
+        }
+        assert!(api.common_preview_path(mode, &controls).await.is_err());
+        session
+            .state
+            .lock()
+            .await
+            .operations
+            .local_player
+            .health
+            .as_mut()
+            .unwrap()
+            .health = 20.;
+        session
+            .state
+            .lock()
+            .await
+            .operations
+            .local_player
+            .velocity
+            .as_mut()
+            .unwrap()
+            .value = [0.1, 0., 0.];
+        assert!(api.common_preview_path(mode, &controls).await.is_err());
     }
 }

@@ -1058,6 +1058,7 @@ pub struct Bot {
     common_recipe_placement: Arc<Mutex<Option<common_recipe_placement::NativeRecipePlacement>>>,
     common_inventory_transfer: Arc<Mutex<Option<common_transfer::NativeInventoryTransfer>>>,
     pub(crate) flight_history: crate::client::flight::History,
+    pub(crate) respawn_history: crate::client::respawn::History,
     retired_common_motion: Arc<Mutex<Option<crate::client::survival::MotionRecord>>>,
     dismount_history: crate::client::vehicle::dismount::History,
     vehicle_control_history: crate::client::vehicle::control::History,
@@ -1172,6 +1173,7 @@ impl Bot {
             common_recipe_placement: self.common_recipe_placement.clone(),
             common_inventory_transfer: self.common_inventory_transfer.clone(),
             flight_history: self.flight_history.clone(),
+            respawn_history: self.respawn_history.clone(),
             retired_common_motion: self.retired_common_motion.clone(),
             dismount_history: self.dismount_history.clone(),
             vehicle_control_history: self.vehicle_control_history.clone(),
@@ -1349,6 +1351,7 @@ impl Bot {
             common_recipe_placement: Arc::new(Mutex::new(None)),
             common_inventory_transfer: Arc::new(Mutex::new(None)),
             flight_history: Arc::default(),
+            respawn_history: Arc::default(),
             retired_common_motion: Arc::default(),
             dismount_history: Arc::default(),
             vehicle_control_history: Arc::default(),
@@ -5593,6 +5596,11 @@ impl Bot {
                 } else {
                     self.inventory.write().await.last_transaction = None;
                 }
+                crate::client::respawn::received(
+                    &self.respawn_history,
+                    packet_sequence,
+                    packet_sequence,
+                );
                 self.emit(Event::Respawn(respawn));
             }
             0x3b => {

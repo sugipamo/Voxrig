@@ -70,6 +70,7 @@ struct State {
     common_inventory_transfer: Option<crate::client::inventory::InventoryTransferRecord>,
     common_container_close: Option<crate::client::container::ContainerCloseRecord>,
     pub(crate) flight_history: crate::client::flight::History,
+    pub(crate) respawn_history: crate::client::respawn::History,
     dismount_history: crate::client::vehicle::dismount::History,
     vehicle_control_history: crate::client::vehicle::control::History,
     close_history: Arc<std::sync::Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
@@ -125,6 +126,7 @@ impl Default for State {
             common_inventory_transfer: None,
             common_container_close: None,
             flight_history: Arc::default(),
+            respawn_history: Arc::default(),
             dismount_history: Arc::default(),
             vehicle_control_history: Arc::default(),
             close_history: Arc::default(),
@@ -195,6 +197,13 @@ impl State {
             Phase::Play => apply_play(self, id, payload, max_chunks),
         };
         if result.is_ok() {
+            if self.phase == Phase::Play && id == ids::play_clientbound::RESPAWN {
+                crate::client::respawn::received(
+                    &self.respawn_history,
+                    self.loading.generation,
+                    self.sequence,
+                );
+            }
             operations::vehicle::context_received(self);
             operations::placement_context_received(self);
             operations::placement::common_placement_context_received(self);
@@ -253,6 +262,7 @@ impl Drop for Lease {
 #[derive(Clone)]
 pub(crate) struct Bot {
     pub(crate) flight_history: crate::client::flight::History,
+    pub(crate) respawn_history: crate::client::respawn::History,
     dismount_history: crate::client::vehicle::dismount::History,
     vehicle_control_history: crate::client::vehicle::control::History,
     close_history: Arc<std::sync::Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
@@ -482,6 +492,10 @@ impl Bot {
             .send(ids::configuration_serverbound::SETTINGS, &settings())
             .await?;
         let bot = Self {
+            respawn_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.respawn_history.clone()
+            },
             recipe_placement_history: {
                 let state = session.state.try_lock().expect("new session");
                 state.recipe_placement_history.clone()

@@ -21,7 +21,8 @@ teamsとplayer一覧も実受信の共通入口へ接続した。
 次は特殊vehicle／window／managerと残るUIを
 利用操作の単位で進め、B3〜B5の残機能も継続する。
 B5の新版再configurationではUI／player一覧のcache寿命・再登録と新しい収納操作への継続を接続した。
-普通のrespawn・chunk欠測・再接続等の広い実操作フローはB5に残る。
+通常死亡後の明示的respawn→新world観測→接地→新しい収納操作も両版・両modeで接続した。
+次はchunk欠測・再読込と再接続を一連で通す。次元移動・Hardcore／credits等の広いB5は残る。
 操作に不要なconstructor比較の拡大を先行させない。
 実サーバーや重い検査は一つずつ実行する。
 
@@ -140,6 +141,13 @@ B5の新版再configurationではUI／player一覧のcache寿命・再登録と�
   同じ2接続のSurvival／Creativeで再設定中の欠測・旧screen拒否→実registry再受信／play→
   旧screen再拒否→新しいチェスト取得／格納／close→manager終了を接続した。
   [共通UI context](common-ui-context.md)。広いB5とB3／B4／B6・非公開A6は継続する。
+
+- B5の一部完了: `Client::respawn()`／同期`respawn_record()`を両adapterへ接続した。
+  現在worldの実death healthから一回だけ要求し、実RESPAWN・fresh pose／正のhealthを待つ。
+  新版の空中開始はowned実respawnとfreshゼロvelocityを条件にreleased入力だけを許可する。
+  両modeで4released ticks→旧screen拒否→新チェスト取得／格納／close→manager終了まで確認した。
+  実受信spawn poseと予測床終点・送信済み位置を分け、global UI／registryと別Clientのworldを保つ。
+  [共通respawn](common-respawn.md)。chunk欠測／再読込・再接続と広いB5、B3／B4／B6・非公開A6は継続する。
 
 ## 選択と公開入口
 

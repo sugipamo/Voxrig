@@ -5404,6 +5404,275 @@ async fn context_ui_capture(client: &Client) -> anyhow::Result<serde_json::Value
         "board":client.scoreboard_state().await?,"bars":client.boss_bars().await?,
         "titles":client.titles().await?,"tab":client.tab_list().await?,"border":client.world_border().await?}))
 }
+async fn wait_respawn_chest_context(client: &Client, mode: GameMode) -> anyhow::Result<()> {
+    tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            let query = match mode {
+                GameMode::Survival => client.survival().target_block(4.5).await,
+                _ => client.creative().target_block(4.5).await,
+            };
+            if query.is_ok_and(|q| q.hit.is_some_and(|h| h.position == [0, 65, 2])) {
+                return Ok::<_, anyhow::Error>(());
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .context("respawn standing/target wait")??;
+    Ok(())
+}
+
+async fn respawn_probe(config: ConnectionConfig) -> anyhow::Result<()> {
+    let manager = ClientManager::new(2)?;
+    let primary = manager.connect("primary", config.clone()).await?;
+    primary.wait_until_ready().await?;
+    let mut peer_config = config;
+    peer_config.username = "ManagedPeer".into();
+    let peer = manager.connect("peer", peer_config).await?;
+    peer.wait_until_ready().await?;
+    emit(
+        "b5_respawn_ready",
+        serde_json::json!({"primary":primary.connection_identity().await?,"peer":peer.connection_identity().await?}),
+    )?;
+    let mut commands = BufReader::new(tokio::io::stdin()).lines();
+    let mut saved = [None, None];
+    let mut old_screen = [None, None];
+    while let Some(command) = commands.next_line().await? {
+        if command == "b5_respawn_shutdown" {
+            manager.shutdown().await?;
+            anyhow::ensure!(
+                primary.player_state().await.is_err() && peer.player_state().await.is_err()
+            );
+            emit(
+                &command,
+                serde_json::json!({"closed":true,"saved":saved,"requests":[primary.respawn_record(),peer.respawn_record()]}),
+            )?;
+            return Ok(());
+        }
+        let index = usize::from(command.ends_with("_peer"));
+        let client = if index == 0 { &primary } else { &peer };
+        let other = if index == 0 { &peer } else { &primary };
+        let mode = if index == 0 {
+            GameMode::Survival
+        } else {
+            GameMode::Creative
+        };
+        if command.starts_with("b5_respawn_before_") {
+            wait_player(client, |p| {
+                p.game_mode == Some(mode)
+                    && p.received_pose
+                        .as_ref()
+                        .is_some_and(|p| p.position == [0.5, 65.0, 0.5])
+                    && p.health.as_ref().is_some_and(|h| h.value.health > 0.0)
+            })
+            .await?;
+            client.wait_until_ready().await?;
+            let alive_error = client.respawn().await.unwrap_err();
+            anyhow::ensure!(client.respawn_record().is_none());
+            tokio::time::timeout(Duration::from_secs(15), async {
+                loop {
+                    if !client.teams().await?.teams.is_empty()
+                        && !client.scoreboard_state().await?.objectives.is_empty()
+                    {
+                        return Ok::<_, anyhow::Error>(());
+                    }
+                    tokio::time::sleep(Duration::from_millis(25)).await;
+                }
+            })
+            .await??;
+            wait_block(client, [0, 65, 2], "minecraft:chest").await?;
+            match mode {
+                GameMode::Survival => {
+                    client.survival().select_hotbar(0).await?;
+                    client.survival().look([0., 30.]).await?;
+                    wait_respawn_chest_context(client, mode).await?;
+                    client.survival().open_container([0, 65, 2]).await?;
+                }
+                _ => {
+                    client.creative().select_hotbar(0).await?;
+                    client.creative().look([0., 30.]).await?;
+                    wait_respawn_chest_context(client, mode).await?;
+                    client.creative().open_container([0, 65, 2]).await?;
+                }
+            }
+            let opened = wait_container_open(client).await?;
+            old_screen[index] = Some(
+                opened
+                    .observed_screen
+                    .as_ref()
+                    .context("old screen missing")?
+                    .id,
+            );
+            let capture = context_ui_capture(client).await?;
+            saved[index] = Some(capture.clone());
+            emit(
+                &command,
+                serde_json::json!({"current":capture,"other":context_ui_capture(other).await?,"opened":opened,"alive_error":alive_error.to_string()}),
+            )?;
+        } else if command.starts_with("b5_respawn_dead_") {
+            let death = wait_player(client, |p| {
+                p.health.as_ref().is_some_and(|h| h.value.health <= 0.0)
+            })
+            .await?;
+            let submitted = client.respawn().await?;
+            anyhow::ensure!(
+                submitted.dispatched
+                    && submitted.session == death.session
+                    && submitted.death.value.health <= 0.0
+            );
+            let duplicate_error = client.clone().respawn().await.unwrap_err();
+            emit(
+                &command,
+                serde_json::json!({"death":death,"submitted":submitted,"duplicate_error":duplicate_error.to_string(),"saved":saved[index]}),
+            )?;
+        } else if command.starts_with("b5_respawn_fresh_") {
+            let old = saved[index].as_ref().context("missing old capture")?;
+            let old_generation = old["player"]["session"]["world_generation"]
+                .as_u64()
+                .unwrap();
+            let player=wait_player(client,|p|p.session.world_generation>old_generation && p.game_mode==Some(mode) && p.received_pose.as_ref().is_some_and(|r|r.position[0] == 0.5 && r.position[2] == 0.5 && (65.0..=65.2).contains(&r.position[1]) && r.receive_sequence > p.session.world_generation) && p.health.as_ref().is_some_and(|h|h.value.health>0.0 && matches!(h.source,voxrig::client::ValueSource::Received {sequence} if sequence>p.session.world_generation))).await?;
+            client.wait_until_ready().await?;
+            let request = client.respawn_record().context("missing respawn history")?;
+            anyhow::ensure!(
+                request.stage == RespawnStage::RespawnReceived
+                    && request.dispatched
+                    && request
+                        .received_spawn
+                        .as_ref()
+                        .is_some_and(|r| r.value == player.session)
+            );
+            let controls = vec![
+                SurvivalControl {
+                    yaw: 0.0,
+                    input: SurvivalInput::default()
+                };
+                4
+            ];
+            tokio::time::timeout(Duration::from_secs(15), async {
+                loop {
+                    let preview = match mode {
+                        GameMode::Survival => client.survival().preview_path(&controls).await,
+                        _ => client.creative().preview_path(&controls).await,
+                    };
+                    if preview.is_ok() {
+                        return;
+                    }
+                    tokio::time::sleep(Duration::from_millis(25)).await;
+                }
+            })
+            .await
+            .context("fresh respawn motion baseline unavailable")?;
+            let started = match mode {
+                GameMode::Survival => client.survival().start_predicted_path(&controls).await?,
+                _ => client.creative().start_predicted_path(&controls).await?,
+            };
+            let settled = tokio::time::timeout(Duration::from_secs(15), async {
+                loop {
+                    let record = match mode {
+                        GameMode::Survival => client.survival().motion_record().await?,
+                        _ => client.creative().motion_record().await?,
+                    }
+                    .context("respawn settling record missing")?;
+                    anyhow::ensure!(
+                        record.run_id == started.run_id && record.problem.is_none(),
+                        "respawn settling failed: {:?}",
+                        record.problem
+                    );
+                    if record.status.is_continuation_candidate() {
+                        return Ok::<_, anyhow::Error>(record);
+                    }
+                    tokio::time::sleep(Duration::from_millis(25)).await;
+                }
+            })
+            .await??;
+            let current = context_ui_capture(client).await?;
+            for key in [
+                "teams", "roster", "board", "bars", "titles", "tab", "border",
+            ] {
+                anyhow::ensure!(
+                    current[key]["context_reset_sequence"].is_null(),
+                    "ordinary respawn reset global UI"
+                );
+            }
+            anyhow::ensure!(
+                !current["teams"]["teams"].as_array().unwrap().is_empty()
+                    && !current["board"]["objectives"]
+                        .as_array()
+                        .unwrap()
+                        .is_empty()
+            );
+            anyhow::ensure!(
+                current["registry"]["stamp"] == old["registry"]["stamp"]
+                    && current["registry"]["complete"] == true
+            );
+            let stale = InventorySource::Container {
+                screen: old_screen[index].unwrap(),
+            };
+            let stale_error = match mode {
+                GameMode::Survival => client
+                    .survival()
+                    .click_inventory(stale, 0, InventoryClickButton::Left)
+                    .await
+                    .unwrap_err(),
+                _ => client
+                    .creative()
+                    .click_inventory(stale, 0, InventoryClickButton::Left)
+                    .await
+                    .unwrap_err(),
+            };
+            wait_block(client, [0, 65, 2], "minecraft:chest").await?;
+            match mode {
+                GameMode::Survival => {
+                    client.survival().select_hotbar(0).await?;
+                    client.survival().look([0., 30.]).await?;
+                    wait_respawn_chest_context(client, mode).await?;
+                    client.survival().open_container([0, 65, 2]).await?;
+                }
+                _ => {
+                    client.creative().select_hotbar(0).await?;
+                    client.creative().look([0., 30.]).await?;
+                    wait_respawn_chest_context(client, mode).await?;
+                    client.creative().open_container([0, 65, 2]).await?;
+                }
+            }
+            let opened = wait_container_open(client).await?;
+            let screen = opened
+                .observed_screen
+                .as_ref()
+                .context("fresh screen missing")?
+                .id;
+            anyhow::ensure!(screen != old_screen[index].unwrap());
+            let take = crafting_pickup(
+                client,
+                mode,
+                InventorySource::Container { screen },
+                0,
+                InventoryClickButton::Left,
+            )
+            .await?;
+            let store = crafting_pickup(
+                client,
+                mode,
+                InventorySource::Container { screen },
+                27,
+                InventoryClickButton::Left,
+            )
+            .await?;
+            let close = match mode {
+                GameMode::Survival => client.survival().close_container(screen).await?,
+                _ => client.creative().close_container(screen).await?,
+            };
+            emit(
+                &command,
+                serde_json::json!({"current":current,"other":context_ui_capture(other).await?,"request":request,"settling":settled,"saved":saved[index],"stale_error":stale_error.to_string(),"opened":opened,"take":take,"store":store,"close":close}),
+            )?;
+        } else {
+            anyhow::bail!("unexpected respawn command: {command}");
+        }
+    }
+    anyhow::bail!("respawn controller closed before shutdown")
+}
+
 async fn reconfiguration_probe(config: ConnectionConfig) -> anyhow::Result<()> {
     let manager = ClientManager::new(2)?;
     let primary = manager.connect("primary", config.clone()).await?;
@@ -6182,6 +6451,9 @@ async fn main() -> anyhow::Result<()> {
     let config =
         ConnectionConfig::offline_from_env(Server::new("127.0.0.1", port), "UnifiedProbe")?;
     let scenario = std::env::var("VOXRIG_NATIVE_SCENARIO").ok();
+    if scenario.as_deref() == Some("respawn") {
+        return respawn_probe(config).await;
+    }
     if scenario.as_deref() == Some("reconfiguration") {
         return reconfiguration_probe(config).await;
     }

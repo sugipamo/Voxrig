@@ -3,6 +3,24 @@ use super::*;
 use crate::client::{self as api, operations::Action};
 
 impl Bot {
+    pub(crate) async fn common_respawn(&self) -> Result<api::RespawnRecord> {
+        let bot = self.clone();
+        tokio::spawn(async move {
+            let _gate = bot.coherent_state_gate.lock().await;
+            if bot.connection_state() != ConnectionState::Ready {
+                return Err(common_state("respawn requires ready play context"));
+            }
+            let player = bot.common_player_unlocked().await?;
+            api::respawn::prepare(&bot.respawn_history, &player)?;
+            let result = bot.respawn().await;
+            api::respawn::dispatched(&bot.respawn_history, &result);
+            result?;
+            Ok(api::respawn::snapshot(&bot.respawn_history).expect("owned respawn"))
+        })
+        .await
+        .map_err(|error| crate::Error::from(anyhow::anyhow!("respawn owner failed: {error}")))?
+    }
+
     pub(crate) async fn common_connection_identity(&self) -> Result<api::ConnectionIdentity> {
         let _gate = self.coherent_state_gate.lock().await;
         let player = self.common_player_unlocked().await?;
@@ -2082,5 +2100,58 @@ mod tests {
         assert!(client.teams().await.is_err() && client.player_list().await.is_err());
         let _ = release.send(());
         server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn common_respawn_records_native_request_and_new_world_without_retry() {
+        for mode in [api::GameMode::Survival, api::GameMode::Creative] {
+            let mut spawn = Vec::new();
+            put_string(&mut spawn, "minecraft:overworld");
+            put_string(&mut spawn, "world");
+            spawn.extend(0i64.to_be_bytes());
+            spawn.extend([
+                if mode == api::GameMode::Creative {
+                    1
+                } else {
+                    0
+                },
+                0,
+                0,
+                0,
+                0,
+            ]);
+            let (bot, mut packets, release, server) =
+                super::super::tests::operation_test_bot(0x04, 0x3a, spawn).await;
+            super::super::common_motion::tests::seed_motion(&bot).await;
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            assert!(client.respawn().await.is_err());
+            let mut health = 0f32.to_be_bytes().to_vec();
+            health.push(20);
+            health.extend(5f32.to_be_bytes());
+            bot.apply_packet(0x49, health).await.unwrap();
+            let sent = client.respawn().await.unwrap();
+            assert!(sent.dispatched);
+            assert_eq!(sent.stage, api::RespawnStage::Submitted);
+            assert_eq!(packets.recv().await.unwrap(), (0x04, vec![0]));
+            assert!(client.clone().respawn().await.is_err());
+            release.send(()).unwrap();
+            timeout(Duration::from_secs(2), async {
+                while client.respawn_record().unwrap().received_spawn.is_none() {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .unwrap();
+            let fresh = client.respawn_record().unwrap();
+            assert_eq!(fresh.stage, api::RespawnStage::RespawnReceived);
+            assert!(
+                fresh.received_spawn.unwrap().value.world_generation
+                    > sent.session.world_generation
+            );
+            assert!(sent.received_spawn.is_none());
+            assert!(client.respawn().await.is_err());
+            bot.disconnect().await.unwrap();
+            assert!(client.respawn_record().unwrap().dispatched);
+            server.await.unwrap();
+        }
     }
 }

@@ -706,6 +706,10 @@ impl Fixture {
         });
         let api = Operations {
             bot: Bot {
+                respawn_history: {
+                    let state = session.state.try_lock().expect("new session");
+                    state.respawn_history.clone()
+                },
                 recipe_placement_history: {
                     let state = session.state.try_lock().expect("new session");
                     state.recipe_placement_history.clone()
