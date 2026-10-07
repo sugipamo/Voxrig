@@ -1045,6 +1045,7 @@ pub struct Bot {
     common_receipts: Arc<Mutex<crate::client::LegacyReceipts>>,
     packet_trace: Arc<Mutex<Option<crate::client::recording::TraceCapture>>>,
     common_scoreboard: Arc<Mutex<crate::client::ui::ScoreboardLedger>>,
+    common_boss_bars: Arc<Mutex<crate::client::ui::boss_bar::BossBarLedger>>,
     common_motion: Arc<Mutex<Option<common_motion::NativeMotionRun>>>,
     common_mining: Arc<Mutex<Option<common_mining::NativeMiningRun>>>,
     common_placement: Arc<Mutex<Option<common_placement::NativePlacementRun>>>,
@@ -1155,6 +1156,7 @@ impl Bot {
             common_receipts: self.common_receipts.clone(),
             packet_trace: self.packet_trace.clone(),
             common_scoreboard: self.common_scoreboard.clone(),
+            common_boss_bars: self.common_boss_bars.clone(),
             common_motion: self.common_motion.clone(),
             common_mining: self.common_mining.clone(),
             common_placement: self.common_placement.clone(),
@@ -1328,6 +1330,7 @@ impl Bot {
             common_receipts: Arc::new(Mutex::new(crate::client::LegacyReceipts::default())),
             packet_trace: Arc::new(Mutex::new(trace)),
             common_scoreboard: Arc::new(Mutex::new(Default::default())),
+            common_boss_bars: Arc::new(Mutex::new(Default::default())),
             common_motion: Arc::new(Mutex::new(None)),
             common_mining: Arc::new(Mutex::new(None)),
             common_placement: Arc::new(Mutex::new(None)),
@@ -4837,6 +4840,11 @@ impl Bot {
                 self.emit(Event::BlockChanged { x, y, z, state_id });
             }
             0x0c => {
+                self.common_boss_bars.lock().await.receive(
+                    crate::MinecraftVersion::Java1_16_1,
+                    &p,
+                    packet_sequence,
+                )?;
                 self.ui.write().await.apply_boss_bar(&p)?;
                 self.emit(Event::UiStateUpdated(UiUpdateKind::BossBar));
             }
@@ -6775,6 +6783,21 @@ impl Bot {
         let player = self.common_player_unlocked().await?;
         Ok(self
             .common_scoreboard
+            .lock()
+            .await
+            .capture(player.session, player.receive_sequence))
+    }
+}
+
+impl Bot {
+    pub(crate) async fn common_boss_bars(&self) -> Result<crate::client::ui::BossBarsObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::client::inventory::unavailable("connection closed"));
+        }
+        let player = self.common_player_unlocked().await?;
+        Ok(self
+            .common_boss_bars
             .lock()
             .await
             .capture(player.session, player.receive_sequence))

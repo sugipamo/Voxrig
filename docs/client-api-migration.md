@@ -714,3 +714,14 @@ See [common recipe placement](common-recipes.md#owned-recipe-placement-through-t
 車両の最新受信位置は`entity_motion`から読み、下車後の通常地上操作は
 `resume_ground`へ移行する。boat paddle、特殊補間・広いphysicsは未共通化。
 [共通乗車関係と入力](common-vehicles.md)を参照。
+
+
+## Boss bar観測
+
+legacy `UiState.boss_bars`の直接参照は、版共通の`Client::boss_bars()`へ移行する。
+`bars`の各entryは元UUIDと、title／progress／color／overlay／flagsの実受信値を持つ。
+legacyの`health`というfield名は共通APIでは`progress`とし、entity健康値と区別する。
+整数color／divisionsは共通enum、titleは元JSON／NBTを保持する`UiText`を使用する。
+部分更新はfieldごとの`source`を更新するため、capture全体のreceive boundaryを
+全fieldの受信時点の代わりに使わない。最初のpacket未受信とREMOVE後の空一覧も区別する。
+[共通boss bar](common-boss-bars.md)を参照。描画・server catalogue・text参照解決は別の対応範囲。

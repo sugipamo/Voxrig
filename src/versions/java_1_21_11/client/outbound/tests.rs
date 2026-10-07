@@ -2275,3 +2275,78 @@ async fn common_dismount_ground_owned_cancel_remount_and_revoke_preserve_history
         session.stop();
     }
 }
+
+#[tokio::test]
+async fn common_boss_bar_transport_preserves_fields_and_actual_removal() {
+    let (session, api, _peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let fixtures: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../data/client_api/boss_bar_packets.json"
+    ))
+    .unwrap();
+    let rows = fixtures["versions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["version"] == "1.21.11")
+        .unwrap();
+    let decode = |r: &serde_json::Value| {
+        r["payload_hex"]
+            .as_str()
+            .unwrap()
+            .as_bytes()
+            .chunks_exact(2)
+            .map(|p| u8::from_str_radix(std::str::from_utf8(p).unwrap(), 16).unwrap())
+            .collect::<Vec<_>>()
+    };
+    assert!(
+        client
+            .boss_bars()
+            .await
+            .unwrap()
+            .last_update_sequence
+            .is_none()
+    );
+    session
+        .state
+        .lock()
+        .await
+        .receive(
+            ids::play_clientbound::BOSS_BAR,
+            &decode(&rows["packets"][0]),
+            256,
+        )
+        .unwrap();
+    let before = client.boss_bars().await.unwrap();
+    session
+        .state
+        .lock()
+        .await
+        .receive(
+            ids::play_clientbound::BOSS_BAR,
+            &decode(&rows["packets"][2]),
+            256,
+        )
+        .unwrap();
+    let updated = client.boss_bars().await.unwrap();
+    assert_eq!(before.bars[0].title, updated.bars[0].title);
+    assert_ne!(
+        before.bars[0].progress.source,
+        updated.bars[0].progress.source
+    );
+    session
+        .state
+        .lock()
+        .await
+        .receive(
+            ids::play_clientbound::BOSS_BAR,
+            &decode(&rows["packets"][1]),
+            256,
+        )
+        .unwrap();
+    let removed = client.boss_bars().await.unwrap();
+    assert!(removed.bars.is_empty());
+    assert!(removed.last_update_sequence > updated.last_update_sequence);
+    client.disconnect().await.unwrap();
+    assert!(client.boss_bars().await.is_err());
+}

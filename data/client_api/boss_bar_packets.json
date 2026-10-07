@@ -1,0 +1,499 @@
+{
+  "schema": 1,
+  "versions": [
+    {
+      "packets": [
+        {
+          "color": 2,
+          "flags": [
+            true,
+            false,
+            true
+          ],
+          "native_title_text": "Boss",
+          "operation": 0,
+          "overlay": 4,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10000f7b2274657874223a22426f7373227d3f000000020405",
+          "progress": 0.5,
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "operation": 1,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f1001",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "operation": 2,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10023f000000",
+          "progress": 0.5,
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "native_title_text": "Updated",
+          "operation": 3,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f1003127b2274657874223a2255706461746564227d",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 2,
+          "operation": 4,
+          "overlay": 4,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040204",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "flags": [
+            true,
+            false,
+            true
+          ],
+          "operation": 5,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100505",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 0,
+          "operation": 4,
+          "overlay": 0,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040000",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 1,
+          "operation": 4,
+          "overlay": 0,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040100",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 2,
+          "operation": 4,
+          "overlay": 0,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040200",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 3,
+          "operation": 4,
+          "overlay": 0,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040300",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 4,
+          "operation": 4,
+          "overlay": 0,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040400",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 5,
+          "operation": 4,
+          "overlay": 0,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040500",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 6,
+          "operation": 4,
+          "overlay": 0,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040600",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 0,
+          "operation": 4,
+          "overlay": 0,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040000",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 0,
+          "operation": 4,
+          "overlay": 1,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040001",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 0,
+          "operation": 4,
+          "overlay": 2,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040002",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 0,
+          "operation": 4,
+          "overlay": 3,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040003",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 0,
+          "operation": 4,
+          "overlay": 4,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040004",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "flags": [
+            false,
+            false,
+            false
+          ],
+          "operation": 5,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100500",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "flags": [
+            true,
+            false,
+            false
+          ],
+          "operation": 5,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100501",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "flags": [
+            false,
+            true,
+            false
+          ],
+          "operation": 5,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100502",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "flags": [
+            true,
+            true,
+            false
+          ],
+          "operation": 5,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100503",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "flags": [
+            false,
+            false,
+            true
+          ],
+          "operation": 5,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100504",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "flags": [
+            true,
+            false,
+            true
+          ],
+          "operation": 5,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100505",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "flags": [
+            false,
+            true,
+            true
+          ],
+          "operation": 5,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100506",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "flags": [
+            true,
+            true,
+            true
+          ],
+          "operation": 5,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100507",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "operation": 2,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f1002be800000",
+          "progress": -0.25,
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "operation": 2,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100200000000",
+          "progress": 0.0,
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "operation": 2,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10023e800000",
+          "progress": 0.25,
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "operation": 2,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10023f800000",
+          "progress": 1.0,
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "operation": 2,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10023fc00000",
+          "progress": 1.5,
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        }
+      ],
+      "version": "1.16.1"
+    },
+    {
+      "packets": [
+        {
+          "color": 2,
+          "flags": [
+            true,
+            false,
+            true
+          ],
+          "native_title_text": "Boss",
+          "operation": 0,
+          "overlay": 4,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f1000080004426f73733f000000020405",
+          "progress": 0.5,
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "operation": 1,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f1001",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "operation": 2,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10023f000000",
+          "progress": 0.5,
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "native_title_text": "Updated",
+          "operation": 3,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100308000755706461746564",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 2,
+          "operation": 4,
+          "overlay": 4,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040204",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "flags": [
+            true,
+            false,
+            true
+          ],
+          "operation": 5,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100505",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 0,
+          "operation": 4,
+          "overlay": 0,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040000",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 1,
+          "operation": 4,
+          "overlay": 0,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040100",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 2,
+          "operation": 4,
+          "overlay": 0,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040200",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 3,
+          "operation": 4,
+          "overlay": 0,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040300",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 4,
+          "operation": 4,
+          "overlay": 0,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040400",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 5,
+          "operation": 4,
+          "overlay": 0,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040500",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 6,
+          "operation": 4,
+          "overlay": 0,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040600",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 0,
+          "operation": 4,
+          "overlay": 0,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040000",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 0,
+          "operation": 4,
+          "overlay": 1,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040001",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 0,
+          "operation": 4,
+          "overlay": 2,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040002",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 0,
+          "operation": 4,
+          "overlay": 3,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040003",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "color": 0,
+          "operation": 4,
+          "overlay": 4,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10040004",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "flags": [
+            false,
+            false,
+            false
+          ],
+          "operation": 5,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100500",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "flags": [
+            true,
+            false,
+            false
+          ],
+          "operation": 5,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100501",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "flags": [
+            false,
+            true,
+            false
+          ],
+          "operation": 5,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100502",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "flags": [
+            true,
+            true,
+            false
+          ],
+          "operation": 5,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100503",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "flags": [
+            false,
+            false,
+            true
+          ],
+          "operation": 5,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100504",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "flags": [
+            true,
+            false,
+            true
+          ],
+          "operation": 5,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100505",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "flags": [
+            false,
+            true,
+            true
+          ],
+          "operation": 5,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100506",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "flags": [
+            true,
+            true,
+            true
+          ],
+          "operation": 5,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100507",
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "operation": 2,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f1002be800000",
+          "progress": -0.25,
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "operation": 2,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f100200000000",
+          "progress": 0.0,
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "operation": 2,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10023e800000",
+          "progress": 0.25,
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "operation": 2,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10023f800000",
+          "progress": 1.0,
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        },
+        {
+          "operation": 2,
+          "payload_hex": "0102030405060708090a0b0c0d0e0f10023fc00000",
+          "progress": 1.5,
+          "uuid": "01020304-0506-0708-090a-0b0c0d0e0f10"
+        }
+      ],
+      "version": "1.21.11"
+    }
+  ]
+}

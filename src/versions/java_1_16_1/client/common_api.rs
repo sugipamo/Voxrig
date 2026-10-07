@@ -603,6 +603,67 @@ fn common_state(message: &str) -> crate::Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn common_boss_bar_transport_preserves_fields_and_actual_removal() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let fixtures: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../data/client_api/boss_bar_packets.json"
+        ))
+        .unwrap();
+        let rows = fixtures["versions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["version"] == "1.16.1")
+            .unwrap();
+        let decode = |r: &serde_json::Value| {
+            r["payload_hex"]
+                .as_str()
+                .unwrap()
+                .as_bytes()
+                .chunks_exact(2)
+                .map(|p| u8::from_str_radix(std::str::from_utf8(p).unwrap(), 16).unwrap())
+                .collect::<Vec<_>>()
+        };
+        assert!(
+            client
+                .boss_bars()
+                .await
+                .unwrap()
+                .last_update_sequence
+                .is_none()
+        );
+        bot.apply_packet(0x0c, decode(&rows["packets"][0]))
+            .await
+            .unwrap();
+        let before = client.boss_bars().await.unwrap();
+        bot.apply_packet(0x0c, decode(&rows["packets"][2]))
+            .await
+            .unwrap();
+        let updated = client.boss_bars().await.unwrap();
+        assert_eq!(before.bars[0].title, updated.bars[0].title);
+        assert_ne!(
+            before.bars[0].progress.source,
+            updated.bars[0].progress.source
+        );
+        assert_eq!(bot.ui.read().await.boss_bars.len(), 1);
+        bot.apply_packet(0x0c, decode(&rows["packets"][1]))
+            .await
+            .unwrap();
+        let removed = client.boss_bars().await.unwrap();
+        assert!(removed.bars.is_empty());
+        assert!(removed.last_update_sequence > updated.last_update_sequence);
+        assert!(bot.ui.read().await.boss_bars.is_empty());
+        client.disconnect().await.unwrap();
+        assert!(client.boss_bars().await.is_err());
+        let _ = release.send(());
+        server.await.unwrap();
+    }
+
     #[tokio::test]
     async fn common_dismount_ground_owned_cancel_remount_and_revoke_preserve_history() {
         use api::{VehicleRelation, survival::MotionStatus};

@@ -1,4 +1,4 @@
-# 共通scoreboard観測とClientManager
+# 共通UI観測とClientManager
 
 ```rust,no_run
 use voxrig::client::prelude::*;
@@ -27,7 +27,8 @@ serverが表示中のobjectiveだけを送る場合があり、完全なserver c
 `UiText`は既存`ScreenTitle`と同じ型で、legacy JSON／modern unnamed NBTの元encodingを保持する。
 modernのobjective/scoreにある任意のdisplayやnumber formatも保持する。
 `ScoreNumberFormat`はblank・styledの元NBT・fixedの元componentを区別する。
-component参照の解決、rendering、teams・boss bar・title等の全UIの共通化はまだ含めない。
+component参照の解決、rendering、teams・title等の全UIの共通化はまだ含めない。
+boss barは別の`Client::boss_bars()`へ接続した。[契約](common-boss-bars.md)を参照。
 
 decodeはpacket全体を検査してからcacheへ適用する。欠損や余分なfield、未対応number formatで
 一部分だけを採用しない。新しいformatにはVoxrig更新が必要。cacheは4096entryへ制限する。
@@ -60,3 +61,12 @@ pendingの個別disconnectはerrorで、接続callerの取消かshutdownを使�
 この変更はA5のscoreboardとmanager部分。[かまど基本slot操作](common-furnaces.md)と
 [乗車関係・明示的下車](common-vehicles.md)も両adapterへ接続し、両版のnativeで検証した。
 A5の代表操作が揃った。より広いUI・vehicle・manager統合はBの必須作業に残る。
+
+
+## Boss bar
+
+B6で`Client::boss_bars()`を両adapterへ接続した。元ADDとその後の部分更新・REMOVEを
+共通型で観測し、各fieldの受信ordinalを個別に保持する。更新されていないtitle／flags等を
+新しい受信値へ昇格させない。未受信UUIDの更新からbarを作らない。
+Survival／CreativeのClientで同じ入口を使い、描画やentity健康値の推論を行わない。
+teams、titles、tab list、world borderと広いmanager機能はB6に残る。

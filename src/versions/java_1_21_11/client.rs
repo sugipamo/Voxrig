@@ -87,6 +87,7 @@ struct State {
     entities: crate::client::entity::SpawnLedger,
     vehicles: crate::client::vehicle::PassengerLedger,
     scoreboard: crate::client::ui::ScoreboardLedger,
+    boss_bars: crate::client::ui::boss_bar::BossBarLedger,
     phase: Phase,
     world: World,
     reconstruction: Reconstruction,
@@ -136,6 +137,7 @@ impl Default for State {
             entities: Default::default(),
             vehicles: Default::default(),
             scoreboard: Default::default(),
+            boss_bars: Default::default(),
             phase: Phase::Configuration,
             world: World::default(),
             reconstruction: Reconstruction::default(),
@@ -901,6 +903,11 @@ fn apply_play(
             r.end()?;
             responses.push((output::PONG, payload.to_vec()));
         }
+        input::BOSS_BAR => {
+            state
+                .boss_bars
+                .receive(MinecraftVersion::Java1_21_11, payload, state.sequence)?;
+        }
         input::SCOREBOARD_OBJECTIVE
         | input::SCOREBOARD_DISPLAY_OBJECTIVE
         | input::SCOREBOARD_SCORE
@@ -1104,5 +1111,14 @@ impl Bot {
         self.session.check(&state)?;
         let player = operations::common_player_in_state(&state, self.session.id, false)?;
         Ok(state.scoreboard.capture(player.session, state.sequence))
+    }
+}
+
+impl Bot {
+    pub(crate) async fn common_boss_bars(&self) -> Result<crate::client::ui::BossBarsObservation> {
+        let state = self.session.state.lock().await;
+        self.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.session.id, false)?;
+        Ok(state.boss_bars.capture(player.session, state.sequence))
     }
 }

@@ -846,3 +846,24 @@ ready・初期player位置設定後にcartを作るfixture順序へ修正し、s
 最初の失敗と送信数の保持、完成済み停止から車両消滅後の地上継続を両adapterで確認した。
 実除外より先にown poseが届く順序も扱い、新版の未知velocityと元の中断情報を保持する。
 広いB3〜B6、非公開A6の固定commit結果と最終main統合は引き続き必要。
+
+### 2026-10-07: B6の共通boss bar
+
+`trial-1.16.1-7e474ce2`／`trial-1.21.11-f3351a14`で、同じmanagerのSurvival／Creative
+Clientへboss bar ADD→progress／name／style更新→REMOVEを配信した。両版の4つの
+mode／接続で、共通`boss_bars()`の各fieldを元packetのUUID・operation・値・text bytes・
+受信ordinalに照合した。更新されないflagsは元ADDのsourceを保持する。
+独立RCONで配信先・value 75・実削除を確認し、manager shutdown後の実接続数0も確認した。
+両JVM exit 0、proxy errorsなし。
+[451入力・binary・原fieldの検証記録](evidence/common-boss-bars-20261007.json)。
+
+元の未改変boss-event reader／writerとmodern Handler dispatchにも、両版各31例の
+全6操作・7色・5overlay・8flags・有限progressを照合した。
+描画・一般text意味・entity健康値・server catalogueは検証範囲に含めない。
+未受信UUIDの更新、全truncation／trailing、不正enum／operation／非有限値のcache更新拒否と、
+両adapterの実受信・部分更新・削除・切断は軽量試験で確認する。
+
+最初の`trial-1.16.1-d484a60c`は、試験用のresource-location IDに大文字を使用したため
+原サーバーがbossbar commandを拒否し、ADD未配信で待機がtimeoutした。
+小文字IDと即時のcommand拒否検査へ修正し、失敗履歴をcanonical結果から分けて保存した。
+広いB3〜B6と非公開A6は引き続き必要。

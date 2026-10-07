@@ -5502,6 +5502,46 @@ async fn manager_ui_probe(config: ConnectionConfig) -> anyhow::Result<()> {
                 }
                 emit(&command, snapshots)?;
             }
+            "b6_bars_added" | "b6_bars_updated" | "b6_bars_removed" => {
+                let bars = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let snapshots = [primary.boss_bars().await?, peer.boss_bars().await?];
+                        let ready = snapshots.iter().all(|o| {
+                            if command == "b6_bars_removed" {
+                                return o.bars.is_empty() && o.last_update_sequence.is_some();
+                            }
+                            let Some(bar) = o.bars.first().filter(|_| o.bars.len() == 1) else {
+                                return false;
+                            };
+                            if command == "b6_bars_added" {
+                                bar.progress.value == 0.5
+                                    && bar.color.value == BossBarColor::Red
+                                    && bar.overlay.value == BossBarOverlay::Notched20
+                            } else {
+                                bar.progress.value == 0.75
+                                    && bar.color.value == BossBarColor::Green
+                                    && bar.overlay.value == BossBarOverlay::Notched6
+                                    && match &bar.title.value {
+                                        UiText::LegacyJson { json } => json.contains("UpdatedB6"),
+                                        UiText::NativeNbt { bytes } => {
+                                            bytes.windows(9).any(|v| v == b"UpdatedB6")
+                                        }
+                                        UiText::Unavailable => false,
+                                    }
+                            }
+                        });
+                        if ready {
+                            return Ok::<_, anyhow::Error>(snapshots);
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                emit(
+                    &command,
+                    serde_json::json!({"bars":bars,"players":[primary.player_state().await?,peer.player_state().await?]}),
+                )?;
+            }
             "a5_manager_shutdown" => {
                 manager.shutdown().await?;
                 anyhow::ensure!(

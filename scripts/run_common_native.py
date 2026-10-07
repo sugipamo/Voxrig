@@ -1628,6 +1628,68 @@ def verify_scoreboard_frames(version, observations, identities, trace):
     return verified,peers
 
 
+def verify_boss_bar_frames(version, observations, identities, trace, peers):
+    """Compare each receipt to independently decoded original native frame fields."""
+    all_frames=trace.since(0);verified=[]
+    def decode(frame):
+        raw=bytes.fromhex(frame['body_hex']);cursor=0
+        def take(n):
+            nonlocal cursor
+            if n<0 or cursor+n>len(raw):raise RuntimeError('truncated original boss frame')
+            value=raw[cursor:cursor+n];cursor+=n;return value
+        def varint():
+            nonlocal cursor
+            value,size=PacketTraceProxy.varint(raw[cursor:]);cursor+=size;return value
+        def string():return take(varint()).decode()
+        def nbt_payload(tag,depth=0):
+            if depth>64:raise RuntimeError('native boss component depth exceeded')
+            if tag in (1,2,3,4,5,6):take({1:1,2:2,3:4,4:8,5:4,6:8}[tag])
+            elif tag in (7,11,12):take(int.from_bytes(take(4),'big',signed=True)*{7:1,11:4,12:8}[tag])
+            elif tag==8:take(int.from_bytes(take(2),'big'))
+            elif tag==9:
+                child=take(1)[0];count=int.from_bytes(take(4),'big',signed=True)
+                if not 0<=count<=1048576:raise RuntimeError('invalid native component list')
+                for _ in range(count):nbt_payload(child,depth+1)
+            elif tag==10:
+                while True:
+                    child=take(1)[0]
+                    if child==0:break
+                    take(int.from_bytes(take(2),'big'));nbt_payload(child,depth+1)
+            else:raise RuntimeError('unsupported original text NBT tag')
+        def text():
+            if version=='1.16.1':return {'kind':'legacy_json','json':string()}
+            start=cursor;tag=take(1)[0];nbt_payload(tag);return {'kind':'native_nbt','bytes':list(raw[start:cursor])}
+        uuid=list(take(16));operation=varint();fields={}
+        if operation in (0,3):fields['title']=text()
+        if operation in (0,2):fields['progress']=struct.unpack('>f',take(4))[0]
+        if operation in (0,4):
+            color=varint();overlay=varint()
+            fields['color']=('pink','blue','red','green','yellow','purple','white')[color]
+            fields['overlay']=('progress','notched6','notched10','notched12','notched20')[overlay]
+        if operation in (0,5):fields['flags']={'raw':take(1)[0]}
+        if cursor!=len(raw) or operation not in range(6):raise RuntimeError('unexpected original boss frame fields')
+        return uuid,operation,fields
+    for observation,key in zip(observations,('primary','peer')):
+        identity=identities[key]
+        if observation['session']!=identity['session']:raise RuntimeError('boss bars from another managed session')
+        frames=[f for f in all_frames if f['connection']==peers[identity['name']] and f['direction']=='clientbound' and f['phase'] in ('configuration','play')]
+        def source(sequence):
+            frame=frames[sequence-1]
+            if frame['packet_id']!=(0x0c if version=='1.16.1' else 0x09):raise RuntimeError('bar ordinal belongs to another packet')
+            return frame
+        for bar in observation['bars']:
+            for name in ('title','progress','color','overlay','flags'):
+                receipt=bar[name]
+                if receipt['source']['kind']!='received':raise RuntimeError('bar field has no native source')
+                frame=source(receipt['source']['sequence']);uuid,op,fields=decode(frame)
+                if uuid!=bar['uuid'] or fields.get(name)!=receipt['value']:raise RuntimeError('bar field differs from original packet')
+                verified.append(dict(field=name,**{k:frame[k] for k in ('connection','ordinal','packet_id','body_sha256')}))
+        latest=source(observation['last_update_sequence']);_,operation,_=decode(latest)
+        if not observation['bars'] and operation!=1:raise RuntimeError('removed bar has no actual REMOVE source')
+        verified.append(dict(event=operation,**{k:latest[k] for k in ('connection','ordinal','packet_id','body_sha256')}))
+    return verified
+
+
 def run_manager_ui(version,env,rcon,trace,report,probe_log,stderr_log):
     result=report['native_results']['manager_ui']={'fixture':{},'records':[]}
     probe=subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')],cwd=REPO,env=dict(env,VOXRIG_NATIVE_SCENARIO='manager-ui'),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
@@ -1649,6 +1711,31 @@ def run_manager_ui(version,env,rcon,trace,report,probe_log,stderr_log):
         result['reset']=stage(probe,messages,'a5_ui_reset',result['records'])['value']
         result['remove_command']=rcon.command('scoreboard objectives remove voxrigA5')
         result['removed']=stage(probe,messages,'a5_ui_removed',result['records'])['value']
+        bars=result['boss_bars']={'commands':{},'stages':{}}
+        for command in ('gamemode survival UnifiedProbe','gamemode creative ManagedPeer','bossbar add voxrigb6 {"text":"B6"}','bossbar set voxrigb6 max 100','bossbar set voxrigb6 value 50','bossbar set voxrigb6 color red','bossbar set voxrigb6 style notched_20','bossbar set voxrigb6 players @a'):
+            response=rcon.command(command);bars['commands'][command]=response
+            if any(word in response for word in ('Incorrect argument','Unknown or incomplete','Expected whitespace')):raise RuntimeError('bossbar fixture rejected: '+response)
+        bars['native_players']=rcon.command('bossbar get voxrigb6 players')
+        bars['stages']['added']=stage(probe,messages,'b6_bars_added',result['records'])['value']
+        bars['original_fields']=verify_boss_bar_frames(version,bars['stages']['added']['bars'],ready['identities'],trace,peers)
+        for command in ('bossbar set voxrigb6 value 75','bossbar set voxrigb6 name {"text":"UpdatedB6"}','bossbar set voxrigb6 color green','bossbar set voxrigb6 style notched_6'):
+            bars['commands'][command]=rcon.command(command)
+        bars['stages']['updated']=stage(probe,messages,'b6_bars_updated',result['records'])['value']
+        bars['original_fields']+=verify_boss_bar_frames(version,bars['stages']['updated']['bars'],ready['identities'],trace,peers)
+        bars['native_value']=rcon.command('bossbar get voxrigb6 value')
+        if not re.search(r'75',bars['native_value']):raise RuntimeError('native bar progress differs')
+        for old,new in zip(bars['stages']['added']['bars'],bars['stages']['updated']['bars']):
+            a,b=old['bars'][0],new['bars'][0]
+            if a['uuid']!=b['uuid'] or a['flags']!=b['flags'] or a['progress']['source']==b['progress']['source'] or a['title']['source']==b['title']['source']:
+                raise RuntimeError('partial bar update lost unchanged flags or fresh fields')
+        bars['commands']['remove']=rcon.command('bossbar remove voxrigb6')
+        bars['stages']['removed']=stage(probe,messages,'b6_bars_removed',result['records'])['value']
+        bars['original_fields']+=verify_boss_bar_frames(version,bars['stages']['removed']['bars'],ready['identities'],trace,peers)
+        bars['native_remaining']=rcon.command('bossbar list')
+        if 'no custom bossbars' not in bars['native_remaining'].lower():raise RuntimeError('native bar still exists')
+        for index,mode in enumerate(('survival','creative')):
+            if bars['stages']['updated']['players'][index]['game_mode']!=mode:raise RuntimeError('UI modes differ from requested fixture')
+        bars['result']='passed'
         # Scope closure to both actual managed transports, not a global flag.
         for connection in peers.values():trace.expect_disconnect(connection)
         result['shutdown']=stage(probe,messages,'a5_manager_shutdown',result['records'])['value']
@@ -1658,7 +1745,7 @@ def run_manager_ui(version,env,rcon,trace,report,probe_log,stderr_log):
         logins=[f for f in trace.since(0) if f['direction']=='clientbound' and f['phase']=='login' and f['packet_id']==2]
         if len(logins)!=2:raise RuntimeError('duplicate admission or terminal shutdown performed another login')
         result['actual_logins']=len(logins);result['result']='passed'
-        result['authority_limits']='Two actual named Client connections per version, coherent received scoreboard with exact original field payload hashes/ordinals, independent native score and player-list checks, fresh update/owner reset/objective removal, terminal manager shutdown closes externally held clones and refuses further login. Mixed-version registry identity separation and cancelled pending login closure use lightweight TCP fixtures; vehicle/furnace and other UI remain required A5 work.'
+        result['authority_limits']='Two actual named Client connections per version, coherent received scoreboard with exact original field payload hashes/ordinals, independent native score and player-list checks, fresh update/owner reset/objective removal, terminal manager shutdown closes externally held clones and refuses further login. Mixed-version registry identity separation and cancelled pending login closure use lightweight TCP fixtures; A5 representative workflows are complete; boss-bar add/update/remove also match original wire fields on both managed connections. Rendering, other UI and wider B6 remain required.'
     finally:
         if probe.poll() is None:
             probe.terminate()

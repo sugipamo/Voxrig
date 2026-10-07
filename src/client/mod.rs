@@ -110,6 +110,7 @@ pub mod prelude {
         ScenePreview, SceneSource, SurvivalControl, SurvivalInput,
     };
     pub use super::ui::{
+        BossBarColor, BossBarFlags, BossBarOverlay, BossBarsObservation, ReceivedBossBar,
         ScoreNumberFormat, ScoreboardObjective, ScoreboardObservation, ScoreboardRenderType,
         ScoreboardScore, UiText,
     };

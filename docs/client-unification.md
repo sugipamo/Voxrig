@@ -15,7 +15,9 @@ A0〜A5の代表操作は両版で初回貫通済み。A6は資料・共通consu
 非公開の利用側から固定commitでの移行結果を受け取る段階にある。
 全機能の統合完了とは分ける。B4の結果転送に続き、B6の有限乗車入力を一連の操作として閉じた。
 vehicleの受信motion観測と、下車後の通常地上停止→新しい歩行→収納も両版・両modeで接続した。
-次は残る特殊vehicle／window／UI／managerを利用操作の単位で整理し、B3〜B5の残機能を進める。
+boss barのADD・部分更新・REMOVE観測も両modeの実Clientで接続した。
+次は残るteams／titles／tab list／world border等のUI、特殊vehicle／window／managerを
+利用操作の単位で進め、B3〜B5の残機能も継続する。
 操作に不要なconstructor比較の拡大を先行させない。
 実サーバーや重い検査は一つずつ実行する。
 
@@ -630,3 +632,16 @@ runの待機取消・遮断・同数値IDへの再乗車は送信所有と最初
 実chest OPEN／close／hotbar選択を照合した。両JVM exit 0、proxy errorsなし。
 [448入力と検証結果](evidence/common-dismount-grounding-20261007.json)。
 この通常地上継続は完了したが、上記の広いBと非公開A6を完了扱いにはしない。
+
+### B6のboss bar観測: 代表フロー完了
+
+共通`Client::boss_bars()`へ、元ADD・progress／name／style／properties更新・REMOVEを
+両adapterで接続した。部分更新で無関係なfieldの受信ordinalを更新せず、未知UUIDから
+barを作らない。元text encodingとfinite progress、color／overlay、raw flagsを保持する。
+[API契約](common-boss-bars.md)。
+
+両版・Survival／Creativeの実ClientでADD→部分更新→REMOVE→manager終了を通した。
+`trial-1.16.1-7e474ce2`／`trial-1.21.11-f3351a14`の元packetと独立RCONを照合し、
+両JVM exit 0、proxy errorsなし。[451入力と結果](evidence/common-boss-bars-20261007.json)。
+次は残るteams／titles／tab list／world border等のUIを、利用操作の単位で進める。
+特殊window／vehicle／managerと広いB3〜B5、非公開A6も引き続き必要。
