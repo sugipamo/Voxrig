@@ -82,6 +82,9 @@ pub struct BossBarsObservation {
     pub session: SessionStamp,
     /// Coherent receive boundary, not a server tick.
     pub receive_sequence: u64,
+    /// Actual context-reset packet ordinal, separate from UI field receipts.
+    /// None means no connection-level context reset has been received.
+    pub context_reset_sequence: Option<u64>,
     /// Last actual bar event, including REMOVE and ignored unknown-UUID updates.
     /// None means no bar packet has been received.
     pub last_update_sequence: Option<u64>,
@@ -99,6 +102,7 @@ impl crate::client::Client {
 }
 #[derive(Clone, Default)]
 pub(crate) struct BossBarLedger {
+    context_reset_sequence: Option<u64>,
     bars: BTreeMap<[u8; 16], ReceivedBossBar>,
     last_update_sequence: Option<u64>,
 }
@@ -111,6 +115,13 @@ enum Update {
     Flags(BossBarFlags),
 }
 impl BossBarLedger {
+    pub(crate) fn reset_context(&mut self, sequence: u64) {
+        *self = Self {
+            context_reset_sequence: Some(sequence),
+            ..Self::default()
+        };
+    }
+
     pub(crate) fn receive(
         &mut self,
         version: MinecraftVersion,
@@ -180,6 +191,7 @@ impl BossBarLedger {
         BossBarsObservation {
             session,
             receive_sequence,
+            context_reset_sequence: self.context_reset_sequence,
             last_update_sequence: self.last_update_sequence,
             bars: self.bars.values().cloned().collect(),
         }

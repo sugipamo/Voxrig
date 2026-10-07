@@ -64,3 +64,7 @@ vanillaのこのfixtureにはheader／footerを送るcommandがないため、li
 
 この変更はB6の表示情報の観測部分。teams／player rosterは別の区切りで接続済み。特殊window、vehicle、広いmanagerと
 B3〜B5、非公開A6の固定commit検証は引き続き必要。
+
+新版の再configurationでは`context_reset_sequence`へ実packetのordinalを保持し、
+古い登録／header/footer／titleを次contextへ持ち越さない。
+action barの保持と欠測・再登録の扱いは[共通UI context](common-ui-context.md)を参照。

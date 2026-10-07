@@ -1099,6 +1099,13 @@ fn apply_play(
             state.reconstruction = Reconstruction::default();
             state.operations.reset_configuration(state.sequence);
             state.players = players::PlayerTracker::default();
+            // Reconfiguration creates a new native play listener/scoreboard.
+            // Ordinary respawn retains these connection-level registrations.
+            state.scoreboard.reset_context(state.sequence);
+            state.teams.reset_context(state.sequence);
+            state.player_list.reset_context(state.sequence);
+            state.boss_bars.reset_context(state.sequence);
+            state.display.reset_context(state.sequence);
             state.entities.clear();
             state.vehicles.clear();
             if let Some(capture) = &mut state.recording {

@@ -156,6 +156,9 @@ pub struct TeamsObservation {
     pub session: SessionStamp,
     /// Coherent capture boundary.
     pub receive_sequence: u64,
+    /// Actual context-reset packet ordinal, separate from UI field receipts.
+    /// None means no connection-level context reset has been received.
+    pub context_reset_sequence: Option<u64>,
     /// Last actual team packet, including removals and unknown-team updates.
     pub last_update_sequence: Option<u64>,
     /// Declared surviving teams sorted by name.
@@ -179,6 +182,7 @@ struct TeamState {
 }
 #[derive(Clone, Default)]
 pub(crate) struct TeamLedger {
+    context_reset_sequence: Option<u64>,
     teams: BTreeMap<String, TeamState>,
     owners: BTreeMap<String, String>,
     sequence: Option<u64>,
@@ -267,6 +271,13 @@ pub(crate) fn decode(version: MinecraftVersion, payload: &[u8]) -> Result<TeamPa
     })
 }
 impl TeamLedger {
+    pub(crate) fn reset_context(&mut self, sequence: u64) {
+        *self = Self {
+            context_reset_sequence: Some(sequence),
+            ..Self::default()
+        };
+    }
+
     pub(crate) fn receive(
         &mut self,
         version: MinecraftVersion,
@@ -367,6 +378,7 @@ impl TeamLedger {
         TeamsObservation {
             session,
             receive_sequence,
+            context_reset_sequence: self.context_reset_sequence,
             last_update_sequence: self.sequence,
             teams: self
                 .teams

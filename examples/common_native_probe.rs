@@ -5396,6 +5396,262 @@ async fn furnace_probe(client: &Client) -> anyhow::Result<()> {
     anyhow::bail!("furnace controller stopped before disconnect")
 }
 
+async fn context_ui_capture(client: &Client) -> anyhow::Result<serde_json::Value> {
+    let registry = client.server_registry_state().await?;
+    Ok(serde_json::json!({"player":client.player_state().await?,
+        "registry":{"stamp":registry.stamp(),"complete":registry.complete(),"registry_count":registry.registries().len()},
+        "teams":client.teams().await?,"roster":client.player_list().await?,
+        "board":client.scoreboard_state().await?,"bars":client.boss_bars().await?,
+        "titles":client.titles().await?,"tab":client.tab_list().await?,"border":client.world_border().await?}))
+}
+async fn reconfiguration_probe(config: ConnectionConfig) -> anyhow::Result<()> {
+    let manager = ClientManager::new(2)?;
+    let primary = manager.connect("primary", config.clone()).await?;
+    primary.wait_until_ready().await?;
+    let mut peer_config = config;
+    peer_config.username = "ManagedPeer".into();
+    let peer = manager.connect("peer", peer_config).await?;
+    peer.wait_until_ready().await?;
+    emit(
+        "b5_config_ready",
+        serde_json::json!({"primary":primary.connection_identity().await?,"peer":peer.connection_identity().await?}),
+    )?;
+    let mut lines = BufReader::new(tokio::io::stdin()).lines();
+    let mut saved = [None, None];
+    let mut old_screen = [None, None];
+    while let Some(command) = lines.next_line().await? {
+        if command == "b5_config_shutdown" {
+            manager.shutdown().await?;
+            anyhow::ensure!(
+                primary.player_state().await.is_err() && peer.player_state().await.is_err()
+            );
+            emit(&command, serde_json::json!({"closed":true,"saved":saved}))?;
+            return Ok(());
+        }
+        let index = usize::from(command.ends_with("_peer"));
+        let client = if index == 0 { &primary } else { &peer };
+        let other = if index == 0 { &peer } else { &primary };
+        let mode = if index == 0 {
+            GameMode::Survival
+        } else {
+            GameMode::Creative
+        };
+        if command.starts_with("b5_config_before_") {
+            wait_player(client, |p| {
+                p.game_mode == Some(mode)
+                    && p.received_pose
+                        .as_ref()
+                        .is_some_and(|p| p.position == [0.5, 65.0, 0.5])
+            })
+            .await?;
+            client.wait_until_ready().await?;
+            tokio::time::timeout(Duration::from_secs(15), async {
+                loop {
+                    if !client.teams().await?.teams.is_empty()
+                        && !client.scoreboard_state().await?.objectives.is_empty()
+                        && !client.boss_bars().await?.bars.is_empty()
+                        && client.tab_list().await?.text.is_some()
+                        && client.titles().await?.title.is_some()
+                    {
+                        return Ok::<_, anyhow::Error>(());
+                    }
+                    tokio::time::sleep(Duration::from_millis(25)).await;
+                }
+            })
+            .await??;
+            wait_block(client, [0, 65, 2], "minecraft:chest").await?;
+            match mode {
+                GameMode::Survival => {
+                    client.survival().select_hotbar(0).await?;
+                    client.survival().look([0.0, 30.0]).await?;
+                }
+                _ => {
+                    client.creative().select_hotbar(0).await?;
+                    client.creative().look([0.0, 30.0]).await?;
+                }
+            }
+            match mode {
+                GameMode::Survival => {
+                    client.survival().open_container([0, 65, 2]).await?;
+                }
+                _ => {
+                    client.creative().open_container([0, 65, 2]).await?;
+                }
+            }
+            let opened = wait_container_open(client).await?;
+            old_screen[index] = Some(
+                opened
+                    .observed_screen
+                    .as_ref()
+                    .context("old screen missing")?
+                    .id,
+            );
+            let capture = context_ui_capture(client).await?;
+            saved[index] = Some(capture.clone());
+            emit(
+                &command,
+                serde_json::json!({"current":capture,"other":context_ui_capture(other).await?,"screen":opened}),
+            )?;
+        } else if command.starts_with("b5_config_pending_") {
+            tokio::time::timeout(Duration::from_secs(15), async {
+                loop {
+                    if !client.server_registry_state().await?.complete() {
+                        return Ok::<_, anyhow::Error>(());
+                    }
+                    tokio::time::sleep(Duration::from_millis(25)).await;
+                }
+            })
+            .await??;
+            let old = old_screen[index].context("no original screen")?;
+            let error = match mode {
+                GameMode::Survival => client
+                    .survival()
+                    .click_inventory(
+                        InventorySource::Container { screen: old },
+                        0,
+                        InventoryClickButton::Left,
+                    )
+                    .await
+                    .unwrap_err(),
+                _ => client
+                    .creative()
+                    .click_inventory(
+                        InventorySource::Container { screen: old },
+                        0,
+                        InventoryClickButton::Left,
+                    )
+                    .await
+                    .unwrap_err(),
+            };
+            let capture = context_ui_capture(client).await?;
+            anyhow::ensure!(
+                capture["teams"]["teams"].as_array().unwrap().is_empty()
+                    && capture["roster"]["entries"].as_array().unwrap().is_empty()
+                    && capture["board"]["objectives"]
+                        .as_array()
+                        .unwrap()
+                        .is_empty()
+                    && capture["bars"]["bars"].as_array().unwrap().is_empty()
+                    && capture["tab"]["text"].is_null()
+                    && capture["titles"]["title"].is_null()
+            );
+            emit(
+                &command,
+                serde_json::json!({"current":capture,"other":context_ui_capture(other).await?,"old_click_error":error.to_string(),"saved":saved[index]}),
+            )?;
+        } else if command.starts_with("b5_config_fresh_") {
+            client.wait_until_ready().await?;
+            wait_player(client, |p| {
+                p.game_mode == Some(mode)
+                    && p.received_pose
+                        .as_ref()
+                        .is_some_and(|p| p.position == [0.5, 65.0, 0.5])
+            })
+            .await?;
+            let old = saved[index].as_ref().context("missing saved capture")?;
+            let old_generation = old["registry"]["stamp"]["configuration_generation"]
+                .as_u64()
+                .unwrap();
+            let generation = client
+                .server_registry_state()
+                .await?
+                .stamp()
+                .configuration_generation;
+            anyhow::ensure!(generation > old_generation);
+            let capture = context_ui_capture(client).await?;
+            for key in [
+                "teams", "roster", "board", "bars", "titles", "tab", "border",
+            ] {
+                anyhow::ensure!(
+                    capture[key]["context_reset_sequence"].as_u64() == Some(generation)
+                );
+            }
+            anyhow::ensure!(
+                capture["teams"]["teams"].as_array().unwrap().is_empty()
+                    && capture["board"]["objectives"]
+                        .as_array()
+                        .unwrap()
+                        .is_empty()
+                    && capture["bars"]["bars"].as_array().unwrap().is_empty()
+                    && capture["tab"]["text"].is_null()
+                    && capture["titles"]["title"].is_null()
+                    && capture["titles"]["action_bar"] == old["titles"]["action_bar"]
+            );
+            let old_screen = old_screen[index].unwrap();
+            let stale_error = match mode {
+                GameMode::Survival => client
+                    .survival()
+                    .click_inventory(
+                        InventorySource::Container { screen: old_screen },
+                        0,
+                        InventoryClickButton::Left,
+                    )
+                    .await
+                    .unwrap_err(),
+                _ => client
+                    .creative()
+                    .click_inventory(
+                        InventorySource::Container { screen: old_screen },
+                        0,
+                        InventoryClickButton::Left,
+                    )
+                    .await
+                    .unwrap_err(),
+            };
+            match mode {
+                GameMode::Survival => {
+                    client.survival().select_hotbar(0).await?;
+                    client.survival().look([0., 30.]).await?;
+                    client.survival().open_container([0, 65, 2]).await?;
+                }
+                _ => {
+                    client.creative().select_hotbar(0).await?;
+                    client.creative().look([0., 30.]).await?;
+                    client.creative().open_container([0, 65, 2]).await?;
+                }
+            }
+            let opened = wait_container_open(client).await?;
+            let fresh_screen = opened
+                .observed_screen
+                .as_ref()
+                .context("fresh screen missing")?
+                .id;
+            anyhow::ensure!(fresh_screen != old_screen);
+            let take = crafting_pickup(
+                client,
+                mode,
+                InventorySource::Container {
+                    screen: fresh_screen,
+                },
+                0,
+                InventoryClickButton::Left,
+            )
+            .await?;
+            let store = crafting_pickup(
+                client,
+                mode,
+                InventorySource::Container {
+                    screen: fresh_screen,
+                },
+                27,
+                InventoryClickButton::Left,
+            )
+            .await?;
+            let close = match mode {
+                GameMode::Survival => client.survival().close_container(fresh_screen).await?,
+                _ => client.creative().close_container(fresh_screen).await?,
+            };
+            emit(
+                &command,
+                serde_json::json!({"current":capture,"other":context_ui_capture(other).await?,"saved":saved[index],"stale_click_error":stale_error.to_string(),"opened":opened,"take":take,"store":store,"close":close}),
+            )?;
+        } else {
+            anyhow::bail!("unexpected reconfiguration command");
+        }
+    }
+    anyhow::bail!("reconfiguration controller ended before shutdown")
+}
+
 async fn manager_ui_probe(config: ConnectionConfig) -> anyhow::Result<()> {
     let manager = ClientManager::new(2)?;
     let primary = manager.connect("primary", config.clone()).await?;
@@ -5926,6 +6182,9 @@ async fn main() -> anyhow::Result<()> {
     let config =
         ConnectionConfig::offline_from_env(Server::new("127.0.0.1", port), "UnifiedProbe")?;
     let scenario = std::env::var("VOXRIG_NATIVE_SCENARIO").ok();
+    if scenario.as_deref() == Some("reconfiguration") {
+        return reconfiguration_probe(config).await;
+    }
     if scenario.as_deref() == Some("manager-ui") {
         return manager_ui_probe(config).await;
     }

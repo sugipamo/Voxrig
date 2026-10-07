@@ -85,6 +85,9 @@ pub struct ScoreboardObservation {
     pub session: SessionStamp,
     /// Shared receive boundary at capture, not a server tick.
     pub receive_sequence: u64,
+    /// Actual context-reset packet ordinal, separate from UI field receipts.
+    /// None means no connection-level context reset has been received.
+    pub context_reset_sequence: Option<u64>,
     /// Last actual scoreboard event, including clears/removes. None means no
     /// scoreboard packet has been received, not an acknowledged empty server.
     pub last_update_sequence: Option<u64>,
@@ -107,6 +110,7 @@ impl super::Client {
 }
 #[derive(Clone, Default)]
 pub(crate) struct ScoreboardLedger {
+    context_reset_sequence: Option<u64>,
     objectives: BTreeMap<String, ObservedValue<ScoreboardObjective>>,
     displays: BTreeMap<i32, ObservedValue<String>>,
     scores: BTreeMap<(String, String), ObservedValue<ScoreboardScore>>,
@@ -123,6 +127,13 @@ pub(crate) enum ScoreboardUpdate {
     },
 }
 impl ScoreboardLedger {
+    pub(crate) fn reset_context(&mut self, sequence: u64) {
+        *self = Self {
+            context_reset_sequence: Some(sequence),
+            ..Self::default()
+        };
+    }
+
     /// Parse the whole original packet before mutating any cache field.
     pub(crate) fn receive(
         &mut self,
@@ -186,6 +197,7 @@ impl ScoreboardLedger {
         ScoreboardObservation {
             session,
             receive_sequence,
+            context_reset_sequence: self.context_reset_sequence,
             last_update_sequence: self.last_update_sequence,
             objectives: self.objectives.values().cloned().collect(),
             displays: self.displays.clone(),

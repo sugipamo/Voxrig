@@ -2467,3 +2467,192 @@ async fn social_common_bridge_applies_every_original_team_and_player_info_packet
     client.disconnect().await.unwrap();
     assert!(client.teams().await.is_err() && client.player_list().await.is_err());
 }
+
+#[tokio::test]
+async fn common_reconfiguration_resets_ui_and_requires_fresh_registration() {
+    use crate::client::{
+        GameMode,
+        ui::social_tests::{bridge_bytes, bridge_cases},
+    };
+    for mode in [GameMode::Survival, GameMode::Creative] {
+        let (session, api, _peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        let mut selected = vec![];
+        for dataset in [
+            include_str!("../../../../../data/client_api/display_packets.json"),
+            include_str!("../../../../../data/client_api/boss_bar_packets.json"),
+        ] {
+            let value: serde_json::Value = serde_json::from_str(dataset).unwrap();
+            let version = value["versions"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|v| v["version"] == "1.21.11")
+                .unwrap();
+            for row in version["packets"].as_array().unwrap() {
+                if row["group"] == "tab"
+                    || row["group"] == "title" && row["operation"].as_u64().is_some_and(|v| v < 3)
+                    || row.get("group").is_none() && row["operation"] == 0
+                {
+                    selected.push(row.clone());
+                }
+            }
+        }
+        let social = bridge_cases(MinecraftVersion::Java1_21_11);
+        selected.push(
+            social
+                .iter()
+                .find(|r| r["group"] == "team" && r["operation"] == 0)
+                .unwrap()
+                .clone(),
+        );
+        selected.push(
+            social
+                .iter()
+                .find(|r| r["group"] != "team" && r["flags"] == 255)
+                .unwrap()
+                .clone(),
+        );
+        {
+            let mut state = session.state.lock().await;
+            for row in &selected {
+                let id = row["packet_id"]
+                    .as_i64()
+                    .map_or(ids::play_clientbound::BOSS_BAR, |v| v as i32);
+                state.receive(id, &bridge_bytes(row), 256).unwrap();
+            }
+            let mut objective = vec![];
+            put_string(&mut objective, "old_context");
+            objective.push(0);
+            objective.extend([8, 0, 3, b'O', b'l', b'd']);
+            put_varint(&mut objective, 0);
+            objective.push(0);
+            state
+                .receive(ids::play_clientbound::SCOREBOARD_OBJECTIVE, &objective, 256)
+                .unwrap();
+        }
+        let before = client.teams().await.unwrap();
+        let old_roster = client.player_list().await.unwrap();
+        let old_titles = client.titles().await.unwrap();
+        assert!(!before.teams.is_empty() && !old_roster.entries.is_empty());
+        assert!(old_titles.title.is_some() && old_titles.action_bar.is_some());
+        assert!(client.tab_list().await.unwrap().text.is_some());
+        assert!(!client.boss_bars().await.unwrap().bars.is_empty());
+        assert!(
+            !client
+                .scoreboard_state()
+                .await
+                .unwrap()
+                .objectives
+                .is_empty()
+        );
+        let reset = {
+            let mut state = session.state.lock().await;
+            state
+                .receive(ids::play_clientbound::START_CONFIGURATION, &[], 256)
+                .unwrap();
+            assert_eq!(state.phase, Phase::Configuration);
+            state.sequence
+        };
+        // Read-only captures expose missing facts during configuration;
+        // only mutations require the completed play/loading baseline.
+        assert!(client.player_state().await.unwrap().position.is_none());
+        assert!(client.teams().await.unwrap().teams.is_empty());
+        assert!(client.player_list().await.unwrap().entries.is_empty());
+        assert!(client.survival().select_hotbar(0).await.is_err());
+        assert!(client.creative().select_hotbar(0).await.is_err());
+        // Re-establish the fixture's own-player prerequisites, without seeding any UI.
+        {
+            let mut state = session.state.lock().await;
+            state.phase = Phase::Play;
+            state.ready = true;
+            state.position = Some([0.0, 65.0, 0.0]);
+            state.world.select_dimension(
+                "minecraft:overworld".into(),
+                Dimension::new(-64, 384).unwrap(),
+            );
+            state.loading = loading::InteractionLoading::completed_fixture();
+            state.loading.generation = reset;
+            state.loading.attempt.as_mut().unwrap().generation = reset;
+            state
+                .operations
+                .reset_world(if mode == GameMode::Survival { 0 } else { 1 })
+                .unwrap();
+            state.operations.local_player = operations::LocalPlayerState::spawned(42);
+        }
+        let teams = client.teams().await.unwrap();
+        let roster = client.player_list().await.unwrap();
+        assert!(teams.teams.is_empty() && roster.entries.is_empty());
+        assert_eq!(teams.context_reset_sequence, Some(reset));
+        assert_eq!(roster.context_reset_sequence, Some(reset));
+        assert!(teams.last_update_sequence.is_none() && roster.last_update_sequence.is_none());
+        let titles = client.titles().await.unwrap();
+        assert!(
+            titles.title.is_none()
+                && titles.subtitle.is_none()
+                && titles.clear.is_none()
+                && titles.timing.is_none()
+        );
+        assert_eq!(titles.action_bar, old_titles.action_bar);
+        assert_eq!(titles.context_reset_sequence, Some(reset));
+        assert!(client.tab_list().await.unwrap().text.is_none());
+        let bars = client.boss_bars().await.unwrap();
+        assert!(bars.bars.is_empty());
+        assert_eq!(bars.context_reset_sequence, Some(reset));
+        let board = client.scoreboard_state().await.unwrap();
+        assert!(board.objectives.is_empty());
+        assert_eq!(board.context_reset_sequence, Some(reset));
+        // A partial update from the old registration cannot recreate either record.
+        let changes = [
+            social
+                .iter()
+                .find(|r| r["group"] == "team" && r["operation"] == 2)
+                .unwrap(),
+            social
+                .iter()
+                .find(|r| r["group"] != "team" && r["flags"] == 4)
+                .unwrap(),
+        ];
+        {
+            let mut state = session.state.lock().await;
+            for row in changes {
+                state
+                    .receive(
+                        row["packet_id"].as_i64().unwrap() as i32,
+                        &bridge_bytes(row),
+                        256,
+                    )
+                    .unwrap();
+            }
+        }
+        assert!(
+            client.teams().await.unwrap().teams.is_empty()
+                && client.player_list().await.unwrap().entries.is_empty()
+        );
+        {
+            let mut state = session.state.lock().await;
+            for row in selected
+                .iter()
+                .filter(|r| r["group"] == "team" || r["flags"] == 255)
+            {
+                state
+                    .receive(
+                        row["packet_id"].as_i64().unwrap() as i32,
+                        &bridge_bytes(row),
+                        256,
+                    )
+                    .unwrap();
+            }
+        }
+        assert!(
+            !client.teams().await.unwrap().teams.is_empty()
+                && !client.player_list().await.unwrap().entries.is_empty()
+        );
+        assert_eq!(
+            client.teams().await.unwrap().context_reset_sequence,
+            Some(reset)
+        );
+        assert_eq!(before.context_reset_sequence, None); // Detached observations remain unchanged.
+        client.disconnect().await.unwrap();
+    }
+}

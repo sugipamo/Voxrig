@@ -16,10 +16,12 @@ A0〜A5の代表操作は両版で初回貫通済み。A6は資料・共通consu
 全機能の統合完了とは分ける。B4の結果転送に続き、B6の有限乗車入力を一連の操作として閉じた。
 vehicleの受信motion観測と、下車後の通常地上停止→新しい歩行→収納も両版・両modeで接続した。
 boss barに加え、title／action bar／CLEAR／RESETとworld border更新も両modeの実Clientで接続した。
-tab header／footerは原codecとadapter適用で確認した。teamsとplayer一覧も実受信の共通入口へ接続した。
+tab header／footerは原codecとadapter適用に加え、新版再設定試験で実配信も確認した。
+teamsとplayer一覧も実受信の共通入口へ接続した。
 次は特殊vehicle／window／managerと残るUIを
 利用操作の単位で進め、B3〜B5の残機能も継続する。
-B5では新版の再configuration前後におけるUI／player一覧のcache寿命・再登録も確認する。
+B5の新版再configurationではUI／player一覧のcache寿命・再登録と新しい収納操作への継続を接続した。
+普通のrespawn・chunk欠測・再接続等の広い実操作フローはB5に残る。
 操作に不要なconstructor比較の拡大を先行させない。
 実サーバーや重い検査は一つずつ実行する。
 
@@ -132,6 +134,12 @@ B5では新版の再configuration前後におけるUI／player一覧のcache寿�
   元の全field encodingと受信ordinalを保持する。旧版のNOT_SET、版ごとのlisted／chat／order／hatも
   defaultへ読み替えない。特殊window／vehicle／広いmanagerとB3〜B5、非公開A6は継続する。
   詳細は[共通teamとplayer一覧](common-teams-player-list.md)。
+
+- B5の一部完了: 新版の実START_CONFIGURATIONでglobal UI／profile登録をresetし、
+  別fieldの`context_reset_sequence`に実ordinalを保持する。原GUIが残すaction barは元originで保持。
+  同じ2接続のSurvival／Creativeで再設定中の欠測・旧screen拒否→実registry再受信／play→
+  旧screen再拒否→新しいチェスト取得／格納／close→manager終了を接続した。
+  [共通UI context](common-ui-context.md)。広いB5とB3／B4／B6・非公開A6は継続する。
 
 ## 選択と公開入口
 

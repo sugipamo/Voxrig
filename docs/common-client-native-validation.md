@@ -922,3 +922,26 @@ trailing fieldの原子的拒否と、両adapterからの全packet適用も確�
 legacy team cacheの部分decode／所属移動／未宣言CHANGEも共通decoderで修正した。
 UI描画・認証・完全なonline catalogue・entity現在位置の推論は含めない。
 特殊window／vehicle／広いmanager、B3〜B5と非公開A6の固定commit検証は継続する。
+
+### 2026-10-07: B5の再設定・UI寿命とチェスト操作の再開
+
+`trial-1.21.11-5af8891c`で、同じmanagerのSurvival／Creative接続を順番に再設定した。
+UI受信・チェストOPEN→元serverのSTART_CONFIGURATION→未完了registry／欠測観測と
+旧screenクリック拒否→元configuration taskの完了・新profile／world受信→旧screenの再拒否→
+新チェストから石1個の取得・player slotへ格納・close→manager終了まで通した。
+元START・ACK・FINISH、各fieldの受信ordinal、保持action bar、新profileの再登録、保存済み
+captureの不変性と別Clientをresetしないことを照合した。254件のfield照合と、各接続の実送信
+クリック2回だけを確認する。RCONで各回の接続数2→1→2、石の格納・空チェスト、終了後0を
+確認し、LOGIN_SUCCESS計2回で同じTCP接続上の再設定であることを確認した。
+
+旧版`trial-1.16.1-d80fd2fc`では通常のscoreboard／boss／title／border／team／player一覧と
+managerの両modeフローを再実行し、120観測の`context_reset_sequence == None`を確認した。
+両trialは同じ460入力・consumer binaryで実行し、両JVM exit 0、proxy errorsなし。
+[固定入力・元client寿命の照合・結果](evidence/common-ui-context-20261007.json)と
+[共通契約](common-ui-context.md)を参照。
+
+公式server・bundler・codecは未改変。自作controllerは元serverのExecutor上で原
+`switchToConfig`／`startConfiguration`とtab packet送信を呼ぶ試験用補助である。
+最初の`trial-1.21.11-529f3c95`はJDK 21の`Thread.FieldHolder.task`を`target`と誤認して
+controllerが失敗したため中断した。lookupと即時失敗報告を修正して最終試験を実行した。
+通常respawn・chunk欠測・再接続、広いB3〜B6と非公開A6検証は後続範囲に残す。

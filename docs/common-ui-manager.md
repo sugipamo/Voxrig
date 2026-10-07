@@ -72,3 +72,7 @@ Survival／CreativeのClientで同じ入口を使い、描画やentity健康値�
 title／subtitle／action bar、tab header／footer、world borderの実受信観測も共通入口へ接続した。
 [表示情報の契約](common-ui-display.md)を参照。teams／player一覧も実受信の共通入口へ接続した。[契約](common-teams-player-list.md)を参照。
 特殊windowと広いmanager機能はB6に残る。
+
+新版の再configurationでは`context_reset_sequence`へ実packetのordinalを保持し、
+古い登録／header/footer／titleを次contextへ持ち越さない。
+action barの保持と欠測・再登録の扱いは[共通UI context](common-ui-context.md)を参照。

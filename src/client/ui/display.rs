@@ -25,6 +25,9 @@ pub struct TitlesObservation {
     pub session: SessionStamp,
     /// Coherent receive boundary.
     pub receive_sequence: u64,
+    /// Actual context-reset packet ordinal, separate from UI field receipts.
+    /// None means no connection-level context reset has been received.
+    pub context_reset_sequence: Option<u64>,
     /// Last actual title-family event, including clear/reset.
     pub last_update_sequence: Option<u64>,
     /// Received title or received clear. Outer None means never received.
@@ -53,6 +56,9 @@ pub struct TabListObservation {
     pub session: SessionStamp,
     /// Coherent receive boundary.
     pub receive_sequence: u64,
+    /// Actual context-reset packet ordinal, separate from UI field receipts.
+    /// None means no connection-level context reset has been received.
+    pub context_reset_sequence: Option<u64>,
     /// Complete received pair. None means no header/footer packet received.
     pub text: Option<ObservedValue<TabListText>>,
 }
@@ -110,6 +116,9 @@ pub struct WorldBorderObservation {
     pub session: SessionStamp,
     /// Coherent receive boundary.
     pub receive_sequence: u64,
+    /// Actual context-reset packet ordinal, separate from UI field receipts.
+    /// None means no connection-level context reset has been received.
+    pub context_reset_sequence: Option<u64>,
     /// Last actual border-family event.
     pub last_update_sequence: Option<u64>,
     /// Received center x/z.
@@ -148,6 +157,7 @@ impl crate::client::Client {
 }
 #[derive(Clone, Default)]
 pub(crate) struct DisplayLedger {
+    context_reset_sequence: Option<u64>,
     title: Option<ObservedValue<Option<UiText>>>,
     subtitle: Option<ObservedValue<Option<UiText>>>,
     action_bar: Option<ObservedValue<UiText>>,
@@ -183,6 +193,22 @@ enum Update {
     },
 }
 impl DisplayLedger {
+    // Original Gui.onDisconnected resets titles/times, tab and boss overlay,
+    // but does not erase the last action-bar message. Keep its actual origin.
+    pub(crate) fn reset_context(&mut self, sequence: u64) {
+        let action_bar = self.action_bar.take();
+        let title_sequence = action_bar.as_ref().and_then(|v| match v.source {
+            crate::client::ValueSource::Received { sequence } => Some(sequence),
+            _ => None,
+        });
+        *self = Self {
+            context_reset_sequence: Some(sequence),
+            action_bar,
+            title_sequence,
+            ..Self::default()
+        };
+    }
+
     pub(crate) fn receive(
         &mut self,
         version: MinecraftVersion,
@@ -322,6 +348,7 @@ impl DisplayLedger {
         TitlesObservation {
             session,
             receive_sequence,
+            context_reset_sequence: self.context_reset_sequence,
             last_update_sequence: self.title_sequence,
             title: self.title.clone(),
             subtitle: self.subtitle.clone(),
@@ -338,6 +365,7 @@ impl DisplayLedger {
         TabListObservation {
             session,
             receive_sequence,
+            context_reset_sequence: self.context_reset_sequence,
             text: self.tab.clone(),
         }
     }
@@ -355,6 +383,7 @@ impl DisplayLedger {
         WorldBorderObservation {
             session,
             receive_sequence,
+            context_reset_sequence: self.context_reset_sequence,
             last_update_sequence: view.border_sequence,
             center: view.center.clone(),
             size: view.size.clone(),

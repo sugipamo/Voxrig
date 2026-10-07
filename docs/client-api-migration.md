@@ -750,3 +750,14 @@ metadata更新で残るmemberのoriginを置き換えない。
 受信した`game_mode.value=None`で、outer Noneとは異なる。profile/property/chatのsignatureは
 受信した元データで、認証成功や操作権限として使わない。
 [型・上限・元packetによる検証](common-teams-player-list.md)を参照。
+
+
+## UI観測のcontext reset
+
+共通UI観測へ`context_reset_sequence: Option<u64>`を追加しました。
+struct literalを持つ利用側はこのfieldを追加してください。再設定による破棄と、
+実REMOVE／CLEAR／RESETを混同せず、欠測をdefault値へ置き換えないでください。
+新版は同じ接続でも実START_CONFIGURATIONで古いteam／profile／scoreboard／boss bar登録が失効します。
+新しいregistry／play baselineを待ち、新しいscreenで操作してください。
+保存済みsnapshotは読み取り専用の過去の観測として保持できます。古いscreen IDを
+新しい操作へ再利用しないでください。[APIと検証](common-ui-context.md)。

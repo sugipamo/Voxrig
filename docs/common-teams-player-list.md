@@ -58,8 +58,8 @@ UPDATE_LIST_ORDER（bit 6）をvarint、UPDATE_HAT（bit 7）をboolとして読
 team／profile登録はconnection内の通常play中のworld変更をまたいで保持する。
 各captureの`session`は現在のworld境界で、前worldの受信ordinalを新worldでの受信へ付け替えない。
 切断済みClientからの取得はerror。saved observationをlive接続や操作IDへ戻さない。
-新版の再configuration前後のcache寿命・再登録は未検証で、B5の後続フローに残す。
-通常playの結果から再configuration後の登録の有効性を保証しない。
+新版の再configurationでは登録を破棄し、`context_reset_sequence`へ元packetのordinalを保持する。
+新しい実ADDの再登録まで部分更新から登録を復元しない。[共通context寿命](common-ui-context.md)。
 `Feature::Teams`／`Feature::PlayerList`で対応条件を確認する。
 `tab_list()`はheader／footer、`entity_motion()`はspawn寿命と空間情報を扱い、これらと混同しない。
 

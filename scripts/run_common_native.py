@@ -221,7 +221,10 @@ class PacketTraceProxy:
                             raise ValueError("native expanded frame length differs")
                     packet, offset = self.varint(decoded)
                     body = decoded[offset:]
-                    record = {"ordinal": len(self.frames) + 1, "connection": state["connection"], "direction": direction, "phase": state["phase"], "packet_id": packet, "body_length": len(body), "wire_sha256": hashlib.sha256(header + frame).hexdigest(), "body_sha256": hashlib.sha256(body).hexdigest()}
+                    recorded_phase = state["phase"]
+                    if recorded_phase == "await_configuration_ack":
+                        recorded_phase = "configuration" if direction == "clientbound" else "play"
+                    record = {"ordinal": len(self.frames) + 1, "connection": state["connection"], "direction": direction, "phase": recorded_phase, "packet_id": packet, "body_length": len(body), "wire_sha256": hashlib.sha256(header + frame).hexdigest(), "body_sha256": hashlib.sha256(body).hexdigest()}
                     if len(body) <= 512 or (self.version == "1.16.1" and state["phase"] == "play" and direction == "clientbound" and packet == 0x25):
                         record["body_hex"] = body.hex()
                     self.frames.append(record)
@@ -235,6 +238,10 @@ class PacketTraceProxy:
                             state["compression"], _ = self.varint(body)
                         elif packet == 2:
                             state["phase"] = "play" if self.version == "1.16.1" else "await_login_ack"
+                    elif self.version == "1.21.11" and direction == "clientbound" and state["phase"] == "play" and packet == 0x74:
+                        state["phase"] = "await_configuration_ack"
+                    elif direction == "serverbound" and state["phase"] == "await_configuration_ack" and packet == 0x0f:
+                        state["phase"] = "configuration"
                     elif direction == "serverbound" and packet == 3:
                         if state["phase"] == "await_login_ack":
                             state["phase"] = "configuration"
@@ -455,7 +462,7 @@ def outer_snbt_compounds(response):
 
 
 def stage(probe, messages, name, records, timeout=30, poll=None):
-    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready", "a2_ready", "a4_ready", "a4_captured", "a5_ui_ready", "a5_furnace_ready", "a5_vehicle_ready", "b3_terrain_ready", "b5_revocation_ready", "b4_recipe_ready", "b4_ghost_ready"):
+    if name not in ("ready", "mining_ready", "placement_ready", "swap_ready", "container_ready", "workflow_ready", "a2_ready", "a4_ready", "a4_captured", "a5_ui_ready", "b5_config_ready", "a5_furnace_ready", "a5_vehicle_ready", "b3_terrain_ready", "b5_revocation_ready", "b4_recipe_ready", "b4_ghost_ready"):
         probe.stdin.write(name + "\n")
         probe.stdin.flush()
     deadline = time.monotonic() + timeout
@@ -2022,6 +2029,141 @@ def run_manager_ui(version,env,rcon,trace,report,probe_log,stderr_log):
             except subprocess.TimeoutExpired:probe.kill();probe.wait(timeout=5)
 
 
+def run_reconfiguration(version, env, rcon, trace, report, probe_log, stderr_log, folder):
+    """Original switch/configuration tasks, unchanged codecs and two real Client sessions."""
+    result = report['native_results']['reconfiguration'] = {'records': [], 'rounds': [], 'control': [], 'fixture': {}}
+    serial = 0
+    def control(action, name):
+        nonlocal serial
+        serial += 1
+        temporary = folder/'voxrig-control-request.tmp'
+        temporary.write_text(f'{serial}\t{action}\t{name}\n')
+        temporary.replace(folder/'voxrig-control-request.txt')
+        def completed():
+            path = folder/'voxrig-control-reply.txt'
+            if 'VOXRIG_NATIVE_CONTROL_FAILED' in (folder/'server.log').read_text():raise RuntimeError('own native control failed; inspect server log')
+            if not path.exists(): return None
+            value = path.read_text().strip().split('\t',2)
+            if value[0] != str(serial): return None
+            if len(value) != 3 or value[1] != 'ok': raise RuntimeError('native lifecycle control refused: '+str(value))
+            return {'serial':serial,'action':action,'name':name,'original_method':value[2]}
+        receipt = until(completed,20);result['control'].append(receipt);return receipt
+    def command(value):
+        answer = rcon.command(value);result['fixture'][value]=answer
+        if any(x in answer for x in ('Incorrect argument','Unknown or incomplete','not loaded')): raise RuntimeError('context fixture rejected: '+value+': '+answer)
+        return answer
+    probe = subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')],cwd=REPO,
+        env=dict(env,VOXRIG_NATIVE_SCENARIO='reconfiguration'),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
+    messages = queue.Queue();reader=threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True);reader.start()
+    def capture(name):return stage(probe,messages,name,result['records'])['value']
+    def verify_receipts(values, target):
+        pairs = [values['current'], values['other']] if target == 'primary' else [values['other'], values['current']]
+        owners = {key:dict(identities[key], session=pairs[i]['player']['session']) for i,key in enumerate(('primary','peer'))}
+        displays = {'titles':[p['titles']for p in pairs], 'tabs':[p['tab']for p in pairs], 'borders':[p['border']for p in pairs]}
+        verified = verify_display_frames(version, displays, owners, trace, peers)
+        for index,key in enumerate(('primary','peer')):
+            pair = pairs[index];connection = peers[identities[key]['name']]
+            frames = [f for f in trace.since(0)if f['connection']==connection and f['direction']=='clientbound'and f['phase']in('configuration','play')]
+            for entry in pair['roster']['entries']:
+                for field in ('profile','game_mode','latency','display_name','listing','list_order','show_hat','chat_session'):
+                    receipt = entry[field]
+                    if receipt is None:continue
+                    source = receipt['source']
+                    if source['kind']!='received' or not 0<source['sequence']<=pair['roster']['receive_sequence']:raise RuntimeError('invalid context roster source')
+                    frame = frames[source['sequence']-1];packet=decode_social_frame(version,frame)
+                    original = next((e for e in packet.get('entries',[])if e['uuid']==entry['uuid']),None)
+                    if original is None or original['fields'].get(field,object()) != receipt['value']:raise RuntimeError('context roster value differs from original frame')
+                    verified.append(dict(family='roster',field=field,**{k:frame[k]for k in('connection','ordinal','packet_id','body_sha256')}))
+            for team in pair['teams']['teams']:
+                for field,receipt in [('parameters',team['parameters'])]+[('member',m)for m in team['members']]:
+                    frame=frames[receipt['source']['sequence']-1];packet=decode_social_frame(version,frame)
+                    good=packet['name']==team['name'] and (packet['parameters']==receipt['value'] if field=='parameters' else receipt['value']in packet['members'])
+                    if not good:raise RuntimeError('context team field differs from original frame')
+                    verified.append(dict(family='teams',field=field,**{k:frame[k]for k in('connection','ordinal','packet_id','body_sha256')}))
+        return verified
+
+    try:
+        identities = capture('b5_config_ready');result['identities']=identities
+        until(lambda:matched(rcon.command('list'),r'2 of'))
+        command('setblock 0 65 1 minecraft:air')
+        command('setblock 0 65 2 minecraft:chest[facing=north,type=single,waterlogged=false]')
+        peers = {}
+        for frame in trace.since(0):
+            if frame['direction']=='serverbound' and frame['phase']=='login' and frame['packet_id']==0:
+                raw = bytes.fromhex(frame['body_hex']);length,offset = PacketTraceProxy.varint(raw)
+                peers[raw[offset:offset+length].decode()] = frame['connection']
+        if set(peers) != {'UnifiedProbe','ManagedPeer'}:raise RuntimeError('original login identity mapping differs')
+        for target, name, mode, suffix in [('primary','UnifiedProbe','survival','a'),('peer','ManagedPeer','creative','b')]:
+            for value in ('gamemode survival UnifiedProbe','gamemode creative ManagedPeer','clear @a',
+                    'tp UnifiedProbe 0.5 65 0.5','tp ManagedPeer 0.5 65 0.5',
+                    f'team add ctx{suffix} {{"text":"ContextTeam"}}',f'team join ctx{suffix} @a',f'team join ctx{suffix} OfflineContext',
+                    f'scoreboard objectives add ctx{suffix} dummy {{"text":"ContextBoard"}}',f'scoreboard objectives setdisplay sidebar ctx{suffix}',
+                    f'scoreboard players set {name} ctx{suffix} 7',
+                    f'bossbar add voxrig:ctx{suffix} {{"text":"ContextBoss"}}',f'bossbar set voxrig:ctx{suffix} players @a',
+                    'title @a title {"text":"ContextTitle"}','title @a subtitle {"text":"ContextSubtitle"}',
+                    'title @a actionbar {"text":"ContextAction"}',
+                    'item replace block 0 65 2 container.0 with minecraft:stone 1'):
+                command(value)
+            control('tab','UnifiedProbe');control('tab','ManagedPeer')
+            before = capture('b5_config_before_'+target)
+            round_ = {'target':target,'mode':mode,'before':before,'pending':None,'fresh':None,'original_field_receipts':verify_receipts(before,target)};result['rounds'].append(round_)
+            old_registry=before['current']['registry']['stamp']
+            control('switch',name)
+            pending = capture('b5_config_pending_'+target);round_['pending']=pending;round_['original_field_receipts']+=verify_receipts(pending,target)
+            generation=pending['current']['registry']['stamp']['configuration_generation']
+            if generation <= old_registry['configuration_generation'] or pending['current']['registry']['complete']:raise RuntimeError('configuration generation/availability differs')
+            if pending['saved'] != before['current']:raise RuntimeError('saved preconfiguration capture changed')
+            for key in ('teams','roster','board','bars','titles','tab','border'):
+                if pending['current'][key]['context_reset_sequence'] != generation:raise RuntimeError('UI reset provenance differs')
+                if pending['other'][key]['context_reset_sequence'] != before['other'][key]['context_reset_sequence']:raise RuntimeError('reconfiguration reset another Client')
+            frames=[f for f in trace.since(0) if f['connection']==peers[name] and f['direction']=='clientbound' and f['phase'] in ('configuration','play')]
+            reset=frames[generation-1]
+            if reset['phase']!='play' or reset['packet_id']!=0x74 or reset['body_length']!=0:raise RuntimeError('reset source is not actual native START_CONFIGURATION')
+            round_['reset_frame']=reset
+            # These removals happen while this native player is absent from play,
+            # so there is no new REMOVE packet to repair its previous UI cache.
+            round_['native_pending_list']=until(lambda:matched(rcon.command('list'),r'1 of'))
+            for value in (f'team remove ctx{suffix}',f'scoreboard objectives remove ctx{suffix}',f'bossbar remove voxrig:ctx{suffix}'):
+                command(value)
+            control('start',name)
+            until(lambda:matched(rcon.command('list'),r'2 of'))
+            command('gamemode '+mode+' '+name);command('tp '+name+' 0.5 65 0.5')
+            fresh = capture('b5_config_fresh_'+target);round_['fresh']=fresh;round_['original_field_receipts']+=verify_receipts(fresh,target)
+            if fresh['saved'] != before['current']:raise RuntimeError('saved capture was rebound after config')
+            current=fresh['current']
+            if not current['registry']['complete'] or current['registry']['stamp']['configuration_generation']!=generation:raise RuntimeError('fresh registry owner differs')
+            if current['player']['session']['connection_id'] != before['current']['player']['session']['connection_id']:raise RuntimeError('consumer reconnected instead of reconfiguring')
+            if current['player']['session']['world_generation'] <= before['current']['player']['session']['world_generation']:raise RuntimeError('play world generation did not change')
+            for entry in current['roster']['entries']:
+                if entry['profile']['source']['sequence'] <= generation:raise RuntimeError('old registered profile survived config')
+            round_['native_inventory']=until(lambda:matched(rcon.command('data get entity '+name+' Inventory[{Slot:9b}]'),r'Count: ?1b|count: ?1'))
+            if 'minecraft:stone' not in round_['native_inventory']:raise RuntimeError('fresh native inventory item differs')
+            round_['native_empty_chest']=command('data get block 0 65 2 Items')
+            if not re.search(r'\[\]\s*$',round_['native_empty_chest']):raise RuntimeError('fresh container transfer did not empty original chest')
+            frames=trace.since(0);connection=peers[name]
+            ack=[f for f in frames if f['connection']==connection and f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==0x0f and f['ordinal']>reset['ordinal']]
+            finish=[f for f in frames if f['connection']==connection and f['direction']=='serverbound' and f['phase']=='configuration' and f['packet_id']==3 and f['ordinal']>reset['ordinal']]
+            if len(ack)!=1 or len(finish)!=1:raise RuntimeError('native config handshake missing/duplicated')
+            round_['native_handshake']={'ack':ack[0],'finish':finish[0]}
+            # Pending and post-ready stale clicks must not add any click intent.
+            all_clicks=[f for f in frames if f['connection']==connection and f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==0x11 and f['ordinal']>reset['ordinal']]
+            if len(all_clicks)!=2:raise RuntimeError('stale or duplicated click reached native server: '+str(len(all_clicks)))
+            round_['fresh_click_frames']=all_clicks
+        for connection in peers.values():trace.expect_disconnect(connection)
+        result['shutdown']=capture('b5_config_shutdown');probe.wait(timeout=10);reader.join(timeout=2)
+        if probe.returncode!=0 or reader.is_alive():raise RuntimeError('configuration probe shutdown failed')
+        result['native_after_shutdown']=until(lambda:matched(rcon.command('list'),r'0 of'))
+        logins=[f for f in trace.since(0) if f['direction']=='clientbound' and f['phase']=='login' and f['packet_id']==2]
+        if len(logins)!=2:raise RuntimeError('configuration used a replacement login')
+        result['actual_logins']=len(logins);result['result']='passed'
+        result['authority_limits']='Two actual common Clients initially Survival/Creative on one unchanged official server. Own reflection control invokes original switchToConfig/startConfiguration and original tab packet constructor; no original class transformations, packet injection or prediction authority. Same TCP transports receive actual START_CONFIGURATION, ACK/config registries/finish/new play; missing UI and partial registry during config, fresh profile receipts, preserved original action-bar, stale screen click refusal and fresh chest transfer/close are checked against transparent trace and independent native inventory/chest/player count. Rendering pixels, crypto/authentication and broader B remain separate.'
+    finally:
+        if probe.poll() is None:
+            probe.terminate()
+            try:probe.wait(timeout=10)
+            except subprocess.TimeoutExpired:probe.kill();probe.wait(timeout=5)
+
+
 def run(version, accept_eula, runtime_root=None, runtime_inputs=None, scenario="full"):
     if not accept_eula:
         raise RuntimeError("pass --accept-eula when authorized to run the official server")
@@ -2071,12 +2213,27 @@ network-compression-threshold=256
     server_log = (folder / "server.log").open("w")
     stderr_log = (folder / "probe-stderr.log").open("w")
     probe_log = (folder / "probe.jsonl").open("w")
-    server = subprocess.Popen(["java", "-XX:ActiveProcessorCount=1", "-Xms256M", "-Xmx1024M", "-jar", str(jar), "nogui"], cwd=folder, stdin=subprocess.PIPE, stdout=server_log, stderr=subprocess.STDOUT, text=True)
+    server_command = ["java", "-XX:ActiveProcessorCount=1", "-Xms256M", "-Xmx1024M"]
+    if scenario == "reconfiguration":
+        if version != "1.21.11":
+            raise RuntimeError("native reconfiguration is a modern protocol workflow")
+        classes = folder / "own-control-classes"
+        subprocess.run(["java", "-Xmx512M", "-XX:ActiveProcessorCount=1", "-m", "jdk.compiler/com.sun.tools.javac.Main", "-d", str(classes), str(REPO/"scripts/NativeReconfigurationControl.java")], check=True)
+        server_command += ["--add-opens=java.base/java.lang=ALL-UNNAMED", "-cp", str(classes)+os.pathsep+str(jar), "NativeReconfigurationControl", "nogui"]
+    else:
+        server_command += ["-jar", str(jar), "nogui"]
+    server = subprocess.Popen(server_command, cwd=folder, stdin=subprocess.PIPE, stdout=server_log, stderr=subprocess.STDOUT, text=True)
     probe, rcon = None, None
     trace = PacketTraceProxy(port, version, folder / "packet-trace.jsonl")
     report = {"version":version, "run_id":folder.name, "source":source, "server_memory_limit":"1024M", "sync_chunk_writes":False, "result":"running", "scenario_result":"running", "native_results":{}, "client_records":[]}
     report["runtime_parent"] = str(folder.parent)
     report["runtime_inputs"] = runtime_inputs
+    if scenario == "reconfiguration":
+        report["own_configuration_control"] = {
+            "source_sha256": hashlib.sha256((REPO/"scripts/NativeReconfigurationControl.java").read_bytes()).hexdigest(),
+            "class_sha256": hashlib.sha256((folder/"own-control-classes/NativeReconfigurationControl.class").read_bytes()).hexdigest(),
+            "method": "Own control observes original server thread reference and invokes unchanged original lifecycle and tab-packet methods on its Executor. Official bundler/Main/JARs and all packet bodies remain unchanged.",
+        }
     (folder / "process.json").write_text(json.dumps({"server_pid":server.pid, "version":version, "started":time.time()}) + "\n")
     print(version, "server", server.pid, "log", folder, flush=True)
     try:
@@ -2138,6 +2295,10 @@ network-compression-threshold=256
         if scenario == "furnace":
             run_furnace(version,env,rcon,trace,report,probe_log,stderr_log)
             report["scenario_result"]="passed"
+            return retained
+        if scenario == "reconfiguration":
+            run_reconfiguration(version, env, rcon, trace, report, probe_log, stderr_log, folder)
+            report["scenario_result"] = "passed"
             return retained
         if scenario == "manager-ui":
             run_manager_ui(version,env,rcon,trace,report,probe_log,stderr_log)
@@ -3210,15 +3371,17 @@ def main():
     parser.add_argument("--all", action="store_true")
     parser.add_argument("--accept-eula", action="store_true")
     parser.add_argument("--runtime-dir", type=Path, help="Optional disposable runtime parent, e.g. /dev/shm for isolating disk I/O; reports are exported to .local after JVM exit")
-    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "mining-tools", "connection-revocation", "recipe-placement", "recipe-result-merge", "recipe-result-transfer", "recipe-ghost", "recording-scene", "manager-ui", "furnace", "vehicle", "vehicle-control", "dry-terrain", "creative-flight", "creative-landing"), default="full", help="Run the operation corpus or a focused common Client workflow")
+    parser.add_argument("--scenario", choices=("full", "basic-workflow", "equipment-entity", "mining-recovery", "mining-tools", "connection-revocation", "recipe-placement", "recipe-result-merge", "recipe-result-transfer", "recipe-ghost", "recording-scene", "manager-ui", "reconfiguration", "furnace", "vehicle", "vehicle-control", "dry-terrain", "creative-flight", "creative-landing"), default="full", help="Run the operation corpus or a focused common Client workflow")
     args = parser.parse_args()
     if bool(args.version) == args.all:
         parser.error("select exactly one of --version / --all")
+    if args.scenario == "reconfiguration" and args.version != "1.21.11":
+        parser.error("reconfiguration requires --version 1.21.11; legacy has no configuration phase")
     # Snapshot actual source/data before compilation; do not reconstruct a
     # successful run's inputs from a later worktree or a rebuilt consumer.
     paths = subprocess.check_output([
         "git", "ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", "Cargo.toml", "Cargo.lock", "src", "data",
-        "examples/common_native_probe.rs", "scripts/run_common_native.py",
+        "examples/common_native_probe.rs", "scripts/run_common_native.py", "scripts/NativeReconfigurationControl.java",
     ], cwd=REPO).decode().rstrip("\0").split("\0")
     runtime_inputs = {
         "baseline_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO).decode().strip(),

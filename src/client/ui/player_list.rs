@@ -84,6 +84,9 @@ pub struct PlayerListObservation {
     pub session: SessionStamp,
     /// Coherent receive boundary.
     pub receive_sequence: u64,
+    /// Actual context-reset packet ordinal, separate from UI field receipts.
+    /// None means no connection-level context reset has been received.
+    pub context_reset_sequence: Option<u64>,
     /// Last actual player-info/remove packet, even when no entry survives.
     pub last_update_sequence: Option<u64>,
     /// Surviving actual ADDs sorted by UUID; not a complete online-account catalogue.
@@ -100,6 +103,7 @@ impl crate::Client {
 }
 #[derive(Clone, Default)]
 pub(crate) struct PlayerListLedger {
+    context_reset_sequence: Option<u64>,
     entries: BTreeMap<[u8; 16], PlayerListEntry>,
     sequence: Option<u64>,
 }
@@ -236,6 +240,13 @@ fn decode(version: MinecraftVersion, id: i32, payload: &[u8]) -> Result<Packet> 
     })
 }
 impl PlayerListLedger {
+    pub(crate) fn reset_context(&mut self, sequence: u64) {
+        *self = Self {
+            context_reset_sequence: Some(sequence),
+            ..Self::default()
+        };
+    }
+
     pub(crate) fn receive(
         &mut self,
         version: MinecraftVersion,
@@ -330,6 +341,7 @@ impl PlayerListLedger {
         PlayerListObservation {
             session,
             receive_sequence,
+            context_reset_sequence: self.context_reset_sequence,
             last_update_sequence: self.sequence,
             entries: self.entries.values().cloned().collect(),
         }
