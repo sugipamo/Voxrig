@@ -14,6 +14,7 @@
 - [共通APIの能力表](common-capabilities.md)
 - [共通chat・command](common-chat.md)
 - [共通の待機API](common-waits.md)
+- [共通event streamの設計メモ（確認待ち）](event-stream-design.md)
 - [Client共通化のロードマップ・現在地](client-unification.md)
 - [公開client APIの設計](public-client-api.md)
 - [0.2 client APIへの移行](client-api-migration.md)
