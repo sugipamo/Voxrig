@@ -36,9 +36,7 @@ impl Bot {
     ) -> Result<CraftingTakeRecord> {
         let _gate = self.coherent_state_gate.lock().await;
         let result = async {
-            let record = self
-                .common_crafting_take
-                .lock()
+            let record = super::lock_packet_state(&self.common_crafting_take)
                 .await
                 .as_ref()
                 .filter(|r| r.record.id == id)
@@ -100,7 +98,7 @@ impl Bot {
             }
             .map_err(|e| unavailable(format!("crafting reservation: {e:?}")))?;
             {
-                let mut guard = self.common_crafting_take.lock().await;
+                let mut guard = super::lock_packet_state(&self.common_crafting_take).await;
                 let record = &mut guard.as_mut().expect("retained").record;
                 record.send.legacy_action = Some(action);
                 record.send.legacy_comparison = Some(comparison);
@@ -109,7 +107,7 @@ impl Bot {
             self.connection
                 .bounded_inventory_click(id.attempt(), 0, 0, native)
                 .await?;
-            let mut guard = self.common_crafting_take.lock().await;
+            let mut guard = super::lock_packet_state(&self.common_crafting_take).await;
             let record = &mut guard.as_mut().expect("retained").record;
             record.send.dispatched = true;
             Ok(record.clone())
@@ -122,17 +120,24 @@ impl Bot {
         result
     }
     pub(super) async fn interrupt_common_crafting_take(&self, reason: impl std::fmt::Display) {
-        if let Some(r) = self.common_crafting_take.lock().await.as_mut() {
+        if let Some(r) = super::lock_packet_state(&self.common_crafting_take)
+            .await
+            .as_mut()
+        {
             r.record.inspection(reason);
         }
     }
     pub(super) async fn common_crafting_reply_received(&self, reply: WindowTransaction) {
-        if let Some(r) = self.common_crafting_take.lock().await.as_mut().filter(|r| {
-            r.record.unresolved()
-                && r.record.send.legacy_action == Some(reply.action)
-                && r.record.window_id() == i32::from(reply.window_id)
-                && reply.packet_sequence > r.record.send.after_sequence
-        }) {
+        if let Some(r) = super::lock_packet_state(&self.common_crafting_take)
+            .await
+            .as_mut()
+            .filter(|r| {
+                r.record.unresolved()
+                    && r.record.send.legacy_action == Some(reply.action)
+                    && r.record.window_id() == i32::from(reply.window_id)
+                    && reply.packet_sequence > r.record.send.after_sequence
+            })
+        {
             r.record
                 .legacy_reply
                 .get_or_insert(api::inventory::InventoryTransactionReply {
@@ -144,7 +149,10 @@ impl Bot {
         }
     }
     pub(super) async fn common_crafting_context_received(&self, confirm: bool) -> Result<()> {
-        let Some(snapshot) = self.common_crafting_take.lock().await.clone() else {
+        let Some(snapshot) = super::lock_packet_state(&self.common_crafting_take)
+            .await
+            .clone()
+        else {
             return Ok(());
         };
         if !snapshot.record.unresolved() {
@@ -181,7 +189,7 @@ impl Bot {
             });
         drop(inventory);
         let complete = {
-            let mut guard = self.common_crafting_take.lock().await;
+            let mut guard = super::lock_packet_state(&self.common_crafting_take).await;
             let record = &mut guard.as_mut().expect("retained").record;
             take::receive(
                 record,
@@ -201,7 +209,7 @@ impl Bot {
                 .await
             {
                 Ok(()) => {
-                    let mut guard = self.common_crafting_take.lock().await;
+                    let mut guard = super::lock_packet_state(&self.common_crafting_take).await;
                     let r = guard.as_mut().expect("retained");
                     r.released = true;
                     r.record.stage = r.record.completed_stage();
@@ -226,9 +234,7 @@ impl crate::client::adapter::CraftingTakeOps for Bot {
         let gate = self.coherent_state_gate.lock().await;
         self.common_motion_admission().await?;
         if let CraftingSource::Table { screen } = grid.source() {
-            if self
-                .common_container_close
-                .lock()
+            if super::lock_packet_state(&self.common_container_close)
                 .await
                 .as_ref()
                 .is_some_and(|r| r.id.screen() == screen)
@@ -244,9 +250,7 @@ impl crate::client::adapter::CraftingTakeOps for Bot {
         if !self.inventory.read().await.pending_clicks.is_empty() {
             return Err(unavailable("native inventory click unresolved"));
         }
-        let attempt = self
-            .common_crafting_take
-            .lock()
+        let attempt = super::lock_packet_state(&self.common_crafting_take)
             .await
             .as_ref()
             .map_or(Some(1), |r| r.record.id.attempt().checked_add(1))
@@ -276,7 +280,7 @@ impl crate::client::adapter::CraftingTakeOps for Bot {
         };
         self.crafting_cache(&record).await?;
         let id = record.id;
-        *self.common_crafting_take.lock().await = Some(NativeCraftingTake {
+        *super::lock_packet_state(&self.common_crafting_take).await = Some(NativeCraftingTake {
             record,
             released: false,
         });
@@ -302,9 +306,7 @@ impl crate::client::adapter::CraftingTakeOps for Bot {
                 .await
                 .map_err(|_| unavailable("crafting inspection owner unavailable"))??;
         }
-        Ok(self
-            .common_crafting_take
-            .lock()
+        Ok(super::lock_packet_state(&self.common_crafting_take)
             .await
             .as_ref()
             .map(|r| r.record.clone()))

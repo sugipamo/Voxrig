@@ -19,9 +19,7 @@ impl Bot {
         let gate = self.coherent_state_gate.lock().await;
         self.common_motion_admission().await?;
         if let contract::InventorySwapSource::Container { screen } = source {
-            if self
-                .common_container_close
-                .lock()
+            if super::lock_packet_state(&self.common_container_close)
                 .await
                 .as_ref()
                 .is_some_and(|r| r.id.screen() == screen)
@@ -48,9 +46,7 @@ impl Bot {
                 ));
             }
         }
-        let attempt = self
-            .common_inventory_swap
-            .lock()
+        let attempt = super::lock_packet_state(&self.common_inventory_swap)
             .await
             .as_ref()
             .map_or(Some(1), |p| p.record.id.attempt().checked_add(1))
@@ -83,7 +79,7 @@ impl Bot {
             },
         )?;
         let id = record.id;
-        *self.common_inventory_swap.lock().await = Some(NativeInventorySwap {
+        *super::lock_packet_state(&self.common_inventory_swap).await = Some(NativeInventorySwap {
             record,
             released: false,
         });
@@ -104,9 +100,7 @@ impl Bot {
     ) -> Result<InventorySwapRecord> {
         let _gate = self.coherent_state_gate.lock().await;
         let result = async {
-            let record = self
-                .common_inventory_swap
-                .lock()
+            let record = super::lock_packet_state(&self.common_inventory_swap)
                 .await
                 .as_ref()
                 .filter(|s| s.record.id == id)
@@ -157,7 +151,7 @@ impl Bot {
                 }
             };
             {
-                let mut guard = self.common_inventory_swap.lock().await;
+                let mut guard = super::lock_packet_state(&self.common_inventory_swap).await;
                 let record = &mut guard.as_mut().expect("retained").record;
                 record.send.legacy_action = Some(action);
                 record.send.legacy_comparison = Some(comparison.clone());
@@ -183,7 +177,7 @@ impl Bot {
                     },
                 )
                 .await?;
-            let mut guard = self.common_inventory_swap.lock().await;
+            let mut guard = super::lock_packet_state(&self.common_inventory_swap).await;
             let record = &mut guard.as_mut().expect("retained").record;
             record.send.dispatched = true;
             Ok(record.clone())
@@ -198,7 +192,10 @@ impl Bot {
         result
     }
     pub(super) async fn interrupt_common_inventory_swap(&self, reason: impl std::fmt::Display) {
-        if let Some(run) = self.common_inventory_swap.lock().await.as_mut() {
+        if let Some(run) = super::lock_packet_state(&self.common_inventory_swap)
+            .await
+            .as_mut()
+        {
             contract::inspection(&mut run.record, reason);
         }
     }
@@ -206,7 +203,7 @@ impl Bot {
         self.reconcile_common_inventory_swap(false).await
     }
     pub(super) async fn common_inventory_reply_received(&self, reply: WindowTransaction) {
-        let mut guard = self.common_inventory_swap.lock().await;
+        let mut guard = super::lock_packet_state(&self.common_inventory_swap).await;
         if let Some(run) = guard.as_mut().filter(|s| {
             s.record.stage != InventorySwapStage::ObservedSwapped
                 && s.record.send.legacy_action == Some(reply.action)
@@ -226,7 +223,10 @@ impl Bot {
         }
     }
     async fn reconcile_common_inventory_swap(&self, confirm: bool) -> Result<()> {
-        let Some(snapshot) = self.common_inventory_swap.lock().await.clone() else {
+        let Some(snapshot) = super::lock_packet_state(&self.common_inventory_swap)
+            .await
+            .clone()
+        else {
             return Ok(());
         };
         if snapshot.record.stage == InventorySwapStage::ObservedSwapped {
@@ -255,7 +255,7 @@ impl Bot {
             || !inventory.pending_clicks.is_empty();
         drop(inventory);
         let complete = {
-            let mut guard = self.common_inventory_swap.lock().await;
+            let mut guard = super::lock_packet_state(&self.common_inventory_swap).await;
             let record = &mut guard.as_mut().expect("retained").record;
             let registries = self
                 .common_receipts
@@ -276,7 +276,7 @@ impl Bot {
                 .await
             {
                 Ok(()) => {
-                    let mut guard = self.common_inventory_swap.lock().await;
+                    let mut guard = super::lock_packet_state(&self.common_inventory_swap).await;
                     let run = guard.as_mut().expect("retained");
                     run.released = true;
                     run.record.stage = InventorySwapStage::ObservedSwapped;

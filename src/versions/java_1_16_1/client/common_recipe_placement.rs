@@ -57,9 +57,7 @@ impl Bot {
     ) -> Result<RecipePlacementRecord> {
         let _gate = self.coherent_state_gate.lock().await;
         let result = async {
-            let record = self
-                .common_recipe_placement
-                .lock()
+            let record = super::lock_packet_state(&self.common_recipe_placement)
                 .await
                 .as_ref()
                 .filter(|r| r.record.id == id)
@@ -71,8 +69,7 @@ impl Bot {
             let current = self.recipe_placement_capture().await?;
             dispatch::validate_before(&record, &current)?;
             self.recipe_placement_cache(&record).await?;
-            self.common_recipe_placement
-                .lock()
+            super::lock_packet_state(&self.common_recipe_placement)
                 .await
                 .as_mut()
                 .expect("retained")
@@ -82,7 +79,7 @@ impl Bot {
             self.connection
                 .bounded_recipe_placement(id.attempt(), revision, dispatch::payload(&record)?)
                 .await?;
-            let mut guard = self.common_recipe_placement.lock().await;
+            let mut guard = super::lock_packet_state(&self.common_recipe_placement).await;
             let record = &mut guard.as_mut().expect("retained").record;
             record.send.dispatched = true;
             Ok(record.clone())
@@ -97,12 +94,18 @@ impl Bot {
         result
     }
     pub(super) async fn interrupt_common_recipe_placement(&self, reason: impl std::fmt::Display) {
-        if let Some(r) = self.common_recipe_placement.lock().await.as_mut() {
+        if let Some(r) = super::lock_packet_state(&self.common_recipe_placement)
+            .await
+            .as_mut()
+        {
             r.record.inspection(reason);
         }
     }
     pub(super) async fn common_recipe_placement_context_received(&self) -> Result<()> {
-        let Some(snapshot) = self.common_recipe_placement.lock().await.clone() else {
+        let Some(snapshot) = super::lock_packet_state(&self.common_recipe_placement)
+            .await
+            .clone()
+        else {
             return Ok(());
         };
         if !snapshot.record.unresolved() {
@@ -128,7 +131,7 @@ impl Bot {
             .transpose()
             .map(Option::flatten);
         let complete = {
-            let mut guard = self.common_recipe_placement.lock().await;
+            let mut guard = super::lock_packet_state(&self.common_recipe_placement).await;
             let record = &mut guard.as_mut().expect("retained").record;
             match current {
                 Ok(current) => match &ghost {
@@ -149,7 +152,7 @@ impl Bot {
                 .await
             {
                 Ok(()) => {
-                    let mut guard = self.common_recipe_placement.lock().await;
+                    let mut guard = super::lock_packet_state(&self.common_recipe_placement).await;
                     let r = guard.as_mut().expect("retained");
                     r.released = true;
                     r.record.stage = if r.record.ghost.is_some() {
@@ -200,9 +203,7 @@ impl crate::client::adapter::RecipePlacementOps for Bot {
         let gate = self.coherent_state_gate.lock().await;
         self.common_motion_admission().await?;
         if let contract::CraftingSource::Table { screen } = plan.layout().source() {
-            if self
-                .common_container_close
-                .lock()
+            if super::lock_packet_state(&self.common_container_close)
                 .await
                 .as_ref()
                 .is_some_and(|r| r.id.screen() == screen)
@@ -216,17 +217,14 @@ impl crate::client::adapter::RecipePlacementOps for Bot {
             .await
             .map_err(|e| unavailable(format!("recipe placement admission: {e:?}")))?;
         let current = self.recipe_placement_capture().await?;
-        let attempt = self
-            .common_recipe_placement
-            .lock()
+        let attempt = super::lock_packet_state(&self.common_recipe_placement)
             .await
             .as_ref()
             .map_or(Some(1), |r| r.record.id.attempt().checked_add(1))
             .ok_or_else(|| unavailable("recipe placement attempts exhausted"))?;
         dispatch::validate_plan_history(
             plan,
-            self.common_recipe_placement
-                .lock()
+            super::lock_packet_state(&self.common_recipe_placement)
                 .await
                 .as_ref()
                 .map(|r| &r.record),
@@ -235,10 +233,11 @@ impl crate::client::adapter::RecipePlacementOps for Bot {
         self.recipe_placement_cache(&record).await?;
         dispatch::payload(&record)?;
         let id = record.id;
-        *self.common_recipe_placement.lock().await = Some(NativeRecipePlacement {
-            record,
-            released: false,
-        });
+        *super::lock_packet_state(&self.common_recipe_placement).await =
+            Some(NativeRecipePlacement {
+                record,
+                released: false,
+            });
         let (reply, result) = tokio::sync::oneshot::channel();
         let bot = self.clone_internal();
         tokio::spawn(async move {
@@ -267,9 +266,7 @@ impl crate::client::adapter::RecipePlacementOps for Bot {
             )
             .await;
         }
-        Ok(self
-            .common_recipe_placement
-            .lock()
+        Ok(super::lock_packet_state(&self.common_recipe_placement)
             .await
             .as_ref()
             .map(|r| r.record.clone()))

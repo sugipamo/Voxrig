@@ -68,7 +68,9 @@ use crate::versions::java_1_16_1::{
     world::{BlockObservation, Fluid, World},
 };
 use anyhow::Context;
+mod reader_diagnostics;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use reader_diagnostics::{Diagnostics as ReaderDiagnostics, Phase as ReaderPhase};
 use std::{
     collections::{HashMap, VecDeque},
     io::Cursor,
@@ -308,6 +310,29 @@ use tokio::{
     sync::{Mutex, Notify, RwLock, broadcast, mpsc, oneshot},
     time::{Duration, timeout},
 };
+
+async fn read_session_cache<T>(cache: &RwLock<T>) -> tokio::sync::RwLockReadGuard<'_, T> {
+    // Cardinality checks are short and already inside the coherent-state gate.
+    // try_read respects queued writers; contention retains the async fair path.
+    match cache.try_read() {
+        Ok(guard) => guard,
+        Err(_) => cache.read().await,
+    }
+}
+
+async fn write_entity_update<T>(cache: &RwLock<T>) -> tokio::sync::RwLockWriteGuard<'_, T> {
+    match cache.try_write() {
+        Ok(guard) => guard,
+        Err(_) => cache.write().await,
+    }
+}
+
+async fn lock_packet_state<T>(state: &Mutex<T>) -> tokio::sync::MutexGuard<'_, T> {
+    match state.try_lock() {
+        Ok(guard) => guard,
+        Err(_) => state.lock().await,
+    }
+}
 
 macro_rules! bail {
     ($($argument:tt)*) => {
@@ -1260,7 +1285,11 @@ impl Bot {
         .await
         .context("connect timed out")?
         .context("connect failed")?;
-        let (mut reader, writer) = stream.into_split();
+        let local_addr = stream.local_addr().ok();
+        let peer_addr = stream.peer_addr().ok();
+        let (reader, writer) = stream.into_split();
+        // Keep the same buffer through login and play so prefetched frames survive.
+        let mut reader = tokio::io::BufReader::new(reader);
         let writer = Arc::new(Mutex::new(PacketWriter {
             inner: writer,
             compression: None,
@@ -1311,6 +1340,11 @@ impl Bot {
             connection_options.protocol_ack_timeout,
             control,
         );
+        crate::lifecycle::emit_protocol_timing(|| {
+            serde_json::json!({"stage":"connection_open","generation":connection.generation().get(),
+                "username":player.username,"local_addr":local_addr.map(|addr|addr.to_string()),
+                "peer_addr":peer_addr.map(|addr|addr.to_string())})
+        });
         let (capture_requests, capture_receiver) = mpsc::channel(16);
         let (traversal_movement_facts_requests, traversal_movement_facts_receiver) =
             mpsc::channel(4);
@@ -4652,8 +4686,17 @@ impl Bot {
         >,
     ) -> Result<()> {
         let mut next_observation_sequence = 1_u64;
+        let mut packets_since_yield = 0_u8;
+        // Keep cancellation registered across packet application and batch yields.
+        let cancelled = self.cancel.notified();
+        tokio::pin!(cancelled);
+        cancelled.as_mut().enable();
+        // Compression negotiation finishes before entering the play reader.
+        let compression = self.writer.lock().await.compression;
+        let diagnostics = ReaderDiagnostics::new(self.connection_generation().get());
         while !self.stopped.load(Ordering::Acquire) {
-            let compression = self.writer.lock().await.compression;
+            diagnostics.enter(ReaderPhase::Reading, None);
+            diagnostics.read_started();
             // A capture may interrupt waiting, but must not discard bytes
             // already consumed from this packet. Keep both read progress and
             // its original deadline until the packet completes or we exit.
@@ -4665,16 +4708,19 @@ impl Bot {
             let packet = loop {
                 tokio::select! {
                     biased;
-                    _ = self.cancel.notified() => return Ok(()),
+                    _ = &mut cancelled => return Ok(()),
                     request = capture_requests.recv() => {
                         let Some(request) = request else {
                             return Ok(());
                         };
                         let started = std::time::Instant::now();
+                        diagnostics.enter(ReaderPhase::Capture, None);
                         let result = self
                             .capture_observation_at_sequence(request.request, next_observation_sequence)
                             .await;
                         self.trace_slow_capture("coherent", next_observation_sequence, started.elapsed(), result.is_ok());
+                        diagnostics.capture_completed();
+                        diagnostics.enter(ReaderPhase::Reading, None);
                         if result.is_ok() {
                             next_observation_sequence = next_observation_sequence
                                 .checked_add(1)
@@ -4687,6 +4733,7 @@ impl Bot {
                             return Ok(());
                         };
                         let started = std::time::Instant::now();
+                        diagnostics.enter(ReaderPhase::MovementCapture, None);
                         let result = self
                             .capture_traversal_movement_facts_at_sequence(
                                 request.request,
@@ -4694,6 +4741,8 @@ impl Bot {
                             )
                             .await;
                         self.trace_slow_capture("movement", next_observation_sequence, started.elapsed(), result.is_ok());
+                        diagnostics.capture_completed();
+                        diagnostics.enter(ReaderPhase::Reading, None);
                         if result.is_ok() {
                             next_observation_sequence = next_observation_sequence
                                 .checked_add(1)
@@ -4701,15 +4750,15 @@ impl Bot {
                         }
                         let _ = request.reply.send(result);
                     }
-                    packet = &mut packet_read => break packet.context("play packet timed out")?,
+                    packet = std::future::poll_fn(|cx| diagnostics.poll(packet_read.as_mut(), cx)) => break packet.context("play packet timed out")?,
                 }
                 // Give the same packet read (and its deadline) one poll after
                 // each capture, without letting a packet backlog starve captures.
                 tokio::select! {
                     biased;
-                    _ = self.cancel.notified() => return Ok(()),
+                    _ = &mut cancelled => return Ok(()),
                     packet = std::future::poll_fn(|cx| {
-                        std::task::Poll::Ready(std::future::Future::poll(packet_read.as_mut(), cx))
+                        std::task::Poll::Ready(diagnostics.poll(packet_read.as_mut(), cx))
                     }) => {
                         if let std::task::Poll::Ready(packet) = packet {
                             break packet.context("play packet timed out")?;
@@ -4718,10 +4767,19 @@ impl Bot {
                 }
             };
             let (id, p) = packet?;
-            let applied = self.apply_packet(id, p).await;
+            diagnostics.enter(ReaderPhase::ApplyGate, Some(id));
+            let applied = self.apply_packet_diagnosed(id, p, Some(&diagnostics)).await;
             self.packet_applied.notify_waiters();
             if !applied? {
                 break;
+            }
+            diagnostics.applied();
+            packets_since_yield += 1;
+            if packets_since_yield == 32 {
+                // Yield without cache/gate guards even when all frames and locks are ready.
+                packets_since_yield = 0;
+                diagnostics.enter(ReaderPhase::Yielding, None);
+                tokio::task::yield_now().await;
             }
         }
         Ok(())
@@ -4736,7 +4794,17 @@ impl Bot {
         }
     }
 
+    #[cfg(test)]
     async fn apply_packet(&self, id: i32, p: Vec<u8>) -> Result<bool> {
+        self.apply_packet_diagnosed(id, p, None).await
+    }
+
+    async fn apply_packet_diagnosed(
+        &self,
+        id: i32,
+        p: Vec<u8>,
+        diagnostics: Option<&ReaderDiagnostics>,
+    ) -> Result<bool> {
         let keepalive_started = (id == 0x20).then(std::time::Instant::now);
         if keepalive_started.is_some() {
             crate::lifecycle::emit_protocol_timing(|| {
@@ -4745,12 +4813,22 @@ impl Bot {
             });
         }
         let _coherent_state = self.coherent_state_gate.lock().await;
+        if let Some(diagnostics) = diagnostics {
+            diagnostics.enter(ReaderPhase::Applying, Some(id));
+        }
+        if let Some(started) = keepalive_started {
+            crate::lifecycle::emit_protocol_timing(|| {
+                serde_json::json!({"stage":"keepalive_gate_acquired","generation":self.connection_generation().get(),
+                    "keepalive_id":p.as_slice().try_into().ok().map(i64::from_be_bytes),
+                    "elapsed_ms":started.elapsed().as_millis()})
+            });
+        }
         let packet_sequence = self
             .protocol_packet_sequence
             .fetch_add(1, Ordering::AcqRel)
             .checked_add(1)
             .context("protocol packet sequence exhausted")?;
-        if let Some(trace) = self.packet_trace.lock().await.as_mut() {
+        if let Some(trace) = lock_packet_state(&self.packet_trace).await.as_mut() {
             let local_player_basis = if id == 0x35 {
                 let player = self.player.lock().await;
                 Some(crate::client::recording::LocalPlayerBasis {
@@ -5337,7 +5415,11 @@ impl Bot {
             0x28 | 0x29 => {
                 let mut rest = p.as_slice();
                 let entity_id = get_varint(&mut rest)?;
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                if let Some(entity) = write_entity_update(&self.entities)
+                    .await
+                    .entities
+                    .get_mut(&entity_id)
+                {
                     apply_relative(entity, &p, id == 0x29)?;
                     self.emit(Event::EntityUpdated(entity.clone()));
                 }
@@ -5345,7 +5427,11 @@ impl Bot {
             0x2a => {
                 let mut rest = p.as_slice();
                 let entity_id = get_varint(&mut rest)?;
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                if let Some(entity) = write_entity_update(&self.entities)
+                    .await
+                    .entities
+                    .get_mut(&entity_id)
+                {
                     entity.yaw = f32::from(*rest.first().context("missing entity yaw")? as i8)
                         * 360.0
                         / 256.0;
@@ -5646,7 +5732,11 @@ impl Bot {
             0x3b => {
                 let mut rest = p.as_slice();
                 let entity_id = get_varint(&mut rest)?;
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                if let Some(entity) = write_entity_update(&self.entities)
+                    .await
+                    .entities
+                    .get_mut(&entity_id)
+                {
                     entity.head_yaw =
                         f32::from(*rest.first().context("missing entity head yaw")? as i8) * 360.0
                             / 256.0;
@@ -5730,7 +5820,7 @@ impl Bot {
             }
             0x44 => {
                 let (entity_id, metadata) = parse_metadata(&p)?;
-                if Some(entity_id) == self.player.lock().await.entity_id {
+                if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
                     if let Some(MetadataValue::VarInt(pose)) = metadata.get(&6) {
                         *self.local_pose.lock().await = Some(*pose);
                         if *pose != 0 {
@@ -5799,7 +5889,7 @@ impl Bot {
                     y: f64::from(c.read_i16::<BigEndian>()?) / 8000.0,
                     z: f64::from(c.read_i16::<BigEndian>()?) / 8000.0,
                 };
-                if Some(entity_id) == self.player.lock().await.entity_id {
+                if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
                     self.motion.lock().await.velocity = velocity;
                     *self.own_velocity_receipt.lock().await = Some((
                         self.protocol_packet_sequence.load(Ordering::Acquire),
@@ -5810,7 +5900,11 @@ impl Bot {
                     )
                     .await;
                 }
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                if let Some(entity) = write_entity_update(&self.entities)
+                    .await
+                    .entities
+                    .get_mut(&entity_id)
+                {
                     entity.velocity = velocity;
                     self.emit(Event::EntityUpdated(entity.clone()));
                 }
@@ -6019,7 +6113,11 @@ impl Bot {
                 let mut rest = p.as_slice();
                 let entity_id = get_varint(&mut rest)?;
                 let mut c = Cursor::new(rest);
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                if let Some(entity) = write_entity_update(&self.entities)
+                    .await
+                    .entities
+                    .get_mut(&entity_id)
+                {
                     let position = Vec3 {
                         x: c.read_f64::<BigEndian>()?,
                         y: c.read_f64::<BigEndian>()?,
@@ -6039,7 +6137,7 @@ impl Bot {
             }
             0x58 => {
                 let (entity_id, attributes) = parse_attributes(&p)?;
-                if Some(entity_id) == self.player.lock().await.entity_id {
+                if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
                     let mut state = self.survival.write().await;
                     for attribute in attributes {
                         state.attributes.insert(attribute.key.clone(), attribute);
@@ -6457,26 +6555,26 @@ impl Bot {
 
     async fn enforce_session_limits(&self) -> Result<()> {
         let limit = self.connection_options.max_cached_records;
-        let players = self.players.read().await.entries.len();
-        let maps = self.maps.read().await.maps.len();
-        let entities = self.entities.read().await.entities.len();
-        let inventory = self.inventory.read().await;
+        let players = read_session_cache(&self.players).await.entries.len();
+        let maps = read_session_cache(&self.maps).await.maps.len();
+        let entities = read_session_cache(&self.entities).await.entities.len();
+        let inventory = read_session_cache(&self.inventory).await;
         let inventory_records = inventory.windows.values().map(Vec::len).sum::<usize>()
             + inventory.properties.len()
             + inventory.pending_clicks.len();
         drop(inventory);
-        let ui = self.ui.read().await;
+        let ui = read_session_cache(&self.ui).await;
         let ui_records = ui.boss_bars.len()
             + ui.objectives.len()
             + ui.display_objectives.len()
             + ui.scores.len()
             + ui.teams.len();
         drop(ui);
-        let progress = self.advancements.read().await;
+        let progress = read_session_cache(&self.advancements).await;
         let progress_records = progress.definitions.len() + progress.progress.len();
         drop(progress);
-        let statistics = self.statistics.read().await.values.len();
-        let recipe_book = self.recipe_book.read().await;
+        let statistics = read_session_cache(&self.statistics).await.values.len();
+        let recipe_book = read_session_cache(&self.recipe_book).await;
         let recipe_records = recipe_book.unlocked.len() + recipe_book.displayed.len();
         let records = players
             .saturating_add(maps)
@@ -7511,6 +7609,7 @@ mod tests {
 
     include!("client/packet_deadline_tests.rs");
     include!("client/packet_fairness_tests.rs");
+    include!("client/reader_throughput_tests.rs");
     include!("client/storage_tests.rs");
 
     struct CountingRead<R> {

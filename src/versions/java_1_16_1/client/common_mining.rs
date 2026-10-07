@@ -53,7 +53,7 @@ impl Bot {
                 "recovery requires the closed original endpoint/profile/version",
             ));
         }
-        let mut retained = self.common_mining.lock().await;
+        let mut retained = super::lock_packet_state(&self.common_mining).await;
         let run = retained
             .as_mut()
             .filter(|m| m.record.id == id)
@@ -169,9 +169,7 @@ impl Bot {
     ) -> Result<MiningRecord> {
         let _gate = self.coherent_state_gate.lock().await;
         let result = async {
-            let run = self
-                .common_mining
-                .lock()
+            let run = super::lock_packet_state(&self.common_mining)
                 .await
                 .as_ref()
                 .filter(|m| m.record.id == id)
@@ -214,7 +212,7 @@ impl Bot {
                 return Err(mining::unavailable("mining connection unavailable"));
             }
             {
-                let mut guard = self.common_mining.lock().await;
+                let mut guard = super::lock_packet_state(&self.common_mining).await;
                 let record = &mut guard.as_mut().expect("retained mining").record;
                 let sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
                 match action {
@@ -253,7 +251,7 @@ impl Bot {
                     })?;
             }
             self.connection.bounded_mining(id.attempt(), action).await?;
-            let mut guard = self.common_mining.lock().await;
+            let mut guard = super::lock_packet_state(&self.common_mining).await;
             let record = &mut guard.as_mut().expect("retained mining").record;
             match action {
                 MiningAction::Start => record.start.dispatched = true,
@@ -273,12 +271,12 @@ impl Bot {
         result
     }
     pub(super) async fn interrupt_common_mining(&self, reason: impl std::fmt::Display) {
-        if let Some(run) = self.common_mining.lock().await.as_mut() {
+        if let Some(run) = super::lock_packet_state(&self.common_mining).await.as_mut() {
             inspection(run, reason);
         }
     }
     async fn reconcile_common_mining(&self, confirm_removal: bool) -> Result<()> {
-        let Some(snapshot) = self.common_mining.lock().await.clone() else {
+        let Some(snapshot) = super::lock_packet_state(&self.common_mining).await.clone() else {
             return Ok(());
         };
         if snapshot.record.stage == MiningStage::ObservedRemoved {
@@ -367,7 +365,7 @@ impl Bot {
                 .await;
         }
         if let Some(kind) = kind {
-            let mut guard = self.common_mining.lock().await;
+            let mut guard = super::lock_packet_state(&self.common_mining).await;
             let run = guard.as_mut().expect("retained mining");
             if run.record.inventory_change.is_none() {
                 run.record.inventory_change = Some(MiningInventoryChange {
@@ -394,7 +392,7 @@ impl Bot {
                 run.record.stage = MiningStage::RequiresInspection;
             }
         }
-        let mut guard = self.common_mining.lock().await;
+        let mut guard = super::lock_packet_state(&self.common_mining).await;
         let run = guard.as_mut().expect("retained mining");
         if run.record.requires_inspection.is_none() {
             let target = run.record.target;
@@ -427,20 +425,23 @@ impl Bot {
     }
     pub(super) async fn common_mining_context_received(&self) -> Result<()> {
         // Per-packet latch runs before later packets can restore an empty hand/mode.
-        let tool = self.common_mining.lock().await.as_ref().is_some_and(|r| {
-            let p = &r.record.initial;
-            p.selected_hotbar.as_ref().is_some_and(|s| {
-                p.inventory.slots[36 + usize::from(s.value)]
-                    .as_ref()
-                    .is_some_and(|h| matches!(h.value, SlotKnowledge::Item { .. }))
-            })
-        });
+        let tool = super::lock_packet_state(&self.common_mining)
+            .await
+            .as_ref()
+            .is_some_and(|r| {
+                let p = &r.record.initial;
+                p.selected_hotbar.as_ref().is_some_and(|s| {
+                    p.inventory.slots[36 + usize::from(s.value)]
+                        .as_ref()
+                        .is_some_and(|h| matches!(h.value, SlotKnowledge::Item { .. }))
+                })
+            });
         // A tool may wear in a later slot packet. Preserve the already checked
         // exact-target air at its own receive boundary before that later change.
         self.reconcile_common_mining(tool).await
     }
     pub(super) async fn common_mining_chunk_changed(&self, chunk: [i32; 2]) {
-        let mut guard = self.common_mining.lock().await;
+        let mut guard = super::lock_packet_state(&self.common_mining).await;
         if let Some(run) = guard.as_mut().filter(|m| {
             [
                 m.record.target[0].div_euclid(16),
@@ -457,7 +458,7 @@ impl Bot {
         sequence: u64,
         reply: Option<(i32, bool)>,
     ) -> Result<()> {
-        let mut guard = self.common_mining.lock().await;
+        let mut guard = super::lock_packet_state(&self.common_mining).await;
         let Some(run) = guard.as_mut().filter(|m| m.record.target == position) else {
             return Ok(());
         };
@@ -542,7 +543,7 @@ impl crate::client::adapter::MiningOps for Bot {
             recovery_attempt: None,
             continuation_validated: false,
         };
-        *self.common_mining.lock().await = Some(NativeMiningRun {
+        *super::lock_packet_state(&self.common_mining).await = Some(NativeMiningRun {
             record,
             movement_revision: self.motion.lock().await.revision(),
             movement_attribute: super::common_motion::legacy_movement_attribute(
@@ -571,7 +572,7 @@ impl crate::client::adapter::MiningOps for Bot {
         }
         let gate = self.coherent_state_gate.lock().await;
         {
-            let mut guard = self.common_mining.lock().await;
+            let mut guard = super::lock_packet_state(&self.common_mining).await;
             let run = guard
                 .as_mut()
                 .filter(|m| m.record.id == id)
@@ -613,9 +614,7 @@ impl crate::client::adapter::MiningOps for Bot {
     async fn mining_record(&self) -> Result<Option<MiningRecord>> {
         let _gate = self.coherent_state_gate.lock().await;
         self.reconcile_common_mining(true).await?;
-        Ok(self
-            .common_mining
-            .lock()
+        Ok(super::lock_packet_state(&self.common_mining)
             .await
             .as_ref()
             .map(|m| m.record.clone()))

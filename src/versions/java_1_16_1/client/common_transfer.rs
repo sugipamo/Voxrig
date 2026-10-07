@@ -20,9 +20,7 @@ impl Bot {
     ) -> Result<InventoryTransferRecord> {
         let _gate = self.coherent_state_gate.lock().await;
         let result = async {
-            let record = self
-                .common_inventory_transfer
-                .lock()
+            let record = super::lock_packet_state(&self.common_inventory_transfer)
                 .await
                 .as_ref()
                 .filter(|s| s.record.id == id)
@@ -99,7 +97,7 @@ impl Bot {
                 .await
                 .map_err(|e| contract::unavailable(format!("transfer reservation: {e:?}")))?;
             {
-                let mut guard = self.common_inventory_transfer.lock().await;
+                let mut guard = super::lock_packet_state(&self.common_inventory_transfer).await;
                 let r = &mut guard.as_mut().expect("retained").record;
                 r.send.legacy_action = Some(action);
                 r.send.legacy_comparison = Some(comparison);
@@ -108,7 +106,7 @@ impl Bot {
             self.connection
                 .bounded_inventory_transfer(id.attempt(), record.source_slot, 0, native)
                 .await?;
-            let mut guard = self.common_inventory_transfer.lock().await;
+            let mut guard = super::lock_packet_state(&self.common_inventory_transfer).await;
             let record = &mut guard.as_mut().expect("retained").record;
             record.send.dispatched = true;
             Ok(record.clone())
@@ -121,7 +119,10 @@ impl Bot {
         result
     }
     pub(super) async fn interrupt_common_inventory_transfer(&self, reason: impl std::fmt::Display) {
-        if let Some(run) = self.common_inventory_transfer.lock().await.as_mut() {
+        if let Some(run) = super::lock_packet_state(&self.common_inventory_transfer)
+            .await
+            .as_mut()
+        {
             run.record.inspection(reason);
         }
     }
@@ -129,9 +130,7 @@ impl Bot {
         self.reconcile_common_inventory_transfer(false).await
     }
     pub(super) async fn common_transfer_reply_received(&self, reply: WindowTransaction) {
-        if let Some(run) = self
-            .common_inventory_transfer
-            .lock()
+        if let Some(run) = super::lock_packet_state(&self.common_inventory_transfer)
             .await
             .as_mut()
             .filter(|s| {
@@ -152,7 +151,10 @@ impl Bot {
         }
     }
     async fn reconcile_common_inventory_transfer(&self, confirm: bool) -> Result<()> {
-        let Some(snapshot) = self.common_inventory_transfer.lock().await.clone() else {
+        let Some(snapshot) = super::lock_packet_state(&self.common_inventory_transfer)
+            .await
+            .clone()
+        else {
             return Ok(());
         };
         if !snapshot.record.unresolved() {
@@ -186,7 +188,7 @@ impl Bot {
                 .is_none_or(|c| c.value != cache_cursor);
         drop(inventory);
         let complete = {
-            let mut guard = self.common_inventory_transfer.lock().await;
+            let mut guard = super::lock_packet_state(&self.common_inventory_transfer).await;
             let record = &mut guard.as_mut().expect("retained").record;
             let registries = self
                 .common_receipts
@@ -207,7 +209,7 @@ impl Bot {
                 .await
             {
                 Ok(()) => {
-                    let mut guard = self.common_inventory_transfer.lock().await;
+                    let mut guard = super::lock_packet_state(&self.common_inventory_transfer).await;
                     let run = guard.as_mut().expect("retained");
                     run.released = true;
                     run.record.stage = InventoryTransferStage::ObservedTransferred;
@@ -234,9 +236,7 @@ impl crate::client::adapter::InventoryTransferOps for Bot {
         let gate = self.coherent_state_gate.lock().await;
         self.common_motion_admission().await?;
         if let InventorySource::Container { screen } = source {
-            if self
-                .common_container_close
-                .lock()
+            if super::lock_packet_state(&self.common_container_close)
                 .await
                 .as_ref()
                 .is_some_and(|r| r.id.screen() == screen)
@@ -254,9 +254,7 @@ impl crate::client::adapter::InventoryTransferOps for Bot {
         if !self.inventory.read().await.pending_clicks.is_empty() {
             return Err(contract::unavailable("native inventory click unresolved"));
         }
-        let attempt = self
-            .common_inventory_transfer
-            .lock()
+        let attempt = super::lock_packet_state(&self.common_inventory_transfer)
             .await
             .as_ref()
             .map_or(Some(1), |p| p.record.id.attempt().checked_add(1))
@@ -292,10 +290,11 @@ impl crate::client::adapter::InventoryTransferOps for Bot {
             }
         }
         let id = record.id;
-        *self.common_inventory_transfer.lock().await = Some(NativeInventoryTransfer {
-            record,
-            released: false,
-        });
+        *super::lock_packet_state(&self.common_inventory_transfer).await =
+            Some(NativeInventoryTransfer {
+                record,
+                released: false,
+            });
         let (reply, result) = tokio::sync::oneshot::channel();
         let bot = self.clone_internal();
         tokio::spawn(async move {
@@ -320,9 +319,7 @@ impl crate::client::adapter::InventoryTransferOps for Bot {
                 .await
                 .map_err(|_| contract::unavailable("transfer inspection owner unavailable"))??;
         }
-        Ok(self
-            .common_inventory_transfer
-            .lock()
+        Ok(super::lock_packet_state(&self.common_inventory_transfer)
             .await
             .as_ref()
             .map(|s| s.record.clone()))

@@ -25,7 +25,9 @@ impl Bot {
             session,
             received_inventory.window_id,
             receipts.container.as_ref().map(|s| s.capture(session).id),
-            self.common_container_close.lock().await.as_ref(),
+            super::lock_packet_state(&self.common_container_close)
+                .await
+                .as_ref(),
         );
         if !inventory.player_slots().is_empty() {
             received_inventory.local_cache = Some(

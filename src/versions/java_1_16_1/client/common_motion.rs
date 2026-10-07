@@ -151,24 +151,22 @@ impl Bot {
         }
         let owns_operation = owner.is_some_and(|o| o.session() == initial.session)
             && match owner {
-                Some(CommonOwner::ContainerOpen(id)) => self
-                    .common_container_open
-                    .lock()
-                    .await
-                    .as_ref()
-                    .is_some_and(|o| o.record.id == id && !o.released),
-                Some(CommonOwner::Mining(id)) => self
-                    .common_mining
-                    .lock()
+                Some(CommonOwner::ContainerOpen(id)) => {
+                    super::lock_packet_state(&self.common_container_open)
+                        .await
+                        .as_ref()
+                        .is_some_and(|o| o.record.id == id && !o.released)
+                }
+                Some(CommonOwner::Mining(id)) => super::lock_packet_state(&self.common_mining)
                     .await
                     .as_ref()
                     .is_some_and(|m| m.record.id == id),
-                Some(CommonOwner::Placement(id)) => self
-                    .common_placement
-                    .lock()
-                    .await
-                    .as_ref()
-                    .is_some_and(|m| m.record.id == id && !m.released),
+                Some(CommonOwner::Placement(id)) => {
+                    super::lock_packet_state(&self.common_placement)
+                        .await
+                        .as_ref()
+                        .is_some_and(|m| m.record.id == id && !m.released)
+                }
                 None => false,
             }
             && !self.common_receipts.lock().await.pending_dispatch
@@ -302,58 +300,44 @@ impl Bot {
         {
             return true;
         }
-        if self
-            .common_container_open
-            .lock()
+        if super::lock_packet_state(&self.common_container_open)
             .await
             .as_ref()
             .is_some_and(|o| !o.released)
         {
             return true;
         }
-        if self
-            .common_container_close
-            .lock()
+        if super::lock_packet_state(&self.common_container_close)
             .await
             .as_ref()
             .is_some_and(|r| r.unresolved())
         {
             return true;
         }
-        if self
-            .common_inventory_swap
-            .lock()
+        if super::lock_packet_state(&self.common_inventory_swap)
             .await
             .as_ref()
             .is_some_and(|s| !s.released)
-            || self
-                .common_inventory_click
-                .lock()
+            || super::lock_packet_state(&self.common_inventory_click)
                 .await
                 .as_ref()
                 .is_some_and(|s| !s.released)
-            || self
-                .common_recipe_placement
-                .lock()
+            || super::lock_packet_state(&self.common_recipe_placement)
                 .await
                 .as_ref()
                 .is_some_and(|s| !s.released)
-            || self
-                .common_crafting_take
-                .lock()
+            || super::lock_packet_state(&self.common_crafting_take)
                 .await
                 .as_ref()
                 .is_some_and(|s| !s.released)
-            || self
-                .common_inventory_transfer
-                .lock()
+            || super::lock_packet_state(&self.common_inventory_transfer)
                 .await
                 .as_ref()
                 .is_some_and(|s| !s.released)
-            || self.common_mining.lock().await.is_some()
-            || self
-                .common_placement
-                .lock()
+            || super::lock_packet_state(&self.common_mining)
+                .await
+                .is_some()
+            || super::lock_packet_state(&self.common_placement)
                 .await
                 .as_ref()
                 .is_some_and(|p| !p.released)
@@ -367,16 +351,17 @@ impl Bot {
             .is_some_and(|run| !run.record.status.is_continuation_candidate())
     }
     pub(super) async fn interrupt_common_motion(&self, problem: &str) {
-        if let Some(o) = self
-            .common_container_open
-            .lock()
+        if let Some(o) = super::lock_packet_state(&self.common_container_open)
             .await
             .as_mut()
             .filter(|o| !o.released)
         {
             o.record.inspection(problem);
         }
-        if let Some(r) = self.common_container_close.lock().await.as_mut() {
+        if let Some(r) = super::lock_packet_state(&self.common_container_close)
+            .await
+            .as_mut()
+        {
             r.inspection(problem);
         }
         self.interrupt_common_motion_operations(problem).await;
@@ -431,9 +416,7 @@ impl Bot {
                 "dismount input unresolved; inspect and explicitly complete without replay",
             ));
         }
-        if self
-            .common_container_open
-            .lock()
+        if super::lock_packet_state(&self.common_container_open)
             .await
             .as_ref()
             .is_some_and(|o| !o.released)
@@ -442,9 +425,7 @@ impl Bot {
                 "common container activation unresolved; inspect without replay",
             ));
         }
-        if self
-            .common_container_close
-            .lock()
+        if super::lock_packet_state(&self.common_container_close)
             .await
             .as_ref()
             .is_some_and(|r| r.unresolved())
@@ -453,9 +434,7 @@ impl Bot {
                 "common container close unresolved; inspect without replay",
             ));
         }
-        if self
-            .common_inventory_swap
-            .lock()
+        if super::lock_packet_state(&self.common_inventory_swap)
             .await
             .as_ref()
             .is_some_and(|s| !s.released)
@@ -464,9 +443,7 @@ impl Bot {
                 "common inventory swap unresolved; inspect without replay",
             ));
         }
-        if self
-            .common_inventory_click
-            .lock()
+        if super::lock_packet_state(&self.common_inventory_click)
             .await
             .as_ref()
             .is_some_and(|s| !s.released)
@@ -475,9 +452,7 @@ impl Bot {
                 "common inventory click unresolved; inspect without replay",
             ));
         }
-        if self
-            .common_recipe_placement
-            .lock()
+        if super::lock_packet_state(&self.common_recipe_placement)
             .await
             .as_ref()
             .is_some_and(|s| !s.released)
@@ -486,9 +461,7 @@ impl Bot {
                 "common recipe placement unresolved; inspect without replay",
             ));
         }
-        if self
-            .common_crafting_take
-            .lock()
+        if super::lock_packet_state(&self.common_crafting_take)
             .await
             .as_ref()
             .is_some_and(|s| !s.released)
@@ -497,9 +470,7 @@ impl Bot {
                 "common crafting take unresolved; inspect without replay",
             ));
         }
-        if self
-            .common_inventory_transfer
-            .lock()
+        if super::lock_packet_state(&self.common_inventory_transfer)
             .await
             .as_ref()
             .is_some_and(|s| !s.released)
@@ -508,14 +479,15 @@ impl Bot {
                 "common inventory transfer unresolved; inspect without replay",
             ));
         }
-        if self.common_mining.lock().await.is_some() {
+        if super::lock_packet_state(&self.common_mining)
+            .await
+            .is_some()
+        {
             return Err(motion_state(
                 "common mining retained; inspect and use explicit fresh recovery before continuation",
             ));
         }
-        if self
-            .common_placement
-            .lock()
+        if super::lock_packet_state(&self.common_placement)
             .await
             .as_ref()
             .is_some_and(|p| !p.released)

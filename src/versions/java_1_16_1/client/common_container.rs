@@ -22,9 +22,7 @@ impl Bot {
         Ok(())
     }
     pub(super) async fn common_container_open_context_received(&self) -> Result<()> {
-        let Some(before) = self
-            .common_container_open
-            .lock()
+        let Some(before) = super::lock_packet_state(&self.common_container_open)
             .await
             .as_ref()
             .filter(|o| !o.released && o.record.requires_inspection.is_none())
@@ -53,7 +51,7 @@ impl Bot {
                 }) =>
             {
                 let hit = query.hit.as_ref().expect("checked hit");
-                let mut guard = self.common_container_open.lock().await;
+                let mut guard = super::lock_packet_state(&self.common_container_open).await;
                 let record = &mut guard.as_mut().expect("retained").record;
                 if !record.observe_target_state(
                     &hit.state,
@@ -66,8 +64,7 @@ impl Bot {
                 query.initial
             }
             Ok(_) => {
-                self.common_container_open
-                    .lock()
+                super::lock_packet_state(&self.common_container_open)
                     .await
                     .as_mut()
                     .expect("retained")
@@ -76,8 +73,7 @@ impl Bot {
                 return Ok(());
             }
             Err(e) => {
-                self.common_container_open
-                    .lock()
+                super::lock_packet_state(&self.common_container_open)
                     .await
                     .as_mut()
                     .expect("retained")
@@ -110,16 +106,14 @@ impl Bot {
             screen: screen.as_ref(),
         };
         {
-            let mut guard = self.common_container_open.lock().await;
+            let mut guard = super::lock_packet_state(&self.common_container_open).await;
             guard
                 .as_mut()
                 .expect("retained")
                 .record
                 .context_received(context);
         }
-        if self
-            .common_container_open
-            .lock()
+        if super::lock_packet_state(&self.common_container_open)
             .await
             .as_ref()
             .is_some_and(|o| o.record.stage == contract::ContainerOpenStage::ObservedContents)
@@ -128,7 +122,7 @@ impl Bot {
                 .connection
                 .finish_container_open(before.id.attempt())
                 .await;
-            let mut guard = self.common_container_open.lock().await;
+            let mut guard = super::lock_packet_state(&self.common_container_open).await;
             let owner = guard.as_mut().expect("retained");
             match outcome {
                 Ok(()) => owner.released = true,
@@ -170,7 +164,7 @@ impl Bot {
             .container
             .as_ref()
             .map(|s| s.capture(current.session));
-        let mut guard = self.common_container_close.lock().await;
+        let mut guard = super::lock_packet_state(&self.common_container_close).await;
         let record = guard
             .as_mut()
             .filter(|r| r.id == id)
@@ -204,9 +198,7 @@ impl Bot {
             let _gate = self.coherent_state_gate.lock().await;
             let (current, _) = self.close_current(id).await?;
             self.close_native_basis(window, &current).await?;
-            count = self
-                .common_container_close
-                .lock()
+            count = super::lock_packet_state(&self.common_container_close)
                 .await
                 .as_ref()
                 .expect("retained")
@@ -230,8 +222,7 @@ impl Bot {
                     .await
                     .registries
                     .capture(current.session, current.receive_sequence);
-                self.common_container_close
-                    .lock()
+                super::lock_packet_state(&self.common_container_close)
                     .await
                     .as_mut()
                     .expect("retained")
@@ -244,7 +235,7 @@ impl Bot {
                         api::inventory::unavailable(format!("return reservation: {e:?}"))
                     })?;
                 let (slot, native) = {
-                    let mut guard = self.common_container_close.lock().await;
+                    let mut guard = super::lock_packet_state(&self.common_container_close).await;
                     let step = guard
                         .as_mut()
                         .expect("retained")
@@ -280,8 +271,7 @@ impl Bot {
                 self.connection
                     .bounded_cursor_return(id.attempt(), number, slot, native)
                     .await?;
-                self.common_container_close
-                    .lock()
+                super::lock_packet_state(&self.common_container_close)
                     .await
                     .as_mut()
                     .expect("retained")
@@ -297,9 +287,7 @@ impl Bot {
                         let _gate = self.coherent_state_gate.lock().await;
                         let (current, _) = self.close_current(id).await?;
                         self.close_native_basis(window, &current).await?;
-                        let ready = self
-                            .common_container_close
-                            .lock()
+                        let ready = super::lock_packet_state(&self.common_container_close)
                             .await
                             .as_ref()
                             .expect("retained")
@@ -333,9 +321,7 @@ impl Bot {
         let _gate = self.coherent_state_gate.lock().await;
         let (current, _) = self.close_current(id).await?;
         self.close_native_basis(window, &current).await?;
-        if !self
-            .common_container_close
-            .lock()
+        if !super::lock_packet_state(&self.common_container_close)
             .await
             .as_ref()
             .expect("retained")
@@ -353,8 +339,7 @@ impl Bot {
             ));
         }
         self.connection.bounded_cursor_close(id.attempt()).await?;
-        self.common_container_close
-            .lock()
+        super::lock_packet_state(&self.common_container_close)
             .await
             .as_mut()
             .expect("retained")
@@ -364,16 +349,17 @@ impl Bot {
             .finish_cursor_close(id.attempt())
             .await
             .map_err(|e| api::inventory::unavailable(format!("close parent release: {e:?}")))?;
-        Ok(self
-            .common_container_close
-            .lock()
+        Ok(super::lock_packet_state(&self.common_container_close)
             .await
             .as_ref()
             .expect("retained")
             .clone())
     }
     pub(super) async fn common_container_return_reply(&self, reply: WindowTransaction) {
-        if let Some(record) = self.common_container_close.lock().await.as_mut() {
+        if let Some(record) = super::lock_packet_state(&self.common_container_close)
+            .await
+            .as_mut()
+        {
             record.return_reply(api::inventory::InventoryTransactionReply {
                 window_id: reply.window_id,
                 action: reply.action,
@@ -392,14 +378,15 @@ impl Bot {
             connection_id: self.connection_id(),
             world_generation: receipts.generation,
         };
-        if let Some(r) = self.common_container_close.lock().await.as_mut() {
+        if let Some(r) = super::lock_packet_state(&self.common_container_close)
+            .await
+            .as_mut()
+        {
             r.received_close(s.capture(session).id, sequence);
         }
     }
     pub(super) async fn common_container_close_context_received(&self) -> Result<()> {
-        if !self
-            .common_container_close
-            .lock()
+        if !super::lock_packet_state(&self.common_container_close)
             .await
             .as_ref()
             .is_some_and(|r| {
@@ -418,7 +405,10 @@ impl Bot {
             .container
             .as_ref()
             .map(|s| s.capture(player.session));
-        if let Some(r) = self.common_container_close.lock().await.as_mut() {
+        if let Some(r) = super::lock_packet_state(&self.common_container_close)
+            .await
+            .as_mut()
+        {
             let registries = receipts
                 .registries
                 .capture(player.session, player.receive_sequence);
@@ -455,15 +445,14 @@ impl crate::client::adapter::ContainerOps for Bot {
             target,
             mode,
             before,
-            self.common_container_open
-                .lock()
+            super::lock_packet_state(&self.common_container_open)
                 .await
                 .as_ref()
                 .map(|o| &o.record),
             None,
         )?;
         let id = record.id;
-        *self.common_container_open.lock().await = Some(NativeContainerOpen {
+        *super::lock_packet_state(&self.common_container_open).await = Some(NativeContainerOpen {
             record,
             released: false,
         });
@@ -531,7 +520,7 @@ impl crate::client::adapter::ContainerOps for Bot {
     }
     /// Inspect the retained record without queuing behind a stalled owned write.
     async fn container_open_record(&self) -> Result<Option<contract::ContainerOpenRecord>> {
-        let mut guard = self.common_container_open.lock().await;
+        let mut guard = super::lock_packet_state(&self.common_container_open).await;
         if self.is_stopped() || self.connection_state() != ConnectionState::Ready {
             if let Some(o) = guard.as_mut().filter(|o| !o.released) {
                 o.record
@@ -577,10 +566,12 @@ impl crate::client::adapter::ContainerOps for Bot {
             captured,
             screen,
             mode,
-            self.common_container_close.lock().await.as_ref(),
+            super::lock_packet_state(&self.common_container_close)
+                .await
+                .as_ref(),
         )?;
         let id = record.id;
-        *self.common_container_close.lock().await = Some(record);
+        *super::lock_packet_state(&self.common_container_close).await = Some(record);
         let bot = self.clone_internal();
         let (reply, result) = oneshot::channel();
         tokio::spawn(async move {
@@ -608,11 +599,16 @@ impl crate::client::adapter::ContainerOps for Bot {
             self.common_container_close_context_received().await?;
         }
         if self.is_stopped() || self.connection_state() != ConnectionState::Ready {
-            if let Some(r) = self.common_container_close.lock().await.as_mut() {
+            if let Some(r) = super::lock_packet_state(&self.common_container_close)
+                .await
+                .as_mut()
+            {
                 r.inspection("close connection closed or uncertain");
             }
         }
-        Ok(self.common_container_close.lock().await.clone())
+        Ok(super::lock_packet_state(&self.common_container_close)
+            .await
+            .clone())
     }
 }
 

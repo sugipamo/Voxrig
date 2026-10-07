@@ -122,9 +122,7 @@ impl Bot {
     ) -> Result<PlacementRecord> {
         let _gate = self.coherent_state_gate.lock().await;
         let result = async {
-            let run = self
-                .common_placement
-                .lock()
+            let run = super::lock_packet_state(&self.common_placement)
                 .await
                 .clone()
                 .filter(|p| p.record.id == id)
@@ -154,8 +152,7 @@ impl Bot {
                     "placement capture changed before I/O",
                 ));
             }
-            self.common_placement
-                .lock()
+            super::lock_packet_state(&self.common_placement)
                 .await
                 .as_mut()
                 .expect("retained")
@@ -175,7 +172,7 @@ impl Bot {
                     run.record.cursor,
                 )
                 .await?;
-            let mut guard = self.common_placement.lock().await;
+            let mut guard = super::lock_packet_state(&self.common_placement).await;
             let record = &mut guard.as_mut().expect("retained").record;
             record.send.dispatched = true;
             Ok(record.clone())
@@ -187,12 +184,18 @@ impl Bot {
         result
     }
     pub(super) async fn interrupt_common_placement(&self, reason: impl std::fmt::Display) {
-        if let Some(p) = self.common_placement.lock().await.as_mut() {
+        if let Some(p) = super::lock_packet_state(&self.common_placement)
+            .await
+            .as_mut()
+        {
             inspection(p, reason);
         }
     }
     async fn reconcile_common_placement(&self, confirm: bool) -> Result<()> {
-        let Some(snapshot) = self.common_placement.lock().await.clone() else {
+        let Some(snapshot) = super::lock_packet_state(&self.common_placement)
+            .await
+            .clone()
+        else {
             return Ok(());
         };
         if snapshot.record.stage == PlacementStage::ObservedPlaced {
@@ -262,7 +265,7 @@ impl Bot {
                 .await;
         }
         drop(inventory);
-        let mut guard = self.common_placement.lock().await;
+        let mut guard = super::lock_packet_state(&self.common_placement).await;
         let run = guard.as_mut().expect("retained");
         if let Some(ObservedValue {
             value,
@@ -315,7 +318,7 @@ impl Bot {
                 .await
             {
                 Ok(()) => {
-                    let mut guard = self.common_placement.lock().await;
+                    let mut guard = super::lock_packet_state(&self.common_placement).await;
                     let p = guard.as_mut().expect("retained");
                     p.released = true;
                     p.record.stage = PlacementStage::ObservedPlaced;
@@ -334,7 +337,7 @@ impl Bot {
         self.reconcile_common_placement(false).await
     }
     pub(super) async fn common_placement_chunk_changed(&self, chunk: [i32; 2]) {
-        let mut guard = self.common_placement.lock().await;
+        let mut guard = super::lock_packet_state(&self.common_placement).await;
         if let Some(run) = guard.as_mut().filter(|p| {
             [p.record.support, p.record.target]
                 .iter()
@@ -349,7 +352,7 @@ impl Bot {
         state_id: i32,
         sequence: u64,
     ) -> Result<()> {
-        let mut guard = self.common_placement.lock().await;
+        let mut guard = super::lock_packet_state(&self.common_placement).await;
         let Some(run) = guard.as_mut().filter(|p| {
             p.record.stage != PlacementStage::ObservedPlaced
                 && (position == p.record.target || position == p.record.support)
@@ -401,16 +404,14 @@ impl crate::client::adapter::PlacementOps for Bot {
             .await
             .map_err(|e| placement::unavailable(format!("placement admission: {e:?}")))?;
         let mut record = self.placement_prepared(support, face, None).await?;
-        let attempt = self
-            .common_placement
-            .lock()
+        let attempt = super::lock_packet_state(&self.common_placement)
             .await
             .as_ref()
             .map_or(Some(1), |p| p.record.id.attempt().checked_add(1))
             .ok_or_else(|| placement::unavailable("placement attempts exhausted"))?;
         record.id = PlacementId::new(record.initial.session, attempt);
         let id = record.id;
-        *self.common_placement.lock().await = Some(NativePlacementRun {
+        *super::lock_packet_state(&self.common_placement).await = Some(NativePlacementRun {
             record,
             released: false,
             movement_revision: self.motion.lock().await.revision(),
