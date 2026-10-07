@@ -1211,6 +1211,8 @@ impl Bot {
         .await
         .context("connect timed out")?
         .context("connect failed")?;
+        let local_addr = stream.local_addr().ok();
+        let peer_addr = stream.peer_addr().ok();
         let (reader, writer) = stream.into_split();
         // Keep the same buffer through login and play so prefetched frames survive.
         let mut reader = tokio::io::BufReader::new(reader);
@@ -1264,6 +1266,11 @@ impl Bot {
             connection_options.protocol_ack_timeout,
             control,
         );
+        crate::lifecycle::emit_protocol_timing(|| {
+            serde_json::json!({"stage":"connection_open","generation":connection.generation().get(),
+                "username":player.username,"local_addr":local_addr.map(|addr|addr.to_string()),
+                "peer_addr":peer_addr.map(|addr|addr.to_string())})
+        });
         let (capture_requests, capture_receiver) = mpsc::channel(16);
         let (traversal_movement_facts_requests, traversal_movement_facts_receiver) =
             mpsc::channel(4);
@@ -4649,6 +4656,13 @@ impl Bot {
             });
         }
         let _coherent_state = self.coherent_state_gate.lock().await;
+        if let Some(started) = keepalive_started {
+            crate::lifecycle::emit_protocol_timing(|| {
+                serde_json::json!({"stage":"keepalive_gate_acquired","generation":self.connection_generation().get(),
+                    "keepalive_id":p.as_slice().try_into().ok().map(i64::from_be_bytes),
+                    "elapsed_ms":started.elapsed().as_millis()})
+            });
+        }
         let packet_sequence = self
             .protocol_packet_sequence
             .fetch_add(1, Ordering::AcqRel)

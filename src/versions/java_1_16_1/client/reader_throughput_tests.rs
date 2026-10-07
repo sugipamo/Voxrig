@@ -3,6 +3,26 @@ mod reader_throughput_tests {
     use std::future::{Future, poll_fn};
 
     #[tokio::test]
+    async fn keepalive_preserves_coherence_gate_ordering() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        {
+            let gate = bot.coherent_state_gate.lock().await;
+            let apply = bot.apply_packet(0x20, 42_i64.to_be_bytes().to_vec());
+            tokio::pin!(apply);
+            poll_fn(|cx| {
+                assert!(apply.as_mut().poll(cx).is_pending());
+                Poll::Ready(())
+            })
+            .await;
+            drop(gate);
+            assert!(timeout(Duration::from_secs(1), apply).await.unwrap().unwrap());
+        }
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn free_update_locks_are_ready_with_exhausted_budget() {
         let entities = RwLock::new(7);
         let player = Mutex::new(11);
