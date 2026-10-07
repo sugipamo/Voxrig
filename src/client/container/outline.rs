@@ -1,7 +1,6 @@
 //! State-only storage outlines from both original native JARs; animated shapes absent.
 use crate::{MinecraftVersion, NativeBlockState};
 use serde::Deserialize;
-use std::sync::OnceLock;
 
 #[derive(Deserialize)]
 struct StateShape {
@@ -16,19 +15,11 @@ struct Shapes {
     states: Vec<StateShape>,
 }
 fn shapes(version: MinecraftVersion) -> &'static Shapes {
-    static LEGACY: OnceLock<Shapes> = OnceLock::new();
-    static MODERN: OnceLock<Shapes> = OnceLock::new();
-    let (cell, text) = match version {
-        MinecraftVersion::Java1_16_1 => (
-            &LEGACY,
-            include_str!("../../../data/client_api/storage_outlines-1.16.1.json"),
-        ),
-        MinecraftVersion::Java1_21_11 => (
-            &MODERN,
-            include_str!("../../../data/client_api/storage_outlines-1.21.11.json"),
-        ),
-    };
-    cell.get_or_init(|| serde_json::from_str(text).expect("validated native storage shapes"))
+    static SHAPES: crate::versions::table::PerVersion<Shapes> =
+        crate::versions::table::PerVersion::new();
+    SHAPES.get(version, |table| {
+        serde_json::from_str(table.data.storage_outlines).expect("validated native storage shapes")
+    })
 }
 type Boxes = (&'static [[f64; 6]], &'static [[f64; 6]]);
 /// Exact complete properties and selected version bind each shape. No numeric
@@ -80,14 +71,7 @@ mod tests {
             );
             let mut ids = BTreeSet::new();
             for s in states {
-                let id = match version {
-                    MinecraftVersion::Java1_16_1 => {
-                        crate::versions::java_1_16_1::state_id(&s.state).unwrap()
-                    }
-                    MinecraftVersion::Java1_21_11 => {
-                        crate::versions::java_1_21_11::state_id(&s.state).unwrap()
-                    }
-                };
+                let id = (version.table().registry.state_id)(&s.state).unwrap();
                 assert_eq!(id, s.native_id);
                 assert!(ids.insert(id));
                 assert!(!s.outline.is_empty());

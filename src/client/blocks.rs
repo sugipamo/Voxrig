@@ -67,18 +67,7 @@ pub(crate) fn collision_boxes(
     version: MinecraftVersion,
     state: &NativeBlockState,
 ) -> Result<Vec<[f64; 6]>> {
-    Ok(match version {
-        MinecraftVersion::Java1_16_1 => {
-            let id = crate::versions::java_1_16_1::state_id(state)?;
-            crate::versions::java_1_16_1::collision::shapes_for(id)
-                .iter()
-                .map(|aabb| aabb.bounds())
-                .collect()
-        }
-        MinecraftVersion::Java1_21_11 => {
-            crate::versions::java_1_21_11::raycast::collision_boxes(state)?.to_vec()
-        }
-    })
+    (version.table().registry.collision_boxes)(state)
 }
 
 /// Entry distance and face of a ray into an axis-aligned box, if within `limit`.

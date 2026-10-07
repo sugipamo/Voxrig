@@ -2,6 +2,7 @@
 
 pub mod java_1_16_1;
 pub mod java_1_21_11;
+pub(crate) mod table;
 
 /// Explicit Minecraft wire and registry version for one connection.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
@@ -16,18 +17,12 @@ pub enum MinecraftVersion {
 impl MinecraftVersion {
     /// The game's exact release name.
     pub const fn name(self) -> &'static str {
-        match self {
-            Self::Java1_16_1 => "1.16.1",
-            Self::Java1_21_11 => "1.21.11",
-        }
+        self.table().name
     }
 
     /// The exact wire protocol number, not a runtime capability declaration.
     pub const fn protocol(self) -> i32 {
-        match self {
-            Self::Java1_16_1 => 736,
-            Self::Java1_21_11 => 774,
-        }
+        self.table().protocol
     }
 }
 

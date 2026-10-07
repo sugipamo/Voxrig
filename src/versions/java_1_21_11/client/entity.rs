@@ -91,7 +91,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
     Ok(())
 }
 
-/// Health (LivingEntity metadata index 9, float) of a living entity type.
+/// Health (the table's LivingEntity metadata index, float) of a living entity type.
 fn living_health(state: &State, payload: &[u8]) -> Option<(i32, f32)> {
     let mut r = Reader::new(payload);
     let entity = r.varint().ok()?;
@@ -104,13 +104,24 @@ fn living_health(state: &State, payload: &[u8]) -> Option<(i32, f32)> {
             return None;
         }
         let kind = r.varint().ok()?;
-        if key == 9 {
+        if key
+            == crate::MinecraftVersion::Java1_21_11
+                .table()
+                .entities
+                .health_metadata_index
+        {
             return (kind == 3)
                 .then(|| r.f32().ok())
                 .flatten()
                 .map(|h| (entity, h));
         }
-        if key > 9 || !super::players::skip_metadata(&mut r, kind).ok()? {
+        if key
+            > crate::MinecraftVersion::Java1_21_11
+                .table()
+                .entities
+                .health_metadata_index
+            || !super::players::skip_metadata(&mut r, kind).ok()?
+        {
             return None;
         }
     }

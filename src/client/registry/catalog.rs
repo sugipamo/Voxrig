@@ -1,7 +1,7 @@
 //! Bundled entry identities. Dynamic vanilla vectors are excluded from runtime facts.
 use super::{Registry, ServerRegistryId, ServerRegistryStamp, invalid};
 use crate::{MinecraftVersion, Result};
-use std::{collections::BTreeMap, sync::OnceLock};
+use std::collections::BTreeMap;
 
 /// An entry in a builtin registry, bound to the selected version and full registry key.
 /// A block entry is distinct from a block state. Server registries use a different owner.
@@ -86,20 +86,11 @@ struct Catalog {
     registries: BTreeMap<String, NativeRegistry>,
 }
 fn catalog(version: MinecraftVersion) -> &'static Catalog {
-    static LEGACY: OnceLock<Catalog> = OnceLock::new();
-    static MODERN: OnceLock<Catalog> = OnceLock::new();
-    let (slot, text) = match version {
-        MinecraftVersion::Java1_16_1 => (
-            &LEGACY,
-            include_str!("../../../data/client_api/registry_catalog-1.16.1.json"),
-        ),
-        MinecraftVersion::Java1_21_11 => (
-            &MODERN,
-            include_str!("../../../data/client_api/registry_catalog-1.21.11.json"),
-        ),
-    };
-    slot.get_or_init(|| {
-        let source: Facts = serde_json::from_str(text).expect("pinned original registry catalog");
+    static CATALOG: crate::versions::table::PerVersion<Catalog> =
+        crate::versions::table::PerVersion::new();
+    CATALOG.get(version, |table| {
+        let source: Facts = serde_json::from_str(table.data.registry_catalog)
+            .expect("pinned original registry catalog");
         let mut registries = BTreeMap::new();
         for registry in source.registries {
             assert!(

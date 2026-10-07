@@ -2,7 +2,6 @@
 use super::{SlotKnowledge, unavailable};
 use crate::client::{ItemData, ItemStack, registry::Registry};
 use crate::{MinecraftVersion, Result};
-use std::sync::OnceLock;
 
 #[derive(serde::Deserialize)]
 struct Profiles {
@@ -24,22 +23,12 @@ struct EquipmentSlot {
     accepted_default_items: Vec<String>,
 }
 fn profiles(version: MinecraftVersion) -> &'static Profiles {
-    static LEGACY: OnceLock<Profiles> = OnceLock::new();
-    static MODERN: OnceLock<Profiles> = OnceLock::new();
-    match version {
-        MinecraftVersion::Java1_16_1 => LEGACY.get_or_init(|| {
-            serde_json::from_str(include_str!(
-                "../../../data/client_api/inventory_transfer_profiles-1.16.1.json"
-            ))
+    static CACHE: crate::versions::table::PerVersion<Profiles> =
+        crate::versions::table::PerVersion::new();
+    CACHE.get(version, |table| {
+        serde_json::from_str(table.data.inventory_transfer_profiles)
             .expect("pinned native transfer profiles")
-        }),
-        MinecraftVersion::Java1_21_11 => MODERN.get_or_init(|| {
-            serde_json::from_str(include_str!(
-                "../../../data/client_api/inventory_transfer_profiles-1.21.11.json"
-            ))
-            .expect("pinned native transfer profiles")
-        }),
-    }
+    })
 }
 pub(super) fn validate(
     version: MinecraftVersion,

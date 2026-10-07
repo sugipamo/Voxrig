@@ -3,9 +3,7 @@
 use super::{EntityId, EntityMotionObservation, SpawnLedger};
 use crate::MinecraftVersion;
 use crate::client::{Aabb, ObservedValue, SessionStamp, SlotKnowledge};
-use serde::Deserialize;
-use std::collections::{BTreeMap, HashMap};
-use std::sync::OnceLock;
+use std::collections::BTreeMap;
 
 /// Equipment slot of an entity, in native order.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Hash, serde::Serialize)]
@@ -30,17 +28,7 @@ pub enum EquipmentSlot {
 impl EquipmentSlot {
     /// Native equipment slot index of the selected version.
     pub(crate) fn from_native(version: MinecraftVersion, index: u8) -> Option<Self> {
-        Some(match (version, index) {
-            (_, 0) => Self::MainHand,
-            (_, 1) => Self::OffHand,
-            (_, 2) => Self::Feet,
-            (_, 3) => Self::Legs,
-            (_, 4) => Self::Chest,
-            (_, 5) => Self::Head,
-            (MinecraftVersion::Java1_21_11, 6) => Self::Body,
-            (MinecraftVersion::Java1_21_11, 7) => Self::Saddle,
-            _ => return None,
-        })
+        version.table().equipment_slot(index)
     }
 }
 
@@ -77,57 +65,21 @@ pub(super) struct Extra {
     pub equipment: BTreeMap<EquipmentSlot, ObservedValue<SlotKnowledge>>,
 }
 
-#[derive(Deserialize)]
-struct ModernDimensions {
-    entities: HashMap<String, ModernEntity>,
-}
-#[derive(Deserialize)]
-struct ModernEntity {
-    width: f64,
-    height: f64,
-    living: bool,
-}
-#[derive(Deserialize)]
-struct LegacyEntity {
-    name: String,
-    width: f64,
-    height: f64,
-}
-
 /// Default (width, height) of a namespaced entity type.
 pub(crate) fn dimensions(version: MinecraftVersion, name: &str) -> Option<(f64, f64)> {
-    match version {
-        MinecraftVersion::Java1_16_1 => {
-            static LEGACY: OnceLock<HashMap<String, (f64, f64)>> = OnceLock::new();
-            LEGACY
-                .get_or_init(|| {
-                    let rows: Vec<LegacyEntity> =
-                        serde_json::from_str(include_str!("../../../data/entities.json"))
-                            .expect("bundled Java 1.16.1 entities");
-                    rows.into_iter()
-                        .map(|e| (format!("minecraft:{}", e.name), (e.width, e.height)))
-                        .collect()
-                })
-                .get(name)
-                .copied()
-        }
-        MinecraftVersion::Java1_21_11 => modern().entities.get(name).map(|e| (e.width, e.height)),
-    }
-}
-
-fn modern() -> &'static ModernDimensions {
-    static MODERN: OnceLock<ModernDimensions> = OnceLock::new();
-    MODERN.get_or_init(|| {
-        serde_json::from_str(include_str!(
-            "../../../data/java_1_21_11/entity_dimensions.json"
-        ))
-        .expect("bundled Java 1.21.11 entity dimensions")
-    })
+    version
+        .table()
+        .entity_dimensions(name)
+        .map(|row| (row.width, row.height))
 }
 
 /// Whether a Java 1.21.11 entity type is living (has default attributes).
 pub(crate) fn modern_living(name: &str) -> bool {
-    modern().entities.get(name).is_some_and(|e| e.living)
+    MinecraftVersion::Java1_21_11
+        .table()
+        .entity_dimensions(name)
+        .and_then(|row| row.living)
+        .unwrap_or(false)
 }
 
 impl SpawnLedger {

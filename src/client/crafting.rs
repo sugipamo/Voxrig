@@ -6,7 +6,7 @@ use super::received_items::ReceiptLocation;
 use super::registry::ServerRegistryObservation;
 use super::{PlayerObservation, ReceivedSlot, SessionStamp};
 use crate::{MinecraftVersion, Result};
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 pub(crate) mod context;
 pub use context::ReceivedCraftingContext;
 pub(crate) mod layout;
@@ -280,24 +280,12 @@ pub(crate) fn native_menu(
     version: MinecraftVersion,
     name: &str,
 ) -> Option<&'static NativeCraftingMenu> {
-    static LEGACY: OnceLock<Menus> = OnceLock::new();
-    static MODERN: OnceLock<Menus> = OnceLock::new();
-    let parse = |bytes: &[u8]| {
-        serde_json::from_reader(flate2::read::GzDecoder::new(bytes))
+    static MENUS: crate::versions::table::PerVersion<Menus> =
+        crate::versions::table::PerVersion::new();
+    let menus = MENUS.get(version, |table| {
+        serde_json::from_reader(flate2::read::GzDecoder::new(table.data.crafting_menus))
             .expect("pinned original crafting topology")
-    };
-    let menus = match version {
-        MinecraftVersion::Java1_16_1 => LEGACY.get_or_init(|| {
-            parse(include_bytes!(
-                "../../data/client_api/crafting_menus-1.16.1.json.gz"
-            ))
-        }),
-        MinecraftVersion::Java1_21_11 => MODERN.get_or_init(|| {
-            parse(include_bytes!(
-                "../../data/client_api/crafting_menus-1.21.11.json.gz"
-            ))
-        }),
-    };
+    });
     menus.menus.iter().find(|m| m.name == name)
 }
 pub(crate) fn regular_slot(
@@ -310,10 +298,7 @@ pub(crate) fn regular_slot(
         return None;
     }
     let policy = menu.slot_policies.iter().find(|s| s.slot == index)?;
-    let generic_class = match version {
-        MinecraftVersion::Java1_16_1 => "bhw",
-        MinecraftVersion::Java1_21_11 => "dji",
-    };
+    let generic_class = version.table().generic_slot_class;
     // Empty-result mayPickup never establishes a result-take policy. Ordinary
     // input/player slots use the original generic Slot implementation only.
     (policy.native_class == generic_class).then_some(&policy.policy)

@@ -2,6 +2,7 @@
 pub mod checked;
 mod client;
 mod component_nbt;
+pub(crate) mod generated;
 #[allow(dead_code)]
 mod ids;
 pub(crate) use ids::play_clientbound as ClientboundIds;

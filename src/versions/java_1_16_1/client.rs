@@ -5733,12 +5733,15 @@ impl Bot {
                         *self.oxygen_level.lock().await = oxygen_level_from_air_ticks(*air_ticks);
                     }
                 }
-                let health = match metadata.get(&8) {
+                let health_index = crate::MinecraftVersion::Java1_16_1
+                    .table()
+                    .entities
+                    .health_metadata_index;
+                let health = match metadata.get(&health_index) {
                     Some(MetadataValue::Float(health)) => Some(*health),
                     _ => None,
                 };
-                // Index 8 is LivingEntity health in protocol 736. Read the kind
-                // first so no two locks are held at once.
+                // Read the kind first so no two locks are held at once.
                 let living = self
                     .entities
                     .read()

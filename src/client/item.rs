@@ -47,22 +47,12 @@ struct DefaultItem {
     prototype_values: Vec<usize>,
 }
 fn defaults(version: MinecraftVersion) -> &'static Defaults {
-    static LEGACY: OnceLock<Defaults> = OnceLock::new();
-    static MODERN: OnceLock<Defaults> = OnceLock::new();
-    match version {
-        MinecraftVersion::Java1_16_1 => LEGACY.get_or_init(|| {
-            serde_json::from_str(include_str!(
-                "../../data/client_api/item_properties-1.16.1.json"
-            ))
-            .expect("pinned native legacy default item properties")
-        }),
-        MinecraftVersion::Java1_21_11 => MODERN.get_or_init(|| {
-            serde_json::from_str(include_str!(
-                "../../data/client_api/item_properties-1.21.11.json"
-            ))
-            .expect("pinned native modern default item properties")
-        }),
-    }
+    static DEFAULTS: crate::versions::table::PerVersion<Defaults> =
+        crate::versions::table::PerVersion::new();
+    DEFAULTS.get(version, |table| {
+        serde_json::from_str(table.data.item_properties)
+            .expect("pinned native default item properties")
+    })
 }
 pub(crate) fn legacy_constructor_tag(item: &ItemStack) -> Result<Option<std::sync::Arc<NbtValue>>> {
     if item.id.version() != MinecraftVersion::Java1_16_1 {

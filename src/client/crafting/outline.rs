@@ -1,6 +1,5 @@
 //! Original crafting-table state and native outline/auxiliary boxes.
 use crate::{MinecraftVersion, NativeBlockState};
-use std::sync::OnceLock;
 
 #[derive(serde::Deserialize)]
 struct Shapes {
@@ -13,24 +12,12 @@ struct StateShape {
     auxiliary: Vec<[f64; 6]>,
 }
 fn shapes(version: MinecraftVersion) -> &'static Shapes {
-    static LEGACY: OnceLock<Shapes> = OnceLock::new();
-    static MODERN: OnceLock<Shapes> = OnceLock::new();
-    let parse = |bytes: &[u8]| {
-        serde_json::from_reader(flate2::read::GzDecoder::new(bytes))
+    static SHAPES: crate::versions::table::PerVersion<Shapes> =
+        crate::versions::table::PerVersion::new();
+    SHAPES.get(version, |table| {
+        serde_json::from_reader(flate2::read::GzDecoder::new(table.data.crafting_outlines))
             .expect("pinned original crafting-table outlines")
-    };
-    match version {
-        MinecraftVersion::Java1_16_1 => LEGACY.get_or_init(|| {
-            parse(include_bytes!(
-                "../../../data/client_api/crafting_outlines-1.16.1.json.gz"
-            ))
-        }),
-        MinecraftVersion::Java1_21_11 => MODERN.get_or_init(|| {
-            parse(include_bytes!(
-                "../../../data/client_api/crafting_outlines-1.21.11.json.gz"
-            ))
-        }),
-    }
+    })
 }
 type Boxes = (&'static [[f64; 6]], &'static [[f64; 6]]);
 pub(crate) fn lookup(version: MinecraftVersion, state: &NativeBlockState) -> Option<Boxes> {
@@ -45,14 +32,7 @@ pub(crate) fn lookup(version: MinecraftVersion, state: &NativeBlockState) -> Opt
 mod tests {
     use super::*;
     fn bytes(version: MinecraftVersion) -> &'static [u8] {
-        match version {
-            MinecraftVersion::Java1_16_1 => {
-                include_bytes!("../../../data/client_api/crafting_outlines-1.16.1.json.gz")
-            }
-            MinecraftVersion::Java1_21_11 => {
-                include_bytes!("../../../data/client_api/crafting_outlines-1.21.11.json.gz")
-            }
-        }
+        version.table().data.crafting_outlines
     }
     #[test]
     fn crafting_table_outline_matches_original_owners_states_and_clips() {
@@ -68,14 +48,7 @@ mod tests {
             assert_eq!(native["states"].as_array().unwrap().len(), 1);
             let entry = &native["states"][0];
             let state: NativeBlockState = serde_json::from_value(entry["state"].clone()).unwrap();
-            let id = match version {
-                MinecraftVersion::Java1_16_1 => {
-                    crate::versions::java_1_16_1::state_id(&state).unwrap()
-                }
-                MinecraftVersion::Java1_21_11 => {
-                    crate::versions::java_1_21_11::state_id(&state).unwrap()
-                }
-            };
+            let id = (version.table().registry.state_id)(&state).unwrap();
             assert_eq!(entry["native_id"], id);
             assert_eq!(
                 lookup(version, &state).unwrap(),

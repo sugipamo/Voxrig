@@ -6,7 +6,7 @@ use super::{
     registry::{Registry, ServerRegistryObservation, ServerRegistryTags},
 };
 use crate::{MinecraftVersion, NativeBlockState, Result};
-use std::{collections::BTreeMap, sync::OnceLock};
+use std::collections::BTreeMap;
 
 /// Constructor-derived role, independent of native menu IDs and offsets.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
@@ -168,24 +168,12 @@ struct Shape {
     auxiliary: Vec<[f64; 6]>,
 }
 fn facts(version: MinecraftVersion) -> &'static Facts {
-    static OLD: OnceLock<Facts> = OnceLock::new();
-    static NEW: OnceLock<Facts> = OnceLock::new();
-    let parse = |bytes: &[u8]| {
-        serde_json::from_reader(flate2::read::GzDecoder::new(bytes))
+    static FACTS: crate::versions::table::PerVersion<Facts> =
+        crate::versions::table::PerVersion::new();
+    FACTS.get(version, |table| {
+        serde_json::from_reader(flate2::read::GzDecoder::new(table.data.furnace_menus))
             .expect("pinned native furnace facts")
-    };
-    match version {
-        MinecraftVersion::Java1_16_1 => OLD.get_or_init(|| {
-            parse(include_bytes!(
-                "../../data/client_api/furnace_menus-1.16.1.json.gz"
-            ))
-        }),
-        MinecraftVersion::Java1_21_11 => NEW.get_or_init(|| {
-            parse(include_bytes!(
-                "../../data/client_api/furnace_menus-1.21.11.json.gz"
-            ))
-        }),
-    }
+    })
 }
 pub(crate) fn native_menu(version: MinecraftVersion, name: &str) -> Option<&'static NativeMenu> {
     facts(version).menus.iter().find(|m| m.name == name)

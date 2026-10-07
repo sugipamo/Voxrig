@@ -5,6 +5,7 @@ pub mod chat;
 pub mod client;
 pub(crate) mod collision;
 pub mod entity;
+pub(crate) mod generated;
 pub(crate) use crate::error;
 pub mod interaction;
 pub mod inventory;

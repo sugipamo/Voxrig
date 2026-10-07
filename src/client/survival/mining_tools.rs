@@ -3,7 +3,7 @@
 use crate::client::registry::{Registry, ServerRegistryObservation};
 use crate::client::{ItemData, ItemStack, SlotKnowledge};
 use crate::{MinecraftVersion, NativeBlockState, Result};
-use std::{collections::BTreeMap, sync::OnceLock};
+use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 /// Local scheduling inputs from the owning version's native default item getters.
@@ -59,20 +59,10 @@ struct State {
     profile: usize,
 }
 fn facts(version: MinecraftVersion) -> &'static Facts {
-    static LEGACY: OnceLock<Facts> = OnceLock::new();
-    static MODERN: OnceLock<Facts> = OnceLock::new();
-    let (cache, bytes): (_, &[u8]) = match version {
-        MinecraftVersion::Java1_16_1 => (
-            &LEGACY,
-            include_bytes!("../../../data/client_api/mining_tools-1.16.1.json.gz"),
-        ),
-        MinecraftVersion::Java1_21_11 => (
-            &MODERN,
-            include_bytes!("../../../data/client_api/mining_tools-1.21.11.json.gz"),
-        ),
-    };
-    cache.get_or_init(|| {
-        serde_json::from_reader(flate2::read::GzDecoder::new(bytes))
+    static FACTS: crate::versions::table::PerVersion<Facts> =
+        crate::versions::table::PerVersion::new();
+    FACTS.get(version, |table| {
+        serde_json::from_reader(flate2::read::GzDecoder::new(table.data.mining_tools))
             .expect("pinned native default mining getters")
     })
 }

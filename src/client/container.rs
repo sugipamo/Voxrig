@@ -360,19 +360,11 @@ struct NativePlayerSlot {
     raw_player_slot: usize,
 }
 fn native_menu(version: MinecraftVersion, id: i32) -> Option<NativeMenu> {
-    use std::sync::OnceLock;
-    static LEGACY: OnceLock<Vec<NativeMenu>> = OnceLock::new();
-    static MODERN: OnceLock<Vec<NativeMenu>> = OnceLock::new();
-    let definitions = match version {
-        MinecraftVersion::Java1_16_1 => LEGACY.get_or_init(|| {
-            serde_json::from_str(include_str!("../../data/client_api/menus-1.16.1.json"))
-                .expect("pinned native menus")
-        }),
-        MinecraftVersion::Java1_21_11 => MODERN.get_or_init(|| {
-            serde_json::from_str(include_str!("../../data/client_api/menus-1.21.11.json"))
-                .expect("pinned native menus")
-        }),
-    };
+    static MENUS: crate::versions::table::PerVersion<Vec<NativeMenu>> =
+        crate::versions::table::PerVersion::new();
+    let definitions = MENUS.get(version, |table| {
+        serde_json::from_str(table.data.menus).expect("pinned native menus")
+    });
     let mut menu = definitions.iter().find(|m| m.native_id == id).cloned()?;
     if let Some(crafting) =
         super::crafting::native_menu(version, &menu.name).filter(|m| m.native_id == Some(id))

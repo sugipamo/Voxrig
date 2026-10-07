@@ -1,7 +1,7 @@
 //! Original registered dry slab/stair/rail states, shared by both native adapters.
 use crate::{MinecraftVersion, NativeBlockState};
 use serde::Deserialize;
-use std::{collections::BTreeMap, io::Read, sync::OnceLock};
+use std::{collections::BTreeMap, io::Read};
 
 #[derive(Deserialize)]
 pub(crate) struct Shape {
@@ -18,26 +18,12 @@ struct Terrain {
 }
 mod rails;
 type Shapes = BTreeMap<String, BTreeMap<BTreeMap<String, String>, Shape>>;
-fn bytes(version: MinecraftVersion) -> &'static [u8] {
-    match version {
-        MinecraftVersion::Java1_16_1 => {
-            include_bytes!("../../../data/client_api/dry_terrain-1.16.1.json.gz")
-        }
-        MinecraftVersion::Java1_21_11 => {
-            include_bytes!("../../../data/client_api/dry_terrain-1.21.11.json.gz")
-        }
-    }
-}
 fn shapes(version: MinecraftVersion) -> &'static Shapes {
-    static LEGACY: OnceLock<Shapes> = OnceLock::new();
-    static MODERN: OnceLock<Shapes> = OnceLock::new();
-    let cell = match version {
-        MinecraftVersion::Java1_16_1 => &LEGACY,
-        MinecraftVersion::Java1_21_11 => &MODERN,
-    };
-    cell.get_or_init(|| {
+    static SHAPES: crate::versions::table::PerVersion<Shapes> =
+        crate::versions::table::PerVersion::new();
+    SHAPES.get(version, |table| {
         let mut decoded = Vec::new();
-        flate2::read::GzDecoder::new(bytes(version))
+        flate2::read::GzDecoder::new(table.data.dry_terrain)
             .read_to_end(&mut decoded)
             .expect("packaged native terrain gzip");
         let terrain: Terrain = serde_json::from_slice(&decoded).expect("validated native terrain");

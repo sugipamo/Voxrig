@@ -95,10 +95,7 @@ impl Registry {
     }
     /// Resolve a name and complete properties; no missing-property guesses.
     pub fn resolve_block_state(self, state: &NativeBlockState) -> Result<RegistryId> {
-        let value = match self.version {
-            MinecraftVersion::Java1_16_1 => crate::versions::java_1_16_1::state_id(state)?,
-            MinecraftVersion::Java1_21_11 => crate::versions::java_1_21_11::state_id(state)?,
-        };
+        let value = (self.version.table().registry.state_id)(state)?;
         Ok(RegistryId {
             version: self.version,
             kind: RegistryKind::BlockState,
@@ -110,17 +107,7 @@ impl Registry {
         let name = name
             .strip_prefix("minecraft:")
             .ok_or_else(|| invalid("namespaced item name required"))?;
-        match self.version {
-            MinecraftVersion::Java1_16_1 => {
-                let value = crate::versions::java_1_16_1::item_id(name)
-                    .ok_or_else(|| invalid("unknown item; update Voxrig for new definitions"))?;
-                self.item_by_native_id(value)
-            }
-            MinecraftVersion::Java1_21_11 => {
-                let item = crate::versions::java_1_21_11::operations::default_item(name, 1)?;
-                self.item_by_native_id(item.item_id)
-            }
-        }
+        self.item_by_native_id((self.version.table().registry.item_id)(name)?)
     }
     /// Decode an item identity, refusing identifiers from another version or registry.
     pub fn item_definition(self, id: RegistryId) -> Result<ItemDefinition> {
@@ -129,18 +116,7 @@ impl Registry {
     }
     /// Validate and interpret an explicitly native item ID in this version only.
     pub fn item_by_native_id(self, value: i32) -> Result<ItemDefinition> {
-        let (name, max_stack_size) = match self.version {
-            MinecraftVersion::Java1_16_1 => {
-                let name = crate::versions::java_1_16_1::item_name(value)
-                    .ok_or_else(|| invalid("unknown native item ID"))?;
-                let size = crate::versions::java_1_16_1::registry::item_max_stack_size(value)
-                    .ok_or_else(|| invalid("invalid native item capacity"))?;
-                (format!("minecraft:{name}"), u32::from(size))
-            }
-            MinecraftVersion::Java1_21_11 => {
-                crate::versions::java_1_21_11::operations::item_definition(value)?
-            }
-        };
+        let (name, max_stack_size) = (self.version.table().registry.item)(value)?;
         Ok(ItemDefinition {
             id: RegistryId {
                 version: self.version,
@@ -201,10 +177,7 @@ impl Registry {
         Ok(())
     }
     fn decode_state(self, value: i32) -> Result<NativeBlockState> {
-        match self.version {
-            MinecraftVersion::Java1_16_1 => crate::versions::java_1_16_1::native_state(value),
-            MinecraftVersion::Java1_21_11 => crate::versions::java_1_21_11::native_state(value),
-        }
+        (self.version.table().registry.native_state)(value)
     }
 }
 pub(crate) fn invalid(message: &str) -> Error {

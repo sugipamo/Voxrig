@@ -3,7 +3,7 @@ use crate::client::survival::{model, target};
 
 fn oracle(version: MinecraftVersion) -> serde_json::Value {
     let mut raw = Vec::new();
-    flate2::read::GzDecoder::new(bytes(version))
+    flate2::read::GzDecoder::new(version.table().data.dry_terrain)
         .read_to_end(&mut raw)
         .unwrap();
     serde_json::from_slice(&raw).unwrap()

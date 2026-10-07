@@ -1,25 +1,11 @@
 //! Registered native dry rails: empty collision and independently received outlines.
 use super::*;
-fn bytes(version: MinecraftVersion) -> &'static [u8] {
-    match version {
-        MinecraftVersion::Java1_16_1 => {
-            include_bytes!("../../../../data/client_api/rail_terrain-1.16.1.json.gz")
-        }
-        MinecraftVersion::Java1_21_11 => {
-            include_bytes!("../../../../data/client_api/rail_terrain-1.21.11.json.gz")
-        }
-    }
-}
 fn shapes(version: MinecraftVersion) -> &'static Shapes {
-    static LEGACY: OnceLock<Shapes> = OnceLock::new();
-    static MODERN: OnceLock<Shapes> = OnceLock::new();
-    let cell = match version {
-        MinecraftVersion::Java1_16_1 => &LEGACY,
-        MinecraftVersion::Java1_21_11 => &MODERN,
-    };
-    cell.get_or_init(|| {
+    static SHAPES: crate::versions::table::PerVersion<Shapes> =
+        crate::versions::table::PerVersion::new();
+    SHAPES.get(version, |table| {
         let mut decoded = Vec::new();
-        flate2::read::GzDecoder::new(bytes(version))
+        flate2::read::GzDecoder::new(table.data.rail_terrain)
             .read_to_end(&mut decoded)
             .expect("packaged original rail gzip");
         let terrain: Terrain =
@@ -49,7 +35,7 @@ mod tests {
     use crate::client::survival::{model, target};
     fn oracle(version: MinecraftVersion) -> serde_json::Value {
         let mut decoded = Vec::new();
-        flate2::read::GzDecoder::new(bytes(version))
+        flate2::read::GzDecoder::new(version.table().data.rail_terrain)
             .read_to_end(&mut decoded)
             .unwrap();
         serde_json::from_slice(&decoded).unwrap()
@@ -63,14 +49,7 @@ mod tests {
             let mut ids = std::collections::BTreeSet::new();
             for variants in shapes(version).values() {
                 for shape in variants.values() {
-                    let id = match version {
-                        MinecraftVersion::Java1_16_1 => {
-                            crate::versions::java_1_16_1::state_id(&shape.state).unwrap()
-                        }
-                        MinecraftVersion::Java1_21_11 => {
-                            crate::versions::java_1_21_11::state_id(&shape.state).unwrap()
-                        }
-                    };
+                    let id = (version.table().registry.state_id)(&shape.state).unwrap();
                     assert_eq!(id, shape.native_id);
                     assert!(ids.insert(id));
                     assert!(
