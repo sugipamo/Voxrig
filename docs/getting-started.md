@@ -22,7 +22,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
 ## 1 Botを接続する
 
 ```rust,no_run
-use voxrig::prelude::*;
+use voxrig::versions::java_1_16_1::prelude::*;
 
 #[tokio::main]
 async fn main() -> Result<()> {

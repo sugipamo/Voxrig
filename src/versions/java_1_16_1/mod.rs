@@ -51,7 +51,7 @@ pub fn state_id(state: &crate::NativeBlockState) -> crate::Result<i32> {
 
 /// Common imports for applications that control one or more clients.
 pub mod prelude {
-    pub use crate::{
+    pub use super::{
         BlockFace, BlockPos, Bot, BotManager, ClickMode, ControlState, Error, ErrorKind, Event,
         Hand, Player, Result, Server,
     };

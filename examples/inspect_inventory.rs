@@ -1,6 +1,6 @@
 use anyhow::Result;
 use tokio::time::Duration;
-use voxrig::{BotManager, Player, Server};
+use voxrig::versions::java_1_16_1::{BotManager, Player, Server};
 
 #[tokio::main]
 async fn main() -> Result<()> {

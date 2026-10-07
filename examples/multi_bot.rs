@@ -1,5 +1,5 @@
 use anyhow::Result;
-use voxrig::{BotManager, ControlState, Player, Server};
+use voxrig::versions::java_1_16_1::{BotManager, ControlState, Player, Server};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -25,7 +25,10 @@ async fn main() -> Result<()> {
         tokio::try_join!(alpha.observe_snapshot(1), beta.observe_snapshot(1))?;
 
     println!("managed: {:?}", manager.usernames().await);
-    println!("client: {:?}", voxrig::Bot::client_info());
+    println!(
+        "client: {:?}",
+        voxrig::versions::java_1_16_1::Bot::client_info()
+    );
     println!("AlphaBot observed {} blocks", alpha_blocks.value.len());
     println!("BetaBot observed {} blocks", beta_blocks.value.len());
     manager.disconnect_all().await?;

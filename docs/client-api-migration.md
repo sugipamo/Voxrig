@@ -255,8 +255,9 @@ DustRoute: native observation、piston/recovery、照準、配置・除去・取
 
 | 従来の入口 | 移行先 |
 | --- | --- |
-| 新しいconsumerの`voxrig::prelude::*` | `voxrig::client::prelude::*`。root preludeは従来Bot用のまま |
-| `voxrig::client::{Bot, Event, Player, ConnectionOptions}` | 版固有APIを使い続ける場合は`voxrig::versions::java_1_16_1::client`またはrootからimport |
+| `voxrig::prelude::*`（1.16.1 Bot用） | `voxrig::versions::java_1_16_1::prelude::*`。root preludeは共通`Client`用（`client::prelude`と同じ） |
+| rootの1.16.1型（`voxrig::Bot`、`voxrig::BotManager`、`voxrig::Event`等） | `voxrig::versions::java_1_16_1::…`。rootには共通API（`Client`、`ConnectionConfig`、`Region`、`MinecraftVersion`、`Error`等）だけを残す |
+| `voxrig::client::{Bot, Event, Player, ConnectionOptions}` | 版固有APIを使い続ける場合は`voxrig::versions::java_1_16_1`からimport |
 | `ConnectionConfig.limits: ConnectionOptions` | `ClientLimits`。共通の4 timeoutとmax_chunksのみ。版固有設定はBot APIに残る |
 | `client.survival()?`の検査付き操作 | `client.survival().checked()?`または`client.checked_survival()?`。既存の制約・証拠は維持 |
 | `voxrig::checked_survival` | canonicalは`voxrig::client::survival::checked`。旧pathはaliasとして維持 |

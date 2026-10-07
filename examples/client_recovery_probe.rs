@@ -1,7 +1,8 @@
 //! Observe native moving-piston chunk data on an isolated, already prepared server.
 //! This probe does not place blocks, issue commands, or change server ticking.
 use std::{fs::OpenOptions, time::Duration};
-use voxrig::{Client, ConnectionConfig, MinecraftVersion, Region, Server};
+use voxrig::client::Server;
+use voxrig::{Client, ConnectionConfig, MinecraftVersion, Region};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

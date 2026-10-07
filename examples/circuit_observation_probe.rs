@@ -4,7 +4,8 @@ use std::{
     io::{self, Write},
     time::Duration,
 };
-use voxrig::{BlockFace, Client, ConnectionConfig, MinecraftVersion, Region, Server};
+use voxrig::versions::java_1_16_1::{BlockFace, Server};
+use voxrig::{Client, ConnectionConfig, MinecraftVersion, Region};
 
 #[derive(serde::Deserialize)]
 struct Config {

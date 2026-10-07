@@ -3,8 +3,9 @@
 use anyhow::Context;
 use std::{io::Write, time::Duration};
 use tokio::io::{AsyncBufReadExt, BufReader};
+use voxrig::versions::java_1_16_1::BlockFace;
 use voxrig::{
-    BlockFace, Region,
+    Region,
     client::{SlotKnowledge, prelude::*},
 };
 

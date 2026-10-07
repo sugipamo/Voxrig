@@ -38,7 +38,7 @@ rootの互換importと`versions::java_1_16_1`は同じ型で、`voxrig::survival
 基本操作ではpreludeを利用できます。
 
 ```rust
-use voxrig::prelude::*;
+use voxrig::versions::java_1_16_1::prelude::*;
 ```
 
 規模の大きな利用側では、用途別moduleから明示的にimportできます。
@@ -109,7 +109,7 @@ crate rootのre-exportと用途別moduleは同一の型を参照します。
 ## 観測に結び付いた操作
 
 ```rust,no_run
-use voxrig::{Bot, CoherentObservationRequest, Operation, OperationClass};
+use voxrig::versions::java_1_16_1::{Bot, CoherentObservationRequest, Operation, OperationClass};
 
 async fn rotate(bot: &Bot) -> anyhow::Result<()> {
     let observation = bot.capture_coherent_observation(CoherentObservationRequest::default()).await?;
@@ -278,7 +278,7 @@ fallibleな公開操作は`voxrig::Result<T>`を返します。`Error::kind()`�
 ```rust,no_run
 use voxrig::{ErrorKind, Result};
 
-# async fn run(bot: &voxrig::Bot) -> Result<()> {
+# async fn run(bot: &voxrig::versions::java_1_16_1::Bot) -> Result<()> {
 if let Err(error) = bot.wait_until_ready().await {
     match error.kind() {
         ErrorKind::Timeout | ErrorKind::Connection => {

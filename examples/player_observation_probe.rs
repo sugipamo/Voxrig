@@ -3,7 +3,8 @@ use std::{
     io::{self, Write},
     time::Duration,
 };
-use voxrig::{Client, ConnectionConfig, MinecraftVersion, Server};
+use voxrig::client::Server;
+use voxrig::{Client, ConnectionConfig, MinecraftVersion};
 
 async fn connect(name: &str) -> anyhow::Result<Client> {
     let client = Client::connect(ConnectionConfig::offline(

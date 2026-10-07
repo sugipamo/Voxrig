@@ -6,9 +6,9 @@
 //! do not implement this checked contract. Data types currently share the native
 //! 1.21.11 representation and retain version/session evidence. Future adapters
 //! must implement the same contract or declare a different one explicitly.
-//! The legacy survival module remains source-compatible:
+//! The Java 1.16.1 survival state remains under its version module:
 //! ```
-//! let _: Option<voxrig::survival::SurvivalState> = None;
+//! let _: Option<voxrig::versions::java_1_16_1::survival::SurvivalState> = None;
 //! ```
 //! Creative/command shortcuts are not part of this surface:
 //! ```compile_fail

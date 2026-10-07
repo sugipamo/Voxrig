@@ -62,4 +62,11 @@ pub use block_state::NativeBlockState;
 pub use connection::{Client, ConnectionConfig, Observation, ObservedBlock, Region};
 pub use error::{Error, ErrorKind, Result};
 pub use versions::MinecraftVersion;
-pub use versions::java_1_16_1::*;
+// Java 1.16.1 types stay reachable inside the crate by their historical root
+// paths; consumers name them under `versions::java_1_16_1`.
+pub(crate) use versions::java_1_16_1::*;
+
+/// Common imports for version-selected clients.
+pub mod prelude {
+    pub use crate::client::prelude::*;
+}

@@ -4,7 +4,8 @@ use voxrig::checked_survival::{
     AssumedSurvivalScene, AssumedSurvivalStart, HypotheticalSceneSource, SurvivalControl,
     SurvivalInput, SurvivalMotionContract, TerminalClearance,
 };
-use voxrig::{BlockFace, NativeBlockState, Region};
+use voxrig::versions::java_1_16_1::BlockFace;
+use voxrig::{NativeBlockState, Region};
 fn block(name: &str) -> NativeBlockState {
     NativeBlockState {
         name: format!("minecraft:{name}"),

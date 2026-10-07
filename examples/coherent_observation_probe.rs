@@ -1,5 +1,5 @@
 use anyhow::{Result, ensure};
-use voxrig::{
+use voxrig::versions::java_1_16_1::{
     BlockPos, BotManager, CleanupDispatchOutcome, CleanupOperation, CoherentObservationRequest,
     ConnectionState, DispatchOutcome, Operation, Player, Server,
 };
