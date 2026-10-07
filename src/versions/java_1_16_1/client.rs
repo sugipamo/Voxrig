@@ -1197,7 +1197,9 @@ impl Bot {
         .await
         .context("connect timed out")?
         .context("connect failed")?;
-        let (mut reader, writer) = stream.into_split();
+        let (reader, writer) = stream.into_split();
+        // Keep the same buffer through login and play so prefetched frames survive.
+        let mut reader = tokio::io::BufReader::new(reader);
         let writer = Arc::new(Mutex::new(PacketWriter {
             inner: writer,
             compression: None,

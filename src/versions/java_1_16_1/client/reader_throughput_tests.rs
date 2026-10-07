@@ -143,4 +143,111 @@ mod reader_throughput_tests {
             server.await.unwrap();
         }
     }
+
+    #[tokio::test]
+    async fn buffered_partial_frame_survives_a_coherent_capture() {
+        use tokio::io::AsyncWriteExt;
+
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        let (mut tx, reader) = tokio::io::duplex(64);
+        let (capture_tx, capture_rx) = mpsc::channel(2);
+        let (_movement_tx, movement_rx) = mpsc::channel(2);
+        {
+            let read = bot.read_loop(tokio::io::BufReader::new(reader), capture_rx, movement_rx);
+            tokio::pin!(read);
+            tx.write_all(&[2, 0x3f]).await.unwrap();
+            poll_fn(|cx| {
+                assert!(read.as_mut().poll(cx).is_pending());
+                Poll::Ready(())
+            })
+            .await;
+            let (reply, response) = oneshot::channel();
+            capture_tx
+                .send(crate::observation::CaptureCommand {
+                    request: CoherentObservationRequest::default(),
+                    reply,
+                })
+                .await
+                .unwrap();
+            tokio::select! {
+                result = &mut read => panic!("reader ended during capture: {result:?}"),
+                result = response => { result.unwrap().unwrap(); }
+            }
+            tx.write_all(&[5]).await.unwrap();
+            timeout(Duration::from_secs(1), async {
+                loop {
+                    poll_fn(|cx| {
+                        assert!(read.as_mut().poll(cx).is_pending());
+                        Poll::Ready(())
+                    })
+                    .await;
+                    if bot.inventory.read().await.selected_hotbar == 5 {
+                        break;
+                    }
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .unwrap();
+            bot.cancel.notify_waiters();
+            read.await.unwrap();
+        }
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn buffered_login_preserves_prefetched_play_frames() {
+        use tokio::io::AsyncWriteExt;
+
+        for compression in [None, Some(256), Some(0)] {
+            let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+            let port = listener.local_addr().unwrap().port();
+            let server = tokio::spawn(async move {
+                let (stream, _) = listener.accept().await.unwrap();
+                let (mut reader, mut writer) = stream.into_split();
+                read_packet(&mut reader, None).await.unwrap();
+                read_packet(&mut reader, None).await.unwrap();
+                let mut wire = Vec::new();
+                if let Some(threshold) = compression {
+                    let mut payload = Vec::new();
+                    put_varint(&mut payload, threshold);
+                    write_packet(&mut wire, None, 0x03, &payload).await.unwrap();
+                }
+                write_packet(&mut wire, compression, 0x02, &[])
+                    .await
+                    .unwrap();
+                write_packet(&mut wire, compression, 0x3f, &[3])
+                    .await
+                    .unwrap();
+                write_packet(&mut wire, compression, 0x3f, &[4])
+                    .await
+                    .unwrap();
+                writer.write_all(&wire).await.unwrap();
+                let mut byte = [0_u8; 1];
+                let _ = reader.read(&mut byte).await;
+            });
+            let bot = Bot::connect(
+                Server::new("127.0.0.1", port),
+                Player::offline("BufferedProbe"),
+                Arc::new(crate::SharedChunkStorage::default()),
+                ConnectionOptions::default(),
+            )
+            .await
+            .unwrap();
+            timeout(Duration::from_secs(1), async {
+                loop {
+                    if bot.inventory.read().await.selected_hotbar == 4 {
+                        break;
+                    }
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .expect("play frames prefetched during login were lost");
+            drop(bot);
+            server.await.unwrap();
+        }
+    }
 }
