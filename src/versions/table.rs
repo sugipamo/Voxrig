@@ -127,6 +127,9 @@ pub(crate) struct PhysicsRules {
     /// Horizontal velocity is zeroed only when collision changed it by at
     /// least this much; None compares exactly.
     pub horizontal_collision_tolerance: Option<f64>,
+    /// Moving shifts the persisted bounding box and the position is read back
+    /// from its center (legacy); otherwise the position moves and the box follows.
+    pub position_from_bounds: bool,
 }
 
 /// Everything that differs between versions as values.
@@ -295,6 +298,7 @@ pub(crate) const JAVA_1_16_1: VersionTable = VersionTable {
         step: StepSearch::TwoCandidate,
         move_when_nearly_stopped: false,
         horizontal_collision_tolerance: None,
+        position_from_bounds: true,
     },
     data: data_files!("1.16.1"),
 };
@@ -326,6 +330,7 @@ pub(crate) const JAVA_1_21_11: VersionTable = VersionTable {
         step: StepSearch::HeightScan,
         move_when_nearly_stopped: true,
         horizontal_collision_tolerance: Some(1e-5),
+        position_from_bounds: false,
     },
     data: data_files!("1.21.11"),
 };

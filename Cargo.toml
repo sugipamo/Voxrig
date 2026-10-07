@@ -47,6 +47,7 @@ include = [
     "/scripts/ExportEntityDimensions.java",
     "/scripts/ExportBlockPhysics.java",
     "/scripts/generate_version_tables.py",
+    "/scripts/movement_oracle/**",
     "/scripts/VerifyLegacyDryMovement.java",
     "/scripts/VerifyLegacyTargeting.java",
     "/scripts/VerifyLegacyInventorySwap.java",

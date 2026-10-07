@@ -27,3 +27,5 @@ pub use motion::{
     SurvivalControl, SurvivalInput, TerminalClearance,
 };
 pub use target::{BlockTargetHit, BlockTargetObservation};
+#[cfg(test)]
+mod oracle_tests;

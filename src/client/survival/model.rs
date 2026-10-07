@@ -199,13 +199,14 @@ pub(crate) fn acceleration(
         return [0.0; 3];
     }
     if length > 1.0 {
-        let inverse = if rules.f32_input_length {
-            1.0 / f64::from(length.sqrt() as f32)
+        // Native Vec3.normalize divides each component by the length.
+        let length = if rules.f32_input_length {
+            f64::from(length.sqrt() as f32)
         } else {
-            1.0 / length.sqrt()
+            length.sqrt()
         };
-        x *= inverse;
-        z *= inverse;
+        x /= length;
+        z /= length;
     }
     x *= f64::from(speed);
     z *= f64::from(speed);
@@ -389,6 +390,8 @@ fn modern_collide_with_step(
 pub(crate) struct Model {
     version: MinecraftVersion,
     pub(crate) frame: PredictedMotionFrame,
+    /// Collision box; persisted separately where the version moves the box.
+    bounds: [f64; 6],
     jump_cooldown: u8,
 }
 impl Model {
@@ -409,6 +412,7 @@ impl Model {
                 horizontal_collision: false,
                 resting: true,
             },
+            bounds: body(position),
             jump_cooldown: 0,
         }
     }
@@ -467,7 +471,7 @@ impl Model {
     ) {
         let adjusted = collide_with_step(
             self.version,
-            body(self.frame.position),
+            self.bounds,
             proposed,
             boxes,
             self.frame.on_ground,
@@ -499,7 +503,14 @@ impl Model {
             || (rules.move_when_nearly_stopped
                 && proposed.iter().map(|v| v * v).sum::<f64>() - length2 < c.min_input_sq);
         if move_position {
-            self.frame.position = std::array::from_fn(|i| self.frame.position[i] + adjusted[i]);
+            if rules.position_from_bounds {
+                self.bounds = shifted(self.bounds, adjusted);
+                let b = self.bounds;
+                self.frame.position = [(b[0] + b[3]) / 2.0, b[1], (b[2] + b[5]) / 2.0];
+            } else {
+                self.frame.position = std::array::from_fn(|i| self.frame.position[i] + adjusted[i]);
+                self.bounds = body(self.frame.position);
+            }
         }
         self.frame.velocity = [
             velocity[0] * f64::from(friction),
