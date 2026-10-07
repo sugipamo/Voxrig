@@ -22765,5 +22765,7548 @@
     "yaw": 171.0
    }
   ]
+ },
+ {
+  "name": "water_wade",
+  "blocks": [
+   [
+    -6,
+    -1,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -3,
+    0,
+    -3,
+    3,
+    0,
+    3,
+    "minecraft:water[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   0.0,
+   0.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "water_bottom_walk",
+  "blocks": [
+   [
+    -6,
+    -4,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -3,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:water[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   -3.0,
+   0.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "water_rise_holding_jump",
+  "blocks": [
+   [
+    -6,
+    -4,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -3,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:water[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   -3.0,
+   0.5
+  ],
+  "ticks": [
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "water_swim_forward_jump",
+  "blocks": [
+   [
+    -6,
+    -4,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -3,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:water[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   -3.0,
+   0.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 20.0
+   },
+   {
+    "yaw": 20.0
+   },
+   {
+    "yaw": 20.0
+   },
+   {
+    "yaw": 20.0
+   },
+   {
+    "yaw": 20.0
+   },
+   {
+    "yaw": 20.0
+   },
+   {
+    "yaw": 20.0
+   },
+   {
+    "yaw": 20.0
+   },
+   {
+    "yaw": 20.0
+   },
+   {
+    "yaw": 20.0
+   },
+   {
+    "yaw": 20.0
+   }
+  ]
+ },
+ {
+  "name": "water_float_released",
+  "blocks": [
+   [
+    -6,
+    -4,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -3,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:water[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   -1.4,
+   0.5
+  ],
+  "ticks": [
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   }
+  ],
+  "on_ground": false
+ },
+ {
+  "name": "water_sink_sneaking",
+  "blocks": [
+   [
+    -6,
+    -4,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -3,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:water[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   -1.4,
+   0.5
+  ],
+  "ticks": [
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   },
+   {
+    "sneak": true,
+    "yaw": 0.0
+   }
+  ],
+  "on_ground": false
+ },
+ {
+  "name": "water_sprint_swim_pitch_-60",
+  "blocks": [
+   [
+    -6,
+    -5,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -4,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:water[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   -3.0,
+   -3.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": -60.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": -60.0,
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "water_sprint_swim_pitch_0",
+  "blocks": [
+   [
+    -6,
+    -5,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -4,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:water[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   -3.0,
+   -3.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 0.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 0.0,
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "water_sprint_swim_pitch_35",
+  "blocks": [
+   [
+    -6,
+    -5,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -4,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:water[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   -3.0,
+   -3.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 35.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 35.0,
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "water_sprint_swim_pitch_80",
+  "blocks": [
+   [
+    -6,
+    -5,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -4,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:water[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   -3.0,
+   -3.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 80.0,
+    "yaw": 0.0
+   },
+   {
+    "pitch": 80.0,
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "water_sprint_swim_turning",
+  "blocks": [
+   [
+    -6,
+    -5,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -4,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:water[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   -3.5,
+   0.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0,
+    "jump": true
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 6.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 12.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 18.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 24.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 30.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 36.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 42.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 48.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 54.0,
+    "jump": true
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 60.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 66.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 72.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 78.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 84.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 90.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 96.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 102.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 108.0,
+    "jump": true
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 114.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 120.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 126.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 132.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 138.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 144.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 150.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 156.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 162.0,
+    "jump": true
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 168.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 174.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 180.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 186.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 192.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 198.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 204.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 210.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 216.0,
+    "jump": true
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 222.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 228.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 234.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 240.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 246.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 252.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 258.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 264.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 270.0,
+    "jump": true
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 276.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 282.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 288.0,
+    "jump": false
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 294.0,
+    "jump": false
+   }
+  ]
+ },
+ {
+  "name": "water_exit_ledge",
+  "blocks": [
+   [
+    -6,
+    -4,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -3,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:water[level=0]"
+   ],
+   [
+    -5,
+    -3,
+    3,
+    5,
+    -1,
+    5,
+    "minecraft:stone"
+   ]
+  ],
+  "start": [
+   0.5,
+   -1.5,
+   -1.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   }
+  ],
+  "on_ground": false
+ },
+ {
+  "name": "water_exit_ledge_sprint",
+  "blocks": [
+   [
+    -6,
+    -4,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -3,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:water[level=0]"
+   ],
+   [
+    -5,
+    -3,
+    3,
+    5,
+    -1,
+    5,
+    "minecraft:stone"
+   ]
+  ],
+  "start": [
+   0.5,
+   -1.5,
+   -1.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "sprint": true,
+    "yaw": 0.0
+   }
+  ],
+  "on_ground": false
+ },
+ {
+  "name": "water_walk_off_into_pool",
+  "blocks": [
+   [
+    -6,
+    -1,
+    -6,
+    6,
+    -1,
+    -1,
+    "minecraft:stone"
+   ],
+   [
+    -7,
+    -5,
+    0,
+    7,
+    -5,
+    7,
+    "minecraft:stone"
+   ],
+   [
+    -6,
+    -4,
+    0,
+    6,
+    -2,
+    6,
+    "minecraft:water[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   0.0,
+   -3.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "water_fall_into_pool",
+  "blocks": [
+   [
+    -6,
+    -4,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -3,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:water[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   6.0,
+   0.5
+  ],
+  "ticks": [
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   }
+  ],
+  "on_ground": false
+ },
+ {
+  "name": "water_flow_push",
+  "blocks": [
+   [
+    -6,
+    -1,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -2,
+    0,
+    -2,
+    2,
+    0,
+    -2,
+    "minecraft:water[level=0]"
+   ],
+   [
+    -2,
+    0,
+    -1,
+    2,
+    0,
+    -1,
+    "minecraft:water[level=1]"
+   ],
+   [
+    -2,
+    0,
+    0,
+    2,
+    0,
+    0,
+    "minecraft:water[level=2]"
+   ],
+   [
+    -2,
+    0,
+    1,
+    2,
+    0,
+    1,
+    "minecraft:water[level=3]"
+   ],
+   [
+    -2,
+    0,
+    2,
+    2,
+    0,
+    2,
+    "minecraft:water[level=4]"
+   ],
+   [
+    -2,
+    0,
+    3,
+    2,
+    0,
+    3,
+    "minecraft:water[level=5]"
+   ],
+   [
+    -2,
+    0,
+    4,
+    2,
+    0,
+    4,
+    "minecraft:water[level=6]"
+   ],
+   [
+    -2,
+    0,
+    5,
+    2,
+    0,
+    5,
+    "minecraft:water[level=7]"
+   ]
+  ],
+  "start": [
+   0.5,
+   0.0,
+   -1.5
+  ],
+  "ticks": [
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "water_flow_against",
+  "blocks": [
+   [
+    -6,
+    -1,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -2,
+    0,
+    -2,
+    2,
+    0,
+    -2,
+    "minecraft:water[level=0]"
+   ],
+   [
+    -2,
+    0,
+    -1,
+    2,
+    0,
+    -1,
+    "minecraft:water[level=1]"
+   ],
+   [
+    -2,
+    0,
+    0,
+    2,
+    0,
+    0,
+    "minecraft:water[level=2]"
+   ],
+   [
+    -2,
+    0,
+    1,
+    2,
+    0,
+    1,
+    "minecraft:water[level=3]"
+   ],
+   [
+    -2,
+    0,
+    2,
+    2,
+    0,
+    2,
+    "minecraft:water[level=4]"
+   ],
+   [
+    -2,
+    0,
+    3,
+    2,
+    0,
+    3,
+    "minecraft:water[level=5]"
+   ],
+   [
+    -2,
+    0,
+    4,
+    2,
+    0,
+    4,
+    "minecraft:water[level=6]"
+   ],
+   [
+    -2,
+    0,
+    5,
+    2,
+    0,
+    5,
+    "minecraft:water[level=7]"
+   ]
+  ],
+  "start": [
+   0.5,
+   0.0,
+   4.5
+  ],
+  "ticks": [
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   },
+   {
+    "forward": -1,
+    "yaw": 180.0
+   }
+  ]
+ },
+ {
+  "name": "waterfall",
+  "blocks": [
+   [
+    -6,
+    -1,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    0,
+    0,
+    2,
+    0,
+    5,
+    2,
+    "minecraft:water[level=8]"
+   ],
+   [
+    0,
+    0,
+    3,
+    0,
+    5,
+    3,
+    "minecraft:stone"
+   ]
+  ],
+  "start": [
+   0.5,
+   0.0,
+   0.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "jump": true,
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "waterlogged_slab_floor",
+  "blocks": [
+   [
+    -6,
+    -1,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -3,
+    0,
+    -3,
+    3,
+    0,
+    3,
+    "minecraft:stone_slab[type=bottom,waterlogged=true]"
+   ]
+  ],
+  "start": [
+   0.5,
+   0.5,
+   0.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "seagrass_pool",
+  "blocks": [
+   [
+    -6,
+    -4,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -3,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:water[level=0]"
+   ],
+   [
+    -3,
+    -3,
+    -3,
+    3,
+    -3,
+    3,
+    "minecraft:seagrass"
+   ]
+  ],
+  "start": [
+   0.5,
+   -3.0,
+   0.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "dolphins_grace_swim",
+  "blocks": [
+   [
+    -6,
+    -5,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -4,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:water[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   -3.0,
+   -3.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 20.0,
+    "yaw": 0.0
+   }
+  ],
+  "effects": {
+   "minecraft:dolphins_grace": 0
+  }
+ },
+ {
+  "name": "water_efficiency_attribute",
+  "blocks": [
+   [
+    -6,
+    -4,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -3,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:water[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   -3.0,
+   0.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   }
+  ],
+  "attributes": {
+   "minecraft:water_movement_efficiency": 0.6
+  },
+  "versions": [
+   "1.21.11"
+  ]
+ },
+ {
+  "name": "water_swim_into_crawl_tunnel",
+  "blocks": [
+   [
+    -6,
+    -3,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -2,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:water[level=0]"
+   ],
+   [
+    -5,
+    -1,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -2,
+    -5,
+    5,
+    -2,
+    5,
+    "minecraft:water[level=0]"
+   ],
+   [
+    -1,
+    -1,
+    2,
+    1,
+    -1,
+    8,
+    "minecraft:air"
+   ],
+   [
+    -1,
+    -1,
+    6,
+    1,
+    -1,
+    8,
+    "minecraft:stone"
+   ],
+   [
+    -6,
+    -3,
+    6,
+    6,
+    -2,
+    9,
+    "minecraft:stone"
+   ],
+   [
+    -1,
+    -2,
+    6,
+    1,
+    -2,
+    9,
+    "minecraft:air"
+   ]
+  ],
+  "start": [
+   0.5,
+   -2.0,
+   -2.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "pitch": 10.0,
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "sprint_jump_into_pool",
+  "blocks": [
+   [
+    -6,
+    -1,
+    -8,
+    6,
+    -1,
+    -4,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -4,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:stone"
+   ],
+   [
+    -4,
+    -3,
+    -4,
+    4,
+    -1,
+    4,
+    "minecraft:water[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   0.0,
+   -6.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "fall_into_shallow_water",
+  "blocks": [
+   [
+    -6,
+    -1,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -2,
+    0,
+    -2,
+    2,
+    0,
+    2,
+    "minecraft:water[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   8.0,
+   0.5
+  ],
+  "ticks": [
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   }
+  ],
+  "on_ground": false
+ },
+ {
+  "name": "water_sprint_with_current",
+  "blocks": [
+   [
+    -6,
+    -1,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -2,
+    0,
+    -2,
+    2,
+    0,
+    -2,
+    "minecraft:water[level=0]"
+   ],
+   [
+    -2,
+    0,
+    -1,
+    2,
+    0,
+    -1,
+    "minecraft:water[level=1]"
+   ],
+   [
+    -2,
+    0,
+    0,
+    2,
+    0,
+    0,
+    "minecraft:water[level=2]"
+   ],
+   [
+    -2,
+    0,
+    1,
+    2,
+    0,
+    1,
+    "minecraft:water[level=3]"
+   ],
+   [
+    -2,
+    0,
+    2,
+    2,
+    0,
+    2,
+    "minecraft:water[level=4]"
+   ],
+   [
+    -2,
+    0,
+    3,
+    2,
+    0,
+    3,
+    "minecraft:water[level=5]"
+   ],
+   [
+    -2,
+    0,
+    4,
+    2,
+    0,
+    4,
+    "minecraft:water[level=6]"
+   ],
+   [
+    -2,
+    0,
+    5,
+    2,
+    0,
+    5,
+    "minecraft:water[level=7]"
+   ]
+  ],
+  "start": [
+   0.5,
+   0.0,
+   -1.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "jump": true,
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "lava_exit_ledge",
+  "blocks": [
+   [
+    -6,
+    -4,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -3,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:lava[level=0]"
+   ],
+   [
+    -5,
+    -3,
+    3,
+    5,
+    -1,
+    5,
+    "minecraft:stone"
+   ]
+  ],
+  "start": [
+   0.5,
+   -1.5,
+   -1.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   }
+  ],
+  "on_ground": false
+ },
+ {
+  "name": "lava_wade",
+  "blocks": [
+   [
+    -6,
+    -1,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -3,
+    0,
+    -3,
+    3,
+    0,
+    3,
+    "minecraft:lava[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   0.0,
+   0.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "lava_pool_rise",
+  "blocks": [
+   [
+    -6,
+    -4,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -3,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:lava[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   -3.0,
+   0.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "lava_float_released",
+  "blocks": [
+   [
+    -6,
+    -4,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -3,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:lava[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   -1.4,
+   0.5
+  ],
+  "ticks": [
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   }
+  ],
+  "on_ground": false
  }
 ]

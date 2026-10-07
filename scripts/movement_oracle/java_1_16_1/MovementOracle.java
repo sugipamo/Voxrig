@@ -10,6 +10,9 @@ import com.mojang.authlib.GameProfile;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.world.level.material.FlowingFluid;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.FenceGateBlock;
 import net.minecraft.world.level.block.TrapDoorBlock;
@@ -227,7 +230,7 @@ public final class MovementOracle {
         }
         JsonArray shapes = new JsonArray();
         Map<String, Integer> shapeIndex = new HashMap<>();
-        JsonArray stateShape = new JsonArray(), fluid = new JsonArray(), suffocating = new JsonArray(), positional = new JsonArray();
+        JsonArray stateShape = new JsonArray(), fluid = new JsonArray(), fluids = new JsonArray(), blocksMotion = new JsonArray(), sturdy = new JsonArray(), suffocating = new JsonArray(), positional = new JsonArray();
         BlockPos other = new BlockPos(7, 64, -13);
         int count = 0;
         for (int id = 0; ; id++) {
@@ -241,7 +244,20 @@ public final class MovementOracle {
             Integer index = shapeIndex.get(key);
             if (index == null) { index = shapes.size(); shapeIndex.put(key, index); shapes.add(boxes); }
             stateShape.add(index);
-            if (!state.getFluidState().isEmpty()) fluid.add(id);
+            FluidState fs = state.getFluidState();
+            if (!fs.isEmpty()) {
+                fluid.add(id);
+                // [state, 1 water / 2 lava, amount, falling]
+                boolean falling = fs.getProperties().contains(FlowingFluid.FALLING) && fs.getValue(FlowingFluid.FALLING);
+                fluids.add(ints(id, fs.is(FluidTags.WATER) ? 1 : 2, fs.getAmount(), falling ? 1 : 0));
+            }
+            if (state.getMaterial().blocksMotion()) blocksMotion.add(id);
+            int faces = 0;
+            Direction[] horizontal = {Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST};
+            for (int d = 0; d < 4; d++) if (state.isFaceSturdy(EmptyBlockGetter.INSTANCE, BlockPos.ZERO, horizontal[d])) faces |= 1 << d;
+            // Flow ignores the faces of ice (FlowingFluid.isSolidFace).
+            if (state.getMaterial() == net.minecraft.world.level.material.Material.ICE) faces |= 16;
+            if (faces != 0) sturdy.add(ints(id, faces));
             if (state.isSuffocating(EmptyBlockGetter.INSTANCE, BlockPos.ZERO)) suffocating.add(id);
         }
         JsonArray blocks = new JsonArray();
@@ -281,11 +297,15 @@ public final class MovementOracle {
         out.add("shapes", shapes);
         out.add("state_shapes", stateShape);
         out.add("fluid_states", fluid);
+        out.add("fluids", fluids);
+        out.add("blocks_motion_states", blocksMotion);
+        out.add("sturdy_faces", sturdy);
         out.add("suffocating_states", suffocating);
         out.add("positional_shape_states", positional);
         out.add("blocks", blocks);
         return out;
     }
+    static JsonArray ints(int... xs) { JsonArray a = new JsonArray(); for (int x : xs) a.add(x); return a; }
     static JsonArray boxes(VoxelShape shape) {
         JsonArray list = new JsonArray();
         for (AABB box : shape.toAabbs()) list.add(vec(box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ));
@@ -366,6 +386,7 @@ public final class MovementOracle {
             f.addProperty("crouching", player.crouching);
             f.addProperty("pose", player.getPose().name());
             f.addProperty("in_water", player.isInWater());
+            f.addProperty("swimming", player.isSwimming());
             f.addProperty("speed", Float.toString(player.getSpeed()));
             f.addProperty("fall_distance", Double.toString(player.fallDistance));
             frames.add(f);

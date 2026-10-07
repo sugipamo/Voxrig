@@ -19,6 +19,8 @@ pub(crate) enum Effect {
     Stuck,
     /// Honey: wall sliding while inside.
     Honey,
+    /// Legacy liquid block: marks the player as touching lava.
+    Liquid,
     /// Not reproduced by this engine; movement near it is refused.
     Unsupported(&'static str),
 }
@@ -43,12 +45,26 @@ pub(crate) struct Block {
     pub shape: Effect,
 }
 
+/// Fluid held by a block state.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Fluid {
+    pub lava: bool,
+    /// FluidState.getAmount: 8 for a source, less for flowing fluid.
+    pub amount: u8,
+    pub falling: bool,
+}
+
 pub(crate) struct State {
     pub block: u16,
     pub shape: u16,
-    pub fluid: bool,
+    pub fluid: Option<Fluid>,
     pub suffocating: bool,
     pub positional: bool,
+    /// Material/state `blocksMotion`, used by fluid flow.
+    pub blocks_motion: bool,
+    /// Sturdy horizontal faces, bits N, E, S, W; bit 4 marks ice, whose
+    /// faces flow ignores.
+    pub sturdy_faces: u8,
 }
 
 pub(crate) struct Table {
@@ -112,11 +128,24 @@ fn parse(text: &str) -> Table {
         }
         set
     };
-    let (fluid, suffocating, positional) = (
-        flags("fluid_states"),
+    let (suffocating, positional, blocks_motion) = (
         flags("suffocating_states"),
         flags("positional_shape_states"),
+        flags("blocks_motion_states"),
     );
+    let mut fluid = vec![None; count];
+    for f in data["fluids"].as_array().unwrap() {
+        let v: Vec<u64> = (0..4).map(|i| f[i].as_u64().unwrap()).collect();
+        fluid[v[0] as usize] = Some(Fluid {
+            lava: v[1] == 2,
+            amount: v[2] as u8,
+            falling: v[3] == 1,
+        });
+    }
+    let mut sturdy = vec![0u8; count];
+    for f in data["sturdy_faces"].as_array().unwrap() {
+        sturdy[f[0].as_u64().unwrap() as usize] = f[1].as_u64().unwrap() as u8;
+    }
     let mut states: Vec<State> = data["state_shapes"]
         .as_array()
         .unwrap()
@@ -128,6 +157,8 @@ fn parse(text: &str) -> Table {
             fluid: fluid[id],
             suffocating: suffocating[id],
             positional: positional[id],
+            blocks_motion: blocks_motion[id],
+            sturdy_faces: sturdy[id],
         })
         .collect();
     let mut blocks = Vec::new();
@@ -193,6 +224,7 @@ fn inside_effect(class: &str) -> Effect {
         | "BigDripleafBlock" => Effect::None,
         "WebBlock" | "SweetBerryBushBlock" => Effect::Stuck,
         "HoneyBlock" => Effect::Honey,
+        "LiquidBlock" => Effect::Liquid,
         _ => Effect::Unsupported("block interior effect"),
     }
 }
@@ -242,6 +274,8 @@ fn shape_effect(collision: Option<&str>, inside: Option<&str>) -> Effect {
             | "WallBlock"
             | "WallHangingSignBlock",
         ) => Effect::None,
+        // Solid only for entities that can stand on fluid; empty for players.
+        Some("LiquidBlock") => Effect::None,
         // Entity context (scaffolding, powder snow, fluids), offsets (bamboo) or
         // block entities (moving pistons).
         Some(_) => Effect::Unsupported("context-dependent collision shape"),

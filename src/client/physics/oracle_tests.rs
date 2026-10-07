@@ -85,6 +85,10 @@ fn environment(version: MinecraftVersion, scenario: &Value, initial: &Value) -> 
         ("gravity", &mut env.gravity),
         ("sneaking_speed", &mut env.sneaking_speed),
         ("movement_efficiency", &mut env.movement_efficiency),
+        (
+            "water_movement_efficiency",
+            &mut env.water_movement_efficiency,
+        ),
     ] {
         if !initial[key].is_null() {
             *slot = exact(&initial[key]);
@@ -97,6 +101,7 @@ fn environment(version: MinecraftVersion, scenario: &Value, initial: &Value) -> 
                 "minecraft:slow_falling" => env.slow_falling = true,
                 "minecraft:blindness" => env.blindness = true,
                 "minecraft:weaving" => env.weaving = true,
+                "minecraft:dolphins_grace" => env.dolphins_grace = true,
                 _ => {}
             }
         }
@@ -119,6 +124,8 @@ pub(super) fn compare(
     let env = environment(version, scenario, &result["initial"]);
     let mut body = Body::new(std::array::from_fn(|i| start[i] + f64::from(ORIGIN[i])));
     body.on_ground = scenario["on_ground"].as_bool().unwrap_or(true);
+    // The oracle's player is a freshly created entity.
+    body.first_tick = true;
     let mut block_at = |p: [i32; 3]| {
         let relative: [i32; 3] = std::array::from_fn(|i| p[i] - ORIGIN[i]);
         Ok(cells.get(&relative).cloned().unwrap_or_else(|| air.clone()))
@@ -157,6 +164,8 @@ pub(super) fn compare(
             ("horizontal_collision", body.horizontal_collision),
             ("sprinting", body.sprinting),
             ("crouching", body.crouching),
+            ("in_water", body.in_water),
+            ("swimming", body.swimming),
         ] {
             if expected[name].as_bool().unwrap() != ours {
                 return Ok(Some(format!("tick {index}: {name} {ours}")));

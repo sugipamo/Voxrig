@@ -48,6 +48,17 @@ pub(crate) fn collide(
 
 /// Axis-ordered collision (Shapes.collide for each axis).
 pub(crate) fn collide_shapes(bounds: [f64; 6], motion: [f64; 3], geometry: &Geometry) -> [f64; 3] {
+    collide_axes(bounds, motion, geometry, false)
+}
+
+/// `border_first`: legacy collision lists the world border shape before the
+/// blocks, so a motion below the epsilon is cut even with no block nearby.
+fn collide_axes(
+    bounds: [f64; 6],
+    motion: [f64; 3],
+    geometry: &Geometry,
+    border_first: bool,
+) -> [f64; 3] {
     let mut bounds = bounds;
     let mut result = [0.0; 3];
     let order = if motion[0].abs() < motion[2].abs() {
@@ -59,6 +70,9 @@ pub(crate) fn collide_shapes(bounds: [f64; 6], motion: [f64; 3], geometry: &Geom
         let mut distance = motion[axis];
         if distance == 0.0 {
             continue;
+        }
+        if border_first && distance.abs() < 1e-7 {
+            distance = 0.0;
         }
         for shape in geometry.groups() {
             if distance.abs() < 1e-7 {
@@ -89,6 +103,10 @@ pub(crate) fn collide_shapes(bounds: [f64; 6], motion: [f64; 3], geometry: &Geom
     result
 }
 
+fn legacy_shapes(bounds: [f64; 6], motion: [f64; 3], geometry: &Geometry) -> [f64; 3] {
+    collide_axes(bounds, motion, geometry, true)
+}
+
 fn shifted(bounds: [f64; 6], delta: [f64; 3]) -> [f64; 6] {
     std::array::from_fn(|i| bounds[i] + delta[i % 3])
 }
@@ -105,7 +123,7 @@ fn legacy_step(
     on_ground: bool,
     step: f32,
 ) -> [f64; 3] {
-    let adjusted = collide_shapes(bounds, motion, geometry);
+    let adjusted = legacy_shapes(bounds, motion, geometry);
     if step <= 0.0
         || !(on_ground || (motion[1] < 0.0 && motion[1] != adjusted[1]))
         || (motion[0] == adjusted[0] && motion[2] == adjusted[2])
@@ -113,22 +131,22 @@ fn legacy_step(
         return adjusted;
     }
     let height = f64::from(step);
-    let mut candidate = collide_shapes(bounds, [motion[0], height, motion[2]], geometry);
+    let mut candidate = legacy_shapes(bounds, [motion[0], height, motion[2]], geometry);
     let mut expanded = bounds;
     expanded[0] += motion[0].min(0.0);
     expanded[3] += motion[0].max(0.0);
     expanded[2] += motion[2].min(0.0);
     expanded[5] += motion[2].max(0.0);
-    let up = collide_shapes(expanded, [0.0, height, 0.0], geometry);
+    let up = legacy_shapes(expanded, [0.0, height, 0.0], geometry);
     if up[1] < height {
-        let alternate = collide_shapes(shifted(bounds, up), [motion[0], 0.0, motion[2]], geometry);
+        let alternate = legacy_shapes(shifted(bounds, up), [motion[0], 0.0, motion[2]], geometry);
         let alternate = std::array::from_fn(|i| alternate[i] + up[i]);
         if horizontal(alternate) > horizontal(candidate) {
             candidate = alternate;
         }
     }
     if horizontal(candidate) > horizontal(adjusted) {
-        let down = collide_shapes(
+        let down = legacy_shapes(
             shifted(bounds, candidate),
             [0.0, motion[1] - candidate[1], 0.0],
             geometry,

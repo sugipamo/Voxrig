@@ -166,8 +166,67 @@ def modifiers_extra():
                    jump=i % 7 == 0, yaw=float(i * 9 - 180)) for i in range(40)])
 
 
+WATER = "minecraft:water[level=0]"
+
+
+def pool(depth=3, fluid=WATER, half=5):
+    """Stone basin with a fluid layer of `depth` blocks whose surface is at y=-1."""
+    return [[-half - 1, -depth - 1, -half - 1, half + 1, -1, half + 1, "minecraft:stone"],
+            [-half, -depth, -half, half, -1, half, fluid]]
+
+
+def water():
+    bottom = (0.5, -3.0, 0.5)
+    surface = (0.5, -1.4, 0.5)
+    yield scenario("water_wade", floor() + [[-3, 0, -3, 3, 0, 3, WATER]], ticks(30, forward=1, jump=True) + ticks(10))
+    yield scenario("water_bottom_walk", pool(), ticks(30, forward=1) + ticks(10), start=bottom)
+    yield scenario("water_rise_holding_jump", pool(), ticks(60, jump=True), start=bottom)
+    yield scenario("water_swim_forward_jump", pool(), ticks(40, forward=1, jump=True, yaw=20.0) + ticks(10, yaw=20.0), start=bottom)
+    yield scenario("water_float_released", pool(), ticks(40), start=surface, on_ground=False)
+    yield scenario("water_sink_sneaking", pool(), ticks(30, sneak=True), start=surface, on_ground=False)
+    for pitch in [-60.0, 0.0, 35.0, 80.0]:
+        yield scenario(f"water_sprint_swim_pitch_{int(pitch)}", pool(depth=4), ticks(40, forward=1, sprint=True, pitch=pitch) + ticks(10, pitch=pitch),
+                       start=(0.5, -3.0, -3.5))
+    yield scenario("water_sprint_swim_turning", pool(depth=4), [dict(forward=1, sprint=True, pitch=10.0, yaw=float(i * 6),
+                   jump=i % 9 == 0) for i in range(50)], start=(0.5, -3.5, 0.5))
+    ledge = pool() + [[-5, -3, 3, 5, -1, 5, "minecraft:stone"]]
+    yield scenario("water_exit_ledge", ledge, ticks(50, forward=1, jump=True), start=(0.5, -1.5, -1.5), on_ground=False)
+    yield scenario("water_exit_ledge_sprint", ledge, ticks(50, forward=1, jump=True, sprint=True), start=(0.5, -1.5, -1.5), on_ground=False)
+    yield scenario("water_walk_off_into_pool", [[-6, -1, -6, 6, -1, -1, "minecraft:stone"]] + [[-7, -5, 0, 7, -5, 7, "minecraft:stone"],
+                   [-6, -4, 0, 6, -2, 6, WATER]], ticks(40, forward=1) + ticks(20), start=(0.5, 0.0, -3.5))
+    yield scenario("water_fall_into_pool", pool(depth=3), ticks(50), start=(0.5, 6.0, 0.5), on_ground=False)
+    flow = [[-6, -1, -6, 6, -1, 6, "minecraft:stone"]] + [[-2, 0, z, 2, 0, z, f"minecraft:water[level={min(7, z + 2)}]"] for z in range(-2, 6)]
+    yield scenario("water_flow_push", flow, ticks(40), start=(0.5, 0.0, -1.5))
+    yield scenario("water_flow_against", flow, ticks(40, forward=-1, yaw=180.0), start=(0.5, 0.0, 4.5))
+    yield scenario("waterfall", floor() + [[0, 0, 2, 0, 5, 2, "minecraft:water[level=8]"], [0, 0, 3, 0, 5, 3, "minecraft:stone"]],
+                   ticks(20, forward=1) + ticks(30, jump=True))
+    yield scenario("waterlogged_slab_floor", floor() + [[-3, 0, -3, 3, 0, 3, "minecraft:stone_slab[type=bottom,waterlogged=true]"]],
+                   ticks(30, forward=1, jump=True) + ticks(10), start=(0.5, 0.5, 0.5))
+    yield scenario("seagrass_pool", pool() + [[-3, -3, -3, 3, -3, 3, "minecraft:seagrass"]], ticks(40, forward=1, jump=True), start=bottom)
+    yield scenario("dolphins_grace_swim", pool(depth=4), ticks(40, forward=1, sprint=True, pitch=20.0), start=(0.5, -3.0, -3.5),
+                   effects={"minecraft:dolphins_grace": 0})
+    yield scenario("water_efficiency_attribute", pool(), ticks(30, forward=1), start=bottom,
+                   attributes={"minecraft:water_movement_efficiency": 0.6}, versions=["1.21.11"])
+    tunnel = pool(depth=2) + [[-5, -1, -5, 5, -1, 5, "minecraft:stone"], [-5, -2, -5, 5, -2, 5, WATER],
+                              [-1, -1, 2, 1, -1, 8, "minecraft:air"], [-1, -1, 6, 1, -1, 8, "minecraft:stone"],
+                              [-6, -3, 6, 6, -2, 9, "minecraft:stone"], [-1, -2, 6, 1, -2, 9, "minecraft:air"]]
+    yield scenario("water_swim_into_crawl_tunnel", tunnel, ticks(60, forward=1, sprint=True, pitch=10.0), start=(0.5, -2.0, -2.5))
+    yield scenario("sprint_jump_into_pool", [[-6, -1, -8, 6, -1, -4, "minecraft:stone"]] + pool(depth=3, half=4),
+                   ticks(30, forward=1, sprint=True, jump=True) + ticks(20), start=(0.5, 0.0, -6.5))
+    yield scenario("fall_into_shallow_water", floor() + [[-2, 0, -2, 2, 0, 2, WATER]], ticks(40), start=(0.5, 8.0, 0.5), on_ground=False)
+    yield scenario("water_sprint_with_current", [[-6, -1, -6, 6, -1, 6, "minecraft:stone"]]
+                   + [[-2, 0, z, 2, 0, z, f"minecraft:water[level={min(7, z + 2)}]"] for z in range(-2, 6)],
+                   ticks(30, forward=1, sprint=True, jump=True), start=(0.5, 0.0, -1.5))
+    lava = "minecraft:lava[level=0]"
+    yield scenario("lava_exit_ledge", pool(fluid=lava) + [[-5, -3, 3, 5, -1, 5, "minecraft:stone"]], ticks(60, forward=1, jump=True),
+                   start=(0.5, -1.5, -1.5), on_ground=False)
+    yield scenario("lava_wade", floor() + [[-3, 0, -3, 3, 0, 3, lava]], ticks(30, forward=1, jump=True) + ticks(10))
+    yield scenario("lava_pool_rise", pool(fluid=lava), ticks(40, forward=1, jump=True), start=bottom)
+    yield scenario("lava_float_released", pool(fluid=lava), ticks(30), start=surface, on_ground=False)
+
+
 def main():
-    items = [*baseline(), *materials(), *actions(), *modifiers(), *terrain(), *modifiers_extra()]
+    items = [*baseline(), *materials(), *actions(), *modifiers(), *terrain(), *modifiers_extra(), *water()]
     path = Path(__file__).with_name("scenarios.json")
     path.write_text(json.dumps(items, indent=1) + "\n")
     print(f"{len(items)} scenarios")
