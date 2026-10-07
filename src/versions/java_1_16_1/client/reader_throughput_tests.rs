@@ -180,7 +180,10 @@ mod reader_throughput_tests {
             let check = bot.enforce_session_limits();
             tokio::pin!(check);
             poll_fn(|cx| match check.as_mut().poll(cx) {
-                Poll::Ready(result) => Poll::Ready(result.unwrap()),
+                Poll::Ready(result) => {
+                    result.unwrap();
+                    Poll::Ready(())
+                }
                 Poll::Pending => panic!("free per-packet limit check yielded"),
             })
             .await;
