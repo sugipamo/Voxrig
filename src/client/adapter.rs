@@ -83,6 +83,13 @@ pub(crate) trait CoreOps {
     ) -> Result<Option<i32>>;
 }
 
+/// Waiting for receive progress.
+pub(crate) trait WaitOps {
+    /// Resolve once the connection has applied a packet with a receive
+    /// sequence greater than `after`; fail once the connection is closed.
+    async fn wait_for_receive(&self, after: u64) -> Result<u64>;
+}
+
 /// Chat dispatch and received chat history.
 pub(crate) trait ChatOps {
     async fn send_chat(&self, message: &str) -> Result<()>;
@@ -236,6 +243,7 @@ pub(crate) trait VersionAdapter:
     + CoreOps
     + UiOps
     + ChatOps
+    + WaitOps
     + ContainerOps
     + InventoryClickOps
     + InventorySwapOps
@@ -255,6 +263,7 @@ impl<T> VersionAdapter for T where
         + CoreOps
         + UiOps
         + ChatOps
+        + WaitOps
         + ContainerOps
         + InventoryClickOps
         + InventorySwapOps

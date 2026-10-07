@@ -3,6 +3,7 @@ pub(crate) mod adapter;
 pub(crate) use adapter::dispatch;
 pub(crate) mod books;
 pub mod chat;
+mod wait;
 pub use chat::{ChatKind, ChatLog, ChatText, ReceivedChat};
 mod capabilities;
 mod config;

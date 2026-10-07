@@ -44,6 +44,7 @@ Client (enum Adapter { Java1_16_1(Box<Bot>), Java1_21_11(Bot) })
 | `SessionOps` | `VERSION` `connection_id` 準備・切断・packet trace | `adapter.rs`（公開native APIを公開） | `adapter.rs` |
 | `CoreOps` | login identity、server registry、自身・inventory・entity・vehicle・screen・recipeの受信状態、capture、respawn、基本操作`execute` | `client/common_api.rs` | `client/operations.rs` |
 | `ChatOps` | chat・command送信、受信chat履歴 | `client.rs` | `client.rs` |
+| `WaitOps` | 受信の進行を待つ | `client.rs` | `client.rs` |
 | `UiOps` | scoreboard・boss bar・teams・player list・titles・tab list・world border | `client.rs` | `client.rs` |
 | `ContainerOps` | container開閉 | `common_container.rs` | `operations/container.rs` |
 | `InventoryClickOps` / `InventorySwapOps` / `InventoryTransferOps` | PICKUP・hotbar交換・QUICK_MOVE | `common_click.rs` / `common_inventory.rs` / `common_transfer.rs` | `operations/inventory/{click,common,transfer}.rs` |
@@ -104,7 +105,7 @@ trait objectは使わない（`async fn`を`dyn`にするとbox化とSend境界�
 | registry（静的・server受信） | ◎ | `registry` `server_registry_state` | | |
 | block検索・geometry query | ▲ | — | `query_loaded_blocks` `query_geometry` `capture_loaded_geometry` | なし |
 | 一貫観測（light・時間・entity同時） | ▲ | — | `capture_coherent_observation` | light配列は検証のみで保持しない |
-| chunk待機・block変化待機 | ▲ | — | `wait_for_chunk(s)` `wait_for_block_*` | なし |
+| chunk待機・block変化待機 | ◎ | `wait_for_loaded` `wait_for_block` `wait_for_receive`（[待機API](common-waits.md)） | `wait_for_chunk(s)` `wait_for_block_*` | |
 | ピストン・隣接更新の再構成 | △ | — | なし | `observe_client_region` |
 | block NBT・entity NBT query | ▲ | — | `query_block_nbt` `query_entity_nbt` | なし |
 | map・tag・command tree | ▲ | — | `maps_snapshot` `tags_snapshot` `command_tree_snapshot` | なし |
@@ -172,8 +173,7 @@ trait objectは使わない（`async fn`を`dyn`にするとbox化とSend境界�
 
 利用者が汎用botを書くときに困る順。
 
-1. **event streamと待機API**: chunk・block・inventoryの変化待ちとeventを共通化する。
-   1.21.11はreceive loopの`sequence`と`Notify`があるので、待機は比較的容易。
+1. **event streamと待機API**: ✅ 待機API（`WaitOps`、両版の実サーバーで確認済み）。event streamは設計メモから。
 2. ✅ **chat送受信・command**: `ChatOps`で共通化し、両版の実サーバーで確認した。
 3. **entityの現在状態**（metadata・装備・hitbox・他player）: 1.21.11で受信しているが捨てているpacketが多い。
 4. **block検索・geometry query・raycast**: 共通の`Capture`上に版非依存で実装できる。

@@ -1151,6 +1151,25 @@ mod placement_native_trials;
 #[cfg(test)]
 mod tests;
 
+impl crate::client::adapter::WaitOps for operations::Operations {
+    async fn wait_for_receive(&self, after: u64) -> Result<u64> {
+        let session = &self.bot.session;
+        loop {
+            let notified = session.changed.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+            {
+                let state = session.state.lock().await;
+                session.check(&state)?;
+                if state.sequence > after {
+                    return Ok(state.sequence);
+                }
+            }
+            notified.await;
+        }
+    }
+}
+
 impl crate::client::adapter::ChatOps for operations::Operations {
     async fn send_chat(&self, message: &str) -> Result<()> {
         operations::Operations::send_chat(self, message).await

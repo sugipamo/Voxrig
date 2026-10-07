@@ -1028,6 +1028,7 @@ pub struct Bot {
     positioned: Arc<Mutex<bool>>,
     ready: Arc<Notify>,
     world_updated: Arc<Notify>,
+    packet_applied: Arc<Notify>,
     events: broadcast::Sender<Event>,
     physics: Arc<Mutex<PhysicsTracker>>,
     stopped: Arc<AtomicBool>,
@@ -1114,6 +1115,7 @@ impl Drop for Bot {
             self.cancel.notify_waiters();
             self.ready.notify_waiters();
             self.world_updated.notify_waiters();
+            self.packet_applied.notify_waiters();
         }
     }
 }
@@ -1144,6 +1146,7 @@ impl Bot {
             positioned: self.positioned.clone(),
             ready: self.ready.clone(),
             world_updated: self.world_updated.clone(),
+            packet_applied: self.packet_applied.clone(),
             events: self.events.clone(),
             physics: self.physics.clone(),
             stopped: self.stopped.clone(),
@@ -1314,6 +1317,7 @@ impl Bot {
             positioned: Arc::new(Mutex::new(false)),
             ready: Arc::new(Notify::new()),
             world_updated: Arc::new(Notify::new()),
+            packet_applied: Arc::new(Notify::new()),
             events,
             physics: Arc::new(Mutex::new(PhysicsTracker::new())),
             stopped: Arc::new(AtomicBool::new(false)),
@@ -1501,6 +1505,7 @@ impl Bot {
             }
             supervisor.physics.lock().await.record_disconnect();
             supervisor.stopped.store(true, Ordering::Release);
+            supervisor.packet_applied.notify_waiters();
         });
         let physics = bot.clone_internal();
         tokio::spawn(async move { physics.control_loop().await });
@@ -1541,6 +1546,7 @@ impl Bot {
             reader.abort();
         }
         self.cancel.notify_waiters();
+        self.packet_applied.notify_waiters();
         self.ready.notify_waiters();
         self.world_updated.notify_waiters();
         receipt
@@ -4698,7 +4704,9 @@ impl Bot {
                 }
             };
             let (id, p) = packet?;
-            if !self.apply_packet(id, p).await? {
+            let applied = self.apply_packet(id, p).await;
+            self.packet_applied.notify_waiters();
+            if !applied? {
                 break;
             }
         }
@@ -6598,6 +6606,7 @@ impl Bot {
             self.cancel.notify_waiters();
             self.ready.notify_waiters();
             self.world_updated.notify_waiters();
+            self.packet_applied.notify_waiters();
         }
         {
             let mut queued = self
@@ -6830,6 +6839,27 @@ async fn next_operation_event(events: &mut broadcast::Receiver<Event>) -> Result
             Err(broadcast::error::RecvError::Closed) => {
                 bail!("connection closed while waiting for operation response")
             }
+        }
+    }
+}
+
+impl crate::client::adapter::WaitOps for Bot {
+    async fn wait_for_receive(&self, after: u64) -> Result<u64> {
+        loop {
+            let notified = self.packet_applied.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+            if self.is_stopped() {
+                return Err(crate::Error::new(
+                    crate::ErrorKind::Disconnected,
+                    anyhow::anyhow!("connection closed while waiting for a packet"),
+                ));
+            }
+            let current = self.protocol_packet_sequence.load(Ordering::Acquire);
+            if current > after {
+                return Ok(current);
+            }
+            notified.await;
         }
     }
 }
