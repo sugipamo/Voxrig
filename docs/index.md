@@ -13,6 +13,7 @@
 - [共通trait設計と版別対応表](version-adapter-trait.md)（版間API差の整理の正本）
 - [共通APIの能力表](common-capabilities.md)
 - [版ごとの定数表](version-tables.md)
+- [汎用物理の設計メモ（確認待ち）](physics-design.md)
 - [共通chat・command](common-chat.md)
 - [共通の待機API](common-waits.md)
 - [共通のchange通知（event）](common-events.md)
