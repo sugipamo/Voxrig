@@ -1,5 +1,6 @@
 //! Received scoreboard and boss-bar facts; rendering and other UI remain separate.
 pub mod boss_bar;
+pub mod display;
 /// Lossless native UI text, without rendering or resolving server references.
 /// The legacy ScreenTitle name remains compatible with existing consumers.
 pub use super::container::ScreenTitle as UiText;
@@ -7,6 +8,10 @@ use super::{ObservedValue, SessionStamp, received};
 use crate::{MinecraftVersion, Result, connection::Adapter};
 pub use boss_bar::{
     BossBarColor, BossBarFlags, BossBarOverlay, BossBarsObservation, ReceivedBossBar,
+};
+pub use display::{
+    TabListObservation, TabListText, TitleTiming, TitlesObservation, WorldBorderDuration,
+    WorldBorderObservation, WorldBorderSize,
 };
 use std::collections::BTreeMap;
 /// Native modern score-number presentation, preserving optional overrides.

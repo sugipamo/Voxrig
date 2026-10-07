@@ -867,3 +867,30 @@ mode／接続で、共通`boss_bars()`の各fieldを元packetのUUID・operation
 原サーバーがbossbar commandを拒否し、ADD未配信で待機がtimeoutした。
 小文字IDと即時のcommand拒否検査へ修正し、失敗履歴をcanonical結果から分けて保存した。
 広いB3〜B6と非公開A6は引き続き必要。
+
+### 2026-10-07: B6の共通title・tab見出し・world border
+
+`trial-1.16.1-d302138b`／`trial-1.21.11-bd370a7e`で、同じmanagerのSurvival／Creative
+Clientへtitle／subtitle／action bar／timingとborder center／SET／warningsを配信し、
+CLEAR→RESET→border LERP→manager終了まで確認した。両版4つのmode／接続で、
+共通`titles()`／`world_border()`の各fieldを元packetのoperation・値・text bytes・受信ordinalへ
+独立照合した。変更されないaction bar／timing／border fieldは元originを保持する。
+独立RCONのdiameter 128→200、終了後の実接続数0、両JVM exit 0とproxy errorsなしを確認する。
+[454入力・binary・原fieldと元codecの記録](evidence/common-ui-display-20261007.json)。
+
+元の未改変reader／writerで両版各21例を生成した。全title／border命令、完全なtab header／footer、
+符号付きの0／2^45／Long.MAX_VALUE／-1 durationを含める。元GUI／title handlerのCLEAR／RESETは
+action barを消さず、RESETは10／70／20tickへ戻す。共通観測はそのdefaultを受信値へ合成しない。
+旧版固有cacheのCLEAR／RESETとINITIALIZE warning distance→delayの読み順も修正した。
+
+最初のmodern試験`trial-1.21.11-10057ccf`はdurationをmillisecondsとした実装の誤りにより
+LERP待機がtimeoutした。元serverのWorldBorder／command実装ではgame ticksだったため、
+元の値と単位を共通`WorldBorderDuration`で保持し、overflowを拒否するnominal換算補助へ修正した。
+最終fixtureはlegacy `5`秒／modern `5s`で、同じRust consumerが5000ms／100ticksを
+版分岐なしの補助で確認する。これは20ticks/秒の換算で、tick rate変更時の実時間保証ではない。
+最終両版trialは同じ454入力と同じconsumer binaryで再実行している。
+
+vanillaのこのfixtureにはtab header／footerを配信するcommandがない。live `tab_list()`では
+未受信を確認し、そのpacketは元serializerと両adapterへの適用・欠損packetの原子的拒否で検証する。
+player roster／teams、描画や現在borderの補間・衝突・damage推論は含めない。
+広いB3〜B6と非公開A6の固定commit検証は引き続き必要。

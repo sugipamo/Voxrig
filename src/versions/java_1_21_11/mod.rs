@@ -3,6 +3,7 @@ mod client;
 mod component_nbt;
 #[allow(dead_code)]
 mod ids;
+pub(crate) use ids::play_clientbound as ClientboundIds;
 pub(crate) mod item_components;
 mod math;
 mod piston_nbt;

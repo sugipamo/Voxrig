@@ -725,3 +725,14 @@ legacyの`health`というfield名は共通APIでは`progress`とし、entity健
 部分更新はfieldごとの`source`を更新するため、capture全体のreceive boundaryを
 全fieldの受信時点の代わりに使わない。最初のpacket未受信とREMOVE後の空一覧も区別する。
 [共通boss bar](common-boss-bars.md)を参照。描画・server catalogue・text参照解決は別の対応範囲。
+
+
+## Title・tab見出し・world border観測
+
+legacy `UiState.title`／`tab_header_json`／`tab_footer_json`／`world_border`の参照は、
+共通の`Client::titles()`／`tab_list()`／`world_border()`へ移行する。
+未受信とCLEARで消去済みのtitleを区別し、RESETのdefaultを受信tickへ置き換えない。
+CLEAR／RESETはaction barの受信値を消さず、tabは完全なheader／footer pairとして採用する。
+borderの部分更新はfieldごとに元originを保持し、別worldの古い値を返さない。
+受信LERPを現在diameterや衝突条件へ置き換えない。player rosterはまだ共通化していない。
+[公開型と検証範囲](common-ui-display.md)を参照。

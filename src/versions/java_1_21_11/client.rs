@@ -88,6 +88,7 @@ struct State {
     vehicles: crate::client::vehicle::PassengerLedger,
     scoreboard: crate::client::ui::ScoreboardLedger,
     boss_bars: crate::client::ui::boss_bar::BossBarLedger,
+    display: crate::client::ui::display::DisplayLedger,
     phase: Phase,
     world: World,
     reconstruction: Reconstruction,
@@ -138,6 +139,7 @@ impl Default for State {
             vehicles: Default::default(),
             scoreboard: Default::default(),
             boss_bars: Default::default(),
+            display: Default::default(),
             phase: Phase::Configuration,
             world: World::default(),
             reconstruction: Reconstruction::default(),
@@ -903,6 +905,26 @@ fn apply_play(
             r.end()?;
             responses.push((output::PONG, payload.to_vec()));
         }
+        input::SET_TITLE_TEXT
+        | input::SET_TITLE_SUBTITLE
+        | input::ACTION_BAR
+        | input::SET_TITLE_TIME
+        | input::CLEAR_TITLES
+        | input::PLAYERLIST_HEADER
+        | input::INITIALIZE_WORLD_BORDER
+        | input::WORLD_BORDER_CENTER
+        | input::WORLD_BORDER_SIZE
+        | input::WORLD_BORDER_LERP_SIZE
+        | input::WORLD_BORDER_WARNING_DELAY
+        | input::WORLD_BORDER_WARNING_REACH => {
+            state.display.receive(
+                MinecraftVersion::Java1_21_11,
+                id,
+                payload,
+                state.sequence,
+                state.loading.generation,
+            )?;
+        }
         input::BOSS_BAR => {
             state
                 .boss_bars
@@ -1120,5 +1142,28 @@ impl Bot {
         self.session.check(&state)?;
         let player = operations::common_player_in_state(&state, self.session.id, false)?;
         Ok(state.boss_bars.capture(player.session, state.sequence))
+    }
+}
+
+impl Bot {
+    pub(crate) async fn common_titles(&self) -> Result<crate::client::ui::TitlesObservation> {
+        let state = self.session.state.lock().await;
+        self.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.session.id, false)?;
+        Ok(state.display.titles(player.session, state.sequence))
+    }
+    pub(crate) async fn common_tab_list(&self) -> Result<crate::client::ui::TabListObservation> {
+        let state = self.session.state.lock().await;
+        self.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.session.id, false)?;
+        Ok(state.display.tab_list(player.session, state.sequence))
+    }
+    pub(crate) async fn common_world_border(
+        &self,
+    ) -> Result<crate::client::ui::WorldBorderObservation> {
+        let state = self.session.state.lock().await;
+        self.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.session.id, false)?;
+        Ok(state.display.world_border(player.session, state.sequence))
     }
 }

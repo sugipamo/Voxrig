@@ -112,7 +112,8 @@ pub mod prelude {
     pub use super::ui::{
         BossBarColor, BossBarFlags, BossBarOverlay, BossBarsObservation, ReceivedBossBar,
         ScoreNumberFormat, ScoreboardObjective, ScoreboardObservation, ScoreboardRenderType,
-        ScoreboardScore, UiText,
+        ScoreboardScore, TabListObservation, TabListText, TitleTiming, TitlesObservation, UiText,
+        WorldBorderDuration, WorldBorderObservation, WorldBorderSize,
     };
     pub use super::vehicle::control::{
         MAX_VEHICLE_CONTROL_TICKS, VehicleControlId, VehicleControlRecord, VehicleControlStage,

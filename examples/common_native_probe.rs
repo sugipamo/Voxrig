@@ -5542,6 +5542,86 @@ async fn manager_ui_probe(config: ConnectionConfig) -> anyhow::Result<()> {
                     serde_json::json!({"bars":bars,"players":[primary.player_state().await?,peer.player_state().await?]}),
                 )?;
             }
+            "b6_display_set" | "b6_display_clear" | "b6_display_reset" | "b6_display_lerp" => {
+                let (titles, borders) = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let titles = [primary.titles().await?, peer.titles().await?];
+                        let borders = [primary.world_border().await?, peer.world_border().await?];
+                        let contains = |text: &UiText, marker: &str| match text {
+                            UiText::LegacyJson { json } => json.contains(marker),
+                            UiText::NativeNbt { bytes } => {
+                                bytes.windows(marker.len()).any(|v| v == marker.as_bytes())
+                            }
+                            UiText::Unavailable => false,
+                        };
+                        let ready = titles.iter().zip(&borders).all(|(t, b)| {
+                            let action = t
+                                .action_bar
+                                .as_ref()
+                                .is_some_and(|v| contains(&v.value, "ActionB6"));
+                            let common = action
+                                && b.center.as_ref().is_some_and(|v| v.value == [10.25, -20.5])
+                                && b.warning_delay.as_ref().is_some_and(|v| v.value == 17)
+                                && b.warning_distance.as_ref().is_some_and(|v| v.value == 3);
+                            if !common {
+                                return false;
+                            }
+                            let cleared = t.title.as_ref().is_some_and(|v| v.value.is_none())
+                                && t.subtitle.as_ref().is_some_and(|v| v.value.is_none());
+                            match command.as_str() {
+                                "b6_display_set" => {
+                                    t.title
+                                        .as_ref()
+                                        .and_then(|v| v.value.as_ref())
+                                        .is_some_and(|v| contains(v, "TitleB6"))
+                                        && t.subtitle
+                                            .as_ref()
+                                            .and_then(|v| v.value.as_ref())
+                                            .is_some_and(|v| contains(v, "SubB6"))
+                                        && t.timing.as_ref().is_some_and(|v| {
+                                            v.value
+                                                == TitleTiming::Set {
+                                                    fade_in: 3,
+                                                    stay: 11,
+                                                    fade_out: 7,
+                                                }
+                                        })
+                                        && b.size.as_ref().is_some_and(|v| {
+                                            v.value == WorldBorderSize::Set { diameter: 128.0 }
+                                        })
+                                }
+                                "b6_display_clear" => {
+                                    cleared && t.clear.as_ref().is_some_and(|v| !v.value)
+                                }
+                                "b6_display_reset" => {
+                                    cleared
+                                        && t.clear.as_ref().is_some_and(|v| v.value)
+                                        && t.timing.as_ref().is_some_and(|v| {
+                                            v.value == TitleTiming::ResetToDefaults
+                                        })
+                                }
+                                _ => b.size.as_ref().is_some_and(|v| {
+                                    matches!(v.value, WorldBorderSize::Lerp {
+                                        from_diameter, to_diameter, duration
+                                    } if from_diameter == 128.0 && to_diameter == 200.0
+                                        && duration.nominal_milliseconds() == Some(5000))
+                                }),
+                            }
+                        });
+                        if ready {
+                            return Ok::<_, anyhow::Error>((titles, borders));
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                emit(
+                    &command,
+                    serde_json::json!({"titles":titles,"borders":borders,
+                    "tabs":[primary.tab_list().await?,peer.tab_list().await?],
+                    "players":[primary.player_state().await?,peer.player_state().await?]}),
+                )?;
+            }
             "a5_manager_shutdown" => {
                 manager.shutdown().await?;
                 anyhow::ensure!(

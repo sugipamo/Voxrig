@@ -27,7 +27,7 @@ serverが表示中のobjectiveだけを送る場合があり、完全なserver c
 `UiText`は既存`ScreenTitle`と同じ型で、legacy JSON／modern unnamed NBTの元encodingを保持する。
 modernのobjective/scoreにある任意のdisplayやnumber formatも保持する。
 `ScoreNumberFormat`はblank・styledの元NBT・fixedの元componentを区別する。
-component参照の解決、rendering、teams・title等の全UIの共通化はまだ含めない。
+component参照の解決、rendering、teams等の全UIの共通化はまだ含めない。
 boss barは別の`Client::boss_bars()`へ接続した。[契約](common-boss-bars.md)を参照。
 
 decodeはpacket全体を検査してからcacheへ適用する。欠損や余分なfield、未対応number formatで
@@ -69,4 +69,5 @@ B6で`Client::boss_bars()`を両adapterへ接続した。元ADDとその後の�
 共通型で観測し、各fieldの受信ordinalを個別に保持する。更新されていないtitle／flags等を
 新しい受信値へ昇格させない。未受信UUIDの更新からbarを作らない。
 Survival／CreativeのClientで同じ入口を使い、描画やentity健康値の推論を行わない。
-teams、titles、tab list、world borderと広いmanager機能はB6に残る。
+title／subtitle／action bar、tab header／footer、world borderの実受信観測も共通入口へ接続した。
+[表示情報の契約](common-ui-display.md)を参照。teams／player roster、特殊windowと広いmanager機能はB6に残る。

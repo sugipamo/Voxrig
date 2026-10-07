@@ -81,6 +81,8 @@ pub enum Feature {
     PacketReplay,
     /// Immutable bounded known dry-terrain capture and native-model prediction.
     SurvivalScene,
+    /// Received title/action-bar instructions, complete tab-list text and border fields.
+    DisplayObservation,
     /// Received boss-bar ADD, partial updates and REMOVE.
     BossBars,
     /// Received scoreboard declarations, displays and entries.
@@ -183,6 +185,9 @@ impl Capabilities {
             ),
             Feature::SurvivalScene => Support::Restricted(
                 "immutable <=64 cells/axis and <=32768 loaded air/passive dry cubes/registered dry slabs/stairs/rails; healthy stationary Survival defaults and complete standing halo; detached 1..120 input prediction without dispatch; edits/chaining remain version-specific",
+            ),
+            Feature::DisplayObservation => Support::Restricted(
+                "received title/subtitle/action-bar/timing/clear/reset, atomic tab header/footer, world-bound border center/size/transition/limits/warnings; per-field original ordinals and JSON/NBT; no invented defaults, render expiration, current interpolation or collision/damage inference",
             ),
             Feature::BossBars => Support::Restricted(
                 "received ADD/partial updates/REMOVE, per-field packet ordinals and native JSON/NBT text; bounded 4096 entries, unknown-UUID updates never synthesize bars; no rendering, entity health inference or complete server catalogue",

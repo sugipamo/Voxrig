@@ -2350,3 +2350,89 @@ async fn common_boss_bar_transport_preserves_fields_and_actual_removal() {
     client.disconnect().await.unwrap();
     assert!(client.boss_bars().await.is_err());
 }
+
+#[tokio::test]
+async fn common_display_receipts_clear_reset_and_atomic_tab_match_native_packets() {
+    let (session, api, _peer) = common_ground_fixture(crate::client::GameMode::Creative).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let samples: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../data/client_api/display_packets.json"
+    ))
+    .unwrap();
+    let rows = &samples["versions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["version"] == "1.21.11")
+        .unwrap()["packets"];
+    let decode = |r: &serde_json::Value| {
+        r["payload_hex"]
+            .as_str()
+            .unwrap()
+            .as_bytes()
+            .chunks_exact(2)
+            .map(|p| u8::from_str_radix(std::str::from_utf8(p).unwrap(), 16).unwrap())
+            .collect::<Vec<_>>()
+    };
+    assert!(client.titles().await.unwrap().timing.is_none());
+    assert!(client.tab_list().await.unwrap().text.is_none());
+    assert!(client.world_border().await.unwrap().size.is_none());
+    for row in rows.as_array().unwrap() {
+        session
+            .state
+            .lock()
+            .await
+            .receive(row["packet_id"].as_i64().unwrap() as i32, &decode(row), 256)
+            .unwrap();
+    }
+    let titles = client.titles().await.unwrap();
+    assert!(titles.title.unwrap().value.is_none());
+    assert!(titles.action_bar.is_some());
+    assert!(titles.clear.unwrap().value);
+    assert_eq!(
+        titles.timing.unwrap().value,
+        crate::client::ui::TitleTiming::ResetToDefaults
+    );
+    let border = client.world_border().await.unwrap();
+    assert_eq!(border.warning_delay.unwrap().value, 17);
+    assert_eq!(border.warning_distance.unwrap().value, 3);
+    let tab = client.tab_list().await.unwrap();
+    assert!(matches!(
+        tab.text.as_ref().unwrap().value.header,
+        crate::client::ui::UiText::NativeNbt { .. }
+    ));
+    session.state.lock().await.loading.generation += 1;
+    let border = client.world_border().await.unwrap();
+    assert!(border.center.is_none() && border.size.is_none() && border.warning_delay.is_none());
+    let row = rows
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["group"] == "tab")
+        .unwrap();
+    let mut truncated = decode(row);
+    truncated.pop();
+    assert!(
+        session
+            .state
+            .lock()
+            .await
+            .receive(0x78, &truncated, 256)
+            .is_err()
+    );
+    // A malformed native packet makes the session fail. The ledger must still
+    // retain its last complete receipt, without making public observations usable.
+    let state = session.state.lock().await;
+    assert_eq!(
+        state.display.tab_list(tab.session, state.sequence).text,
+        tab.text
+    );
+    drop(state);
+    assert!(client.tab_list().await.is_err());
+    client.disconnect().await.unwrap();
+    assert!(
+        client.titles().await.is_err()
+            && client.tab_list().await.is_err()
+            && client.world_border().await.is_err()
+    );
+}

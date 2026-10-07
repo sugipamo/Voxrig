@@ -15,8 +15,9 @@ A0〜A5の代表操作は両版で初回貫通済み。A6は資料・共通consu
 非公開の利用側から固定commitでの移行結果を受け取る段階にある。
 全機能の統合完了とは分ける。B4の結果転送に続き、B6の有限乗車入力を一連の操作として閉じた。
 vehicleの受信motion観測と、下車後の通常地上停止→新しい歩行→収納も両版・両modeで接続した。
-boss barのADD・部分更新・REMOVE観測も両modeの実Clientで接続した。
-次は残るteams／titles／tab list／world border等のUI、特殊vehicle／window／managerを
+boss barに加え、title／action bar／CLEAR／RESETとworld border更新も両modeの実Clientで接続した。
+tab header／footerは原codecとadapter適用で確認し、player rosterは未統合。
+次は残るteams／player roster等のUI、特殊vehicle／window／managerを
 利用操作の単位で進め、B3〜B5の残機能も継続する。
 操作に不要なconstructor比較の拡大を先行させない。
 実サーバーや重い検査は一つずつ実行する。
@@ -117,6 +118,12 @@ boss barのADD・部分更新・REMOVE観測も両modeの実Clientで接続し�
   共通地形へ接続した。両版の46状態を完全propertiesで選び、railの下の既知床で立位を検査する。
   同じ車両fixtureへの前進をnativeで確認し、下車後の地上継続は次の実装へ残す。
   詳細は[共通dry terrain](common-dry-terrain.md#車両付近の乾いたrail)。
+
+- B6の一部完了: `titles()`／`tab_list()`／`world_border()`を両adapterへ接続した。
+  title命令とborderのSET→LERPを両modeの同じClientで観測し、元fieldのordinalへ独立照合する。
+  CLEAR／RESETでaction barを消さず、別worldのborderと未受信defaultを合成しない。
+  tabはheader／footerのみで、teams／player rosterと広いB6は残る。
+  詳細は[共通表示情報](common-ui-display.md)。
 
 ## 選択と公開入口
 
@@ -266,6 +273,7 @@ A5の代表例は初回貫通用であり、すべての特殊windowやentity／
 | かまどslot観測・通常PICKUP・開閉 | 共通・限定条件 | 共通・限定条件 | A5の基本かまど精錬flow。溶鉱炉／燻製器はconstructor/slot規則の確認で、特殊レシピのlive検証は残る |
 | own-player乗車関係・明示的下車 | 共通・限定条件 | 共通・限定条件 | 実passenger list、owned一回送信→実除外→neutral。両版・両modeのnativeで確認。通常地上への明示的継続もB6で接続済み |
 | 有限digital乗車入力 | 共通・限定条件 | 共通・限定条件 | 受信MountIdへ有限入力＋最終neutral。受信位置は共通entity_motionで観測。通常下車後の地上継続は接続済み。特殊補間・physics・paddleはB6 |
+| title／action bar・tab header/footer・border観測 | 共通・限定条件 | 共通・限定条件 | B6で実受信を共通型へ接続。表示・補間・player rosterは含めない |
 | その他特殊window／UI／manager | 未共通化 | 未共通化 | 広い対応はB |
 | ownedレシピブック配置 | 共通・限定条件 | 共通・限定条件 | B4で通常Next／Maximumを接続。材料不足ghostと実返却も接続。結果のnative QUICK_MOVEは接続済み。広い製作条件はB4へ残る |
 

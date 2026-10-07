@@ -1690,6 +1690,120 @@ def verify_boss_bar_frames(version, observations, identities, trace, peers):
     return verified
 
 
+def verify_display_frames(version, stage_values, identities, trace, peers):
+    """Independently decode original frames for each public field's receipt."""
+    all_frames=trace.since(0);verified=[]
+    def decode(frame):
+        raw=bytes.fromhex(frame['body_hex']);cursor=0;kind=frame['packet_id'];family=None;fields={}
+        def take(n):
+            nonlocal cursor
+            if n<0 or cursor+n>len(raw):raise RuntimeError('truncated native display frame')
+            result=raw[cursor:cursor+n];cursor+=n;return result
+        def varint():
+            nonlocal cursor
+            value,size=PacketTraceProxy.varint(raw[cursor:]);cursor+=size
+            return value-(1<<32) if value&(1<<31) else value
+        def varlong():
+            value=0
+            for shift in range(0,70,7):
+                byte=take(1)[0];value|=(byte&127)<<shift
+                if byte<128:
+                    value &= (1<<64)-1
+                    return value-(1<<64) if value&(1<<63) else value
+            raise RuntimeError('invalid original display duration')
+        def string():return take(varint()).decode()
+        def nbt_payload(tag,depth=0):
+            if depth>64:raise RuntimeError('native display component depth exceeded')
+            if tag in (1,2,3,4,5,6):take({1:1,2:2,3:4,4:8,5:4,6:8}[tag])
+            elif tag in (7,11,12):take(int.from_bytes(take(4),'big',signed=True)*{7:1,11:4,12:8}[tag])
+            elif tag==8:take(int.from_bytes(take(2),'big'))
+            elif tag==9:
+                child=take(1)[0];count=int.from_bytes(take(4),'big',signed=True)
+                if not 0<=count<=1048576:raise RuntimeError('invalid original component list')
+                for _ in range(count):nbt_payload(child,depth+1)
+            elif tag==10:
+                while True:
+                    child=take(1)[0]
+                    if child==0:break
+                    take(int.from_bytes(take(2),'big'));nbt_payload(child,depth+1)
+            else:raise RuntimeError('invalid original display text tag')
+        def text():
+            if version=='1.16.1':return {'kind':'legacy_json','json':string()}
+            start=cursor;nbt_payload(take(1)[0]);return {'kind':'native_nbt','bytes':list(raw[start:cursor])}
+        def double():return struct.unpack('>d',take(8))[0]
+        if version=='1.16.1' and kind==0x4f:
+            family='titles';op=varint()
+        elif version!='1.16.1' and kind in (0x70,0x6e,0x55,0x71,0x0e):
+            family='titles';op={0x70:0,0x6e:1,0x55:2,0x71:3}.get(kind,5 if raw==b'\x01' else 4)
+            if kind==0x0e:
+                if take(1) not in (b'\x00',b'\x01'):raise RuntimeError('invalid original clear flag')
+        if family=='titles':
+            if op in (0,1,2):fields[('title','subtitle','action_bar')[op]]=text()
+            elif op==3:fields['timing']=dict(kind='set',**dict(zip(('fade_in','stay','fade_out'),struct.unpack('>iii',take(12)))))
+            elif op in (4,5):
+                fields.update(title=None,subtitle=None,clear=op==5)
+                if op==5:fields['timing']={'kind':'reset_to_defaults'}
+            else:raise RuntimeError('unknown original title op')
+        elif kind==(0x53 if version=='1.16.1' else 0x78):
+            family='tabs';fields['text']={'header':text(),'footer':text()}
+        else:
+            family='borders';op=varint() if version=='1.16.1' and kind==0x3d else {0x58:0,0x57:1,0x56:2,0x2a:3,0x59:4,0x5a:5}.get(kind,-1)
+            if op==0:fields['size']={'kind':'set','diameter':double()}
+            elif op==2:fields['center']=[double(),double()]
+            elif op in (4,5):fields['warning_delay' if op==4 else 'warning_distance']=varint()
+            elif op in (1,3):
+                if op==3:fields['center']=[double(),double()]
+                fields['size']={'kind':'initialize' if op==3 else 'lerp','from_diameter':double(),'to_diameter':double(),'duration':{'unit':'milliseconds' if version=='1.16.1' else 'ticks','value':varlong()}}
+                if op==3:
+                    fields['absolute_max_size']=varint();fields['warning_distance']=varint();fields['warning_delay']=varint()
+            else:raise RuntimeError('display receipt points to another original packet')
+        if cursor!=len(raw):raise RuntimeError('trailing native display fields')
+        return family,fields
+    for index,key in enumerate(('primary','peer')):
+        identity=identities[key]
+        frames=[f for f in all_frames if f['connection']==peers[identity['name']] and f['direction']=='clientbound' and f['phase'] in ('configuration','play')]
+        for family,names in {'titles':('title','subtitle','action_bar','timing','clear'),'borders':('center','size','absolute_max_size','warning_delay','warning_distance'),'tabs':('text',)}.items():
+            view=stage_values[family][index]
+            if view['session']!=identity['session']:raise RuntimeError('display captured from another managed session/world')
+            for name in names:
+                receipt=view[name]
+                if receipt is None:continue
+                source=receipt['source']
+                if source['kind']!='received' or not 0<source['sequence']<=view['receive_sequence']:raise RuntimeError('invented display origin')
+                frame=frames[source['sequence']-1];actual_family,fields=decode(frame)
+                if actual_family!=family or name not in fields or fields[name]!=receipt['value']:raise RuntimeError('display field differs from original native frame')
+                verified.append(dict(family=family,field=name,**{k:frame[k] for k in ('connection','ordinal','packet_id','body_sha256')}))
+    return verified
+
+
+def run_display_stages(version, probe, messages, records, identities, trace, peers, rcon):
+    result={'commands':{},'stages':{},'original_fields':[]}
+    def commands(items):
+        for command in items:
+            reply=rcon.command(command);result['commands'][command]=reply
+            if any(word in reply for word in ('Incorrect argument','Unknown or incomplete','Expected whitespace')):raise RuntimeError('display fixture rejected: '+reply)
+    def capture(name):
+        value=stage(probe,messages,'b6_display_'+name,records)['value'];result['stages'][name]=value
+        result['original_fields']+=verify_display_frames(version,value,identities,trace,peers)
+        if [p['game_mode']for p in value['players']]!=['survival','creative']:raise RuntimeError('display modes differ')
+    commands(('title @a times 3 11 7','title @a subtitle {"text":"SubB6"}','title @a title {"text":"TitleB6"}','title @a actionbar {"text":"ActionB6"}',
+        'worldborder center 10.25 -20.5','worldborder set 128','worldborder warning time 17','worldborder warning distance 3'))
+    capture('set');result['native_initial_diameter']=rcon.command('worldborder get')
+    if not re.search(r'\b128\b',result['native_initial_diameter']):raise RuntimeError('native initial border diameter differs')
+    commands(('title @a clear',));capture('clear')
+    commands(('title @a reset',));capture('reset')
+    commands(('worldborder set 200 '+('5' if version=='1.16.1' else '5s'),));capture('lerp')
+    for index in (0,1):
+        old=result['stages']['set']['titles'][index];clear=result['stages']['clear']['titles'][index];reset=result['stages']['reset']['titles'][index]
+        if old['action_bar']!=clear['action_bar'] or old['action_bar']!=reset['action_bar'] or old['timing']!=clear['timing']:raise RuntimeError('clear/reset erased unrelated native title receipts')
+        before=result['stages']['set']['borders'][index];after=result['stages']['lerp']['borders'][index]
+        if before['size']['source']==after['size']['source'] or any(before[k]!=after[k] for k in ('center','absolute_max_size','warning_delay','warning_distance')):raise RuntimeError('size update lost per-field border origins')
+    result['native_final_diameter']=until(lambda:matched(rcon.command('worldborder get'),r'\b200\b'))
+    result['tab_header_footer']='No vanilla command sends a header/footer packet here; no received header/footer is synthesized. Both original serializers and real adapter application are covered separately.'
+    if any(v['text'] is not None for s in result['stages'].values() for v in s['tabs']):raise RuntimeError('unexpected vanilla header/footer receipt')
+    result['result']='passed'
+    return result
+
 def run_manager_ui(version,env,rcon,trace,report,probe_log,stderr_log):
     result=report['native_results']['manager_ui']={'fixture':{},'records':[]}
     probe=subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')],cwd=REPO,env=dict(env,VOXRIG_NATIVE_SCENARIO='manager-ui'),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
@@ -1736,6 +1850,7 @@ def run_manager_ui(version,env,rcon,trace,report,probe_log,stderr_log):
         for index,mode in enumerate(('survival','creative')):
             if bars['stages']['updated']['players'][index]['game_mode']!=mode:raise RuntimeError('UI modes differ from requested fixture')
         bars['result']='passed'
+        result['display']=run_display_stages(version,probe,messages,result['records'],ready['identities'],trace,peers,rcon)
         # Scope closure to both actual managed transports, not a global flag.
         for connection in peers.values():trace.expect_disconnect(connection)
         result['shutdown']=stage(probe,messages,'a5_manager_shutdown',result['records'])['value']
@@ -1745,7 +1860,7 @@ def run_manager_ui(version,env,rcon,trace,report,probe_log,stderr_log):
         logins=[f for f in trace.since(0) if f['direction']=='clientbound' and f['phase']=='login' and f['packet_id']==2]
         if len(logins)!=2:raise RuntimeError('duplicate admission or terminal shutdown performed another login')
         result['actual_logins']=len(logins);result['result']='passed'
-        result['authority_limits']='Two actual named Client connections per version, coherent received scoreboard with exact original field payload hashes/ordinals, independent native score and player-list checks, fresh update/owner reset/objective removal, terminal manager shutdown closes externally held clones and refuses further login. Mixed-version registry identity separation and cancelled pending login closure use lightweight TCP fixtures; A5 representative workflows are complete; boss-bar add/update/remove also match original wire fields on both managed connections. Rendering, other UI and wider B6 remain required.'
+        result['authority_limits']='Two actual named Client connections per version, coherent received scoreboard with exact original field payload hashes/ordinals, independent native score and player-list checks, fresh update/owner reset/objective removal, terminal manager shutdown closes externally held clones and refuses further login. Mixed-version registry identity separation and cancelled pending login closure use lightweight TCP fixtures; A5 representative workflows are complete; boss-bar add/update/remove also match original wire fields on both managed connections. Received titles, clear/reset and world-border changes also match original field frames on both connections. Vanilla header/footer is absent; original codecs/adapter tests cover that packet. Rendering, teams/player-list entries, other UI and wider B6 remain required.'
     finally:
         if probe.poll() is None:
             probe.terminate()

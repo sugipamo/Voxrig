@@ -1046,6 +1046,7 @@ pub struct Bot {
     packet_trace: Arc<Mutex<Option<crate::client::recording::TraceCapture>>>,
     common_scoreboard: Arc<Mutex<crate::client::ui::ScoreboardLedger>>,
     common_boss_bars: Arc<Mutex<crate::client::ui::boss_bar::BossBarLedger>>,
+    common_display: Arc<Mutex<crate::client::ui::display::DisplayLedger>>,
     common_motion: Arc<Mutex<Option<common_motion::NativeMotionRun>>>,
     common_mining: Arc<Mutex<Option<common_mining::NativeMiningRun>>>,
     common_placement: Arc<Mutex<Option<common_placement::NativePlacementRun>>>,
@@ -1157,6 +1158,7 @@ impl Bot {
             packet_trace: self.packet_trace.clone(),
             common_scoreboard: self.common_scoreboard.clone(),
             common_boss_bars: self.common_boss_bars.clone(),
+            common_display: self.common_display.clone(),
             common_motion: self.common_motion.clone(),
             common_mining: self.common_mining.clone(),
             common_placement: self.common_placement.clone(),
@@ -1331,6 +1333,7 @@ impl Bot {
             packet_trace: Arc::new(Mutex::new(trace)),
             common_scoreboard: Arc::new(Mutex::new(Default::default())),
             common_boss_bars: Arc::new(Mutex::new(Default::default())),
+            common_display: Arc::new(Mutex::new(Default::default())),
             common_motion: Arc::new(Mutex::new(None)),
             common_mining: Arc::new(Mutex::new(None)),
             common_placement: Arc::new(Mutex::new(None)),
@@ -5602,6 +5605,14 @@ impl Bot {
                 self.emit(Event::AdvancementsUpdated);
             }
             0x3d => {
+                let generation = self.common_receipts.lock().await.generation;
+                self.common_display.lock().await.receive(
+                    crate::MinecraftVersion::Java1_16_1,
+                    id,
+                    &p,
+                    packet_sequence,
+                    generation,
+                )?;
                 self.ui.write().await.apply_border(&p)?;
                 self.emit(Event::UiStateUpdated(UiUpdateKind::WorldBorder));
             }
@@ -5818,6 +5829,14 @@ impl Bot {
                 self.emit(Event::SurvivalStateUpdated);
             }
             0x4f => {
+                let generation = self.common_receipts.lock().await.generation;
+                self.common_display.lock().await.receive(
+                    crate::MinecraftVersion::Java1_16_1,
+                    id,
+                    &p,
+                    packet_sequence,
+                    generation,
+                )?;
                 self.ui.write().await.apply_title(&p)?;
                 self.emit(Event::UiStateUpdated(UiUpdateKind::Title));
             }
@@ -5843,6 +5862,14 @@ impl Bot {
                 }));
             }
             0x53 => {
+                let generation = self.common_receipts.lock().await.generation;
+                self.common_display.lock().await.receive(
+                    crate::MinecraftVersion::Java1_16_1,
+                    id,
+                    &p,
+                    packet_sequence,
+                    generation,
+                )?;
                 self.ui.write().await.apply_tab(&p)?;
                 self.emit(Event::UiStateUpdated(UiUpdateKind::TabList));
             }
@@ -6801,6 +6828,47 @@ impl Bot {
             .lock()
             .await
             .capture(player.session, player.receive_sequence))
+    }
+}
+
+impl Bot {
+    pub(crate) async fn common_titles(&self) -> Result<crate::client::ui::TitlesObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::client::inventory::unavailable("connection closed"));
+        }
+        let player = self.common_player_unlocked().await?;
+        Ok(self
+            .common_display
+            .lock()
+            .await
+            .titles(player.session, player.receive_sequence))
+    }
+    pub(crate) async fn common_tab_list(&self) -> Result<crate::client::ui::TabListObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::client::inventory::unavailable("connection closed"));
+        }
+        let player = self.common_player_unlocked().await?;
+        Ok(self
+            .common_display
+            .lock()
+            .await
+            .tab_list(player.session, player.receive_sequence))
+    }
+    pub(crate) async fn common_world_border(
+        &self,
+    ) -> Result<crate::client::ui::WorldBorderObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::client::inventory::unavailable("connection closed"));
+        }
+        let player = self.common_player_unlocked().await?;
+        Ok(self
+            .common_display
+            .lock()
+            .await
+            .world_border(player.session, player.receive_sequence))
     }
 }
 

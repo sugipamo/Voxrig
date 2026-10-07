@@ -53,7 +53,7 @@ pub struct Team {
     /// The `members` value.
     pub members: Vec<String>,
 }
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 /// State and protocol data represented by `TitleState`.
 pub struct TitleState {
     /// The `title_json` value.
@@ -68,6 +68,18 @@ pub struct TitleState {
     pub stay: i32,
     /// The `fade_out` value.
     pub fade_out: i32,
+}
+impl Default for TitleState {
+    fn default() -> Self {
+        Self {
+            title_json: None,
+            subtitle_json: None,
+            action_bar_json: None,
+            fade_in: 10,
+            stay: 70,
+            fade_out: 20,
+        }
+    }
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 /// State and protocol data represented by `WorldBorder`.
@@ -302,7 +314,8 @@ impl UiState {
     }
     pub(crate) fn apply_title(&mut self, p: &[u8]) -> Result<()> {
         let mut r = p;
-        match get_varint(&mut r)? {
+        let action = get_varint(&mut r)?;
+        match action {
             0 => self.title.title_json = Some(get_string(&mut r)?),
             1 => self.title.subtitle_json = Some(get_string(&mut r)?),
             2 => self.title.action_bar_json = Some(get_string(&mut r)?),
@@ -312,11 +325,14 @@ impl UiState {
                 self.title.stay = c.read_i32::<BigEndian>()?;
                 self.title.fade_out = c.read_i32::<BigEndian>()?;
             }
-            4 => self.title = TitleState::default(),
-            5 => {
+            4 | 5 => {
                 self.title.title_json = None;
                 self.title.subtitle_json = None;
-                self.title.action_bar_json = None;
+                if action == 5 {
+                    self.title.fade_in = 10;
+                    self.title.stay = 70;
+                    self.title.fade_out = 20;
+                }
             }
             a => bail!("unknown title action {a}"),
         }
@@ -348,8 +364,8 @@ impl UiState {
                 self.world_border.diameter = take_f64(&mut r)?;
                 self.world_border.transition_millis = get_varlong(&mut r)?;
                 self.world_border.portal_boundary = get_varint(&mut r)?;
-                self.world_border.warning_time = get_varint(&mut r)?;
                 self.world_border.warning_blocks = get_varint(&mut r)?;
+                self.world_border.warning_time = get_varint(&mut r)?;
             }
             4 => self.world_border.warning_time = get_varint(&mut r)?,
             5 => self.world_border.warning_blocks = get_varint(&mut r)?,
