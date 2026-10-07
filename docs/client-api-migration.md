@@ -263,6 +263,7 @@ DustRoute: native observation、piston/recovery、照準、配置・除去・取
 | `voxrig::checked_survival` / `voxrig::client::survival::checked` | `voxrig::versions::java_1_21_11::checked`。aliasは削除 |
 | `client.survival_capabilities()` | `voxrig::versions::java_1_21_11::checked::SurvivalCapabilities::for_version(client.version())` |
 | `Feature::CheckedSurvival` | 削除。共通の能力表は版をまたぐ機能だけを扱う |
+| `Support::Restricted(&str)`の長文 | `Support::Restricted(Restriction { summary, doc })`。`summary`は1行要約、`doc`は契約文書のpath。旧文字列の内容は[能力表](common-capabilities.md)に保存 |
 | `client.java_1_21_11_operations()?` | `client.java_1_21_11()?.operations()` |
 | `client.observe_client_region(r)` / `observe_shared_client_region(r)` | `client.java_1_21_11()?.observe_client_region(r)` 等 |
 | `client.interact_block(pos, face)`（モード検査なし） | 共通では`client.survival()` / `client.creative()`の操作。生の送信は`client.java_1_21_11()?.interact_block`、1.16.1は`client.java_1_16_1()?.place_block` |

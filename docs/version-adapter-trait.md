@@ -68,8 +68,7 @@ trait objectは使わない（`async fn`を`dyn`にするとbox化とSend境界�
 2. ✅ 実装本体をtrait implへ移し、転送層と`common_`接頭辞を消す。
 3. ✅ 版固有機能は`Client::native()`へ集約する。
 4. ✅ crate rootを共通APIにする。
-5. **能力表を構造化する。** `Support::Restricted(&str)`の長文を、短い要約と
-   docsへのリンクに置き換える。厳密な前提条件は実装の検査とdocsに残し、型の文字列には持たせない。
+5. ✅ 能力表を構造化する。`Support::Restricted(Restriction { summary, doc })`にし、旧長文は[能力表](common-capabilities.md)へ移した。
 
 ### 共通化の基準
 
@@ -189,7 +188,7 @@ trait objectは使わない（`async fn`を`dyn`にするとbox化とSend境界�
 - 簡素化する: 1.21.11専用の`checked_survival`系（`ObservedDryCubeV1`、`PredictedDryCubeV1`、
   採掘のretirement・profile recoveryなど）。これらは共通API（`Survival`）と機能が重なっているため、
   共通APIで足りる部分を削り、残りは`native()`配下の実験的APIへ移す。
-- `Support::Restricted`の長文を要約にする。
+- ✅ `Support::Restricted`の長文を要約にする。
 
 ## 作業ブランチでの手順
 

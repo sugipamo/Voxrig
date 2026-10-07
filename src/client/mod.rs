@@ -47,7 +47,7 @@ pub(crate) mod uri;
 pub(crate) mod uuid;
 pub mod vehicle;
 pub use crate::connection::{Client, ConnectionConfig, Observation, ObservedBlock, Region};
-pub use capabilities::{Capabilities, Feature, Support};
+pub use capabilities::{Capabilities, Feature, Restriction, Support};
 pub use config::{ClientLimits, Server};
 pub use crafting::{
     CraftingGridReturnPlan, CraftingGridReturnStep, CraftingGridUnreturnedSplit,

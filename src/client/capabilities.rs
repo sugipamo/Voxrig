@@ -8,12 +8,18 @@ pub enum Support {
     /// Common contract implemented by this adapter.
     Available,
     /// Explicitly bounded implementation.
-    Restricted(
-        /// Restriction, not a current permission decision.
-        &'static str,
-    ),
+    Restricted(Restriction),
     /// Missing implementation in Voxrig, not proof that the game lacks it.
     NotImplemented,
+}
+/// The bounds of a restricted implementation. Exact preconditions are checked
+/// on every action and documented in `doc`; this is not a permission decision.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+pub struct Restriction {
+    /// One-line description of what is supported.
+    pub summary: &'static str,
+    /// Repository path of the document with the full contract.
+    pub doc: &'static str,
 }
 /// Common API feature group.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -96,6 +102,49 @@ pub enum Feature {
     /// Common recording and reconstruction API.
     RecordingAndReconstruction,
 }
+impl Feature {
+    /// Every feature group, for discovery and tests.
+    pub const ALL: &'static [Feature] = &[
+        Feature::ConnectionRevocation,
+        Feature::Respawn,
+        Feature::Registry,
+        Feature::WorldObservation,
+        Feature::PlayerObservation,
+        Feature::BasicControls,
+        Feature::BlockTargeting,
+        Feature::SurvivalTargeting,
+        Feature::SurvivalPreview,
+        Feature::SurvivalMining,
+        Feature::SurvivalMiningRecovery,
+        Feature::SurvivalPlacement,
+        Feature::SurvivalMovement,
+        Feature::CreativeControls,
+        Feature::CreativeMovement,
+        Feature::Containers,
+        Feature::ContainerObservation,
+        Feature::InventorySwap,
+        Feature::InventoryClick,
+        Feature::InventoryTransfer,
+        Feature::Crafting,
+        Feature::EntityObservation,
+        Feature::EntityMotion,
+        Feature::EntityInteraction,
+        Feature::VehicleObservation,
+        Feature::VehicleDismount,
+        Feature::VehicleGrounding,
+        Feature::VehicleInput,
+        Feature::PacketRecording,
+        Feature::PacketReplay,
+        Feature::SurvivalScene,
+        Feature::DisplayObservation,
+        Feature::Teams,
+        Feature::PlayerList,
+        Feature::BossBars,
+        Feature::Scoreboard,
+        Feature::ClientManagement,
+        Feature::RecordingAndReconstruction,
+    ];
+}
 /// Static common API support for the selected build and version.
 #[derive(Clone, Copy, Debug, serde::Serialize)]
 pub struct Capabilities {
@@ -109,105 +158,159 @@ impl Capabilities {
     }
     /// Discover implemented semantics. Readiness and permission are checked on each action.
     pub const fn support(self, feature: Feature) -> Support {
+        const fn restricted(summary: &'static str, doc: &'static str) -> Support {
+            Support::Restricted(Restriction { summary, doc })
+        }
         match feature {
             Feature::ConnectionRevocation
             | Feature::Registry
             | Feature::WorldObservation
             | Feature::PlayerObservation
             | Feature::BasicControls => Support::Available,
-            Feature::Respawn => Support::Restricted(
-                "actual received nonpositive health in current world; one owned request per world; retained dispatch/cancellation and actual RESPawn separately; fresh readiness/pose/health/inventory still required",
+            Feature::Respawn => restricted(
+                "one owned request per world after received death; fresh state must be re-read",
+                "docs/common-respawn.md",
             ),
-            Feature::CreativeControls => Support::Restricted(
-                "default items; permitted flight steps <=4 blocks; loaded reachable targets",
+            Feature::CreativeControls => restricted(
+                "default items, flight steps up to 4 blocks, loaded reachable targets",
+                "docs/common-creative-flight.md",
             ),
-            Feature::BlockTargeting | Feature::SurvivalTargeting => Support::Restricted(
-                "healthy dry stationary normal posture, matching handle mode; reach <=4.5; audited static outlines; legacy passive full cubes, registered dry slabs/stairs/rails, storage, crafting table and furnace; animated/world-dependent shapes remain incomplete",
+            Feature::BlockTargeting | Feature::SurvivalTargeting => restricted(
+                "dry stationary standing, reach up to 4.5, audited static outlines",
+                "docs/common-survival-targeting.md",
             ),
-            Feature::SurvivalPreview => Support::Restricted(
-                "read-only 1..120 walking/jump inputs; healthy stationary normal posture; native defaults; loaded passive dry full cubes and originally registered dry slabs/stairs/rails",
+            Feature::SurvivalPreview => restricted(
+                "read-only 1..120 walk/jump ticks on audited dry terrain",
+                "docs/common-survival-motion.md",
             ),
-            Feature::SurvivalMining => Support::Restricted(
-                "healthy dry standing; received default selected stack or empty hand and empty cursor; audited dry cubes/slabs/stairs; default native tool speed/gate and received target block tags; durability-only item data; retained explicit commands/target conflicts; removal does not permit continuation",
+            Feature::SurvivalMining => restricted(
+                "default tool or empty hand on audited dry blocks; removal is not continuation",
+                "docs/common-survival-mining.md",
             ),
-            Feature::SurvivalMiningRecovery => Support::Restricted(
-                "direct unmodified vanilla; exclusively owned same offline profile/endpoint/version; closed source; once-only login claim; fresh join/identity/dry standing/received player inventory/target; old source remains blocked",
+            Feature::SurvivalMiningRecovery => restricted(
+                "once-only same-profile fresh login on direct vanilla",
+                "docs/common-mining-recovery.md",
             ),
-            Feature::SurvivalPlacement => Support::Restricted(
-                "healthy dry standing; default passive cubes; first-outline support/face; fresh target and one-material receipts; modern processing ACK also required",
+            Feature::SurvivalPlacement => restricted(
+                "one default passive cube with separate target and material receipts",
+                "docs/common-survival-placement.md",
             ),
-            Feature::InventorySwap => Support::Restricted(
-                "player main slots 9..35 and hotbar 0..8; received player UI or explicit complete local close; resolved NBT/components and effective capacity; received empty cursor/two fresh destinations; native legacy resync/comparison response",
+            Feature::InventorySwap => restricted(
+                "player main/hotbar swaps with resolved item data and fresh receipts",
+                "docs/common-inventory-swaps.md",
             ),
-            Feature::InventoryClick => Support::Restricted(
-                "ordinary PICKUP with resolved NBT/components; player input slots 1..4 and inventory slots 9..44 or same audited storage/crafting opening including appended player; separate prediction and fresh source/cursor receipts; result/armor/offhand PICKUP, modern bundle override and unresolved item semantics remain incomplete",
+            Feature::InventoryClick => restricted(
+                "ordinary PICKUP on player or audited container slots",
+                "docs/common-inventory-clicks.md",
             ),
-            Feature::InventoryTransfer => Support::Restricted(
-                "one ordinary native QUICK_MOVE; player slots 5..45 or same audited storage opening; resolved NBT/components and native effective capacity; preserve known received cursor; full write/all fresh changed slots/legacy reply; mode-specific armor pickup and effective equipment routing",
+            Feature::InventoryTransfer => restricted(
+                "one ordinary QUICK_MOVE on player or audited storage slots",
+                "docs/common-inventory-transfers.md",
             ),
-            Feature::ContainerObservation => Support::Restricted(
-                "regular OPEN_WINDOW screens and constructor-verified storage/crafting layouts; lossless modern component boundaries, common custom metadata and effective scalar item properties; general component semantics and special entity windows remain incomplete",
+            Feature::ContainerObservation => restricted(
+                "regular screens with verified storage/crafting layouts",
+                "docs/common-container-observation.md",
             ),
-            Feature::Containers => Support::Restricted(
-                "empty-hand audited storage/crafting-table/furnace-family activation with distinct dispatch/OPEN/full/cursor/modern processing facts; opening-bound close with observed resolved-data cursor return; constructor-verified ordinary slots and furnace PICKUP roles with received native fuel-tag guard/bucket capacity/output refusal; SWAP/QUICK_MOVE remain storage/player only; smelting/XP prediction, custom fuel rules and other special windows remain incomplete",
+            Feature::Containers => restricted(
+                "empty-hand storage, crafting table and furnace open/close",
+                "docs/common-container-open.md",
             ),
-            Feature::SurvivalMovement | Feature::CreativeMovement => Support::Restricted(
-                "1..120 dry walking/jump ticks with released-rest endpoint; modern airborne start permits only released inputs after an owned actual respawn with fresh zero packet velocity and positive health; retained intent/failure; predicted completion is not received acceptance",
+            Feature::SurvivalMovement | Feature::CreativeMovement => restricted(
+                "1..120 dry walk/jump ticks; predicted completion is not server acceptance",
+                "docs/common-survival-motion.md",
             ),
-            Feature::Crafting => Support::Restricted(
-                "received recipe declarations/displays/book membership and player/table input grids with coherent registry/tag ownership; empty-hand table activation, ordinary input PICKUP and opening-bound close with cursor return; native input disposal on close is not locally predicted or a close ACK; empty or compatible actual held-cursor result PICKUP requires the entire result within effective cursor capacity and retains fresh combined cursor/full-grid consumption/remainders receipts; coherent Next/Maximum recipe planning and owned one-shot placement release only after actual grid/inventory conservation; actual original-UI ghost displays and safe material-shortage requests retain conserved empty inputs separately from placement/output; modern ghost responses have no recipe ID; player submitted-close basis can progress to actual received player zero without rebinding a table; one owned result QUICK_MOVE observes full grid/main inventory and actual compatible output increase without predicted craft counts or total-output/drop claims; table SWAP/QUICK_MOVE input routing and broader crafting remain incomplete",
+            Feature::Crafting => restricted(
+                "received recipes, grid input clicks, result take and one-shot recipe placement",
+                "docs/common-recipes.md",
             ),
-            Feature::EntityObservation => Support::Restricted(
-                "received spawn/despawn ledger; version-bound entity types and original spawn coordinates; opaque connection/world/spawn identity; current motion, metadata, hitboxes and health remain incomplete",
+            Feature::EntityObservation => restricted(
+                "received spawn/despawn ledger; no metadata, hitbox or health",
+                "docs/common-client-entities.md",
             ),
-            Feature::EntityMotion => Support::Restricted(
-                "original connection/world/spawn lifetime; received position targets, body/head rotation, ground flags and velocity samples; native relative quantization; modern relative interpolation corrections remain unresolved; painting anchors, current physics, hitboxes and special minecart interpolation are not inferred",
+            Feature::EntityMotion => restricted(
+                "latest received position, rotation and velocity samples",
+                "docs/common-entity-motion.md",
             ),
-            Feature::EntityInteraction => Support::Restricted(
-                "one native INTERACT or ATTACK on an original received lifetime; matching received handle mode; no auto-selection, cooldown, retry, reach/visibility proof or outcome ACK; position-specific interaction and broader entity state remain incomplete",
+            Feature::EntityInteraction => restricted(
+                "one INTERACT or ATTACK on a received entity; no outcome ACK",
+                "docs/common-client-entities.md",
             ),
-            Feature::VehicleObservation => Support::Restricted(
-                "actual own-player passenger lists; unknown before applicable receipt, explicit same-vehicle absence after continuous mounted lifetime; source ordinal and optional original spawn lifetime; no current motion/vehicle physics or ground admission",
+            Feature::VehicleObservation => restricted(
+                "own passenger relationships from received packets",
+                "docs/common-vehicles.md",
             ),
-            Feature::VehicleInput => Support::Restricted(
-                "finite owned digital mounted input, matching actual continuous mount/mode/world, explicit final neutral, retained cancelled wait and uncertain write; no control ACK, predicted vehicle motion/stop, paddles, vehicle-specific physics or ground continuation",
+            Feature::VehicleInput => restricted(
+                "finite digital mounted inputs ending in neutral; no vehicle physics",
+                "docs/common-vehicles.md",
             ),
-            Feature::VehicleGrounding => Support::Restricted(
-                "one owned declared zero controller seed and two released ground ticks after completed actual dismount/neutral and fresh received pose; known dry full support, normal standing/default attributes, healthy matching mode/world; retained cancellation/partial-write/remount history; no received velocity synthesis, server rest ACK or general vehicle physics",
+            Feature::VehicleGrounding => restricted(
+                "two released ground ticks after a completed dismount on dry support",
+                "docs/common-dismount-grounding.md",
             ),
-            Feature::VehicleDismount => Support::Restricted(
-                "one actor-owned request on an original received mount, actual same-vehicle absence, then one explicit neutral input; matching live received mode/world, retained cancellation/closure/uncertain-I/O history and no replay; no causal server ACK, vehicle physics/control or ground continuation",
+            Feature::VehicleDismount => restricted(
+                "one dismount request, received absence, then neutral input",
+                "docs/common-vehicles.md",
             ),
-            Feature::PacketRecording => Support::Restricted(
-                "exact configuration/play receive payloads and local position decoder inputs; 16MiB/65536 records; no authentication packets; from-connect capture is required for replay",
+            Feature::PacketRecording => restricted(
+                "exact receive payloads up to 16 MiB / 65536 records",
+                "docs/common-recording-scenes.md",
             ),
-            Feature::PacketReplay => Support::Restricted(
-                "complete from-connect history; exact native version decoder; selected received player/inventory/block facts only; legacy unhandled IDs explicit; saved facts never restore execution IDs or a Client",
+            Feature::PacketReplay => restricted(
+                "read-only decoding of a complete from-connect recording",
+                "docs/common-recording-scenes.md",
             ),
-            Feature::SurvivalScene => Support::Restricted(
-                "immutable <=64 cells/axis and <=32768 loaded air/passive dry cubes/registered dry slabs/stairs/rails; healthy stationary Survival defaults and complete standing halo; detached 1..120 input prediction without dispatch; edits/chaining remain version-specific",
+            Feature::SurvivalScene => restricted(
+                "immutable dry-terrain capture up to 64 cells/axis with motion prediction",
+                "docs/common-recording-scenes.md",
             ),
-            Feature::Teams => Support::Restricted(
-                "received ADD/CHANGE/JOIN/LEAVE/REMOVE, complete native parameters and per-holder origins; one team per holder, 4096 total declarations/members and 16 MiB retained encodings; native duplicate/leave rules, no rendering/collision or online roster inference",
+            Feature::Teams => restricted(
+                "received team declarations and membership, bounded to 4096 entries",
+                "docs/common-teams-player-list.md",
             ),
-            Feature::PlayerList => Support::Restricted(
-                "received ADD profiles/properties/signatures and per-field updates/removals; legacy registration and NOT_SET distinguished from modern listed/chat/order/hat flags; 4096 profiles, 1024 properties/profile, 16 MiB retained encodings; no authentication, RTT measurement, entity presence or complete account catalogue",
+            Feature::PlayerList => restricted(
+                "received profiles and per-field updates, bounded to 4096 profiles",
+                "docs/common-teams-player-list.md",
             ),
-            Feature::DisplayObservation => Support::Restricted(
-                "received title/subtitle/action-bar/timing/clear/reset, atomic tab header/footer, world-bound border center/size/transition/limits/warnings; per-field original ordinals and JSON/NBT; no invented defaults, render expiration, current interpolation or collision/damage inference",
+            Feature::DisplayObservation => restricted(
+                "received titles, tab header/footer and world border fields",
+                "docs/common-ui-display.md",
             ),
-            Feature::BossBars => Support::Restricted(
-                "received ADD/partial updates/REMOVE, per-field packet ordinals and native JSON/NBT text; bounded 4096 entries, unknown-UUID updates never synthesize bars; no rendering, entity health inference or complete server catalogue",
+            Feature::BossBars => restricted(
+                "received boss bars, bounded to 4096 entries",
+                "docs/common-boss-bars.md",
             ),
-            Feature::Scoreboard => Support::Restricted(
-                "received objective/display/score/reset facts and raw legacy JSON/modern NBT presentation; <=4096 entries; not a complete server catalogue or renderer; other UI remains incomplete",
+            Feature::Scoreboard => restricted(
+                "received objectives, displays and scores, bounded to 4096 entries",
+                "docs/common-ui-context.md",
             ),
-            Feature::ClientManagement => Support::Restricted(
-                "explicit 1..64 named active/pending Clients; per-connection config/version/cache/registry; cancellation releases reservation; terminal shutdown closes external clones and pending connects; no automatic reconnect or event aggregation",
+            Feature::ClientManagement => restricted(
+                "1..64 named clients; no automatic reconnect",
+                "docs/common-ui-manager.md",
             ),
-            Feature::RecordingAndReconstruction => Support::Restricted(
-                "bounded raw receive recording and selected read-only decoder replay; live known dry-terrain scene capture/prediction; broader reconstruction/piston/history contracts remain version-specific",
+            Feature::RecordingAndReconstruction => restricted(
+                "raw recording, read-only replay and dry-terrain scenes",
+                "docs/common-recording-scenes.md",
             ),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn restricted_features_link_existing_documents() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            for feature in Feature::ALL {
+                if let Support::Restricted(restriction) =
+                    Capabilities::for_version(version).support(*feature)
+                {
+                    assert!(restriction.summary.len() <= 100, "{feature:?}");
+                    assert!(root.join(restriction.doc).is_file(), "{feature:?}");
+                }
+            }
         }
     }
 }
