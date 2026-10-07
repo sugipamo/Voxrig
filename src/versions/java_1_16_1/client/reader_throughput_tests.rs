@@ -3,6 +3,121 @@ mod reader_throughput_tests {
     use std::future::{Future, poll_fn};
 
     #[tokio::test]
+    async fn free_update_locks_are_ready_with_exhausted_budget() {
+        let entities = RwLock::new(7);
+        let player = Mutex::new(11);
+        while tokio::task::coop::has_budget_remaining() {
+            tokio::task::consume_budget().await;
+        }
+        let write = write_entity_update(&entities);
+        let lock = lock_packet_state(&player);
+        tokio::pin!(write, lock);
+        let guard = poll_fn(|cx| match write.as_mut().poll(cx) {
+            Poll::Ready(guard) => Poll::Ready(guard),
+            Poll::Pending => panic!("free entity update yielded"),
+        })
+        .await;
+        assert_eq!(*guard, 7);
+        let guard = poll_fn(|cx| match lock.as_mut().poll(cx) {
+            Poll::Ready(guard) => Poll::Ready(guard),
+            Poll::Pending => panic!("free player state lock yielded"),
+        })
+        .await;
+        assert_eq!(*guard, 11);
+    }
+
+    #[tokio::test]
+    async fn update_locks_respect_held_and_queued_owners() {
+        let entities = RwLock::new(0);
+        let first = entities.read().await;
+        let writer = entities.write();
+        tokio::pin!(writer);
+        poll_fn(|cx| {
+            assert!(writer.as_mut().poll(cx).is_pending());
+            Poll::Ready(())
+        })
+        .await;
+        let update = write_entity_update(&entities);
+        tokio::pin!(update);
+        poll_fn(|cx| {
+            assert!(update.as_mut().poll(cx).is_pending());
+            Poll::Ready(())
+        })
+        .await;
+        drop(first);
+        let mut writer = writer.await;
+        *writer = 7;
+        poll_fn(|cx| {
+            assert!(update.as_mut().poll(cx).is_pending());
+            Poll::Ready(())
+        })
+        .await;
+        drop(writer);
+        assert_eq!(*update.await, 7);
+
+        let player = Mutex::new(0);
+        let first = player.lock().await;
+        let owner = player.lock();
+        tokio::pin!(owner);
+        poll_fn(|cx| {
+            assert!(owner.as_mut().poll(cx).is_pending());
+            Poll::Ready(())
+        })
+        .await;
+        let update = lock_packet_state(&player);
+        tokio::pin!(update);
+        poll_fn(|cx| {
+            assert!(update.as_mut().poll(cx).is_pending());
+            Poll::Ready(())
+        })
+        .await;
+        drop(first);
+        let mut owner = owner.await;
+        *owner = 11;
+        poll_fn(|cx| {
+            assert!(update.as_mut().poll(cx).is_pending());
+            Poll::Ready(())
+        })
+        .await;
+        drop(owner);
+        assert_eq!(*update.await, 11);
+    }
+
+    #[tokio::test]
+    async fn ready_packet_backlog_yields_after_32_frames_and_allows_cancel() {
+        let (bot, server, release) = ready_test_bot(ConnectionOptions::default()).await;
+        let wire = [1, 0x7f].repeat(100);
+        let consumed = Arc::new(AtomicUsize::new(0));
+        let reader = CountingRead {
+            inner: wire.as_slice(),
+            consumed: consumed.clone(),
+            consumed_notify: Arc::new(Notify::new()),
+        };
+        let (_capture_tx, capture_rx) = mpsc::channel(2);
+        let (_movement_tx, movement_rx) = mpsc::channel(2);
+        {
+            let read = bot.read_loop(reader, capture_rx, movement_rx);
+            tokio::pin!(read);
+            tokio::task::yield_now().await;
+            poll_fn(|cx| {
+                assert!(
+                    read.as_mut().poll(cx).is_pending(),
+                    "ready backlog did not yield"
+                );
+                Poll::Ready(())
+            })
+            .await;
+            assert_eq!(consumed.load(Ordering::Acquire), 32 * 2);
+            bot.cancel.notify_waiters();
+            read.await.unwrap();
+            assert_eq!(consumed.load(Ordering::Acquire), 32 * 2);
+        }
+        release.send(()).unwrap();
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn free_cache_read_does_not_spend_cooperative_budget() {
         let cache = RwLock::new(7);
         while tokio::task::coop::has_budget_remaining() {

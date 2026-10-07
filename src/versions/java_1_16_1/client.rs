@@ -299,6 +299,20 @@ async fn read_session_cache<T>(cache: &RwLock<T>) -> tokio::sync::RwLockReadGuar
     }
 }
 
+async fn write_entity_update<T>(cache: &RwLock<T>) -> tokio::sync::RwLockWriteGuard<'_, T> {
+    match cache.try_write() {
+        Ok(guard) => guard,
+        Err(_) => cache.write().await,
+    }
+}
+
+async fn lock_packet_state<T>(state: &Mutex<T>) -> tokio::sync::MutexGuard<'_, T> {
+    match state.try_lock() {
+        Ok(guard) => guard,
+        Err(_) => state.lock().await,
+    }
+}
+
 macro_rules! bail {
     ($($argument:tt)*) => {
         return Err(crate::versions::java_1_16_1::Error::from(anyhow::anyhow!($($argument)*)).into())
@@ -4532,6 +4546,11 @@ impl Bot {
         >,
     ) -> Result<()> {
         let mut next_observation_sequence = 1_u64;
+        let mut packets_since_yield = 0_u8;
+        // Keep cancellation registered across packet application and batch yields.
+        let cancelled = self.cancel.notified();
+        tokio::pin!(cancelled);
+        cancelled.as_mut().enable();
         // Compression negotiation finishes before entering the play reader.
         let compression = self.writer.lock().await.compression;
         while !self.stopped.load(Ordering::Acquire) {
@@ -4546,7 +4565,7 @@ impl Bot {
             let packet = loop {
                 tokio::select! {
                     biased;
-                    _ = self.cancel.notified() => return Ok(()),
+                    _ = &mut cancelled => return Ok(()),
                     request = capture_requests.recv() => {
                         let Some(request) = request else {
                             return Ok(());
@@ -4588,7 +4607,7 @@ impl Bot {
                 // each capture, without letting a packet backlog starve captures.
                 tokio::select! {
                     biased;
-                    _ = self.cancel.notified() => return Ok(()),
+                    _ = &mut cancelled => return Ok(()),
                     packet = std::future::poll_fn(|cx| {
                         std::task::Poll::Ready(std::future::Future::poll(packet_read.as_mut(), cx))
                     }) => {
@@ -4601,6 +4620,12 @@ impl Bot {
             let (id, p) = packet?;
             if !self.apply_packet(id, p).await? {
                 break;
+            }
+            packets_since_yield += 1;
+            if packets_since_yield == 32 {
+                // Yield without cache/gate guards even when all frames and locks are ready.
+                packets_since_yield = 0;
+                tokio::task::yield_now().await;
             }
         }
         Ok(())
@@ -5054,7 +5079,11 @@ impl Bot {
             0x28 | 0x29 => {
                 let mut rest = p.as_slice();
                 let entity_id = get_varint(&mut rest)?;
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                if let Some(entity) = write_entity_update(&self.entities)
+                    .await
+                    .entities
+                    .get_mut(&entity_id)
+                {
                     apply_relative(entity, &p, id == 0x29)?;
                     self.emit(Event::EntityUpdated(entity.clone()));
                 }
@@ -5062,7 +5091,11 @@ impl Bot {
             0x2a => {
                 let mut rest = p.as_slice();
                 let entity_id = get_varint(&mut rest)?;
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                if let Some(entity) = write_entity_update(&self.entities)
+                    .await
+                    .entities
+                    .get_mut(&entity_id)
+                {
                     entity.yaw = f32::from(*rest.first().context("missing entity yaw")? as i8)
                         * 360.0
                         / 256.0;
@@ -5077,7 +5110,11 @@ impl Bot {
                 let mut rest = p.as_slice();
                 let entity_id = get_varint(&mut rest)?;
                 let on_ground = *rest.first().context("missing entity ground flag")? != 0;
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                if let Some(entity) = write_entity_update(&self.entities)
+                    .await
+                    .entities
+                    .get_mut(&entity_id)
+                {
                     entity.on_ground = on_ground;
                     self.emit(Event::EntityUpdated(entity.clone()));
                 }
@@ -5284,7 +5321,11 @@ impl Bot {
             0x3b => {
                 let mut rest = p.as_slice();
                 let entity_id = get_varint(&mut rest)?;
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                if let Some(entity) = write_entity_update(&self.entities)
+                    .await
+                    .entities
+                    .get_mut(&entity_id)
+                {
                     entity.head_yaw =
                         f32::from(*rest.first().context("missing entity head yaw")? as i8) * 360.0
                             / 256.0;
@@ -5352,7 +5393,7 @@ impl Bot {
             }
             0x44 => {
                 let (entity_id, metadata) = parse_metadata(&p)?;
-                if Some(entity_id) == self.player.lock().await.entity_id {
+                if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
                     if let Some(MetadataValue::VarInt(pose)) = metadata.get(&6) {
                         *self.local_pose.lock().await = Some(*pose);
                     }
@@ -5387,10 +5428,14 @@ impl Bot {
                     y: f64::from(c.read_i16::<BigEndian>()?) / 8000.0,
                     z: f64::from(c.read_i16::<BigEndian>()?) / 8000.0,
                 };
-                if Some(entity_id) == self.player.lock().await.entity_id {
+                if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
                     self.motion.lock().await.velocity = velocity;
                 }
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                if let Some(entity) = write_entity_update(&self.entities)
+                    .await
+                    .entities
+                    .get_mut(&entity_id)
+                {
                     entity.velocity = velocity;
                     self.emit(Event::EntityUpdated(entity.clone()));
                 }
@@ -5527,7 +5572,11 @@ impl Bot {
                 let mut rest = p.as_slice();
                 let entity_id = get_varint(&mut rest)?;
                 let mut c = Cursor::new(rest);
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                if let Some(entity) = write_entity_update(&self.entities)
+                    .await
+                    .entities
+                    .get_mut(&entity_id)
+                {
                     let position = Vec3 {
                         x: c.read_f64::<BigEndian>()?,
                         y: c.read_f64::<BigEndian>()?,
@@ -5547,7 +5596,7 @@ impl Bot {
             }
             0x58 => {
                 let (entity_id, attributes) = parse_attributes(&p)?;
-                if Some(entity_id) == self.player.lock().await.entity_id {
+                if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
                     let mut state = self.survival.write().await;
                     for attribute in attributes {
                         state.attributes.insert(attribute.key.clone(), attribute);
