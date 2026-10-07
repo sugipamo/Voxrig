@@ -7,7 +7,8 @@ pub mod teams;
 /// The legacy ScreenTitle name remains compatible with existing consumers.
 pub use super::container::ScreenTitle as UiText;
 use super::{ObservedValue, SessionStamp, received};
-use crate::{MinecraftVersion, Result, connection::Adapter};
+use crate::client::VersionAdapter;
+use crate::{MinecraftVersion, Result};
 pub use boss_bar::{
     BossBarColor, BossBarFlags, BossBarOverlay, BossBarsObservation, ReceivedBossBar,
 };
@@ -102,10 +103,7 @@ impl super::Client {
     /// Inspect received scoreboard facts without I/O. Each value retains its
     /// original packet ordinal; reading or rendering does not establish scores.
     pub async fn scoreboard_state(&self) -> Result<ScoreboardObservation> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_scoreboard_state().await,
-            Adapter::Java1_21_11(bot) => bot.common_scoreboard_state().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::scoreboard_state(a).await)
     }
 }
 #[derive(Clone, Default)]

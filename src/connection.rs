@@ -1,5 +1,6 @@
 //! Version-selected client API. Local observations never claim server confirmation.
 
+use crate::client::VersionAdapter;
 use crate::versions::java_1_16_1 as legacy;
 use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Result};
 use std::sync::Arc;
@@ -199,27 +200,18 @@ impl Client {
     pub async fn server_registry_state(
         &self,
     ) -> Result<crate::client::registry::ServerRegistryObservation> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_server_registry_state().await,
-            Adapter::Java1_21_11(bot) => bot.common_server_registry_state().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::server_registry_state(a).await)
     }
     /// Read the UUID/name actually received in LOGIN_SUCCESS, with this session stamp.
     /// Profile identity alone does not prove old-player retirement or recovery.
     pub async fn connection_identity(&self) -> Result<crate::client::ConnectionIdentity> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_connection_identity().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_connection_identity().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::connection_identity(a).await)
     }
     /// Capture received entity spawns which have not been removed in this world.
     /// Coordinates retain their original spawn ordinal; current movement, metadata
     /// and hitboxes are not inferred. Opaque targets are rechecked before dispatch.
     pub async fn entity_spawns(&self) -> Result<crate::client::EntitySpawns> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_entity_spawns().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_entity_spawns().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::entity_spawns(a).await)
     }
     /// Capture the latest received motion fields for an original spawn lifetime.
     /// Packet targets and velocity samples do not establish current native physics.
@@ -227,19 +219,13 @@ impl Client {
         &self,
         target: crate::client::EntityId,
     ) -> Result<crate::client::EntityMotionObservation> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_entity_motion(target).await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_entity_motion(target).await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::entity_motion(a, target).await)
     }
     /// Capture actual own-player passenger relationships. Before an applicable
     /// receipt, the relationship is unknown. A received dismount does not prove
     /// default stationary motion or authorize a ground operation.
     pub async fn vehicle_state(&self) -> Result<crate::client::VehicleObservation> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_vehicle_state().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_vehicle_state().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::vehicle_state(a).await)
     }
     /// Survival-mode handle available on each adapter. Does not change game mode.
     pub fn survival(&self) -> crate::client::Survival {
@@ -255,10 +241,7 @@ impl Client {
     }
     /// Common player and received inventory captured under one adapter lock boundary.
     pub async fn player_state(&self) -> Result<crate::client::PlayerObservation> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_player_state().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_player_state().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::player_state(a).await)
     }
     /// Capture actual inventory receipts and their registry owner together.
     /// Retain this immutable value when inspecting server-assigned IDs in item
@@ -277,18 +260,12 @@ impl Client {
     /// }
     /// ```
     pub async fn received_inventory(&self) -> Result<crate::client::ReceivedInventory> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_received_inventory().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_received_inventory().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::received_inventory(a).await)
     }
     /// Capture the actual received recipe catalogue and its registry/tag owner.
     /// Displays and book membership do not predict inventory or authorize crafting.
     pub async fn received_recipes(&self) -> Result<crate::client::ReceivedRecipes> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_received_recipes().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_received_recipes().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::received_recipes(a).await)
     }
 
     /// Last actual ghost UI packet with its original opening and frozen context.
@@ -296,10 +273,7 @@ impl Client {
     pub async fn received_recipe_ghost(
         &self,
     ) -> Result<Option<crate::client::ReceivedRecipeGhost>> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_received_recipe_ghost().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_received_recipe_ghost().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::received_recipe_ghost(a).await)
     }
     /// Capture recipes/tags, player inventory and the active player/table grid
     /// together. Other active UIs return None. This is read-only planning data,
@@ -307,10 +281,7 @@ impl Client {
     pub async fn received_crafting_context(
         &self,
     ) -> Result<Option<crate::client::ReceivedCraftingContext>> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_received_crafting_context().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_received_crafting_context().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::received_crafting_context(a).await)
     }
 
     /// Inventory-only recipe-book material assignment and bounded maximum.
@@ -323,17 +294,7 @@ impl Client {
         crafts: u32,
         maximum_bound: u32,
     ) -> Result<crate::client::RecipeBookMaterials> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => {
-                bot.common_recipe_book_materials(recipe, crafts, maximum_bound)
-                    .await
-            }
-            Adapter::Java1_21_11(bot) => {
-                bot.operations()
-                    .common_recipe_book_materials(recipe, crafts, maximum_bound)
-                    .await
-            }
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::recipe_book_materials(a, recipe, crafts, maximum_bound).await)
     }
 
     /// Actual player/table crafting inputs and displayed result, with native
@@ -357,65 +318,42 @@ impl Client {
     /// }
     /// ```
     pub async fn received_crafting(&self) -> Result<Option<crate::client::ReceivedCrafting>> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_received_crafting().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_received_crafting().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::received_crafting(a).await)
     }
     /// Actual open-container contents and cursor at one native capture boundary.
     /// Numeric window IDs may be reused; use the session-bound screen identity.
     pub async fn screen_state(&self) -> Result<crate::client::container::ScreenObservation> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_screen_state().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_screen_state().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::screen_state(a).await)
     }
     /// Capture player, inventory and a received region at one adapter boundary.
     /// Missing data stays unavailable; neither local physics nor a capture is server confirmation.
     pub async fn capture(&self, region: Region) -> Result<crate::client::Capture> {
         region.volume()?;
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_capture(region).await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_capture(region).await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::capture(a, region).await)
     }
     pub(crate) async fn common_open_container(
         &self,
         mode: crate::client::GameMode,
         target: [i32; 3],
     ) -> Result<crate::client::container::ContainerOpenRecord> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_open_container(mode, target).await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_open_container(mode, target).await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::open_container(a, mode, target).await)
     }
     pub(crate) async fn common_container_open_record(
         &self,
     ) -> Result<Option<crate::client::container::ContainerOpenRecord>> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_container_open_record().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_container_open_record().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::container_open_record(a).await)
     }
     pub(crate) async fn common_close_container(
         &self,
         mode: crate::client::GameMode,
         screen: crate::client::container::ScreenId,
     ) -> Result<crate::client::container::ContainerCloseRecord> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_close_container(mode, screen).await,
-            Adapter::Java1_21_11(bot) => {
-                bot.operations().common_close_container(mode, screen).await
-            }
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::close_container(a, mode, screen).await)
     }
     pub(crate) async fn common_container_close_record(
         &self,
     ) -> Result<Option<crate::client::container::ContainerCloseRecord>> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_container_close_record().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_container_close_record().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::container_close_record(a).await)
     }
     pub(crate) async fn common_click_inventory(
         &self,
@@ -424,34 +362,19 @@ impl Client {
         slot: u16,
         button: crate::client::inventory::InventoryClickButton,
     ) -> Result<crate::client::inventory::InventoryClickRecord> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => {
-                bot.common_click_inventory(mode, source, slot, button).await
-            }
-            Adapter::Java1_21_11(bot) => {
-                bot.operations()
-                    .common_click_inventory(mode, source, slot, button)
-                    .await
-            }
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::click_inventory(a, mode, source, slot, button).await)
     }
     pub(crate) async fn common_place_recipe(
         &self,
         mode: crate::client::GameMode,
         plan: &crate::client::crafting::RecipePlacementPlan,
     ) -> Result<crate::client::crafting::RecipePlacementRecord> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_place_recipe(mode, plan).await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_place_recipe(mode, plan).await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::place_recipe(a, mode, plan).await)
     }
     pub(crate) async fn common_recipe_placement_record(
         &self,
     ) -> Result<Option<crate::client::crafting::RecipePlacementRecord>> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_recipe_placement_record().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_recipe_placement_record().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::recipe_placement_record(a).await)
     }
     pub(crate) async fn common_take_crafting_result(
         &self,
@@ -459,33 +382,17 @@ impl Client {
         grid: &crate::client::crafting::ReceivedCrafting,
         destination: crate::client::crafting::CraftingResultDestination,
     ) -> Result<crate::client::crafting::CraftingTakeRecord> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => {
-                bot.common_take_crafting_result(mode, grid, destination)
-                    .await
-            }
-            Adapter::Java1_21_11(bot) => {
-                bot.operations()
-                    .common_take_crafting_result(mode, grid, destination)
-                    .await
-            }
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::take_crafting_result(a, mode, grid, destination).await)
     }
     pub(crate) async fn common_crafting_take_record(
         &self,
     ) -> Result<Option<crate::client::crafting::CraftingTakeRecord>> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_crafting_take_record().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_crafting_take_record().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::crafting_take_record(a).await)
     }
     pub(crate) async fn common_inventory_click_record(
         &self,
     ) -> Result<Option<crate::client::inventory::InventoryClickRecord>> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_inventory_click_record().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_inventory_click_record().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::inventory_click_record(a).await)
     }
     pub(crate) async fn common_transfer_inventory(
         &self,
@@ -493,22 +400,12 @@ impl Client {
         source: crate::client::inventory::InventorySource,
         slot: u16,
     ) -> Result<crate::client::inventory::InventoryTransferRecord> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_transfer_inventory(mode, source, slot).await,
-            Adapter::Java1_21_11(bot) => {
-                bot.operations()
-                    .common_transfer_inventory(mode, source, slot)
-                    .await
-            }
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::transfer_inventory(a, mode, source, slot).await)
     }
     pub(crate) async fn common_inventory_transfer_record(
         &self,
     ) -> Result<Option<crate::client::inventory::InventoryTransferRecord>> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_inventory_transfer_record().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_inventory_transfer_record().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::inventory_transfer_record(a).await)
     }
     pub(crate) async fn common_swap_hotbar(
         &self,
@@ -516,14 +413,7 @@ impl Client {
         main: u8,
         hotbar: u8,
     ) -> Result<crate::client::inventory::InventorySwapRecord> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_swap_hotbar(mode, main, hotbar).await,
-            Adapter::Java1_21_11(bot) => {
-                bot.operations()
-                    .common_swap_hotbar(mode, main, hotbar)
-                    .await
-            }
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::swap_hotbar(a, mode, main, hotbar).await)
     }
     pub(crate) async fn common_swap_container_hotbar(
         &self,
@@ -532,128 +422,79 @@ impl Client {
         slot: u16,
         hotbar: u8,
     ) -> Result<crate::client::inventory::InventorySwapRecord> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => {
-                bot.common_swap_container_hotbar(mode, screen, slot, hotbar)
-                    .await
-            }
-            Adapter::Java1_21_11(bot) => {
-                bot.operations()
-                    .common_swap_container_hotbar(mode, screen, slot, hotbar)
-                    .await
-            }
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::swap_container_hotbar(a, mode, screen, slot, hotbar).await)
     }
     pub(crate) async fn common_inventory_swap_record(
         &self,
     ) -> Result<Option<crate::client::inventory::InventorySwapRecord>> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_inventory_swap_record().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_inventory_swap_record().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::inventory_swap_record(a).await)
     }
     pub(crate) async fn place_common_cube(
         &self,
         support: [i32; 3],
         face: crate::BlockFace,
     ) -> Result<crate::client::survival::PlacementRecord> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_place_cube(support, face).await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_place_cube(support, face).await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::place_cube(a, support, face).await)
     }
     pub(crate) async fn common_placement_record(
         &self,
     ) -> Result<Option<crate::client::survival::PlacementRecord>> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_placement_record().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_placement_record().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::placement_record(a).await)
     }
     pub(crate) async fn start_common_mining(
         &self,
         target: [i32; 3],
         face: crate::BlockFace,
     ) -> Result<crate::client::survival::MiningRecord> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_start_mining(target, face).await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_start_mining(target, face).await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::start_mining(a, target, face).await)
     }
     pub(crate) async fn send_common_mining(
         &self,
         id: crate::client::survival::MiningId,
         action: crate::client::survival::MiningAction,
     ) -> Result<crate::client::survival::MiningRecord> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_mining_send(id, action).await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_mining_send(id, action).await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::mining_send(a, id, action).await)
     }
     pub(crate) async fn common_mining_record(
         &self,
     ) -> Result<Option<crate::client::survival::MiningRecord>> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_mining_record().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_mining_record().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::mining_record(a).await)
     }
     pub(crate) async fn common_block_target(
         &self,
         mode: crate::client::GameMode,
         distance: f64,
     ) -> Result<crate::client::survival::BlockTargetObservation> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_target_block(mode, distance).await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_target_block(mode, distance).await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::target_block(a, mode, distance).await)
     }
     pub(crate) async fn preview_motion_path(
         &self,
         mode: crate::client::GameMode,
         controls: &[crate::client::survival::SurvivalControl],
     ) -> Result<crate::client::survival::MotionPreview> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_preview_path(mode, controls).await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_preview_path(mode, controls).await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::preview_path(a, mode, controls).await)
     }
     pub(crate) async fn start_predicted_motion_path(
         &self,
         mode: crate::client::GameMode,
         controls: &[crate::client::survival::SurvivalControl],
     ) -> Result<crate::client::survival::MotionRecord> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_start_predicted_path(mode, controls).await,
-            Adapter::Java1_21_11(bot) => {
-                bot.operations()
-                    .common_start_predicted_path(mode, controls)
-                    .await
-            }
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::start_predicted_path(a, mode, controls).await)
     }
     pub(crate) async fn survival_motion_record(
         &self,
     ) -> Result<Option<crate::client::survival::MotionRecord>> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_motion_record().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_motion_record().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::motion_record(a).await)
     }
     pub(crate) async fn execute(
         &self,
         mode: crate::client::GameMode,
         action: crate::client::operations::Action<'_>,
     ) -> Result<crate::client::DispatchReceipt> {
-        let (connection_id, interaction_sequence) = match &self.adapter {
-            Adapter::Java1_16_1(bot) => {
-                (bot.connection_id(), bot.execute_common(mode, action).await?)
-            }
-            Adapter::Java1_21_11(bot) => (
-                bot.connection_id(),
-                bot.operations().execute_common(mode, action).await?,
-            ),
-        };
+        let (connection_id, interaction_sequence) = crate::client::dispatch!(&self.adapter, a => (
+            VersionAdapter::connection_id(a),
+            VersionAdapter::execute(a, mode, action).await?,
+        ));
         Ok(crate::client::DispatchReceipt {
             version: self.version(),
             connection_id,
@@ -709,18 +550,12 @@ impl Client {
     /// Late-start traces retain original ordinals but cannot be replayed without
     /// an initial baseline; use `connect_recorded` for replayable histories.
     pub async fn start_packet_trace(&self, maximum_bytes: usize) -> Result<()> {
-        match &self.adapter {
-            Adapter::Java1_21_11(bot) => bot.start_packet_trace(maximum_bytes).await,
-            Adapter::Java1_16_1(bot) => bot.start_packet_trace(maximum_bytes).await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::start_packet_trace(a, maximum_bytes).await)
     }
 
     /// Finish exact received evidence. Overflow and original ordinals are retained.
     pub async fn stop_packet_trace(&self) -> Result<crate::client::PacketTrace> {
-        match &self.adapter {
-            Adapter::Java1_21_11(bot) => bot.stop_packet_trace().await,
-            Adapter::Java1_16_1(bot) => bot.stop_packet_trace().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::stop_packet_trace(a).await)
     }
 
     /// Sends an ordinary use-on-block interaction. Dispatch is not acceptance.
@@ -788,18 +623,12 @@ impl Client {
 
     /// Exact version of this connection.
     pub fn version(&self) -> MinecraftVersion {
-        match self.adapter {
-            Adapter::Java1_16_1(_) => MinecraftVersion::Java1_16_1,
-            Adapter::Java1_21_11(_) => MinecraftVersion::Java1_21_11,
-        }
+        crate::client::adapter::version_of(&self.adapter)
     }
 
     /// Waits for the selected adapter's initial playable state.
     pub async fn wait_until_ready(&self) -> Result<()> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.wait_until_ready().await,
-            Adapter::Java1_21_11(bot) => bot.wait_until_ready().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::wait_until_ready(a).await)
     }
 
     /// Gets all cells under one world lock; this does not send confirmation commands.
@@ -867,10 +696,7 @@ impl Client {
     /// Ends the connection. A clone refers to the same session. This may wait
     /// for cleanup or writer shutdown; use `revoke_connection` for local fencing.
     pub async fn disconnect(&self) -> Result<()> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.disconnect().await,
-            Adapter::Java1_21_11(bot) => bot.disconnect().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::disconnect(a).await)
     }
 }
 

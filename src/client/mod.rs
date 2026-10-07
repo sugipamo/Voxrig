@@ -1,4 +1,6 @@
 //! Common client entry points and data. Wire formats and physics belong to adapters.
+pub(crate) mod adapter;
+pub(crate) use adapter::{VersionAdapter, dispatch};
 pub(crate) mod books;
 mod capabilities;
 mod config;

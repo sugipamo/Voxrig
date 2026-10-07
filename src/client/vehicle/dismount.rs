@@ -1,9 +1,9 @@
 //! Retained one-shot dismount, followed by explicit neutral input after receipt.
 use super::{MountId, VehicleObservation, VehicleRelation};
+use crate::client::VersionAdapter;
 use crate::{
     Result,
     client::{self as api, GameMode, ObservedValue, ValueSource, inventory::unavailable},
-    connection::Adapter,
 };
 pub(crate) type History = std::sync::Arc<std::sync::Mutex<Option<DismountRecord>>>;
 
@@ -311,28 +311,19 @@ impl api::Client {
         mode: GameMode,
         mount: MountId,
     ) -> Result<DismountRecord> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_dismount(mode, mount).await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_dismount(mode, mount).await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::dismount(a, mode, mount).await)
     }
     async fn complete_common_dismount(
         &self,
         mode: GameMode,
         id: DismountId,
     ) -> Result<DismountRecord> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_complete_dismount(mode, id).await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_complete_dismount(mode, id).await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::complete_dismount(a, mode, id).await)
     }
     /// Read retained dismount facts without replay, including while a writer is
     /// stalled or after connection closure. Completed history stays completed.
     pub async fn dismount_record(&self) -> Result<Option<DismountRecord>> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_dismount_record().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_dismount_record().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::dismount_record(a).await)
     }
 }
 macro_rules! handle {
@@ -352,12 +343,7 @@ macro_rules! handle {
             /// seed and send two released ground ticks on known dry support.
             /// One attempt per dismount; cancellation stops waiting only.
             pub async fn resume_ground(&self, id: DismountId) -> Result<DismountRecord> {
-                match &self.client.adapter {
-                    Adapter::Java1_16_1(bot) => bot.common_resume_ground($mode, id).await,
-                    Adapter::Java1_21_11(bot) => {
-                        bot.operations().common_resume_ground($mode, id).await
-                    }
-                }
+                crate::client::dispatch!(&self.client.adapter, a => VersionAdapter::resume_ground(a, $mode, id).await)
             }
             /// Read the latest attempt without sending another frame.
             pub async fn dismount_record(&self) -> Result<Option<DismountRecord>> {

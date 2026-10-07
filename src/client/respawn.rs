@@ -1,6 +1,7 @@
 //! Explicit death recovery on the current transport; no automatic retry.
 use super::{Health, ObservedValue, PlayerObservation, SessionStamp, ValueSource};
 use crate::Result;
+use crate::client::VersionAdapter;
 
 pub(crate) type History = std::sync::Arc<std::sync::Mutex<Option<RespawnRecord>>>;
 
@@ -120,10 +121,7 @@ impl super::Client {
     /// Completion is dispatch evidence; wait for new RESPawn, pose, health and
     /// inventory before continuing. Same-world repeat requests are refused.
     pub async fn respawn(&self) -> Result<RespawnRecord> {
-        match &self.adapter {
-            crate::connection::Adapter::Java1_16_1(bot) => bot.common_respawn().await,
-            crate::connection::Adapter::Java1_21_11(bot) => bot.operations().common_respawn().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::respawn(a).await)
     }
     /// Inspect the latest retained request without a writer/state lock or resend.
     /// Available during a stalled write and after connection closure.

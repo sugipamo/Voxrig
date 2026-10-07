@@ -1,9 +1,9 @@
 //! Finite original mounted inputs, with an explicit final neutral frame.
 use super::{MountId, VehicleObservation, VehicleRelation};
+use crate::client::VersionAdapter;
 use crate::{
     Result,
     client::{self as api, GameMode, ValueSource, inventory::unavailable},
-    connection::Adapter,
 };
 
 pub(crate) type History = std::sync::Arc<std::sync::Mutex<Option<VehicleControlRecord>>>;
@@ -195,21 +195,11 @@ impl api::Client {
         mount: MountId,
         inputs: &[VehicleInput],
     ) -> Result<VehicleControlRecord> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_vehicle_control(mode, mount, inputs).await,
-            Adapter::Java1_21_11(bot) => {
-                bot.operations()
-                    .common_vehicle_control(mode, mount, inputs)
-                    .await
-            }
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::vehicle_control(a, mode, mount, inputs).await)
     }
     /// Retained mounted-input history, readable while its writer waits and after closure.
     pub async fn vehicle_control_record(&self) -> Result<Option<VehicleControlRecord>> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_vehicle_control_record().await,
-            Adapter::Java1_21_11(bot) => bot.operations().common_vehicle_control_record().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::vehicle_control_record(a).await)
     }
 }
 macro_rules! handle {

@@ -1,7 +1,8 @@
 //! Received team declarations and scoreboard-holder membership, not permissions.
 use super::{UiText, received};
+use crate::client::VersionAdapter;
 use crate::client::{ObservedValue, SessionStamp};
-use crate::{MinecraftVersion, Result, connection::Adapter};
+use crate::{MinecraftVersion, Result};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Common native team name-tag visibility.
@@ -167,10 +168,7 @@ pub struct TeamsObservation {
 impl crate::Client {
     /// Inspect received team parameters/membership without I/O or rendering.
     pub async fn teams(&self) -> Result<TeamsObservation> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_teams().await,
-            Adapter::Java1_21_11(bot) => bot.common_teams().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::teams(a).await)
     }
 }
 #[derive(Clone)]

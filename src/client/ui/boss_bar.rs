@@ -1,6 +1,7 @@
 //! Actual boss-bar fields. Partial updates never refresh unrelated receipts.
 use super::{ObservedValue, SessionStamp, UiText, received};
-use crate::{MinecraftVersion, Result, connection::Adapter};
+use crate::client::VersionAdapter;
+use crate::{MinecraftVersion, Result};
 use std::collections::BTreeMap;
 
 /// Native boss-bar color, independent from text formatting.
@@ -94,10 +95,7 @@ pub struct BossBarsObservation {
 impl crate::client::Client {
     /// Read boss-bar ADD/update/REMOVE receipts without network I/O or rendering.
     pub async fn boss_bars(&self) -> Result<BossBarsObservation> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_boss_bars().await,
-            Adapter::Java1_21_11(bot) => bot.common_boss_bars().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::boss_bars(a).await)
     }
 }
 #[derive(Clone, Default)]

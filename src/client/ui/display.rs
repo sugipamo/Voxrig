@@ -1,6 +1,7 @@
 //! Received title, tab-list and border instructions, without local rendering.
 use super::{ObservedValue, SessionStamp, UiText, received};
-use crate::{MinecraftVersion, Result, connection::Adapter};
+use crate::client::VersionAdapter;
+use crate::{MinecraftVersion, Result};
 
 /// Original title-animation instruction, distinct from elapsed display time.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
@@ -135,24 +136,15 @@ pub struct WorldBorderObservation {
 impl crate::client::Client {
     /// Inspect title/subtitle/action-bar and clear/timing receipts without I/O.
     pub async fn titles(&self) -> Result<TitlesObservation> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_titles().await,
-            Adapter::Java1_21_11(bot) => bot.common_titles().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::titles(a).await)
     }
     /// Inspect the last complete native tab-list header/footer pair.
     pub async fn tab_list(&self) -> Result<TabListObservation> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_tab_list().await,
-            Adapter::Java1_21_11(bot) => bot.common_tab_list().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::tab_list(a).await)
     }
     /// Inspect border instructions without predicting current size or constraints.
     pub async fn world_border(&self) -> Result<WorldBorderObservation> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.common_world_border().await,
-            Adapter::Java1_21_11(bot) => bot.common_world_border().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => VersionAdapter::world_border(a).await)
     }
 }
 #[derive(Clone, Default)]
