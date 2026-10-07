@@ -68,6 +68,9 @@ pub(crate) struct State {
 }
 
 pub(crate) struct Table {
+    /// Network ids of attributes and mob effects, by namespaced name.
+    pub attribute_ids: std::collections::BTreeMap<String, i32>,
+    pub effect_ids: std::collections::BTreeMap<String, i32>,
     pub blocks: Vec<Block>,
     pub states: Vec<State>,
     pub shapes: Vec<Vec<[f64; 6]>>,
@@ -192,7 +195,17 @@ fn parse(text: &str) -> Table {
         });
     }
     assert!(states.iter().all(|s| s.block != u16::MAX));
+    let ids = |key: &str| {
+        data[key]
+            .as_object()
+            .unwrap()
+            .iter()
+            .map(|(k, v)| (k.clone(), v.as_i64().unwrap() as i32))
+            .collect()
+    };
     Table {
+        attribute_ids: ids("attribute_ids"),
+        effect_ids: ids("effect_ids"),
         blocks,
         states,
         shapes,

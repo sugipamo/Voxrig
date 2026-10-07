@@ -9,8 +9,6 @@
 //! jumping out onto ledges). Outside it the tick returns `ErrorKind::Unsupported`
 //! before changing state: climbing, bubble columns, flying, riding, levitation,
 //! honey wall sliding and anything not reviewed in `blocks`.
-// Wired into the finite-motion and continuous-control APIs in the next stages.
-#![cfg_attr(not(test), allow(dead_code))]
 pub(crate) mod blocks;
 pub(crate) mod collision;
 #[cfg(test)]
@@ -29,8 +27,11 @@ pub struct Controls {
     pub forward: i8,
     /// -1 right, 0 released, 1 left.
     pub strafe: i8,
+    /// Jump key (held: repeats with the native cooldown; in fluids: swim up).
     pub jump: bool,
+    /// Sneak key (crouching, edge back-off, sinking in water).
     pub sneak: bool,
+    /// Sprint key (sprinting starts and stops under the client's conditions).
     pub sprint: bool,
     /// Body yaw in degrees.
     pub yaw: f32,
@@ -41,8 +42,11 @@ pub struct Controls {
 /// Attribute modifier operation, in native order of application.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ModifierOperation {
+    /// Added to the base.
     Addition,
+    /// Base times amount, added.
     MultiplyBase,
+    /// Total times (1 + amount).
     MultiplyTotal,
 }
 
@@ -50,8 +54,11 @@ pub enum ModifierOperation {
 /// (a UUID string in 1.16.1, a namespaced identifier in 1.21.11).
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Modifier {
+    /// Modifier identity.
     pub id: String,
+    /// How the amount applies.
     pub operation: ModifierOperation,
+    /// Received amount.
     pub amount: f64,
 }
 
@@ -112,8 +119,11 @@ impl Environment {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// Player pose, which sets the box height.
 pub enum Pose {
+    /// 1.8 blocks tall.
     Standing,
+    /// 1.5 blocks tall.
     Crouching,
     /// Swimming, or crawling where nothing taller fits.
     Swimming,
@@ -203,6 +213,13 @@ fn floor(v: f64) -> i32 {
 }
 
 impl Body {
+    /// Apply a received position (Entity.setPos): the box follows the position;
+    /// velocity, ground and pose state are kept until received separately.
+    pub(crate) fn teleport(&mut self, _version: MinecraftVersion, position: [f64; 3]) {
+        self.position = position;
+        self.bounds = make_box(position, self.pose);
+    }
+
     /// A player standing still at `position` with the given received speed facts.
     pub fn new(position: [f64; 3]) -> Self {
         Self {

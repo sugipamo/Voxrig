@@ -3,6 +3,7 @@
 mod common_api;
 mod common_click;
 mod common_container;
+mod common_control;
 mod common_crafting;
 mod common_entity_motion;
 mod common_flight;
@@ -1016,6 +1017,9 @@ struct ObservationEventQueue {
     omitted: u32,
 }
 
+/// A received own-velocity packet: packet ordinal and value.
+type VelocityReceipt = (u64, [f64; 3]);
+
 /// State and protocol data represented by `Bot`.
 pub struct Bot {
     connection: ConnectionActor,
@@ -1053,6 +1057,9 @@ pub struct Bot {
     common_teams: Arc<Mutex<crate::client::ui::teams::TeamLedger>>,
     common_player_list: Arc<Mutex<crate::client::ui::player_list::PlayerListLedger>>,
     common_motion: Arc<Mutex<Option<common_motion::NativeMotionRun>>>,
+    common_control: Arc<Mutex<common_control::ContinuousControl>>,
+    /// Latest received own velocity (packet ordinal, value).
+    own_velocity_receipt: Arc<Mutex<Option<VelocityReceipt>>>,
     common_mining: Arc<Mutex<Option<common_mining::NativeMiningRun>>>,
     common_placement: Arc<Mutex<Option<common_placement::NativePlacementRun>>>,
     common_inventory_swap: Arc<Mutex<Option<common_inventory::NativeInventorySwap>>>,
@@ -1172,6 +1179,8 @@ impl Bot {
             common_teams: self.common_teams.clone(),
             common_player_list: self.common_player_list.clone(),
             common_motion: self.common_motion.clone(),
+            common_control: self.common_control.clone(),
+            own_velocity_receipt: self.own_velocity_receipt.clone(),
             common_mining: self.common_mining.clone(),
             common_placement: self.common_placement.clone(),
             common_inventory_swap: self.common_inventory_swap.clone(),
@@ -1353,6 +1362,8 @@ impl Bot {
             common_teams: Arc::new(Mutex::new(Default::default())),
             common_player_list: Arc::new(Mutex::new(Default::default())),
             common_motion: Arc::new(Mutex::new(None)),
+            common_control: Arc::default(),
+            own_velocity_receipt: Arc::default(),
             common_mining: Arc::new(Mutex::new(None)),
             common_placement: Arc::new(Mutex::new(None)),
             common_inventory_swap: Arc::new(Mutex::new(None)),
@@ -5790,6 +5801,10 @@ impl Bot {
                 };
                 if Some(entity_id) == self.player.lock().await.entity_id {
                     self.motion.lock().await.velocity = velocity;
+                    *self.own_velocity_receipt.lock().await = Some((
+                        self.protocol_packet_sequence.load(Ordering::Acquire),
+                        [velocity.x, velocity.y, velocity.z],
+                    ));
                     self.interrupt_common_motion(
                         "native own-player velocity interrupted finite motion",
                     )

@@ -1,7 +1,7 @@
 //! Mode-specific common operations. Handles do not grant or change game mode.
 use super::{GameMode, PlayerObservation};
 use crate::client::adapter::{
-    ContainerOps, CraftingTakeOps, FlightOps, InventoryClickOps, InventorySwapOps,
+    ContainerOps, ControlOps, CraftingTakeOps, FlightOps, InventoryClickOps, InventorySwapOps,
     InventoryTransferOps, MiningOps, PathMotionOps, PlacementOps, RecipePlacementOps,
     StandingQueryOps,
 };
@@ -302,6 +302,27 @@ impl Survival {
     /// Capture player/inventory without inventing mode, item or position facts.
     pub async fn player_state(&self) -> Result<PlayerObservation> {
         self.client.player_state().await
+    }
+    /// Start continuous control from the latest received pose with released keys.
+    /// The client then runs the shared physics every 50 ms tick and sends each
+    /// tick's movement; sent positions are submissions, not server acceptance.
+    pub async fn start_control(&self) -> Result<super::control::ControlRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::start_control(a, GameMode::Survival).await)
+    }
+    /// Replace the held keys; they apply from the next tick until replaced.
+    pub async fn set_controls(
+        &self,
+        controls: super::control::Controls,
+    ) -> Result<super::control::ControlRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::set_controls(a, GameMode::Survival, controls).await)
+    }
+    /// Stop the session, releasing sprint and sneak. Returns the final record.
+    pub async fn stop_control(&self) -> Result<Option<super::control::ControlRecord>> {
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::stop_control(a).await)
+    }
+    /// Latest control record, readable after the session or connection ended.
+    pub async fn control_record(&self) -> Result<Option<super::control::ControlRecord>> {
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::control_record(a).await)
     }
     /// Dispatch a look. Native admission applies; success is not acceptance.
     pub async fn look(&self, rotation: [f32; 2]) -> Result<DispatchReceipt> {

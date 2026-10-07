@@ -113,6 +113,8 @@ pub struct LocalPlayerState {
     pub health: Option<PlayerHealth>,
     /// Effect updates not yet removed by a packet. No local expiration is invented.
     pub effect_updates: BTreeMap<i32, ReceivedEffect>,
+    /// Received attribute bases and modifiers by native attribute id.
+    pub received_attributes: BTreeMap<i32, crate::client::control::ReceivedAttribute>,
     /// False: vanilla effect packets have no complete-list fence in this projection.
     /// An empty map must not authorize assumptions about absence for mining.
     pub effects_complete: bool,
@@ -208,8 +210,12 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             }
         }
         input::ENTITY_UPDATE_ATTRIBUTES => {
-            let values = players::read_attributes(&mut r)?;
+            let details = players::read_attribute_details(&mut r)?;
+            let values = details.iter().map(|(k, (v, _))| (*k, *v)).collect();
             attributes::received(&mut next, &values, sequence);
+            for (key, (_, raw)) in details {
+                next.received_attributes.insert(key, raw);
+            }
         }
         input::ENTITY_EFFECT | input::REMOVE_ENTITY_EFFECT => {
             let effect_id = r.varint()?;

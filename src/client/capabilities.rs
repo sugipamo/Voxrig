@@ -103,6 +103,8 @@ pub enum Feature {
     BlockQueries,
     /// Current received entity motion, health, equipment and default bounding boxes.
     EntityState,
+    /// Held survival keys with per-tick client physics (shared engine).
+    ContinuousControl,
     /// Received boss-bar ADD, partial updates and REMOVE.
     BossBars,
     /// Received scoreboard declarations, displays and entries.
@@ -154,6 +156,7 @@ impl Feature {
         Feature::Events,
         Feature::BlockQueries,
         Feature::EntityState,
+        Feature::ContinuousControl,
         Feature::BossBars,
         Feature::Scoreboard,
         Feature::ClientManagement,
@@ -295,6 +298,10 @@ impl Capabilities {
             Feature::BlockQueries => restricted(
                 "name search and collision-shape raycasts up to 32 blocks; unloaded cells reported",
                 "docs/common-blocks.md",
+            ),
+            Feature::ContinuousControl => restricted(
+                "held survival keys on terrain and in fluids; no climbing, bubble columns, flying or riding",
+                "docs/common-control.md",
             ),
             Feature::EntityState => restricted(
                 "received health and equipment; boxes use default type dimensions only",

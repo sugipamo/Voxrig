@@ -302,6 +302,11 @@ public final class MovementOracle {
         out.add("sturdy_faces", sturdy);
         out.add("suffocating_states", suffocating);
         out.add("positional_shape_states", positional);
+        JsonObject attributeIds = new JsonObject(), effectIds = new JsonObject();
+        for (var a : Registry.ATTRIBUTE) attributeIds.addProperty(Registry.ATTRIBUTE.getKey(a).toString(), Registry.ATTRIBUTE.getId(a));
+        for (var e : Registry.MOB_EFFECT) effectIds.addProperty(Registry.MOB_EFFECT.getKey(e).toString(), Registry.MOB_EFFECT.getId(e));
+        out.add("attribute_ids", attributeIds);
+        out.add("effect_ids", effectIds);
         out.add("blocks", blocks);
         return out;
     }

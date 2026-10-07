@@ -305,6 +305,11 @@ public final class MovementOracle {
         out.add("sturdy_faces", sturdy);
         out.add("suffocating_states", suffocating);
         out.add("positional_shape_states", positional);
+        JsonObject attributeIds = new JsonObject(), effectIds = new JsonObject();
+        for (var a : BuiltInRegistries.ATTRIBUTE) attributeIds.addProperty(BuiltInRegistries.ATTRIBUTE.getKey(a).toString(), BuiltInRegistries.ATTRIBUTE.getId(a));
+        for (var e : BuiltInRegistries.MOB_EFFECT) effectIds.addProperty(BuiltInRegistries.MOB_EFFECT.getKey(e).toString(), BuiltInRegistries.MOB_EFFECT.getId(e));
+        out.add("attribute_ids", attributeIds);
+        out.add("effect_ids", effectIds);
         out.add("blocks", blocks);
         return out;
     }

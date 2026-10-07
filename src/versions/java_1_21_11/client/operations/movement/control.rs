@@ -184,6 +184,11 @@ fn stable_context(state: &State, r: &SurvivalMotionRecord) -> Result<()> {
     Ok(())
 }
 pub(in super::super::super) fn standing_basis(state: &State) -> Result<StandingPositionBasis> {
+    if state.control.active() {
+        return Err(invalid(
+            "continuous control owns the player's movement; stop it before standing operations",
+        ));
+    }
     if let Some(r) = &state.survival_motion {
         if !r.status.is_continuation_candidate() {
             return Err(invalid(

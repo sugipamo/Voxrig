@@ -13,6 +13,7 @@ mod capabilities;
 mod config;
 pub(crate) mod constructor;
 pub mod container;
+pub mod control;
 pub mod crafting;
 pub(crate) mod enchantments;
 pub(crate) mod entity;

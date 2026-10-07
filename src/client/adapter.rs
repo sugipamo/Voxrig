@@ -224,6 +224,18 @@ pub(crate) trait PathMotionOps {
     async fn motion_record(&self) -> Result<Option<MotionRecord>>;
 }
 
+/// Continuous control: held keys and per-tick client physics.
+pub(crate) trait ControlOps {
+    async fn start_control(&self, mode: GameMode) -> Result<super::control::ControlRecord>;
+    async fn set_controls(
+        &self,
+        mode: GameMode,
+        controls: super::control::Controls,
+    ) -> Result<super::control::ControlRecord>;
+    async fn stop_control(&self) -> Result<Option<super::control::ControlRecord>>;
+    async fn control_record(&self) -> Result<Option<super::control::ControlRecord>>;
+}
+
 /// Creative flight commands.
 pub(crate) trait FlightOps {
     async fn flight(&self, command: FlightCommand) -> Result<FlightRecord>;
@@ -263,6 +275,7 @@ pub(crate) trait VersionAdapter:
     + PlacementOps
     + StandingQueryOps
     + PathMotionOps
+    + ControlOps
     + FlightOps
     + VehicleOps
 {
@@ -284,6 +297,7 @@ impl<T> VersionAdapter for T where
         + PlacementOps
         + StandingQueryOps
         + PathMotionOps
+        + ControlOps
         + FlightOps
         + VehicleOps
 {

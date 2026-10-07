@@ -430,6 +430,15 @@ fn position(r: &mut Reader<'_>) -> anyhow::Result<[f64; 3]> {
 }
 /// Native modifier order, shared by own and remote player observations.
 pub(super) fn read_attributes(r: &mut Reader<'_>) -> anyhow::Result<BTreeMap<i32, f64>> {
+    Ok(read_attribute_details(r)?
+        .into_iter()
+        .map(|(k, (v, _))| (k, v))
+        .collect())
+}
+/// Folded values together with the received base and modifiers (arrival order).
+pub(super) fn read_attribute_details(
+    r: &mut Reader<'_>,
+) -> anyhow::Result<BTreeMap<i32, (f64, crate::client::control::ReceivedAttribute)>> {
     let mut values = BTreeMap::new();
     for _ in 0..r.count(1024)? {
         let key = r.varint()?;
@@ -441,17 +450,33 @@ pub(super) fn read_attributes(r: &mut Reader<'_>) -> anyhow::Result<BTreeMap<i32
         let mut base_factors = Vec::new();
         let mut total_factors = Vec::new();
         let mut modifiers = BTreeSet::new();
+        let mut raw = Vec::new();
         for _ in 0..r.count(1024)? {
-            if !modifiers.insert(r.string()?) {
+            let id = r.string()?;
+            if !modifiers.insert(id.clone()) {
                 bail!("duplicate attribute modifier");
             }
             let amount = r.f64()?;
-            match r.u8()? {
-                0 => additions += amount,
-                1 => base_factors.push(amount),
-                2 => total_factors.push(amount),
+            let operation = match r.u8()? {
+                0 => {
+                    additions += amount;
+                    crate::client::control::ModifierOperation::Addition
+                }
+                1 => {
+                    base_factors.push(amount);
+                    crate::client::control::ModifierOperation::MultiplyBase
+                }
+                2 => {
+                    total_factors.push(amount);
+                    crate::client::control::ModifierOperation::MultiplyTotal
+                }
                 _ => bail!("unknown attribute operation"),
-            }
+            };
+            raw.push(crate::client::control::Modifier {
+                id,
+                operation,
+                amount,
+            });
         }
         let adjusted = base + additions;
         let mut value = adjusted;
@@ -464,7 +489,16 @@ pub(super) fn read_attributes(r: &mut Reader<'_>) -> anyhow::Result<BTreeMap<i32
         if !value.is_finite() {
             bail!("non-finite player attribute");
         }
-        values.insert(key, value);
+        values.insert(
+            key,
+            (
+                value,
+                crate::client::control::ReceivedAttribute {
+                    base,
+                    modifiers: raw,
+                },
+            ),
+        );
     }
     Ok(values)
 }

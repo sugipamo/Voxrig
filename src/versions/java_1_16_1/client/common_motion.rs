@@ -132,6 +132,11 @@ impl Bot {
         if self.connection_state() != ConnectionState::Ready {
             return Err(motion_state("connection not ready"));
         }
+        if self.common_control.lock().await.active() {
+            return Err(motion_state(
+                "continuous control owns the player's movement; stop it before standing operations",
+            ));
+        }
         let initial = self.common_player_unlocked().await?;
         if self
             .common_receipts
@@ -279,6 +284,9 @@ impl Bot {
         mounted_history || self.common_motion_pauses_physics().await
     }
     pub(super) async fn common_motion_pauses_physics(&self) -> bool {
+        if self.common_control.lock().await.active() {
+            return true;
+        }
         if crate::client::vehicle::control::unresolved(&self.vehicle_control_history) {
             return true;
         }
