@@ -13,6 +13,7 @@ results and the hashes of every input.
   SpecialSource-1.11.4-shaded.jar
 """
 import argparse
+import gzip
 import hashlib
 import json
 import shutil
@@ -27,6 +28,24 @@ VERSIONS = {
     # version: (server JAR sha1, mappings sha1, harness directory)
     "1.16.1": ("a412fd69db1f81db3f511c1463fd304675244077", "11120c39da4df293c4bd020896391fb9ddd6c2ba", "java_1_16_1"),
     "1.21.11": ("64bb6d763bed0a9f1d632ec347938594144943ed", "5621e9253f05fd57872bbe7f8ddf5f9a7d525955", "java_1_21_11"),
+}
+# Movement hooks audited per block: key -> (declaring class, method, parameter count).
+HOOKS = {
+    "1.16.1": {
+        "entity_inside": ("net.minecraft.world.level.block.state.BlockBehaviour", "entityInside", 4),
+        "step_on": ("net.minecraft.world.level.block.Block", "stepOn", 3),
+        "fall_on": ("net.minecraft.world.level.block.Block", "fallOn", 4),
+        "after_fall_on": ("net.minecraft.world.level.block.Block", "updateEntityAfterFallOn", 2),
+        "collision_shape": ("net.minecraft.world.level.block.state.BlockBehaviour", "getCollisionShape", 4),
+    },
+    "1.21.11": {
+        "entity_inside": ("net.minecraft.world.level.block.state.BlockBehaviour", "entityInside", 6),
+        "step_on": ("net.minecraft.world.level.block.Block", "stepOn", 4),
+        "fall_on": ("net.minecraft.world.level.block.Block", "fallOn", 5),
+        "after_fall_on": ("net.minecraft.world.level.block.Block", "updateEntityMovementAfterFallOn", 2),
+        "collision_shape": ("net.minecraft.world.level.block.state.BlockBehaviour", "getCollisionShape", 4),
+        "inside_shape": ("net.minecraft.world.level.block.state.BlockBehaviour", "getEntityInsideCollisionShape", 4),
+    },
 }
 PROPERTIES = """online-mode=false
 server-port={port}
@@ -47,7 +66,28 @@ def digest(data, name="sha256"):
 
 def run(command, cwd, log):
     with log.open("w") as out:
-        subprocess.run(command, cwd=cwd, stdout=out, stderr=subprocess.STDOUT, check=True)
+        status = subprocess.run(command, cwd=cwd, stdout=out, stderr=subprocess.STDOUT, timeout=900).returncode
+    if status != 0:
+        raise SystemExit(f"{command[0]} failed ({status}); see {log}")
+
+
+def read_mappings(path):
+    """Official class names by obfuscated name, and obfuscated method names by (class, method, parameters)."""
+    classes, methods, current = {}, {}, None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("#"):
+            continue
+        if not line.startswith(" "):
+            named, obf = line.rstrip(":").split(" -> ")
+            classes[obf] = current = named
+            continue
+        member, obf = line.strip().split(" -> ")
+        if "(" in member:
+            name = member.split("(")[0].split()[-1]
+            parameters = member.split("(")[1].rstrip(")")
+            types = parameters.split(",") if parameters else []
+            methods[(current, name, len(types))] = (obf, types)
+    return classes, methods
 
 
 def classpath(version, jar, work):
@@ -77,8 +117,9 @@ def main():
     parser.add_argument("--downloads", type=Path, required=True)
     parser.add_argument("--work", type=Path, required=True)
     parser.add_argument("--scenarios", type=Path, default=HERE / "scenarios.json")
-    parser.add_argument("--output", type=Path, default=ROOT / "data/client_api/movement_oracle.json")
+    parser.add_argument("--output", type=Path, default=ROOT / "data/client_api/movement_oracle.json.gz")
     parser.add_argument("--version", choices=sorted(VERSIONS), action="append")
+    parser.add_argument("--blocks-output", type=Path, default=ROOT / "data/client_api")
     args = parser.parse_args()
     tool = args.downloads / "SpecialSource-1.11.4-shaded.jar"
     assert digest(tool.read_bytes()) == SPECIAL_SOURCE_SHA256
@@ -112,6 +153,28 @@ def main():
         (server / "eula.txt").write_text("eula=true\n")
         level_type = "flat" if version == "1.16.1" else "minecraft\\:flat"
         (server / "server.properties").write_text(PROPERTIES.format(port=port, level_type=level_type))
+        classes, methods = read_mappings(mappings)
+        named_to_obf = {named: obf for obf, named in classes.items()}
+        def obf_type(name):
+            return named_to_obf.get(name, name)
+        spec = ";".join(
+            f"{key}={named_to_obf[owner]}:{methods[(owner, name, count)][0]}:"
+            + ",".join(obf_type(t) for t in methods[(owner, name, count)][1])
+            for key, (owner, name, count) in HOOKS[version].items())
+        runtime_cp = ":".join(str(p) for p in runtime + [work / "harness.jar"])
+        audit_path = work / "blocks.json"
+        run(["java", "-Xmx1G", "--add-opens", "java.base/java.lang=ALL-UNNAMED", f"-Dvoxrig.hooks={spec}", "-cp", runtime_cp,
+             "voxrig.oracle.MovementOracle", "--blocks", str(audit_path)], server, work / "blocks.log")
+        audit = json.loads(audit_path.read_text())
+        assert audit["version"] == version
+        for block in audit["blocks"]:
+            block["class"] = classes.get(block["class"], block["class"])
+            block["hooks"] = {k: classes.get(v, v) for k, v in block["hooks"].items()}
+        audit["generator"] = {"original_server_jar_sha1": jar_sha, "mappings_sha1": mapping_sha,
+                              "harness_sha256": digest((HERE / harness / "MovementOracle.java").read_bytes()),
+                              "runner_sha256": digest(Path(__file__).read_bytes())}
+        (args.blocks_output / f"movement_blocks-{version}.json").write_text(
+            json.dumps(audit, separators=(",", ":")) + "\n")
         selected = [s for s in scenarios if version in s.get("versions", VERSIONS)]
         (work / "scenarios.json").write_text(json.dumps(selected))
         output = work / "output.json"
@@ -135,7 +198,9 @@ def main():
         "scenarios": scenarios,
         "results": results,
     }
-    args.output.write_text(json.dumps(record, indent=None, separators=(",", ":")) + "\n")
+    encoded = (json.dumps(record, separators=(",", ":")) + "\n").encode()
+    # Fixed mtime: identical inputs give identical bytes.
+    args.output.write_bytes(gzip.compress(encoded, mtime=0))
     print(f"{sum(len(r) for r in results.values())} scenario runs written to {args.output}")
 
 

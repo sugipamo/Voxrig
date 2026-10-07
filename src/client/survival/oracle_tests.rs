@@ -8,8 +8,8 @@ use std::collections::BTreeMap;
 const ORIGIN: [i32; 3] = [1024, 100, 1024];
 
 fn oracle() -> Value {
-    serde_json::from_str(include_str!(
-        "../../../data/client_api/movement_oracle.json"
+    serde_json::from_reader(flate2::read::GzDecoder::new(
+        &include_bytes!("../../../data/client_api/movement_oracle.json.gz")[..],
     ))
     .unwrap()
 }

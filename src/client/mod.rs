@@ -42,6 +42,7 @@ mod received_items;
 pub mod recording;
 pub mod respawn;
 pub use respawn::{RespawnRecord, RespawnStage};
+pub(crate) mod physics;
 pub mod registry;
 pub(crate) mod selector;
 pub(crate) mod selector_snbt;

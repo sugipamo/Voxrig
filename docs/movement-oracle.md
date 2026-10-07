@@ -21,7 +21,7 @@ tickごとに比べるための基準。
 | `scripts/movement_oracle/java_1_21_11/MovementOracle.java` | 1.21.11のharness |
 | `scripts/movement_oracle/scenarios.py` → `scenarios.json` | 場面（地形・開始位置・tickごとの入力・属性・effect） |
 | `scripts/movement_oracle/run.py` | 入力の検証・名前の付け直し・compile・実行 |
-| `data/client_api/movement_oracle.json` | 場面と、両版のtickごとの位置・速度・接地・衝突・ダッシュ・姿勢 |
+| `data/client_api/movement_oracle.json.gz` | 場面と、両版のtickごとの位置・速度・接地・衝突・ダッシュ・姿勢 |
 | `src/client/survival/oracle_tests.rs` | Rust側のエンジンとの比較 |
 
 数値は`Double.toString`の10進文字列（往復で同じ値になる最短表記）で保存し、Rust側は`str::parse`
@@ -47,6 +47,12 @@ python3 scripts/movement_oracle/run.py --downloads DIR --work WORKDIR
 1.21.11のJARはbundle形式で、中のゲーム本体とlibraryは`META-INF/*.list`のsha256で照合して取り出す。
 JDK 21で確認した。両版で約1分。サーバーは`localhost`だけで、外部へは接続しない。
 
+## blockの監査
+
+同じ`run.py`は、各版の全block stateについて、衝突形状（entityの衝突が使う形と同じ呼び出し）・液体の有無・
+窒息判定・位置による形の違いと、blockごとの移動に関わる処理を実装しているクラス・摩擦などの係数・tagを
+`data/client_api/movement_blocks-{版}.json`へ書き出す。処理の名前は公式のmappingsから引く。
+
 ## 確認済みの範囲（2026-10-07）
 
 既存の共有モデルが対応している乾いた地形の8場面（歩行・斜め・後退・その場ジャンプ・
@@ -59,3 +65,5 @@ JDK 21で確認した。両版で約1分。サーバーは`localhost`だけで�
   位置に移動量を足していた（版の規則`position_from_bounds`）。
 
 以前の部品ごとの比較（`VerifyLegacyDryMovement.java`）は1e-10の誤差を許していたため、この2つを見逃していた。
+
+P3の共有エンジン（[説明](physics-engine.md)）は、125場面（両版で238回）のすべてでbit単位で一致した。

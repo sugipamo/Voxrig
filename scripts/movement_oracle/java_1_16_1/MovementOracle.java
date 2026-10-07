@@ -8,6 +8,13 @@ package voxrig.oracle;
 import com.google.gson.*;
 import com.mojang.authlib.GameProfile;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.world.level.EmptyBlockGetter;
+import net.minecraft.world.level.block.FenceGateBlock;
+import net.minecraft.world.level.block.TrapDoorBlock;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -190,20 +197,117 @@ public final class MovementOracle {
     }
 
     // Exact decimal text (shortest round-trip form); parse with a correctly rounding reader.
+    static <T extends Comparable<T>> String valueName(BlockState state, Property<T> property) {
+        return property.getName(state.getValue(property));
+    }
+
     static JsonArray vec(double... xs) { JsonArray a = new JsonArray(); for (double x : xs) a.add(Double.toString(x)); return a; }
+
+    static final String VERSION_NAME = "1.16.1";
+    static Iterable<Block> blocks() { return Registry.BLOCK; }
+    static String blockName(Block block) { return Registry.BLOCK.getKey(block).toString(); }
+    static boolean hasTag(Block block, net.minecraft.tags.Tag<Block> tag) { return block.is(tag); }
+
+    // Block audit: per-state collision boxes and flags, per-block movement hooks.
+    // `spec` lists hook=baseClass:method:parameterTypes in official names (from run.py).
+    static JsonObject exportBlocks(String spec) throws Exception {
+        Map<String, Method> hooks = new LinkedHashMap<>();
+        for (String entry : spec.split(";")) {
+            String[] kv = entry.split("="), p = kv[1].split(":");
+            Method found = null;
+            for (Method m : Class.forName(p[0]).getDeclaredMethods()) {
+                String types = String.join(",", Arrays.stream(m.getParameterTypes()).map(Class::getName).toList());
+                if (m.getName().equals(p[1]) && types.equals(p.length > 2 ? p[2] : "")) {
+                    if (found != null) throw new IllegalStateException("ambiguous " + entry);
+                    found = m;
+                }
+            }
+            if (found == null) throw new IllegalStateException("missing " + entry);
+            hooks.put(kv[0], found);
+        }
+        JsonArray shapes = new JsonArray();
+        Map<String, Integer> shapeIndex = new HashMap<>();
+        JsonArray stateShape = new JsonArray(), fluid = new JsonArray(), suffocating = new JsonArray(), positional = new JsonArray();
+        BlockPos other = new BlockPos(7, 64, -13);
+        int count = 0;
+        for (int id = 0; ; id++) {
+            BlockState state = Block.BLOCK_STATE_REGISTRY.byId(id);
+            if (state == null) break;
+            count++;
+            // The context-taking form is what entity collision calls (never the cached shape).
+            JsonArray boxes = boxes(state.getCollisionShape(EmptyBlockGetter.INSTANCE, BlockPos.ZERO, CollisionContext.empty()));
+            if (!boxes.equals(boxes(state.getCollisionShape(EmptyBlockGetter.INSTANCE, other, CollisionContext.empty())))) positional.add(id);
+            String key = boxes.toString();
+            Integer index = shapeIndex.get(key);
+            if (index == null) { index = shapes.size(); shapeIndex.put(key, index); shapes.add(boxes); }
+            stateShape.add(index);
+            if (!state.getFluidState().isEmpty()) fluid.add(id);
+            if (state.isSuffocating(EmptyBlockGetter.INSTANCE, BlockPos.ZERO)) suffocating.add(id);
+        }
+        JsonArray blocks = new JsonArray();
+        for (Block block : blocks()) {
+            JsonObject b = new JsonObject();
+            b.addProperty("name", blockName(block));
+            b.addProperty("class", block.getClass().getName());
+            b.addProperty("first_state", Block.getId(block.getStateDefinition().getPossibleStates().get(0)));
+            b.addProperty("states", block.getStateDefinition().getPossibleStates().size());
+            b.addProperty("friction", Float.toString(block.getFriction()));
+            b.addProperty("speed_factor", Float.toString(block.getSpeedFactor()));
+            b.addProperty("jump_factor", Float.toString(block.getJumpFactor()));
+            JsonArray tags = new JsonArray();
+            if (hasTag(block, BlockTags.CLIMBABLE)) tags.add("climbable");
+            if (hasTag(block, BlockTags.FENCES)) tags.add("fences");
+            if (hasTag(block, BlockTags.WALLS)) tags.add("walls");
+            if (block instanceof FenceGateBlock) tags.add("fence_gate");
+            if (block instanceof TrapDoorBlock) tags.add("trapdoor");
+            b.add("tags", tags);
+            JsonObject implemented = new JsonObject();
+            for (Map.Entry<String, Method> hook : hooks.entrySet()) {
+                Class<?> base = hook.getValue().getDeclaringClass();
+                for (Class<?> c = block.getClass(); c != base && c != null; c = c.getSuperclass()) {
+                    try {
+                        c.getDeclaredMethod(hook.getValue().getName(), hook.getValue().getParameterTypes());
+                        implemented.addProperty(hook.getKey(), c.getName());
+                        break;
+                    } catch (NoSuchMethodException ignored) {
+                    }
+                }
+            }
+            b.add("hooks", implemented);
+            blocks.add(b);
+        }
+        JsonObject out = new JsonObject();
+        out.addProperty("state_count", count);
+        out.add("shapes", shapes);
+        out.add("state_shapes", stateShape);
+        out.add("fluid_states", fluid);
+        out.add("suffocating_states", suffocating);
+        out.add("positional_shape_states", positional);
+        out.add("blocks", blocks);
+        return out;
+    }
+    static JsonArray boxes(VoxelShape shape) {
+        JsonArray list = new JsonArray();
+        for (AABB box : shape.toAabbs()) list.add(vec(box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ));
+        return list;
+    }
 
     static final int CLEAR = 12;
 
-    static JsonObject run(ServerLevel level, BlockPos origin, JsonObject scenario) {
+    static JsonObject scenario(ServerLevel level, BlockPos origin, JsonObject scenario) {
         for (int cx = (origin.getX() - CLEAR) >> 4; cx <= (origin.getX() + CLEAR) >> 4; cx++)
             for (int cz = (origin.getZ() - CLEAR) >> 4; cz <= (origin.getZ() + CLEAR) >> 4; cz++)
                 level.getChunk(cx, cz);
         BlockState air = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
         for (BlockPos p : BlockPos.betweenClosed(origin.offset(-CLEAR, -CLEAR, -CLEAR), origin.offset(CLEAR, CLEAR, CLEAR)))
             level.setBlock(p, air, 18);
+        JsonObject resolved = new JsonObject();
         for (JsonElement e : scenario.getAsJsonArray("blocks")) {
             JsonArray b = e.getAsJsonArray();
             BlockState state = parseState(b.get(6).getAsString());
+            JsonObject properties = new JsonObject();
+            for (Property<?> property : state.getProperties()) properties.addProperty(property.getName(), valueName(state, property));
+            resolved.add(b.get(6).getAsString(), properties);
             for (int x = b.get(0).getAsInt(); x <= b.get(3).getAsInt(); x++)
                 for (int y = b.get(1).getAsInt(); y <= b.get(4).getAsInt(); y++)
                     for (int z = b.get(2).getAsInt(); z <= b.get(5).getAsInt(); z++)
@@ -225,6 +329,19 @@ public final class MovementOracle {
                 player.addEffect(new MobEffectInstance(effect, 100000, a.getValue().getAsInt()));
             }
         }
+        JsonObject initial = new JsonObject();
+        var speed = player.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
+        initial.addProperty("movement_speed_base", Double.toString(speed.getBaseValue()));
+        JsonArray modifiers = new JsonArray();
+        for (var m : speed.getModifiers()) {
+            JsonObject o = new JsonObject();
+            o.addProperty("id", m.getId().toString());
+            o.addProperty("operation", m.getOperation().name());
+            o.addProperty("amount", Double.toString(m.getAmount()));
+            modifiers.add(o);
+        }
+        initial.add("movement_speed_modifiers", modifiers);
+        initial.addProperty("food", player.getFoodData().getFoodLevel());
         JsonArray frames = new JsonArray();
         for (JsonElement e : scenario.getAsJsonArray("ticks")) {
             JsonObject t = e.getAsJsonObject();
@@ -249,16 +366,29 @@ public final class MovementOracle {
             f.addProperty("crouching", player.crouching);
             f.addProperty("pose", player.getPose().name());
             f.addProperty("in_water", player.isInWater());
+            f.addProperty("speed", Float.toString(player.getSpeed()));
+            f.addProperty("fall_distance", Double.toString(player.fallDistance));
             frames.add(f);
         }
         JsonObject out = new JsonObject();
         out.addProperty("name", scenario.get("name").getAsString());
+        out.add("initial", initial);
+        out.add("states", resolved);
         out.add("frames", frames);
         return out;
     }
 
-    public static void main(String[] args) throws Exception {
-        JsonArray scenarios = new JsonParser().parse(Files.readString(Path.of(args[0]))).getAsJsonArray();
+    public static void main(String[] args) {
+        try {
+            run(args);
+        } catch (Throwable e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+    }
+
+    static void run(String[] args) throws Exception {
+        JsonArray scenarios = args[0].equals("--blocks") ? null : new JsonParser().parse(Files.readString(Path.of(args[0]))).getAsJsonArray();
         net.minecraft.server.Main.main(new String[]{"--nogui"});
         MinecraftServer server = null;
         for (int i = 0; i < 600 && (server == null || server.getTickCount() < 20); i++) {
@@ -266,12 +396,33 @@ public final class MovementOracle {
             if (server == null) server = findServer();
         }
         if (server == null || server.getTickCount() < 20) throw new IllegalStateException("server did not start");
+        if (args[0].equals("--blocks")) {
+            JsonObject[] audit = new JsonObject[1];
+            server.executeBlocking(() -> {
+                try {
+                    audit[0] = exportBlocks(System.getProperty("voxrig.hooks"));
+                } catch (Throwable e) {
+                    e.printStackTrace();
+                    System.exit(1);
+                }
+            });
+            audit[0].addProperty("version", VERSION_NAME);
+            Files.writeString(Path.of(args[1]), new GsonBuilder().create().toJson(audit[0]) + "\n");
+            System.out.println("ORACLE DONE blocks");
+            server.halt(false);
+            System.exit(0);
+        }
         JsonArray results = new JsonArray();
         MinecraftServer s = server;
         server.executeBlocking(() -> {
             ServerLevel level = s.overworld();
             BlockPos origin = new BlockPos(1024, 100, 1024);
-            for (JsonElement e : scenarios) results.add(run(level, origin, e.getAsJsonObject()));
+            try {
+                for (JsonElement e : scenarios) results.add(scenario(level, origin, e.getAsJsonObject()));
+            } catch (Throwable e) {
+                e.printStackTrace();
+                System.exit(1);
+            }
         });
         JsonObject out = new JsonObject();
         out.addProperty("version", net.minecraft.SharedConstants.getCurrentVersion().getName());

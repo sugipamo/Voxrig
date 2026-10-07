@@ -69,6 +69,8 @@ pub(crate) struct DataFiles {
     pub item_properties: &'static str,
     pub mining_tools: &'static [u8],
     pub storage_outlines: &'static str,
+    /// Audited per-state collision and per-block movement behaviour.
+    pub movement_blocks: &'static str,
 }
 
 /// Player physics constants. Types follow the native evaluation: `f32`
@@ -110,8 +112,21 @@ pub(crate) enum StepSearch {
     HeightScan,
 }
 
+/// Families of the client-side movement procedure that change together between
+/// the supported versions: input handling, sprint conditions, push-out from
+/// blocks, edge back-off while sneaking, the supporting block and when block
+/// effects apply (inside `move` for legacy, after `travel` for modern).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum PhysicsGeneration {
+    Legacy,
+    Modern,
+}
+
 /// Version differences in the order or precision of the physics procedure.
 pub(crate) struct PhysicsRules {
+    pub generation: PhysicsGeneration,
+    /// Identity of the client's sprint movement-speed modifier.
+    pub sprint_modifier: &'static str,
     /// Sine table indexing: legacy f32 scaling or modern f64 scaling.
     pub modern_trig: bool,
     /// Normalize diagonal input on the unit square before scaling (modern).
@@ -217,6 +232,11 @@ macro_rules! data_files {
                 $v,
                 ".json"
             )),
+            movement_blocks: include_str!(concat!(
+                "../../data/client_api/movement_blocks-",
+                $v,
+                ".json"
+            )),
         }
     };
 }
@@ -290,6 +310,8 @@ pub(crate) const JAVA_1_16_1: VersionTable = VersionTable {
     generic_slot_class: "bhw",
     physics: PHYSICS,
     physics_rules: PhysicsRules {
+        generation: PhysicsGeneration::Legacy,
+        sprint_modifier: "662a6b8d-da3e-4c1c-8813-96ea6097278d",
         modern_trig: false,
         normalize_input: false,
         f32_input_length: true,
@@ -322,6 +344,8 @@ pub(crate) const JAVA_1_21_11: VersionTable = VersionTable {
     generic_slot_class: "dji",
     physics: PHYSICS,
     physics_rules: PhysicsRules {
+        generation: PhysicsGeneration::Modern,
+        sprint_modifier: "minecraft:sprinting",
         modern_trig: true,
         normalize_input: true,
         f32_input_length: false,

@@ -1,0 +1,203 @@
+//! The engine against trajectories of the official movement code
+//! (`scripts/movement_oracle`, docs/movement-oracle.md).
+use super::{Body, Controls, Environment, Modifier, ModifierOperation, tick};
+use crate::{MinecraftVersion, NativeBlockState};
+use serde_json::Value;
+use std::collections::BTreeMap;
+
+const ORIGIN: [i32; 3] = [1024, 100, 1024];
+
+pub(super) fn oracle() -> Value {
+    serde_json::from_reader(flate2::read::GzDecoder::new(
+        &include_bytes!("../../../data/client_api/movement_oracle.json.gz")[..],
+    ))
+    .unwrap()
+}
+
+/// Oracle numbers are exact decimal strings.
+fn exact(value: &Value) -> f64 {
+    value.as_str().unwrap().parse().unwrap()
+}
+
+pub(super) fn state(text: &str) -> NativeBlockState {
+    let (name, properties) = match text.split_once('[') {
+        None => (text, BTreeMap::new()),
+        Some((name, rest)) => (
+            name,
+            rest.trim_end_matches(']')
+                .split(',')
+                .map(|pair| {
+                    let (k, v) = pair.split_once('=').unwrap();
+                    (k.to_owned(), v.to_owned())
+                })
+                .collect(),
+        ),
+    };
+    NativeBlockState {
+        name: name.to_owned(),
+        properties,
+    }
+}
+
+fn world(scenario: &Value, result: &Value) -> BTreeMap<[i32; 3], NativeBlockState> {
+    let mut cells = BTreeMap::new();
+    for fill in scenario["blocks"].as_array().unwrap() {
+        let b: Vec<i64> = (0..6).map(|i| fill[i].as_i64().unwrap()).collect();
+        for x in b[0]..=b[3] {
+            for y in b[1]..=b[4] {
+                for z in b[2]..=b[5] {
+                    let text = fill[6].as_str().unwrap();
+                    let mut resolved = state(text);
+                    // The official server's complete properties for this state.
+                    for (k, v) in result["states"][text].as_object().unwrap() {
+                        resolved
+                            .properties
+                            .insert(k.clone(), v.as_str().unwrap().to_owned());
+                    }
+                    cells.insert([x as i32, y as i32, z as i32], resolved);
+                }
+            }
+        }
+    }
+    cells
+}
+
+fn environment(version: MinecraftVersion, scenario: &Value, initial: &Value) -> Environment {
+    let mut env = Environment::defaults(version);
+    env.movement_speed_base = exact(&initial["movement_speed_base"]);
+    env.movement_speed_modifiers = initial["movement_speed_modifiers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| Modifier {
+            id: m["id"].as_str().unwrap().to_owned(),
+            operation: match m["operation"].as_str().unwrap() {
+                "ADDITION" | "ADD_VALUE" => ModifierOperation::Addition,
+                "MULTIPLY_BASE" | "ADD_MULTIPLIED_BASE" => ModifierOperation::MultiplyBase,
+                _ => ModifierOperation::MultiplyTotal,
+            },
+            amount: exact(&m["amount"]),
+        })
+        .collect();
+    for (key, slot) in [
+        ("jump_strength", &mut env.jump_strength),
+        ("step_height", &mut env.step_height),
+        ("gravity", &mut env.gravity),
+        ("sneaking_speed", &mut env.sneaking_speed),
+        ("movement_efficiency", &mut env.movement_efficiency),
+    ] {
+        if !initial[key].is_null() {
+            *slot = exact(&initial[key]);
+        }
+    }
+    if let Some(effects) = scenario["effects"].as_object() {
+        for (name, level) in effects {
+            match name.as_str() {
+                "minecraft:jump_boost" => env.jump_boost = Some(level.as_u64().unwrap() as u8),
+                "minecraft:slow_falling" => env.slow_falling = true,
+                "minecraft:blindness" => env.blindness = true,
+                "minecraft:weaving" => env.weaving = true,
+                _ => {}
+            }
+        }
+    }
+    env
+}
+
+/// Run one scenario; Ok(None) when every tick matches, Ok(Some(why)) on the
+/// first difference, Err when the engine refuses the scenario.
+pub(super) fn compare(
+    version: MinecraftVersion,
+    scenario: &Value,
+    result: &Value,
+) -> Result<Option<String>, String> {
+    let cells = world(scenario, result);
+    let air = state("minecraft:air");
+    let start: Vec<f64> = (0..3)
+        .map(|i| scenario["start"][i].as_f64().unwrap())
+        .collect();
+    let env = environment(version, scenario, &result["initial"]);
+    let mut body = Body::new(std::array::from_fn(|i| start[i] + f64::from(ORIGIN[i])));
+    body.on_ground = scenario["on_ground"].as_bool().unwrap_or(true);
+    let mut block_at = |p: [i32; 3]| {
+        let relative: [i32; 3] = std::array::from_fn(|i| p[i] - ORIGIN[i]);
+        Ok(cells.get(&relative).cloned().unwrap_or_else(|| air.clone()))
+    };
+    for (index, (t, expected)) in scenario["ticks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .zip(result["frames"].as_array().unwrap())
+        .enumerate()
+    {
+        let controls = Controls {
+            forward: t["forward"].as_i64().unwrap_or(0) as i8,
+            strafe: t["strafe"].as_i64().unwrap_or(0) as i8,
+            jump: t["jump"].as_bool().unwrap_or(false),
+            sneak: t["sneak"].as_bool().unwrap_or(false),
+            sprint: t["sprint"].as_bool().unwrap_or(false),
+            yaw: t["yaw"].as_f64().unwrap() as f32,
+            pitch: t["pitch"].as_f64().unwrap_or(0.0) as f32,
+        };
+        tick(version, &mut body, &env, controls, &mut block_at)
+            .map_err(|e| format!("tick {index}: {e}"))?;
+        for axis in 0..3 {
+            let position = body.position[axis] - f64::from(ORIGIN[axis]);
+            let want = exact(&expected["position"][axis]);
+            let velocity = exact(&expected["velocity"][axis]);
+            if position != want || body.velocity[axis] != velocity {
+                return Ok(Some(format!(
+                    "tick {index} axis {axis}: position {position} vs {want}, velocity {} vs {velocity}",
+                    body.velocity[axis]
+                )));
+            }
+        }
+        for (name, ours) in [
+            ("on_ground", body.on_ground),
+            ("horizontal_collision", body.horizontal_collision),
+            ("sprinting", body.sprinting),
+            ("crouching", body.crouching),
+        ] {
+            if expected[name].as_bool().unwrap() != ours {
+                return Ok(Some(format!("tick {index}: {name} {ours}")));
+            }
+        }
+    }
+    Ok(None)
+}
+
+#[test]
+fn engine_reproduces_official_trajectories() {
+    let data = oracle();
+    let mut report = Vec::new();
+    let mut failed = false;
+    for (version, key) in [
+        (MinecraftVersion::Java1_16_1, "1.16.1"),
+        (MinecraftVersion::Java1_21_11, "1.21.11"),
+    ] {
+        for result in data["results"][key].as_array().unwrap() {
+            let name = result["name"].as_str().unwrap();
+            let scenario = data["scenarios"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|s| {
+                    s["name"] == name
+                        && s["versions"]
+                            .as_array()
+                            .is_none_or(|v| v.iter().any(|v| v == key))
+                })
+                .unwrap();
+            match compare(version, scenario, result) {
+                Ok(None) => report.push(format!("ok      {key} {name}")),
+                Ok(Some(why)) => {
+                    failed = true;
+                    report.push(format!("DIFFER  {key} {name}: {why}"));
+                }
+                Err(why) => report.push(format!("refused {key} {name}: {why}")),
+            }
+        }
+    }
+    println!("{}", report.join("\n"));
+    assert!(!failed, "{}", report.join("\n"));
+}
