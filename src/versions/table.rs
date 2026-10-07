@@ -61,6 +61,64 @@ pub(crate) struct DataFiles {
     pub storage_outlines: &'static str,
 }
 
+/// Player physics constants. Types follow the native evaluation: `f32`
+/// values are combined in `f32` before widening, exactly as the game does.
+pub(crate) struct PhysicsConstants {
+    pub gravity: f64,
+    pub vertical_drag: f32,
+    pub air_friction: f32,
+    pub default_slipperiness: f32,
+    pub base_movement_speed: f32,
+    /// Ground acceleration numerator (`0.6³ × friction-independent speed`).
+    pub ground_acceleration: f32,
+    pub air_acceleration: f32,
+    pub input_drag: f32,
+    pub jump_velocity: f32,
+    pub jump_cooldown_ticks: u8,
+    pub step_height: f32,
+    /// Per-axis velocity below which the axis is zeroed.
+    pub small_velocity: f64,
+    /// Squared horizontal input below which no acceleration is applied.
+    pub min_input_sq: f64,
+}
+
+/// Small horizontal velocity cutoff.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum SmallVelocity {
+    /// Each horizontal axis below `small_velocity` is zeroed.
+    PerAxis,
+    /// Both horizontal axes are zeroed when the squared length is below 9e-6.
+    HorizontalLength,
+}
+
+/// Step-up search inside collision resolution.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum StepSearch {
+    /// Older two-candidate search.
+    TwoCandidate,
+    /// Newer scan over candidate box heights.
+    HeightScan,
+}
+
+/// Version differences in the order or precision of the physics procedure.
+pub(crate) struct PhysicsRules {
+    /// Sine table indexing: legacy f32 scaling or modern f64 scaling.
+    pub modern_trig: bool,
+    /// Normalize diagonal input on the unit square before scaling (modern).
+    pub normalize_input: bool,
+    /// Reciprocal length of over-long input computed through an f32 square root.
+    pub f32_input_length: bool,
+    pub small_velocity: SmallVelocity,
+    /// Jumping keeps a larger existing upward velocity.
+    pub jump_keeps_rising: bool,
+    pub step: StepSearch,
+    /// Apply position even when collision almost cancelled the motion.
+    pub move_when_nearly_stopped: bool,
+    /// Horizontal velocity is zeroed only when collision changed it by at
+    /// least this much; None compares exactly.
+    pub horizontal_collision_tolerance: Option<f64>,
+}
+
 /// Everything that differs between versions as values.
 pub(crate) struct VersionTable {
     /// Exact release name.
@@ -71,6 +129,8 @@ pub(crate) struct VersionTable {
     pub entities: EntityTable,
     /// Obfuscated class of the original generic container `Slot`.
     pub generic_slot_class: &'static str,
+    pub physics: PhysicsConstants,
+    pub physics_rules: PhysicsRules,
     pub data: DataFiles,
 }
 
@@ -175,6 +235,23 @@ fn modern_collision_boxes(state: &NativeBlockState) -> Result<Vec<[f64; 6]>> {
 
 use EquipmentSlot::*;
 
+/// Constants shared by both current versions; a later version may differ.
+const PHYSICS: PhysicsConstants = PhysicsConstants {
+    gravity: 0.08,
+    vertical_drag: 0.98,
+    air_friction: 0.91,
+    default_slipperiness: 0.6,
+    base_movement_speed: 0.1,
+    ground_acceleration: 0.21600002,
+    air_acceleration: 0.02,
+    input_drag: 0.98,
+    jump_velocity: 0.42,
+    jump_cooldown_ticks: 10,
+    step_height: 0.6,
+    small_velocity: 0.003,
+    min_input_sq: 1e-7,
+};
+
 pub(crate) const JAVA_1_16_1: VersionTable = VersionTable {
     name: "1.16.1",
     protocol: 736,
@@ -191,6 +268,17 @@ pub(crate) const JAVA_1_16_1: VersionTable = VersionTable {
         dimensions: super::java_1_16_1::generated::ENTITY_DIMENSIONS,
     },
     generic_slot_class: "bhw",
+    physics: PHYSICS,
+    physics_rules: PhysicsRules {
+        modern_trig: false,
+        normalize_input: false,
+        f32_input_length: true,
+        small_velocity: SmallVelocity::PerAxis,
+        jump_keeps_rising: false,
+        step: StepSearch::TwoCandidate,
+        move_when_nearly_stopped: false,
+        horizontal_collision_tolerance: None,
+    },
     data: data_files!("1.16.1"),
 };
 
@@ -210,6 +298,17 @@ pub(crate) const JAVA_1_21_11: VersionTable = VersionTable {
         dimensions: super::java_1_21_11::generated::ENTITY_DIMENSIONS,
     },
     generic_slot_class: "dji",
+    physics: PHYSICS,
+    physics_rules: PhysicsRules {
+        modern_trig: true,
+        normalize_input: true,
+        f32_input_length: false,
+        small_velocity: SmallVelocity::HorizontalLength,
+        jump_keeps_rising: true,
+        step: StepSearch::HeightScan,
+        move_when_nearly_stopped: true,
+        horizontal_collision_tolerance: Some(1e-5),
+    },
     data: data_files!("1.21.11"),
 };
 

@@ -17,6 +17,7 @@
 | registry関数 | `native_state`、`state_id`、`collision_boxes`、`item_id`、`item`（各版の静的な関数ポインタ） |
 | entity | `health_metadata_index`（8 / 9）、`equipment_slots`（native番号→共通の装備欄）、`dimensions`（生成表） |
 | 値 | `generic_slot_class`（container `Slot`の難読化クラス名） |
+| 物理 | `physics`（`PhysicsConstants`: 重力・抵抗・加速・ジャンプ・段差など）、`physics_rules`（`PhysicsRules`: 三角関数表、入力の正規化、微小速度の切り捨て、段差の探索手順など） |
 | 同梱データ | 地形・rail・menus・かまど・cursor返却・クリック・転送・registry一覧・crafting menu・crafting外形・item属性・採掘道具・収納外形 |
 
 同梱データを解析した結果は`PerVersion<T>`で版ごとに1回だけ作って保持する。
@@ -47,8 +48,6 @@ python3 scripts/generate_version_tables.py
 
 次は処理の違いと分けにくいため、現時点ではadapterまたは共通層の`match`に残している。
 
-- 物理: 三角関数表の作り方、正規化の精度、段差付き衝突の手順（`client/survival/model.rs`）。
-  汎用物理の設計で、定数と切り替えスイッチに分けて表へ移す予定。
 - item data: 1.16.1のNBTと1.21.11のcomponentの扱い（`nbt.rs`、`item_semantics.rs`、`received_items.rs`等）。
 - パケットの組み立て: 乗り物の入力・降車（`vehicle/`）、entity移動差分の丸め（`entity/motion.rs`）。
 - 接続と記録の再生（`connection.rs`、`recording.rs`）。
