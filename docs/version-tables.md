@@ -39,6 +39,7 @@ python3 scripts/generate_version_tables.py
 | --- | --- |
 | `src/versions/java_1_16_1/generated.rs` | `data/entities.json` |
 | `src/versions/java_1_21_11/generated.rs` | `data/java_1_21_11/entity_dimensions.json`（公式サーバーから書き出し） |
+| 両版の`generated.rs`の`BLOCK_PHYSICS` | `data/client_api/block_physics-*.json`（公式サーバーから`ExportBlockPhysics.java`で書き出し） |
 
 生成ファイルの先頭には元データのsha256を書く。`cargo test`の
 `generated_tables_match_their_sources`が現在の元データと照合し、ずれていれば失敗する

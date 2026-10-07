@@ -52,6 +52,12 @@ using the same remap/access-only development oracle; no game method bodies are
 copied. Source/output hashes and validation scope are recorded in the manifest
 and `docs/survival-standing-context.md`.
 
+`data/client_api/block_physics-*.json` contains factual per-block friction,
+speed and jump factors of Java 1.16.1 and 1.21.11. The original
+`scripts/ExportBlockPhysics.java` reads them reflectively from the unmodified
+official servers using names from Mojang's published server mappings; no game
+code is copied. Hashes and arguments are in each `*_source.json` manifest.
+
 `data/java_1_21_11/entity_dimensions*.json` contains factual default entity-type
 widths, heights and eye heights. The original `scripts/ExportEntityDimensions.java`
 reads them reflectively from the unmodified official 1.21.11 server using names

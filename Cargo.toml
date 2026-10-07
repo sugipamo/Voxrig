@@ -45,6 +45,8 @@ include = [
     "/scripts/VerifyPositionCorrection.java",
     "/scripts/VerifyDryMovement.java",
     "/scripts/ExportEntityDimensions.java",
+    "/scripts/ExportBlockPhysics.java",
+    "/scripts/generate_version_tables.py",
     "/scripts/VerifyLegacyDryMovement.java",
     "/scripts/VerifyLegacyTargeting.java",
     "/scripts/VerifyLegacyInventorySwap.java",

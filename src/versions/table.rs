@@ -22,6 +22,16 @@ pub(crate) struct EntityDimensions {
     pub living: Option<bool>,
 }
 
+/// Per-block movement factors (native `f32`), generated from bundled data.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct BlockPhysics {
+    pub name: &'static str,
+    /// Slipperiness; the default is `PhysicsConstants::default_slipperiness`.
+    pub friction: f32,
+    pub speed_factor: f32,
+    pub jump_factor: f32,
+}
+
 /// Static per-version functions over bundled registries.
 pub(crate) struct RegistryFns {
     pub native_state: fn(i32) -> Result<NativeBlockState>,
@@ -131,6 +141,12 @@ pub(crate) struct VersionTable {
     pub generic_slot_class: &'static str,
     pub physics: PhysicsConstants,
     pub physics_rules: PhysicsRules,
+    /// Blocks with non-default movement factors, sorted by name.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "read by the shared physics engine from P3")
+    )]
+    pub block_physics: &'static [BlockPhysics],
     pub data: DataFiles,
 }
 
@@ -267,6 +283,7 @@ pub(crate) const JAVA_1_16_1: VersionTable = VersionTable {
         equipment_slots: &[MainHand, OffHand, Feet, Legs, Chest, Head],
         dimensions: super::java_1_16_1::generated::ENTITY_DIMENSIONS,
     },
+    block_physics: super::java_1_16_1::generated::BLOCK_PHYSICS,
     generic_slot_class: "bhw",
     physics: PHYSICS,
     physics_rules: PhysicsRules {
@@ -297,6 +314,7 @@ pub(crate) const JAVA_1_21_11: VersionTable = VersionTable {
         equipment_slots: &[MainHand, OffHand, Feet, Legs, Chest, Head, Body, Saddle],
         dimensions: super::java_1_21_11::generated::ENTITY_DIMENSIONS,
     },
+    block_physics: super::java_1_21_11::generated::BLOCK_PHYSICS,
     generic_slot_class: "dji",
     physics: PHYSICS,
     physics_rules: PhysicsRules {
@@ -336,6 +354,19 @@ impl VersionTable {
             .binary_search_by(|row| row.name.cmp(name))
             .ok()
             .map(|index| &table[index])
+    }
+    /// Movement factors of a namespaced block; unlisted blocks use the defaults.
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "read by the shared physics engine from P3")
+    )]
+    pub(crate) fn block_physics(&self, name: &str) -> (f32, f32, f32) {
+        self.block_physics
+            .binary_search_by(|row| row.name.cmp(name))
+            .map_or((self.physics.default_slipperiness, 1.0, 1.0), |index| {
+                let row = &self.block_physics[index];
+                (row.friction, row.speed_factor, row.jump_factor)
+            })
     }
     /// Common equipment slot for a native slot number.
     pub(crate) fn equipment_slot(&self, native: u8) -> Option<EquipmentSlot> {
@@ -389,6 +420,14 @@ mod tests {
                 include_str!("java_1_21_11/generated.rs"),
                 &include_bytes!("../../data/java_1_21_11/entity_dimensions.json")[..],
             ),
+            (
+                include_str!("java_1_16_1/generated.rs"),
+                &include_bytes!("../../data/client_api/block_physics-1.16.1.json")[..],
+            ),
+            (
+                include_str!("java_1_21_11/generated.rs"),
+                &include_bytes!("../../data/client_api/block_physics-1.21.11.json")[..],
+            ),
         ] {
             let digest: String = Sha256::digest(source)
                 .iter()
@@ -409,5 +448,15 @@ mod tests {
             Some(EquipmentSlot::Head)
         );
         assert_eq!(MinecraftVersion::Java1_16_1.table().equipment_slot(6), None);
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let table = version.table();
+            assert!(table.block_physics.is_sorted_by_key(|row| row.name));
+            assert_eq!(table.block_physics("minecraft:stone"), (0.6, 1.0, 1.0));
+            assert_eq!(table.block_physics("minecraft:blue_ice"), (0.989, 1.0, 1.0));
+            assert_eq!(
+                table.block_physics("minecraft:honey_block"),
+                (0.6, 0.4, 0.5)
+            );
+        }
     }
 }
