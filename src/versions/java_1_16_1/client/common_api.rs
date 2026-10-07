@@ -2053,4 +2053,34 @@ mod tests {
         drop(bot);
         server.await.unwrap();
     }
+    #[tokio::test]
+    async fn social_common_bridge_applies_every_original_team_and_player_info_packet() {
+        use crate::client::ui::social_tests::{assert_bridge, bridge_bytes, bridge_cases};
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        assert!(client.teams().await.unwrap().last_update_sequence.is_none());
+        assert!(
+            client
+                .player_list()
+                .await
+                .unwrap()
+                .last_update_sequence
+                .is_none()
+        );
+        for row in bridge_cases(crate::MinecraftVersion::Java1_16_1) {
+            bot.apply_packet(
+                row["packet_id"].as_i64().unwrap() as i32,
+                bridge_bytes(&row),
+            )
+            .await
+            .unwrap();
+            assert_bridge(&client, &row).await;
+        }
+        client.disconnect().await.unwrap();
+        assert!(client.teams().await.is_err() && client.player_list().await.is_err());
+        let _ = release.send(());
+        server.await.unwrap();
+    }
 }

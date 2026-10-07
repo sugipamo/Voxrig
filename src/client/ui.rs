@@ -1,6 +1,8 @@
 //! Received scoreboard and boss-bar facts; rendering and other UI remain separate.
 pub mod boss_bar;
 pub mod display;
+pub mod player_list;
+pub mod teams;
 /// Lossless native UI text, without rendering or resolving server references.
 /// The legacy ScreenTitle name remains compatible with existing consumers.
 pub use super::container::ScreenTitle as UiText;
@@ -13,7 +15,14 @@ pub use display::{
     TabListObservation, TabListText, TitleTiming, TitlesObservation, WorldBorderDuration,
     WorldBorderObservation, WorldBorderSize,
 };
+pub use player_list::{
+    PlayerChatSession, PlayerListEntry, PlayerListObservation, PlayerListing, PlayerProfile,
+    PlayerProperty,
+};
 use std::collections::BTreeMap;
+pub use teams::{
+    ReceivedTeam, TeamCollision, TeamColor, TeamParameters, TeamVisibility, TeamsObservation,
+};
 /// Native modern score-number presentation, preserving optional overrides.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -491,3 +500,6 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+pub(crate) mod social_tests;

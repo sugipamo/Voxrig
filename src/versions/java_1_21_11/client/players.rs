@@ -183,14 +183,14 @@ impl PlayerTracker {
             p::PLAYER_INFO => {
                 let flags = r.u8()?;
                 let mut additions = Vec::new();
-                for _ in 0..r.count(1024)? {
+                for _ in 0..r.count(4096)? {
                     let uuid = r.take(16)?.try_into()?;
                     if flags & 1 != 0 {
                         let name = r.string()?;
                         if name.is_empty() || name.len() > 64 {
                             bail!("invalid player profile name");
                         }
-                        for _ in 0..r.count(64)? {
+                        for _ in 0..r.count(1024)? {
                             r.string()?;
                             r.string()?;
                             if r.bool()? {
@@ -212,11 +212,11 @@ impl PlayerTracker {
                     if flags & 32 != 0 && r.bool()? {
                         r.skip_nbt()?;
                     }
-                    // Native action order differs from the bit order.
-                    if flags & 128 != 0 {
+                    // Native enum actions: UPDATE_LIST_ORDER precedes UPDATE_HAT.
+                    if flags & 64 != 0 {
                         r.varint()?;
                     }
-                    if flags & 64 != 0 {
+                    if flags & 128 != 0 {
                         r.bool()?;
                     }
                 }
@@ -228,14 +228,14 @@ impl PlayerTracker {
                     .iter()
                     .filter(|u| !self.profiles.contains_key(*u))
                     .count();
-                if self.profiles.len() + new_count > 1024 {
+                if self.profiles.len() + new_count > 4096 {
                     bail!("player profile limit exceeded");
                 }
                 self.profiles.extend(additions);
             }
             p::PLAYER_REMOVE => {
                 let mut removed = Vec::new();
-                for _ in 0..r.count(1024)? {
+                for _ in 0..r.count(4096)? {
                     removed.push(<[u8; 16]>::try_from(r.take(16)?)?);
                 }
                 r.end()?;

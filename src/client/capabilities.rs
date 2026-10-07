@@ -83,6 +83,10 @@ pub enum Feature {
     SurvivalScene,
     /// Received title/action-bar instructions, complete tab-list text and border fields.
     DisplayObservation,
+    /// Received team declarations and scoreboard-holder membership.
+    Teams,
+    /// Received profile/list fields, independent of spatial player entities.
+    PlayerList,
     /// Received boss-bar ADD, partial updates and REMOVE.
     BossBars,
     /// Received scoreboard declarations, displays and entries.
@@ -185,6 +189,12 @@ impl Capabilities {
             ),
             Feature::SurvivalScene => Support::Restricted(
                 "immutable <=64 cells/axis and <=32768 loaded air/passive dry cubes/registered dry slabs/stairs/rails; healthy stationary Survival defaults and complete standing halo; detached 1..120 input prediction without dispatch; edits/chaining remain version-specific",
+            ),
+            Feature::Teams => Support::Restricted(
+                "received ADD/CHANGE/JOIN/LEAVE/REMOVE, complete native parameters and per-holder origins; one team per holder, 4096 total declarations/members and 16 MiB retained encodings; native duplicate/leave rules, no rendering/collision or online roster inference",
+            ),
+            Feature::PlayerList => Support::Restricted(
+                "received ADD profiles/properties/signatures and per-field updates/removals; legacy registration and NOT_SET distinguished from modern listed/chat/order/hat flags; 4096 profiles, 1024 properties/profile, 16 MiB retained encodings; no authentication, RTT measurement, entity presence or complete account catalogue",
             ),
             Feature::DisplayObservation => Support::Restricted(
                 "received title/subtitle/action-bar/timing/clear/reset, atomic tab header/footer, world-bound border center/size/transition/limits/warnings; per-field original ordinals and JSON/NBT; no invented defaults, render expiration, current interpolation or collision/damage inference",

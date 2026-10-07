@@ -28,7 +28,8 @@ text参照の解決や描画結果は計算しない。world変更後にも保�
 `TabListObservation::text`は、ひとつの完全なpacket由来のheaderとfooterの組である。
 両方をdecodeしてpacket末尾を検査した後でのみ更新する。片方が欠けたpacketから新しいheaderを採用しない。
 未受信は`None`であり、空componentを補わない。
-これはtabの見出し観測で、player roster・latency・game mode・list entryの共通化はB6に残る。
+これはtabの見出し観測。profile登録・latency・game mode・list entryは別の
+`Client::player_list()`へ接続した。[契約](common-teams-player-list.md)を参照。
 
 ## World border
 
@@ -61,5 +62,5 @@ vanillaのこのfixtureにはheader／footerを送るcommandがないため、li
 初回modern liveでdurationをmillisecondsとした誤りを検出し、原WorldBorder／command実装のtick単位を確認して修正した。
 [固定入力と検証記録](evidence/common-ui-display-20261007.json)を参照。
 
-この変更はB6の表示情報の観測部分。teams／player roster、特殊window、vehicle、広いmanagerと
+この変更はB6の表示情報の観測部分。teams／player rosterは別の区切りで接続済み。特殊window、vehicle、広いmanagerと
 B3〜B5、非公開A6の固定commit検証は引き続き必要。

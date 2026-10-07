@@ -734,5 +734,19 @@ legacy `UiState.title`／`tab_header_json`／`tab_footer_json`／`world_border`�
 未受信とCLEARで消去済みのtitleを区別し、RESETのdefaultを受信tickへ置き換えない。
 CLEAR／RESETはaction barの受信値を消さず、tabは完全なheader／footer pairとして採用する。
 borderの部分更新はfieldごとに元originを保持し、別worldの古い値を返さない。
-受信LERPを現在diameterや衝突条件へ置き換えない。player rosterはまだ共通化していない。
+受信LERPを現在diameterや衝突条件へ置き換えない。player rosterは別の`Client::player_list()`へ移す。
 [公開型と検証範囲](common-ui-display.md)を参照。
+
+
+## Teams・player一覧
+
+legacy `UiState.teams`は`Client::teams()`へ、native `player_list()`や空間trackerからのprofile参照は
+共通`Client::player_list()`へ移す。parameter組とmemberの受信originを分け、
+scoreboard holderをonline player／entity IDとして扱わない。参加は前teamからの移動になり、
+metadata更新で残るmemberのoriginを置き換えない。
+
+一覧は実ADDのprofile登録と各部分更新を保持する。旧版の登録と新版のlisted flagを
+`PlayerListing`で区別し、未受信のorder／hat／chatを補わない。旧版のNOT_SETは
+受信した`game_mode.value=None`で、outer Noneとは異なる。profile/property/chatのsignatureは
+受信した元データで、認証成功や操作権限として使わない。
+[型・上限・元packetによる検証](common-teams-player-list.md)を参照。

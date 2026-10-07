@@ -16,9 +16,10 @@ A0〜A5の代表操作は両版で初回貫通済み。A6は資料・共通consu
 全機能の統合完了とは分ける。B4の結果転送に続き、B6の有限乗車入力を一連の操作として閉じた。
 vehicleの受信motion観測と、下車後の通常地上停止→新しい歩行→収納も両版・両modeで接続した。
 boss barに加え、title／action bar／CLEAR／RESETとworld border更新も両modeの実Clientで接続した。
-tab header／footerは原codecとadapter適用で確認し、player rosterは未統合。
-次は残るteams／player roster等のUI、特殊vehicle／window／managerを
+tab header／footerは原codecとadapter適用で確認した。teamsとplayer一覧も実受信の共通入口へ接続した。
+次は特殊vehicle／window／managerと残るUIを
 利用操作の単位で進め、B3〜B5の残機能も継続する。
+B5では新版の再configuration前後におけるUI／player一覧のcache寿命・再登録も確認する。
 操作に不要なconstructor比較の拡大を先行させない。
 実サーバーや重い検査は一つずつ実行する。
 
@@ -122,8 +123,15 @@ tab header／footerは原codecとadapter適用で確認し、player rosterは未
 - B6の一部完了: `titles()`／`tab_list()`／`world_border()`を両adapterへ接続した。
   title命令とborderのSET→LERPを両modeの同じClientで観測し、元fieldのordinalへ独立照合する。
   CLEAR／RESETでaction barを消さず、別worldのborderと未受信defaultを合成しない。
-  tabはheader／footerのみで、teams／player rosterと広いB6は残る。
+  tabはheader／footerのみで、teams／player一覧は下記の別入口へ接続する。広いB6は残る。
   詳細は[共通表示情報](common-ui-display.md)。
+
+- B6の一部完了: `teams()`／`player_list()`を両adapterへ接続した。
+  同じClientでteamの宣言→metadata／所属移動→LEAVE／REMOVE、peer mode更新と個別切断による
+  実roster REMOVE→残るmanager終了を確認する。offline holderとonline profileを区別し、
+  元の全field encodingと受信ordinalを保持する。旧版のNOT_SET、版ごとのlisted／chat／order／hatも
+  defaultへ読み替えない。特殊window／vehicle／広いmanagerとB3〜B5、非公開A6は継続する。
+  詳細は[共通teamとplayer一覧](common-teams-player-list.md)。
 
 ## 選択と公開入口
 
@@ -274,6 +282,7 @@ A5の代表例は初回貫通用であり、すべての特殊windowやentity／
 | own-player乗車関係・明示的下車 | 共通・限定条件 | 共通・限定条件 | 実passenger list、owned一回送信→実除外→neutral。両版・両modeのnativeで確認。通常地上への明示的継続もB6で接続済み |
 | 有限digital乗車入力 | 共通・限定条件 | 共通・限定条件 | 受信MountIdへ有限入力＋最終neutral。受信位置は共通entity_motionで観測。通常下車後の地上継続は接続済み。特殊補間・physics・paddleはB6 |
 | title／action bar・tab header/footer・border観測 | 共通・限定条件 | 共通・限定条件 | B6で実受信を共通型へ接続。表示・補間・player rosterは含めない |
+| teams／player一覧観測 | 共通・限定条件 | 共通・限定条件 | B6で実宣言・所属移動・各fieldとREMOVEを接続。描画・認証・entity現在位置とは別 |
 | その他特殊window／UI／manager | 未共通化 | 未共通化 | 広い対応はB |
 | ownedレシピブック配置 | 共通・限定条件 | 共通・限定条件 | B4で通常Next／Maximumを接続。材料不足ghostと実返却も接続。結果のnative QUICK_MOVEは接続済み。広い製作条件はB4へ残る |
 

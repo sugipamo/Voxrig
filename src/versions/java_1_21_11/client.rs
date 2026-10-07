@@ -89,6 +89,8 @@ struct State {
     scoreboard: crate::client::ui::ScoreboardLedger,
     boss_bars: crate::client::ui::boss_bar::BossBarLedger,
     display: crate::client::ui::display::DisplayLedger,
+    teams: crate::client::ui::teams::TeamLedger,
+    player_list: crate::client::ui::player_list::PlayerListLedger,
     phase: Phase,
     world: World,
     reconstruction: Reconstruction,
@@ -140,6 +142,8 @@ impl Default for State {
             scoreboard: Default::default(),
             boss_bars: Default::default(),
             display: Default::default(),
+            teams: Default::default(),
+            player_list: Default::default(),
             phase: Phase::Configuration,
             world: World::default(),
             reconstruction: Reconstruction::default(),
@@ -865,6 +869,11 @@ fn apply_play(
     if recipes::receive(state, id, payload)? {
         return Ok(responses);
     }
+    if id == input::PLAYER_INFO || id == input::PLAYER_REMOVE {
+        state
+            .player_list
+            .receive(MinecraftVersion::Java1_21_11, id, payload, state.sequence)?;
+    }
     if state.players.receive(id, payload, state.sequence)? {
         operations::retirement_received(state, id, payload)?;
         return Ok(responses);
@@ -924,6 +933,11 @@ fn apply_play(
                 state.sequence,
                 state.loading.generation,
             )?;
+        }
+        input::TEAMS => {
+            state
+                .teams
+                .receive(MinecraftVersion::Java1_21_11, payload, state.sequence)?;
         }
         input::BOSS_BAR => {
             state
@@ -1146,6 +1160,20 @@ impl Bot {
 }
 
 impl Bot {
+    pub(crate) async fn common_teams(&self) -> Result<crate::client::ui::TeamsObservation> {
+        let state = self.session.state.lock().await;
+        self.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.session.id, false)?;
+        Ok(state.teams.capture(player.session, state.sequence))
+    }
+    pub(crate) async fn common_player_list(
+        &self,
+    ) -> Result<crate::client::ui::PlayerListObservation> {
+        let state = self.session.state.lock().await;
+        self.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.session.id, false)?;
+        Ok(state.player_list.capture(player.session, state.sequence))
+    }
     pub(crate) async fn common_titles(&self) -> Result<crate::client::ui::TitlesObservation> {
         let state = self.session.state.lock().await;
         self.session.check(&state)?;

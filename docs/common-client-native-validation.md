@@ -894,3 +894,31 @@ vanillaのこのfixtureにはtab header／footerを配信するcommandがない�
 未受信を確認し、そのpacketは元serializerと両adapterへの適用・欠損packetの原子的拒否で検証する。
 player roster／teams、描画や現在borderの補間・衝突・damage推論は含めない。
 広いB3〜B6と非公開A6の固定commit検証は引き続き必要。
+
+### 2026-10-07: B6の共通team・player一覧
+
+`trial-1.16.1-eee5270e`／`trial-1.21.11-605f5338`で、同じmanagerのSurvival／Creative
+Clientへteam ADD／metadata CHANGE／onlineとoffline holderのJOINを配信した。
+peerを別teamへ移し、offline holderをLEAVEし、teamの実REMOVEまで確認する。
+profile一覧ではpeerのCreative→Spectator→Creative更新、managerによるpeerの個別切断と
+残るprimaryへの実profile REMOVE、最後のmanager終了まで一連で通した。
+
+各版の両接続で、parameter組・member・profile/property・mode・latency・optional display・
+listing／order／hat／chatの各実受信値を、元packetとordinalへ独立照合した。
+旧版131／新版194、計325のfield/event照合で、変更されていないholderやprofile fieldの
+originも保持する。独立RCONのteam所属・mode、接続数2→1→0と、両JVM exit 0／proxy errorsなしを確認する。
+[459入力・同一binary・元fieldの記録](evidence/common-teams-player-list-20261007.json)。
+
+原codecでは旧版50／新版59、計109例を生成した。全team操作・17色・各visibility／collision・
+raw options、property/signature・全player-info action・NOT_SET／4 mode・符号付きlatency・
+optional display/chat/listed/order/hat・REMOVEを含む。
+元のscoreboard methodでも、一holder一team、所属移動、誤LEAVE拒否、旧版の重複作成拒否と
+新版の既存team保持を検証する。native binaryのbodyを改変せず、共通ledgerの全truncation／
+trailing fieldの原子的拒否と、両adapterからの全packet適用も確認した。
+
+新版trackerのUPDATE_LIST_ORDER bit 6とUPDATE_HAT bit 7の解釈を修正した。
+両fieldがある初期packetでは偶然正しく消費できていたが、list orderだけの更新ではboolとして
+読み違えていた。単独varint 300の元packetも実adapterに適用し、新しい共通観測へ接続する。
+legacy team cacheの部分decode／所属移動／未宣言CHANGEも共通decoderで修正した。
+UI描画・認証・完全なonline catalogue・entity現在位置の推論は含めない。
+特殊window／vehicle／広いmanager、B3〜B5と非公開A6の固定commit検証は継続する。

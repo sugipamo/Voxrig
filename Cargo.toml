@@ -115,6 +115,8 @@ include = [
     "/scripts/ExportVehicleInput.java",
     "/scripts/ExportVehicleControl.java",
     "/scripts/ExportBossBars.java",
+    "/scripts/ExportSocialPackets.java",
+    "/scripts/export_social_packets.py",
     "/scripts/ExportDisplayPackets.java",
     "/scripts/export_display_packets.py",
     "/scripts/export_boss_bars.py",

@@ -5406,6 +5406,8 @@ async fn manager_ui_probe(config: ConnectionConfig) -> anyhow::Result<()> {
     peer.wait_until_ready().await?;
     let a = primary.connection_identity().await?;
     let b = peer.connection_identity().await?;
+    let a_uuid = a.uuid;
+    let b_uuid = b.uuid;
     anyhow::ensure!(
         a.session.connection_id != b.session.connection_id
             && a.name == "UnifiedProbe"
@@ -5620,6 +5622,121 @@ async fn manager_ui_probe(config: ConnectionConfig) -> anyhow::Result<()> {
                     serde_json::json!({"titles":titles,"borders":borders,
                     "tabs":[primary.tab_list().await?,peer.tab_list().await?],
                     "players":[primary.player_state().await?,peer.player_state().await?]}),
+                )?;
+            }
+            "b6_social_created"
+            | "b6_social_moved"
+            | "b6_social_removed"
+            | "b6_social_spectator"
+            | "b6_social_restored" => {
+                let (teams, rosters) = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let teams = [primary.teams().await?, peer.teams().await?];
+                        let rosters = [primary.player_list().await?, peer.player_list().await?];
+                        let text_contains = |text: &UiText, s: &str| match text {
+                            UiText::LegacyJson { json } => json.contains(s),
+                            UiText::NativeNbt { bytes } => {
+                                bytes.windows(s.len()).any(|v| v == s.as_bytes())
+                            }
+                            UiText::Unavailable => false,
+                        };
+                        let roster_ready = rosters.iter().all(|r| {
+                            if r.entries.len() != 2 {
+                                return false;
+                            }
+                            let a = r
+                                .entries
+                                .iter()
+                                .find(|e| e.profile.value.name == "UnifiedProbe");
+                            let b = r
+                                .entries
+                                .iter()
+                                .find(|e| e.profile.value.name == "ManagedPeer");
+                            let mode = if command == "b6_social_spectator" {
+                                GameMode::Spectator
+                            } else {
+                                GameMode::Creative
+                            };
+                            a.is_some_and(|e| {
+                                e.uuid == a_uuid
+                                    && e.game_mode
+                                        .as_ref()
+                                        .is_some_and(|v| v.value == Some(GameMode::Survival))
+                            }) && b.is_some_and(|e| {
+                                e.uuid == b_uuid
+                                    && e.game_mode.as_ref().is_some_and(|v| v.value == Some(mode))
+                            }) && r
+                                .entries
+                                .iter()
+                                .all(|e| e.listing.as_ref().is_some_and(|v| v.value.is_listed()))
+                        });
+                        let teams_ready = teams.iter().all(|t| {
+                            if matches!(
+                                command.as_str(),
+                                "b6_social_removed" | "b6_social_spectator" | "b6_social_restored"
+                            ) {
+                                return t.teams.is_empty() && t.last_update_sequence.is_some();
+                            }
+                            if t.teams.len() != 2 {
+                                return false;
+                            }
+                            let Some(main) = t.teams.iter().find(|t| t.name == "b6main") else {
+                                return false;
+                            };
+                            let Some(other) = t.teams.iter().find(|t| t.name == "b6other") else {
+                                return false;
+                            };
+                            let names = |t: &ReceivedTeam| {
+                                t.members
+                                    .iter()
+                                    .map(|m| m.value.clone())
+                                    .collect::<Vec<_>>()
+                            };
+                            if command == "b6_social_created" {
+                                main.parameters.value.color == TeamColor::Red
+                                    && main.parameters.value.friendly_flags == 2
+                                    && main.parameters.value.visibility
+                                        == TeamVisibility::HideForOtherTeams
+                                    && main.parameters.value.collision == TeamCollision::Never
+                                    && text_contains(&main.parameters.value.prefix, "PrefixB6")
+                                    && names(main)
+                                        == ["ManagedPeer", "OfflineHolder", "UnifiedProbe"]
+                                    && other.members.is_empty()
+                            } else {
+                                main.parameters.value.color == TeamColor::Green
+                                    && text_contains(&main.parameters.value.prefix, "NewB6")
+                                    && names(main) == ["UnifiedProbe"]
+                                    && names(other) == ["ManagedPeer"]
+                            }
+                        });
+                        if roster_ready && teams_ready {
+                            return Ok::<_, anyhow::Error>((teams, rosters));
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                emit(
+                    &command,
+                    serde_json::json!({"teams":teams,"rosters":rosters,"players":[primary.player_state().await?,peer.player_state().await?]}),
+                )?;
+            }
+            "b6_social_peer_left" => {
+                manager.disconnect("peer").await?;
+                anyhow::ensure!(peer.teams().await.is_err() && peer.player_list().await.is_err());
+                let roster = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let roster = primary.player_list().await?;
+                        if roster.entries.len() == 1 && roster.entries[0].uuid == a_uuid {
+                            return Ok::<_, anyhow::Error>(roster);
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                emit(
+                    &command,
+                    serde_json::json!({"teams":[primary.teams().await?],"rosters":[roster],"players":[primary.player_state().await?],"closed_peer_clone":true,"names":manager.names()}),
                 )?;
             }
             "a5_manager_shutdown" => {

@@ -1,0 +1,3004 @@
+{
+  "schema": 1,
+  "versions": [
+    {
+      "native_membership_rules": {
+        "correct_leave_removes_holder": true,
+        "duplicate_attempt_keeps_members": true,
+        "duplicate_create_policy": "refused",
+        "joining_other_team_moves_holder": true,
+        "wrong_team_leave_refused": true
+      },
+      "packets": [
+        {
+          "group": "team",
+          "members": [
+            "SocialProbe",
+            "OfflineHolder"
+          ],
+          "name": "social",
+          "operation": 0,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "pushOwnTeam",
+            "color": "RED",
+            "display": "Team",
+            "friendly_flags": 2,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "hideForOtherTeams"
+          },
+          "payload_hex": "06736f6369616c000f7b2274657874223a225465616d227d021168696465466f724f746865725465616d730b707573684f776e5465616d0c147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d020b536f6369616c50726f62650d4f66666c696e65486f6c646572"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 1,
+          "packet_id": 76,
+          "payload_hex": "06736f6369616c01"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "pushOwnTeam",
+            "color": "RED",
+            "display": "Team",
+            "friendly_flags": 2,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "hideForOtherTeams"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d021168696465466f724f746865725465616d730b707573684f776e5465616d0c147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [
+            "SocialProbe",
+            "OfflineHolder"
+          ],
+          "name": "social",
+          "operation": 3,
+          "packet_id": 76,
+          "payload_hex": "06736f6369616c03020b536f6369616c50726f62650d4f66666c696e65486f6c646572"
+        },
+        {
+          "group": "team",
+          "members": [
+            "SocialProbe",
+            "OfflineHolder"
+          ],
+          "name": "social",
+          "operation": 4,
+          "packet_id": 76,
+          "payload_hex": "06736f6369616c04020b536f6369616c50726f62650d4f66666c696e65486f6c646572"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "BLACK",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c7761797300147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "DARK_BLUE",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c7761797301147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "DARK_GREEN",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c7761797302147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "DARK_AQUA",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c7761797303147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "DARK_RED",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c7761797304147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "DARK_PURPLE",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c7761797305147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "GOLD",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c7761797306147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "GRAY",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c7761797307147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "DARK_GRAY",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c7761797308147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "BLUE",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c7761797309147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "GREEN",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c776179730a147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "AQUA",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c776179730b147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "RED",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c776179730c147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "LIGHT_PURPLE",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c776179730d147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "YELLOW",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c776179730e147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "WHITE",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c776179730f147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c7761797315147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c7761797315147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "never"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d03056e6576657206616c7761797315147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "hideForOtherTeams"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d031168696465466f724f746865725465616d7306616c7761797315147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "hideForOwnTeam"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d030e68696465466f724f776e5465616d06616c7761797315147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c7761797315147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "never",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c77617973056e6576657215147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "pushOtherTeams",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c776179730e707573684f746865725465616d7315147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "pushOwnTeam",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c776179730b707573684f776e5465616d15147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 0,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0006616c7761797306616c7761797315147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 1,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0106616c7761797306616c7761797315147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 2,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0206616c7761797306616c7761797315147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d0306616c7761797306616c7761797315147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 76,
+          "parameters": {
+            "collision": "always",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 128,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "always"
+          },
+          "payload_hex": "06736f6369616c020f7b2274657874223a225465616d227d8006616c7761797306616c7761797315147b2274657874223a22507265666978e99baa227d117b2274657874223a22537566666978227d"
+        },
+        {
+          "entries": [
+            {
+              "display_name": "Display\u96ea",
+              "game_mode": 1,
+              "latency": 300,
+              "profile": {
+                "name": "SocialProbe",
+                "properties": [
+                  {
+                    "name": "textures",
+                    "signature": "native-signature",
+                    "value": "native-value"
+                  },
+                  {
+                    "name": "other",
+                    "signature": null,
+                    "value": "other-value"
+                  }
+                ]
+              },
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "group": "roster",
+          "operation": 0,
+          "packet_id": 51,
+          "payload_hex": "00010102030405060708090a0b0c0d0e0f100b536f6369616c50726f6265020874657874757265730c6e61746976652d76616c756501106e61746976652d7369676e6174757265056f746865720b6f746865722d76616c75650001ac0201157b2274657874223a22446973706c6179e99baa227d"
+        },
+        {
+          "entries": [
+            {
+              "game_mode": 1,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "group": "roster",
+          "operation": 1,
+          "packet_id": 51,
+          "payload_hex": "01010102030405060708090a0b0c0d0e0f1001"
+        },
+        {
+          "entries": [
+            {
+              "latency": 300,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "group": "roster",
+          "operation": 2,
+          "packet_id": 51,
+          "payload_hex": "02010102030405060708090a0b0c0d0e0f10ac02"
+        },
+        {
+          "entries": [
+            {
+              "display_name": "Display\u96ea",
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "group": "roster",
+          "operation": 3,
+          "packet_id": 51,
+          "payload_hex": "03010102030405060708090a0b0c0d0e0f1001157b2274657874223a22446973706c6179e99baa227d"
+        },
+        {
+          "entries": [
+            {
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "group": "roster",
+          "operation": 4,
+          "packet_id": 51,
+          "payload_hex": "04010102030405060708090a0b0c0d0e0f10"
+        },
+        {
+          "entries": [
+            {
+              "game_mode": -1,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "group": "roster",
+          "operation": 1,
+          "packet_id": 51,
+          "payload_hex": "01010102030405060708090a0b0c0d0e0f10ffffffff0f"
+        },
+        {
+          "entries": [
+            {
+              "game_mode": 0,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "group": "roster",
+          "operation": 1,
+          "packet_id": 51,
+          "payload_hex": "01010102030405060708090a0b0c0d0e0f1000"
+        },
+        {
+          "entries": [
+            {
+              "game_mode": 1,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "group": "roster",
+          "operation": 1,
+          "packet_id": 51,
+          "payload_hex": "01010102030405060708090a0b0c0d0e0f1001"
+        },
+        {
+          "entries": [
+            {
+              "game_mode": 2,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "group": "roster",
+          "operation": 1,
+          "packet_id": 51,
+          "payload_hex": "01010102030405060708090a0b0c0d0e0f1002"
+        },
+        {
+          "entries": [
+            {
+              "game_mode": 3,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "group": "roster",
+          "operation": 1,
+          "packet_id": 51,
+          "payload_hex": "01010102030405060708090a0b0c0d0e0f1003"
+        },
+        {
+          "entries": [
+            {
+              "latency": -1,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "group": "roster",
+          "operation": 2,
+          "packet_id": 51,
+          "payload_hex": "02010102030405060708090a0b0c0d0e0f10ffffffff0f"
+        },
+        {
+          "entries": [
+            {
+              "latency": 0,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "group": "roster",
+          "operation": 2,
+          "packet_id": 51,
+          "payload_hex": "02010102030405060708090a0b0c0d0e0f1000"
+        },
+        {
+          "entries": [
+            {
+              "latency": 300,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "group": "roster",
+          "operation": 2,
+          "packet_id": 51,
+          "payload_hex": "02010102030405060708090a0b0c0d0e0f10ac02"
+        },
+        {
+          "entries": [
+            {
+              "latency": 2147483647,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "group": "roster",
+          "operation": 2,
+          "packet_id": 51,
+          "payload_hex": "02010102030405060708090a0b0c0d0e0f10ffffffff07"
+        },
+        {
+          "entries": [
+            {
+              "display_name": null,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "group": "roster",
+          "operation": 3,
+          "packet_id": 51,
+          "payload_hex": "03010102030405060708090a0b0c0d0e0f1000"
+        }
+      ],
+      "version": "1.16.1"
+    },
+    {
+      "native_membership_rules": {
+        "correct_leave_removes_holder": true,
+        "duplicate_attempt_keeps_members": true,
+        "duplicate_create_policy": "retained",
+        "joining_other_team_moves_holder": true,
+        "wrong_team_leave_refused": true
+      },
+      "packets": [
+        {
+          "group": "team",
+          "members": [
+            "SocialProbe",
+            "OfflineHolder"
+          ],
+          "name": "social",
+          "operation": 0,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "PUSH_OWN_TEAM",
+            "color": "RED",
+            "display": "Team",
+            "friendly_flags": 2,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "HIDE_FOR_OTHER_TEAMS"
+          },
+          "payload_hex": "06736f6369616c000800045465616d0202030c080009507265666978e99baa080006537566666978020b536f6369616c50726f62650d4f66666c696e65486f6c646572"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 1,
+          "packet_id": 107,
+          "payload_hex": "06736f6369616c01"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "PUSH_OWN_TEAM",
+            "color": "RED",
+            "display": "Team",
+            "friendly_flags": 2,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "HIDE_FOR_OTHER_TEAMS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d0202030c080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [
+            "SocialProbe",
+            "OfflineHolder"
+          ],
+          "name": "social",
+          "operation": 3,
+          "packet_id": 107,
+          "payload_hex": "06736f6369616c03020b536f6369616c50726f62650d4f66666c696e65486f6c646572"
+        },
+        {
+          "group": "team",
+          "members": [
+            "SocialProbe",
+            "OfflineHolder"
+          ],
+          "name": "social",
+          "operation": 4,
+          "packet_id": 107,
+          "payload_hex": "06736f6369616c04020b536f6369616c50726f62650d4f66666c696e65486f6c646572"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "BLACK",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03000000080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "DARK_BLUE",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03000001080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "DARK_GREEN",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03000002080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "DARK_AQUA",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03000003080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "DARK_RED",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03000004080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "DARK_PURPLE",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03000005080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "GOLD",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03000006080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "GRAY",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03000007080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "DARK_GRAY",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03000008080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "BLUE",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03000009080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "GREEN",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d0300000a080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "AQUA",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d0300000b080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "RED",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d0300000c080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "LIGHT_PURPLE",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d0300000d080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "YELLOW",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d0300000e080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "WHITE",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d0300000f080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03000015080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03000015080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "NEVER"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03010015080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "HIDE_FOR_OTHER_TEAMS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03020015080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "HIDE_FOR_OWN_TEAM"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03030015080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03000015080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "NEVER",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03000115080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "PUSH_OTHER_TEAMS",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03000215080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "PUSH_OWN_TEAM",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03000315080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 0,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d00000015080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 1,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d01000015080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 2,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d02000015080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 3,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d03000015080009507265666978e99baa080006537566666978"
+        },
+        {
+          "group": "team",
+          "members": [],
+          "name": "social",
+          "operation": 2,
+          "packet_id": 107,
+          "parameters": {
+            "collision": "ALWAYS",
+            "color": "RESET",
+            "display": "Team",
+            "friendly_flags": 128,
+            "prefix": "Prefix\u96ea",
+            "suffix": "Suffix",
+            "visibility": "ALWAYS"
+          },
+          "payload_hex": "06736f6369616c020800045465616d80000015080009507265666978e99baa080006537566666978"
+        },
+        {
+          "entries": [
+            {
+              "profile": {
+                "name": "SocialProbe",
+                "properties": [
+                  {
+                    "name": "textures",
+                    "signature": "native-signature",
+                    "value": "native-value"
+                  },
+                  {
+                    "name": "other",
+                    "signature": null,
+                    "value": "other-value"
+                  }
+                ]
+              },
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 1,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "01010102030405060708090a0b0c0d0e0f100b536f6369616c50726f6265020874657874757265730c6e61746976652d76616c756501106e61746976652d7369676e6174757265056f746865720b6f746865722d76616c756500"
+        },
+        {
+          "entries": [
+            {
+              "chat_session": {
+                "expires_at_epoch_millis": 1840000000000,
+                "key_signature": [
+                  9,
+                  8,
+                  7
+                ],
+                "public_key": [
+                  48,
+                  130,
+                  1,
+                  34,
+                  48,
+                  13,
+                  6,
+                  9,
+                  42,
+                  134,
+                  72,
+                  134,
+                  247,
+                  13,
+                  1,
+                  1,
+                  1,
+                  5,
+                  0,
+                  3,
+                  130,
+                  1,
+                  15,
+                  0,
+                  48,
+                  130,
+                  1,
+                  10,
+                  2,
+                  130,
+                  1,
+                  1,
+                  0,
+                  150,
+                  208,
+                  106,
+                  230,
+                  174,
+                  216,
+                  214,
+                  112,
+                  83,
+                  233,
+                  38,
+                  57,
+                  75,
+                  170,
+                  168,
+                  149,
+                  0,
+                  215,
+                  9,
+                  10,
+                  73,
+                  74,
+                  239,
+                  78,
+                  213,
+                  103,
+                  205,
+                  178,
+                  98,
+                  42,
+                  90,
+                  251,
+                  133,
+                  163,
+                  238,
+                  251,
+                  93,
+                  234,
+                  141,
+                  226,
+                  55,
+                  179,
+                  10,
+                  175,
+                  158,
+                  110,
+                  77,
+                  24,
+                  138,
+                  158,
+                  192,
+                  200,
+                  181,
+                  18,
+                  196,
+                  179,
+                  179,
+                  169,
+                  173,
+                  109,
+                  51,
+                  6,
+                  182,
+                  234,
+                  12,
+                  217,
+                  108,
+                  160,
+                  225,
+                  118,
+                  12,
+                  216,
+                  173,
+                  187,
+                  111,
+                  236,
+                  16,
+                  45,
+                  224,
+                  147,
+                  98,
+                  3,
+                  84,
+                  117,
+                  238,
+                  67,
+                  96,
+                  20,
+                  55,
+                  89,
+                  192,
+                  245,
+                  9,
+                  30,
+                  25,
+                  148,
+                  117,
+                  247,
+                  73,
+                  52,
+                  106,
+                  24,
+                  79,
+                  140,
+                  175,
+                  211,
+                  223,
+                  131,
+                  3,
+                  248,
+                  68,
+                  67,
+                  19,
+                  57,
+                  85,
+                  92,
+                  152,
+                  42,
+                  78,
+                  198,
+                  216,
+                  252,
+                  182,
+                  78,
+                  252,
+                  120,
+                  0,
+                  84,
+                  109,
+                  58,
+                  87,
+                  14,
+                  66,
+                  115,
+                  224,
+                  149,
+                  18,
+                  68,
+                  21,
+                  83,
+                  49,
+                  209,
+                  88,
+                  190,
+                  78,
+                  1,
+                  56,
+                  231,
+                  161,
+                  63,
+                  138,
+                  113,
+                  20,
+                  197,
+                  113,
+                  213,
+                  231,
+                  79,
+                  38,
+                  170,
+                  182,
+                  25,
+                  135,
+                  64,
+                  52,
+                  7,
+                  109,
+                  54,
+                  168,
+                  125,
+                  88,
+                  220,
+                  62,
+                  127,
+                  0,
+                  37,
+                  77,
+                  25,
+                  244,
+                  224,
+                  40,
+                  114,
+                  150,
+                  229,
+                  182,
+                  103,
+                  232,
+                  250,
+                  99,
+                  70,
+                  52,
+                  79,
+                  82,
+                  159,
+                  233,
+                  87,
+                  154,
+                  150,
+                  29,
+                  0,
+                  77,
+                  139,
+                  163,
+                  112,
+                  167,
+                  235,
+                  128,
+                  171,
+                  241,
+                  60,
+                  227,
+                  213,
+                  34,
+                  91,
+                  187,
+                  65,
+                  244,
+                  102,
+                  16,
+                  94,
+                  45,
+                  112,
+                  215,
+                  201,
+                  0,
+                  154,
+                  95,
+                  94,
+                  146,
+                  13,
+                  214,
+                  231,
+                  7,
+                  31,
+                  165,
+                  110,
+                  32,
+                  177,
+                  188,
+                  39,
+                  29,
+                  75,
+                  186,
+                  56,
+                  22,
+                  47,
+                  138,
+                  220,
+                  212,
+                  240,
+                  94,
+                  227,
+                  250,
+                  53,
+                  229,
+                  97,
+                  2,
+                  3,
+                  1,
+                  0,
+                  1
+                ],
+                "uuid": [
+                  17,
+                  18,
+                  19,
+                  20,
+                  21,
+                  22,
+                  23,
+                  24,
+                  25,
+                  26,
+                  27,
+                  28,
+                  29,
+                  30,
+                  31,
+                  32
+                ]
+              },
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 2,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "02010102030405060708090a0b0c0d0e0f10011112131415161718191a1b1c1d1e1f20000001ac688be000a60230820122300d06092a864886f70d01010105000382010f003082010a028201010096d06ae6aed8d67053e926394baaa89500d7090a494aef4ed567cdb2622a5afb85a3eefb5dea8de237b30aaf9e6e4d188a9ec0c8b512c4b3b3a9ad6d3306b6ea0cd96ca0e1760cd8adbb6fec102de09362035475ee4360143759c0f5091e199475f749346a184f8cafd3df8303f844431339555c982a4ec6d8fcb64efc7800546d3a570e4273e0951244155331d158be4e0138e7a13f8a7114c571d5e74f26aab619874034076d36a87d58dc3e7f00254d19f4e0287296e5b667e8fa6346344f529fe9579a961d004d8ba370a7eb80abf13ce3d5225bbb41f466105e2d70d7c9009a5f5e920dd6e7071fa56e20b1bc271d4bba38162f8adcd4f05ee3fa35e561020301000103090807"
+        },
+        {
+          "entries": [
+            {
+              "game_mode": 1,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 4,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "04010102030405060708090a0b0c0d0e0f1001"
+        },
+        {
+          "entries": [
+            {
+              "listed": true,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 8,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "08010102030405060708090a0b0c0d0e0f1001"
+        },
+        {
+          "entries": [
+            {
+              "latency": 300,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 16,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "10010102030405060708090a0b0c0d0e0f10ac02"
+        },
+        {
+          "entries": [
+            {
+              "display_name": "Display\u96ea",
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 32,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "20010102030405060708090a0b0c0d0e0f100108000a446973706c6179e99baa"
+        },
+        {
+          "entries": [
+            {
+              "list_order": 300,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 64,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "40010102030405060708090a0b0c0d0e0f10ac02"
+        },
+        {
+          "entries": [
+            {
+              "show_hat": true,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 128,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "80010102030405060708090a0b0c0d0e0f1001"
+        },
+        {
+          "entries": [
+            {
+              "chat_session": {
+                "expires_at_epoch_millis": 1840000000000,
+                "key_signature": [
+                  9,
+                  8,
+                  7
+                ],
+                "public_key": [
+                  48,
+                  130,
+                  1,
+                  34,
+                  48,
+                  13,
+                  6,
+                  9,
+                  42,
+                  134,
+                  72,
+                  134,
+                  247,
+                  13,
+                  1,
+                  1,
+                  1,
+                  5,
+                  0,
+                  3,
+                  130,
+                  1,
+                  15,
+                  0,
+                  48,
+                  130,
+                  1,
+                  10,
+                  2,
+                  130,
+                  1,
+                  1,
+                  0,
+                  150,
+                  208,
+                  106,
+                  230,
+                  174,
+                  216,
+                  214,
+                  112,
+                  83,
+                  233,
+                  38,
+                  57,
+                  75,
+                  170,
+                  168,
+                  149,
+                  0,
+                  215,
+                  9,
+                  10,
+                  73,
+                  74,
+                  239,
+                  78,
+                  213,
+                  103,
+                  205,
+                  178,
+                  98,
+                  42,
+                  90,
+                  251,
+                  133,
+                  163,
+                  238,
+                  251,
+                  93,
+                  234,
+                  141,
+                  226,
+                  55,
+                  179,
+                  10,
+                  175,
+                  158,
+                  110,
+                  77,
+                  24,
+                  138,
+                  158,
+                  192,
+                  200,
+                  181,
+                  18,
+                  196,
+                  179,
+                  179,
+                  169,
+                  173,
+                  109,
+                  51,
+                  6,
+                  182,
+                  234,
+                  12,
+                  217,
+                  108,
+                  160,
+                  225,
+                  118,
+                  12,
+                  216,
+                  173,
+                  187,
+                  111,
+                  236,
+                  16,
+                  45,
+                  224,
+                  147,
+                  98,
+                  3,
+                  84,
+                  117,
+                  238,
+                  67,
+                  96,
+                  20,
+                  55,
+                  89,
+                  192,
+                  245,
+                  9,
+                  30,
+                  25,
+                  148,
+                  117,
+                  247,
+                  73,
+                  52,
+                  106,
+                  24,
+                  79,
+                  140,
+                  175,
+                  211,
+                  223,
+                  131,
+                  3,
+                  248,
+                  68,
+                  67,
+                  19,
+                  57,
+                  85,
+                  92,
+                  152,
+                  42,
+                  78,
+                  198,
+                  216,
+                  252,
+                  182,
+                  78,
+                  252,
+                  120,
+                  0,
+                  84,
+                  109,
+                  58,
+                  87,
+                  14,
+                  66,
+                  115,
+                  224,
+                  149,
+                  18,
+                  68,
+                  21,
+                  83,
+                  49,
+                  209,
+                  88,
+                  190,
+                  78,
+                  1,
+                  56,
+                  231,
+                  161,
+                  63,
+                  138,
+                  113,
+                  20,
+                  197,
+                  113,
+                  213,
+                  231,
+                  79,
+                  38,
+                  170,
+                  182,
+                  25,
+                  135,
+                  64,
+                  52,
+                  7,
+                  109,
+                  54,
+                  168,
+                  125,
+                  88,
+                  220,
+                  62,
+                  127,
+                  0,
+                  37,
+                  77,
+                  25,
+                  244,
+                  224,
+                  40,
+                  114,
+                  150,
+                  229,
+                  182,
+                  103,
+                  232,
+                  250,
+                  99,
+                  70,
+                  52,
+                  79,
+                  82,
+                  159,
+                  233,
+                  87,
+                  154,
+                  150,
+                  29,
+                  0,
+                  77,
+                  139,
+                  163,
+                  112,
+                  167,
+                  235,
+                  128,
+                  171,
+                  241,
+                  60,
+                  227,
+                  213,
+                  34,
+                  91,
+                  187,
+                  65,
+                  244,
+                  102,
+                  16,
+                  94,
+                  45,
+                  112,
+                  215,
+                  201,
+                  0,
+                  154,
+                  95,
+                  94,
+                  146,
+                  13,
+                  214,
+                  231,
+                  7,
+                  31,
+                  165,
+                  110,
+                  32,
+                  177,
+                  188,
+                  39,
+                  29,
+                  75,
+                  186,
+                  56,
+                  22,
+                  47,
+                  138,
+                  220,
+                  212,
+                  240,
+                  94,
+                  227,
+                  250,
+                  53,
+                  229,
+                  97,
+                  2,
+                  3,
+                  1,
+                  0,
+                  1
+                ],
+                "uuid": [
+                  17,
+                  18,
+                  19,
+                  20,
+                  21,
+                  22,
+                  23,
+                  24,
+                  25,
+                  26,
+                  27,
+                  28,
+                  29,
+                  30,
+                  31,
+                  32
+                ]
+              },
+              "display_name": "Display\u96ea",
+              "game_mode": 1,
+              "latency": 300,
+              "list_order": 300,
+              "listed": true,
+              "profile": {
+                "name": "SocialProbe",
+                "properties": [
+                  {
+                    "name": "textures",
+                    "signature": "native-signature",
+                    "value": "native-value"
+                  },
+                  {
+                    "name": "other",
+                    "signature": null,
+                    "value": "other-value"
+                  }
+                ]
+              },
+              "show_hat": true,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 255,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "ff010102030405060708090a0b0c0d0e0f100b536f6369616c50726f6265020874657874757265730c6e61746976652d76616c756501106e61746976652d7369676e6174757265056f746865720b6f746865722d76616c756500011112131415161718191a1b1c1d1e1f20000001ac688be000a60230820122300d06092a864886f70d01010105000382010f003082010a028201010096d06ae6aed8d67053e926394baaa89500d7090a494aef4ed567cdb2622a5afb85a3eefb5dea8de237b30aaf9e6e4d188a9ec0c8b512c4b3b3a9ad6d3306b6ea0cd96ca0e1760cd8adbb6fec102de09362035475ee4360143759c0f5091e199475f749346a184f8cafd3df8303f844431339555c982a4ec6d8fcb64efc7800546d3a570e4273e0951244155331d158be4e0138e7a13f8a7114c571d5e74f26aab619874034076d36a87d58dc3e7f00254d19f4e0287296e5b667e8fa6346344f529fe9579a961d004d8ba370a7eb80abf13ce3d5225bbb41f466105e2d70d7c9009a5f5e920dd6e7071fa56e20b1bc271d4bba38162f8adcd4f05ee3fa35e5610203010001030908070101ac020108000a446973706c6179e99baaac0201"
+        },
+        {
+          "entries": [
+            {
+              "list_order": 300,
+              "show_hat": false,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 192,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "c0010102030405060708090a0b0c0d0e0f10ac0200"
+        },
+        {
+          "entries": [
+            {
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 0,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "00010102030405060708090a0b0c0d0e0f10"
+        },
+        {
+          "entries": [
+            {
+              "game_mode": 0,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 4,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "04010102030405060708090a0b0c0d0e0f1000"
+        },
+        {
+          "entries": [
+            {
+              "game_mode": 1,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 4,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "04010102030405060708090a0b0c0d0e0f1001"
+        },
+        {
+          "entries": [
+            {
+              "game_mode": 2,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 4,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "04010102030405060708090a0b0c0d0e0f1002"
+        },
+        {
+          "entries": [
+            {
+              "game_mode": 3,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 4,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "04010102030405060708090a0b0c0d0e0f1003"
+        },
+        {
+          "entries": [
+            {
+              "latency": -1,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 16,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "10010102030405060708090a0b0c0d0e0f10ffffffff0f"
+        },
+        {
+          "entries": [
+            {
+              "latency": 0,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 16,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "10010102030405060708090a0b0c0d0e0f1000"
+        },
+        {
+          "entries": [
+            {
+              "latency": 300,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 16,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "10010102030405060708090a0b0c0d0e0f10ac02"
+        },
+        {
+          "entries": [
+            {
+              "latency": 2147483647,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 16,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "10010102030405060708090a0b0c0d0e0f10ffffffff07"
+        },
+        {
+          "entries": [
+            {
+              "chat_session": null,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 2,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "02010102030405060708090a0b0c0d0e0f1000"
+        },
+        {
+          "entries": [
+            {
+              "listed": false,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 8,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "08010102030405060708090a0b0c0d0e0f1000"
+        },
+        {
+          "entries": [
+            {
+              "display_name": null,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 32,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "20010102030405060708090a0b0c0d0e0f1000"
+        },
+        {
+          "entries": [
+            {
+              "show_hat": false,
+              "uuid": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15,
+                16
+              ]
+            }
+          ],
+          "flags": 128,
+          "group": "roster",
+          "packet_id": 68,
+          "payload_hex": "80010102030405060708090a0b0c0d0e0f1000"
+        },
+        {
+          "group": "roster",
+          "packet_id": 67,
+          "payload_hex": "010102030405060708090a0b0c0d0e0f10",
+          "remove": true,
+          "removed": [
+            [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16
+            ]
+          ]
+        }
+      ],
+      "version": "1.21.11"
+    }
+  ]
+}

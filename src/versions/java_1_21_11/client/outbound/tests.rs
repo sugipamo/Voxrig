@@ -2436,3 +2436,34 @@ async fn common_display_receipts_clear_reset_and_atomic_tab_match_native_packets
             && client.world_border().await.is_err()
     );
 }
+
+#[tokio::test]
+async fn social_common_bridge_applies_every_original_team_and_player_info_packet() {
+    use crate::client::ui::social_tests::{assert_bridge, bridge_bytes, bridge_cases};
+    let (session, api, _peer) = common_ground_fixture(crate::client::GameMode::Creative).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    assert!(client.teams().await.unwrap().last_update_sequence.is_none());
+    assert!(
+        client
+            .player_list()
+            .await
+            .unwrap()
+            .last_update_sequence
+            .is_none()
+    );
+    for row in bridge_cases(crate::MinecraftVersion::Java1_21_11) {
+        session
+            .state
+            .lock()
+            .await
+            .receive(
+                row["packet_id"].as_i64().unwrap() as i32,
+                &bridge_bytes(&row),
+                256,
+            )
+            .unwrap();
+        assert_bridge(&client, &row).await;
+    }
+    client.disconnect().await.unwrap();
+    assert!(client.teams().await.is_err() && client.player_list().await.is_err());
+}

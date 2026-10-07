@@ -1047,6 +1047,8 @@ pub struct Bot {
     common_scoreboard: Arc<Mutex<crate::client::ui::ScoreboardLedger>>,
     common_boss_bars: Arc<Mutex<crate::client::ui::boss_bar::BossBarLedger>>,
     common_display: Arc<Mutex<crate::client::ui::display::DisplayLedger>>,
+    common_teams: Arc<Mutex<crate::client::ui::teams::TeamLedger>>,
+    common_player_list: Arc<Mutex<crate::client::ui::player_list::PlayerListLedger>>,
     common_motion: Arc<Mutex<Option<common_motion::NativeMotionRun>>>,
     common_mining: Arc<Mutex<Option<common_mining::NativeMiningRun>>>,
     common_placement: Arc<Mutex<Option<common_placement::NativePlacementRun>>>,
@@ -1159,6 +1161,8 @@ impl Bot {
             common_scoreboard: self.common_scoreboard.clone(),
             common_boss_bars: self.common_boss_bars.clone(),
             common_display: self.common_display.clone(),
+            common_teams: self.common_teams.clone(),
+            common_player_list: self.common_player_list.clone(),
             common_motion: self.common_motion.clone(),
             common_mining: self.common_mining.clone(),
             common_placement: self.common_placement.clone(),
@@ -1334,6 +1338,8 @@ impl Bot {
             common_scoreboard: Arc::new(Mutex::new(Default::default())),
             common_boss_bars: Arc::new(Mutex::new(Default::default())),
             common_display: Arc::new(Mutex::new(Default::default())),
+            common_teams: Arc::new(Mutex::new(Default::default())),
+            common_player_list: Arc::new(Mutex::new(Default::default())),
             common_motion: Arc::new(Mutex::new(None)),
             common_mining: Arc::new(Mutex::new(None)),
             common_placement: Arc::new(Mutex::new(None)),
@@ -5449,6 +5455,12 @@ impl Bot {
             }
             0x32 => self.emit(Event::Combat(parse_combat_event(&p)?)),
             0x33 => {
+                self.common_player_list.lock().await.receive(
+                    crate::MinecraftVersion::Java1_16_1,
+                    id,
+                    &p,
+                    packet_sequence,
+                )?;
                 let mut players = self.players.write().await;
                 let (action, uuids) = apply_player_info(&mut players, &p)?;
                 drop(players);
@@ -5806,6 +5818,11 @@ impl Bot {
                 });
             }
             0x4c => {
+                self.common_teams.lock().await.receive(
+                    crate::MinecraftVersion::Java1_16_1,
+                    &p,
+                    packet_sequence,
+                )?;
                 self.ui.write().await.apply_team(&p)?;
                 self.emit(Event::UiStateUpdated(UiUpdateKind::Team));
             }
@@ -6832,6 +6849,32 @@ impl Bot {
 }
 
 impl Bot {
+    pub(crate) async fn common_teams(&self) -> Result<crate::client::ui::TeamsObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::client::inventory::unavailable("connection closed"));
+        }
+        let player = self.common_player_unlocked().await?;
+        Ok(self
+            .common_teams
+            .lock()
+            .await
+            .capture(player.session, player.receive_sequence))
+    }
+    pub(crate) async fn common_player_list(
+        &self,
+    ) -> Result<crate::client::ui::PlayerListObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::client::inventory::unavailable("connection closed"));
+        }
+        let player = self.common_player_unlocked().await?;
+        Ok(self
+            .common_player_list
+            .lock()
+            .await
+            .capture(player.session, player.receive_sequence))
+    }
     pub(crate) async fn common_titles(&self) -> Result<crate::client::ui::TitlesObservation> {
         let _gate = self.coherent_state_gate.lock().await;
         if self.is_stopped() {

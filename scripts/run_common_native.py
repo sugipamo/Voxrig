@@ -1804,6 +1804,159 @@ def run_display_stages(version, probe, messages, records, identities, trace, pee
     result['result']='passed'
     return result
 
+class NativeSocialReader:
+    """Independent original-frame reader for profile/team evidence only."""
+    def __init__(self,frame,version):self.raw=bytes.fromhex(frame['body_hex']);self.cursor=0;self.old=version=='1.16.1'
+    def take(self,n):
+        if n<0 or self.cursor+n>len(self.raw):raise RuntimeError('truncated original social field')
+        value=self.raw[self.cursor:self.cursor+n];self.cursor+=n;return value
+    def integer(self):
+        value,size=PacketTraceProxy.varint(self.raw[self.cursor:]);self.cursor+=size
+        return value-(1<<32) if value&(1<<31) else value
+    def string(self):return self.take(self.integer()).decode()
+    def boolean(self):
+        value=self.take(1)[0]
+        if value not in (0,1):raise RuntimeError('invalid original social boolean')
+        return bool(value)
+    def nbt(self,tag,depth=0):
+        if depth>64:raise RuntimeError('original social text depth exceeded')
+        if tag in (1,2,3,4,5,6):self.take({1:1,2:2,3:4,4:8,5:4,6:8}[tag])
+        elif tag in (7,11,12):self.take(int.from_bytes(self.take(4),'big',signed=True)*{7:1,11:4,12:8}[tag])
+        elif tag==8:self.take(int.from_bytes(self.take(2),'big'))
+        elif tag==9:
+            child=self.take(1)[0];count=int.from_bytes(self.take(4),'big',signed=True)
+            if not 0<=count<=1048576:raise RuntimeError('invalid original social NBT list')
+            for _ in range(count):self.nbt(child,depth+1)
+        elif tag==10:
+            while True:
+                child=self.take(1)[0]
+                if child==0:break
+                self.take(int.from_bytes(self.take(2),'big'));self.nbt(child,depth+1)
+        else:raise RuntimeError('unknown original social NBT tag')
+    def text(self):
+        if self.old:return {'kind':'legacy_json','json':self.string()}
+        start=self.cursor;self.nbt(self.take(1)[0]);return {'kind':'native_nbt','bytes':list(self.raw[start:self.cursor])}
+    def end(self):
+        if self.cursor!=len(self.raw):raise RuntimeError('trailing original social fields')
+
+
+def decode_social_frame(version,frame):
+    r=NativeSocialReader(frame,version);old=r.old;kind=frame['packet_id']
+    if kind==(0x4c if old else 0x6b):
+        name=r.string();op=r.take(1)[0];params=None;members=[]
+        if op in (0,2):
+            display=r.text();flags=r.take(1)[0]
+            if old:
+                visibility={'always':'always','never':'never','hideForOtherTeams':'hide_for_other_teams','hideForOwnTeam':'hide_for_own_team'}[r.string()]
+                collision={'always':'always','never':'never','pushOtherTeams':'push_other_teams','pushOwnTeam':'push_own_team'}[r.string()]
+            else:
+                visibility=('always','never','hide_for_other_teams','hide_for_own_team')[r.integer()]
+                collision=('always','never','push_other_teams','push_own_team')[r.integer()]
+            color=r.integer();colors=('black','dark_blue','dark_green','dark_aqua','dark_red','dark_purple','gold','gray','dark_gray','blue','green','aqua','red','light_purple','yellow','white')
+            params={'display':display,'friendly_flags':flags,'visibility':visibility,'collision':collision,'color':'reset' if color==21 else colors[color],'prefix':r.text(),'suffix':r.text()}
+        if op in (0,3,4):members=[r.string() for _ in range(r.integer())]
+        r.end();return {'family':'teams','name':name,'operation':op,'parameters':params,'members':members}
+    if not old and kind==0x43:
+        removed=[list(r.take(16)) for _ in range(r.integer())];r.end();return {'family':'rosters','removed':removed}
+    if kind!=(0x33 if old else 0x44):raise RuntimeError('social origin points to another packet')
+    op=r.integer() if old else None;flags=(1|4|16|32,4,16,32,0)[op] if old else r.take(1)[0];rows=[];removed=[]
+    for _ in range(r.integer()):
+        uuid=list(r.take(16));fields={}
+        if old and op==4:removed.append(uuid);continue
+        if flags&1:
+            name=r.string();properties=[]
+            for _ in range(r.integer()):properties.append({'name':r.string(),'value':r.string(),'signature':r.string() if r.boolean() else None})
+            fields['profile']={'name':name,'properties':properties}
+            if old:fields['listing']={'kind':'legacy_entry'}
+        if flags&2:
+            fields['chat_session']=None
+            if r.boolean():fields['chat_session']={'uuid':list(r.take(16)),'expires_at_epoch_millis':int.from_bytes(r.take(8),'big',signed=True),'public_key':list(r.take(r.integer())),'key_signature':list(r.take(r.integer()))}
+        if flags&4:
+            mode=r.integer();fields['game_mode']=None if old and mode==-1 else ('survival','creative','adventure','spectator')[mode]
+        if flags&8:fields['listing']={'kind':'listed','listed':r.boolean()}
+        if flags&16:fields['latency']=r.integer()
+        if flags&32:fields['display_name']=r.text() if r.boolean() else None
+        if flags&64:fields['list_order']=r.integer()
+        if flags&128:fields['show_hat']=r.boolean()
+        rows.append({'uuid':uuid,'fields':fields})
+    r.end();return {'family':'rosters','entries':rows,'removed':removed}
+
+
+def verify_social_frames(version,values,identities,trace,peers):
+    all_frames=trace.since(0);verified=[]
+    for index,key in enumerate(('primary','peer')[:len(values['rosters'])]):
+        identity=identities[key];frames=[f for f in all_frames if f['connection']==peers[identity['name']] and f['direction']=='clientbound' and f['phase'] in ('configuration','play')]
+        def source(receipt,boundary):
+            s=receipt['source']
+            if s['kind']!='received' or not 0<s['sequence']<=boundary:raise RuntimeError('invented social source')
+            frame=frames[s['sequence']-1];return frame,decode_social_frame(version,frame)
+        def record(frame,**fields):verified.append(dict(**fields,**{k:frame[k] for k in ('connection','ordinal','packet_id','body_sha256')}))
+        roster=values['rosters'][index];teams=values['teams'][index]
+        if roster['session']!=identity['session'] or teams['session']!=identity['session']:raise RuntimeError('social capture belongs to another managed world/session')
+        for entry in roster['entries']:
+            for field in ('profile','game_mode','latency','display_name','listing','list_order','show_hat','chat_session'):
+                receipt=entry[field]
+                if receipt is None:continue
+                frame,packet=source(receipt,roster['receive_sequence'])
+                match=next((r for r in packet.get('entries',[]) if r['uuid']==entry['uuid']),None)
+                if packet['family']!='rosters' or match is None or field not in match['fields'] or match['fields'][field]!=receipt['value']:raise RuntimeError('player-list field differs from original native frame')
+                record(frame,family='rosters',field=field,uuid=entry['uuid'])
+        if len(roster['entries'])==1:
+            frame=frames[roster['last_update_sequence']-1];packet=decode_social_frame(version,frame)
+            if packet['family']!='rosters' or identities['peer']['uuid'] not in packet['removed']:raise RuntimeError('peer removal lacks original remove packet')
+            record(frame,family='rosters',event='peer_removed',uuid=identities['peer']['uuid'])
+        for team in teams['teams']:
+            frame,packet=source(team['parameters'],teams['receive_sequence'])
+            if packet['family']!='teams' or packet['name']!=team['name'] or packet['parameters']!=team['parameters']['value']:raise RuntimeError('team parameters differ from original frame')
+            record(frame,family='teams',field='parameters',team=team['name'])
+            for member in team['members']:
+                frame,packet=source(member,teams['receive_sequence'])
+                if packet['family']!='teams' or packet['name']!=team['name'] or packet['operation'] not in (0,3) or member['value'] not in packet['members']:raise RuntimeError('team holder differs from original join/declaration')
+                record(frame,family='teams',field='member',team=team['name'],holder=member['value'])
+        if not teams['teams']:
+            frame=frames[teams['last_update_sequence']-1];packet=decode_social_frame(version,frame)
+            if packet['family']!='teams' or packet['operation']!=1:raise RuntimeError('removed teams lack actual remove')
+            record(frame,family='teams',event='removed',team=packet['name'])
+    return verified
+
+
+def run_social_stages(version,probe,messages,records,identities,trace,peers,rcon):
+    result={'commands':{},'stages':{},'original_fields':[]}
+    def commands(items):
+        for command in items:
+            reply=rcon.command(command);result['commands'][command]=reply
+            if any(word in reply for word in ('Incorrect argument','Unknown or incomplete','Expected whitespace')):raise RuntimeError('social fixture rejected: '+reply)
+    def capture(name):
+        value=stage(probe,messages,'b6_social_'+name,records)['value'];result['stages'][name]=value
+        result['original_fields']+=verify_social_frames(version,value,identities,trace,peers)
+    commands(('team add b6main {"text":"MainB6"}','team add b6other {"text":"OtherB6"}','team modify b6main color red','team modify b6main prefix {"text":"PrefixB6"}','team modify b6main suffix {"text":"SuffixB6"}',
+        'team modify b6main collisionRule never','team modify b6main nametagVisibility hideForOtherTeams','team modify b6main friendlyFire false','team modify b6main seeFriendlyInvisibles true','team join b6main @a','team join b6main OfflineHolder'))
+    capture('created');result['native_created_members']=rcon.command('team list b6main')
+    if not all(name in result['native_created_members'] for name in ('UnifiedProbe','ManagedPeer','OfflineHolder')):raise RuntimeError('native initial team holders differ')
+    commands(('team join b6other ManagedPeer','team leave OfflineHolder','team modify b6main color green','team modify b6main prefix {"text":"NewB6"}'))
+    capture('moved');result['native_main_after_move']=rcon.command('team list b6main');result['native_other_after_move']=rcon.command('team list b6other')
+    if 'UnifiedProbe' not in result['native_main_after_move'] or any(name in result['native_main_after_move'] for name in ('ManagedPeer','OfflineHolder')) or 'ManagedPeer' not in result['native_other_after_move']:raise RuntimeError('native team transfer differs')
+    for index in (0,1):
+        old=result['stages']['created']['teams'][index];new=result['stages']['moved']['teams'][index]
+        a=next(t for t in old['teams'] if t['name']=='b6main');b=next(t for t in new['teams'] if t['name']=='b6main')
+        member=lambda t:next(m for m in t['members'] if m['value']=='UnifiedProbe')
+        if member(a)!=member(b) or a['parameters']['source']==b['parameters']['source']:raise RuntimeError('team parameter update lost untouched holder origin')
+    commands(('team remove b6main','team remove b6other'));capture('removed');result['native_remaining_teams']=rcon.command('team list')
+    if 'no teams' not in result['native_remaining_teams'].lower():raise RuntimeError('native teams remain')
+    commands(('gamemode spectator ManagedPeer',));capture('spectator');result['native_spectator_mode']=rcon.command('data get entity ManagedPeer playerGameType')
+    if not re.search(r': 3\b',result['native_spectator_mode']):raise RuntimeError('native spectator mode differs')
+    commands(('gamemode creative ManagedPeer',));capture('restored')
+    for index in (0,1):
+        a=result['stages']['removed']['rosters'][index];b=result['stages']['spectator']['rosters'][index]
+        find=lambda r:next(e for e in r['entries'] if e['profile']['value']['name']=='ManagedPeer')
+        old,new=find(a),find(b)
+        if old['game_mode']['source']==new['game_mode']['source'] or any(old[field]!=new[field] for field in ('profile','display_name','listing','chat_session','list_order','show_hat')):raise RuntimeError('roster mode update erased unrelated origins')
+    trace.expect_disconnect(peers[identities['peer']['name']]);capture('peer_left')
+    result['native_after_peer_left']=until(lambda:matched(rcon.command('list'),r'1 of'))
+    if 'ManagedPeer' in result['native_after_peer_left'] or 'UnifiedProbe' not in result['native_after_peer_left']:raise RuntimeError('native peer closure differs')
+    result['result']='passed';return result
+
+
 def run_manager_ui(version,env,rcon,trace,report,probe_log,stderr_log):
     result=report['native_results']['manager_ui']={'fixture':{},'records':[]}
     probe=subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')],cwd=REPO,env=dict(env,VOXRIG_NATIVE_SCENARIO='manager-ui'),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
@@ -1851,6 +2004,7 @@ def run_manager_ui(version,env,rcon,trace,report,probe_log,stderr_log):
             if bars['stages']['updated']['players'][index]['game_mode']!=mode:raise RuntimeError('UI modes differ from requested fixture')
         bars['result']='passed'
         result['display']=run_display_stages(version,probe,messages,result['records'],ready['identities'],trace,peers,rcon)
+        result['social']=run_social_stages(version,probe,messages,result['records'],ready['identities'],trace,peers,rcon)
         # Scope closure to both actual managed transports, not a global flag.
         for connection in peers.values():trace.expect_disconnect(connection)
         result['shutdown']=stage(probe,messages,'a5_manager_shutdown',result['records'])['value']
@@ -1860,7 +2014,7 @@ def run_manager_ui(version,env,rcon,trace,report,probe_log,stderr_log):
         logins=[f for f in trace.since(0) if f['direction']=='clientbound' and f['phase']=='login' and f['packet_id']==2]
         if len(logins)!=2:raise RuntimeError('duplicate admission or terminal shutdown performed another login')
         result['actual_logins']=len(logins);result['result']='passed'
-        result['authority_limits']='Two actual named Client connections per version, coherent received scoreboard with exact original field payload hashes/ordinals, independent native score and player-list checks, fresh update/owner reset/objective removal, terminal manager shutdown closes externally held clones and refuses further login. Mixed-version registry identity separation and cancelled pending login closure use lightweight TCP fixtures; A5 representative workflows are complete; boss-bar add/update/remove also match original wire fields on both managed connections. Received titles, clear/reset and world-border changes also match original field frames on both connections. Vanilla header/footer is absent; original codecs/adapter tests cover that packet. Rendering, teams/player-list entries, other UI and wider B6 remain required.'
+        result['authority_limits']='Two actual named Client connections per version, coherent received scoreboard with exact original field payload hashes/ordinals, independent native score and player-list checks, fresh update/owner reset/objective removal, individual peer disconnect closes its external clone and the remaining primary receives actual roster removal; terminal manager shutdown closes the remaining external primary clone and refuses further login. Mixed-version registry identity separation and cancelled pending login closure use lightweight TCP fixtures; A5 representative workflows are complete; boss-bar add/update/remove also match original wire fields on both managed connections. Received titles, clear/reset and world-border changes also match original field frames on both connections. Vanilla header/footer is absent; original codecs/adapter tests cover that packet. Team declarations/transfers/removal and profile game-mode updates/peer removal also match original wire fields and independent native team/player state. Rendering, special windows/vehicles and wider manager/B6 remain required.'
     finally:
         if probe.poll() is None:
             probe.terminate()

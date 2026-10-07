@@ -110,10 +110,13 @@ pub mod prelude {
         ScenePreview, SceneSource, SurvivalControl, SurvivalInput,
     };
     pub use super::ui::{
-        BossBarColor, BossBarFlags, BossBarOverlay, BossBarsObservation, ReceivedBossBar,
-        ScoreNumberFormat, ScoreboardObjective, ScoreboardObservation, ScoreboardRenderType,
-        ScoreboardScore, TabListObservation, TabListText, TitleTiming, TitlesObservation, UiText,
-        WorldBorderDuration, WorldBorderObservation, WorldBorderSize,
+        BossBarColor, BossBarFlags, BossBarOverlay, BossBarsObservation, PlayerChatSession,
+        PlayerListEntry, PlayerListObservation, PlayerListing, PlayerProfile, PlayerProperty,
+        ReceivedBossBar, ReceivedTeam, ScoreNumberFormat, ScoreboardObjective,
+        ScoreboardObservation, ScoreboardRenderType, ScoreboardScore, TabListObservation,
+        TabListText, TeamCollision, TeamColor, TeamParameters, TeamVisibility, TeamsObservation,
+        TitleTiming, TitlesObservation, UiText, WorldBorderDuration, WorldBorderObservation,
+        WorldBorderSize,
     };
     pub use super::vehicle::control::{
         MAX_VEHICLE_CONTROL_TICKS, VehicleControlId, VehicleControlRecord, VehicleControlStage,
