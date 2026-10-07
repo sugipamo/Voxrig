@@ -46,7 +46,7 @@ survival.stop_control().await?;                   // ダッシュとしゃがみ
 
 ## 実サーバーでの確認（2026-10-07）
 
-公式`server.jar`（1.16.1・1.21.11）をoffline-modeでlocalhostに起動し、`examples/control_probe.rs`で確認した。
+公式`server.jar`（1.16.1・1.21.11）をoffline-modeでlocalhostに起動し、`examples/continuous_control_probe.rs`で確認した。
 consoleで前方に2 blockの深さの水場を作り、同じ接続で次を続けて行った:
 歩く20 tick → ダッシュ10 → ダッシュジャンプ12（水に飛び込む）→ 水底でしゃがんで歩く10 → 止まる10 →
 ジャンプしながら泳いで渡り、岸に上がる80 → 止まる20 → 歩いている途中でconsoleからテレポート → 歩いて止まる。
