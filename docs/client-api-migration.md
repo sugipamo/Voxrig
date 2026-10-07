@@ -642,7 +642,11 @@ event集約・physics metrics・shared chunk storage等の版固有入口は維�
 `Client::dismount_record()`で元の実除外を確認し、`ObservedUnmounted`後に同じhandleから
 `complete_dismount(record.id)`を一度呼ぶ。要求とneutralを続けて送らず、取消時にも再送しない。
 `Completed`は地上支持・立位の確認ではないため、地上操作の許可を戻す条件に使わない。
-操縦・車両physics・広い下車後継続はBに残る。
+通常地上操作へ戻るには、同じhandleから`resume_ground(record.id)`を一度呼ぶ。
+freshなown poseと乾いた床が必要で、宣言したローカル停止値を受信velocityと区別する。
+`grounding.motion`の2tick完了候補を確認し、新しい地上run／収納へ進む。
+[下車後の地上継続](common-dismount-grounding.md)を参照。
+車両physics・広い下車後の条件はBに残る。
 契約は[共通乗車関係](common-vehicles.md)を参照。
 
 ## Creative飛行の取消と地上終点
@@ -707,5 +711,6 @@ See [common recipe placement](common-recipes.md#owned-recipe-placement-through-t
 待機の取消だけでは所有runは止まらず、遮断や乗車変更の失敗は履歴へ保持する。
 履歴の`Submitted`を車両停止・位置の実受信や操作ACKに置き換えない。
 下車は`dismount`→実除外→`complete_dismount`の別の手順で行う。
-boat paddle、車両の現在状態、広いphysicsと下車後の地上継続は未共通化。
+車両の最新受信位置は`entity_motion`から読み、下車後の通常地上操作は
+`resume_ground`へ移行する。boat paddle、特殊補間・広いphysicsは未共通化。
 [共通乗車関係と入力](common-vehicles.md)を参照。

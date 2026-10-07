@@ -14,7 +14,8 @@
 A0〜A5の代表操作は両版で初回貫通済み。A6は資料・共通consumerを準備済みで、
 非公開の利用側から固定commitでの移行結果を受け取る段階にある。
 全機能の統合完了とは分ける。B4の結果転送に続き、B6の有限乗車入力を一連の操作として閉じた。
-vehicleの受信motion観測も両版・両modeで接続した。次は下車後の地上継続を含む広いB6、およびB3〜B5の残機能を進める。
+vehicleの受信motion観測と、下車後の通常地上停止→新しい歩行→収納も両版・両modeで接続した。
+次は残る特殊vehicle／window／UI／managerを利用操作の単位で整理し、B3〜B5の残機能を進める。
 操作に不要なconstructor比較の拡大を先行させない。
 実サーバーや重い検査は一つずつ実行する。
 
@@ -261,8 +262,8 @@ A5の代表例は初回貫通用であり、すべての特殊windowやentity／
 | entity spawn寿命・一回のINTERACT／ATTACK | 共通・限定条件 | 共通・限定条件 | A2で装備→攻撃→削除拒否→村人interactionを確認。現在のmotion/metadata・INTERACT_ATはB |
 | scoreboard観測・ClientManager生成／取得／終了 | 共通・限定条件 | 共通・限定条件 | A5の一部を実装・検証。managerのmixed-version分離は軽量fixtureで確認 |
 | かまどslot観測・通常PICKUP・開閉 | 共通・限定条件 | 共通・限定条件 | A5の基本かまど精錬flow。溶鉱炉／燻製器はconstructor/slot規則の確認で、特殊レシピのlive検証は残る |
-| own-player乗車関係・明示的下車 | 共通・限定条件 | 共通・限定条件 | 実passenger list、owned一回送信→実除外→neutral。両版・両modeのnativeで確認。下車後の地上継続はB |
-| 有限digital乗車入力 | 共通・限定条件 | 共通・限定条件 | 受信MountIdへ有限入力＋最終neutral。受信位置は共通entity_motionで観測。特殊補間・physics・paddle・下車後の地上継続はB6 |
+| own-player乗車関係・明示的下車 | 共通・限定条件 | 共通・限定条件 | 実passenger list、owned一回送信→実除外→neutral。両版・両modeのnativeで確認。通常地上への明示的継続もB6で接続済み |
+| 有限digital乗車入力 | 共通・限定条件 | 共通・限定条件 | 受信MountIdへ有限入力＋最終neutral。受信位置は共通entity_motionで観測。通常下車後の地上継続は接続済み。特殊補間・physics・paddleはB6 |
 | その他特殊window／UI／manager | 未共通化 | 未共通化 | 広い対応はB |
 | ownedレシピブック配置 | 共通・限定条件 | 共通・限定条件 | B4で通常Next／Maximumを接続。材料不足ghostと実返却も接続。結果のnative QUICK_MOVEは接続済み。広い製作条件はB4へ残る |
 
@@ -607,3 +608,25 @@ runの待機取消・遮断・同数値IDへの再乗車は送信所有と最初
 `trial-1.21.11-e3b458d8`でfreshな受信位置の変化と不変のspawn履歴を確認し、
 元RCONの車両移動・乗車UUID・下車と独立に照合した。両JVM exit 0、proxy errorsなし。
 [固定runtime入力と結果](evidence/common-entity-motion-20261006.json)。
+
+
+### B6の下車後の地上継続
+
+現在の区切りは、同じClientで接近→乗車→有限入力→実下車とneutral→
+`resume_ground`→新しい地上移動→収納→切断を通すこと。
+通常の乾いた立位へ戻る利用操作を両mode・両adapterへ接続する。
+実受信のown poseから開始し、宣言したzero-controller seedと2tickの予測を
+実受信velocityや停止ACKへ読み替えない。
+取消・遮断・再乗車・途中の車両消滅の最初の失敗を保持する。
+完了済みの地上停止は、元の車両が消滅しても後続地上runへ使用できる。
+[API契約](common-dismount-grounding.md)。
+
+次は残る特殊vehicle／window／UI／managerを利用操作の単位で整理し、
+広いB3〜B5と非公開A6の固定commit検証を継続する。
+車両physicsやconstructorの網羅をこの一区切りの完了条件へ追加しない。
+
+この区切りは両版・両modeの実サーバー4ケースが成功した。
+`trial-1.16.1-86c303a4`／`trial-1.21.11-85bf84ae`で、新しい15tick歩行のnative endpointと
+実chest OPEN／close／hotbar選択を照合した。両JVM exit 0、proxy errorsなし。
+[448入力と検証結果](evidence/common-dismount-grounding-20261007.json)。
+この通常地上継続は完了したが、上記の広いBと非公開A6を完了扱いにはしない。

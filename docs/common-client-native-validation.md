@@ -819,3 +819,30 @@ This resolves the previously retained forward-approach failure without removing
 the rail fixture or replacing the game. It does not prove post-dismount ground
 continuation, rail mining/placement or vehicle physics. Those operations, broader
 B3/B4/B5/B6 and private A6 fixed-commit results remain required.
+
+### 2026-10-07: B6の下車後の地上継続
+
+同じcommon consumerとClientで、地上接近→実乗車→有限入力→fresh vehicle motion→
+実下車とneutral→`resume_ground`→新しい地上歩行→single chest開閉とhotbar選択→切断を
+両mode・両adapterで通した。`trial-1.16.1-86c303a4`と`trial-1.21.11-85bf84ae`の
+4ケースが成功し、両JVM exit 0、proxy errorsなし。
+[448個の固定runtime入力・binary・受信元と送信frame](evidence/common-dismount-grounding-20261007.json)。
+
+元の下車要求より新しいown-position packetのordinalと元codecの絶対位置を照合し、
+元の受信poseから宣言したzero controllerをseedとして2つのreleased ground tickを送る。
+この2tickの完了候補は受信velocityやサーバーrest ACKではない。
+次の15tick歩行のnative endpointは独立RCONで照合し、チェストへの視点設定後の実OPEN／
+27-slot constructor、close送信、hotbar選択と空chestを別に確認する。
+closeの送信から受信screenの消失やサーバーACKを作らない。
+
+最初の実行では、次のloginの保存位置からplayerがfixture cartを押し、
+1.21.11 Creativeの元ADD_ENTITY位置が要求した初期座標と異なった。
+ready・初期player位置設定後にcartを作るfixture順序へ修正し、spawn検査は維持した。
+その修正中に一度summonの追加先を誤り、cart不在で失敗した実行も保存した。
+両失敗は検証開始前のfixture不備で、canonical成功入力と混在させない。
+最終実行は上記二つのreportに限定する。
+
+軽量試験は取消、writer待ち中の読み取り／遮断、1tick後の再乗車・車両消滅、
+最初の失敗と送信数の保持、完成済み停止から車両消滅後の地上継続を両adapterで確認した。
+実除外より先にown poseが届く順序も扱い、新版の未知velocityと元の中断情報を保持する。
+広いB3〜B6、非公開A6の固定commit結果と最終main統合は引き続き必要。

@@ -59,11 +59,18 @@ diagnostic_record! {
         #[serde(skip)]
         flight_stop: Option<crate::client::ObservedValue<u8>>,
         #[serde(skip)]
+        dismount_stop: Option<DismountMotionGuard>,
+        #[serde(skip)]
         received_pose_sequence: u64,
         #[serde(skip)]
         observer_session: Option<Weak<Session>>,
     }
     diagnostic_serde {}
+}
+#[derive(Clone, Debug)]
+pub(in super::super) struct DismountMotionGuard {
+    id: crate::client::DismountId,
+    interruption: Option<survival::MotionInterruption>,
 }
 /// Common standing provenance. Packet velocity and model velocity stay distinct.
 #[derive(Clone, Debug, Serialize, serde::Deserialize, PartialEq)]
@@ -75,6 +82,15 @@ pub enum StandingPositionBasis {
         /// Latest fully dispatched owned flight attempt.
         flight_attempt: u64,
         /// Last actual own pose before the submitted flight position.
+        received_pose_sequence: u64,
+    },
+    /// Private actual-dismount admission, with a declared local zero seed.
+    DeclaredDismountStop {
+        /// Owning completed dismount attempt, diagnostic only.
+        dismount_attempt: u64,
+        /// Original actual mounted receipt, distinct from a server tick.
+        mounted_sequence: u64,
+        /// Actual own pose after the original dismount request.
         received_pose_sequence: u64,
     },
     /// Own native position packet with zero resolved packet velocity.
@@ -109,7 +125,9 @@ impl StandingPositionBasis {
     pub(in super::super::super) fn geometry_reserve(&self) -> [f64; 3] {
         match self {
             Self::Received { .. } => [0.0; 3],
-            Self::DeclaredCreativeStop { .. } => [TERMINAL_MARGIN, 0.0, TERMINAL_MARGIN],
+            Self::DeclaredCreativeStop { .. } | Self::DeclaredDismountStop { .. } => {
+                [TERMINAL_MARGIN, 0.0, TERMINAL_MARGIN]
+            }
             Self::Predicted {
                 planning_reserve, ..
             } => *planning_reserve,
@@ -154,7 +172,8 @@ fn stable_context(state: &State, r: &SurvivalMotionRecord) -> Result<()> {
         || now.jump_strength != before.jump_strength
         || now.step_height != before.step_height
         || now.movement_efficiency != before.movement_efficiency
-        || now.motion_interruption.is_some()
+        || (now.motion_interruption.is_some() && !dismount_stop_matches(state, r))
+        || state.vehicles.motion_interrupted()
         || !now.effect_updates.is_empty()
         || now.health.as_ref().is_some_and(|h| h.health <= 0.0)
     {
@@ -488,6 +507,10 @@ impl Operations {
                 .survival_motion
                 .as_ref()
                 .and_then(|r| r.flight_stop.clone()),
+            dismount_stop: state
+                .survival_motion
+                .as_ref()
+                .and_then(|r| r.dismount_stop.clone()),
             observer_session: observer.map(|o| Arc::downgrade(&o.bot.session)),
             received_pose_sequence: state
                 .motion
@@ -943,6 +966,7 @@ fn sync_landing_motion(state: &State) {
     {
         if let Ok(r) = common_record(r.clone()) {
             crate::client::flight::sync_motion(&state.flight_history, &r);
+            crate::client::vehicle::dismount::sync_motion(&state.dismount_history, &r);
         }
     }
 }
@@ -981,6 +1005,25 @@ pub(in super::super) fn landing_plan(
         received_pose_sequence: pose,
     };
     let context = survival::landing_context(state, connection_id, tick, basis)?;
+    stop_plan(
+        state,
+        connection_id,
+        initial,
+        pose,
+        context,
+        state.operations.abilities_receipt(),
+        None,
+    )
+}
+fn stop_plan(
+    state: &State,
+    connection_id: u64,
+    initial: crate::client::PlayerObservation,
+    pose: u64,
+    context: StandingContext,
+    flight_stop: Option<crate::client::ObservedValue<u8>>,
+    dismount_stop: Option<DismountMotionGuard>,
+) -> Result<SurvivalMotionRecord> {
     validate_initial(&context)?;
     let controls = vec![
         SurvivalControl {
@@ -1027,10 +1070,94 @@ pub(in super::super) fn landing_plan(
         problem: None,
         recheck: None,
         common_initial: Some(initial),
-        flight_stop: state.operations.abilities_receipt(),
+        flight_stop,
+        dismount_stop,
         received_pose_sequence: pose,
         observer_session: None,
     })
+}
+pub(in super::super) fn dismount_ground_plan(
+    state: &mut State,
+    connection_id: u64,
+    tick: u64,
+    initial: crate::client::PlayerObservation,
+    id: crate::client::DismountId,
+) -> Result<SurvivalMotionRecord> {
+    let pose = state
+        .motion
+        .received_pose
+        .as_ref()
+        .ok_or_else(|| invalid("ground stop requires received pose"))?
+        .receive_sequence;
+    if !state
+        .motion
+        .received_position(state.loading.generation, state.position)
+        || state
+            .operations
+            .local_player
+            .velocity
+            .is_some_and(|v| v.value != [0.; 3])
+    {
+        return Err(invalid(
+            "ground stop requires actual position without a known nonzero impulse",
+        ));
+    }
+    let interruption = state.operations.local_player.motion_interruption.clone();
+    if interruption.as_ref().is_some_and(|i| {
+        !matches!(
+            i.packet_id,
+            ids::play_clientbound::SET_PASSENGERS | ids::play_clientbound::VEHICLE_MOVE
+        ) || i.receive_sequence < id.mount().receive_sequence()
+            || i.receive_sequence > pose
+    }) {
+        return Err(invalid(
+            "ground stop refuses an unbound or newer motion interruption",
+        ));
+    }
+    let basis = StandingPositionBasis::DeclaredDismountStop {
+        dismount_attempt: id.attempt(),
+        mounted_sequence: id.mount().receive_sequence(),
+        received_pose_sequence: pose,
+    };
+    let context = survival::dismount_context(state, connection_id, tick, basis)?;
+    stop_plan(
+        state,
+        connection_id,
+        initial,
+        pose,
+        context,
+        None,
+        Some(DismountMotionGuard { id, interruption }),
+    )
+}
+fn dismount_stop_matches(state: &State, run: &SurvivalMotionRecord) -> bool {
+    let Some(guard) = &run.dismount_stop else {
+        return false;
+    };
+    let vehicle = state.vehicles.capture(
+        guard.id.mount().session(),
+        state.sequence,
+        state.operations.local_player.entity_id,
+        &state.entities,
+    );
+    !state.vehicles.motion_interrupted()
+        && state.operations.local_player.motion_interruption == guard.interruption
+        && state.dismount_history.lock().expect("dismount history").as_ref().is_some_and(|r|
+            r.id == guard.id && r.grounding.as_ref().is_some_and(|g| {
+                // Completed ground control retains the original absence proof
+                // when the already unmounted vehicle later despawns.
+                g.motion.problem.is_none() && (
+                    g.motion.status.is_continuation_candidate()
+                    || vehicle.relation.as_ref().is_some_and(|r| matches!(r.value,
+                        crate::client::VehicleRelation::Unmounted { previous_mount } if previous_mount == guard.id.mount()))
+                )
+            }))
+}
+pub(in super::super) fn submitted_dismount_stop(state: &State) -> bool {
+    state
+        .survival_motion
+        .as_ref()
+        .is_some_and(|r| dismount_stop_matches(state, r))
 }
 pub(in super::super) fn landing_common_record(
     run: &SurvivalMotionRecord,

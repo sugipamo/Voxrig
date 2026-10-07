@@ -733,6 +733,15 @@ impl Operations {
         ground: bool,
         flight_owner: bool,
     ) -> Result<()> {
+        self.mutable_with_owners(state, ground, flight_owner, None)
+    }
+    fn mutable_with_owners(
+        &self,
+        state: &State,
+        ground: bool,
+        flight_owner: bool,
+        ground_owner: Option<crate::client::DismountId>,
+    ) -> Result<()> {
         self.ready(state)?;
         if crate::client::vehicle::control::unresolved(&state.vehicle_control_history) {
             return Err(crate::client::inventory::unavailable(
@@ -749,7 +758,7 @@ impl Operations {
             .lock()
             .expect("dismount history")
             .as_ref()
-            .is_some_and(|r| r.unresolved())
+            .is_some_and(|r| r.unresolved() && Some(r.id) != ground_owner)
         {
             return Err(crate::client::inventory::unavailable(
                 "dismount input unresolved; inspect and explicitly complete without replay",

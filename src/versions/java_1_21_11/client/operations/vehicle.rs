@@ -346,3 +346,117 @@ impl Operations {
         Ok(history.clone())
     }
 }
+
+impl Operations {
+    pub(crate) async fn common_resume_ground(
+        &self,
+        mode: api::GameMode,
+        id: DismountId,
+    ) -> Result<DismountRecord> {
+        let mut state = self.bot.session.state.lock().await;
+        self.mutable_for_dismount(&state)?;
+        let record = self.dismount_snapshot(id)?;
+        if record.mode != mode || record.grounding.is_some() {
+            return Err(unavailable(
+                "ground stop already claimed or wrong handle mode",
+            ));
+        }
+        let player = self.common_player_unlocked(&state)?;
+        if player.pending_dispatch {
+            return Err(unavailable("ground stop refuses pending dispatch"));
+        }
+        contract::validate_ground_before(&record, &player, &capture(&state, &player))?;
+        let run = movement::dismount_ground_plan(
+            &mut state,
+            self.bot.session.id,
+            self.bot.session.started.elapsed().as_millis() as u64 / 50,
+            player,
+            id,
+        )?;
+        self.bot
+            .dismount_history
+            .lock()
+            .expect("dismount history")
+            .as_mut()
+            .unwrap()
+            .grounding = Some(api::DismountGrounding {
+            declared_controller_velocity: [0.; 3],
+            motion: movement::landing_common_record(&run)?,
+        });
+        let (reply, result) = tokio::sync::oneshot::channel();
+        let bot = self.bot.clone();
+        tokio::spawn(async move {
+            let _ = reply.send(bot.operations().ground_send_owned(id, run).await);
+        });
+        drop(state);
+        result
+            .await
+            .map_err(|_| unavailable("ground owner result unavailable"))?
+    }
+    async fn ground_send_owned(
+        &self,
+        id: DismountId,
+        run: movement::SurvivalMotionRecord,
+    ) -> Result<DismountRecord> {
+        let result = async {
+            let mut state = self.bot.session.state.lock().await;
+            self.mutable_with_owners(&state, false, false, Some(id))?;
+            let record = self.dismount_snapshot(id)?;
+            if record
+                .grounding
+                .as_ref()
+                .is_none_or(|g| g.motion.problem.is_some())
+            {
+                return Err(unavailable("ground owner interrupted before I/O"));
+            }
+            let player = self.common_player_unlocked(&state)?;
+            contract::validate_ground_before(&record, &player, &capture(&state, &player))?;
+            let checked = movement::dismount_ground_plan(
+                &mut state,
+                self.bot.session.id,
+                self.bot.session.started.elapsed().as_millis() as u64 / 50,
+                player,
+                id,
+            )?;
+            if checked.preview.initial.world_revision != run.preview.initial.world_revision
+                || checked.preview.initial.player != run.preview.initial.player
+                || checked.preview.initial.position != run.preview.initial.position
+            {
+                return Err(unavailable("ground pose or geometry changed after intent"));
+            }
+            let uuid = state
+                .identity
+                .as_ref()
+                .ok_or_else(|| unavailable("ground identity unavailable"))?
+                .uuid;
+            state.vehicles.admit_ground_after_dismount(id.mount())?;
+            state.survival_motion = Some(run.clone());
+            drop(state);
+            self.run_survival_motion(&run, None, uuid).await
+        }
+        .await;
+        if let Err(e) = &result {
+            let mut state = self.bot.session.state.lock().await;
+            if let Some(r) = state
+                .survival_motion
+                .as_mut()
+                .filter(|r| r.run_id == run.run_id)
+            {
+                r.status = SurvivalMotionStatus::RequiresInspection;
+                r.problem.get_or_insert_with(|| e.to_string());
+                if let Ok(r) = movement::landing_common_record(r) {
+                    contract::sync_motion(&self.bot.dismount_history, &r);
+                }
+            }
+            self.bot
+                .dismount_history
+                .lock()
+                .expect("dismount history")
+                .as_mut()
+                .unwrap()
+                .inspection(e);
+        }
+        result?;
+        self.dismount_snapshot(id)
+    }
+}

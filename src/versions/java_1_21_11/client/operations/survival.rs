@@ -382,7 +382,7 @@ pub(super) fn context_with_basis(
     tick: u64,
     position_basis: StandingPositionBasis,
 ) -> Result<StandingContext> {
-    context_core(state, connection_id, tick, position_basis, false)
+    context_core(state, connection_id, tick, position_basis, false, false)
 }
 pub(super) fn landing_context(
     state: &mut State,
@@ -398,7 +398,20 @@ pub(super) fn landing_context(
             "landing requires its declared private controller basis",
         ));
     }
-    context_core(state, connection_id, tick, position_basis, true)
+    context_core(state, connection_id, tick, position_basis, true, false)
+}
+pub(super) fn dismount_context(
+    state: &mut State,
+    connection_id: u64,
+    tick: u64,
+    basis: StandingPositionBasis,
+) -> Result<StandingContext> {
+    if !matches!(basis, StandingPositionBasis::DeclaredDismountStop { .. }) {
+        return Err(unavailable(
+            "dismount requires its private declared controller basis",
+        ));
+    }
+    context_core(state, connection_id, tick, basis, false, true)
 }
 fn context_core(
     state: &mut State,
@@ -406,13 +419,16 @@ fn context_core(
     tick: u64,
     position_basis: StandingPositionBasis,
     landing: bool,
+    dismount: bool,
 ) -> Result<StandingContext> {
     let player = &state.operations.local_player;
-    if let Some(interruption) = &player.motion_interruption {
-        return Err(unavailable(format!(
-            "unsupported player motion packet {} at receive sequence {}; fresh world baseline required",
-            interruption.packet_id, interruption.receive_sequence
-        )));
+    if !dismount && !super::movement::submitted_dismount_stop(state) {
+        if let Some(interruption) = &player.motion_interruption {
+            return Err(unavailable(format!(
+                "unsupported player motion packet {} at receive sequence {}; fresh world baseline required",
+                interruption.packet_id, interruption.receive_sequence
+            )));
+        }
     }
     if player.entity_id.is_none()
         || player.pose != Some(PlayerPose::Standing)
@@ -445,6 +461,7 @@ fn context_core(
         position_basis,
         StandingPositionBasis::Predicted { .. }
             | StandingPositionBasis::DeclaredCreativeStop { .. }
+            | StandingPositionBasis::DeclaredDismountStop { .. }
     ) && geometry.support.is_empty()
     {
         return Err(unavailable(

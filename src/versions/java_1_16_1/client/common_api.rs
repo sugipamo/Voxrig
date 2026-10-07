@@ -604,6 +604,243 @@ fn common_state(message: &str) -> crate::Error {
 mod tests {
     use super::*;
     #[tokio::test]
+    async fn common_dismount_ground_owned_cancel_remount_and_revoke_preserve_history() {
+        use api::{VehicleRelation, survival::MotionStatus};
+        for kind in ["cancel", "remount", "retire", "revoke"] {
+            let (bot, mut packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            super::super::common_motion::tests::seed_motion(&bot).await;
+            bot.player.lock().await.entity_id = Some(42);
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            bot.apply_packet(0x4b, vec![10, 1, 42]).await.unwrap();
+            let VehicleRelation::Mounted { mount } = client
+                .vehicle_state()
+                .await
+                .unwrap()
+                .relation
+                .unwrap()
+                .value
+            else {
+                panic!();
+            };
+            let record = client.survival().dismount(mount).await.unwrap();
+            let mut position = Vec::new();
+            for value in [8.5f64, 65., 8.5] {
+                position.extend(value.to_be_bytes());
+            }
+            position.extend([0; 8]);
+            position.push(0);
+            put_varint(&mut position, 99);
+            bot.apply_packet(0x35, position).await.unwrap();
+            bot.apply_packet(0x4b, vec![10, 0]).await.unwrap();
+            client
+                .survival()
+                .complete_dismount(record.id)
+                .await
+                .unwrap();
+            for _ in 0..4 {
+                packets.recv().await.unwrap();
+            }
+            if matches!(kind, "remount" | "retire") {
+                let owned = client.clone();
+                let waiter =
+                    tokio::spawn(async move { owned.survival().resume_ground(record.id).await });
+                assert_eq!(packets.recv().await.unwrap().0, 0x13);
+                if kind == "remount" {
+                    bot.apply_packet(0x4b, vec![10, 1, 42]).await.unwrap();
+                } else {
+                    bot.apply_packet(0x37, vec![1, 10]).await.unwrap();
+                }
+                assert!(waiter.await.unwrap().is_err());
+                let failed = client
+                    .dismount_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .grounding
+                    .unwrap()
+                    .motion;
+                assert_eq!(failed.status, MotionStatus::RequiresInspection);
+                assert_eq!((failed.attempted_tick, failed.dispatched_ticks), (1, 1));
+                let _ = client.revoke_connection();
+                assert_eq!(
+                    client
+                        .dismount_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .grounding
+                        .unwrap()
+                        .motion
+                        .problem,
+                    failed.problem
+                );
+            } else {
+                let writer = bot.writer.lock().await;
+                let ops = client.survival();
+                let mut waiter = Box::pin(ops.resume_ground(record.id));
+                assert!(
+                    timeout(Duration::from_millis(20), waiter.as_mut())
+                        .await
+                        .is_err()
+                );
+                drop(waiter);
+                let intent = timeout(Duration::from_millis(50), client.dismount_record())
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(intent.id, record.id);
+                assert_eq!(
+                    intent.grounding.as_ref().unwrap().motion.dispatched_ticks,
+                    0
+                );
+                if kind == "revoke" {
+                    let _ = client.revoke_connection();
+                    let failed = client
+                        .dismount_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .grounding
+                        .unwrap()
+                        .motion;
+                    assert_eq!(failed.status, MotionStatus::RequiresInspection);
+                    drop(writer);
+                    tokio::time::sleep(Duration::from_millis(30)).await;
+                    let again = client
+                        .dismount_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .grounding
+                        .unwrap()
+                        .motion;
+                    assert_eq!(again.dispatched_ticks, 0);
+                    assert_eq!(again.problem, failed.problem);
+                } else {
+                    drop(writer);
+                    for _ in 0..2 {
+                        assert_eq!(packets.recv().await.unwrap().0, 0x13);
+                    }
+                    timeout(Duration::from_secs(2), async {
+                        loop {
+                            let r = client.dismount_record().await.unwrap().unwrap();
+                            let g = r.grounding.unwrap();
+                            assert!(g.motion.problem.is_none(), "{:?}", g.motion.problem);
+                            if g.motion.status == MotionStatus::Predicted {
+                                assert_eq!(g.motion.dispatched_ticks, 2);
+                                break;
+                            }
+                            tokio::task::yield_now().await;
+                        }
+                    })
+                    .await
+                    .unwrap();
+                }
+            }
+            assert!(client.survival().resume_ground(record.id).await.is_err());
+            assert!(packets.try_recv().is_err());
+            let _ = release.send(());
+            drop(client);
+            drop(bot);
+            server.await.unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn common_dismount_ground_retains_received_pose_and_continues_both_modes() {
+        use api::{GameMode, VehicleRelation};
+        for mode in [GameMode::Survival, GameMode::Creative] {
+            let (bot, mut packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            super::super::common_motion::tests::seed_motion(&bot).await;
+            bot.survival.write().await.game_mode =
+                Some(if mode == GameMode::Survival { 0 } else { 1 });
+            bot.player.lock().await.entity_id = Some(42);
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            bot.apply_packet(0x4b, vec![10, 1, 42]).await.unwrap();
+            let VehicleRelation::Mounted { mount } = client
+                .vehicle_state()
+                .await
+                .unwrap()
+                .relation
+                .unwrap()
+                .value
+            else {
+                panic!();
+            };
+            let record = if mode == GameMode::Survival {
+                client.survival().dismount(mount).await.unwrap()
+            } else {
+                client.creative().dismount(mount).await.unwrap()
+            };
+            assert_eq!(packets.recv().await.unwrap().0, 0x1d);
+            // Actual dismount position can precede the actual absence packet.
+            let mut position = Vec::new();
+            for value in [8.5f64, 65., 8.5] {
+                position.extend(value.to_be_bytes());
+            }
+            position.extend([0; 8]);
+            position.push(0);
+            put_varint(&mut position, 99);
+            bot.apply_packet(0x35, position).await.unwrap();
+            assert_eq!(packets.recv().await.unwrap(), (0x00, vec![99]));
+            assert_eq!(packets.recv().await.unwrap().0, 0x13);
+            assert!(client.survival().resume_ground(record.id).await.is_err());
+            assert!(
+                client
+                    .dismount_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .grounding
+                    .is_none()
+            );
+            bot.apply_packet(0x4b, vec![10, 0]).await.unwrap();
+            if mode == GameMode::Survival {
+                client
+                    .survival()
+                    .complete_dismount(record.id)
+                    .await
+                    .unwrap();
+            } else {
+                client
+                    .creative()
+                    .complete_dismount(record.id)
+                    .await
+                    .unwrap();
+            }
+            assert_eq!(packets.recv().await.unwrap(), (0x1d, vec![0; 9]));
+            crate::client::tests::common_dismount_ground_scenario(&client, record.id).await;
+            bot.apply_packet(0x37, vec![1, 10]).await.unwrap();
+            assert!(client.vehicle_state().await.unwrap().relation.is_none());
+            let controls = [api::survival::SurvivalControl {
+                yaw: 0.,
+                input: Default::default(),
+            }];
+            let preview = if mode == GameMode::Survival {
+                client.survival().preview_path(&controls).await
+            } else {
+                client.creative().preview_path(&controls).await
+            };
+            assert!(
+                preview.is_ok(),
+                "ground stop must survive retired vehicle: {preview:?}"
+            );
+            crate::client::tests::common_retired_vehicle_ground_scenario(&client).await;
+            for _ in 0..6 {
+                assert_eq!(packets.recv().await.unwrap().0, 0x13);
+            }
+            assert!(packets.try_recv().is_err());
+            release.send(()).unwrap();
+            drop(client);
+            drop(bot);
+            server.await.unwrap();
+        }
+    }
+
+    #[tokio::test]
     async fn common_dismount_requires_receipt_before_release_and_never_replays() {
         use api::vehicle::{DismountStage, VehicleRelation};
         let (bot, mut packets, release, server) =

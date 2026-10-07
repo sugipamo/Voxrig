@@ -64,12 +64,38 @@ pub struct DismountRecord {
     pub release_dispatched: bool,
     /// Latched conflict, closure or uncertain I/O reason.
     pub requires_inspection: Option<String>,
+    /// Optional explicit local controller stop after actual dismount and neutral.
+    /// Its received starting pose and declared seed remain separate.
+    pub grounding: Option<DismountGrounding>,
+}
+/// Connection-owned finite ground admission. This is not a server rest ACK.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct DismountGrounding {
+    /// Declared local controller velocity, never substituted for received velocity.
+    pub declared_controller_velocity: [f64; 3],
+    /// Two released model ticks and their before-I/O/complete dispatch history.
+    pub motion: api::survival::MotionRecord,
 }
 impl DismountRecord {
     pub(crate) fn unresolved(&self) -> bool {
         self.stage != DismountStage::Completed
+            || self
+                .grounding
+                .as_ref()
+                .is_some_and(|g| !g.motion.status.is_continuation_candidate())
     }
     pub(crate) fn inspection(&mut self, reason: impl std::fmt::Display) {
+        if self.stage == DismountStage::Completed {
+            if let Some(g) = self
+                .grounding
+                .as_mut()
+                .filter(|g| !g.motion.status.is_continuation_candidate())
+            {
+                g.motion.problem.get_or_insert_with(|| reason.to_string());
+                g.motion.status = api::survival::MotionStatus::RequiresInspection;
+            }
+            return;
+        }
         if self.unresolved() {
             self.requires_inspection
                 .get_or_insert_with(|| reason.to_string());
@@ -142,6 +168,7 @@ pub(crate) fn prepare(
         release_claimed: false,
         release_dispatched: false,
         requires_inspection: None,
+        grounding: None,
     })
 }
 pub(crate) fn validate_before(
@@ -183,6 +210,14 @@ pub(crate) fn receive(
     if !record.unresolved() || record.requires_inspection.is_some() {
         return;
     }
+    if record.stage == DismountStage::Completed {
+        let live = context(player, vehicle, record.mode, record.id.mount)
+            .and_then(|()| ground_relation(record, vehicle));
+        if let Err(e) = live {
+            record.inspection(e);
+        }
+        return;
+    }
     if let Err(e) = context(player, vehicle, record.mode, record.id.mount) {
         record.inspection(e);
         return;
@@ -205,6 +240,58 @@ pub(crate) fn receive(
             record.stage = DismountStage::ObservedUnmounted;
         }
         _ => record.inspection("dismount relationship changed outside retained phase"),
+    }
+}
+fn ground_relation(record: &DismountRecord, vehicle: &VehicleObservation) -> Result<()> {
+    if !vehicle.relation.as_ref().is_some_and(|r|
+        matches!(r.value, VehicleRelation::Unmounted { previous_mount } if previous_mount == record.id.mount)
+        && matches!(r.source, ValueSource::Received { sequence } if sequence > record.after_sequence)) {
+        return Err(unavailable("ground stop requires the original actual dismount relationship"));
+    }
+    Ok(())
+}
+/// Checks the current received starting position, without synthesizing velocity.
+pub(crate) fn validate_ground_before(
+    record: &DismountRecord,
+    player: &api::PlayerObservation,
+    vehicle: &VehicleObservation,
+) -> Result<()> {
+    context(player, vehicle, record.mode, record.id.mount)?;
+    if record.stage != DismountStage::Completed
+        || !record.request_dispatched
+        || !record.release_dispatched
+        || record.observed_unmounted.is_none()
+        || record.requires_inspection.is_some()
+    {
+        return Err(unavailable(
+            "ground stop requires completed actual dismount and neutral",
+        ));
+    }
+    ground_relation(record, vehicle)?;
+    let pose = player
+        .received_pose
+        .as_ref()
+        .ok_or_else(|| unavailable("ground stop requires received dismount pose"))?;
+    if pose.receive_sequence <= record.after_sequence
+        || !player.position.as_ref().is_some_and(|p| p.value == pose.position
+            && matches!(p.source, ValueSource::Received { sequence } if sequence == pose.receive_sequence)) {
+        return Err(unavailable("ground stop requires the fresh actual own dismount position"));
+    }
+    Ok(())
+}
+pub(crate) fn sync_motion(history: &History, motion: &api::survival::MotionRecord) {
+    let mut history = history.lock().expect("dismount history");
+    if let Some(g) = history
+        .as_mut()
+        .and_then(|r| r.grounding.as_mut())
+        .filter(|g| g.motion.session == motion.session && g.motion.run_id == motion.run_id)
+    {
+        let first = g.motion.problem.clone();
+        g.motion = motion.clone();
+        if let Some(first) = first {
+            g.motion.problem = Some(first);
+            g.motion.status = api::survival::MotionStatus::RequiresInspection;
+        }
     }
 }
 /// Pinned original serializers: old neutral axes + shift flag; modern Input shift bit.
@@ -260,6 +347,17 @@ macro_rules! handle {
             /// This completes the request without releasing ground-motion guards.
             pub async fn complete_dismount(&self, id: DismountId) -> Result<DismountRecord> {
                 self.client.complete_common_dismount($mode, id).await
+            }
+            /// After actual dismount and neutral, declare a local zero controller
+            /// seed and send two released ground ticks on known dry support.
+            /// One attempt per dismount; cancellation stops waiting only.
+            pub async fn resume_ground(&self, id: DismountId) -> Result<DismountRecord> {
+                match &self.client.adapter {
+                    Adapter::Java1_16_1(bot) => bot.common_resume_ground($mode, id).await,
+                    Adapter::Java1_21_11(bot) => {
+                        bot.operations().common_resume_ground($mode, id).await
+                    }
+                }
             }
             /// Read the latest attempt without sending another frame.
             pub async fn dismount_record(&self) -> Result<Option<DismountRecord>> {

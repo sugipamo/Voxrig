@@ -1972,3 +1972,306 @@ async fn vehicle_control_latches_unmount_before_same_numeric_vehicle_reappears()
         record.requires_inspection
     );
 }
+
+#[tokio::test]
+async fn common_dismount_ground_keeps_unknown_received_velocity_and_continues_both_modes() {
+    use crate::client::{GameMode, VehicleRelation};
+    for mode in [GameMode::Survival, GameMode::Creative] {
+        let (session, api, mut peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 1, 42], 256)
+            .unwrap();
+        let VehicleRelation::Mounted { mount } = client
+            .vehicle_state()
+            .await
+            .unwrap()
+            .relation
+            .unwrap()
+            .value
+        else {
+            panic!();
+        };
+        let record = if mode == GameMode::Survival {
+            client.survival().dismount(mount).await.unwrap()
+        } else {
+            client.creative().dismount(mount).await.unwrap()
+        };
+        assert_eq!(
+            read_packet(&mut peer, None).await.unwrap(),
+            (0x2a, vec![32])
+        );
+        let mut position = Vec::new();
+        put_varint(&mut position, 99);
+        for value in [8.5f64, 65., 8.5, 0., 0., 0.] {
+            position.extend(value.to_be_bytes());
+        }
+        position.extend([0; 8]);
+        position.extend(0x1f8u32.to_be_bytes());
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::POSITION, &position, 256)
+            .unwrap();
+        assert!(client.survival().resume_ground(record.id).await.is_err());
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 0], 256)
+            .unwrap();
+        if mode == GameMode::Survival {
+            client
+                .survival()
+                .complete_dismount(record.id)
+                .await
+                .unwrap();
+        } else {
+            client
+                .creative()
+                .complete_dismount(record.id)
+                .await
+                .unwrap();
+        }
+        assert_eq!(read_packet(&mut peer, None).await.unwrap(), (0x2a, vec![0]));
+        let before = session.state.lock().await.operations.local_player.clone();
+        assert!(before.velocity.is_none());
+        assert!(before.motion_interruption.is_some());
+        crate::client::tests::common_dismount_ground_scenario(&client, record.id).await;
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::ENTITY_DESTROY, &[1, 10], 256)
+            .unwrap();
+        assert!(client.vehicle_state().await.unwrap().relation.is_none());
+        let preview = if mode == GameMode::Survival {
+            client
+                .survival()
+                .preview_path(&[crate::client::survival::SurvivalControl {
+                    yaw: 0.,
+                    input: Default::default(),
+                }])
+                .await
+        } else {
+            client
+                .creative()
+                .preview_path(&[crate::client::survival::SurvivalControl {
+                    yaw: 0.,
+                    input: Default::default(),
+                }])
+                .await
+        };
+        assert!(
+            preview.is_ok(),
+            "ground stop must survive retirement of an already unmounted vehicle: {preview:?}"
+        );
+        crate::client::tests::common_retired_vehicle_ground_scenario(&client).await;
+        for _ in 0..6 {
+            assert_eq!(
+                read_packet(&mut peer, None).await.unwrap(),
+                (ids::play_serverbound::PLAYER_INPUT, vec![0])
+            );
+            assert_eq!(
+                read_packet(&mut peer, None).await.unwrap().0,
+                ids::play_serverbound::POSITION_LOOK
+            );
+        }
+        let after = session.state.lock().await.operations.local_player.clone();
+        assert_eq!(after.velocity, before.velocity);
+        assert_eq!(after.motion_interruption, before.motion_interruption);
+        assert!(
+            timeout(Duration::from_millis(20), read_packet(&mut peer, None))
+                .await
+                .is_err()
+        );
+        session.stop();
+    }
+}
+
+#[tokio::test]
+async fn common_dismount_ground_owned_cancel_remount_and_revoke_preserve_history() {
+    use crate::client::{GameMode, VehicleRelation, survival::MotionStatus};
+    for kind in ["cancel", "remount", "retire", "revoke"] {
+        let (session, api, mut peer) = common_ground_fixture(GameMode::Survival).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 1, 42], 256)
+            .unwrap();
+        let VehicleRelation::Mounted { mount } = client
+            .vehicle_state()
+            .await
+            .unwrap()
+            .relation
+            .unwrap()
+            .value
+        else {
+            panic!();
+        };
+        let record = client.survival().dismount(mount).await.unwrap();
+        let mut position = Vec::new();
+        put_varint(&mut position, 99);
+        for value in [8.5f64, 65., 8.5, 0., 0., 0.] {
+            position.extend(value.to_be_bytes());
+        }
+        position.extend([0; 8]);
+        position.extend(0x1f8u32.to_be_bytes());
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::POSITION, &position, 256)
+            .unwrap();
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 0], 256)
+            .unwrap();
+        client
+            .survival()
+            .complete_dismount(record.id)
+            .await
+            .unwrap();
+        for _ in 0..2 {
+            read_packet(&mut peer, None).await.unwrap();
+        }
+        if matches!(kind, "remount" | "retire") {
+            let owned = client.clone();
+            let waiter =
+                tokio::spawn(async move { owned.survival().resume_ground(record.id).await });
+            assert_eq!(
+                read_packet(&mut peer, None).await.unwrap().0,
+                ids::play_serverbound::PLAYER_INPUT
+            );
+            assert_eq!(
+                read_packet(&mut peer, None).await.unwrap().0,
+                ids::play_serverbound::POSITION_LOOK
+            );
+            if kind == "remount" {
+                session
+                    .state
+                    .lock()
+                    .await
+                    .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 1, 42], 256)
+                    .unwrap();
+            } else {
+                session
+                    .state
+                    .lock()
+                    .await
+                    .receive(ids::play_clientbound::ENTITY_DESTROY, &[1, 10], 256)
+                    .unwrap();
+            }
+            assert!(waiter.await.unwrap().is_err());
+            let failed = client
+                .dismount_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .grounding
+                .unwrap()
+                .motion;
+            assert_eq!(failed.status, MotionStatus::RequiresInspection);
+            assert_eq!((failed.attempted_tick, failed.dispatched_ticks), (1, 1));
+            let _ = client.revoke_connection();
+            assert_eq!(
+                client
+                    .dismount_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .grounding
+                    .unwrap()
+                    .motion
+                    .problem,
+                failed.problem
+            );
+        } else {
+            let writer = session.writer.lock().await;
+            let ops = client.survival();
+            let mut waiter = Box::pin(ops.resume_ground(record.id));
+            assert!(
+                timeout(Duration::from_millis(20), waiter.as_mut())
+                    .await
+                    .is_err()
+            );
+            drop(waiter);
+            let intent = timeout(Duration::from_millis(50), client.dismount_record())
+                .await
+                .unwrap()
+                .unwrap()
+                .unwrap();
+            assert_eq!(intent.id, record.id);
+            assert_eq!(intent.grounding.unwrap().motion.dispatched_ticks, 0);
+            if kind == "revoke" {
+                let _ = client.revoke_connection();
+                let failed = client
+                    .dismount_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .grounding
+                    .unwrap()
+                    .motion;
+                assert_eq!(failed.status, MotionStatus::RequiresInspection);
+                drop(writer);
+                tokio::time::sleep(Duration::from_millis(30)).await;
+                let again = client
+                    .dismount_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .grounding
+                    .unwrap()
+                    .motion;
+                assert_eq!(again.dispatched_ticks, 0);
+                assert_eq!(again.problem, failed.problem);
+            } else {
+                drop(writer);
+                for _ in 0..2 {
+                    assert_eq!(
+                        read_packet(&mut peer, None).await.unwrap(),
+                        (ids::play_serverbound::PLAYER_INPUT, vec![0])
+                    );
+                    assert_eq!(
+                        read_packet(&mut peer, None).await.unwrap().0,
+                        ids::play_serverbound::POSITION_LOOK
+                    );
+                }
+                timeout(Duration::from_secs(2), async {
+                    loop {
+                        let g = client
+                            .dismount_record()
+                            .await
+                            .unwrap()
+                            .unwrap()
+                            .grounding
+                            .unwrap();
+                        assert!(g.motion.problem.is_none(), "{:?}", g.motion.problem);
+                        if g.motion.status == MotionStatus::Predicted {
+                            assert_eq!(g.motion.dispatched_ticks, 2);
+                            break;
+                        }
+                        tokio::task::yield_now().await;
+                    }
+                })
+                .await
+                .unwrap();
+            }
+        }
+        assert!(client.survival().resume_ground(record.id).await.is_err());
+        assert!(!matches!(
+            timeout(Duration::from_millis(20), read_packet(&mut peer, None)).await,
+            Ok(Ok(_))
+        ));
+        session.stop();
+    }
+}

@@ -11,8 +11,9 @@ pub use control::{
     SurvivalMotionStatus,
 };
 pub(super) use control::{
-    flight_can_retire, landing_common_record, landing_plan, retire_common_for_flight,
-    retire_common_for_mount, standing_basis, submitted_flight_stop,
+    dismount_ground_plan, flight_can_retire, landing_common_record, landing_plan,
+    retire_common_for_flight, retire_common_for_mount, standing_basis, submitted_dismount_stop,
+    submitted_flight_stop,
 };
 pub use scenario::{
     AssumedSurvivalScene, AssumedSurvivalStart, CapturedSurvivalScene, HypotheticalAimRequirement,

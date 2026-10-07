@@ -7,7 +7,7 @@ pub use control::{
     VehicleInput,
 };
 pub mod dismount;
-pub use dismount::{DismountId, DismountRecord, DismountStage};
+pub use dismount::{DismountGrounding, DismountId, DismountRecord, DismountStage};
 
 /// One continuous mounted lifetime on one connection/world. It cannot be restored
 /// from saved diagnostics or constructed from a reusable numeric vehicle ID.
@@ -150,6 +150,24 @@ impl PassengerLedger {
     }
     pub(crate) fn motion_interrupted(&self) -> bool {
         self.motion_interrupted
+    }
+    /// Only the explicitly validated finite ground owner may clear this local fence.
+    /// Actual relation and all receipt ordinals are retained.
+    pub(crate) fn admit_ground_after_dismount(&mut self, mount: MountId) -> crate::Result<()> {
+        if !self.relation.as_ref().is_some_and(|r| {
+            let m = r.value.mount;
+            !r.value.mounted
+                && m.player == mount.player_native_id
+                && m.vehicle == mount.vehicle_native_id
+                && m.sequence == mount.receive_sequence
+                && m.spawn_sequence == mount.vehicle.map(|e| e.spawn_sequence())
+        }) {
+            return Err(super::inventory::unavailable(
+                "original dismount changed before ground admission",
+            ));
+        }
+        self.motion_interrupted = false;
+        Ok(())
     }
     pub(crate) fn receive(
         &mut self,

@@ -732,11 +732,10 @@ def run_vehicle(version, env, rcon, trace, report, probe_log, stderr_log, contro
     for mode in ('survival', 'creative'):
         until(lambda: matched(rcon.command('execute unless entity @a[name=UnifiedProbe]'), 'Test passed'))
         result = results[mode] = {'fixture': {}, 'records': []}
-        for command in ['kill @e[tag=UnifiedMount]', 'setblock 0 65 1 minecraft:air',
-                        'summon minecraft:minecart 0.5 65.1 2.5 {Tags:["UnifiedMount"],NoGravity:1b,Invulnerable:1b}']:
+        for command in ['kill @e[tag=UnifiedMount]', 'setblock 0 65 1 minecraft:air']:
             result['fixture'][command] = rcon.command(command)
         if controlling:
-            for command in ['fill 0 64 2 0 64 14 minecraft:stone','fill 0 65 2 0 65 14 minecraft:rail[shape=north_south]']:
+            for command in ['fill 0 64 2 0 64 14 minecraft:stone','fill 0 65 2 0 65 14 minecraft:rail[shape=north_south]','setblock 3 65 3 minecraft:chest[facing=north,type=single,waterlogged=false]']:
                 result['fixture'][command]=rcon.command(command)
         probe = subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')], cwd=REPO,
             env=dict(env, VOXRIG_NATIVE_SCENARIO='vehicle-control' if controlling else 'vehicle', VOXRIG_NATIVE_MODE=mode),
@@ -746,7 +745,12 @@ def run_vehicle(version, env, rcon, trace, report, probe_log, stderr_log, contro
         reader.start()
         try:
             stage(probe, messages, 'a5_vehicle_ready', result['records'])
-            for command in ['gamemode '+mode+' UnifiedProbe', 'tp UnifiedProbe 0.5 65 0.5 0 0', 'clear UnifiedProbe']:
+            # The previous mode may save a walked position next to this track.
+            # Admit the player at the initial fixture position before creating
+            # the new original cart, so login collision cannot move its spawn.
+            # All fixture writes still precede the operation baseline.
+            for command in ['gamemode '+mode+' UnifiedProbe', 'tp UnifiedProbe 0.5 65 0.5 0 0', 'clear UnifiedProbe',
+                            'summon minecraft:minecart 0.5 65.1 2.5 {Tags:["UnifiedMount"],NoGravity:1b,Invulnerable:1b}']:
                 result['fixture'][command] = rcon.command(command)
             baseline = stage(probe, messages, 'a5_vehicle_baseline', result['records'])['value']
             cart = baseline['cart']
@@ -843,7 +847,67 @@ def run_vehicle(version, env, rcon, trace, report, probe_log, stderr_log, contro
             result['operation_frames']=frames
             result['authority_limits']='Same common Client/session per mode: one original empty-hand INTERACT mounts the received minecart UUID; original player RootVehicle.Attach independently confirms native riding. Owned request is sent once, actual same-vehicle SET_PASSENGERS absence precedes one explicit neutral, native RootVehicle is independently absent, duplicate requests/releases emit no extra input, and ground preview remains refused. Original input bytes and received passenger fields/ordinals are checked. No causal server ACK, vehicle physics/control or ground continuation is inferred.'
             if controlling:
-                result['authority_limits']='Same common Client/mode/session: finite dry ground approach, original INTERACT and actual continuous mount, one owned 14-frame digital control run ending in explicit neutral, independently observed original minecart displacement, original approach retired without restoring ground authority, then owned dismount/actual absence/explicit neutral, stale mount control refused, disconnect retaining both histories. Exactly one interaction and 16 original input frames. Control submission is not vehicle motion/stopping ACK; vehicle position, paddles, broader physics and ground continuation remain B6.'
+                result['authority_limits']='Same common Client/mode/session: finite dry ground approach, original INTERACT and actual continuous mount, one owned 14-frame digital control run ending in explicit neutral, independently observed original minecart displacement, original approach retired without restoring ground authority, then owned dismount/actual absence/explicit neutral, stale mount control refused, disconnect retaining both histories. Exactly one interaction and 16 original input frames. Input submission and fresh received vehicle position are separate facts, with no vehicle stop or control ACK. Paddles, special interpolation and general vehicle physics remain B6.'
+            if controlling:
+                ground_boundary=trace.mark()
+                ground=stage(probe,messages,'b6_vehicle_ground',result['records'])['value']
+                stop=ground['record']['grounding']['motion']
+                if stop['status']!='predicted' or stop['dispatched_ticks']!=2 or stop['attempted_tick']!=2:
+                    raise RuntimeError('dismount ground stop not fully dispatched')
+                if ground['record']['id']!=completed['complete']['id'] or ground['before']['session']!=baseline['player']['session']:
+                    raise RuntimeError('ground continuation changed original Client or dismount')
+                if ground['before']['received_pose']!=ground['after']['received_pose']:
+                    raise RuntimeError('ground stop rewrote or lost original received pose')
+                pose=ground['before']['received_pose'];actual=stop['preview']['initial']['position']
+                if actual['source']!={'kind':'received','sequence':pose['receive_sequence']} or actual['value']!=pose['position']:
+                    raise RuntimeError('ground start is not the actual received dismount position')
+                peers=[f for f in trace.since(0) if f['connection']==connection and f['direction']=='clientbound' and f['phase'] in ('configuration','play')]
+                source=peers[pose['receive_sequence']-1]
+                if source['packet_id']!=(0x35 if version=='1.16.1' else 0x46):raise RuntimeError('ground pose source is not original own position')
+                raw=bytes.fromhex(source['body_hex']);offset=0 if version=='1.16.1' else PacketTraceProxy.varint(raw)[1]
+                if list(struct.unpack_from('>ddd',raw,offset))!=pose['position']:raise RuntimeError('ground pose differs from original absolute packet')
+                result['ground_pose_source']={k:source[k] for k in ('connection','ordinal','packet_id','body_sha256')}
+                position_id=0x13 if version=='1.16.1' else 0x1e
+                def sent_positions(boundary,count):
+                    frames=trace.since(boundary)
+                    return frames if len([f for f in frames if f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==position_id])>=count else None
+                ground_frames=until(lambda:sent_positions(ground_boundary,2))
+                positions=[f for f in ground_frames if f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==position_id]
+                if len(positions)!=2:raise RuntimeError('ground stop duplicated native position frames')
+                for frame,expected in zip(positions,stop['preview']['frames']):
+                    if list(struct.unpack_from('>ddd',bytes.fromhex(frame['body_hex'])))!=expected['position']:
+                        raise RuntimeError('ground stop position differs from declared model')
+                if version!='1.16.1' and [f['body_hex'] for f in ground_frames if f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==input_id]!=['00','00']:
+                    raise RuntimeError('ground stop did not send exactly two released inputs')
+                result['ground_frames']=ground_frames
+                walk_boundary=trace.mark()
+                walk=stage(probe,messages,'b6_vehicle_ground_walk',result['records'])['value']
+                expected=walk['motion']['preview']['frames'][-1]['position']
+                if walk['motion']['dispatched_ticks']!=15 or walk['motion']['run_id']<=stop['run_id']:
+                    raise RuntimeError('new finite ground run did not follow the stop')
+                if expected[2]<=pose['position'][2]+0.05:raise RuntimeError('ground continuation did not move forward')
+                def native_ground_position():
+                    raw=rcon.command('data get entity UnifiedProbe Pos')
+                    return raw if max(abs(a-b) for a,b in zip(pos(raw),expected))<1e-5 else None
+                result['native_ground_position']=until(native_ground_position)
+                result['ground_walk_frames']=until(lambda:sent_positions(walk_boundary,15))
+                storage_boundary=trace.mark()
+                storage=stage(probe,messages,'b6_vehicle_ground_storage',result['records'])['value']
+                opening=storage['opening']['observed_screen']['id']
+                peers=[f for f in trace.since(0) if f['connection']==connection and f['direction']=='clientbound' and f['phase'] in ('configuration','play')]
+                actual_open=peers[opening['opened_sequence']-1]
+                if actual_open['packet_id']!=(0x2e if version=='1.16.1' else 0x39):raise RuntimeError('ground storage source is not original OPEN')
+                raw=bytes.fromhex(actual_open['body_hex']);window,offset=PacketTraceProxy.varint(raw);menu,_=PacketTraceProxy.varint(raw[offset:])
+                if window!=opening['window'] or menu!=2:raise RuntimeError('ground storage is not the expected native 27-slot chest')
+                result['ground_storage_open_source']={k:actual_open[k] for k in ('connection','ordinal','packet_id','body_sha256')}
+                close_id=0x0a if version=='1.16.1' else 0x12
+                def ground_storage_closed():
+                    frames=trace.since(storage_boundary)
+                    return frames if any(f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==close_id for f in frames) else None
+                result['ground_storage_frames']=until(ground_storage_closed)
+                result['native_ground_chest']=rcon.command('data get block 3 65 3 Items')
+                if outer_snbt_compounds(result['native_ground_chest']):raise RuntimeError('ground storage altered chest')
+                result['authority_limits']+=' Explicit resume_ground binds actual completed dismount and fresh received pose to declared local zero seed, dispatches two released model ticks, then a new 15-tick forward ground run and actual chest OPEN/close/hotbar selection on the same Client. Original pose and independent native endpoint are checked. This is not a received zero velocity, server rest ACK or general vehicle physics.'
             trace.expect_disconnect()
             stage(probe, messages, 'a5_vehicle_disconnect', result['records'])
             probe.wait(timeout=10); reader.join(timeout=2)

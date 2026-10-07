@@ -1670,3 +1670,129 @@ pub(crate) async fn common_tool_mining_start_scenario(
     assert!(ops.select_hotbar(1).await.is_err());
     record
 }
+
+pub(crate) async fn common_dismount_ground_scenario(client: &Client, id: super::DismountId) {
+    use super::survival::{MotionStatus, SurvivalControl};
+    let before = client.player_state().await.unwrap();
+    let mode = before.game_mode.unwrap();
+    let record = if mode == GameMode::Survival {
+        client.survival().resume_ground(id).await.unwrap()
+    } else {
+        client.creative().resume_ground(id).await.unwrap()
+    };
+    assert_eq!(record.id, id);
+    assert_eq!(record.stage, super::DismountStage::Completed);
+    let ground = record.grounding.unwrap();
+    assert_eq!(ground.declared_controller_velocity, [0.; 3]);
+    assert_eq!(ground.motion.status, MotionStatus::Predicted);
+    assert_eq!(ground.motion.dispatched_ticks, 2);
+    assert_eq!(ground.motion.attempted_tick, 2);
+    assert_eq!(
+        ground.motion.preview.initial.received_pose,
+        before.received_pose
+    );
+    assert_eq!(ground.motion.preview.initial_frame.velocity, [0.; 3]);
+    assert!(ground.motion.preview.frames.last().unwrap().resting);
+    assert!(
+        ground
+            .motion
+            .preview
+            .frames
+            .iter()
+            .all(|f| f.position == before.position.as_ref().unwrap().value)
+    );
+    assert_eq!(
+        client.player_state().await.unwrap().received_pose,
+        before.received_pose
+    );
+    let duplicate = if mode == GameMode::Survival {
+        client.survival().resume_ground(id).await
+    } else {
+        client.creative().resume_ground(id).await
+    };
+    assert!(duplicate.is_err());
+    let controls = [SurvivalControl {
+        yaw: 0.,
+        input: Default::default(),
+    }; 2];
+    let started = if mode == GameMode::Survival {
+        client
+            .survival()
+            .start_predicted_path(&controls)
+            .await
+            .unwrap()
+    } else {
+        client
+            .creative()
+            .start_predicted_path(&controls)
+            .await
+            .unwrap()
+    };
+    assert!(started.run_id > ground.motion.run_id);
+    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        loop {
+            let run = client.survival().motion_record().await.unwrap().unwrap();
+            assert_eq!(run.run_id, started.run_id);
+            assert!(run.problem.is_none(), "{:?}", run.problem);
+            if run.status == MotionStatus::Predicted {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        client
+            .dismount_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .grounding
+            .unwrap()
+            .motion
+            .run_id,
+        ground.motion.run_id
+    );
+}
+
+pub(crate) async fn common_retired_vehicle_ground_scenario(client: &Client) {
+    use super::survival::{MotionStatus, SurvivalControl};
+    let before = client.player_state().await.unwrap();
+    let controls = [SurvivalControl {
+        yaw: 0.,
+        input: Default::default(),
+    }; 2];
+    let started = if before.game_mode == Some(GameMode::Survival) {
+        client
+            .survival()
+            .start_predicted_path(&controls)
+            .await
+            .unwrap()
+    } else {
+        client
+            .creative()
+            .start_predicted_path(&controls)
+            .await
+            .unwrap()
+    };
+    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        loop {
+            let r = client.survival().motion_record().await.unwrap().unwrap();
+            assert_eq!(r.run_id, started.run_id);
+            assert!(r.problem.is_none(), "{:?}", r.problem);
+            if r.status == MotionStatus::Predicted {
+                assert_eq!(r.dispatched_ticks, 2);
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(client.vehicle_state().await.unwrap().relation.is_none());
+    assert_eq!(
+        client.player_state().await.unwrap().received_pose,
+        before.received_pose
+    );
+}

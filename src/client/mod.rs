@@ -72,9 +72,9 @@ pub use received_items::{ReceivedInventory, ReceivedItem, ReceivedSlot};
 pub use recording::{PacketPhase, PacketRecord, PacketTrace};
 pub use survival::{BlockTargetHit, BlockTargetObservation, MiningEstimate};
 pub use vehicle::{
-    DismountId, DismountRecord, DismountStage, MAX_VEHICLE_CONTROL_TICKS, MountId,
-    VehicleControlId, VehicleControlRecord, VehicleControlStage, VehicleInput, VehicleObservation,
-    VehicleRelation,
+    DismountGrounding, DismountId, DismountRecord, DismountStage, MAX_VEHICLE_CONTROL_TICKS,
+    MountId, VehicleControlId, VehicleControlRecord, VehicleControlStage, VehicleInput,
+    VehicleObservation, VehicleRelation,
 };
 
 /// Imports for consumers selecting their Minecraft version at setup.
@@ -121,12 +121,12 @@ pub mod prelude {
         Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,
         ConnectionRevocation, CraftingGridReturnPlan, CraftingGridReturnStep,
         CraftingGridUnreturnedSplit, CraftingResultDestination, CraftingSource, CraftingTakeId,
-        CraftingTakeRecord, CraftingTakeStage, Creative, DismountId, DismountRecord, DismountStage,
-        EntityId, EntityMotionObservation, EntityPosition, EntityPositionCorrection, EntitySpawn,
-        EntitySpawns, Feature, FlightCommand, FlightLanding, FlightRecord, FlightStage,
-        FurnaceObservation, FurnaceSlot, GameMode, ItemComponent, ItemComponentPatch, ItemData,
-        ItemProperties, ItemStack, MountId, PlayerObservation, ReceivedCrafting,
-        ReceivedCraftingContext, ReceivedInventory, ReceivedItem, ReceivedRecipe,
+        CraftingTakeRecord, CraftingTakeStage, Creative, DismountGrounding, DismountId,
+        DismountRecord, DismountStage, EntityId, EntityMotionObservation, EntityPosition,
+        EntityPositionCorrection, EntitySpawn, EntitySpawns, Feature, FlightCommand, FlightLanding,
+        FlightRecord, FlightStage, FurnaceObservation, FurnaceSlot, GameMode, ItemComponent,
+        ItemComponentPatch, ItemData, ItemProperties, ItemStack, MountId, PlayerObservation,
+        ReceivedCrafting, ReceivedCraftingContext, ReceivedInventory, ReceivedItem, ReceivedRecipe,
         ReceivedRecipeGhost, ReceivedRecipes, ReceivedSlot, RecipeBookMaterials, RecipeBookStock,
         RecipeCraftingCell, RecipeCraftingLayout, RecipeDisplay, RecipeId, RecipeIngredient,
         RecipePlacementAmount, RecipePlacementId, RecipePlacementPlan, RecipePlacementRecord,

@@ -338,3 +338,127 @@ impl Bot {
         Ok(history.clone())
     }
 }
+
+impl Bot {
+    pub(crate) async fn common_resume_ground(
+        &self,
+        mode: api::GameMode,
+        id: DismountId,
+    ) -> Result<DismountRecord> {
+        let gate = self.coherent_state_gate.lock().await;
+        self.common_motion_admission().await?;
+        let record = self.dismount_snapshot(id)?;
+        if record.mode != mode
+            || record.grounding.is_some()
+            || self.connection_state() != ConnectionState::Ready
+            || self.control().await != ControlState::default()
+        {
+            return Err(unavailable(
+                "ground stop already claimed, wrong mode or unavailable native owner",
+            ));
+        }
+        let (player, vehicle) = self.vehicle_capture_unlocked().await?;
+        if player.pending_dispatch {
+            return Err(unavailable("ground stop refuses pending dispatch"));
+        }
+        contract::validate_ground_before(&record, &player, &vehicle)?;
+        let run = self.dismount_ground_plan(player).await?;
+        self.dismount_history
+            .lock()
+            .expect("dismount history")
+            .as_mut()
+            .unwrap()
+            .grounding = Some(api::DismountGrounding {
+            declared_controller_velocity: [0.; 3],
+            motion: run.record.clone(),
+        });
+        let (reply, result) = tokio::sync::oneshot::channel();
+        let bot = self.clone_internal();
+        tokio::spawn(async move {
+            let _ = reply.send(bot.ground_send_owned(id, run).await);
+        });
+        drop(gate);
+        result
+            .await
+            .map_err(|_| unavailable("ground owner result unavailable"))?
+    }
+    async fn ground_send_owned(
+        &self,
+        id: DismountId,
+        run: super::common_motion::NativeMotionRun,
+    ) -> Result<DismountRecord> {
+        let result = async {
+            let gate = self.coherent_state_gate.lock().await;
+            self.common_motion_admission_owned(false, Some(id)).await?;
+            let record = self.dismount_snapshot(id)?;
+            if record
+                .grounding
+                .as_ref()
+                .is_none_or(|g| g.motion.problem.is_some())
+                || self.connection_state() != ConnectionState::Ready
+                || self.control().await != ControlState::default()
+                || self.motion.lock().await.revision() != run.expected_motion_revision
+            {
+                return Err(unavailable("ground owner interrupted before I/O"));
+            }
+            let (player, vehicle) = self.vehicle_capture_unlocked().await?;
+            contract::validate_ground_before(&record, &player, &vehicle)?;
+            let checked = self.dismount_ground_plan(player).await?;
+            if checked.record.preview.world_revision != run.record.preview.world_revision
+                || checked.record.preview.initial_frame != run.record.preview.initial_frame
+                || checked
+                    .record
+                    .preview
+                    .initial
+                    .received_pose
+                    .as_ref()
+                    .map(|p| p.receive_sequence)
+                    != run
+                        .record
+                        .preview
+                        .initial
+                        .received_pose
+                        .as_ref()
+                        .map(|p| p.receive_sequence)
+            {
+                return Err(unavailable("ground pose or geometry changed after intent"));
+            }
+            let revision = self
+                .connection
+                .motion_admission_revision()
+                .await
+                .map_err(|e| unavailable(format!("ground bounded admission rejected: {e:?}")))?;
+            self.common_receipts
+                .lock()
+                .await
+                .vehicles
+                .admit_ground_after_dismount(id.mount())?;
+            let run = self.install_landing_model(run.clone()).await;
+            drop(gate);
+            self.run_common_path(run, revision).await
+        }
+        .await;
+        if let Err(e) = &result {
+            let _gate = self.coherent_state_gate.lock().await;
+            if let Some(current) = self
+                .common_motion
+                .lock()
+                .await
+                .as_mut()
+                .filter(|r| r.record.run_id == run.record.run_id)
+            {
+                current.record.status = api::survival::MotionStatus::RequiresInspection;
+                current.record.problem.get_or_insert_with(|| e.to_string());
+                contract::sync_motion(&self.dismount_history, &current.record);
+            }
+            self.dismount_history
+                .lock()
+                .expect("dismount history")
+                .as_mut()
+                .unwrap()
+                .inspection(e);
+        }
+        result?;
+        self.dismount_snapshot(id)
+    }
+}

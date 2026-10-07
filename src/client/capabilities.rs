@@ -71,6 +71,8 @@ pub enum Feature {
     VehicleObservation,
     /// Owned dismount request, actual absence, and explicit neutral input.
     VehicleDismount,
+    /// Explicit local ground stop after actual dismount and neutral.
+    VehicleGrounding,
     /// Finite native digital mounted-input run ending in explicit neutral.
     VehicleInput,
     /// Exact received packets, bounded without resuming after overflow.
@@ -164,6 +166,9 @@ impl Capabilities {
             ),
             Feature::VehicleInput => Support::Restricted(
                 "finite owned digital mounted input, matching actual continuous mount/mode/world, explicit final neutral, retained cancelled wait and uncertain write; no control ACK, predicted vehicle motion/stop, paddles, vehicle-specific physics or ground continuation",
+            ),
+            Feature::VehicleGrounding => Support::Restricted(
+                "one owned declared zero controller seed and two released ground ticks after completed actual dismount/neutral and fresh received pose; known dry full support, normal standing/default attributes, healthy matching mode/world; retained cancellation/partial-write/remount history; no received velocity synthesis, server rest ACK or general vehicle physics",
             ),
             Feature::VehicleDismount => Support::Restricted(
                 "one actor-owned request on an original received mount, actual same-vehicle absence, then one explicit neutral input; matching live received mode/world, retained cancellation/closure/uncertain-I/O history and no replay; no causal server ACK, vehicle physics/control or ground continuation",

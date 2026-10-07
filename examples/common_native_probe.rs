@@ -5005,8 +5005,24 @@ async fn vehicle_probe(client: &Client) -> anyhow::Result<()> {
                     _ => client.creative().dismount(id.mount()).await,
                 };
                 let ground_preview = match mode {
-                    GameMode::Survival => client.survival().preview_path(&[]).await,
-                    _ => client.creative().preview_path(&[]).await,
+                    GameMode::Survival => {
+                        client
+                            .survival()
+                            .preview_path(&[SurvivalControl {
+                                yaw: 0.,
+                                input: Default::default(),
+                            }])
+                            .await
+                    }
+                    _ => {
+                        client
+                            .creative()
+                            .preview_path(&[SurvivalControl {
+                                yaw: 0.,
+                                input: Default::default(),
+                            }])
+                            .await
+                    }
                 };
                 anyhow::ensure!(
                     duplicate_release.is_err()
@@ -5040,6 +5056,128 @@ async fn vehicle_probe(client: &Client) -> anyhow::Result<()> {
                 emit(
                     &command,
                     serde_json::json!({"complete":complete,"vehicle":client.vehicle_state().await?,"duplicate_release":duplicate_release.unwrap_err().to_string(),"duplicate_request":duplicate_request.unwrap_err().to_string(),"ground_guard":ground_preview.unwrap_err().to_string()}),
+                )?;
+            }
+            "b6_vehicle_ground" => {
+                anyhow::ensure!(controlling);
+                let id = attempt.context("dismount missing")?;
+                let completed = client
+                    .dismount_record()
+                    .await?
+                    .context("dismount history absent")?;
+                let before=wait_player(client,|p| p.received_pose.as_ref().is_some_and(|pose|
+                    pose.receive_sequence>completed.after_sequence && p.position.as_ref().is_some_and(|position|
+                        position.value==pose.position && matches!(position.source,voxrig::client::ValueSource::Received { sequence } if sequence==pose.receive_sequence)))).await?;
+                let record = match mode {
+                    GameMode::Survival => client.survival().resume_ground(id).await?,
+                    _ => client.creative().resume_ground(id).await?,
+                };
+                let grounding = record.grounding.as_ref().context("ground history absent")?;
+                anyhow::ensure!(
+                    grounding.motion.status == voxrig::client::survival::MotionStatus::Predicted
+                        && grounding.motion.dispatched_ticks == 2
+                        && grounding.motion.attempted_tick == 2
+                        && grounding.declared_controller_velocity == [0.; 3]
+                );
+                let after = client.player_state().await?;
+                anyhow::ensure!(
+                    after.session == before.session && after.received_pose == before.received_pose
+                );
+                let duplicate = match mode {
+                    GameMode::Survival => client.survival().resume_ground(id).await,
+                    _ => client.creative().resume_ground(id).await,
+                };
+                anyhow::ensure!(duplicate.is_err());
+                emit(
+                    &command,
+                    serde_json::json!({"record":record,"before":before,"after":after,"duplicate":duplicate.unwrap_err().to_string()}),
+                )?;
+            }
+            "b6_vehicle_ground_walk" => {
+                let mut controls = vec![SurvivalControl {
+                    yaw: 0.,
+                    input: SurvivalInput {
+                        forward: 1,
+                        strafe: 0,
+                        jump: false,
+                    },
+                }];
+                controls.extend(vec![
+                    SurvivalControl {
+                        yaw: 0.,
+                        input: Default::default()
+                    };
+                    14
+                ]);
+                let started = match mode {
+                    GameMode::Survival => client.survival().start_predicted_path(&controls).await?,
+                    _ => client.creative().start_predicted_path(&controls).await?,
+                };
+                let completed = tokio::time::timeout(Duration::from_secs(15), async {
+                    loop {
+                        let record = client
+                            .survival()
+                            .motion_record()
+                            .await?
+                            .context("ground walk missing")?;
+                        anyhow::ensure!(
+                            record.run_id == started.run_id && record.problem.is_none(),
+                            "ground walk failed: {:?}",
+                            record.problem
+                        );
+                        if record.status.is_continuation_candidate() {
+                            return Ok::<_, anyhow::Error>(record);
+                        }
+                        tokio::time::sleep(Duration::from_millis(25)).await;
+                    }
+                })
+                .await??;
+                emit(
+                    &command,
+                    serde_json::json!({"motion":completed,"player":client.player_state().await?}),
+                )?;
+            }
+            "b6_vehicle_ground_storage" => {
+                workflow_look(client, mode, [3.5, 65.5, 3.5]).await?;
+                let target = match mode {
+                    GameMode::Survival => client.survival().target_block(4.5).await?,
+                    _ => client.creative().target_block(4.5).await?,
+                };
+                anyhow::ensure!(
+                    target
+                        .hit
+                        .as_ref()
+                        .is_some_and(|h| h.position == [3, 65, 3])
+                );
+                match mode {
+                    GameMode::Survival => {
+                        client.survival().open_container([3, 65, 3]).await?;
+                    }
+                    _ => {
+                        client.creative().open_container([3, 65, 3]).await?;
+                    }
+                }
+                let opening = wait_container_open(client).await?;
+                let screen = opening
+                    .observed_screen
+                    .as_ref()
+                    .context("ground chest absent")?
+                    .id;
+                let close = match mode {
+                    GameMode::Survival => client.survival().close_container(screen).await?,
+                    _ => client.creative().close_container(screen).await?,
+                };
+                match mode {
+                    GameMode::Survival => {
+                        client.survival().select_hotbar(0).await?;
+                    }
+                    _ => {
+                        client.creative().select_hotbar(0).await?;
+                    }
+                }
+                emit(
+                    &command,
+                    serde_json::json!({"target":target,"opening":opening,"close":close,"player":client.player_state().await?}),
                 )?;
             }
             "a5_vehicle_disconnect" => {

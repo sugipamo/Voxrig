@@ -283,7 +283,7 @@ impl Bot {
 pub(super) struct NativeMotionRun {
     pub(super) record: MotionRecord,
     flight_stop: Option<crate::client::ObservedValue<u8>>,
-    expected_motion_revision: u64,
+    pub(super) expected_motion_revision: u64,
     movement_attribute: Option<Attribute>,
 }
 impl Bot {
@@ -416,6 +416,13 @@ impl Bot {
         self.common_motion_admission_inner(false).await
     }
     pub(super) async fn common_motion_admission_inner(&self, flight_owner: bool) -> Result<()> {
+        self.common_motion_admission_owned(flight_owner, None).await
+    }
+    pub(super) async fn common_motion_admission_owned(
+        &self,
+        flight_owner: bool,
+        ground_owner: Option<crate::client::DismountId>,
+    ) -> Result<()> {
         if crate::client::vehicle::control::unresolved(&self.vehicle_control_history) {
             return Err(motion_state(
                 "vehicle control unresolved; inspect without replay",
@@ -431,7 +438,7 @@ impl Bot {
             .lock()
             .expect("dismount history")
             .as_ref()
-            .is_some_and(|r| r.unresolved())
+            .is_some_and(|r| r.unresolved() && Some(r.id) != ground_owner)
         {
             return Err(motion_state(
                 "dismount input unresolved; inspect and explicitly complete without replay",
@@ -682,12 +689,26 @@ impl Bot {
         run: &NativeMotionRun,
         exact_motion_revision: bool,
     ) -> Result<()> {
+        let problem = self
+            .dismount_history
+            .lock()
+            .expect("dismount history")
+            .as_ref()
+            .and_then(|r| r.grounding.as_ref())
+            .filter(|g| {
+                g.motion.session == run.record.session && g.motion.run_id == run.record.run_id
+            })
+            .and_then(|g| g.motion.problem.clone());
+        if let Some(problem) = problem {
+            return Err(motion_state(&problem));
+        }
         if self.connection_state() != ConnectionState::Ready || self.stopped.load(Ordering::Acquire)
         {
             return Err(motion_state("connection no longer ready"));
         }
         let receipts = self.common_receipts.lock().await;
         if receipts.generation != run.record.session.world_generation
+            || receipts.vehicles.motion_interrupted()
             || receipts.pose.as_ref().map(|p| p.receive_sequence)
                 != run
                     .record
@@ -751,6 +772,10 @@ impl Bot {
         }
         Ok(())
     }
+    fn sync_owned_motion(&self, record: &MotionRecord) {
+        crate::client::flight::sync_motion(&self.flight_history, record);
+        crate::client::vehicle::dismount::sync_motion(&self.dismount_history, record);
+    }
     pub(super) async fn run_common_path(
         &self,
         mut run: NativeMotionRun,
@@ -813,10 +838,7 @@ impl Bot {
                 .unwrap()
                 .record
                 .attempted_tick = expected.tick;
-            crate::client::flight::sync_motion(
-                &self.flight_history,
-                &self.common_motion.lock().await.as_ref().unwrap().record,
-            );
+            self.sync_owned_motion(&self.common_motion.lock().await.as_ref().unwrap().record);
             let mut payload = Vec::with_capacity(33);
             for value in expected.position {
                 payload.extend(value.to_be_bytes());
@@ -860,7 +882,7 @@ impl Bot {
             run.record.attempted_tick = expected.tick;
             run.record.dispatched_ticks = expected.tick;
             *self.common_motion.lock().await = Some(run.clone());
-            crate::client::flight::sync_motion(&self.flight_history, &run.record);
+            self.sync_owned_motion(&run.record);
             self.common_receipts.lock().await.position_source =
                 Some(crate::client::ValueSource::Predicted);
         }
@@ -885,10 +907,7 @@ impl Bot {
             .unwrap()
             .record
             .status = MotionStatus::Predicted;
-        crate::client::flight::sync_motion(
-            &self.flight_history,
-            &self.common_motion.lock().await.as_ref().unwrap().record,
-        );
+        self.sync_owned_motion(&self.common_motion.lock().await.as_ref().unwrap().record);
         Ok(())
     }
 }
@@ -1051,6 +1070,22 @@ impl Bot {
                 problem: None,
             },
         })
+    }
+    pub(super) async fn dismount_ground_plan(
+        &self,
+        initial: crate::client::PlayerObservation,
+    ) -> Result<NativeMotionRun> {
+        // Reuse dry-support geometry and the finite declared local zero model;
+        // retain actual abilities and velocity observations without rewriting them.
+        let mut run = self.landing_plan(initial).await?;
+        let receipts = self.common_receipts.lock().await;
+        let requested_flying = receipts.requested_flying;
+        drop(receipts);
+        if requested_flying || self.survival.read().await.flying {
+            return Err(motion_state("dismount ground stop refuses active flight"));
+        }
+        run.flight_stop = None;
+        Ok(run)
     }
     pub(super) async fn install_landing_model(&self, mut run: NativeMotionRun) -> NativeMotionRun {
         // Explicit controller reset, separately recorded from every received value.

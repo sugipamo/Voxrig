@@ -81,8 +81,10 @@ async fn finish_when_received(client: &Client, id: DismountId) -> Result<bool> {
 
 legacyの自動地上physicsも乗車受信後に止め、未完了の共通地上runは失敗履歴へ移して
 後続frameを送らない。下車の完了だけでは地上支持や立位の許可を戻さない。
-車両の現在位置・乗員の一般entity state・boat paddle・physicsや下車後の広いmotion継続は
-Bで統合する。実サーバーの検証範囲は[検証記録](common-client-native-validation.md)に記載する。
+下車後の通常地上操作は、freshなown poseと既知の乾いた支持を検査する
+`resume_ground(record.id)`へ接続した。[地上継続の契約](common-dismount-grounding.md)を参照。
+車両の現在位置は`entity_motion`で観測する。乗員の一般entity state・boat paddle・
+physicsや下車後の広いmotion条件はBで統合する。実サーバーの検証範囲は[検証記録](common-client-native-validation.md)に記載する。
 
 
 ## 有限の乗車入力
@@ -120,7 +122,8 @@ frame数で、サーバーからの確認ではない。`Submitted`も移動・�
 実乗車を受信すると、完了候補だった地上runの記録を残して実行許可を退役させる。
 乗車に伴う位置受信が先に届いて無効化されたrunも、全frame送信と最終予測restを
 確認できる場合だけ退役させ、既存の失敗理由を保持する。実行中・途中送信は強制解放しない。乗車入力と下車の完了だけでは
-地上のvelocity・支持・立位を補完しないため、下車後の地上継続は引き続きB6の残作業。
+地上のvelocity・支持・立位を補完しない。通常地上継続には、別の
+`resume_ground(dismount_id)`で受信pose・宣言した停止値・2tickの履歴を保持する。
 両版の元codecに全18入力ずつを照合し、実サーバーでは短い地上移動→乗車→
 有限入力→neutral→実下車→切断を両modeで検証する。
 車両付近の乾いたrail地形は[共通地形](common-dry-terrain.md#車両付近の乾いたrail)、
