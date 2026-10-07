@@ -1,6 +1,6 @@
 //! Received team declarations and scoreboard-holder membership, not permissions.
 use super::{UiText, received};
-use crate::client::VersionAdapter;
+use crate::client::adapter::UiOps;
 use crate::client::{ObservedValue, SessionStamp};
 use crate::{MinecraftVersion, Result};
 use std::collections::{BTreeMap, BTreeSet};
@@ -168,7 +168,7 @@ pub struct TeamsObservation {
 impl crate::Client {
     /// Inspect received team parameters/membership without I/O or rendering.
     pub async fn teams(&self) -> Result<TeamsObservation> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::teams(a).await)
+        crate::client::dispatch!(&self.adapter, a => UiOps::teams(a).await)
     }
 }
 #[derive(Clone)]

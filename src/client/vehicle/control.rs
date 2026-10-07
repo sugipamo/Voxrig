@@ -1,6 +1,6 @@
 //! Finite original mounted inputs, with an explicit final neutral frame.
 use super::{MountId, VehicleObservation, VehicleRelation};
-use crate::client::VersionAdapter;
+use crate::client::adapter::VehicleOps;
 use crate::{
     Result,
     client::{self as api, GameMode, ValueSource, inventory::unavailable},
@@ -189,17 +189,9 @@ pub(crate) fn payload(version: crate::MinecraftVersion, input: VehicleInput) -> 
     }
 }
 impl api::Client {
-    async fn common_vehicle_control(
-        &self,
-        mode: GameMode,
-        mount: MountId,
-        inputs: &[VehicleInput],
-    ) -> Result<VehicleControlRecord> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::vehicle_control(a, mode, mount, inputs).await)
-    }
     /// Retained mounted-input history, readable while its writer waits and after closure.
     pub async fn vehicle_control_record(&self) -> Result<Option<VehicleControlRecord>> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::vehicle_control_record(a).await)
+        crate::client::dispatch!(&self.adapter, a => VehicleOps::vehicle_control_record(a).await)
     }
 }
 macro_rules! handle {
@@ -213,9 +205,7 @@ macro_rules! handle {
                 mount: MountId,
                 inputs: &[VehicleInput],
             ) -> Result<VehicleControlRecord> {
-                self.client
-                    .common_vehicle_control($mode, mount, inputs)
-                    .await
+                crate::client::dispatch!(&self.client.adapter, a => VehicleOps::vehicle_control(a, $mode, mount, inputs).await)
             }
             /// Latest retained input run; never sends or repeats an input.
             pub async fn vehicle_control_record(&self) -> Result<Option<VehicleControlRecord>> {

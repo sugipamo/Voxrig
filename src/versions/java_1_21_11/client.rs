@@ -275,20 +275,6 @@ pub(crate) struct Bot {
 }
 
 impl Bot {
-    pub(crate) async fn common_server_registry_state(
-        &self,
-    ) -> Result<crate::client::registry::ServerRegistryObservation> {
-        let state = self.session.state.lock().await;
-        self.session.check(&state)?;
-        Ok(state.registries.capture(
-            crate::client::SessionStamp {
-                version: MinecraftVersion::Java1_21_11,
-                connection_id: self.session.id,
-                world_generation: state.loading.generation,
-            },
-            state.sequence,
-        ))
-    }
     pub(crate) fn connection_id(&self) -> u64 {
         self.session.id
     }
@@ -1160,59 +1146,47 @@ mod placement_native_trials;
 #[cfg(test)]
 mod tests;
 
-impl Bot {
-    pub(crate) async fn common_scoreboard_state(
-        &self,
-    ) -> Result<crate::client::ui::ScoreboardObservation> {
-        let state = self.session.state.lock().await;
-        self.session.check(&state)?;
-        let player = operations::common_player_in_state(&state, self.session.id, false)?;
+impl crate::client::adapter::UiOps for operations::Operations {
+    async fn scoreboard_state(&self) -> Result<crate::client::ui::ScoreboardObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.bot.session.id, false)?;
         Ok(state.scoreboard.capture(player.session, state.sequence))
     }
-}
-
-impl Bot {
-    pub(crate) async fn common_boss_bars(&self) -> Result<crate::client::ui::BossBarsObservation> {
-        let state = self.session.state.lock().await;
-        self.session.check(&state)?;
-        let player = operations::common_player_in_state(&state, self.session.id, false)?;
+    async fn boss_bars(&self) -> Result<crate::client::ui::BossBarsObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.bot.session.id, false)?;
         Ok(state.boss_bars.capture(player.session, state.sequence))
     }
-}
-
-impl Bot {
-    pub(crate) async fn common_teams(&self) -> Result<crate::client::ui::TeamsObservation> {
-        let state = self.session.state.lock().await;
-        self.session.check(&state)?;
-        let player = operations::common_player_in_state(&state, self.session.id, false)?;
+    async fn teams(&self) -> Result<crate::client::ui::TeamsObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.bot.session.id, false)?;
         Ok(state.teams.capture(player.session, state.sequence))
     }
-    pub(crate) async fn common_player_list(
-        &self,
-    ) -> Result<crate::client::ui::PlayerListObservation> {
-        let state = self.session.state.lock().await;
-        self.session.check(&state)?;
-        let player = operations::common_player_in_state(&state, self.session.id, false)?;
+    async fn player_list(&self) -> Result<crate::client::ui::PlayerListObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.bot.session.id, false)?;
         Ok(state.player_list.capture(player.session, state.sequence))
     }
-    pub(crate) async fn common_titles(&self) -> Result<crate::client::ui::TitlesObservation> {
-        let state = self.session.state.lock().await;
-        self.session.check(&state)?;
-        let player = operations::common_player_in_state(&state, self.session.id, false)?;
+    async fn titles(&self) -> Result<crate::client::ui::TitlesObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.bot.session.id, false)?;
         Ok(state.display.titles(player.session, state.sequence))
     }
-    pub(crate) async fn common_tab_list(&self) -> Result<crate::client::ui::TabListObservation> {
-        let state = self.session.state.lock().await;
-        self.session.check(&state)?;
-        let player = operations::common_player_in_state(&state, self.session.id, false)?;
+    async fn tab_list(&self) -> Result<crate::client::ui::TabListObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.bot.session.id, false)?;
         Ok(state.display.tab_list(player.session, state.sequence))
     }
-    pub(crate) async fn common_world_border(
-        &self,
-    ) -> Result<crate::client::ui::WorldBorderObservation> {
-        let state = self.session.state.lock().await;
-        self.session.check(&state)?;
-        let player = operations::common_player_in_state(&state, self.session.id, false)?;
+    async fn world_border(&self) -> Result<crate::client::ui::WorldBorderObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.bot.session.id, false)?;
         Ok(state.display.world_border(player.session, state.sequence))
     }
 }

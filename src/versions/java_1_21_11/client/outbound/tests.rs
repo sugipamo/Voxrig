@@ -1,4 +1,5 @@
 use super::*;
+use crate::client::adapter::{CoreOps, StandingQueryOps};
 use std::{
     future::Future,
     pin::Pin,
@@ -996,7 +997,7 @@ async fn common_cursor_provenance_does_not_advance_on_unrelated_slot_packets() {
         )
         .unwrap();
     }
-    let state = api.common_player_state().await.unwrap();
+    let state = CoreOps::player_state(&api).await.unwrap();
     assert_eq!(
         state.inventory.cursor.unwrap().source,
         crate::client::ValueSource::Received { sequence: 10 }
@@ -1360,7 +1361,13 @@ async fn common_vehicle_receipts_refuse_stale_ground_authority() {
             yaw: 0.0,
             input: Default::default(),
         }];
-        client.preview_motion_path(mode, &controls).await.unwrap();
+        StandingQueryOps::preview_path(
+            &client.java_1_21_11().unwrap().operations(),
+            mode,
+            &controls,
+        )
+        .await
+        .unwrap();
         assert!(client.vehicle_state().await.unwrap().relation.is_none());
         session
             .state
@@ -1375,7 +1382,15 @@ async fn common_vehicle_receipts_refuse_stale_ground_authority() {
         assert_eq!(mount.session(), mounted.session);
         assert_eq!(mount.native_vehicle_id(), 10);
         assert!(mount.vehicle().is_none());
-        assert!(client.preview_motion_path(mode, &controls).await.is_err());
+        assert!(
+            StandingQueryOps::preview_path(
+                &client.java_1_21_11().unwrap().operations(),
+                mode,
+                &controls
+            )
+            .await
+            .is_err()
+        );
         session
             .state
             .lock()
@@ -1406,7 +1421,15 @@ async fn common_vehicle_receipts_refuse_stale_ground_authority() {
             }
         );
         assert!(unmounted.passengers.unwrap().value.is_empty());
-        assert!(client.preview_motion_path(mode, &controls).await.is_err());
+        assert!(
+            StandingQueryOps::preview_path(
+                &client.java_1_21_11().unwrap().operations(),
+                mode,
+                &controls
+            )
+            .await
+            .is_err()
+        );
         session
             .state
             .lock()
@@ -1414,7 +1437,15 @@ async fn common_vehicle_receipts_refuse_stale_ground_authority() {
             .receive(ids::play_clientbound::ENTITY_DESTROY, &[1, 10], 256)
             .unwrap();
         assert!(client.vehicle_state().await.unwrap().relation.is_none());
-        assert!(client.preview_motion_path(mode, &controls).await.is_err());
+        assert!(
+            StandingQueryOps::preview_path(
+                &client.java_1_21_11().unwrap().operations(),
+                mode,
+                &controls
+            )
+            .await
+            .is_err()
+        );
         assert!(
             timeout(Duration::from_millis(30), read_packet(&mut peer, None))
                 .await
@@ -2848,7 +2879,7 @@ async fn common_respawn_settling_requires_owned_world_and_only_released_inputs()
             state.loading = loading::InteractionLoading::completed_fixture();
             state.loading.generation = generation;
         }
-        let preview = api.common_preview_path(mode, &controls).await.unwrap();
+        let preview = api.preview_path(mode, &controls).await.unwrap();
         assert!(!preview.initial_frame.on_ground);
         assert_eq!(
             preview.initial.received_pose.as_ref().unwrap().position,
@@ -2868,11 +2899,11 @@ async fn common_respawn_settling_requires_owned_world_and_only_released_inputs()
                 ..Default::default()
             },
         }; 4];
-        assert!(api.common_preview_path(mode, &active).await.is_err());
+        assert!(api.preview_path(mode, &active).await.is_err());
         assert!(client.survival().target_block(4.5).await.is_err()); // No landing authority from a preview.
         let history = api.bot.respawn_history.clone();
         let saved = history.lock().unwrap().take().unwrap();
-        assert!(api.common_preview_path(mode, &controls).await.is_err());
+        assert!(api.preview_path(mode, &controls).await.is_err());
         *history.lock().unwrap() = Some(saved);
         {
             let mut state = session.state.lock().await;
@@ -2884,7 +2915,7 @@ async fn common_respawn_settling_requires_owned_world_and_only_released_inputs()
                 .unwrap()
                 .health = f32::NAN;
         }
-        assert!(api.common_preview_path(mode, &controls).await.is_err());
+        assert!(api.preview_path(mode, &controls).await.is_err());
         session
             .state
             .lock()
@@ -2905,6 +2936,6 @@ async fn common_respawn_settling_requires_owned_world_and_only_released_inputs()
             .as_mut()
             .unwrap()
             .value = [0.1, 0., 0.];
-        assert!(api.common_preview_path(mode, &controls).await.is_err());
+        assert!(api.preview_path(mode, &controls).await.is_err());
     }
 }

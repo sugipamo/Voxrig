@@ -86,8 +86,9 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
     }
     state.common_inventory_swap = Some(common);
 }
-impl Operations {
-    pub(crate) async fn common_swap_hotbar(
+
+impl crate::client::adapter::InventorySwapOps for Operations {
+    async fn swap_hotbar(
         &self,
         mode: api::GameMode,
         main: u8,
@@ -141,7 +142,7 @@ impl Operations {
         common.record.send.dispatched = true;
         Ok(common.record.clone())
     }
-    pub(crate) async fn common_swap_container_hotbar(
+    async fn swap_container_hotbar(
         &self,
         mode: api::GameMode,
         screen: api::container::ScreenId,
@@ -213,7 +214,7 @@ impl Operations {
         common.record.send.dispatched = true;
         Ok(common.record.clone())
     }
-    pub(crate) async fn common_inventory_swap_record(&self) -> Result<Option<InventorySwapRecord>> {
+    async fn inventory_swap_record(&self) -> Result<Option<InventorySwapRecord>> {
         let mut state = self.bot.session.state.lock().await;
         context_received(&mut state);
         if self.bot.session.stopped.load(Ordering::Acquire) || state.failure.is_some() {

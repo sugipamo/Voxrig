@@ -13,87 +13,6 @@ pub(super) struct NativeInventoryTransfer {
     pub(super) released: bool,
 }
 impl Bot {
-    pub(crate) async fn common_transfer_inventory(
-        &self,
-        mode: api::GameMode,
-        source: InventorySource,
-        slot: u16,
-    ) -> Result<InventoryTransferRecord> {
-        let gate = self.coherent_state_gate.lock().await;
-        self.common_motion_admission().await?;
-        if let InventorySource::Container { screen } = source {
-            if self
-                .common_container_close
-                .lock()
-                .await
-                .as_ref()
-                .is_some_and(|r| r.id.screen() == screen)
-            {
-                return Err(contract::unavailable(
-                    "old opening has a retained close intent",
-                ));
-            }
-        }
-        let revision = self
-            .connection
-            .motion_admission_revision()
-            .await
-            .map_err(|e| contract::unavailable(format!("transfer admission: {e:?}")))?;
-        if !self.inventory.read().await.pending_clicks.is_empty() {
-            return Err(contract::unavailable("native inventory click unresolved"));
-        }
-        let attempt = self
-            .common_inventory_transfer
-            .lock()
-            .await
-            .as_ref()
-            .map_or(Some(1), |p| p.record.id.attempt().checked_add(1))
-            .ok_or_else(|| contract::unavailable("inventory transfer attempts exhausted"))?;
-        let initial = self.common_player_unlocked().await?;
-        let screen = self
-            .common_receipts
-            .lock()
-            .await
-            .container
-            .as_ref()
-            .map(|s| s.capture(initial.session));
-        let registries = self
-            .common_receipts
-            .lock()
-            .await
-            .registries
-            .capture(initial.session, initial.receive_sequence);
-        let record =
-            transfer::prepare_received((initial, registries), mode, source, slot, attempt, screen)?;
-        {
-            let inventory = self.inventory.read().await;
-            if inventory
-                .open_window
-                .as_ref()
-                .map_or(0, |s| i32::from(s.id))
-                != record.window_id()
-                || api::legacy_slot(inventory.cursor.as_ref())? != record.cursor_before.value
-            {
-                return Err(contract::unavailable(
-                    "legacy transfer received/cache UI basis disagrees",
-                ));
-            }
-        }
-        let id = record.id;
-        *self.common_inventory_transfer.lock().await = Some(NativeInventoryTransfer {
-            record,
-            released: false,
-        });
-        let (reply, result) = tokio::sync::oneshot::channel();
-        let bot = self.clone_internal();
-        tokio::spawn(async move {
-            let _ = reply.send(bot.common_transfer_send_owned(id, revision).await);
-        });
-        drop(gate);
-        result
-            .await
-            .map_err(|_| contract::unavailable("transfer owner result unavailable"))?
-    }
     async fn common_transfer_send_owned(
         &self,
         id: InventoryTransferId,
@@ -201,29 +120,6 @@ impl Bot {
         }
         result
     }
-    pub(crate) async fn common_inventory_transfer_record(
-        &self,
-    ) -> Result<Option<InventoryTransferRecord>> {
-        // A stalled writer must not hide the already-retained intent. Complete
-        // reconciliation owns its continuation if the inspection caller cancels.
-        if let Ok(gate) = self.coherent_state_gate.clone().try_lock_owned() {
-            let bot = self.clone_internal();
-            let (reply, result) = tokio::sync::oneshot::channel();
-            tokio::spawn(async move {
-                let _gate = gate;
-                let _ = reply.send(bot.reconcile_common_inventory_transfer(true).await);
-            });
-            result
-                .await
-                .map_err(|_| contract::unavailable("transfer inspection owner unavailable"))??;
-        }
-        Ok(self
-            .common_inventory_transfer
-            .lock()
-            .await
-            .as_ref()
-            .map(|s| s.record.clone()))
-    }
     pub(super) async fn interrupt_common_inventory_transfer(&self, reason: impl std::fmt::Display) {
         if let Some(run) = self.common_inventory_transfer.lock().await.as_mut() {
             run.record.inspection(reason);
@@ -325,5 +221,110 @@ impl Bot {
             }
         }
         Ok(())
+    }
+}
+
+impl crate::client::adapter::InventoryTransferOps for Bot {
+    async fn transfer_inventory(
+        &self,
+        mode: api::GameMode,
+        source: InventorySource,
+        slot: u16,
+    ) -> Result<InventoryTransferRecord> {
+        let gate = self.coherent_state_gate.lock().await;
+        self.common_motion_admission().await?;
+        if let InventorySource::Container { screen } = source {
+            if self
+                .common_container_close
+                .lock()
+                .await
+                .as_ref()
+                .is_some_and(|r| r.id.screen() == screen)
+            {
+                return Err(contract::unavailable(
+                    "old opening has a retained close intent",
+                ));
+            }
+        }
+        let revision = self
+            .connection
+            .motion_admission_revision()
+            .await
+            .map_err(|e| contract::unavailable(format!("transfer admission: {e:?}")))?;
+        if !self.inventory.read().await.pending_clicks.is_empty() {
+            return Err(contract::unavailable("native inventory click unresolved"));
+        }
+        let attempt = self
+            .common_inventory_transfer
+            .lock()
+            .await
+            .as_ref()
+            .map_or(Some(1), |p| p.record.id.attempt().checked_add(1))
+            .ok_or_else(|| contract::unavailable("inventory transfer attempts exhausted"))?;
+        let initial = self.common_player_unlocked().await?;
+        let screen = self
+            .common_receipts
+            .lock()
+            .await
+            .container
+            .as_ref()
+            .map(|s| s.capture(initial.session));
+        let registries = self
+            .common_receipts
+            .lock()
+            .await
+            .registries
+            .capture(initial.session, initial.receive_sequence);
+        let record =
+            transfer::prepare_received((initial, registries), mode, source, slot, attempt, screen)?;
+        {
+            let inventory = self.inventory.read().await;
+            if inventory
+                .open_window
+                .as_ref()
+                .map_or(0, |s| i32::from(s.id))
+                != record.window_id()
+                || api::legacy_slot(inventory.cursor.as_ref())? != record.cursor_before.value
+            {
+                return Err(contract::unavailable(
+                    "legacy transfer received/cache UI basis disagrees",
+                ));
+            }
+        }
+        let id = record.id;
+        *self.common_inventory_transfer.lock().await = Some(NativeInventoryTransfer {
+            record,
+            released: false,
+        });
+        let (reply, result) = tokio::sync::oneshot::channel();
+        let bot = self.clone_internal();
+        tokio::spawn(async move {
+            let _ = reply.send(bot.common_transfer_send_owned(id, revision).await);
+        });
+        drop(gate);
+        result
+            .await
+            .map_err(|_| contract::unavailable("transfer owner result unavailable"))?
+    }
+    async fn inventory_transfer_record(&self) -> Result<Option<InventoryTransferRecord>> {
+        // A stalled writer must not hide the already-retained intent. Complete
+        // reconciliation owns its continuation if the inspection caller cancels.
+        if let Ok(gate) = self.coherent_state_gate.clone().try_lock_owned() {
+            let bot = self.clone_internal();
+            let (reply, result) = tokio::sync::oneshot::channel();
+            tokio::spawn(async move {
+                let _gate = gate;
+                let _ = reply.send(bot.reconcile_common_inventory_transfer(true).await);
+            });
+            result
+                .await
+                .map_err(|_| contract::unavailable("transfer inspection owner unavailable"))??;
+        }
+        Ok(self
+            .common_inventory_transfer
+            .lock()
+            .await
+            .as_ref()
+            .map(|s| s.record.clone()))
     }
 }

@@ -118,8 +118,9 @@ pub(super) fn payload(record: &InventoryTransferRecord) -> Result<Vec<u8>> {
     put_default_cursor_hash(&mut payload, &cursor)?;
     Ok(payload)
 }
-impl Operations {
-    pub(crate) async fn common_transfer_inventory(
+
+impl crate::client::adapter::InventoryTransferOps for Operations {
+    async fn transfer_inventory(
         &self,
         mode: api::GameMode,
         source: InventorySource,
@@ -189,9 +190,7 @@ impl Operations {
             }
         }
     }
-    pub(crate) async fn common_inventory_transfer_record(
-        &self,
-    ) -> Result<Option<InventoryTransferRecord>> {
+    async fn inventory_transfer_record(&self) -> Result<Option<InventoryTransferRecord>> {
         let mut state = self.bot.session.state.lock().await;
         context_received(&mut state);
         if self.bot.session.stopped.load(Ordering::Acquire) || state.failure.is_some() {

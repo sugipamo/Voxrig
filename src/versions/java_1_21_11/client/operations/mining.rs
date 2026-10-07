@@ -825,16 +825,6 @@ pub(in crate::versions::java_1_21_11::client) fn common_mining_context_received(
     }
 }
 impl Operations {
-    pub(crate) async fn common_start_mining(
-        &self,
-        target: [i32; 3],
-        face: crate::BlockFace,
-    ) -> Result<crate::client::survival::MiningRecord> {
-        self.start_mining_in(target, face, true).await?;
-        self.common_mining_record()
-            .await?
-            .ok_or_else(|| unavailable("common mining capture missing"))
-    }
     pub(crate) async fn common_profile_recovery_watch(
         &self,
         id: crate::client::survival::MiningId,
@@ -856,7 +846,20 @@ impl Operations {
         };
         self.prepare_survival_mining_profile_recovery(&intent).await
     }
-    pub(crate) async fn common_mining_send(
+}
+
+impl crate::client::adapter::MiningOps for Operations {
+    async fn start_mining(
+        &self,
+        target: [i32; 3],
+        face: crate::BlockFace,
+    ) -> Result<crate::client::survival::MiningRecord> {
+        self.start_mining_in(target, face, true).await?;
+        self.mining_record()
+            .await?
+            .ok_or_else(|| unavailable("common mining capture missing"))
+    }
+    async fn mining_send(
         &self,
         id: crate::client::survival::MiningId,
         action: crate::client::survival::MiningAction,
@@ -890,13 +893,11 @@ impl Operations {
                 self.abort_survival_mining(&intent).await?;
             }
         }
-        self.common_mining_record()
+        self.mining_record()
             .await?
             .ok_or_else(|| unavailable("common mining capture missing"))
     }
-    pub(crate) async fn common_mining_record(
-        &self,
-    ) -> Result<Option<crate::client::survival::MiningRecord>> {
+    async fn mining_record(&self) -> Result<Option<crate::client::survival::MiningRecord>> {
         use crate::client::{self as common, survival as api};
         let mut state = self.bot.session.state.lock().await;
         let Some(capture) = state.common_mining.clone() else {

@@ -115,47 +115,6 @@ impl Bot {
             stage: PlacementStage::Pending,
         })
     }
-    pub(crate) async fn common_place_cube(
-        &self,
-        support: [i32; 3],
-        face: crate::BlockFace,
-    ) -> Result<PlacementRecord> {
-        let gate = self.coherent_state_gate.lock().await;
-        self.common_motion_admission().await?;
-        let revision = self
-            .connection
-            .motion_admission_revision()
-            .await
-            .map_err(|e| placement::unavailable(format!("placement admission: {e:?}")))?;
-        let mut record = self.placement_prepared(support, face, None).await?;
-        let attempt = self
-            .common_placement
-            .lock()
-            .await
-            .as_ref()
-            .map_or(Some(1), |p| p.record.id.attempt().checked_add(1))
-            .ok_or_else(|| placement::unavailable("placement attempts exhausted"))?;
-        record.id = PlacementId::new(record.initial.session, attempt);
-        let id = record.id;
-        *self.common_placement.lock().await = Some(NativePlacementRun {
-            record,
-            released: false,
-            movement_revision: self.motion.lock().await.revision(),
-            movement_attribute: super::common_motion::legacy_movement_attribute(
-                &**self.survival.read().await,
-            )
-            .cloned(),
-        });
-        let (reply, result) = tokio::sync::oneshot::channel();
-        let bot = self.clone_internal();
-        tokio::spawn(async move {
-            let _ = reply.send(bot.placement_send_owned(id, revision).await);
-        });
-        drop(gate);
-        result
-            .await
-            .map_err(|_| placement::unavailable("placement owner result missing"))?
-    }
     async fn placement_send_owned(
         &self,
         id: PlacementId,
@@ -231,28 +190,6 @@ impl Bot {
         if let Some(p) = self.common_placement.lock().await.as_mut() {
             inspection(p, reason);
         }
-    }
-    pub(crate) async fn common_placement_record(&self) -> Result<Option<PlacementRecord>> {
-        // The connection owns completion/release even if this read waiter is cancelled.
-        let (reply, result) = tokio::sync::oneshot::channel();
-        let bot = self.clone_internal();
-        tokio::spawn(async move {
-            let _gate = bot.coherent_state_gate.lock().await;
-            let value = async {
-                bot.reconcile_common_placement(true).await?;
-                Ok(bot
-                    .common_placement
-                    .lock()
-                    .await
-                    .as_ref()
-                    .map(|p| p.record.clone()))
-            }
-            .await;
-            let _ = reply.send(value);
-        });
-        result
-            .await
-            .map_err(|_| placement::unavailable("placement inspection owner unavailable"))?
     }
     async fn reconcile_common_placement(&self, confirm: bool) -> Result<()> {
         let Some(snapshot) = self.common_placement.lock().await.clone() else {
@@ -447,6 +384,72 @@ impl Bot {
             }
         }
         Ok(())
+    }
+}
+
+impl crate::client::adapter::PlacementOps for Bot {
+    async fn place_cube(
+        &self,
+        support: [i32; 3],
+        face: crate::BlockFace,
+    ) -> Result<PlacementRecord> {
+        let gate = self.coherent_state_gate.lock().await;
+        self.common_motion_admission().await?;
+        let revision = self
+            .connection
+            .motion_admission_revision()
+            .await
+            .map_err(|e| placement::unavailable(format!("placement admission: {e:?}")))?;
+        let mut record = self.placement_prepared(support, face, None).await?;
+        let attempt = self
+            .common_placement
+            .lock()
+            .await
+            .as_ref()
+            .map_or(Some(1), |p| p.record.id.attempt().checked_add(1))
+            .ok_or_else(|| placement::unavailable("placement attempts exhausted"))?;
+        record.id = PlacementId::new(record.initial.session, attempt);
+        let id = record.id;
+        *self.common_placement.lock().await = Some(NativePlacementRun {
+            record,
+            released: false,
+            movement_revision: self.motion.lock().await.revision(),
+            movement_attribute: super::common_motion::legacy_movement_attribute(
+                &**self.survival.read().await,
+            )
+            .cloned(),
+        });
+        let (reply, result) = tokio::sync::oneshot::channel();
+        let bot = self.clone_internal();
+        tokio::spawn(async move {
+            let _ = reply.send(bot.placement_send_owned(id, revision).await);
+        });
+        drop(gate);
+        result
+            .await
+            .map_err(|_| placement::unavailable("placement owner result missing"))?
+    }
+    async fn placement_record(&self) -> Result<Option<PlacementRecord>> {
+        // The connection owns completion/release even if this read waiter is cancelled.
+        let (reply, result) = tokio::sync::oneshot::channel();
+        let bot = self.clone_internal();
+        tokio::spawn(async move {
+            let _gate = bot.coherent_state_gate.lock().await;
+            let value = async {
+                bot.reconcile_common_placement(true).await?;
+                Ok(bot
+                    .common_placement
+                    .lock()
+                    .await
+                    .as_ref()
+                    .map(|p| p.record.clone()))
+            }
+            .await;
+            let _ = reply.send(value);
+        });
+        result
+            .await
+            .map_err(|_| placement::unavailable("placement inspection owner unavailable"))?
     }
 }
 

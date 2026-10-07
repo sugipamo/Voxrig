@@ -1,9 +1,16 @@
 //! The version-independent contract every native adapter implements.
 //!
-//! [`VersionAdapter`] is the single list of operations `Client` exposes on all
-//! versions. Adding a method here forces every adapter to implement it with the
-//! same signature; [`dispatch!`] then routes a `Client` call to the selected one.
-//! Version-only features stay outside this trait and are reached explicitly.
+//! Each trait groups one concern and is implemented next to the native code for
+//! both versions (Java 1.16.1 `Bot` and Java 1.21.11 `Operations`). Diverging
+//! signatures fail to compile. [`VersionAdapter`] is the union of all of them,
+//! and [`dispatch!`] routes a `Client` call to the selected adapter.
+//! Version-only features stay outside these traits and are reached through
+//! `Client::native`.
+//!
+//! Call trait methods as `Trait::method(a, ..)`: several adapters also have
+//! inherent methods with the same name and different meaning (for example the
+//! Java 1.16.1 `Bot::respawn` or the Java 1.21.11 `Operations::player_state`),
+//! and method-call syntax silently prefers those.
 use super::container::{ContainerCloseRecord, ContainerOpenRecord, ScreenId, ScreenObservation};
 use super::crafting::{
     CraftingResultDestination, CraftingTakeRecord, ReceivedCrafting, ReceivedCraftingContext,
@@ -30,183 +37,272 @@ use super::vehicle::{
 };
 use super::{
     Capture, ConnectionIdentity, EntityId, EntityMotionObservation, EntitySpawns, GameMode,
-    PlayerObservation, ReceivedInventory, RespawnRecord,
+    PacketTrace, PlayerObservation, ReceivedInventory, RespawnRecord,
 };
-use crate::{BlockFace, Region, Result};
+use crate::versions::{java_1_16_1, java_1_21_11};
+use crate::{BlockFace, MinecraftVersion, Region, Result};
 
-/// Declares the trait once and implements it for both adapters by forwarding to
-/// their native `common_*` methods. Signature drift is a compile error.
-macro_rules! version_adapter {
-    (
-        $(
-            $(#[$meta:meta])*
-            fn $name:ident => $native:ident(&self $(, $arg:ident: $ty:ty)* $(,)?) -> $ret:ty;
-        )*
-        // 1.21.11 methods implemented on `Bot` rather than on `Operations`.
-        session {
-            $(
-                $(#[$smeta:meta])*
-                fn $sname:ident => $snative:ident(&self $(, $sarg:ident: $sty:ty)* $(,)?) -> $sret:ty;
-            )*
-        }
-    ) => {
-        /// Operations every version adapter provides with identical meaning.
-        pub(crate) trait VersionAdapter {
-            /// Exact native version of this adapter.
-            const VERSION: crate::MinecraftVersion;
-            /// Process-local transport identity.
-            fn connection_id(&self) -> u64;
-            $( $(#[$meta])* async fn $name(&self $(, $arg: $ty)*) -> Result<$ret>; )*
-            $( $(#[$smeta])* async fn $sname(&self $(, $sarg: $sty)*) -> Result<$sret>; )*
-        }
-
-        impl VersionAdapter for crate::versions::java_1_16_1::Bot {
-            const VERSION: crate::MinecraftVersion = crate::MinecraftVersion::Java1_16_1;
-            fn connection_id(&self) -> u64 {
-                crate::versions::java_1_16_1::Bot::connection_id(self)
-            }
-            $(
-                async fn $name(&self $(, $arg: $ty)*) -> Result<$ret> {
-                    crate::versions::java_1_16_1::Bot::$native(self $(, $arg)*).await
-                }
-            )*
-            $(
-                async fn $sname(&self $(, $sarg: $sty)*) -> Result<$sret> {
-                    crate::versions::java_1_16_1::Bot::$snative(self $(, $sarg)*).await
-                }
-            )*
-        }
-
-        impl VersionAdapter for crate::versions::java_1_21_11::Bot {
-            const VERSION: crate::MinecraftVersion = crate::MinecraftVersion::Java1_21_11;
-            fn connection_id(&self) -> u64 {
-                crate::versions::java_1_21_11::Bot::connection_id(self)
-            }
-            $(
-                async fn $name(&self $(, $arg: $ty)*) -> Result<$ret> {
-                    self.operations().$native($($arg),*).await
-                }
-            )*
-            $(
-                async fn $sname(&self $(, $sarg: $sty)*) -> Result<$sret> {
-                    crate::versions::java_1_21_11::Bot::$snative(self $(, $sarg)*).await
-                }
-            )*
-        }
-    };
+/// Connection lifecycle and packet diagnostics.
+pub(crate) trait SessionOps {
+    /// Exact native version of this adapter.
+    const VERSION: MinecraftVersion;
+    /// Process-local transport identity.
+    fn connection_id(&self) -> u64;
+    async fn wait_until_ready(&self) -> Result<()>;
+    async fn disconnect(&self) -> Result<()>;
+    async fn start_packet_trace(&self, maximum_bytes: usize) -> Result<()>;
+    async fn stop_packet_trace(&self) -> Result<PacketTrace>;
 }
 
-version_adapter! {
-    // One ordinary mode-checked action; returns the native interaction sequence.
-    fn execute => execute_common(
-        &self, mode: GameMode, action: super::operations::Action<'_>,
-    ) -> Option<i32>;
+/// Connection identity, received-state observation and the basic one-shot actions.
+pub(crate) trait CoreOps {
+    async fn connection_identity(&self) -> Result<ConnectionIdentity>;
+    async fn server_registry_state(&self) -> Result<ServerRegistryObservation>;
+    async fn player_state(&self) -> Result<PlayerObservation>;
+    async fn received_inventory(&self) -> Result<ReceivedInventory>;
+    async fn respawn(&self) -> Result<RespawnRecord>;
+    async fn entity_spawns(&self) -> Result<EntitySpawns>;
+    async fn entity_motion(&self, target: EntityId) -> Result<EntityMotionObservation>;
+    async fn vehicle_state(&self) -> Result<VehicleObservation>;
+    async fn screen_state(&self) -> Result<ScreenObservation>;
+    async fn capture(&self, region: Region) -> Result<Capture>;
+    async fn received_recipes(&self) -> Result<ReceivedRecipes>;
+    async fn received_recipe_ghost(&self) -> Result<Option<ReceivedRecipeGhost>>;
+    async fn received_crafting_context(&self) -> Result<Option<ReceivedCraftingContext>>;
+    async fn received_crafting(&self) -> Result<Option<ReceivedCrafting>>;
+    async fn recipe_book_materials(
+        &self,
+        recipe: &RecipeId,
+        crafts: u32,
+        maximum_bound: u32,
+    ) -> Result<RecipeBookMaterials>;
+    async fn execute(
+        &self,
+        mode: GameMode,
+        action: super::operations::Action<'_>,
+    ) -> Result<Option<i32>>;
+}
 
-    // Session and world observation.
-    fn connection_identity => common_connection_identity(&self) -> ConnectionIdentity;
-    fn capture => common_capture(&self, region: Region) -> Capture;
-    fn player_state => common_player_state(&self) -> PlayerObservation;
-    fn respawn => common_respawn(&self) -> RespawnRecord;
-    fn entity_spawns => common_entity_spawns(&self) -> EntitySpawns;
-    fn entity_motion => common_entity_motion(&self, target: EntityId) -> EntityMotionObservation;
-    fn vehicle_state => common_vehicle_state(&self) -> VehicleObservation;
+/// Received scoreboard, boss bar, team, player-list, title, tab-list and border state.
+pub(crate) trait UiOps {
+    async fn scoreboard_state(&self) -> Result<ScoreboardObservation>;
+    async fn boss_bars(&self) -> Result<BossBarsObservation>;
+    async fn teams(&self) -> Result<TeamsObservation>;
+    async fn player_list(&self) -> Result<PlayerListObservation>;
+    async fn titles(&self) -> Result<TitlesObservation>;
+    async fn tab_list(&self) -> Result<TabListObservation>;
+    async fn world_border(&self) -> Result<WorldBorderObservation>;
+}
 
-    // Received inventory, screens and recipes.
-    fn received_inventory => common_received_inventory(&self) -> ReceivedInventory;
-    fn screen_state => common_screen_state(&self) -> ScreenObservation;
-    fn received_recipes => common_received_recipes(&self) -> ReceivedRecipes;
-    fn received_recipe_ghost => common_received_recipe_ghost(&self) -> Option<ReceivedRecipeGhost>;
-    fn received_crafting_context =>
-        common_received_crafting_context(&self) -> Option<ReceivedCraftingContext>;
-    fn received_crafting => common_received_crafting(&self) -> Option<ReceivedCrafting>;
-    fn recipe_book_materials => common_recipe_book_materials(
-        &self, recipe: &RecipeId, crafts: u32, maximum_bound: u32,
-    ) -> RecipeBookMaterials;
+/// Opening and closing one audited container screen.
+pub(crate) trait ContainerOps {
+    async fn open_container(&self, mode: GameMode, target: [i32; 3])
+    -> Result<ContainerOpenRecord>;
+    async fn container_open_record(&self) -> Result<Option<ContainerOpenRecord>>;
+    async fn close_container(
+        &self,
+        mode: GameMode,
+        screen: ScreenId,
+    ) -> Result<ContainerCloseRecord>;
+    async fn container_close_record(&self) -> Result<Option<ContainerCloseRecord>>;
+}
 
-    // Containers.
-    fn open_container =>
-        common_open_container(&self, mode: GameMode, target: [i32; 3]) -> ContainerOpenRecord;
-    fn container_open_record => common_container_open_record(&self) -> Option<ContainerOpenRecord>;
-    fn close_container =>
-        common_close_container(&self, mode: GameMode, screen: ScreenId) -> ContainerCloseRecord;
-    fn container_close_record =>
-        common_container_close_record(&self) -> Option<ContainerCloseRecord>;
+/// Ordinary PICKUP clicks.
+pub(crate) trait InventoryClickOps {
+    async fn click_inventory(
+        &self,
+        mode: GameMode,
+        source: InventorySource,
+        slot: u16,
+        button: InventoryClickButton,
+    ) -> Result<InventoryClickRecord>;
+    async fn inventory_click_record(&self) -> Result<Option<InventoryClickRecord>>;
+}
 
-    // Inventory clicks, transfers and swaps.
-    fn click_inventory => common_click_inventory(
-        &self, mode: GameMode, source: InventorySource, slot: u16, button: InventoryClickButton,
-    ) -> InventoryClickRecord;
-    fn inventory_click_record => common_inventory_click_record(&self) -> Option<InventoryClickRecord>;
-    fn transfer_inventory => common_transfer_inventory(
-        &self, mode: GameMode, source: InventorySource, slot: u16,
-    ) -> InventoryTransferRecord;
-    fn inventory_transfer_record =>
-        common_inventory_transfer_record(&self) -> Option<InventoryTransferRecord>;
-    fn swap_hotbar =>
-        common_swap_hotbar(&self, mode: GameMode, main: u8, hotbar: u8) -> InventorySwapRecord;
-    fn swap_container_hotbar => common_swap_container_hotbar(
-        &self, mode: GameMode, screen: ScreenId, slot: u16, hotbar: u8,
-    ) -> InventorySwapRecord;
-    fn inventory_swap_record => common_inventory_swap_record(&self) -> Option<InventorySwapRecord>;
+/// Hotbar swaps in the player screen or an open container.
+pub(crate) trait InventorySwapOps {
+    async fn swap_hotbar(
+        &self,
+        mode: GameMode,
+        main: u8,
+        hotbar: u8,
+    ) -> Result<InventorySwapRecord>;
+    async fn swap_container_hotbar(
+        &self,
+        mode: GameMode,
+        screen: ScreenId,
+        slot: u16,
+        hotbar: u8,
+    ) -> Result<InventorySwapRecord>;
+    async fn inventory_swap_record(&self) -> Result<Option<InventorySwapRecord>>;
+}
 
-    // Crafting.
-    fn place_recipe =>
-        common_place_recipe(&self, mode: GameMode, plan: &RecipePlacementPlan) -> RecipePlacementRecord;
-    fn recipe_placement_record =>
-        common_recipe_placement_record(&self) -> Option<RecipePlacementRecord>;
-    fn take_crafting_result => common_take_crafting_result(
-        &self, mode: GameMode, grid: &ReceivedCrafting, destination: CraftingResultDestination,
-    ) -> CraftingTakeRecord;
-    fn crafting_take_record => common_crafting_take_record(&self) -> Option<CraftingTakeRecord>;
+/// Ordinary QUICK_MOVE transfers.
+pub(crate) trait InventoryTransferOps {
+    async fn transfer_inventory(
+        &self,
+        mode: GameMode,
+        source: InventorySource,
+        slot: u16,
+    ) -> Result<InventoryTransferRecord>;
+    async fn inventory_transfer_record(&self) -> Result<Option<InventoryTransferRecord>>;
+}
 
-    // Blocks.
-    fn target_block =>
-        common_target_block(&self, mode: GameMode, distance: f64) -> BlockTargetObservation;
-    fn place_cube => common_place_cube(&self, support: [i32; 3], face: BlockFace) -> PlacementRecord;
-    fn placement_record => common_placement_record(&self) -> Option<PlacementRecord>;
-    fn start_mining => common_start_mining(&self, target: [i32; 3], face: BlockFace) -> MiningRecord;
-    fn mining_send => common_mining_send(&self, id: MiningId, action: MiningAction) -> MiningRecord;
-    fn mining_record => common_mining_record(&self) -> Option<MiningRecord>;
+/// Taking a crafting result.
+pub(crate) trait CraftingTakeOps {
+    async fn take_crafting_result(
+        &self,
+        mode: GameMode,
+        grid: &ReceivedCrafting,
+        destination: CraftingResultDestination,
+    ) -> Result<CraftingTakeRecord>;
+    async fn crafting_take_record(&self) -> Result<Option<CraftingTakeRecord>>;
+}
 
-    // Movement and vehicles.
-    fn preview_path =>
-        common_preview_path(&self, mode: GameMode, controls: &[SurvivalControl]) -> MotionPreview;
-    fn start_predicted_path =>
-        common_start_predicted_path(&self, mode: GameMode, controls: &[SurvivalControl]) -> MotionRecord;
-    fn motion_record => common_motion_record(&self) -> Option<MotionRecord>;
-    fn flight => common_flight(&self, command: FlightCommand) -> FlightRecord;
-    fn dismount => common_dismount(&self, mode: GameMode, mount: MountId) -> DismountRecord;
-    fn complete_dismount =>
-        common_complete_dismount(&self, mode: GameMode, id: DismountId) -> DismountRecord;
-    fn resume_ground => common_resume_ground(&self, mode: GameMode, id: DismountId) -> DismountRecord;
-    fn dismount_record => common_dismount_record(&self) -> Option<DismountRecord>;
-    fn vehicle_control => common_vehicle_control(
-        &self, mode: GameMode, mount: MountId, inputs: &[VehicleInput],
-    ) -> VehicleControlRecord;
-    fn vehicle_control_record => common_vehicle_control_record(&self) -> Option<VehicleControlRecord>;
+/// Recipe-book placement into a crafting grid.
+pub(crate) trait RecipePlacementOps {
+    async fn place_recipe(
+        &self,
+        mode: GameMode,
+        plan: &RecipePlacementPlan,
+    ) -> Result<RecipePlacementRecord>;
+    async fn recipe_placement_record(&self) -> Result<Option<RecipePlacementRecord>>;
+}
 
-    session {
-        // Connection lifecycle and diagnostics.
-        fn wait_until_ready => wait_until_ready(&self) -> ();
-        fn disconnect => disconnect(&self) -> ();
-        fn start_packet_trace => start_packet_trace(&self, maximum_bytes: usize) -> ();
-        fn stop_packet_trace => stop_packet_trace(&self) -> super::PacketTrace;
-        // Configuration-phase registries and received UI state.
-        fn server_registry_state => common_server_registry_state(&self) -> ServerRegistryObservation;
-        fn scoreboard_state => common_scoreboard_state(&self) -> ScoreboardObservation;
-        fn boss_bars => common_boss_bars(&self) -> BossBarsObservation;
-        fn teams => common_teams(&self) -> TeamsObservation;
-        fn player_list => common_player_list(&self) -> PlayerListObservation;
-        fn titles => common_titles(&self) -> TitlesObservation;
-        fn tab_list => common_tab_list(&self) -> TabListObservation;
-        fn world_border => common_world_border(&self) -> WorldBorderObservation;
+/// Retained mining with explicit start, finish and abort.
+pub(crate) trait MiningOps {
+    async fn start_mining(&self, target: [i32; 3], face: BlockFace) -> Result<MiningRecord>;
+    async fn mining_send(&self, id: MiningId, action: MiningAction) -> Result<MiningRecord>;
+    async fn mining_record(&self) -> Result<Option<MiningRecord>>;
+}
+
+/// One-shot passive cube placement.
+pub(crate) trait PlacementOps {
+    async fn place_cube(&self, support: [i32; 3], face: BlockFace) -> Result<PlacementRecord>;
+    async fn placement_record(&self) -> Result<Option<PlacementRecord>>;
+}
+
+/// Read-only queries from a dry standing pose: block target and path preview.
+pub(crate) trait StandingQueryOps {
+    async fn target_block(&self, mode: GameMode, distance: f64) -> Result<BlockTargetObservation>;
+    async fn preview_path(
+        &self,
+        mode: GameMode,
+        controls: &[SurvivalControl],
+    ) -> Result<MotionPreview>;
+}
+
+/// Finite predicted walking/jump paths.
+pub(crate) trait PathMotionOps {
+    async fn start_predicted_path(
+        &self,
+        mode: GameMode,
+        controls: &[SurvivalControl],
+    ) -> Result<MotionRecord>;
+    async fn motion_record(&self) -> Result<Option<MotionRecord>>;
+}
+
+/// Creative flight commands.
+pub(crate) trait FlightOps {
+    async fn flight(&self, command: FlightCommand) -> Result<FlightRecord>;
+}
+
+/// Dismount, mounted input and ground continuation.
+pub(crate) trait VehicleOps {
+    async fn dismount(&self, mode: GameMode, mount: MountId) -> Result<DismountRecord>;
+    async fn complete_dismount(&self, mode: GameMode, id: DismountId) -> Result<DismountRecord>;
+    async fn resume_ground(&self, mode: GameMode, id: DismountId) -> Result<DismountRecord>;
+    async fn dismount_record(&self) -> Result<Option<DismountRecord>>;
+    async fn vehicle_control(
+        &self,
+        mode: GameMode,
+        mount: MountId,
+        inputs: &[VehicleInput],
+    ) -> Result<VehicleControlRecord>;
+    async fn vehicle_control_record(&self) -> Result<Option<VehicleControlRecord>>;
+}
+
+/// Every cross-version operation. Implemented automatically for any type that
+/// implements all of the concern traits.
+pub(crate) trait VersionAdapter:
+    SessionOps
+    + CoreOps
+    + UiOps
+    + ContainerOps
+    + InventoryClickOps
+    + InventorySwapOps
+    + InventoryTransferOps
+    + CraftingTakeOps
+    + RecipePlacementOps
+    + MiningOps
+    + PlacementOps
+    + StandingQueryOps
+    + PathMotionOps
+    + FlightOps
+    + VehicleOps
+{
+}
+impl<T> VersionAdapter for T where
+    T: SessionOps
+        + CoreOps
+        + UiOps
+        + ContainerOps
+        + InventoryClickOps
+        + InventorySwapOps
+        + InventoryTransferOps
+        + CraftingTakeOps
+        + RecipePlacementOps
+        + MiningOps
+        + PlacementOps
+        + StandingQueryOps
+        + PathMotionOps
+        + FlightOps
+        + VehicleOps
+{
+}
+
+// Lifecycle methods are the adapters' own public API; these impls only expose them.
+impl SessionOps for java_1_16_1::Bot {
+    const VERSION: MinecraftVersion = MinecraftVersion::Java1_16_1;
+    fn connection_id(&self) -> u64 {
+        java_1_16_1::Bot::connection_id(self)
+    }
+    async fn wait_until_ready(&self) -> Result<()> {
+        java_1_16_1::Bot::wait_until_ready(self).await
+    }
+    async fn disconnect(&self) -> Result<()> {
+        java_1_16_1::Bot::disconnect(self).await
+    }
+    async fn start_packet_trace(&self, maximum_bytes: usize) -> Result<()> {
+        java_1_16_1::Bot::start_packet_trace(self, maximum_bytes).await
+    }
+    async fn stop_packet_trace(&self) -> Result<PacketTrace> {
+        java_1_16_1::Bot::stop_packet_trace(self).await
+    }
+}
+impl SessionOps for java_1_21_11::operations::Operations {
+    const VERSION: MinecraftVersion = MinecraftVersion::Java1_21_11;
+    fn connection_id(&self) -> u64 {
+        self.bot().connection_id()
+    }
+    async fn wait_until_ready(&self) -> Result<()> {
+        self.bot().wait_until_ready().await
+    }
+    async fn disconnect(&self) -> Result<()> {
+        self.bot().disconnect().await
+    }
+    async fn start_packet_trace(&self, maximum_bytes: usize) -> Result<()> {
+        self.bot().start_packet_trace(maximum_bytes).await
+    }
+    async fn stop_packet_trace(&self) -> Result<PacketTrace> {
+        self.bot().stop_packet_trace().await
     }
 }
 
 /// Routes one expression to the selected adapter as `&impl VersionAdapter`.
 ///
 /// ```ignore
-/// dispatch!(&self.adapter, a => VersionAdapter::player_state(a).await)
+/// dispatch!(&self.adapter, a => CoreOps::player_state(a).await)
 /// ```
 macro_rules! dispatch {
     ($adapter:expr, $a:ident => $body:expr) => {
@@ -216,7 +312,8 @@ macro_rules! dispatch {
                 $body
             }
             $crate::connection::Adapter::Java1_21_11(bot) => {
-                let $a: &$crate::versions::java_1_21_11::Bot = bot;
+                let operations = bot.operations();
+                let $a: &$crate::versions::java_1_21_11::operations::Operations = &operations;
                 $body
             }
         }
@@ -224,9 +321,9 @@ macro_rules! dispatch {
 }
 pub(crate) use dispatch;
 
-/// The selected adapter's [`VersionAdapter::VERSION`].
-pub(crate) fn version_of(adapter: &crate::connection::Adapter) -> crate::MinecraftVersion {
-    fn of<A: VersionAdapter>(_: &A) -> crate::MinecraftVersion {
+/// The selected adapter's [`SessionOps::VERSION`].
+pub(crate) fn version_of(adapter: &crate::connection::Adapter) -> MinecraftVersion {
+    fn of<A: VersionAdapter>(_: &A) -> MinecraftVersion {
         A::VERSION
     }
     dispatch!(adapter, a => of(a))

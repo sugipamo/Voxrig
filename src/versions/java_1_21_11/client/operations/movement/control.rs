@@ -361,31 +361,6 @@ impl Operations {
         self.start_control_path(&expected.controls, None, Some(expected), None)
             .await
     }
-    pub(crate) async fn common_start_predicted_path(
-        &self,
-        mode: GameMode,
-        controls: &[SurvivalControl],
-    ) -> Result<crate::client::survival::MotionRecord> {
-        common_record(
-            self.start_control_path(controls, None, None, Some(mode))
-                .await?,
-        )
-    }
-    pub(crate) async fn common_motion_record(
-        &self,
-    ) -> Result<Option<crate::client::survival::MotionRecord>> {
-        let mut state = self.bot.session.state.lock().await;
-        inspect_motion(&mut state);
-        if let Some(record) = state
-            .survival_motion
-            .as_ref()
-            .filter(|record| record.common_initial.is_some())
-        {
-            common_record(record.clone()).map(Some)
-        } else {
-            Ok(state.retired_common_motion.clone())
-        }
-    }
     async fn start_control_path(
         &self,
         controls: &[SurvivalControl],
@@ -1181,4 +1156,30 @@ pub(in super::super) fn retire_common_for_mount(state: &mut State) -> Result<()>
         state.retired_common_motion = Some(common_record(run)?);
     }
     Ok(())
+}
+
+impl crate::client::adapter::PathMotionOps for Operations {
+    async fn start_predicted_path(
+        &self,
+        mode: GameMode,
+        controls: &[SurvivalControl],
+    ) -> Result<crate::client::survival::MotionRecord> {
+        common_record(
+            self.start_control_path(controls, None, None, Some(mode))
+                .await?,
+        )
+    }
+    async fn motion_record(&self) -> Result<Option<crate::client::survival::MotionRecord>> {
+        let mut state = self.bot.session.state.lock().await;
+        inspect_motion(&mut state);
+        if let Some(record) = state
+            .survival_motion
+            .as_ref()
+            .filter(|record| record.common_initial.is_some())
+        {
+            common_record(record.clone()).map(Some)
+        } else {
+            Ok(state.retired_common_motion.clone())
+        }
+    }
 }

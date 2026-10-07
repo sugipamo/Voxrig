@@ -122,8 +122,9 @@ pub(in crate::versions::java_1_21_11::client::operations) fn payload(
     put_default_cursor_hash(&mut payload, &cursor)?;
     Ok(payload)
 }
-impl Operations {
-    pub(crate) async fn common_click_inventory(
+
+impl crate::client::adapter::InventoryClickOps for Operations {
+    async fn click_inventory(
         &self,
         mode: api::GameMode,
         source: InventoryClickSource,
@@ -193,9 +194,7 @@ impl Operations {
             }
         }
     }
-    pub(crate) async fn common_inventory_click_record(
-        &self,
-    ) -> Result<Option<InventoryClickRecord>> {
+    async fn inventory_click_record(&self) -> Result<Option<InventoryClickRecord>> {
         let mut state = self.bot.session.state.lock().await;
         context_received(&mut state);
         if self.bot.session.stopped.load(Ordering::Acquire) || state.failure.is_some() {

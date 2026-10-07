@@ -9,36 +9,6 @@ pub(super) struct NativeInventorySwap {
 }
 
 impl Bot {
-    pub(crate) async fn common_swap_hotbar(
-        &self,
-        mode: api::GameMode,
-        main: u8,
-        hotbar: u8,
-    ) -> Result<InventorySwapRecord> {
-        contract::validate_slots(main, hotbar)?;
-        self.common_swap_source(
-            mode,
-            contract::InventorySwapSource::PlayerMain,
-            u16::from(main),
-            hotbar,
-        )
-        .await
-    }
-    pub(crate) async fn common_swap_container_hotbar(
-        &self,
-        mode: api::GameMode,
-        screen: api::container::ScreenId,
-        slot: u16,
-        hotbar: u8,
-    ) -> Result<InventorySwapRecord> {
-        self.common_swap_source(
-            mode,
-            contract::InventorySwapSource::Container { screen },
-            slot,
-            hotbar,
-        )
-        .await
-    }
     async fn common_swap_source(
         &self,
         mode: api::GameMode,
@@ -227,27 +197,6 @@ impl Bot {
         }
         result
     }
-    pub(crate) async fn common_inventory_swap_record(&self) -> Result<Option<InventorySwapRecord>> {
-        let bot = self.clone_internal();
-        let (reply, result) = tokio::sync::oneshot::channel();
-        tokio::spawn(async move {
-            let value = async {
-                let _gate = bot.coherent_state_gate.lock().await;
-                bot.reconcile_common_inventory_swap(true).await?;
-                Ok(bot
-                    .common_inventory_swap
-                    .lock()
-                    .await
-                    .as_ref()
-                    .map(|s| s.record.clone()))
-            }
-            .await;
-            let _ = reply.send(value);
-        });
-        result
-            .await
-            .map_err(|_| contract::unavailable("inventory inspection owner unavailable"))?
-    }
     pub(super) async fn interrupt_common_inventory_swap(&self, reason: impl std::fmt::Display) {
         if let Some(run) = self.common_inventory_swap.lock().await.as_mut() {
             contract::inspection(&mut run.record, reason);
@@ -341,6 +290,60 @@ impl Bot {
             }
         }
         Ok(())
+    }
+}
+
+impl crate::client::adapter::InventorySwapOps for Bot {
+    async fn swap_hotbar(
+        &self,
+        mode: api::GameMode,
+        main: u8,
+        hotbar: u8,
+    ) -> Result<InventorySwapRecord> {
+        contract::validate_slots(main, hotbar)?;
+        self.common_swap_source(
+            mode,
+            contract::InventorySwapSource::PlayerMain,
+            u16::from(main),
+            hotbar,
+        )
+        .await
+    }
+    async fn swap_container_hotbar(
+        &self,
+        mode: api::GameMode,
+        screen: api::container::ScreenId,
+        slot: u16,
+        hotbar: u8,
+    ) -> Result<InventorySwapRecord> {
+        self.common_swap_source(
+            mode,
+            contract::InventorySwapSource::Container { screen },
+            slot,
+            hotbar,
+        )
+        .await
+    }
+    async fn inventory_swap_record(&self) -> Result<Option<InventorySwapRecord>> {
+        let bot = self.clone_internal();
+        let (reply, result) = tokio::sync::oneshot::channel();
+        tokio::spawn(async move {
+            let value = async {
+                let _gate = bot.coherent_state_gate.lock().await;
+                bot.reconcile_common_inventory_swap(true).await?;
+                Ok(bot
+                    .common_inventory_swap
+                    .lock()
+                    .await
+                    .as_ref()
+                    .map(|s| s.record.clone()))
+            }
+            .await;
+            let _ = reply.send(value);
+        });
+        result
+            .await
+            .map_err(|_| contract::unavailable("inventory inspection owner unavailable"))?
     }
 }
 

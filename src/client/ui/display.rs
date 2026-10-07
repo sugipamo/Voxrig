@@ -1,6 +1,6 @@
 //! Received title, tab-list and border instructions, without local rendering.
 use super::{ObservedValue, SessionStamp, UiText, received};
-use crate::client::VersionAdapter;
+use crate::client::adapter::UiOps;
 use crate::{MinecraftVersion, Result};
 
 /// Original title-animation instruction, distinct from elapsed display time.
@@ -136,15 +136,15 @@ pub struct WorldBorderObservation {
 impl crate::client::Client {
     /// Inspect title/subtitle/action-bar and clear/timing receipts without I/O.
     pub async fn titles(&self) -> Result<TitlesObservation> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::titles(a).await)
+        crate::client::dispatch!(&self.adapter, a => UiOps::titles(a).await)
     }
     /// Inspect the last complete native tab-list header/footer pair.
     pub async fn tab_list(&self) -> Result<TabListObservation> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::tab_list(a).await)
+        crate::client::dispatch!(&self.adapter, a => UiOps::tab_list(a).await)
     }
     /// Inspect border instructions without predicting current size or constraints.
     pub async fn world_border(&self) -> Result<WorldBorderObservation> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::world_border(a).await)
+        crate::client::dispatch!(&self.adapter, a => UiOps::world_border(a).await)
     }
 }
 #[derive(Clone, Default)]

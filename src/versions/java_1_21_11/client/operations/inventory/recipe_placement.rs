@@ -87,53 +87,6 @@ pub(in crate::versions::java_1_21_11::client) fn context_received(state: &mut St
     publish(state);
 }
 impl Operations {
-    pub(crate) async fn common_place_recipe(
-        &self,
-        mode: api::GameMode,
-        plan: &contract::RecipePlacementPlan,
-    ) -> Result<RecipePlacementRecord> {
-        let mut state = self.bot.session.state.lock().await;
-        self.mutable(&state)?;
-        if let contract::CraftingSource::Table { screen } = plan.layout().source() {
-            if state
-                .common_container_close
-                .as_ref()
-                .is_some_and(|r| r.id.screen() == screen)
-            {
-                return Err(unavailable("old table opening has retained close intent"));
-            }
-        }
-        let inventory = &state.operations.inventory;
-        if inventory.pending_swap.is_some()
-            || inventory.unsupported_components
-            || !inventory.pending_creative.is_empty()
-        {
-            return Err(unavailable(
-                "native recipe placement inventory/data unresolved",
-            ));
-        }
-        let current = capture(&state, self.bot.session.id)?;
-        let attempt = state
-            .common_recipe_placement
-            .as_ref()
-            .map_or(Some(1), |r| r.id.attempt().checked_add(1))
-            .ok_or_else(|| unavailable("recipe placement attempts exhausted"))?;
-        dispatch::validate_plan_history(plan, state.common_recipe_placement.as_ref())?;
-        let record = dispatch::prepare(plan, &current, mode, attempt)?;
-        dispatch::payload(&record)?;
-        let id = record.id;
-        state.common_recipe_placement = Some(record);
-        publish(&mut state);
-        let bot = self.bot.clone();
-        let (reply, result) = tokio::sync::oneshot::channel();
-        tokio::spawn(async move {
-            let _ = reply.send(bot.operations().recipe_placement_send_owned(id).await);
-        });
-        drop(state);
-        result
-            .await
-            .map_err(|_| unavailable("recipe placement owner result unavailable"))?
-    }
     async fn recipe_placement_send_owned(
         &self,
         id: contract::RecipePlacementId,
@@ -188,9 +141,57 @@ impl Operations {
         publish(&mut state);
         result
     }
-    pub(crate) async fn common_recipe_placement_record(
+}
+
+impl crate::client::adapter::RecipePlacementOps for Operations {
+    async fn place_recipe(
         &self,
-    ) -> Result<Option<RecipePlacementRecord>> {
+        mode: api::GameMode,
+        plan: &contract::RecipePlacementPlan,
+    ) -> Result<RecipePlacementRecord> {
+        let mut state = self.bot.session.state.lock().await;
+        self.mutable(&state)?;
+        if let contract::CraftingSource::Table { screen } = plan.layout().source() {
+            if state
+                .common_container_close
+                .as_ref()
+                .is_some_and(|r| r.id.screen() == screen)
+            {
+                return Err(unavailable("old table opening has retained close intent"));
+            }
+        }
+        let inventory = &state.operations.inventory;
+        if inventory.pending_swap.is_some()
+            || inventory.unsupported_components
+            || !inventory.pending_creative.is_empty()
+        {
+            return Err(unavailable(
+                "native recipe placement inventory/data unresolved",
+            ));
+        }
+        let current = capture(&state, self.bot.session.id)?;
+        let attempt = state
+            .common_recipe_placement
+            .as_ref()
+            .map_or(Some(1), |r| r.id.attempt().checked_add(1))
+            .ok_or_else(|| unavailable("recipe placement attempts exhausted"))?;
+        dispatch::validate_plan_history(plan, state.common_recipe_placement.as_ref())?;
+        let record = dispatch::prepare(plan, &current, mode, attempt)?;
+        dispatch::payload(&record)?;
+        let id = record.id;
+        state.common_recipe_placement = Some(record);
+        publish(&mut state);
+        let bot = self.bot.clone();
+        let (reply, result) = tokio::sync::oneshot::channel();
+        tokio::spawn(async move {
+            let _ = reply.send(bot.operations().recipe_placement_send_owned(id).await);
+        });
+        drop(state);
+        result
+            .await
+            .map_err(|_| unavailable("recipe placement owner result unavailable"))?
+    }
+    async fn recipe_placement_record(&self) -> Result<Option<RecipePlacementRecord>> {
         if let Ok(mut state) = self.bot.session.state.try_lock() {
             context_received(&mut state);
         }

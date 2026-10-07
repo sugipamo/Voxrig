@@ -1,5 +1,10 @@
 //! Mode-specific common operations. Handles do not grant or change game mode.
 use super::{GameMode, PlayerObservation};
+use crate::client::adapter::{
+    ContainerOps, CraftingTakeOps, FlightOps, InventoryClickOps, InventorySwapOps,
+    InventoryTransferOps, MiningOps, PathMotionOps, PlacementOps, RecipePlacementOps,
+    StandingQueryOps,
+};
 use crate::{BlockFace, Client, MinecraftVersion, Result};
 
 /// Complete packet dispatch, separate from protocol acknowledgement or game outcome.
@@ -84,15 +89,13 @@ impl Survival {
         &self,
         target: [i32; 3],
     ) -> Result<super::container::ContainerOpenRecord> {
-        self.client
-            .common_open_container(GameMode::Survival, target)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => ContainerOps::open_container(a, GameMode::Survival, target).await)
     }
     /// Read the latest activation record without resending, including after cancellation/closure.
     pub async fn container_open_record(
         &self,
     ) -> Result<Option<super::container::ContainerOpenRecord>> {
-        self.client.common_container_open_record().await
+        crate::client::dispatch!(&self.client.adapter, a => ContainerOps::container_open_record(a).await)
     }
 
     /// Close one actual opening once. Complete dispatch is not server closure.
@@ -103,15 +106,13 @@ impl Survival {
         &self,
         screen: super::container::ScreenId,
     ) -> Result<super::container::ContainerCloseRecord> {
-        self.client
-            .common_close_container(GameMode::Survival, screen)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => ContainerOps::close_container(a, GameMode::Survival, screen).await)
     }
     /// Read retained close dispatch/actual response without replay, including after closure.
     pub async fn container_close_record(
         &self,
     ) -> Result<Option<super::container::ContainerCloseRecord>> {
-        self.client.common_container_close_record().await
+        crate::client::dispatch!(&self.client.adapter, a => ContainerOps::container_close_record(a).await)
     }
     /// One ordinary left/right click of player input slots 1..4, inventory slots
     /// 9..44, or ordinary slots in the same audited storage/crafting opening.
@@ -122,9 +123,7 @@ impl Survival {
         slot: u16,
         button: super::inventory::InventoryClickButton,
     ) -> Result<super::inventory::InventoryClickRecord> {
-        self.client
-            .common_click_inventory(GameMode::Survival, source, slot, button)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => InventoryClickOps::click_inventory(a, GameMode::Survival, source, slot, button).await)
     }
     /// Submit this sealed Next/Maximum recipe plan once. Live predecessors,
     /// mode and opening are rechecked. Inputs and inventory remain actual receipts.
@@ -133,15 +132,13 @@ impl Survival {
         &self,
         plan: &super::crafting::RecipePlacementPlan,
     ) -> Result<super::crafting::RecipePlacementRecord> {
-        self.client
-            .common_place_recipe(GameMode::Survival, plan)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => RecipePlacementOps::place_recipe(a, GameMode::Survival, plan).await)
     }
     /// Inspect the retained placement, including during a stalled write.
     pub async fn recipe_placement_record(
         &self,
     ) -> Result<Option<super::crafting::RecipePlacementRecord>> {
-        self.client.common_recipe_placement_record().await
+        crate::client::dispatch!(&self.client.adapter, a => RecipePlacementOps::recipe_placement_record(a).await)
     }
     /// Take one displayed result into an actual empty or compatible cursor.
     /// A held cursor must fit the entire result; no partial crafting is submitted.
@@ -151,13 +148,7 @@ impl Survival {
         &self,
         grid: &super::crafting::ReceivedCrafting,
     ) -> Result<super::crafting::CraftingTakeRecord> {
-        self.client
-            .common_take_crafting_result(
-                GameMode::Survival,
-                grid,
-                super::crafting::CraftingResultDestination::Cursor,
-            )
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => CraftingTakeOps::take_crafting_result(a, GameMode::Survival, grid, super::crafting::CraftingResultDestination::Cursor).await)
     }
     /// Shift the actual result into main/hotbar with one native QUICK_MOVE.
     /// The first whole result must fit. Native internal crafts/remainders/drops
@@ -166,26 +157,20 @@ impl Survival {
         &self,
         grid: &super::crafting::ReceivedCrafting,
     ) -> Result<super::crafting::CraftingTakeRecord> {
-        self.client
-            .common_take_crafting_result(
-                GameMode::Survival,
-                grid,
-                super::crafting::CraftingResultDestination::Inventory,
-            )
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => CraftingTakeOps::take_crafting_result(a, GameMode::Survival, grid, super::crafting::CraftingResultDestination::Inventory).await)
     }
     /// Inspect the latest cursor take or inventory result transfer with actual receipts.
     /// Accessible while the writer is stalled; cancellation never resends it.
     pub async fn crafting_take_record(
         &self,
     ) -> Result<Option<super::crafting::CraftingTakeRecord>> {
-        self.client.common_crafting_take_record().await
+        crate::client::dispatch!(&self.client.adapter, a => CraftingTakeOps::crafting_take_record(a).await)
     }
     /// Inspect the retained click without replay. Both fresh source/cursor receipts are required.
     pub async fn inventory_click_record(
         &self,
     ) -> Result<Option<super::inventory::InventoryClickRecord>> {
-        self.client.common_inventory_click_record().await
+        crate::client::dispatch!(&self.client.adapter, a => InventoryClickOps::inventory_click_record(a).await)
     }
     /// Shift-transfer one received source using native destination order, once.
     /// Player slots 5..45 include armor/offhand; storage uses the same original opening.
@@ -195,15 +180,13 @@ impl Survival {
         source: super::inventory::InventorySource,
         slot: u16,
     ) -> Result<super::inventory::InventoryTransferRecord> {
-        self.client
-            .common_transfer_inventory(GameMode::Survival, source, slot)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => InventoryTransferOps::transfer_inventory(a, GameMode::Survival, source, slot).await)
     }
     /// Inspect the retained transfer without repeating it, including partial capacity/conflicts.
     pub async fn inventory_transfer_record(
         &self,
     ) -> Result<Option<super::inventory::InventoryTransferRecord>> {
-        self.client.common_inventory_transfer_record().await
+        crate::client::dispatch!(&self.client.adapter, a => InventoryTransferOps::inventory_transfer_record(a).await)
     }
     /// Exchange one constructor-verified storage slot and a hotbar index once.
     /// Requires the same live opening, resolved received stacks and empty cursor.
@@ -213,9 +196,7 @@ impl Survival {
         slot: u16,
         hotbar: u8,
     ) -> Result<super::inventory::InventorySwapRecord> {
-        self.client
-            .common_swap_container_hotbar(GameMode::Survival, screen, slot, hotbar)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::swap_container_hotbar(a, GameMode::Survival, screen, slot, hotbar).await)
     }
     /// Exchange main screen slot 9..35 and hotbar index 0..8 once.
     /// Uses complete received stacks and empty cursor; retains registry ownership before I/O.
@@ -225,16 +206,14 @@ impl Survival {
         hotbar: u8,
     ) -> Result<super::inventory::InventorySwapRecord> {
         super::inventory::validate_slots(main_slot, hotbar)?;
-        self.client
-            .common_swap_hotbar(GameMode::Survival, main_slot, hotbar)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::swap_hotbar(a, GameMode::Survival, main_slot, hotbar).await)
     }
     /// Reconcile/read the latest common swap without sending another click.
     /// Partial results, conflicts and closure retain the original attempt.
     pub async fn inventory_swap_record(
         &self,
     ) -> Result<Option<super::inventory::InventorySwapRecord>> {
-        self.client.common_inventory_swap_record().await
+        crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::inventory_swap_record(a).await)
     }
     /// Submit one stationary default passive-cube placement into received air.
     /// Derives the native first-outline cursor and retains the attempt before I/O.
@@ -244,12 +223,12 @@ impl Survival {
         support: [i32; 3],
         face: BlockFace,
     ) -> Result<super::survival::PlacementRecord> {
-        self.client.place_common_cube(support, face).await
+        crate::client::dispatch!(&self.client.adapter, a => PlacementOps::place_cube(a, support, face).await)
     }
     /// Reconcile/read the latest retained placement, including closure diagnostics.
     /// Target, material and native protocol processing are separate receipts.
     pub async fn placement_record(&self) -> Result<Option<super::survival::PlacementRecord>> {
-        self.client.common_placement_record().await
+        crate::client::dispatch!(&self.client.adapter, a => PlacementOps::placement_record(a).await)
     }
 
     /// Begin one stationary, received-empty-hand dirt/stone attempt.
@@ -260,7 +239,7 @@ impl Survival {
         target: [i32; 3],
         face: BlockFace,
     ) -> Result<super::survival::MiningRecord> {
-        self.client.start_common_mining(target, face).await
+        crate::client::dispatch!(&self.client.adapter, a => MiningOps::start_mining(a, target, face).await)
     }
     /// Attempt FINISH once for the owning retained attempt; never replay it.
     /// Estimated duration and protocol acknowledgement are not removal authority.
@@ -268,23 +247,19 @@ impl Survival {
         &self,
         id: super::survival::MiningId,
     ) -> Result<super::survival::MiningRecord> {
-        self.client
-            .send_common_mining(id, super::survival::MiningAction::Finish)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => MiningOps::mining_send(a, id, super::survival::MiningAction::Finish).await)
     }
     /// Attempt ABORT once. Delayed mining remains unresolved after dispatch.
     pub async fn abort_mining(
         &self,
         id: super::survival::MiningId,
     ) -> Result<super::survival::MiningRecord> {
-        self.client
-            .send_common_mining(id, super::survival::MiningAction::Abort)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => MiningOps::mining_send(a, id, super::survival::MiningAction::Abort).await)
     }
     /// Reconcile/read the retained attempt, including diagnostics after closure.
     /// No resends or implicit recovery. Target/inventory conflicts stay latched.
     pub async fn mining_record(&self) -> Result<Option<super::survival::MiningRecord>> {
-        self.client.common_mining_record().await
+        crate::client::dispatch!(&self.client.adapter, a => MiningOps::mining_record(a).await)
     }
     /// Query the first static outline from a coherent dry-standing capture.
     /// Known version shapes and native view-vector math are used. Unavailable or
@@ -294,9 +269,7 @@ impl Survival {
         maximum_distance: f64,
     ) -> Result<super::survival::BlockTargetObservation> {
         super::survival::target::validate_reach(maximum_distance)?;
-        self.client
-            .common_block_target(GameMode::Survival, maximum_distance)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => StandingQueryOps::target_block(a, GameMode::Survival, maximum_distance).await)
     }
     /// Forecast bounded walking/jump controls against one captured dry-cube world.
     /// Uses version-specific native defaults and current stationary admission.
@@ -307,9 +280,7 @@ impl Survival {
         controls: &[super::survival::SurvivalControl],
     ) -> Result<super::survival::MotionPreview> {
         super::survival::model::validate_controls(controls)?;
-        self.client
-            .preview_motion_path(GameMode::Survival, controls)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => StandingQueryOps::preview_path(a, GameMode::Survival, controls).await)
     }
     /// Retain and start a finite path under the explicit prediction contract.
     /// The connection owns dispatch after this call returns or its future drops.
@@ -321,14 +292,12 @@ impl Survival {
         controls: &[super::survival::SurvivalControl],
     ) -> Result<super::survival::MotionRecord> {
         super::survival::model::validate_controls(controls)?;
-        self.client
-            .start_predicted_motion_path(GameMode::Survival, controls)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => PathMotionOps::start_predicted_path(a, GameMode::Survival, controls).await)
     }
     /// Read the latest retained common run, including failure after closure.
     /// Pure inspection; never resumes, cancels or replays input.
     pub async fn motion_record(&self) -> Result<Option<super::survival::MotionRecord>> {
-        self.client.survival_motion_record().await
+        crate::client::dispatch!(&self.client.adapter, a => PathMotionOps::motion_record(a).await)
     }
     /// Capture player/inventory without inventing mode, item or position facts.
     pub async fn player_state(&self) -> Result<PlayerObservation> {
@@ -391,9 +360,7 @@ impl Creative {
         controls: &[super::survival::SurvivalControl],
     ) -> Result<super::survival::MotionPreview> {
         super::survival::model::validate_controls(controls)?;
-        self.client
-            .preview_motion_path(GameMode::Creative, controls)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => StandingQueryOps::preview_path(a, GameMode::Creative, controls).await)
     }
     /// Start a finite ground path under the explicit prediction contract.
     /// Flight must be inactive. Complete dispatch is not a received position.
@@ -403,13 +370,11 @@ impl Creative {
         controls: &[super::survival::SurvivalControl],
     ) -> Result<super::survival::MotionRecord> {
         super::survival::model::validate_controls(controls)?;
-        self.client
-            .start_predicted_motion_path(GameMode::Creative, controls)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => PathMotionOps::start_predicted_path(a, GameMode::Creative, controls).await)
     }
     /// Read the retained common ground run without replaying any input.
     pub async fn motion_record(&self) -> Result<Option<super::survival::MotionRecord>> {
-        self.client.survival_motion_record().await
+        crate::client::dispatch!(&self.client.adapter, a => PathMotionOps::motion_record(a).await)
     }
     /// Activate one received first-outline storage or crafting-table target with empty hands/cursor.
     /// Retains intent before I/O; complete dispatch and received screen/content facts
@@ -418,15 +383,13 @@ impl Creative {
         &self,
         target: [i32; 3],
     ) -> Result<super::container::ContainerOpenRecord> {
-        self.client
-            .common_open_container(GameMode::Creative, target)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => ContainerOps::open_container(a, GameMode::Creative, target).await)
     }
     /// Read the latest activation record without resending, including after cancellation/closure.
     pub async fn container_open_record(
         &self,
     ) -> Result<Option<super::container::ContainerOpenRecord>> {
-        self.client.common_container_open_record().await
+        crate::client::dispatch!(&self.client.adapter, a => ContainerOps::container_open_record(a).await)
     }
 
     /// Read the first audited static outline from a coherent dry-standing capture.
@@ -437,9 +400,7 @@ impl Creative {
         maximum_distance: f64,
     ) -> Result<super::survival::BlockTargetObservation> {
         super::survival::target::validate_reach(maximum_distance)?;
-        self.client
-            .common_block_target(GameMode::Creative, maximum_distance)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => StandingQueryOps::target_block(a, GameMode::Creative, maximum_distance).await)
     }
     /// Close one received opening once. This ordinary operation does not change mode.
     /// Vanilla need not acknowledge it; inspect `dispatched` separately from actual closure.
@@ -449,15 +410,13 @@ impl Creative {
         &self,
         screen: super::container::ScreenId,
     ) -> Result<super::container::ContainerCloseRecord> {
-        self.client
-            .common_close_container(GameMode::Creative, screen)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => ContainerOps::close_container(a, GameMode::Creative, screen).await)
     }
     /// Read the retained close intent, including after caller cancellation/disconnection.
     pub async fn container_close_record(
         &self,
     ) -> Result<Option<super::container::ContainerCloseRecord>> {
-        self.client.common_container_close_record().await
+        crate::client::dispatch!(&self.client.adapter, a => ContainerOps::container_close_record(a).await)
     }
     /// One ordinary left/right click of player input slots 1..4, inventory slots
     /// 9..44, or ordinary slots in the same audited storage/crafting opening.
@@ -468,9 +427,7 @@ impl Creative {
         slot: u16,
         button: super::inventory::InventoryClickButton,
     ) -> Result<super::inventory::InventoryClickRecord> {
-        self.client
-            .common_click_inventory(GameMode::Creative, source, slot, button)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => InventoryClickOps::click_inventory(a, GameMode::Creative, source, slot, button).await)
     }
     /// Submit this sealed Next/Maximum recipe plan once. Live predecessors,
     /// mode and opening are rechecked. Inputs and inventory remain actual receipts.
@@ -479,15 +436,13 @@ impl Creative {
         &self,
         plan: &super::crafting::RecipePlacementPlan,
     ) -> Result<super::crafting::RecipePlacementRecord> {
-        self.client
-            .common_place_recipe(GameMode::Creative, plan)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => RecipePlacementOps::place_recipe(a, GameMode::Creative, plan).await)
     }
     /// Inspect the retained placement, including during a stalled write.
     pub async fn recipe_placement_record(
         &self,
     ) -> Result<Option<super::crafting::RecipePlacementRecord>> {
-        self.client.common_recipe_placement_record().await
+        crate::client::dispatch!(&self.client.adapter, a => RecipePlacementOps::recipe_placement_record(a).await)
     }
     /// Take one displayed result into an actual empty or compatible cursor.
     /// A held cursor must fit the entire result; no partial crafting is submitted.
@@ -497,13 +452,7 @@ impl Creative {
         &self,
         grid: &super::crafting::ReceivedCrafting,
     ) -> Result<super::crafting::CraftingTakeRecord> {
-        self.client
-            .common_take_crafting_result(
-                GameMode::Creative,
-                grid,
-                super::crafting::CraftingResultDestination::Cursor,
-            )
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => CraftingTakeOps::take_crafting_result(a, GameMode::Creative, grid, super::crafting::CraftingResultDestination::Cursor).await)
     }
     /// Shift the actual result into main/hotbar with one native QUICK_MOVE.
     /// The first whole result must fit. Native internal crafts/remainders/drops
@@ -512,26 +461,20 @@ impl Creative {
         &self,
         grid: &super::crafting::ReceivedCrafting,
     ) -> Result<super::crafting::CraftingTakeRecord> {
-        self.client
-            .common_take_crafting_result(
-                GameMode::Creative,
-                grid,
-                super::crafting::CraftingResultDestination::Inventory,
-            )
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => CraftingTakeOps::take_crafting_result(a, GameMode::Creative, grid, super::crafting::CraftingResultDestination::Inventory).await)
     }
     /// Inspect the latest cursor take or inventory result transfer with actual receipts.
     /// Accessible while the writer is stalled; cancellation never resends it.
     pub async fn crafting_take_record(
         &self,
     ) -> Result<Option<super::crafting::CraftingTakeRecord>> {
-        self.client.common_crafting_take_record().await
+        crate::client::dispatch!(&self.client.adapter, a => CraftingTakeOps::crafting_take_record(a).await)
     }
     /// Inspect the retained click without replay. Both fresh source/cursor receipts are required.
     pub async fn inventory_click_record(
         &self,
     ) -> Result<Option<super::inventory::InventoryClickRecord>> {
-        self.client.common_inventory_click_record().await
+        crate::client::dispatch!(&self.client.adapter, a => InventoryClickOps::inventory_click_record(a).await)
     }
     /// Shift-transfer one received source using native destination order, once.
     /// Player slots 5..45 include armor/offhand; storage uses the same original opening.
@@ -541,15 +484,13 @@ impl Creative {
         source: super::inventory::InventorySource,
         slot: u16,
     ) -> Result<super::inventory::InventoryTransferRecord> {
-        self.client
-            .common_transfer_inventory(GameMode::Creative, source, slot)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => InventoryTransferOps::transfer_inventory(a, GameMode::Creative, source, slot).await)
     }
     /// Inspect the retained transfer without repeating it, including partial capacity/conflicts.
     pub async fn inventory_transfer_record(
         &self,
     ) -> Result<Option<super::inventory::InventoryTransferRecord>> {
-        self.client.common_inventory_transfer_record().await
+        crate::client::dispatch!(&self.client.adapter, a => InventoryTransferOps::inventory_transfer_record(a).await)
     }
 
     /// Ordinary storage exchange; this does not manufacture creative items.
@@ -559,9 +500,7 @@ impl Creative {
         slot: u16,
         hotbar: u8,
     ) -> Result<super::inventory::InventorySwapRecord> {
-        self.client
-            .common_swap_container_hotbar(GameMode::Creative, screen, slot, hotbar)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::swap_container_hotbar(a, GameMode::Creative, screen, slot, hotbar).await)
     }
     /// Exchange complete received player stacks once in creative mode.
     /// This ordinary inventory click does not create items or change mode.
@@ -571,15 +510,13 @@ impl Creative {
         hotbar: u8,
     ) -> Result<super::inventory::InventorySwapRecord> {
         super::inventory::validate_slots(main_slot, hotbar)?;
-        self.client
-            .common_swap_hotbar(GameMode::Creative, main_slot, hotbar)
-            .await
+        crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::swap_hotbar(a, GameMode::Creative, main_slot, hotbar).await)
     }
     /// Reconcile/read the retained common inventory exchange, including closure.
     pub async fn inventory_swap_record(
         &self,
     ) -> Result<Option<super::inventory::InventorySwapRecord>> {
-        self.client.common_inventory_swap_record().await
+        crate::client::dispatch!(&self.client.adapter, a => InventorySwapOps::inventory_swap_record(a).await)
     }
     /// Capture player/inventory. Holding this handle does not imply creative permission.
     pub async fn player_state(&self) -> Result<PlayerObservation> {
@@ -624,7 +561,7 @@ impl Creative {
     /// The zero controller seed is declared model state, never a received velocity
     /// or landing ACK. Inspect `Client::flight_record()` after cancelling the wait.
     pub async fn land(&self) -> Result<super::flight::FlightRecord> {
-        self.client.land_creative().await
+        crate::client::dispatch!(&self.client.adapter, a => FlightOps::flight(a, super::flight::FlightCommand::Land).await)
     }
     /// Write a default stack by namespaced name, or clear a hotbar slot.
     /// Inventory remains unknown until received; no local result prediction.

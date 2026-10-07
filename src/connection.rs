@@ -1,6 +1,6 @@
 //! Version-selected client API. Local observations never claim server confirmation.
 
-use crate::client::VersionAdapter;
+use crate::client::adapter::{CoreOps, SessionOps};
 use crate::versions::java_1_16_1 as legacy;
 use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Result};
 use std::sync::Arc;
@@ -218,18 +218,18 @@ impl Client {
     pub async fn server_registry_state(
         &self,
     ) -> Result<crate::client::registry::ServerRegistryObservation> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::server_registry_state(a).await)
+        crate::client::dispatch!(&self.adapter, a => CoreOps::server_registry_state(a).await)
     }
     /// Read the UUID/name actually received in LOGIN_SUCCESS, with this session stamp.
     /// Profile identity alone does not prove old-player retirement or recovery.
     pub async fn connection_identity(&self) -> Result<crate::client::ConnectionIdentity> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::connection_identity(a).await)
+        crate::client::dispatch!(&self.adapter, a => CoreOps::connection_identity(a).await)
     }
     /// Capture received entity spawns which have not been removed in this world.
     /// Coordinates retain their original spawn ordinal; current movement, metadata
     /// and hitboxes are not inferred. Opaque targets are rechecked before dispatch.
     pub async fn entity_spawns(&self) -> Result<crate::client::EntitySpawns> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::entity_spawns(a).await)
+        crate::client::dispatch!(&self.adapter, a => CoreOps::entity_spawns(a).await)
     }
     /// Capture the latest received motion fields for an original spawn lifetime.
     /// Packet targets and velocity samples do not establish current native physics.
@@ -237,13 +237,13 @@ impl Client {
         &self,
         target: crate::client::EntityId,
     ) -> Result<crate::client::EntityMotionObservation> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::entity_motion(a, target).await)
+        crate::client::dispatch!(&self.adapter, a => CoreOps::entity_motion(a, target).await)
     }
     /// Capture actual own-player passenger relationships. Before an applicable
     /// receipt, the relationship is unknown. A received dismount does not prove
     /// default stationary motion or authorize a ground operation.
     pub async fn vehicle_state(&self) -> Result<crate::client::VehicleObservation> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::vehicle_state(a).await)
+        crate::client::dispatch!(&self.adapter, a => CoreOps::vehicle_state(a).await)
     }
     /// Survival-mode handle available on each adapter. Does not change game mode.
     pub fn survival(&self) -> crate::client::Survival {
@@ -259,7 +259,7 @@ impl Client {
     }
     /// Common player and received inventory captured under one adapter lock boundary.
     pub async fn player_state(&self) -> Result<crate::client::PlayerObservation> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::player_state(a).await)
+        crate::client::dispatch!(&self.adapter, a => CoreOps::player_state(a).await)
     }
     /// Capture actual inventory receipts and their registry owner together.
     /// Retain this immutable value when inspecting server-assigned IDs in item
@@ -278,12 +278,12 @@ impl Client {
     /// }
     /// ```
     pub async fn received_inventory(&self) -> Result<crate::client::ReceivedInventory> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::received_inventory(a).await)
+        crate::client::dispatch!(&self.adapter, a => CoreOps::received_inventory(a).await)
     }
     /// Capture the actual received recipe catalogue and its registry/tag owner.
     /// Displays and book membership do not predict inventory or authorize crafting.
     pub async fn received_recipes(&self) -> Result<crate::client::ReceivedRecipes> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::received_recipes(a).await)
+        crate::client::dispatch!(&self.adapter, a => CoreOps::received_recipes(a).await)
     }
 
     /// Last actual ghost UI packet with its original opening and frozen context.
@@ -291,7 +291,7 @@ impl Client {
     pub async fn received_recipe_ghost(
         &self,
     ) -> Result<Option<crate::client::ReceivedRecipeGhost>> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::received_recipe_ghost(a).await)
+        crate::client::dispatch!(&self.adapter, a => CoreOps::received_recipe_ghost(a).await)
     }
     /// Capture recipes/tags, player inventory and the active player/table grid
     /// together. Other active UIs return None. This is read-only planning data,
@@ -299,7 +299,7 @@ impl Client {
     pub async fn received_crafting_context(
         &self,
     ) -> Result<Option<crate::client::ReceivedCraftingContext>> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::received_crafting_context(a).await)
+        crate::client::dispatch!(&self.adapter, a => CoreOps::received_crafting_context(a).await)
     }
 
     /// Inventory-only recipe-book material assignment and bounded maximum.
@@ -312,7 +312,7 @@ impl Client {
         crafts: u32,
         maximum_bound: u32,
     ) -> Result<crate::client::RecipeBookMaterials> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::recipe_book_materials(a, recipe, crafts, maximum_bound).await)
+        crate::client::dispatch!(&self.adapter, a => CoreOps::recipe_book_materials(a, recipe, crafts, maximum_bound).await)
     }
 
     /// Actual player/table crafting inputs and displayed result, with native
@@ -336,173 +336,18 @@ impl Client {
     /// }
     /// ```
     pub async fn received_crafting(&self) -> Result<Option<crate::client::ReceivedCrafting>> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::received_crafting(a).await)
+        crate::client::dispatch!(&self.adapter, a => CoreOps::received_crafting(a).await)
     }
     /// Actual open-container contents and cursor at one native capture boundary.
     /// Numeric window IDs may be reused; use the session-bound screen identity.
     pub async fn screen_state(&self) -> Result<crate::client::container::ScreenObservation> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::screen_state(a).await)
+        crate::client::dispatch!(&self.adapter, a => CoreOps::screen_state(a).await)
     }
     /// Capture player, inventory and a received region at one adapter boundary.
     /// Missing data stays unavailable; neither local physics nor a capture is server confirmation.
     pub async fn capture(&self, region: Region) -> Result<crate::client::Capture> {
         region.volume()?;
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::capture(a, region).await)
-    }
-    pub(crate) async fn common_open_container(
-        &self,
-        mode: crate::client::GameMode,
-        target: [i32; 3],
-    ) -> Result<crate::client::container::ContainerOpenRecord> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::open_container(a, mode, target).await)
-    }
-    pub(crate) async fn common_container_open_record(
-        &self,
-    ) -> Result<Option<crate::client::container::ContainerOpenRecord>> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::container_open_record(a).await)
-    }
-    pub(crate) async fn common_close_container(
-        &self,
-        mode: crate::client::GameMode,
-        screen: crate::client::container::ScreenId,
-    ) -> Result<crate::client::container::ContainerCloseRecord> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::close_container(a, mode, screen).await)
-    }
-    pub(crate) async fn common_container_close_record(
-        &self,
-    ) -> Result<Option<crate::client::container::ContainerCloseRecord>> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::container_close_record(a).await)
-    }
-    pub(crate) async fn common_click_inventory(
-        &self,
-        mode: crate::client::GameMode,
-        source: crate::client::inventory::InventoryClickSource,
-        slot: u16,
-        button: crate::client::inventory::InventoryClickButton,
-    ) -> Result<crate::client::inventory::InventoryClickRecord> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::click_inventory(a, mode, source, slot, button).await)
-    }
-    pub(crate) async fn common_place_recipe(
-        &self,
-        mode: crate::client::GameMode,
-        plan: &crate::client::crafting::RecipePlacementPlan,
-    ) -> Result<crate::client::crafting::RecipePlacementRecord> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::place_recipe(a, mode, plan).await)
-    }
-    pub(crate) async fn common_recipe_placement_record(
-        &self,
-    ) -> Result<Option<crate::client::crafting::RecipePlacementRecord>> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::recipe_placement_record(a).await)
-    }
-    pub(crate) async fn common_take_crafting_result(
-        &self,
-        mode: crate::client::GameMode,
-        grid: &crate::client::crafting::ReceivedCrafting,
-        destination: crate::client::crafting::CraftingResultDestination,
-    ) -> Result<crate::client::crafting::CraftingTakeRecord> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::take_crafting_result(a, mode, grid, destination).await)
-    }
-    pub(crate) async fn common_crafting_take_record(
-        &self,
-    ) -> Result<Option<crate::client::crafting::CraftingTakeRecord>> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::crafting_take_record(a).await)
-    }
-    pub(crate) async fn common_inventory_click_record(
-        &self,
-    ) -> Result<Option<crate::client::inventory::InventoryClickRecord>> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::inventory_click_record(a).await)
-    }
-    pub(crate) async fn common_transfer_inventory(
-        &self,
-        mode: crate::client::GameMode,
-        source: crate::client::inventory::InventorySource,
-        slot: u16,
-    ) -> Result<crate::client::inventory::InventoryTransferRecord> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::transfer_inventory(a, mode, source, slot).await)
-    }
-    pub(crate) async fn common_inventory_transfer_record(
-        &self,
-    ) -> Result<Option<crate::client::inventory::InventoryTransferRecord>> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::inventory_transfer_record(a).await)
-    }
-    pub(crate) async fn common_swap_hotbar(
-        &self,
-        mode: crate::client::GameMode,
-        main: u8,
-        hotbar: u8,
-    ) -> Result<crate::client::inventory::InventorySwapRecord> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::swap_hotbar(a, mode, main, hotbar).await)
-    }
-    pub(crate) async fn common_swap_container_hotbar(
-        &self,
-        mode: crate::client::GameMode,
-        screen: crate::client::container::ScreenId,
-        slot: u16,
-        hotbar: u8,
-    ) -> Result<crate::client::inventory::InventorySwapRecord> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::swap_container_hotbar(a, mode, screen, slot, hotbar).await)
-    }
-    pub(crate) async fn common_inventory_swap_record(
-        &self,
-    ) -> Result<Option<crate::client::inventory::InventorySwapRecord>> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::inventory_swap_record(a).await)
-    }
-    pub(crate) async fn place_common_cube(
-        &self,
-        support: [i32; 3],
-        face: crate::BlockFace,
-    ) -> Result<crate::client::survival::PlacementRecord> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::place_cube(a, support, face).await)
-    }
-    pub(crate) async fn common_placement_record(
-        &self,
-    ) -> Result<Option<crate::client::survival::PlacementRecord>> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::placement_record(a).await)
-    }
-    pub(crate) async fn start_common_mining(
-        &self,
-        target: [i32; 3],
-        face: crate::BlockFace,
-    ) -> Result<crate::client::survival::MiningRecord> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::start_mining(a, target, face).await)
-    }
-    pub(crate) async fn send_common_mining(
-        &self,
-        id: crate::client::survival::MiningId,
-        action: crate::client::survival::MiningAction,
-    ) -> Result<crate::client::survival::MiningRecord> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::mining_send(a, id, action).await)
-    }
-    pub(crate) async fn common_mining_record(
-        &self,
-    ) -> Result<Option<crate::client::survival::MiningRecord>> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::mining_record(a).await)
-    }
-    pub(crate) async fn common_block_target(
-        &self,
-        mode: crate::client::GameMode,
-        distance: f64,
-    ) -> Result<crate::client::survival::BlockTargetObservation> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::target_block(a, mode, distance).await)
-    }
-    pub(crate) async fn preview_motion_path(
-        &self,
-        mode: crate::client::GameMode,
-        controls: &[crate::client::survival::SurvivalControl],
-    ) -> Result<crate::client::survival::MotionPreview> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::preview_path(a, mode, controls).await)
-    }
-    pub(crate) async fn start_predicted_motion_path(
-        &self,
-        mode: crate::client::GameMode,
-        controls: &[crate::client::survival::SurvivalControl],
-    ) -> Result<crate::client::survival::MotionRecord> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::start_predicted_path(a, mode, controls).await)
-    }
-    pub(crate) async fn survival_motion_record(
-        &self,
-    ) -> Result<Option<crate::client::survival::MotionRecord>> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::motion_record(a).await)
+        crate::client::dispatch!(&self.adapter, a => CoreOps::capture(a, region).await)
     }
     pub(crate) async fn execute(
         &self,
@@ -510,8 +355,8 @@ impl Client {
         action: crate::client::operations::Action<'_>,
     ) -> Result<crate::client::DispatchReceipt> {
         let (connection_id, interaction_sequence) = crate::client::dispatch!(&self.adapter, a => (
-            VersionAdapter::connection_id(a),
-            VersionAdapter::execute(a, mode, action).await?,
+            SessionOps::connection_id(a),
+            CoreOps::execute(a, mode, action).await?,
         ));
         Ok(crate::client::DispatchReceipt {
             version: self.version(),
@@ -551,12 +396,12 @@ impl Client {
     /// Late-start traces retain original ordinals but cannot be replayed without
     /// an initial baseline; use `connect_recorded` for replayable histories.
     pub async fn start_packet_trace(&self, maximum_bytes: usize) -> Result<()> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::start_packet_trace(a, maximum_bytes).await)
+        crate::client::dispatch!(&self.adapter, a => SessionOps::start_packet_trace(a, maximum_bytes).await)
     }
 
     /// Finish exact received evidence. Overflow and original ordinals are retained.
     pub async fn stop_packet_trace(&self) -> Result<crate::client::PacketTrace> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::stop_packet_trace(a).await)
+        crate::client::dispatch!(&self.adapter, a => SessionOps::stop_packet_trace(a).await)
     }
 
     /// Connects using only the selected version. Unsupported adapters fail before I/O.
@@ -608,7 +453,7 @@ impl Client {
 
     /// Waits for the selected adapter's initial playable state.
     pub async fn wait_until_ready(&self) -> Result<()> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::wait_until_ready(a).await)
+        crate::client::dispatch!(&self.adapter, a => SessionOps::wait_until_ready(a).await)
     }
 
     /// Gets all cells under one world lock; this does not send confirmation commands.
@@ -676,7 +521,7 @@ impl Client {
     /// Ends the connection. A clone refers to the same session. This may wait
     /// for cleanup or writer shutdown; use `revoke_connection` for local fencing.
     pub async fn disconnect(&self) -> Result<()> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::disconnect(a).await)
+        crate::client::dispatch!(&self.adapter, a => SessionOps::disconnect(a).await)
     }
 }
 

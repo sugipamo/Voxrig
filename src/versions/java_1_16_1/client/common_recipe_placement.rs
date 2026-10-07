@@ -50,63 +50,6 @@ impl Bot {
         }
         Ok(())
     }
-    pub(crate) async fn common_place_recipe(
-        &self,
-        mode: api::GameMode,
-        plan: &contract::RecipePlacementPlan,
-    ) -> Result<RecipePlacementRecord> {
-        let gate = self.coherent_state_gate.lock().await;
-        self.common_motion_admission().await?;
-        if let contract::CraftingSource::Table { screen } = plan.layout().source() {
-            if self
-                .common_container_close
-                .lock()
-                .await
-                .as_ref()
-                .is_some_and(|r| r.id.screen() == screen)
-            {
-                return Err(unavailable("old table opening has retained close intent"));
-            }
-        }
-        let revision = self
-            .connection
-            .motion_admission_revision()
-            .await
-            .map_err(|e| unavailable(format!("recipe placement admission: {e:?}")))?;
-        let current = self.recipe_placement_capture().await?;
-        let attempt = self
-            .common_recipe_placement
-            .lock()
-            .await
-            .as_ref()
-            .map_or(Some(1), |r| r.record.id.attempt().checked_add(1))
-            .ok_or_else(|| unavailable("recipe placement attempts exhausted"))?;
-        dispatch::validate_plan_history(
-            plan,
-            self.common_recipe_placement
-                .lock()
-                .await
-                .as_ref()
-                .map(|r| &r.record),
-        )?;
-        let record = dispatch::prepare(plan, &current, mode, attempt)?;
-        self.recipe_placement_cache(&record).await?;
-        dispatch::payload(&record)?;
-        let id = record.id;
-        *self.common_recipe_placement.lock().await = Some(NativeRecipePlacement {
-            record,
-            released: false,
-        });
-        let (reply, result) = tokio::sync::oneshot::channel();
-        let bot = self.clone_internal();
-        tokio::spawn(async move {
-            let _ = reply.send(bot.recipe_placement_send_owned(id, revision).await);
-        });
-        drop(gate);
-        result
-            .await
-            .map_err(|_| unavailable("recipe placement owner result unavailable"))?
-    }
     async fn recipe_placement_send_owned(
         &self,
         id: contract::RecipePlacementId,
@@ -157,33 +100,6 @@ impl Bot {
         if let Some(r) = self.common_recipe_placement.lock().await.as_mut() {
             r.record.inspection(reason);
         }
-    }
-    pub(crate) async fn common_recipe_placement_record(
-        &self,
-    ) -> Result<Option<RecipePlacementRecord>> {
-        if let Ok(gate) = self.coherent_state_gate.clone().try_lock_owned() {
-            let bot = self.clone_internal();
-            let (reply, result) = tokio::sync::oneshot::channel();
-            tokio::spawn(async move {
-                let _gate = gate;
-                let _ = reply.send(bot.common_recipe_placement_context_received().await);
-            });
-            result
-                .await
-                .map_err(|_| unavailable("recipe placement inspection owner unavailable"))??;
-        }
-        if self.is_stopped() {
-            self.interrupt_common_recipe_placement(
-                "recipe placement connection closed or uncertain",
-            )
-            .await;
-        }
-        Ok(self
-            .common_recipe_placement
-            .lock()
-            .await
-            .as_ref()
-            .map(|r| r.record.clone()))
     }
     pub(super) async fn common_recipe_placement_context_received(&self) -> Result<()> {
         let Some(snapshot) = self.common_recipe_placement.lock().await.clone() else {
@@ -275,6 +191,91 @@ pub(super) fn decode_ghost(payload: &[u8]) -> anyhow::Result<(i8, String)> {
     }
     Ok((window as i8, format!("{namespace}:{name}")))
 }
+impl crate::client::adapter::RecipePlacementOps for Bot {
+    async fn place_recipe(
+        &self,
+        mode: api::GameMode,
+        plan: &contract::RecipePlacementPlan,
+    ) -> Result<RecipePlacementRecord> {
+        let gate = self.coherent_state_gate.lock().await;
+        self.common_motion_admission().await?;
+        if let contract::CraftingSource::Table { screen } = plan.layout().source() {
+            if self
+                .common_container_close
+                .lock()
+                .await
+                .as_ref()
+                .is_some_and(|r| r.id.screen() == screen)
+            {
+                return Err(unavailable("old table opening has retained close intent"));
+            }
+        }
+        let revision = self
+            .connection
+            .motion_admission_revision()
+            .await
+            .map_err(|e| unavailable(format!("recipe placement admission: {e:?}")))?;
+        let current = self.recipe_placement_capture().await?;
+        let attempt = self
+            .common_recipe_placement
+            .lock()
+            .await
+            .as_ref()
+            .map_or(Some(1), |r| r.record.id.attempt().checked_add(1))
+            .ok_or_else(|| unavailable("recipe placement attempts exhausted"))?;
+        dispatch::validate_plan_history(
+            plan,
+            self.common_recipe_placement
+                .lock()
+                .await
+                .as_ref()
+                .map(|r| &r.record),
+        )?;
+        let record = dispatch::prepare(plan, &current, mode, attempt)?;
+        self.recipe_placement_cache(&record).await?;
+        dispatch::payload(&record)?;
+        let id = record.id;
+        *self.common_recipe_placement.lock().await = Some(NativeRecipePlacement {
+            record,
+            released: false,
+        });
+        let (reply, result) = tokio::sync::oneshot::channel();
+        let bot = self.clone_internal();
+        tokio::spawn(async move {
+            let _ = reply.send(bot.recipe_placement_send_owned(id, revision).await);
+        });
+        drop(gate);
+        result
+            .await
+            .map_err(|_| unavailable("recipe placement owner result unavailable"))?
+    }
+    async fn recipe_placement_record(&self) -> Result<Option<RecipePlacementRecord>> {
+        if let Ok(gate) = self.coherent_state_gate.clone().try_lock_owned() {
+            let bot = self.clone_internal();
+            let (reply, result) = tokio::sync::oneshot::channel();
+            tokio::spawn(async move {
+                let _gate = gate;
+                let _ = reply.send(bot.common_recipe_placement_context_received().await);
+            });
+            result
+                .await
+                .map_err(|_| unavailable("recipe placement inspection owner unavailable"))??;
+        }
+        if self.is_stopped() {
+            self.interrupt_common_recipe_placement(
+                "recipe placement connection closed or uncertain",
+            )
+            .await;
+        }
+        Ok(self
+            .common_recipe_placement
+            .lock()
+            .await
+            .as_ref()
+            .map(|r| r.record.clone()))
+    }
+}
+
 #[cfg(test)]
 mod ghost_codec_tests {
     use super::*;

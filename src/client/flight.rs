@@ -1,6 +1,5 @@
 //! One-shot common Creative flight commands. Sending never establishes grounding.
 use super::{GameMode, PlayerObservation, SessionStamp};
-use crate::client::VersionAdapter;
 use crate::{Result, client::inventory::unavailable};
 pub(crate) type History = std::sync::Arc<std::sync::Mutex<Option<FlightRecord>>>;
 
@@ -224,10 +223,6 @@ pub(crate) fn sync_motion(history: &History, motion: &super::survival::MotionRec
     }
 }
 impl super::Client {
-    pub(crate) async fn land_creative(&self) -> Result<FlightRecord> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::flight(a, FlightCommand::Land).await)
-    }
-
     /// Read the latest owned flight intent without waiting for a blocked writer.
     /// Completed records remain diagnostics after closure; no fresh receipt is invented.
     pub fn flight_record(&self) -> Option<FlightRecord> {

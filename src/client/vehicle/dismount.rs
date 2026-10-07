@@ -1,6 +1,6 @@
 //! Retained one-shot dismount, followed by explicit neutral input after receipt.
 use super::{MountId, VehicleObservation, VehicleRelation};
-use crate::client::VersionAdapter;
+use crate::client::adapter::VehicleOps;
 use crate::{
     Result,
     client::{self as api, GameMode, ObservedValue, ValueSource, inventory::unavailable},
@@ -306,24 +306,10 @@ pub(crate) fn payload(version: crate::MinecraftVersion, release: bool) -> (i32, 
     }
 }
 impl api::Client {
-    async fn request_common_dismount(
-        &self,
-        mode: GameMode,
-        mount: MountId,
-    ) -> Result<DismountRecord> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::dismount(a, mode, mount).await)
-    }
-    async fn complete_common_dismount(
-        &self,
-        mode: GameMode,
-        id: DismountId,
-    ) -> Result<DismountRecord> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::complete_dismount(a, mode, id).await)
-    }
     /// Read retained dismount facts without replay, including while a writer is
     /// stalled or after connection closure. Completed history stays completed.
     pub async fn dismount_record(&self) -> Result<Option<DismountRecord>> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::dismount_record(a).await)
+        crate::client::dispatch!(&self.adapter, a => VehicleOps::dismount_record(a).await)
     }
 }
 macro_rules! handle {
@@ -332,18 +318,18 @@ macro_rules! handle {
             /// Request dismount once for an actual mounted receipt. Actor ownership
             /// survives caller cancellation. Full dispatch is not actual absence.
             pub async fn dismount(&self, mount: MountId) -> Result<DismountRecord> {
-                self.client.request_common_dismount($mode, mount).await
+                crate::client::dispatch!(&self.client.adapter, a => VehicleOps::dismount(a, $mode, mount).await)
             }
             /// After the original actual unmounted receipt, send neutral input once.
             /// This completes the request without releasing ground-motion guards.
             pub async fn complete_dismount(&self, id: DismountId) -> Result<DismountRecord> {
-                self.client.complete_common_dismount($mode, id).await
+                crate::client::dispatch!(&self.client.adapter, a => VehicleOps::complete_dismount(a, $mode, id).await)
             }
             /// After actual dismount and neutral, declare a local zero controller
             /// seed and send two released ground ticks on known dry support.
             /// One attempt per dismount; cancellation stops waiting only.
             pub async fn resume_ground(&self, id: DismountId) -> Result<DismountRecord> {
-                crate::client::dispatch!(&self.client.adapter, a => VersionAdapter::resume_ground(a, $mode, id).await)
+                crate::client::dispatch!(&self.client.adapter, a => VehicleOps::resume_ground(a, $mode, id).await)
             }
             /// Read the latest attempt without sending another frame.
             pub async fn dismount_record(&self) -> Result<Option<DismountRecord>> {

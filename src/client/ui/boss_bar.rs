@@ -1,6 +1,6 @@
 //! Actual boss-bar fields. Partial updates never refresh unrelated receipts.
 use super::{ObservedValue, SessionStamp, UiText, received};
-use crate::client::VersionAdapter;
+use crate::client::adapter::UiOps;
 use crate::{MinecraftVersion, Result};
 use std::collections::BTreeMap;
 
@@ -95,7 +95,7 @@ pub struct BossBarsObservation {
 impl crate::client::Client {
     /// Read boss-bar ADD/update/REMOVE receipts without network I/O or rendering.
     pub async fn boss_bars(&self) -> Result<BossBarsObservation> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::boss_bars(a).await)
+        crate::client::dispatch!(&self.adapter, a => UiOps::boss_bars(a).await)
     }
 }
 #[derive(Clone, Default)]

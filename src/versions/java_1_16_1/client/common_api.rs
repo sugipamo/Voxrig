@@ -1,226 +1,9 @@
 //! Translation into the common Client contract, with native actor-owned sends.
 use super::*;
+use crate::client::adapter::FlightOps;
 use crate::client::{self as api, operations::Action};
 
 impl Bot {
-    pub(crate) async fn common_respawn(&self) -> Result<api::RespawnRecord> {
-        let bot = self.clone();
-        tokio::spawn(async move {
-            let _gate = bot.coherent_state_gate.lock().await;
-            if bot.connection_state() != ConnectionState::Ready {
-                return Err(common_state("respawn requires ready play context"));
-            }
-            let player = bot.common_player_unlocked().await?;
-            api::respawn::prepare(&bot.respawn_history, &player)?;
-            let result = bot.respawn().await;
-            api::respawn::dispatched(&bot.respawn_history, &result);
-            result?;
-            Ok(api::respawn::snapshot(&bot.respawn_history).expect("owned respawn"))
-        })
-        .await
-        .map_err(|error| crate::Error::from(anyhow::anyhow!("respawn owner failed: {error}")))?
-    }
-
-    pub(crate) async fn common_connection_identity(&self) -> Result<api::ConnectionIdentity> {
-        let _gate = self.coherent_state_gate.lock().await;
-        let player = self.common_player_unlocked().await?;
-        Ok(api::ConnectionIdentity {
-            session: player.session,
-            uuid: self.login_profile.uuid,
-            name: self.login_profile.name.clone(),
-        })
-    }
-
-    pub(crate) async fn common_entity_spawns(&self) -> Result<api::EntitySpawns> {
-        let _gate = self.coherent_state_gate.lock().await;
-        let player = self.common_player_unlocked().await?;
-        Ok(self
-            .common_receipts
-            .lock()
-            .await
-            .entities
-            .capture(player.session, player.receive_sequence))
-    }
-    pub(crate) async fn common_entity_motion(
-        &self,
-        target: api::EntityId,
-    ) -> Result<api::EntityMotionObservation> {
-        let _gate = self.coherent_state_gate.lock().await;
-        let player = self.common_player_unlocked().await?;
-        self.common_receipts.lock().await.entities.capture_motion(
-            player.session,
-            target,
-            player.receive_sequence,
-        )
-    }
-    pub(crate) async fn common_vehicle_state(&self) -> Result<api::VehicleObservation> {
-        let _gate = self.coherent_state_gate.lock().await;
-        let player = self.common_player_unlocked().await?;
-        let native_id = self.player.lock().await.entity_id;
-        let receipts = self.common_receipts.lock().await;
-        Ok(receipts.vehicles.capture(
-            player.session,
-            player.receive_sequence,
-            native_id,
-            &receipts.entities,
-        ))
-    }
-
-    pub(crate) async fn common_server_registry_state(
-        &self,
-    ) -> Result<api::registry::ServerRegistryObservation> {
-        let _gate = self.coherent_state_gate.lock().await;
-        if self.is_stopped() {
-            return Err(crate::Error::new(
-                crate::ErrorKind::State,
-                anyhow::anyhow!("connection closed"),
-            ));
-        }
-        let receipts = self.common_receipts.lock().await;
-        Ok(receipts.registries.capture(
-            api::SessionStamp {
-                version: crate::MinecraftVersion::Java1_16_1,
-                connection_id: self.connection_id(),
-                world_generation: receipts.generation,
-            },
-            self.protocol_packet_sequence.load(Ordering::Acquire),
-        ))
-    }
-    pub(crate) async fn common_screen_state(&self) -> Result<api::container::ScreenObservation> {
-        let _gate = self.coherent_state_gate.lock().await;
-        let player = self.common_player_unlocked().await?;
-        let receipts = self.common_receipts.lock().await;
-        Ok(api::container::ScreenObservation {
-            session: player.session,
-            receive_sequence: player.receive_sequence,
-            active_window: receipts.inventory.window_id,
-            player_screen: player.inventory.player_screen,
-            screen: receipts
-                .container
-                .as_ref()
-                .map(|s| s.capture(player.session)),
-            cursor: receipts.inventory.cursor.clone(),
-        })
-    }
-    pub(crate) async fn common_player_state(&self) -> Result<api::PlayerObservation> {
-        let _gate = self.coherent_state_gate.lock().await;
-        self.common_player_unlocked().await
-    }
-    pub(crate) async fn common_received_recipes(&self) -> Result<api::ReceivedRecipes> {
-        let _gate = self.coherent_state_gate.lock().await;
-        let player = self.common_player_unlocked().await?;
-        let receipts = self.common_receipts.lock().await;
-        receipts.recipes.capture(
-            player.session,
-            player.receive_sequence,
-            receipts
-                .registries
-                .capture(player.session, player.receive_sequence),
-        )
-    }
-    pub(crate) async fn common_received_recipe_ghost(
-        &self,
-    ) -> Result<Option<api::ReceivedRecipeGhost>> {
-        let _gate = self.coherent_state_gate.lock().await;
-        let player = self.common_player_unlocked().await?;
-        let receipts = self.common_receipts.lock().await;
-        receipts
-            .recipe_ghost
-            .as_ref()
-            .map(|ghost| ghost.capture(player.session))
-            .transpose()
-            .map(Option::flatten)
-    }
-    pub(crate) async fn common_received_crafting_context(
-        &self,
-    ) -> Result<Option<api::ReceivedCraftingContext>> {
-        let _gate = self.coherent_state_gate.lock().await;
-        let player = self.common_player_unlocked().await?;
-        let receipts = self.common_receipts.lock().await;
-        let screen = api::container::ScreenObservation {
-            session: player.session,
-            receive_sequence: player.receive_sequence,
-            active_window: receipts.inventory.window_id,
-            player_screen: player.inventory.player_screen,
-            screen: receipts
-                .container
-                .as_ref()
-                .map(|s| s.capture(player.session)),
-            cursor: receipts.inventory.cursor.clone(),
-        };
-        let registries = receipts
-            .registries
-            .capture(player.session, player.receive_sequence);
-        let recipes = receipts.recipes.capture(
-            player.session,
-            player.receive_sequence,
-            registries.clone(),
-        )?;
-        api::ReceivedCraftingContext::capture(player, screen, registries, recipes)
-    }
-    pub(crate) async fn common_recipe_book_materials(
-        &self,
-        recipe: &api::RecipeId,
-        crafts: u32,
-        maximum_bound: u32,
-    ) -> Result<api::RecipeBookMaterials> {
-        let _gate = self.coherent_state_gate.lock().await;
-        let player = self.common_player_unlocked().await?;
-        let receipts = self.common_receipts.lock().await;
-        let registries = receipts
-            .registries
-            .capture(player.session, player.receive_sequence);
-        let catalogue = receipts.recipes.capture(
-            player.session,
-            player.receive_sequence,
-            registries.clone(),
-        )?;
-        let inventory = api::ReceivedInventory::capture(
-            player.session,
-            player.receive_sequence,
-            &player.inventory,
-            registries,
-        )?;
-        api::RecipeBookMaterials::capture(catalogue, inventory, recipe, crafts, maximum_bound)
-    }
-    pub(crate) async fn common_received_crafting(&self) -> Result<Option<api::ReceivedCrafting>> {
-        let _gate = self.coherent_state_gate.lock().await;
-        let player = self.common_player_unlocked().await?;
-        let receipts = self.common_receipts.lock().await;
-        let screen = api::container::ScreenObservation {
-            session: player.session,
-            receive_sequence: player.receive_sequence,
-            active_window: receipts.inventory.window_id,
-            player_screen: player.inventory.player_screen,
-            screen: receipts
-                .container
-                .as_ref()
-                .map(|s| s.capture(player.session)),
-            cursor: receipts.inventory.cursor.clone(),
-        };
-        let registries = receipts
-            .registries
-            .capture(player.session, player.receive_sequence);
-        api::ReceivedCrafting::capture(&player, &screen, registries)
-    }
-    pub(crate) async fn common_received_inventory(&self) -> Result<api::ReceivedInventory> {
-        let _gate = self.coherent_state_gate.lock().await;
-        if self.is_stopped() {
-            return Err(crate::Error::new(
-                crate::ErrorKind::State,
-                anyhow::anyhow!("connection closed"),
-            ));
-        }
-        let receipts = self.common_receipts.lock().await;
-        let session = api::SessionStamp {
-            version: crate::MinecraftVersion::Java1_16_1,
-            connection_id: self.connection_id(),
-            world_generation: receipts.generation,
-        };
-        let sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
-        let registries = receipts.registries.capture(session, sequence);
-        api::ReceivedInventory::capture(session, sequence, &receipts.inventory, registries)
-    }
     pub(super) async fn common_player_unlocked(&self) -> Result<api::PlayerObservation> {
         if self.is_stopped() {
             return Err(crate::Error::new(
@@ -294,59 +77,6 @@ impl Bot {
             selected_hotbar: receipts.selected_hotbar.clone(),
             inventory: received_inventory,
         })
-    }
-    pub(crate) async fn common_capture(&self, region: crate::Region) -> Result<api::Capture> {
-        region.volume()?;
-        if region.min[1] < 0 || region.max[1] > 255 {
-            return Err(api::registry::invalid("region outside dimension height"));
-        }
-        let _gate = self.coherent_state_gate.lock().await;
-        let player = self.common_player_unlocked().await?;
-        let snapshot = self.observe_region_snapshot(region).await?;
-        let blocks = snapshot
-            .value
-            .into_iter()
-            .map(|block| {
-                Ok(crate::ObservedBlock {
-                    position: [block.x, block.y, block.z],
-                    state: block
-                        .state_id
-                        .map(crate::versions::java_1_16_1::native_state)
-                        .transpose()?,
-                })
-            })
-            .collect::<Result<_>>()?;
-        Ok(api::Capture {
-            world: crate::Observation {
-                version: crate::MinecraftVersion::Java1_16_1,
-                connection_id: self.connection_id(),
-                revision: snapshot.revision,
-                receive_sequence: Some(player.receive_sequence),
-                captured_at: snapshot.captured_at,
-                region,
-                blocks,
-            },
-            player,
-        })
-    }
-    pub(crate) async fn execute_common(
-        &self,
-        mode: api::GameMode,
-        action: Action<'_>,
-    ) -> Result<Option<i32>> {
-        if let Some(command) = match action {
-            Action::SetFlying(flying) => Some(api::FlightCommand::SetFlying { flying }),
-            Action::MoveFlying(position, rotation) => {
-                Some(api::FlightCommand::Move { position, rotation })
-            }
-            _ => None,
-        } {
-            if mode != api::GameMode::Creative {
-                return Err(common_state("creative operation required"));
-            }
-            return self.common_flight(command).await.map(|_| None);
-        }
-        self.execute_common_inner(mode, action, None).await
     }
     pub(super) async fn execute_common_inner(
         &self,
@@ -618,9 +348,268 @@ fn common_state(message: &str) -> crate::Error {
     crate::Error::new(crate::ErrorKind::State, anyhow::anyhow!("{message}"))
 }
 
+impl crate::client::adapter::CoreOps for Bot {
+    async fn respawn(&self) -> Result<api::RespawnRecord> {
+        let bot = self.clone();
+        tokio::spawn(async move {
+            let _gate = bot.coherent_state_gate.lock().await;
+            if bot.connection_state() != ConnectionState::Ready {
+                return Err(common_state("respawn requires ready play context"));
+            }
+            let player = bot.common_player_unlocked().await?;
+            api::respawn::prepare(&bot.respawn_history, &player)?;
+            let result = bot.respawn().await;
+            api::respawn::dispatched(&bot.respawn_history, &result);
+            result?;
+            Ok(api::respawn::snapshot(&bot.respawn_history).expect("owned respawn"))
+        })
+        .await
+        .map_err(|error| crate::Error::from(anyhow::anyhow!("respawn owner failed: {error}")))?
+    }
+    async fn connection_identity(&self) -> Result<api::ConnectionIdentity> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        Ok(api::ConnectionIdentity {
+            session: player.session,
+            uuid: self.login_profile.uuid,
+            name: self.login_profile.name.clone(),
+        })
+    }
+    async fn entity_spawns(&self) -> Result<api::EntitySpawns> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        Ok(self
+            .common_receipts
+            .lock()
+            .await
+            .entities
+            .capture(player.session, player.receive_sequence))
+    }
+    async fn entity_motion(&self, target: api::EntityId) -> Result<api::EntityMotionObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        self.common_receipts.lock().await.entities.capture_motion(
+            player.session,
+            target,
+            player.receive_sequence,
+        )
+    }
+    async fn vehicle_state(&self) -> Result<api::VehicleObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        let native_id = self.player.lock().await.entity_id;
+        let receipts = self.common_receipts.lock().await;
+        Ok(receipts.vehicles.capture(
+            player.session,
+            player.receive_sequence,
+            native_id,
+            &receipts.entities,
+        ))
+    }
+    async fn server_registry_state(&self) -> Result<api::registry::ServerRegistryObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::Error::new(
+                crate::ErrorKind::State,
+                anyhow::anyhow!("connection closed"),
+            ));
+        }
+        let receipts = self.common_receipts.lock().await;
+        Ok(receipts.registries.capture(
+            api::SessionStamp {
+                version: crate::MinecraftVersion::Java1_16_1,
+                connection_id: self.connection_id(),
+                world_generation: receipts.generation,
+            },
+            self.protocol_packet_sequence.load(Ordering::Acquire),
+        ))
+    }
+    async fn screen_state(&self) -> Result<api::container::ScreenObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        let receipts = self.common_receipts.lock().await;
+        Ok(api::container::ScreenObservation {
+            session: player.session,
+            receive_sequence: player.receive_sequence,
+            active_window: receipts.inventory.window_id,
+            player_screen: player.inventory.player_screen,
+            screen: receipts
+                .container
+                .as_ref()
+                .map(|s| s.capture(player.session)),
+            cursor: receipts.inventory.cursor.clone(),
+        })
+    }
+    async fn player_state(&self) -> Result<api::PlayerObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        self.common_player_unlocked().await
+    }
+    async fn received_recipes(&self) -> Result<api::ReceivedRecipes> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        let receipts = self.common_receipts.lock().await;
+        receipts.recipes.capture(
+            player.session,
+            player.receive_sequence,
+            receipts
+                .registries
+                .capture(player.session, player.receive_sequence),
+        )
+    }
+    async fn received_recipe_ghost(&self) -> Result<Option<api::ReceivedRecipeGhost>> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        let receipts = self.common_receipts.lock().await;
+        receipts
+            .recipe_ghost
+            .as_ref()
+            .map(|ghost| ghost.capture(player.session))
+            .transpose()
+            .map(Option::flatten)
+    }
+    async fn received_crafting_context(&self) -> Result<Option<api::ReceivedCraftingContext>> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        let receipts = self.common_receipts.lock().await;
+        let screen = api::container::ScreenObservation {
+            session: player.session,
+            receive_sequence: player.receive_sequence,
+            active_window: receipts.inventory.window_id,
+            player_screen: player.inventory.player_screen,
+            screen: receipts
+                .container
+                .as_ref()
+                .map(|s| s.capture(player.session)),
+            cursor: receipts.inventory.cursor.clone(),
+        };
+        let registries = receipts
+            .registries
+            .capture(player.session, player.receive_sequence);
+        let recipes = receipts.recipes.capture(
+            player.session,
+            player.receive_sequence,
+            registries.clone(),
+        )?;
+        api::ReceivedCraftingContext::capture(player, screen, registries, recipes)
+    }
+    async fn recipe_book_materials(
+        &self,
+        recipe: &api::RecipeId,
+        crafts: u32,
+        maximum_bound: u32,
+    ) -> Result<api::RecipeBookMaterials> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        let receipts = self.common_receipts.lock().await;
+        let registries = receipts
+            .registries
+            .capture(player.session, player.receive_sequence);
+        let catalogue = receipts.recipes.capture(
+            player.session,
+            player.receive_sequence,
+            registries.clone(),
+        )?;
+        let inventory = api::ReceivedInventory::capture(
+            player.session,
+            player.receive_sequence,
+            &player.inventory,
+            registries,
+        )?;
+        api::RecipeBookMaterials::capture(catalogue, inventory, recipe, crafts, maximum_bound)
+    }
+    async fn received_crafting(&self) -> Result<Option<api::ReceivedCrafting>> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        let receipts = self.common_receipts.lock().await;
+        let screen = api::container::ScreenObservation {
+            session: player.session,
+            receive_sequence: player.receive_sequence,
+            active_window: receipts.inventory.window_id,
+            player_screen: player.inventory.player_screen,
+            screen: receipts
+                .container
+                .as_ref()
+                .map(|s| s.capture(player.session)),
+            cursor: receipts.inventory.cursor.clone(),
+        };
+        let registries = receipts
+            .registries
+            .capture(player.session, player.receive_sequence);
+        api::ReceivedCrafting::capture(&player, &screen, registries)
+    }
+    async fn received_inventory(&self) -> Result<api::ReceivedInventory> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::Error::new(
+                crate::ErrorKind::State,
+                anyhow::anyhow!("connection closed"),
+            ));
+        }
+        let receipts = self.common_receipts.lock().await;
+        let session = api::SessionStamp {
+            version: crate::MinecraftVersion::Java1_16_1,
+            connection_id: self.connection_id(),
+            world_generation: receipts.generation,
+        };
+        let sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
+        let registries = receipts.registries.capture(session, sequence);
+        api::ReceivedInventory::capture(session, sequence, &receipts.inventory, registries)
+    }
+    async fn capture(&self, region: crate::Region) -> Result<api::Capture> {
+        region.volume()?;
+        if region.min[1] < 0 || region.max[1] > 255 {
+            return Err(api::registry::invalid("region outside dimension height"));
+        }
+        let _gate = self.coherent_state_gate.lock().await;
+        let player = self.common_player_unlocked().await?;
+        let snapshot = self.observe_region_snapshot(region).await?;
+        let blocks = snapshot
+            .value
+            .into_iter()
+            .map(|block| {
+                Ok(crate::ObservedBlock {
+                    position: [block.x, block.y, block.z],
+                    state: block
+                        .state_id
+                        .map(crate::versions::java_1_16_1::native_state)
+                        .transpose()?,
+                })
+            })
+            .collect::<Result<_>>()?;
+        Ok(api::Capture {
+            world: crate::Observation {
+                version: crate::MinecraftVersion::Java1_16_1,
+                connection_id: self.connection_id(),
+                revision: snapshot.revision,
+                receive_sequence: Some(player.receive_sequence),
+                captured_at: snapshot.captured_at,
+                region,
+                blocks,
+            },
+            player,
+        })
+    }
+    async fn execute(&self, mode: api::GameMode, action: Action<'_>) -> Result<Option<i32>> {
+        if let Some(command) = match action {
+            Action::SetFlying(flying) => Some(api::FlightCommand::SetFlying { flying }),
+            Action::MoveFlying(position, rotation) => {
+                Some(api::FlightCommand::Move { position, rotation })
+            }
+            _ => None,
+        } {
+            if mode != api::GameMode::Creative {
+                return Err(common_state("creative operation required"));
+            }
+            return self.flight(command).await.map(|_| None);
+        }
+        self.execute_common_inner(mode, action, None).await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::client::adapter::CoreOps;
 
     #[tokio::test]
     async fn common_display_receipts_clear_reset_and_atomic_tab_match_native_packets() {
@@ -1834,7 +1823,7 @@ mod tests {
         }
         bot.apply_packet(0x14, payload).await.unwrap();
         bot.inventory.write().await.windows.get_mut(&0).unwrap()[9] = None;
-        let state = bot.common_player_state().await.unwrap();
+        let state = bot.player_state().await.unwrap();
         assert!(
             matches!(&state.inventory.slots[9], Some(value) if matches!(value.value, api::SlotKnowledge::Item { .. }))
         );

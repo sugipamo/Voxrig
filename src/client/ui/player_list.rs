@@ -1,6 +1,6 @@
 //! Received profile/list records, independent of spatial entities and authentication.
 use super::{UiText, received};
-use crate::client::VersionAdapter;
+use crate::client::adapter::UiOps;
 use crate::client::{GameMode, ObservedValue, SessionStamp};
 use crate::{MinecraftVersion, Result};
 use std::collections::BTreeMap;
@@ -96,7 +96,7 @@ pub struct PlayerListObservation {
 impl crate::Client {
     /// Inspect received profiles/list updates; entity coordinates use entity_motion.
     pub async fn player_list(&self) -> Result<PlayerListObservation> {
-        crate::client::dispatch!(&self.adapter, a => VersionAdapter::player_list(a).await)
+        crate::client::dispatch!(&self.adapter, a => UiOps::player_list(a).await)
     }
 }
 #[derive(Clone, Default)]

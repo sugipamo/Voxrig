@@ -161,118 +161,6 @@ impl Bot {
             Some(&registries),
         )
     }
-    pub(crate) async fn common_start_mining(
-        &self,
-        target: [i32; 3],
-        face: crate::BlockFace,
-    ) -> Result<MiningRecord> {
-        let gate = self.coherent_state_gate.lock().await;
-        self.common_motion_admission().await?;
-        let revision = self
-            .connection
-            .motion_admission_revision()
-            .await
-            .map_err(|e| mining::unavailable(format!("mining admission rejected: {e:?}")))?;
-        let query = self.mining_prepared(target, face, None).await?;
-        let initial = query.initial;
-        let baseline = query.hit.expect("prepared hit").state;
-        let estimate = self.mining_estimate(&initial, &baseline).await?;
-        let id = MiningId::new(initial.session, 1); // No in-session replacement/continuation.
-        let record = MiningRecord {
-            id,
-            target,
-            face,
-            estimated_wait_ms: estimate.wait_ms(),
-            estimate,
-            start: MiningSend {
-                after_sequence: initial.receive_sequence,
-                interaction_sequence: None,
-                dispatched: false,
-            },
-            initial,
-            baseline,
-            finish: None,
-            abort: None,
-            target_receipt: None,
-            protocol: None,
-            inventory_change: None,
-            requires_inspection: None,
-            stage: MiningStage::Mining,
-            recovery_attempt: None,
-            continuation_validated: false,
-        };
-        *self.common_mining.lock().await = Some(NativeMiningRun {
-            record,
-            movement_revision: self.motion.lock().await.revision(),
-            movement_attribute: super::common_motion::legacy_movement_attribute(
-                &**self.survival.read().await,
-            )
-            .cloned(),
-        });
-        // Retain before spawning the owner. Cancellation of this waiter neither clears
-        // the intent nor resends. The task performs the single native command.
-        let (reply, result) = tokio::sync::oneshot::channel();
-        let bot = self.clone_internal();
-        tokio::spawn(async move {
-            let _ = reply.send(
-                bot.mining_send_owned(id, MiningAction::Start, Some(revision))
-                    .await,
-            );
-        });
-        drop(gate);
-        result
-            .await
-            .map_err(|_| mining::unavailable("mining owner result missing"))?
-    }
-    pub(crate) async fn common_mining_send(
-        &self,
-        id: MiningId,
-        action: MiningAction,
-    ) -> Result<MiningRecord> {
-        if action == MiningAction::Start {
-            return Err(mining::unavailable("START may not be replayed"));
-        }
-        let gate = self.coherent_state_gate.lock().await;
-        {
-            let mut guard = self.common_mining.lock().await;
-            let run = guard
-                .as_mut()
-                .filter(|m| m.record.id == id)
-                .ok_or_else(|| {
-                    mining::unavailable("mining id belongs to another connection/attempt")
-                })?;
-            if !run.record.start.dispatched
-                || run.record.stage == MiningStage::ObservedRemoved
-                || run.record.requires_inspection.is_some()
-                || run.record.abort.is_some()
-                || (action == MiningAction::Finish && run.record.finish.is_some())
-            {
-                return Err(mining::unavailable(
-                    "mining command cannot resume or replay this stage",
-                ));
-            }
-            let attempt = MiningSend {
-                after_sequence: self.protocol_packet_sequence.load(Ordering::Acquire),
-                interaction_sequence: None,
-                dispatched: false,
-            };
-            if action == MiningAction::Abort {
-                run.record.abort = Some(attempt);
-            } else {
-                run.record.finish = Some(attempt);
-                run.record.stage = MiningStage::PendingAfterFinish;
-            }
-        }
-        let (reply, result) = tokio::sync::oneshot::channel();
-        let bot = self.clone_internal();
-        tokio::spawn(async move {
-            let _ = reply.send(bot.mining_send_owned(id, action, None).await);
-        });
-        drop(gate);
-        result
-            .await
-            .map_err(|_| mining::unavailable("mining owner result missing"))?
-    }
     async fn mining_send_owned(
         &self,
         id: MiningId,
@@ -388,16 +276,6 @@ impl Bot {
         if let Some(run) = self.common_mining.lock().await.as_mut() {
             inspection(run, reason);
         }
-    }
-    pub(crate) async fn common_mining_record(&self) -> Result<Option<MiningRecord>> {
-        let _gate = self.coherent_state_gate.lock().await;
-        self.reconcile_common_mining(true).await?;
-        Ok(self
-            .common_mining
-            .lock()
-            .await
-            .as_ref()
-            .map(|m| m.record.clone()))
     }
     async fn reconcile_common_mining(&self, confirm_removal: bool) -> Result<()> {
         let Some(snapshot) = self.common_mining.lock().await.clone() else {
@@ -624,6 +502,123 @@ impl Bot {
             receive_sequence: sequence,
         });
         Ok(())
+    }
+}
+
+impl crate::client::adapter::MiningOps for Bot {
+    async fn start_mining(&self, target: [i32; 3], face: crate::BlockFace) -> Result<MiningRecord> {
+        let gate = self.coherent_state_gate.lock().await;
+        self.common_motion_admission().await?;
+        let revision = self
+            .connection
+            .motion_admission_revision()
+            .await
+            .map_err(|e| mining::unavailable(format!("mining admission rejected: {e:?}")))?;
+        let query = self.mining_prepared(target, face, None).await?;
+        let initial = query.initial;
+        let baseline = query.hit.expect("prepared hit").state;
+        let estimate = self.mining_estimate(&initial, &baseline).await?;
+        let id = MiningId::new(initial.session, 1); // No in-session replacement/continuation.
+        let record = MiningRecord {
+            id,
+            target,
+            face,
+            estimated_wait_ms: estimate.wait_ms(),
+            estimate,
+            start: MiningSend {
+                after_sequence: initial.receive_sequence,
+                interaction_sequence: None,
+                dispatched: false,
+            },
+            initial,
+            baseline,
+            finish: None,
+            abort: None,
+            target_receipt: None,
+            protocol: None,
+            inventory_change: None,
+            requires_inspection: None,
+            stage: MiningStage::Mining,
+            recovery_attempt: None,
+            continuation_validated: false,
+        };
+        *self.common_mining.lock().await = Some(NativeMiningRun {
+            record,
+            movement_revision: self.motion.lock().await.revision(),
+            movement_attribute: super::common_motion::legacy_movement_attribute(
+                &**self.survival.read().await,
+            )
+            .cloned(),
+        });
+        // Retain before spawning the owner. Cancellation of this waiter neither clears
+        // the intent nor resends. The task performs the single native command.
+        let (reply, result) = tokio::sync::oneshot::channel();
+        let bot = self.clone_internal();
+        tokio::spawn(async move {
+            let _ = reply.send(
+                bot.mining_send_owned(id, MiningAction::Start, Some(revision))
+                    .await,
+            );
+        });
+        drop(gate);
+        result
+            .await
+            .map_err(|_| mining::unavailable("mining owner result missing"))?
+    }
+    async fn mining_send(&self, id: MiningId, action: MiningAction) -> Result<MiningRecord> {
+        if action == MiningAction::Start {
+            return Err(mining::unavailable("START may not be replayed"));
+        }
+        let gate = self.coherent_state_gate.lock().await;
+        {
+            let mut guard = self.common_mining.lock().await;
+            let run = guard
+                .as_mut()
+                .filter(|m| m.record.id == id)
+                .ok_or_else(|| {
+                    mining::unavailable("mining id belongs to another connection/attempt")
+                })?;
+            if !run.record.start.dispatched
+                || run.record.stage == MiningStage::ObservedRemoved
+                || run.record.requires_inspection.is_some()
+                || run.record.abort.is_some()
+                || (action == MiningAction::Finish && run.record.finish.is_some())
+            {
+                return Err(mining::unavailable(
+                    "mining command cannot resume or replay this stage",
+                ));
+            }
+            let attempt = MiningSend {
+                after_sequence: self.protocol_packet_sequence.load(Ordering::Acquire),
+                interaction_sequence: None,
+                dispatched: false,
+            };
+            if action == MiningAction::Abort {
+                run.record.abort = Some(attempt);
+            } else {
+                run.record.finish = Some(attempt);
+                run.record.stage = MiningStage::PendingAfterFinish;
+            }
+        }
+        let (reply, result) = tokio::sync::oneshot::channel();
+        let bot = self.clone_internal();
+        tokio::spawn(async move {
+            let _ = reply.send(bot.mining_send_owned(id, action, None).await);
+        });
+        drop(gate);
+        result
+            .await
+            .map_err(|_| mining::unavailable("mining owner result missing"))?
+    }
+    async fn mining_record(&self) -> Result<Option<MiningRecord>> {
+        let _gate = self.coherent_state_gate.lock().await;
+        self.reconcile_common_mining(true).await?;
+        Ok(self
+            .common_mining
+            .lock()
+            .await
+            .as_ref()
+            .map(|m| m.record.clone()))
     }
 }
 

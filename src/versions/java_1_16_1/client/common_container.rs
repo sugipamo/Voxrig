@@ -9,106 +9,6 @@ pub(super) struct NativeContainerOpen {
 }
 
 impl Bot {
-    pub(crate) async fn common_open_container(
-        &self,
-        mode: api::GameMode,
-        target: [i32; 3],
-    ) -> Result<contract::ContainerOpenRecord> {
-        let gate = self.coherent_state_gate.lock().await;
-        self.common_motion_admission().await?;
-        let revision = self
-            .connection
-            .motion_admission_revision()
-            .await
-            .map_err(|e| api::inventory::unavailable(format!("storage open admission: {e:?}")))?;
-        self.open_native_inventory_admission().await?;
-        let query = self.common_target_in_mode(4.5, None, mode).await?;
-        let before = self
-            .common_receipts
-            .lock()
-            .await
-            .container
-            .as_ref()
-            .map(|s| s.capture(query.initial.session).id);
-        let record = contract::open::prepare_open(
-            query,
-            target,
-            mode,
-            before,
-            self.common_container_open
-                .lock()
-                .await
-                .as_ref()
-                .map(|o| &o.record),
-            None,
-        )?;
-        let id = record.id;
-        *self.common_container_open.lock().await = Some(NativeContainerOpen {
-            record,
-            released: false,
-        });
-        let bot = self.clone_internal();
-        let (reply, result) = oneshot::channel();
-        tokio::spawn(async move {
-            let _gate = bot.coherent_state_gate.lock().await;
-            let outcome = async {
-                bot.common_container_open_context_received().await?;
-                let record = bot
-                    .common_container_open
-                    .lock()
-                    .await
-                    .as_ref()
-                    .filter(|o| o.record.id == id)
-                    .map(|o| o.record.clone())
-                    .ok_or_else(|| api::inventory::unavailable("storage open intent superseded"))?;
-                if record.requires_inspection.is_some() {
-                    return Err(api::inventory::unavailable(
-                        "storage open context changed before I/O",
-                    ));
-                }
-                bot.open_native_inventory_admission().await?;
-                bot.common_container_open
-                    .lock()
-                    .await
-                    .as_mut()
-                    .expect("retained")
-                    .record
-                    .send
-                    .after_sequence = bot.protocol_packet_sequence.load(Ordering::Acquire);
-                bot.connection
-                    .bounded_container_open(
-                        id.attempt(),
-                        revision,
-                        BlockPos {
-                            x: record.target.position[0],
-                            y: record.target.position[1],
-                            z: record.target.position[2],
-                        },
-                        record.target.face as u8,
-                        record.cursor,
-                    )
-                    .await
-            }
-            .await;
-            let mut guard = bot.common_container_open.lock().await;
-            let record = &mut guard.as_mut().expect("retained").record;
-            let value = match outcome {
-                Ok(()) => {
-                    record.sent();
-                    Ok(record.clone())
-                }
-                Err(e) => {
-                    record.inspection(&e);
-                    Err(e)
-                }
-            };
-            let _ = reply.send(value);
-        });
-        drop(gate);
-        result
-            .await
-            .map_err(|_| api::inventory::unavailable("storage open owner result unavailable"))?
-    }
     async fn open_native_inventory_admission(&self) -> Result<()> {
         let inventory = self.inventory.read().await;
         if inventory.cursor.is_some()
@@ -120,19 +20,6 @@ impl Bot {
             ));
         }
         Ok(())
-    }
-    /// Inspect the retained record without queuing behind a stalled owned write.
-    pub(crate) async fn common_container_open_record(
-        &self,
-    ) -> Result<Option<contract::ContainerOpenRecord>> {
-        let mut guard = self.common_container_open.lock().await;
-        if self.is_stopped() || self.connection_state() != ConnectionState::Ready {
-            if let Some(o) = guard.as_mut().filter(|o| !o.released) {
-                o.record
-                    .inspection("storage open connection closed or uncertain");
-            }
-        }
-        Ok(guard.as_ref().map(|o| o.record.clone()))
     }
     pub(super) async fn common_container_open_context_received(&self) -> Result<()> {
         let Some(before) = self
@@ -251,69 +138,6 @@ impl Bot {
             }
         }
         Ok(())
-    }
-    pub(crate) async fn common_close_container(
-        &self,
-        mode: api::GameMode,
-        screen: contract::ScreenId,
-    ) -> Result<contract::ContainerCloseRecord> {
-        let gate = self.coherent_state_gate.lock().await;
-        self.common_motion_admission().await?;
-        let revision = self
-            .connection
-            .motion_admission_revision()
-            .await
-            .map_err(|e| api::inventory::unavailable(format!("close admission: {e:?}")))?;
-        let initial = self.common_player_unlocked().await?;
-        let captured = self
-            .common_receipts
-            .lock()
-            .await
-            .container
-            .as_ref()
-            .map(|s| s.capture(initial.session))
-            .ok_or_else(|| api::inventory::unavailable("no received container opening"))?;
-        let window = i8::try_from(screen.window_id())
-            .ok()
-            .filter(|w| *w > 0)
-            .ok_or_else(|| api::inventory::unavailable("native legacy window unavailable"))?;
-        self.close_native_basis(window, &initial).await?;
-        let registries = self
-            .common_receipts
-            .lock()
-            .await
-            .registries
-            .capture(initial.session, initial.receive_sequence);
-        let record = contract::prepare_close_received(
-            (initial, registries),
-            captured,
-            screen,
-            mode,
-            self.common_container_close.lock().await.as_ref(),
-        )?;
-        let id = record.id;
-        *self.common_container_close.lock().await = Some(record);
-        let bot = self.clone_internal();
-        let (reply, result) = oneshot::channel();
-        tokio::spawn(async move {
-            let outcome = bot.return_and_close_owned(id, revision, window).await;
-            if let Err(e) = &outcome {
-                if let Some(record) = bot
-                    .common_container_close
-                    .lock()
-                    .await
-                    .as_mut()
-                    .filter(|r| r.id == id)
-                {
-                    record.inspection(e);
-                }
-            }
-            let _ = reply.send(outcome);
-        });
-        drop(gate);
-        result
-            .await
-            .map_err(|_| api::inventory::unavailable("close owner result unavailable"))?
     }
     async fn close_native_basis(&self, window: i8, player: &api::PlayerObservation) -> Result<()> {
         let inventory = self.inventory.read().await;
@@ -558,19 +382,6 @@ impl Bot {
             });
         }
     }
-    pub(crate) async fn common_container_close_record(
-        &self,
-    ) -> Result<Option<contract::ContainerCloseRecord>> {
-        if let Ok(_gate) = self.coherent_state_gate.try_lock() {
-            self.common_container_close_context_received().await?;
-        }
-        if self.is_stopped() || self.connection_state() != ConnectionState::Ready {
-            if let Some(r) = self.common_container_close.lock().await.as_mut() {
-                r.inspection("close connection closed or uncertain");
-            }
-        }
-        Ok(self.common_container_close.lock().await.clone())
-    }
     pub(super) async fn common_container_close_received(&self, window: i32, sequence: u64) {
         let receipts = self.common_receipts.lock().await;
         let Some(s) = receipts.container.as_ref().filter(|s| s.window == window) else {
@@ -614,6 +425,194 @@ impl Bot {
             r.return_received_with_registries(&player, screen.as_ref(), &registries);
         }
         Ok(())
+    }
+}
+
+impl crate::client::adapter::ContainerOps for Bot {
+    async fn open_container(
+        &self,
+        mode: api::GameMode,
+        target: [i32; 3],
+    ) -> Result<contract::ContainerOpenRecord> {
+        let gate = self.coherent_state_gate.lock().await;
+        self.common_motion_admission().await?;
+        let revision = self
+            .connection
+            .motion_admission_revision()
+            .await
+            .map_err(|e| api::inventory::unavailable(format!("storage open admission: {e:?}")))?;
+        self.open_native_inventory_admission().await?;
+        let query = self.common_target_in_mode(4.5, None, mode).await?;
+        let before = self
+            .common_receipts
+            .lock()
+            .await
+            .container
+            .as_ref()
+            .map(|s| s.capture(query.initial.session).id);
+        let record = contract::open::prepare_open(
+            query,
+            target,
+            mode,
+            before,
+            self.common_container_open
+                .lock()
+                .await
+                .as_ref()
+                .map(|o| &o.record),
+            None,
+        )?;
+        let id = record.id;
+        *self.common_container_open.lock().await = Some(NativeContainerOpen {
+            record,
+            released: false,
+        });
+        let bot = self.clone_internal();
+        let (reply, result) = oneshot::channel();
+        tokio::spawn(async move {
+            let _gate = bot.coherent_state_gate.lock().await;
+            let outcome = async {
+                bot.common_container_open_context_received().await?;
+                let record = bot
+                    .common_container_open
+                    .lock()
+                    .await
+                    .as_ref()
+                    .filter(|o| o.record.id == id)
+                    .map(|o| o.record.clone())
+                    .ok_or_else(|| api::inventory::unavailable("storage open intent superseded"))?;
+                if record.requires_inspection.is_some() {
+                    return Err(api::inventory::unavailable(
+                        "storage open context changed before I/O",
+                    ));
+                }
+                bot.open_native_inventory_admission().await?;
+                bot.common_container_open
+                    .lock()
+                    .await
+                    .as_mut()
+                    .expect("retained")
+                    .record
+                    .send
+                    .after_sequence = bot.protocol_packet_sequence.load(Ordering::Acquire);
+                bot.connection
+                    .bounded_container_open(
+                        id.attempt(),
+                        revision,
+                        BlockPos {
+                            x: record.target.position[0],
+                            y: record.target.position[1],
+                            z: record.target.position[2],
+                        },
+                        record.target.face as u8,
+                        record.cursor,
+                    )
+                    .await
+            }
+            .await;
+            let mut guard = bot.common_container_open.lock().await;
+            let record = &mut guard.as_mut().expect("retained").record;
+            let value = match outcome {
+                Ok(()) => {
+                    record.sent();
+                    Ok(record.clone())
+                }
+                Err(e) => {
+                    record.inspection(&e);
+                    Err(e)
+                }
+            };
+            let _ = reply.send(value);
+        });
+        drop(gate);
+        result
+            .await
+            .map_err(|_| api::inventory::unavailable("storage open owner result unavailable"))?
+    }
+    /// Inspect the retained record without queuing behind a stalled owned write.
+    async fn container_open_record(&self) -> Result<Option<contract::ContainerOpenRecord>> {
+        let mut guard = self.common_container_open.lock().await;
+        if self.is_stopped() || self.connection_state() != ConnectionState::Ready {
+            if let Some(o) = guard.as_mut().filter(|o| !o.released) {
+                o.record
+                    .inspection("storage open connection closed or uncertain");
+            }
+        }
+        Ok(guard.as_ref().map(|o| o.record.clone()))
+    }
+    async fn close_container(
+        &self,
+        mode: api::GameMode,
+        screen: contract::ScreenId,
+    ) -> Result<contract::ContainerCloseRecord> {
+        let gate = self.coherent_state_gate.lock().await;
+        self.common_motion_admission().await?;
+        let revision = self
+            .connection
+            .motion_admission_revision()
+            .await
+            .map_err(|e| api::inventory::unavailable(format!("close admission: {e:?}")))?;
+        let initial = self.common_player_unlocked().await?;
+        let captured = self
+            .common_receipts
+            .lock()
+            .await
+            .container
+            .as_ref()
+            .map(|s| s.capture(initial.session))
+            .ok_or_else(|| api::inventory::unavailable("no received container opening"))?;
+        let window = i8::try_from(screen.window_id())
+            .ok()
+            .filter(|w| *w > 0)
+            .ok_or_else(|| api::inventory::unavailable("native legacy window unavailable"))?;
+        self.close_native_basis(window, &initial).await?;
+        let registries = self
+            .common_receipts
+            .lock()
+            .await
+            .registries
+            .capture(initial.session, initial.receive_sequence);
+        let record = contract::prepare_close_received(
+            (initial, registries),
+            captured,
+            screen,
+            mode,
+            self.common_container_close.lock().await.as_ref(),
+        )?;
+        let id = record.id;
+        *self.common_container_close.lock().await = Some(record);
+        let bot = self.clone_internal();
+        let (reply, result) = oneshot::channel();
+        tokio::spawn(async move {
+            let outcome = bot.return_and_close_owned(id, revision, window).await;
+            if let Err(e) = &outcome {
+                if let Some(record) = bot
+                    .common_container_close
+                    .lock()
+                    .await
+                    .as_mut()
+                    .filter(|r| r.id == id)
+                {
+                    record.inspection(e);
+                }
+            }
+            let _ = reply.send(outcome);
+        });
+        drop(gate);
+        result
+            .await
+            .map_err(|_| api::inventory::unavailable("close owner result unavailable"))?
+    }
+    async fn container_close_record(&self) -> Result<Option<contract::ContainerCloseRecord>> {
+        if let Ok(_gate) = self.coherent_state_gate.try_lock() {
+            self.common_container_close_context_received().await?;
+        }
+        if self.is_stopped() || self.connection_state() != ConnectionState::Ready {
+            if let Some(r) = self.common_container_close.lock().await.as_mut() {
+                r.inspection("close connection closed or uncertain");
+            }
+        }
+        Ok(self.common_container_close.lock().await.clone())
     }
 }
 

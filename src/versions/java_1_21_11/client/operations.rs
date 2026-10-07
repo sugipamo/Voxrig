@@ -3,6 +3,7 @@
 //! General locomotion/pathfinding and complex item components are not inferred.
 //! Mining removal alone does not authorize further mutations on that connection.
 pub(super) mod container;
+use crate::client::adapter::FlightOps;
 mod flight;
 mod geometry;
 pub(super) mod inventory;
@@ -354,6 +355,12 @@ impl OperationState {
 pub struct Operations {
     pub(super) bot: Bot,
 }
+impl Operations {
+    /// The session this handle operates on.
+    pub(crate) fn bot(&self) -> &Bot {
+        &self.bot
+    }
+}
 pub(super) fn recipe_ghost_context(state: &State) -> crate::client::crafting::ghost::GhostContext {
     crate::client::crafting::ghost::GhostContext {
         generation: state.loading.generation,
@@ -365,25 +372,6 @@ pub(super) fn recipe_ghost_context(state: &State) -> crate::client::crafting::gh
     }
 }
 impl Operations {
-    pub(crate) async fn common_screen_state(
-        &self,
-    ) -> Result<crate::client::container::ScreenObservation> {
-        let state = self.bot.session.state.lock().await;
-        let player = self.common_player_unlocked(&state)?;
-        Ok(crate::client::container::ScreenObservation {
-            session: player.session,
-            receive_sequence: state.sequence,
-            active_window: state.operations.inventory.window_id,
-            player_screen: player.inventory.player_screen,
-            screen: state
-                .operations
-                .inventory
-                .container
-                .as_ref()
-                .map(|s| s.capture(player.session)),
-            cursor: player.inventory.cursor,
-        })
-    }
     /// Inspect unresolved operation history without sending, reconnecting or
     /// checking for a live connection. Never turns stale data into action authority.
     pub async fn operation_history(&self) -> OperationHistory {
@@ -1154,302 +1142,6 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
 }
 
 impl Operations {
-    pub(crate) async fn common_respawn(&self) -> Result<crate::client::RespawnRecord> {
-        let owned = self.clone();
-        tokio::spawn(async move {
-            let state = owned.bot.session.state.lock().await;
-            owned.ready(&state)?;
-            if state.phase != Phase::Play {
-                return Err(invalid("respawn requires play context"));
-            }
-            let player = owned.common_player_unlocked(&state)?;
-            crate::client::respawn::prepare(&owned.bot.respawn_history, &player)?;
-            let result = owned
-                .bot
-                .session
-                .send(ids::play_serverbound::CLIENT_COMMAND, &[0])
-                .await;
-            crate::client::respawn::dispatched(&owned.bot.respawn_history, &result);
-            result?;
-            Ok(
-                crate::client::respawn::snapshot(&owned.bot.respawn_history)
-                    .expect("owned respawn"),
-            )
-        })
-        .await
-        .map_err(|error| Error::from(anyhow::anyhow!("respawn owner failed: {error}")))?
-    }
-
-    pub(crate) async fn execute_common(
-        &self,
-        mode: GameMode,
-        action: crate::client::operations::Action<'_>,
-    ) -> Result<Option<i32>> {
-        use crate::client::operations::Action;
-        match action {
-            Action::Entity(target, interaction) => {
-                let state = self.bot.session.state.lock().await;
-                self.mutable(&state)?;
-                self.require_mode(&state, Some(mode))?;
-                state.entities.validate(
-                    crate::client::SessionStamp {
-                        version: crate::MinecraftVersion::Java1_21_11,
-                        connection_id: self.bot.session.id,
-                        world_generation: state.loading.generation,
-                    },
-                    target,
-                )?;
-                self.bot
-                    .session
-                    .send(
-                        ids::play_serverbound::USE_ENTITY,
-                        &interaction.payload(target),
-                    )
-                    .await?;
-            }
-
-            Action::Look(rotation) => {
-                crate::client::operations::validate_rotation(rotation)?;
-                self.look_in_mode(Some(mode), rotation).await?;
-            }
-            Action::SelectHotbar(slot) => self.select_hotbar_in_mode(Some(mode), slot).await?,
-            Action::SetFlying(flying) => {
-                if mode != GameMode::Creative {
-                    return Err(invalid("creative operation required"));
-                }
-                self.common_flight(crate::client::FlightCommand::SetFlying { flying })
-                    .await?;
-            }
-            Action::MoveFlying(position, rotation) => {
-                crate::client::operations::validate_rotation(rotation)?;
-                if mode != GameMode::Creative {
-                    return Err(invalid("creative operation required"));
-                }
-                self.common_flight(crate::client::FlightCommand::Move { position, rotation })
-                    .await?;
-            }
-            Action::SetHotbar(slot, item) => {
-                if let Some((name, _)) = item {
-                    crate::client::registry::Registry::for_version(
-                        crate::MinecraftVersion::Java1_21_11,
-                    )
-                    .item(name)?;
-                }
-                self.set_creative_hotbar(slot, item).await?;
-            }
-            Action::Dig(position, face) => {
-                return self.dig_creative(position, face).await.map(Some);
-            }
-            Action::UseOnBlock(position, face, cursor) => {
-                return self.use_on_block(position, face, cursor).await.map(Some);
-            }
-        }
-        Ok(None)
-    }
-    pub(crate) async fn common_connection_identity(
-        &self,
-    ) -> Result<crate::client::ConnectionIdentity> {
-        let state = self.bot.session.state.lock().await;
-        let player = self.common_player_unlocked(&state)?;
-        let identity = state
-            .identity
-            .as_ref()
-            .ok_or_else(|| invalid("received login profile unavailable"))?;
-        Ok(crate::client::ConnectionIdentity {
-            session: player.session,
-            uuid: identity.uuid,
-            name: identity.name.clone(),
-        })
-    }
-    pub(crate) async fn common_entity_spawns(&self) -> Result<crate::client::EntitySpawns> {
-        let state = self.bot.session.state.lock().await;
-        let player = self.common_player_unlocked(&state)?;
-        Ok(state.entities.capture(player.session, state.sequence))
-    }
-    pub(crate) async fn common_entity_motion(
-        &self,
-        target: crate::client::EntityId,
-    ) -> Result<crate::client::EntityMotionObservation> {
-        let state = self.bot.session.state.lock().await;
-        let player = self.common_player_unlocked(&state)?;
-        state
-            .entities
-            .capture_motion(player.session, target, state.sequence)
-    }
-    pub(crate) async fn common_vehicle_state(&self) -> Result<crate::client::VehicleObservation> {
-        let state = self.bot.session.state.lock().await;
-        let player = self.common_player_unlocked(&state)?;
-        Ok(state.vehicles.capture(
-            player.session,
-            state.sequence,
-            state.operations.local_player.entity_id,
-            &state.entities,
-        ))
-    }
-    pub(crate) async fn common_player_state(&self) -> Result<crate::client::PlayerObservation> {
-        let state = self.bot.session.state.lock().await;
-        self.common_player_unlocked(&state)
-    }
-    pub(crate) async fn common_received_inventory(
-        &self,
-    ) -> Result<crate::client::ReceivedInventory> {
-        let state = self.bot.session.state.lock().await;
-        let player = self.common_player_unlocked(&state)?;
-        let registries = state
-            .registries
-            .capture(player.session, player.receive_sequence);
-        crate::client::ReceivedInventory::capture(
-            player.session,
-            player.receive_sequence,
-            &player.inventory,
-            registries,
-        )
-    }
-    pub(crate) async fn common_received_recipes(&self) -> Result<crate::client::ReceivedRecipes> {
-        let state = self.bot.session.state.lock().await;
-        let player = self.common_player_unlocked(&state)?;
-        state.recipes.capture(
-            player.session,
-            state.sequence,
-            state.registries.capture(player.session, state.sequence),
-        )
-    }
-    pub(crate) async fn common_received_recipe_ghost(
-        &self,
-    ) -> Result<Option<crate::client::ReceivedRecipeGhost>> {
-        let state = self.bot.session.state.lock().await;
-        let player = self.common_player_unlocked(&state)?;
-        state
-            .recipe_ghost
-            .as_ref()
-            .map(|ghost| ghost.capture(player.session))
-            .transpose()
-            .map(Option::flatten)
-    }
-    pub(crate) async fn common_received_crafting_context(
-        &self,
-    ) -> Result<Option<crate::client::ReceivedCraftingContext>> {
-        let state = self.bot.session.state.lock().await;
-        let player = self.common_player_unlocked(&state)?;
-        let screen = crate::client::container::ScreenObservation {
-            session: player.session,
-            receive_sequence: player.receive_sequence,
-            active_window: state.operations.inventory.window_id,
-            player_screen: player.inventory.player_screen,
-            screen: state
-                .operations
-                .inventory
-                .container
-                .as_ref()
-                .map(|s| s.capture(player.session)),
-            cursor: player.inventory.cursor.clone(),
-        };
-        let registries = state
-            .registries
-            .capture(player.session, player.receive_sequence);
-        let recipes =
-            state
-                .recipes
-                .capture(player.session, player.receive_sequence, registries.clone())?;
-        crate::client::ReceivedCraftingContext::capture(player, screen, registries, recipes)
-    }
-    pub(crate) async fn common_recipe_book_materials(
-        &self,
-        recipe: &crate::client::RecipeId,
-        crafts: u32,
-        maximum_bound: u32,
-    ) -> Result<crate::client::RecipeBookMaterials> {
-        let state = self.bot.session.state.lock().await;
-        let player = self.common_player_unlocked(&state)?;
-        let registries = state
-            .registries
-            .capture(player.session, player.receive_sequence);
-        let catalogue =
-            state
-                .recipes
-                .capture(player.session, player.receive_sequence, registries.clone())?;
-        let inventory = crate::client::ReceivedInventory::capture(
-            player.session,
-            player.receive_sequence,
-            &player.inventory,
-            registries,
-        )?;
-        crate::client::RecipeBookMaterials::capture(
-            catalogue,
-            inventory,
-            recipe,
-            crafts,
-            maximum_bound,
-        )
-    }
-    pub(crate) async fn common_received_crafting(
-        &self,
-    ) -> Result<Option<crate::client::ReceivedCrafting>> {
-        let state = self.bot.session.state.lock().await;
-        let player = self.common_player_unlocked(&state)?;
-        let screen = crate::client::container::ScreenObservation {
-            session: player.session,
-            receive_sequence: state.sequence,
-            active_window: state.operations.inventory.window_id,
-            player_screen: player.inventory.player_screen,
-            screen: state
-                .operations
-                .inventory
-                .container
-                .as_ref()
-                .map(|s| s.capture(player.session)),
-            cursor: player.inventory.cursor.clone(),
-        };
-        let registries = state
-            .registries
-            .capture(player.session, player.receive_sequence);
-        crate::client::ReceivedCrafting::capture(&player, &screen, registries)
-    }
-    pub(crate) async fn common_capture(
-        &self,
-        region: crate::Region,
-    ) -> Result<crate::client::Capture> {
-        let volume = region.volume()?;
-        let state = self.bot.session.state.lock().await;
-        let player = self.common_player_unlocked(&state)?;
-        let dimension = &state
-            .world
-            .dimension
-            .as_ref()
-            .context("dimension unavailable")?
-            .1;
-        if region.min[1] < dimension.min_y || region.max[1] >= dimension.min_y + dimension.height {
-            return Err(invalid("region outside dimension height"));
-        }
-        let mut blocks = Vec::with_capacity(volume);
-        for y in region.min[1]..=region.max[1] {
-            for z in region.min[2]..=region.max[2] {
-                for x in region.min[0]..=region.max[0] {
-                    let position = [x, y, z];
-                    blocks.push(crate::ObservedBlock {
-                        position,
-                        state: state
-                            .world
-                            .block(position)
-                            .map(super::super::native_state)
-                            .transpose()?,
-                    });
-                }
-            }
-        }
-        Ok(crate::client::Capture {
-            world: crate::Observation {
-                version: crate::MinecraftVersion::Java1_21_11,
-                connection_id: self.bot.session.id,
-                revision: state.world.revision,
-                receive_sequence: Some(state.sequence),
-                captured_at: self.bot.session.started.elapsed(),
-                region,
-                blocks,
-            },
-            player,
-        })
-    }
     fn common_player_unlocked(&self, state: &State) -> Result<crate::client::PlayerObservation> {
         self.bot.session.check(state)?;
         common_player_in_state(
@@ -1662,4 +1354,322 @@ pub(super) fn common_slot(slot: &InventorySlot) -> Result<crate::client::SlotKno
             }
         }
     })
+}
+
+impl crate::client::adapter::CoreOps for Operations {
+    async fn server_registry_state(
+        &self,
+    ) -> Result<crate::client::registry::ServerRegistryObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.session.check(&state)?;
+        Ok(state.registries.capture(
+            crate::client::SessionStamp {
+                version: crate::MinecraftVersion::Java1_21_11,
+                connection_id: self.bot.session.id,
+                world_generation: state.loading.generation,
+            },
+            state.sequence,
+        ))
+    }
+    async fn screen_state(&self) -> Result<crate::client::container::ScreenObservation> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        Ok(crate::client::container::ScreenObservation {
+            session: player.session,
+            receive_sequence: state.sequence,
+            active_window: state.operations.inventory.window_id,
+            player_screen: player.inventory.player_screen,
+            screen: state
+                .operations
+                .inventory
+                .container
+                .as_ref()
+                .map(|s| s.capture(player.session)),
+            cursor: player.inventory.cursor,
+        })
+    }
+    async fn respawn(&self) -> Result<crate::client::RespawnRecord> {
+        let owned = self.clone();
+        tokio::spawn(async move {
+            let state = owned.bot.session.state.lock().await;
+            owned.ready(&state)?;
+            if state.phase != Phase::Play {
+                return Err(invalid("respawn requires play context"));
+            }
+            let player = owned.common_player_unlocked(&state)?;
+            crate::client::respawn::prepare(&owned.bot.respawn_history, &player)?;
+            let result = owned
+                .bot
+                .session
+                .send(ids::play_serverbound::CLIENT_COMMAND, &[0])
+                .await;
+            crate::client::respawn::dispatched(&owned.bot.respawn_history, &result);
+            result?;
+            Ok(
+                crate::client::respawn::snapshot(&owned.bot.respawn_history)
+                    .expect("owned respawn"),
+            )
+        })
+        .await
+        .map_err(|error| Error::from(anyhow::anyhow!("respawn owner failed: {error}")))?
+    }
+    async fn execute(
+        &self,
+        mode: GameMode,
+        action: crate::client::operations::Action<'_>,
+    ) -> Result<Option<i32>> {
+        use crate::client::operations::Action;
+        match action {
+            Action::Entity(target, interaction) => {
+                let state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                self.require_mode(&state, Some(mode))?;
+                state.entities.validate(
+                    crate::client::SessionStamp {
+                        version: crate::MinecraftVersion::Java1_21_11,
+                        connection_id: self.bot.session.id,
+                        world_generation: state.loading.generation,
+                    },
+                    target,
+                )?;
+                self.bot
+                    .session
+                    .send(
+                        ids::play_serverbound::USE_ENTITY,
+                        &interaction.payload(target),
+                    )
+                    .await?;
+            }
+
+            Action::Look(rotation) => {
+                crate::client::operations::validate_rotation(rotation)?;
+                self.look_in_mode(Some(mode), rotation).await?;
+            }
+            Action::SelectHotbar(slot) => self.select_hotbar_in_mode(Some(mode), slot).await?,
+            Action::SetFlying(flying) => {
+                if mode != GameMode::Creative {
+                    return Err(invalid("creative operation required"));
+                }
+                self.flight(crate::client::FlightCommand::SetFlying { flying })
+                    .await?;
+            }
+            Action::MoveFlying(position, rotation) => {
+                crate::client::operations::validate_rotation(rotation)?;
+                if mode != GameMode::Creative {
+                    return Err(invalid("creative operation required"));
+                }
+                self.flight(crate::client::FlightCommand::Move { position, rotation })
+                    .await?;
+            }
+            Action::SetHotbar(slot, item) => {
+                if let Some((name, _)) = item {
+                    crate::client::registry::Registry::for_version(
+                        crate::MinecraftVersion::Java1_21_11,
+                    )
+                    .item(name)?;
+                }
+                self.set_creative_hotbar(slot, item).await?;
+            }
+            Action::Dig(position, face) => {
+                return self.dig_creative(position, face).await.map(Some);
+            }
+            Action::UseOnBlock(position, face, cursor) => {
+                return self.use_on_block(position, face, cursor).await.map(Some);
+            }
+        }
+        Ok(None)
+    }
+    async fn connection_identity(&self) -> Result<crate::client::ConnectionIdentity> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let identity = state
+            .identity
+            .as_ref()
+            .ok_or_else(|| invalid("received login profile unavailable"))?;
+        Ok(crate::client::ConnectionIdentity {
+            session: player.session,
+            uuid: identity.uuid,
+            name: identity.name.clone(),
+        })
+    }
+    async fn entity_spawns(&self) -> Result<crate::client::EntitySpawns> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        Ok(state.entities.capture(player.session, state.sequence))
+    }
+    async fn entity_motion(
+        &self,
+        target: crate::client::EntityId,
+    ) -> Result<crate::client::EntityMotionObservation> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        state
+            .entities
+            .capture_motion(player.session, target, state.sequence)
+    }
+    async fn vehicle_state(&self) -> Result<crate::client::VehicleObservation> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        Ok(state.vehicles.capture(
+            player.session,
+            state.sequence,
+            state.operations.local_player.entity_id,
+            &state.entities,
+        ))
+    }
+    async fn player_state(&self) -> Result<crate::client::PlayerObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.common_player_unlocked(&state)
+    }
+    async fn received_inventory(&self) -> Result<crate::client::ReceivedInventory> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let registries = state
+            .registries
+            .capture(player.session, player.receive_sequence);
+        crate::client::ReceivedInventory::capture(
+            player.session,
+            player.receive_sequence,
+            &player.inventory,
+            registries,
+        )
+    }
+    async fn received_recipes(&self) -> Result<crate::client::ReceivedRecipes> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        state.recipes.capture(
+            player.session,
+            state.sequence,
+            state.registries.capture(player.session, state.sequence),
+        )
+    }
+    async fn received_recipe_ghost(&self) -> Result<Option<crate::client::ReceivedRecipeGhost>> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        state
+            .recipe_ghost
+            .as_ref()
+            .map(|ghost| ghost.capture(player.session))
+            .transpose()
+            .map(Option::flatten)
+    }
+    async fn received_crafting_context(
+        &self,
+    ) -> Result<Option<crate::client::ReceivedCraftingContext>> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let screen = crate::client::container::ScreenObservation {
+            session: player.session,
+            receive_sequence: player.receive_sequence,
+            active_window: state.operations.inventory.window_id,
+            player_screen: player.inventory.player_screen,
+            screen: state
+                .operations
+                .inventory
+                .container
+                .as_ref()
+                .map(|s| s.capture(player.session)),
+            cursor: player.inventory.cursor.clone(),
+        };
+        let registries = state
+            .registries
+            .capture(player.session, player.receive_sequence);
+        let recipes =
+            state
+                .recipes
+                .capture(player.session, player.receive_sequence, registries.clone())?;
+        crate::client::ReceivedCraftingContext::capture(player, screen, registries, recipes)
+    }
+    async fn recipe_book_materials(
+        &self,
+        recipe: &crate::client::RecipeId,
+        crafts: u32,
+        maximum_bound: u32,
+    ) -> Result<crate::client::RecipeBookMaterials> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let registries = state
+            .registries
+            .capture(player.session, player.receive_sequence);
+        let catalogue =
+            state
+                .recipes
+                .capture(player.session, player.receive_sequence, registries.clone())?;
+        let inventory = crate::client::ReceivedInventory::capture(
+            player.session,
+            player.receive_sequence,
+            &player.inventory,
+            registries,
+        )?;
+        crate::client::RecipeBookMaterials::capture(
+            catalogue,
+            inventory,
+            recipe,
+            crafts,
+            maximum_bound,
+        )
+    }
+    async fn received_crafting(&self) -> Result<Option<crate::client::ReceivedCrafting>> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let screen = crate::client::container::ScreenObservation {
+            session: player.session,
+            receive_sequence: state.sequence,
+            active_window: state.operations.inventory.window_id,
+            player_screen: player.inventory.player_screen,
+            screen: state
+                .operations
+                .inventory
+                .container
+                .as_ref()
+                .map(|s| s.capture(player.session)),
+            cursor: player.inventory.cursor.clone(),
+        };
+        let registries = state
+            .registries
+            .capture(player.session, player.receive_sequence);
+        crate::client::ReceivedCrafting::capture(&player, &screen, registries)
+    }
+    async fn capture(&self, region: crate::Region) -> Result<crate::client::Capture> {
+        let volume = region.volume()?;
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let dimension = &state
+            .world
+            .dimension
+            .as_ref()
+            .context("dimension unavailable")?
+            .1;
+        if region.min[1] < dimension.min_y || region.max[1] >= dimension.min_y + dimension.height {
+            return Err(invalid("region outside dimension height"));
+        }
+        let mut blocks = Vec::with_capacity(volume);
+        for y in region.min[1]..=region.max[1] {
+            for z in region.min[2]..=region.max[2] {
+                for x in region.min[0]..=region.max[0] {
+                    let position = [x, y, z];
+                    blocks.push(crate::ObservedBlock {
+                        position,
+                        state: state
+                            .world
+                            .block(position)
+                            .map(super::super::native_state)
+                            .transpose()?,
+                    });
+                }
+            }
+        }
+        Ok(crate::client::Capture {
+            world: crate::Observation {
+                version: crate::MinecraftVersion::Java1_21_11,
+                connection_id: self.bot.session.id,
+                revision: state.world.revision,
+                receive_sequence: Some(state.sequence),
+                captured_at: self.bot.session.started.elapsed(),
+                region,
+                blocks,
+            },
+            player,
+        })
+    }
 }

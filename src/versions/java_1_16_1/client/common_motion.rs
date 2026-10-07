@@ -23,17 +23,6 @@ impl CommonOwner {
     }
 }
 impl Bot {
-    pub(crate) async fn common_target_block(
-        &self,
-        mode: GameMode,
-        distance: f64,
-    ) -> Result<crate::client::survival::BlockTargetObservation> {
-        use crate::client::survival::target;
-        target::validate_reach(distance)?;
-        let _gate = self.coherent_state_gate.lock().await;
-        self.common_motion_admission().await?;
-        self.common_target_in_mode(distance, None, mode).await
-    }
     pub(super) async fn common_target_unlocked(
         &self,
         distance: f64,
@@ -117,16 +106,6 @@ impl Bot {
             maximum_distance: distance,
             hit,
         })
-    }
-    pub(crate) async fn common_preview_path(
-        &self,
-        mode: GameMode,
-        controls: &[SurvivalControl],
-    ) -> Result<MotionPreview> {
-        model::validate_controls(controls)?;
-        let _gate = self.coherent_state_gate.lock().await;
-        self.common_motion_admission().await?;
-        self.common_preview_in_mode(controls, None, mode).await
     }
     pub(super) async fn common_preview_core(
         &self,
@@ -561,128 +540,6 @@ impl Bot {
             }
         }
         Ok(())
-    }
-    pub(crate) async fn common_start_predicted_path(
-        &self,
-        mode: GameMode,
-        controls: &[SurvivalControl],
-    ) -> Result<MotionRecord> {
-        model::validate_controls(controls)?;
-        let _gate = self.coherent_state_gate.lock().await;
-        self.common_motion_admission().await?;
-        // Read the actor revision before capture; a competing native operation
-        // between this boundary and exclusive acquisition refuses before sends.
-        let revision = self
-            .connection
-            .motion_admission_revision()
-            .await
-            .map_err(|e| motion_state(&format!("bounded admission rejected: {e:?}")))?;
-        let preview = self.common_preview_in_mode(controls, None, mode).await?;
-        if preview.initial.received_pose.is_none() {
-            return Err(motion_state(
-                "finite motion requires native own-pose receipt",
-            ));
-        }
-        if !matches!(
-            preview.terminal_clearance,
-            TerminalClearance::Admitted { .. }
-        ) {
-            return Err(motion_state(
-                "finite controls must end in released rest with full dry support",
-            ));
-        }
-        let previous_id = self
-            .common_motion
-            .lock()
-            .await
-            .as_ref()
-            .map(|r| r.record.run_id)
-            .or(self
-                .retired_common_motion
-                .lock()
-                .await
-                .as_ref()
-                .map(|r| r.run_id));
-        let run_id = previous_id
-            .map_or(Some(1), |id| id.checked_add(1))
-            .ok_or_else(|| motion_state("motion run IDs exhausted"))?;
-        let movement_attribute = legacy_movement_attribute(&**self.survival.read().await).cloned();
-        let flight_stop = self
-            .common_motion
-            .lock()
-            .await
-            .as_ref()
-            .and_then(|r| r.flight_stop.clone());
-        let run = NativeMotionRun {
-            flight_stop,
-            expected_motion_revision: self.motion.lock().await.revision(),
-            movement_attribute,
-            record: MotionRecord {
-                session: preview.initial.session,
-                run_id,
-                preview,
-                attempted_tick: 0,
-                dispatched_ticks: 0,
-                status: MotionStatus::Running,
-                problem: None,
-            },
-        };
-        *self.common_motion.lock().await = Some(run.clone());
-        let owner = self.clone_internal();
-        let record = run.record.clone();
-        // No await between retaining the intent and spawning its finite owner.
-        tokio::spawn(async move {
-            if let Err(error) = owner.run_common_path(run.clone(), revision).await {
-                let _gate = owner.coherent_state_gate.lock().await;
-                if let Some(current) = owner
-                    .common_motion
-                    .lock()
-                    .await
-                    .as_mut()
-                    .filter(|current| current.record.run_id == run.record.run_id)
-                {
-                    current.record.status = MotionStatus::RequiresInspection;
-                    current
-                        .record
-                        .problem
-                        .get_or_insert_with(|| error.to_string());
-                }
-            }
-        });
-        Ok(record)
-    }
-    pub(crate) async fn common_motion_record(&self) -> Result<Option<MotionRecord>> {
-        let _gate = self.coherent_state_gate.lock().await;
-        let run = self.common_motion.lock().await.clone();
-        if let Some(run) = &run {
-            if run.record.status == MotionStatus::Predicted {
-                let problem = if self.connection_state() != ConnectionState::Ready {
-                    Some(motion_state("connection closed after finite motion"))
-                } else {
-                    self.legacy_stable_run(run, false).await.err()
-                };
-                if let Some(problem) = problem {
-                    let mut current = self.common_motion.lock().await;
-                    let current = current.as_mut().unwrap();
-                    current.record.status = MotionStatus::RequiresInspection;
-                    current
-                        .record
-                        .problem
-                        .get_or_insert_with(|| problem.to_string());
-                }
-            }
-        }
-        let record = self
-            .common_motion
-            .lock()
-            .await
-            .as_ref()
-            .map(|run| run.record.clone());
-        Ok(if record.is_some() {
-            record
-        } else {
-            self.retired_common_motion.lock().await.clone()
-        })
     }
     async fn legacy_stable_run(
         &self,
@@ -1133,9 +990,159 @@ impl Bot {
     }
 }
 
+impl crate::client::adapter::StandingQueryOps for Bot {
+    async fn target_block(
+        &self,
+        mode: GameMode,
+        distance: f64,
+    ) -> Result<crate::client::survival::BlockTargetObservation> {
+        use crate::client::survival::target;
+        target::validate_reach(distance)?;
+        let _gate = self.coherent_state_gate.lock().await;
+        self.common_motion_admission().await?;
+        self.common_target_in_mode(distance, None, mode).await
+    }
+    async fn preview_path(
+        &self,
+        mode: GameMode,
+        controls: &[SurvivalControl],
+    ) -> Result<MotionPreview> {
+        model::validate_controls(controls)?;
+        let _gate = self.coherent_state_gate.lock().await;
+        self.common_motion_admission().await?;
+        self.common_preview_in_mode(controls, None, mode).await
+    }
+}
+
+impl crate::client::adapter::PathMotionOps for Bot {
+    async fn start_predicted_path(
+        &self,
+        mode: GameMode,
+        controls: &[SurvivalControl],
+    ) -> Result<MotionRecord> {
+        model::validate_controls(controls)?;
+        let _gate = self.coherent_state_gate.lock().await;
+        self.common_motion_admission().await?;
+        // Read the actor revision before capture; a competing native operation
+        // between this boundary and exclusive acquisition refuses before sends.
+        let revision = self
+            .connection
+            .motion_admission_revision()
+            .await
+            .map_err(|e| motion_state(&format!("bounded admission rejected: {e:?}")))?;
+        let preview = self.common_preview_in_mode(controls, None, mode).await?;
+        if preview.initial.received_pose.is_none() {
+            return Err(motion_state(
+                "finite motion requires native own-pose receipt",
+            ));
+        }
+        if !matches!(
+            preview.terminal_clearance,
+            TerminalClearance::Admitted { .. }
+        ) {
+            return Err(motion_state(
+                "finite controls must end in released rest with full dry support",
+            ));
+        }
+        let previous_id = self
+            .common_motion
+            .lock()
+            .await
+            .as_ref()
+            .map(|r| r.record.run_id)
+            .or(self
+                .retired_common_motion
+                .lock()
+                .await
+                .as_ref()
+                .map(|r| r.run_id));
+        let run_id = previous_id
+            .map_or(Some(1), |id| id.checked_add(1))
+            .ok_or_else(|| motion_state("motion run IDs exhausted"))?;
+        let movement_attribute = legacy_movement_attribute(&**self.survival.read().await).cloned();
+        let flight_stop = self
+            .common_motion
+            .lock()
+            .await
+            .as_ref()
+            .and_then(|r| r.flight_stop.clone());
+        let run = NativeMotionRun {
+            flight_stop,
+            expected_motion_revision: self.motion.lock().await.revision(),
+            movement_attribute,
+            record: MotionRecord {
+                session: preview.initial.session,
+                run_id,
+                preview,
+                attempted_tick: 0,
+                dispatched_ticks: 0,
+                status: MotionStatus::Running,
+                problem: None,
+            },
+        };
+        *self.common_motion.lock().await = Some(run.clone());
+        let owner = self.clone_internal();
+        let record = run.record.clone();
+        // No await between retaining the intent and spawning its finite owner.
+        tokio::spawn(async move {
+            if let Err(error) = owner.run_common_path(run.clone(), revision).await {
+                let _gate = owner.coherent_state_gate.lock().await;
+                if let Some(current) = owner
+                    .common_motion
+                    .lock()
+                    .await
+                    .as_mut()
+                    .filter(|current| current.record.run_id == run.record.run_id)
+                {
+                    current.record.status = MotionStatus::RequiresInspection;
+                    current
+                        .record
+                        .problem
+                        .get_or_insert_with(|| error.to_string());
+                }
+            }
+        });
+        Ok(record)
+    }
+    async fn motion_record(&self) -> Result<Option<MotionRecord>> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let run = self.common_motion.lock().await.clone();
+        if let Some(run) = &run {
+            if run.record.status == MotionStatus::Predicted {
+                let problem = if self.connection_state() != ConnectionState::Ready {
+                    Some(motion_state("connection closed after finite motion"))
+                } else {
+                    self.legacy_stable_run(run, false).await.err()
+                };
+                if let Some(problem) = problem {
+                    let mut current = self.common_motion.lock().await;
+                    let current = current.as_mut().unwrap();
+                    current.record.status = MotionStatus::RequiresInspection;
+                    current
+                        .record
+                        .problem
+                        .get_or_insert_with(|| problem.to_string());
+                }
+            }
+        }
+        let record = self
+            .common_motion
+            .lock()
+            .await
+            .as_ref()
+            .map(|run| run.record.clone());
+        Ok(if record.is_some() {
+            record
+        } else {
+            self.retired_common_motion.lock().await.clone()
+        })
+    }
+}
+
 #[cfg(test)]
 pub(super) mod tests {
     use super::*;
+    use crate::client::adapter::PathMotionOps;
     #[test]
     fn dry_terrain_standing_accepts_slab_support_and_refuses_embedded_body_or_water() {
         let mut terrain = crate::NativeBlockState {
@@ -1471,7 +1478,7 @@ pub(super) mod tests {
             input: Default::default(),
         }; 2];
         let started = bot
-            .common_start_predicted_path(GameMode::Survival, &controls)
+            .start_predicted_path(GameMode::Survival, &controls)
             .await
             .unwrap();
         timeout(Duration::from_secs(1), async {
@@ -1510,7 +1517,7 @@ pub(super) mod tests {
         );
         // A cancelled read wait cannot release the actor's retained send.
         let inspected_bot = bot.clone();
-        let waiter = tokio::spawn(async move { inspected_bot.common_motion_record().await });
+        let waiter = tokio::spawn(async move { inspected_bot.motion_record().await });
         tokio::task::yield_now().await;
         waiter.abort();
         drop(writer);
@@ -1526,7 +1533,7 @@ pub(super) mod tests {
         }
         timeout(Duration::from_secs(1), async {
             loop {
-                let record = bot.common_motion_record().await.unwrap().unwrap();
+                let record = bot.motion_record().await.unwrap().unwrap();
                 if record.status != MotionStatus::Running {
                     assert_eq!(
                         record.status,
@@ -1546,10 +1553,10 @@ pub(super) mod tests {
         let mut velocity = vec![42];
         velocity.extend([0; 6]);
         bot.apply_packet(0x46, velocity).await.unwrap();
-        let record = bot.common_motion_record().await.unwrap().unwrap();
+        let record = bot.motion_record().await.unwrap().unwrap();
         assert_eq!(record.status, MotionStatus::RequiresInspection);
         assert!(
-            bot.common_start_predicted_path(GameMode::Survival, &controls)
+            bot.start_predicted_path(GameMode::Survival, &controls)
                 .await
                 .is_err()
         );
@@ -1571,7 +1578,7 @@ pub(super) mod tests {
                 },
             })
             .collect();
-        bot.common_start_predicted_path(GameMode::Survival, &controls)
+        bot.start_predicted_path(GameMode::Survival, &controls)
             .await
             .unwrap();
         timeout(Duration::from_secs(1), packets.recv())
@@ -1587,7 +1594,7 @@ pub(super) mod tests {
         }
         let record = timeout(Duration::from_secs(2), async {
             loop {
-                let record = bot.common_motion_record().await.unwrap().unwrap();
+                let record = bot.motion_record().await.unwrap().unwrap();
                 if record.status != MotionStatus::Running {
                     break record;
                 }
@@ -1600,7 +1607,7 @@ pub(super) mod tests {
         assert!(record.dispatched_ticks < 35);
         assert!(record.problem.unwrap().contains("geometry"));
         assert!(
-            bot.common_start_predicted_path(GameMode::Survival, &controls)
+            bot.start_predicted_path(GameMode::Survival, &controls)
                 .await
                 .is_err()
         );

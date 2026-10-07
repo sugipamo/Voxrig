@@ -6824,10 +6824,8 @@ async fn next_operation_event(events: &mut broadcast::Receiver<Event>) -> Result
     }
 }
 
-impl Bot {
-    pub(crate) async fn common_scoreboard_state(
-        &self,
-    ) -> Result<crate::client::ui::ScoreboardObservation> {
+impl crate::client::adapter::UiOps for Bot {
+    async fn scoreboard_state(&self) -> Result<crate::client::ui::ScoreboardObservation> {
         let _gate = self.coherent_state_gate.lock().await;
         if self.is_stopped() {
             return Err(crate::client::inventory::unavailable("connection closed"));
@@ -6839,10 +6837,7 @@ impl Bot {
             .await
             .capture(player.session, player.receive_sequence))
     }
-}
-
-impl Bot {
-    pub(crate) async fn common_boss_bars(&self) -> Result<crate::client::ui::BossBarsObservation> {
+    async fn boss_bars(&self) -> Result<crate::client::ui::BossBarsObservation> {
         let _gate = self.coherent_state_gate.lock().await;
         if self.is_stopped() {
             return Err(crate::client::inventory::unavailable("connection closed"));
@@ -6854,10 +6849,7 @@ impl Bot {
             .await
             .capture(player.session, player.receive_sequence))
     }
-}
-
-impl Bot {
-    pub(crate) async fn common_teams(&self) -> Result<crate::client::ui::TeamsObservation> {
+    async fn teams(&self) -> Result<crate::client::ui::TeamsObservation> {
         let _gate = self.coherent_state_gate.lock().await;
         if self.is_stopped() {
             return Err(crate::client::inventory::unavailable("connection closed"));
@@ -6869,9 +6861,7 @@ impl Bot {
             .await
             .capture(player.session, player.receive_sequence))
     }
-    pub(crate) async fn common_player_list(
-        &self,
-    ) -> Result<crate::client::ui::PlayerListObservation> {
+    async fn player_list(&self) -> Result<crate::client::ui::PlayerListObservation> {
         let _gate = self.coherent_state_gate.lock().await;
         if self.is_stopped() {
             return Err(crate::client::inventory::unavailable("connection closed"));
@@ -6883,7 +6873,7 @@ impl Bot {
             .await
             .capture(player.session, player.receive_sequence))
     }
-    pub(crate) async fn common_titles(&self) -> Result<crate::client::ui::TitlesObservation> {
+    async fn titles(&self) -> Result<crate::client::ui::TitlesObservation> {
         let _gate = self.coherent_state_gate.lock().await;
         if self.is_stopped() {
             return Err(crate::client::inventory::unavailable("connection closed"));
@@ -6895,7 +6885,7 @@ impl Bot {
             .await
             .titles(player.session, player.receive_sequence))
     }
-    pub(crate) async fn common_tab_list(&self) -> Result<crate::client::ui::TabListObservation> {
+    async fn tab_list(&self) -> Result<crate::client::ui::TabListObservation> {
         let _gate = self.coherent_state_gate.lock().await;
         if self.is_stopped() {
             return Err(crate::client::inventory::unavailable("connection closed"));
@@ -6907,9 +6897,7 @@ impl Bot {
             .await
             .tab_list(player.session, player.receive_sequence))
     }
-    pub(crate) async fn common_world_border(
-        &self,
-    ) -> Result<crate::client::ui::WorldBorderObservation> {
+    async fn world_border(&self) -> Result<crate::client::ui::WorldBorderObservation> {
         let _gate = self.coherent_state_gate.lock().await;
         if self.is_stopped() {
             return Err(crate::client::inventory::unavailable("connection closed"));

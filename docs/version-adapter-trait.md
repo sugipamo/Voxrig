@@ -33,44 +33,41 @@ Client (enum Adapter { Java1_16_1(Box<Bot>), Java1_21_11(Bot) })
 
 ## 共通trait
 
-### 第1段階（実装済み: `src/client/adapter.rs`）
+### 現在の形（実装済み: `src/client/adapter.rs`）
 
-`pub(crate) trait VersionAdapter`に共通操作を一覧で宣言し、`version_adapter!`マクロで
-両版の`Bot`へ実装する。シグネチャが一致しなければコンパイルエラーになる。
-`Client`は`dispatch!(&self.adapter, a => VersionAdapter::method(a, …).await)`で選択中の版へ委譲する。
+共通操作は関心ごとの15個の`pub(crate)` traitに分かれ、`VersionAdapter`はその合成
+（全traitを実装した型に自動実装）。各traitは両版で、実装本体のある1ファイルに1ブロックで
+実装される。1.16.1は`Bot`、1.21.11は`Operations`が実装型。
 
-```rust
-pub(crate) trait VersionAdapter {
-    const VERSION: MinecraftVersion;
-    fn connection_id(&self) -> u64;
-    async fn wait_until_ready(&self) -> Result<()>;
-    async fn disconnect(&self) -> Result<()>;
-    async fn player_state(&self) -> Result<PlayerObservation>;
-    async fn capture(&self, region: Region) -> Result<Capture>;
-    async fn execute(&self, mode: GameMode, action: Action<'_>) -> Result<Option<i32>>;
-    // … 全59メソッド。一覧は adapter.rs が正本
-}
-```
+| trait | 内容 | 1.16.1の実装場所 | 1.21.11の実装場所 |
+| --- | --- | --- | --- |
+| `SessionOps` | `VERSION` `connection_id` 準備・切断・packet trace | `adapter.rs`（公開native APIを公開） | `adapter.rs` |
+| `CoreOps` | login identity、server registry、自身・inventory・entity・vehicle・screen・recipeの受信状態、capture、respawn、基本操作`execute` | `client/common_api.rs` | `client/operations.rs` |
+| `UiOps` | scoreboard・boss bar・teams・player list・titles・tab list・world border | `client.rs` | `client.rs` |
+| `ContainerOps` | container開閉 | `common_container.rs` | `operations/container.rs` |
+| `InventoryClickOps` / `InventorySwapOps` / `InventoryTransferOps` | PICKUP・hotbar交換・QUICK_MOVE | `common_click.rs` / `common_inventory.rs` / `common_transfer.rs` | `operations/inventory/{click,common,transfer}.rs` |
+| `CraftingTakeOps` / `RecipePlacementOps` | 結果取得・recipe配置 | `common_crafting.rs` / `common_recipe_placement.rs` | `operations/inventory/{crafting,recipe_placement}.rs` |
+| `MiningOps` / `PlacementOps` | 採掘・設置 | `common_mining.rs` / `common_placement.rs` | `operations/{mining,placement}.rs` |
+| `StandingQueryOps` / `PathMotionOps` / `FlightOps` | 照準・path予測 / 有限path実行 / creative飛行 | `common_motion.rs` / `common_motion.rs` / `common_flight.rs` | `operations/movement.rs` / `operations/movement/control.rs` / `operations/flight.rs` |
+| `VehicleOps` | 降車・騎乗入力・地上継続 | `common_vehicle.rs` | `operations/vehicle.rs` |
+
+`Client`・`Survival`・`Creative`は`dispatch!(&client.adapter, a => Trait::method(a, …).await)`で
+選択中の版のtrait実装を直接呼ぶ。以前の二重の転送層（`Client`の`pub(crate) common_*`ラッパーと、
+traitから各版の`common_*`への転送）は削除した。
+
+注意: 1.16.1の`Bot::respawn`や1.21.11の`Operations::player_state`など、traitと同名で意味の違う
+固有メソッドがある。メソッド呼び出し構文は固有メソッドを優先するため、traitメソッドは必ず
+`Trait::method(a)`の形で呼ぶ。
 
 trait objectは使わない（`async fn`を`dyn`にするとbox化とSend境界が必要になるため）。
 版の数は少なく固定なのでenumと静的dispatchで十分。
 
-### 第2段階（目標形）
+### 残りの目標
 
-1. **関心ごとに分割する。** `VersionAdapter`を次の部分traitの合成にする。
-   `Session`（接続・準備・切断・記録）、`WorldView`（capture・region）、`PlayerView`（自身・inventory・respawn）、
-   `EntityView`、`UiView`（scoreboard・boss bar・teams・titles・tab・border）、`InventoryOps`、
-   `CraftingOps`、`BlockOps`（target・place・mine）、`MotionOps`（path・flight）、`VehicleOps`。
-2. **実装本体をtrait implへ移す。** 現在は各版の`common_*`へ転送しているだけ。
-   転送層を消し、`common_`接頭辞の重複名を無くす。
-3. **版固有機能は`Client::native()`へ集約する。**
-   ```rust
-   pub enum Native<'a> { Java1_16_1(&'a java_1_16_1::Bot), Java1_21_11(java_1_21_11::Native) }
-   ```
-   `java_1_21_11_operations()`、`observe_client_region()`、`observe_shared_client_region()`、
-   `Survival::checked()`はここへ移す。共通APIは`Unsupported`分岐を持たない。
-4. **crate rootを共通APIにする。** `voxrig::prelude`は`client::prelude`。
-   旧`Bot`/`BotManager`は`voxrig::versions::java_1_16_1`からのみ参照する。
+1. ✅ 関心ごとに分割する。
+2. ✅ 実装本体をtrait implへ移し、転送層と`common_`接頭辞を消す。
+3. ✅ 版固有機能は`Client::native()`へ集約する。
+4. ✅ crate rootを共通APIにする。
 5. **能力表を構造化する。** `Support::Restricted(&str)`の長文を、短い要約と
    docsへのリンクに置き換える。厳密な前提条件は実装の検査とdocsに残し、型の文字列には持たせない。
 
@@ -199,5 +196,5 @@ trait objectは使わない（`async fn`を`dyn`にするとbox化とSend境界�
 1. ✅ `VersionAdapter` traitと`dispatch!`の導入（挙動は不変、全test通過）。
 2. ✅ crate rootの整理: 1.16.1型のglob再exportを外し、`voxrig::prelude`を共通APIへ切り替える。
 3. ✅ 版固有機能を`Client::native()`へ移す（`checked_survival`は`versions::java_1_21_11::checked`へ移設し、`Client`・`Survival`からの入口と`Feature::CheckedSurvival`を削除）。
-4. `VersionAdapter`の分割と、転送層の除去。
+4. ✅ `VersionAdapter`の分割と、転送層の除去。
 5. 上記の優先順位で差分を埋める。

@@ -75,22 +75,6 @@ fn terminal_clearance(state: &impl GeometryView, frame: &PredictedMotionFrame) -
     Ok(())
 }
 impl Operations {
-    pub(crate) async fn common_target_block(
-        &self,
-        mode: crate::client::GameMode,
-        distance: f64,
-    ) -> Result<crate::client::survival::BlockTargetObservation> {
-        use crate::client::survival::target;
-        target::validate_reach(distance)?;
-        let mut state = self.bot.session.state.lock().await;
-        self.ready(&state)?;
-        if self.common_player_unlocked(&state)?.pending_dispatch {
-            return Err(invalid(
-                "prior dispatch unresolved; inspect retained record",
-            ));
-        }
-        self.common_target_unlocked(&mut state, mode, distance)
-    }
     pub(super) fn common_target_unlocked(
         &self,
         state: &mut State,
@@ -144,35 +128,6 @@ impl Operations {
             eye,
             maximum_distance: distance,
             hit,
-        })
-    }
-    pub(crate) async fn common_preview_path(
-        &self,
-        mode: GameMode,
-        controls: &[SurvivalControl],
-    ) -> Result<crate::client::survival::MotionPreview> {
-        let mut state = self.bot.session.state.lock().await;
-        self.ready(&state)?;
-        if self.common_player_unlocked(&state)?.pending_dispatch {
-            return Err(invalid(
-                "prior dispatch unresolved; inspect retained record",
-            ));
-        }
-        let native = preview_in_mode(
-            &mut state,
-            self.bot.session.id,
-            self.bot.session.started.elapsed().as_millis() as u64 / 50,
-            controls,
-            mode,
-        )?;
-        let initial = self.common_player_unlocked(&state)?;
-        Ok(crate::client::survival::MotionPreview {
-            initial,
-            world_revision: native.initial.world_revision,
-            initial_frame: native.initial_frame,
-            controls: native.controls,
-            frames: native.frames,
-            terminal_clearance: native.terminal_clearance,
         })
     }
     /// Preview at most 120 known dry-terrain walking/jump ticks. Uses native default motion
@@ -359,6 +314,54 @@ impl Model {
         model
     }
 }
+impl crate::client::adapter::StandingQueryOps for Operations {
+    async fn target_block(
+        &self,
+        mode: crate::client::GameMode,
+        distance: f64,
+    ) -> Result<crate::client::survival::BlockTargetObservation> {
+        use crate::client::survival::target;
+        target::validate_reach(distance)?;
+        let mut state = self.bot.session.state.lock().await;
+        self.ready(&state)?;
+        if self.common_player_unlocked(&state)?.pending_dispatch {
+            return Err(invalid(
+                "prior dispatch unresolved; inspect retained record",
+            ));
+        }
+        self.common_target_unlocked(&mut state, mode, distance)
+    }
+    async fn preview_path(
+        &self,
+        mode: GameMode,
+        controls: &[SurvivalControl],
+    ) -> Result<crate::client::survival::MotionPreview> {
+        let mut state = self.bot.session.state.lock().await;
+        self.ready(&state)?;
+        if self.common_player_unlocked(&state)?.pending_dispatch {
+            return Err(invalid(
+                "prior dispatch unresolved; inspect retained record",
+            ));
+        }
+        let native = preview_in_mode(
+            &mut state,
+            self.bot.session.id,
+            self.bot.session.started.elapsed().as_millis() as u64 / 50,
+            controls,
+            mode,
+        )?;
+        let initial = self.common_player_unlocked(&state)?;
+        Ok(crate::client::survival::MotionPreview {
+            initial,
+            world_revision: native.initial.world_revision,
+            initial_frame: native.initial_frame,
+            controls: native.controls,
+            frames: native.frames,
+            terminal_clearance: native.terminal_clearance,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

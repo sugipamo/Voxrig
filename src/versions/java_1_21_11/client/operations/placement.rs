@@ -668,54 +668,6 @@ fn common_record_in(state: &State) -> Result<Option<crate::client::survival::Pla
         },
     }))
 }
-impl Operations {
-    pub(crate) async fn common_place_cube(
-        &self,
-        support: [i32; 3],
-        face: crate::BlockFace,
-    ) -> Result<crate::client::survival::PlacementRecord> {
-        self.place_cube_in(support, face, true).await?;
-        self.common_placement_record()
-            .await?
-            .ok_or_else(|| unavailable("common placement capture missing"))
-    }
-    pub(crate) async fn common_placement_record(
-        &self,
-    ) -> Result<Option<crate::client::survival::PlacementRecord>> {
-        let mut state = self.bot.session.state.lock().await;
-        let Some(intent) = state
-            .common_placement
-            .as_ref()
-            .and_then(|c| {
-                state
-                    .placement
-                    .as_ref()
-                    .filter(|p| p.intent.sequence == c.sequence)
-            })
-            .map(|p| p.intent.clone())
-        else {
-            return common_record_in(&state);
-        };
-        if self.bot.session.stopped.load(Ordering::Acquire)
-            || state.failure.is_some()
-            || !state.ready
-            || !matches!(state.phase, Phase::Play)
-        {
-            if let Some(p) = state.placement.as_mut().filter(|p| p.observation.is_none()) {
-                p.requires_inspection
-                    .get_or_insert_with(|| "placement connection closed or uncertain".into());
-            }
-        }
-        common_placement_context_received(&mut state);
-        observe_in(
-            &mut state,
-            self.bot.session.id,
-            self.bot.session.started.elapsed().as_millis() as u64 / 50,
-            &intent,
-        )?;
-        common_record_in(&state)
-    }
-}
 pub(in crate::versions::java_1_21_11::client) fn common_placement_context_received(
     state: &mut State,
 ) {
@@ -771,5 +723,52 @@ pub(in crate::versions::java_1_21_11::client) fn common_placement_context_receiv
             .expect("retained")
             .requires_inspection
             .get_or_insert_with(|| error.to_string());
+    }
+}
+
+impl crate::client::adapter::PlacementOps for Operations {
+    async fn place_cube(
+        &self,
+        support: [i32; 3],
+        face: crate::BlockFace,
+    ) -> Result<crate::client::survival::PlacementRecord> {
+        self.place_cube_in(support, face, true).await?;
+        self.placement_record()
+            .await?
+            .ok_or_else(|| unavailable("common placement capture missing"))
+    }
+    async fn placement_record(&self) -> Result<Option<crate::client::survival::PlacementRecord>> {
+        let mut state = self.bot.session.state.lock().await;
+        let Some(intent) = state
+            .common_placement
+            .as_ref()
+            .and_then(|c| {
+                state
+                    .placement
+                    .as_ref()
+                    .filter(|p| p.intent.sequence == c.sequence)
+            })
+            .map(|p| p.intent.clone())
+        else {
+            return common_record_in(&state);
+        };
+        if self.bot.session.stopped.load(Ordering::Acquire)
+            || state.failure.is_some()
+            || !state.ready
+            || !matches!(state.phase, Phase::Play)
+        {
+            if let Some(p) = state.placement.as_mut().filter(|p| p.observation.is_none()) {
+                p.requires_inspection
+                    .get_or_insert_with(|| "placement connection closed or uncertain".into());
+            }
+        }
+        common_placement_context_received(&mut state);
+        observe_in(
+            &mut state,
+            self.bot.session.id,
+            self.bot.session.started.elapsed().as_millis() as u64 / 50,
+            &intent,
+        )?;
+        common_record_in(&state)
     }
 }
