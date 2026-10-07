@@ -68,3 +68,21 @@ application/coherent-gate delays remained. Adding buffering alone also did not
 resolve that trial's timeout. These negative results motivated the fair
 hot-update fast paths and bounded batch scheduling; they must not be hidden or
 presented as evidence of a complete timeout fix.
+
+## Diagnostic Reader Progress
+
+An additional temporary investigation probe requires both
+`VOXRIG_TRACE_PROTOCOL=1` and `VOXRIG_TRACE_READER_PHASES=1`. Both are opt-in;
+reader progress is disabled by default. It samples once per second, with the
+existing process-wide 65,536-record bound. Each record identifies the SDK
+generation, current phase/packet, phase age, cumulative phase time, decoded and
+applied counts, capture starts/completions and actual packet-read poll counts.
+Coherence-gate waiting is separate from packet handler execution. An unfinished
+await remains visible, including in the final record when the reader is dropped.
+Dropping the reader aborts its reporter; the reporter never acquires gameplay
+locks. It forwards exactly one poll to the same pinned timeout/read future, so
+partial-frame retention, deadline and packet order do not change.
+
+The enabled probe adds per-frame clock/mutex work and a small reporter task.
+Measurements therefore are not a controlled uninstrumented A/B comparison or a
+proven fix. It neither drops EntityStatus traffic nor bypasses the coherence gate.

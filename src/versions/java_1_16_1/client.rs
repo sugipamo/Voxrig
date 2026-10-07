@@ -49,7 +49,9 @@ use crate::versions::java_1_16_1::{
     world::{BlockObservation, Fluid, World},
 };
 use anyhow::Context;
+mod reader_diagnostics;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use reader_diagnostics::{Diagnostics as ReaderDiagnostics, Phase as ReaderPhase};
 use std::{
     collections::{HashMap, VecDeque},
     io::Cursor,
@@ -4560,7 +4562,10 @@ impl Bot {
         cancelled.as_mut().enable();
         // Compression negotiation finishes before entering the play reader.
         let compression = self.writer.lock().await.compression;
+        let diagnostics = ReaderDiagnostics::new(self.connection_generation().get());
         while !self.stopped.load(Ordering::Acquire) {
+            diagnostics.enter(ReaderPhase::Reading, None);
+            diagnostics.read_started();
             // A capture may interrupt waiting, but must not discard bytes
             // already consumed from this packet. Keep both read progress and
             // its original deadline until the packet completes or we exit.
@@ -4578,10 +4583,13 @@ impl Bot {
                             return Ok(());
                         };
                         let started = std::time::Instant::now();
+                        diagnostics.enter(ReaderPhase::Capture, None);
                         let result = self
                             .capture_observation_at_sequence(request.request, next_observation_sequence)
                             .await;
                         self.trace_slow_capture("coherent", next_observation_sequence, started.elapsed(), result.is_ok());
+                        diagnostics.capture_completed();
+                        diagnostics.enter(ReaderPhase::Reading, None);
                         if result.is_ok() {
                             next_observation_sequence = next_observation_sequence
                                 .checked_add(1)
@@ -4594,6 +4602,7 @@ impl Bot {
                             return Ok(());
                         };
                         let started = std::time::Instant::now();
+                        diagnostics.enter(ReaderPhase::MovementCapture, None);
                         let result = self
                             .capture_traversal_movement_facts_at_sequence(
                                 request.request,
@@ -4601,6 +4610,8 @@ impl Bot {
                             )
                             .await;
                         self.trace_slow_capture("movement", next_observation_sequence, started.elapsed(), result.is_ok());
+                        diagnostics.capture_completed();
+                        diagnostics.enter(ReaderPhase::Reading, None);
                         if result.is_ok() {
                             next_observation_sequence = next_observation_sequence
                                 .checked_add(1)
@@ -4608,7 +4619,7 @@ impl Bot {
                         }
                         let _ = request.reply.send(result);
                     }
-                    packet = &mut packet_read => break packet.context("play packet timed out")?,
+                    packet = std::future::poll_fn(|cx| diagnostics.poll(packet_read.as_mut(), cx)) => break packet.context("play packet timed out")?,
                 }
                 // Give the same packet read (and its deadline) one poll after
                 // each capture, without letting a packet backlog starve captures.
@@ -4616,7 +4627,7 @@ impl Bot {
                     biased;
                     _ = &mut cancelled => return Ok(()),
                     packet = std::future::poll_fn(|cx| {
-                        std::task::Poll::Ready(std::future::Future::poll(packet_read.as_mut(), cx))
+                        std::task::Poll::Ready(diagnostics.poll(packet_read.as_mut(), cx))
                     }) => {
                         if let std::task::Poll::Ready(packet) = packet {
                             break packet.context("play packet timed out")?;
@@ -4625,13 +4636,19 @@ impl Bot {
                 }
             };
             let (id, p) = packet?;
-            if !self.apply_packet(id, p).await? {
+            diagnostics.enter(ReaderPhase::ApplyGate, Some(id));
+            if !self
+                .apply_packet_diagnosed(id, p, Some(&diagnostics))
+                .await?
+            {
                 break;
             }
+            diagnostics.applied();
             packets_since_yield += 1;
             if packets_since_yield == 32 {
                 // Yield without cache/gate guards even when all frames and locks are ready.
                 packets_since_yield = 0;
+                diagnostics.enter(ReaderPhase::Yielding, None);
                 tokio::task::yield_now().await;
             }
         }
@@ -4647,7 +4664,17 @@ impl Bot {
         }
     }
 
+    #[cfg(test)]
     async fn apply_packet(&self, id: i32, p: Vec<u8>) -> Result<bool> {
+        self.apply_packet_diagnosed(id, p, None).await
+    }
+
+    async fn apply_packet_diagnosed(
+        &self,
+        id: i32,
+        p: Vec<u8>,
+        diagnostics: Option<&ReaderDiagnostics>,
+    ) -> Result<bool> {
         let keepalive_started = (id == 0x20).then(std::time::Instant::now);
         if keepalive_started.is_some() {
             crate::lifecycle::emit_protocol_timing(|| {
@@ -4656,6 +4683,9 @@ impl Bot {
             });
         }
         let _coherent_state = self.coherent_state_gate.lock().await;
+        if let Some(diagnostics) = diagnostics {
+            diagnostics.enter(ReaderPhase::Applying, Some(id));
+        }
         if let Some(started) = keepalive_started {
             crate::lifecycle::emit_protocol_timing(|| {
                 serde_json::json!({"stage":"keepalive_gate_acquired","generation":self.connection_generation().get(),
