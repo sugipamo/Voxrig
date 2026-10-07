@@ -290,6 +290,15 @@ use tokio::{
     time::{Duration, timeout},
 };
 
+async fn read_session_cache<T>(cache: &RwLock<T>) -> tokio::sync::RwLockReadGuard<'_, T> {
+    // Cardinality checks are short and already inside the coherent-state gate.
+    // try_read respects queued writers; contention retains the async fair path.
+    match cache.try_read() {
+        Ok(guard) => guard,
+        Err(_) => cache.read().await,
+    }
+}
+
 macro_rules! bail {
     ($($argument:tt)*) => {
         return Err(crate::versions::java_1_16_1::Error::from(anyhow::anyhow!($($argument)*)).into())
@@ -4521,8 +4530,9 @@ impl Bot {
         >,
     ) -> Result<()> {
         let mut next_observation_sequence = 1_u64;
+        // Compression negotiation finishes before entering the play reader.
+        let compression = self.writer.lock().await.compression;
         while !self.stopped.load(Ordering::Acquire) {
-            let compression = self.writer.lock().await.compression;
             // A capture may interrupt waiting, but must not discard bytes
             // already consumed from this packet. Keep both read progress and
             // its original deadline until the packet completes or we exit.
@@ -5891,26 +5901,26 @@ impl Bot {
 
     async fn enforce_session_limits(&self) -> Result<()> {
         let limit = self.connection_options.max_cached_records;
-        let players = self.players.read().await.entries.len();
-        let maps = self.maps.read().await.maps.len();
-        let entities = self.entities.read().await.entities.len();
-        let inventory = self.inventory.read().await;
+        let players = read_session_cache(&self.players).await.entries.len();
+        let maps = read_session_cache(&self.maps).await.maps.len();
+        let entities = read_session_cache(&self.entities).await.entities.len();
+        let inventory = read_session_cache(&self.inventory).await;
         let inventory_records = inventory.windows.values().map(Vec::len).sum::<usize>()
             + inventory.properties.len()
             + inventory.pending_clicks.len();
         drop(inventory);
-        let ui = self.ui.read().await;
+        let ui = read_session_cache(&self.ui).await;
         let ui_records = ui.boss_bars.len()
             + ui.objectives.len()
             + ui.display_objectives.len()
             + ui.scores.len()
             + ui.teams.len();
         drop(ui);
-        let progress = self.advancements.read().await;
+        let progress = read_session_cache(&self.advancements).await;
         let progress_records = progress.definitions.len() + progress.progress.len();
         drop(progress);
-        let statistics = self.statistics.read().await.values.len();
-        let recipe_book = self.recipe_book.read().await;
+        let statistics = read_session_cache(&self.statistics).await.values.len();
+        let recipe_book = read_session_cache(&self.recipe_book).await;
         let recipe_records = recipe_book.unlocked.len() + recipe_book.displayed.len();
         let records = players
             .saturating_add(maps)
@@ -6756,6 +6766,7 @@ mod tests {
 
     include!("client/packet_deadline_tests.rs");
     include!("client/packet_fairness_tests.rs");
+    include!("client/reader_throughput_tests.rs");
     include!("client/storage_tests.rs");
 
     struct CountingRead<R> {
