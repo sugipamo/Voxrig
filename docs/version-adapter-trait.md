@@ -43,6 +43,7 @@ Client (enum Adapter { Java1_16_1(Box<Bot>), Java1_21_11(Bot) })
 | --- | --- | --- | --- |
 | `SessionOps` | `VERSION` `connection_id` 準備・切断・packet trace | `adapter.rs`（公開native APIを公開） | `adapter.rs` |
 | `CoreOps` | login identity、server registry、自身・inventory・entity・vehicle・screen・recipeの受信状態、capture、respawn、基本操作`execute` | `client/common_api.rs` | `client/operations.rs` |
+| `ChatOps` | chat・command送信、受信chat履歴 | `client.rs` | `client.rs` |
 | `UiOps` | scoreboard・boss bar・teams・player list・titles・tab list・world border | `client.rs` | `client.rs` |
 | `ContainerOps` | container開閉 | `common_container.rs` | `operations/container.rs` |
 | `InventoryClickOps` / `InventorySwapOps` / `InventoryTransferOps` | PICKUP・hotbar交換・QUICK_MOVE | `common_click.rs` / `common_inventory.rs` / `common_transfer.rs` | `operations/inventory/{click,common,transfer}.rs` |
@@ -134,9 +135,9 @@ trait objectは使わない（`async fn`を`dyn`にするとbox化とSend境界�
 | 機能 | 状態 | 共通API |
 | --- | --- | --- |
 | scoreboard・boss bar・teams・player list・titles・tab list・world border | ◎ | `scoreboard_state` `boss_bars` `teams` `player_list` `titles` `tab_list` `world_border` |
-| chat受信 | ○ | — （1.16.1 `Event::Chat`、1.21.11 `system_messages_after`） |
-| chat送信 | ▲ | — （1.16.1 `send_chat`。1.21.11は`send_command`のみ） |
-| command送信 | ○ | — （両版に`send_command`） |
+| chat受信 | ◎ | `chat_after`（[共通chat](common-chat.md)） |
+| chat送信 | ◎ | `send_chat` |
+| command送信 | ◎ | `send_command` |
 | tab補完 | ▲ | — |
 
 ### inventory・container・crafting
@@ -173,7 +174,7 @@ trait objectは使わない（`async fn`を`dyn`にするとbox化とSend境界�
 
 1. **event streamと待機API**: chunk・block・inventoryの変化待ちとeventを共通化する。
    1.21.11はreceive loopの`sequence`と`Notify`があるので、待機は比較的容易。
-2. **chat送受信・command**: 両版にほぼ実装があり、共通化だけで済む。
+2. ✅ **chat送受信・command**: `ChatOps`で共通化し、両版の実サーバーで確認した。
 3. **entityの現在状態**（metadata・装備・hitbox・他player）: 1.21.11で受信しているが捨てているpacketが多い。
 4. **block検索・geometry query・raycast**: 共通の`Capture`上に版非依存で実装できる。
 5. **汎用物理（`set_control`）**: 1.21.11の物理を乾いた地形以外へ広げる。最も大きい作業。

@@ -477,6 +477,29 @@ impl Operations {
             .await?;
         Ok(())
     }
+    /// Send an unsigned chat line on an offline connection. The server may
+    /// still reject or rewrite it; dispatch is not delivery.
+    pub async fn send_chat(&self, message: &str) -> Result<()> {
+        crate::client::chat::validate_chat(message)?;
+        let state = self.bot.session.state.lock().await;
+        self.mutable(&state)?;
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |elapsed| elapsed.as_millis() as u64);
+        let mut payload = Vec::new();
+        put_string(&mut payload, message);
+        payload.extend_from_slice(&timestamp.to_be_bytes());
+        payload.extend_from_slice(&0u64.to_be_bytes()); // Salt; unused without a signature.
+        payload.push(0); // No signature.
+        payload.push(0); // Last-seen offset.
+        payload.extend_from_slice(&[0; 3]); // Acknowledged last-seen bitset (20 bits).
+        payload.push(0); // Last-seen checksum.
+        self.bot
+            .session
+            .send(ids::play_serverbound::CHAT_MESSAGE, &payload)
+            .await?;
+        Ok(())
+    }
     /// Request flight only when the server advertises the ability.
     pub async fn set_flying(&self, flying: bool) -> Result<()> {
         self.set_flying_in_mode(None, flying).await
@@ -1021,6 +1044,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             });
         }
         input::SYSTEM_CHAT => {
+            state.chat.receive_modern(id, payload, state.sequence)?;
             // Validate framing even when presentation exceeds our projection budget.
             r.skip_nbt()?;
             let overlay = r.bool()?;

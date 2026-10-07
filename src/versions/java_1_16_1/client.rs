@@ -1046,6 +1046,7 @@ pub struct Bot {
     packet_trace: Arc<Mutex<Option<crate::client::recording::TraceCapture>>>,
     common_scoreboard: Arc<Mutex<crate::client::ui::ScoreboardLedger>>,
     common_boss_bars: Arc<Mutex<crate::client::ui::boss_bar::BossBarLedger>>,
+    common_chat: Arc<Mutex<crate::client::chat::ChatLedger>>,
     common_display: Arc<Mutex<crate::client::ui::display::DisplayLedger>>,
     common_teams: Arc<Mutex<crate::client::ui::teams::TeamLedger>>,
     common_player_list: Arc<Mutex<crate::client::ui::player_list::PlayerListLedger>>,
@@ -1161,6 +1162,7 @@ impl Bot {
             packet_trace: self.packet_trace.clone(),
             common_scoreboard: self.common_scoreboard.clone(),
             common_boss_bars: self.common_boss_bars.clone(),
+            common_chat: self.common_chat.clone(),
             common_display: self.common_display.clone(),
             common_teams: self.common_teams.clone(),
             common_player_list: self.common_player_list.clone(),
@@ -1339,6 +1341,7 @@ impl Bot {
             packet_trace: Arc::new(Mutex::new(trace)),
             common_scoreboard: Arc::new(Mutex::new(Default::default())),
             common_boss_bars: Arc::new(Mutex::new(Default::default())),
+            common_chat: Arc::new(Mutex::new(Default::default())),
             common_display: Arc::new(Mutex::new(Default::default())),
             common_teams: Arc::new(Mutex::new(Default::default())),
             common_player_list: Arc::new(Mutex::new(Default::default())),
@@ -4868,7 +4871,14 @@ impl Bot {
                 self.survival.write().await.difficulty = Some(difficulty);
                 self.emit(Event::Difficulty(difficulty));
             }
-            0x0e => self.emit(Event::Chat(parse_chat(&p)?)),
+            0x0e => {
+                let chat = parse_chat(&p)?;
+                self.common_chat
+                    .lock()
+                    .await
+                    .receive_legacy(&p, packet_sequence)?;
+                self.emit(Event::Chat(chat));
+            }
             0x0f => {
                 let changes = self
                     .world
@@ -6821,6 +6831,26 @@ async fn next_operation_event(events: &mut broadcast::Receiver<Event>) -> Result
                 bail!("connection closed while waiting for operation response")
             }
         }
+    }
+}
+
+impl crate::client::adapter::ChatOps for Bot {
+    async fn send_chat(&self, message: &str) -> Result<()> {
+        Bot::send_chat(self, message).await
+    }
+    async fn send_command(&self, command: &str) -> Result<()> {
+        Bot::send_command(self, command).await
+    }
+    async fn chat_after(&self, cursor: u64) -> Result<crate::client::ChatLog> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::client::inventory::unavailable("connection closed"));
+        }
+        let player = self.common_player_unlocked().await?;
+        self.common_chat
+            .lock()
+            .await
+            .after(cursor, player.session, player.receive_sequence)
     }
 }
 

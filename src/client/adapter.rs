@@ -83,6 +83,13 @@ pub(crate) trait CoreOps {
     ) -> Result<Option<i32>>;
 }
 
+/// Chat dispatch and received chat history.
+pub(crate) trait ChatOps {
+    async fn send_chat(&self, message: &str) -> Result<()>;
+    async fn send_command(&self, command: &str) -> Result<()>;
+    async fn chat_after(&self, cursor: u64) -> Result<super::ChatLog>;
+}
+
 /// Received scoreboard, boss bar, team, player-list, title, tab-list and border state.
 pub(crate) trait UiOps {
     async fn scoreboard_state(&self) -> Result<ScoreboardObservation>;
@@ -228,6 +235,7 @@ pub(crate) trait VersionAdapter:
     SessionOps
     + CoreOps
     + UiOps
+    + ChatOps
     + ContainerOps
     + InventoryClickOps
     + InventorySwapOps
@@ -246,6 +254,7 @@ impl<T> VersionAdapter for T where
     T: SessionOps
         + CoreOps
         + UiOps
+        + ChatOps
         + ContainerOps
         + InventoryClickOps
         + InventorySwapOps

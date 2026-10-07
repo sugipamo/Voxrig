@@ -12,6 +12,7 @@
 
 - [共通trait設計と版別対応表](version-adapter-trait.md)（版間API差の整理の正本）
 - [共通APIの能力表](common-capabilities.md)
+- [共通chat・command](common-chat.md)
 - [Client共通化のロードマップ・現在地](client-unification.md)
 - [公開client APIの設計](public-client-api.md)
 - [0.2 client APIへの移行](client-api-migration.md)

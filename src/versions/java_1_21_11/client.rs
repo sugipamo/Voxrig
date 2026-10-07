@@ -89,6 +89,7 @@ struct State {
     vehicles: crate::client::vehicle::PassengerLedger,
     scoreboard: crate::client::ui::ScoreboardLedger,
     boss_bars: crate::client::ui::boss_bar::BossBarLedger,
+    chat: crate::client::chat::ChatLedger,
     display: crate::client::ui::display::DisplayLedger,
     teams: crate::client::ui::teams::TeamLedger,
     player_list: crate::client::ui::player_list::PlayerListLedger,
@@ -143,6 +144,7 @@ impl Default for State {
             vehicles: Default::default(),
             scoreboard: Default::default(),
             boss_bars: Default::default(),
+            chat: Default::default(),
             display: Default::default(),
             teams: Default::default(),
             player_list: Default::default(),
@@ -939,6 +941,9 @@ fn apply_play(
                 .teams
                 .receive(MinecraftVersion::Java1_21_11, payload, state.sequence)?;
         }
+        input::PLAYER_CHAT | input::PROFILELESS_CHAT => {
+            state.chat.receive_modern(id, payload, state.sequence)?;
+        }
         input::BOSS_BAR => {
             state
                 .boss_bars
@@ -1145,6 +1150,21 @@ mod movement_native_trials;
 mod placement_native_trials;
 #[cfg(test)]
 mod tests;
+
+impl crate::client::adapter::ChatOps for operations::Operations {
+    async fn send_chat(&self, message: &str) -> Result<()> {
+        operations::Operations::send_chat(self, message).await
+    }
+    async fn send_command(&self, command: &str) -> Result<()> {
+        operations::Operations::send_command(self, command).await
+    }
+    async fn chat_after(&self, cursor: u64) -> Result<crate::client::ChatLog> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.bot.session.id, false)?;
+        state.chat.after(cursor, player.session, state.sequence)
+    }
+}
 
 impl crate::client::adapter::UiOps for operations::Operations {
     async fn scoreboard_state(&self) -> Result<crate::client::ui::ScoreboardObservation> {

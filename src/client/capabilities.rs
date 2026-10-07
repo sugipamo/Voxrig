@@ -93,6 +93,8 @@ pub enum Feature {
     Teams,
     /// Received profile/list fields, independent of spatial player entities.
     PlayerList,
+    /// Chat and command dispatch with bounded received chat history.
+    Chat,
     /// Received boss-bar ADD, partial updates and REMOVE.
     BossBars,
     /// Received scoreboard declarations, displays and entries.
@@ -139,6 +141,7 @@ impl Feature {
         Feature::DisplayObservation,
         Feature::Teams,
         Feature::PlayerList,
+        Feature::Chat,
         Feature::BossBars,
         Feature::Scoreboard,
         Feature::ClientManagement,
@@ -274,6 +277,10 @@ impl Capabilities {
             Feature::DisplayObservation => restricted(
                 "received titles, tab header/footer and world border fields",
                 "docs/common-ui-display.md",
+            ),
+            Feature::Chat => restricted(
+                "unsigned chat and commands; last 256 received messages in native encoding",
+                "docs/common-chat.md",
             ),
             Feature::BossBars => restricted(
                 "received boss bars, bounded to 4096 entries",

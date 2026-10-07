@@ -2,6 +2,8 @@
 pub(crate) mod adapter;
 pub(crate) use adapter::dispatch;
 pub(crate) mod books;
+pub mod chat;
+pub use chat::{ChatKind, ChatLog, ChatText, ReceivedChat};
 mod capabilities;
 mod config;
 pub(crate) mod constructor;
@@ -83,6 +85,7 @@ pub use vehicle::{
 
 /// Imports for consumers selecting their Minecraft version at setup.
 pub mod prelude {
+    pub use super::chat::{ChatKind, ChatLog, ChatText, ReceivedChat};
     pub use super::container::{
         ContainerCloseId, ContainerCloseRecord, ContainerCloseStage, ContainerOpenId,
         ContainerOpenProcessing, ContainerOpenRecord, ContainerOpenSend, ContainerOpenStage,
