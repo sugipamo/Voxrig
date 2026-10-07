@@ -9,11 +9,23 @@ Java 1.16.1 adapter. It does not change the public API or other adapters.
   connection. The reader snapshots it once instead of locking the outgoing
   packet writer before every incoming frame. The writer still owns outgoing
   encoding and ordering.
+- A single standard Tokio `BufReader` survives both login and play. It amortizes
+  small wire reads and retains bytes prefetched across compression negotiation
+  and the login-success boundary. Frame/decompression allocation limits are
+  unchanged.
 - Every applied packet still checks the same eight caches against
   `max_cached_records`, with the original counts and saturation behavior.
   The short cardinality reads first use `RwLock::try_read`; if unavailable,
   they fall back to the original awaited read. Tokio's queued writer fairness
   is retained.
+- Frequent relative-move, rotation, ground, head-yaw, velocity and teleport
+  entity updates use the equivalent fair `try_write`/async fallback. Local
+  entity-ID checks use `try_lock`/async fallback. Other handlers, physics and
+  public snapshot locks are unchanged.
+- The reader yields after every 32 completed packets, outside all state guards.
+  Captures and cancellation are still polled on each frame, not only each batch.
+  One registered cancellation future survives packet application and batch
+  yields so `notify_waiters` cannot be lost between successive selects.
 - Socket reads, coherent-state locking, handlers and captures still participate
   in cooperative scheduling. This does not unconstrain the entire reader,
   bypass packets or drop backlog to reach KeepAlive sooner.
@@ -38,9 +50,21 @@ Added regression tests cover:
 - External inventory growth detected after a non-growing incoming packet.
 - Two successive frames while the outgoing writer is held, for compression
   disabled, enabled below threshold and enabled above threshold.
+- Login/compression/play frames delivered together, without losing prefetched
+  data; a buffered partial frame interrupted by a coherent capture.
+- Free update locks with exhausted budget, contended/queued update owners,
+  and a ready backlog yielding at exactly 32 frames with cancellation at the
+  batch boundary.
 
-`cargo test --lib -j 1`: 387 passed, zero failed, eight existing tests ignored.
+`cargo test --lib -j 1`: 392 passed, zero failed, eight existing tests ignored.
 The existing partial-frame, deadline, capture fairness and aggregate fail-close
 tests remain included. Controlled tests establish these specific dependencies
 are removed; shared-runtime load and every deployment timeout are not thereby
 proven resolved.
+
+The first two isolated fix trials did still time out (about 106 and 107 seconds).
+The first had 3,736,632 cache acquisitions with no pending polls, but packet
+application/coherent-gate delays remained. Adding buffering alone also did not
+resolve that trial's timeout. These negative results motivated the fair
+hot-update fast paths and bounded batch scheduling; they must not be hidden or
+presented as evidence of a complete timeout fix.
