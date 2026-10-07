@@ -3,6 +3,8 @@ pub(crate) mod adapter;
 pub(crate) use adapter::dispatch;
 pub(crate) mod books;
 pub mod chat;
+pub mod events;
+pub use events::{ClientEvent, EventKind, EventLog};
 mod wait;
 pub use chat::{ChatKind, ChatLog, ChatText, ReceivedChat};
 mod capabilities;
@@ -93,6 +95,7 @@ pub mod prelude {
         ContainerOpenTargetState, ContainerScreen, CursorReturnPlanStep, PlayerScreenAccess,
         ScreenId, ScreenObservation,
     };
+    pub use super::events::{ClientEvent, EventKind, EventLog};
     pub use super::inventory::{
         InventoryClickButton, InventoryClickId, InventoryClickRecord, InventoryClickSource,
         InventoryClickStage, InventorySource, InventorySwapId, InventorySwapRecord,

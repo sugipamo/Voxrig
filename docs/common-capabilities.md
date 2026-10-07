@@ -4,7 +4,7 @@
 `Support::Restricted(Restriction { summary, doc })`の`summary`は要約で、正確な前提条件は各操作の検査と`doc`の文書にある。
 下の「制約の詳細」は、要約へ置き換える前に型の文字列として持っていた内容をそのまま残したもの。
 
-両版（1.16.1・1.21.11）で同じ値を返す。`ConnectionRevocation`、`Registry`、`WorldObservation`、`PlayerObservation`、`BasicControls`、`Waits`（[待機API](common-waits.md)）は`Available`。
+両版（1.16.1・1.21.11）で同じ値を返す。`ConnectionRevocation`、`Registry`、`WorldObservation`、`PlayerObservation`、`BasicControls`、`Waits`（[待機API](common-waits.md)）、`Events`（[change通知](common-events.md)）は`Available`。
 
 | Feature | 要約 | 文書 | 制約の詳細 |
 | --- | --- | --- | --- |

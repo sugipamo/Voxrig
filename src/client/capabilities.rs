@@ -97,6 +97,8 @@ pub enum Feature {
     Chat,
     /// Bounded waits for receive progress, block states, loaded terrain and chat.
     Waits,
+    /// Cursor-read change notifications, bounded to the latest 4096 per connection.
+    Events,
     /// Received boss-bar ADD, partial updates and REMOVE.
     BossBars,
     /// Received scoreboard declarations, displays and entries.
@@ -145,6 +147,7 @@ impl Feature {
         Feature::PlayerList,
         Feature::Chat,
         Feature::Waits,
+        Feature::Events,
         Feature::BossBars,
         Feature::Scoreboard,
         Feature::ClientManagement,
@@ -173,7 +176,8 @@ impl Capabilities {
             | Feature::WorldObservation
             | Feature::PlayerObservation
             | Feature::BasicControls
-            | Feature::Waits => Support::Available,
+            | Feature::Waits
+            | Feature::Events => Support::Available,
             Feature::Respawn => restricted(
                 "one owned request per world after received death; fresh state must be re-read",
                 "docs/common-respawn.md",

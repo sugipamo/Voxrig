@@ -1048,6 +1048,7 @@ pub struct Bot {
     common_scoreboard: Arc<Mutex<crate::client::ui::ScoreboardLedger>>,
     common_boss_bars: Arc<Mutex<crate::client::ui::boss_bar::BossBarLedger>>,
     common_chat: Arc<Mutex<crate::client::chat::ChatLedger>>,
+    common_events: Arc<std::sync::Mutex<crate::client::events::EventLedger>>,
     common_display: Arc<Mutex<crate::client::ui::display::DisplayLedger>>,
     common_teams: Arc<Mutex<crate::client::ui::teams::TeamLedger>>,
     common_player_list: Arc<Mutex<crate::client::ui::player_list::PlayerListLedger>>,
@@ -1166,6 +1167,7 @@ impl Bot {
             common_scoreboard: self.common_scoreboard.clone(),
             common_boss_bars: self.common_boss_bars.clone(),
             common_chat: self.common_chat.clone(),
+            common_events: self.common_events.clone(),
             common_display: self.common_display.clone(),
             common_teams: self.common_teams.clone(),
             common_player_list: self.common_player_list.clone(),
@@ -1346,6 +1348,7 @@ impl Bot {
             common_scoreboard: Arc::new(Mutex::new(Default::default())),
             common_boss_bars: Arc::new(Mutex::new(Default::default())),
             common_chat: Arc::new(Mutex::new(Default::default())),
+            common_events: Arc::new(std::sync::Mutex::new(Default::default())),
             common_display: Arc::new(Mutex::new(Default::default())),
             common_teams: Arc::new(Mutex::new(Default::default())),
             common_player_list: Arc::new(Mutex::new(Default::default())),
@@ -4894,6 +4897,14 @@ impl Bot {
                     .await
                     .apply_multi_block_change_with_changes(&p)?;
                 let count = changes.len();
+                if let Some(kind) =
+                    crate::client::events::bounds(changes.iter().map(|(p, _)| [p.x, p.y, p.z]))
+                {
+                    self.common_events
+                        .lock()
+                        .expect("event ledger poisoned")
+                        .record(packet_sequence, kind);
+                }
                 for (position, state_id) in changes {
                     self.common_placement_block_received(
                         [position.x, position.y, position.z],
@@ -6609,6 +6620,13 @@ impl Bot {
             self.packet_applied.notify_waiters();
         }
         {
+            let sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
+            let mut ledger = self.common_events.lock().expect("event ledger poisoned");
+            for kind in common_event_kinds(&event) {
+                ledger.record(sequence, kind);
+            }
+        }
+        {
             let mut queued = self
                 .observation_events
                 .lock()
@@ -6622,6 +6640,52 @@ impl Bot {
         let _ = self.events.send(event);
     }
 }
+/// Common change notifications for one native event. Multi-block changes are
+/// recorded with their bounds where the packet is applied.
+fn common_event_kinds(event: &Event) -> Vec<crate::client::EventKind> {
+    use crate::client::EventKind as K;
+    let block = |x, y, z| K::BlocksChanged {
+        min: [x, y, z],
+        max: [x, y, z],
+    };
+    match event {
+        Event::BlockChanged { x, y, z, .. } => vec![block(*x, *y, *z)],
+        Event::BlockEntityUpdated(data) => {
+            vec![block(data.position.x, data.position.y, data.position.z)]
+        }
+        Event::ChunkLoaded { x, z } => vec![K::ChunkLoaded { x: *x, z: *z }],
+        Event::ChunkUnloaded { x, z } => vec![K::ChunkUnloaded { x: *x, z: *z }],
+        Event::InventoryUpdated { .. } | Event::SlotUpdated(_) | Event::HeldItemChanged { .. } => {
+            vec![K::InventoryChanged]
+        }
+        Event::WindowOpened(_)
+        | Event::WindowClosed { .. }
+        | Event::WindowProperty(_)
+        | Event::MerchantOffers(_) => vec![K::ScreenChanged],
+        Event::Position(_)
+        | Event::PositionCorrection(_)
+        | Event::Vitals(_)
+        | Event::Experience(_)
+        | Event::GameStateChange(_)
+        | Event::SurvivalStateUpdated => vec![K::PlayerChanged],
+        Event::Login | Event::Spawn | Event::Respawn(_) => vec![K::WorldChanged],
+        Event::EntitySpawned(entity) => vec![K::EntitySpawned {
+            native_id: entity.entity_id,
+        }],
+        Event::EntitiesDestroyed { entity_ids } => entity_ids
+            .iter()
+            .map(|id| K::EntityRemoved { native_id: *id })
+            .collect(),
+        Event::Chat(_) => vec![K::ChatReceived],
+        Event::UiStateUpdated(_) | Event::PlayerListUpdated { .. } => vec![K::UiChanged],
+        Event::Disconnected { .. }
+        | Event::Error {
+            kind: "connection", ..
+        } => vec![K::Disconnected],
+        _ => Vec::new(),
+    }
+}
+
 fn parse_tab_completion(payload: &[u8]) -> Result<TabCompletion> {
     let mut rest = payload;
     let transaction_id = get_varint(&mut rest)?;
@@ -6840,6 +6904,18 @@ async fn next_operation_event(events: &mut broadcast::Receiver<Event>) -> Result
                 bail!("connection closed while waiting for operation response")
             }
         }
+    }
+}
+
+impl crate::client::adapter::EventOps for Bot {
+    async fn events_after(&self, cursor: u64) -> Result<crate::client::EventLog> {
+        // Packet application holds this gate, so the log and sequence agree.
+        let _gate = self.coherent_state_gate.lock().await;
+        let sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
+        self.common_events
+            .lock()
+            .expect("event ledger poisoned")
+            .after(cursor, sequence)
     }
 }
 

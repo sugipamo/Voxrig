@@ -83,6 +83,13 @@ pub(crate) trait CoreOps {
     ) -> Result<Option<i32>>;
 }
 
+/// Change notifications.
+pub(crate) trait EventOps {
+    /// Events after `cursor`, with the receive sequence read under the same
+    /// boundary. Readable after the connection closes.
+    async fn events_after(&self, cursor: u64) -> Result<super::events::EventLog>;
+}
+
 /// Waiting for receive progress.
 pub(crate) trait WaitOps {
     /// Resolve once the connection has applied a packet with a receive
@@ -244,6 +251,7 @@ pub(crate) trait VersionAdapter:
     + UiOps
     + ChatOps
     + WaitOps
+    + EventOps
     + ContainerOps
     + InventoryClickOps
     + InventorySwapOps
@@ -264,6 +272,7 @@ impl<T> VersionAdapter for T where
         + UiOps
         + ChatOps
         + WaitOps
+        + EventOps
         + ContainerOps
         + InventoryClickOps
         + InventorySwapOps

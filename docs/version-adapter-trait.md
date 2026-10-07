@@ -45,6 +45,7 @@ Client (enum Adapter { Java1_16_1(Box<Bot>), Java1_21_11(Bot) })
 | `CoreOps` | login identity、server registry、自身・inventory・entity・vehicle・screen・recipeの受信状態、capture、respawn、基本操作`execute` | `client/common_api.rs` | `client/operations.rs` |
 | `ChatOps` | chat・command送信、受信chat履歴 | `client.rs` | `client.rs` |
 | `WaitOps` | 受信の進行を待つ | `client.rs` | `client.rs` |
+| `EventOps` | change通知の読み出し | `client.rs` | `client.rs`（記録は`client/event_kinds.rs`） |
 | `UiOps` | scoreboard・boss bar・teams・player list・titles・tab list・world border | `client.rs` | `client.rs` |
 | `ContainerOps` | container開閉 | `common_container.rs` | `operations/container.rs` |
 | `InventoryClickOps` / `InventorySwapOps` / `InventoryTransferOps` | PICKUP・hotbar交換・QUICK_MOVE | `common_click.rs` / `common_inventory.rs` / `common_transfer.rs` | `operations/inventory/{click,common,transfer}.rs` |
@@ -93,7 +94,7 @@ trait objectは使わない（`async fn`を`dyn`にするとbox化とSend境界�
 | 受信packet記録・再生 | ◎ | `start/stop_packet_trace` `connect_recorded` | `common_recording` | `PacketTrace` |
 | 接続ID・login identity | ◎ | `connection_identity` | | |
 | 複数client管理 | ◎ | `ClientManager` | `BotManager` | |
-| event stream | ▲ | — | `subscribe` (`Event`) | なし |
+| event stream | ◎ | `events_after` `wait_for_events`（[change通知](common-events.md)） | `subscribe` (`Event`) | |
 | 接続状態・generation・操作admission | ▲ | — | `connection_state` `admit_operation` | なし |
 | client settings・resource pack・brand | ▲ | — | `set_client_settings` `respond_resource_pack` `server_brand` | resource packは拒否 |
 
@@ -173,7 +174,7 @@ trait objectは使わない（`async fn`を`dyn`にするとbox化とSend境界�
 
 利用者が汎用botを書くときに困る順。
 
-1. **event streamと待機API**: ✅ 待機API（`WaitOps`、両版の実サーバーで確認済み）。event streamは設計メモから。
+1. ✅ **event streamと待機API**: 待機API（`WaitOps`）とchange通知（`EventOps`）。両版の実サーバーで確認済み。
 2. ✅ **chat送受信・command**: `ChatOps`で共通化し、両版の実サーバーで確認した。
 3. **entityの現在状態**（metadata・装備・hitbox・他player）: 1.21.11で受信しているが捨てているpacketが多い。
 4. **block検索・geometry query・raycast**: 共通の`Capture`上に版非依存で実装できる。

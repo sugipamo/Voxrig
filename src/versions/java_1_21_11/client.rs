@@ -3,6 +3,7 @@ mod correction;
 #[cfg(test)]
 mod edge_native_trials;
 mod entity;
+mod event_kinds;
 mod loading;
 mod motion;
 mod observations;
@@ -90,6 +91,7 @@ struct State {
     scoreboard: crate::client::ui::ScoreboardLedger,
     boss_bars: crate::client::ui::boss_bar::BossBarLedger,
     chat: crate::client::chat::ChatLedger,
+    events: crate::client::events::EventLedger,
     display: crate::client::ui::display::DisplayLedger,
     teams: crate::client::ui::teams::TeamLedger,
     player_list: crate::client::ui::player_list::PlayerListLedger,
@@ -145,6 +147,7 @@ impl Default for State {
             scoreboard: Default::default(),
             boss_bars: Default::default(),
             chat: Default::default(),
+            events: Default::default(),
             display: Default::default(),
             teams: Default::default(),
             player_list: Default::default(),
@@ -194,6 +197,7 @@ impl State {
                     }),
             );
         }
+        let in_play = self.phase == Phase::Play;
         let result = match self.phase {
             Phase::Configuration => apply_configuration(self, id, payload),
             Phase::Play => apply_play(self, id, payload, max_chunks),
@@ -216,6 +220,11 @@ impl State {
             operations::inventory::transfer::context_received(self);
             operations::container::context_received(self);
             operations::mining::common_mining_context_received(self);
+            if in_play {
+                for kind in event_kinds::kinds(id, payload) {
+                    self.events.record(self.sequence, kind);
+                }
+            }
         }
         if let Err(error) = &result {
             self.failure = Some(Error::new(
@@ -1150,6 +1159,19 @@ mod movement_native_trials;
 mod placement_native_trials;
 #[cfg(test)]
 mod tests;
+
+impl crate::client::adapter::EventOps for operations::Operations {
+    async fn events_after(&self, cursor: u64) -> Result<crate::client::EventLog> {
+        let mut state = self.bot.session.state.lock().await;
+        if self.bot.session.stopped.load(Ordering::Acquire) && !state.events.closed() {
+            let sequence = state.sequence;
+            state
+                .events
+                .record(sequence, crate::client::EventKind::Disconnected);
+        }
+        state.events.after(cursor, state.sequence)
+    }
+}
 
 impl crate::client::adapter::WaitOps for operations::Operations {
     async fn wait_for_receive(&self, after: u64) -> Result<u64> {
