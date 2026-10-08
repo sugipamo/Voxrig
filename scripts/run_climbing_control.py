@@ -129,7 +129,7 @@ def run_vehicle_checks(version, vehicle, mode, command, request, trace, report):
     request("disconnect")
 
 
-def run(version, binary, jars, vehicle=None, mode="survival", check=None):
+def run(version, binary, jars, vehicle=None, mode="survival", check=None, server_properties=None):
     folder = ROOT / (version + "-" + time.strftime("%Y%m%d-%H%M%S"))
     folder.mkdir(parents=True)
     if jars:
@@ -154,6 +154,10 @@ def run(version, binary, jars, vehicle=None, mode="survival", check=None):
         "enable-status": "false", "sync-chunk-writes": "false",
         "network-compression-threshold": 256,
     }
+    if server_properties:
+        if set(server_properties) - {"view-distance", "simulation-distance", "max-players"}:
+            raise ValueError("unsupported isolated server property override")
+        props.update(server_properties)
     if version != "1.16.1":
         props["generator-settings"] = json.dumps({"biome": "minecraft:plains", "layers": [
             {"block": "minecraft:bedrock", "height": 1},

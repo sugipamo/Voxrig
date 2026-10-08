@@ -117,6 +117,20 @@ impl ConnectionState {
     }
 }
 
+/// A protocol packet rejected by the actor before any write was attempted.
+/// Kept distinct from writer/channel failures so teardown cannot certify
+/// delivery or transport closure from an admission decision.
+#[derive(Debug)]
+pub(crate) struct ProtocolDispatchRejected {
+    pub(crate) state: ConnectionState,
+}
+impl Display for ProtocolDispatchRejected {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("protocol dispatch rejected after operation barrier")
+    }
+}
+impl std::error::Error for ProtocolDispatchRejected {}
+
 /// Operation class used by the disconnect barrier.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OperationClass {
@@ -1330,9 +1344,7 @@ impl ConnectionActor {
                         } else {
                             Err(crate::Error::new(
                                 crate::ErrorKind::State,
-                                anyhow::anyhow!(
-                                    "protocol dispatch rejected after operation barrier"
-                                ),
+                                ProtocolDispatchRejected { state },
                             ))
                         };
                         let write_failed = result.is_err() && admitted;
@@ -2578,6 +2590,36 @@ mod tests {
             "legacy None duration remains held-key compatible"
         );
         no_packet(&mut server).await;
+    }
+
+    #[tokio::test]
+    async fn protocol_admission_rejection_is_distinct_from_write_failure() {
+        let (actor, mut server, _) = actor_fixture_with_writer().await;
+        actor.mark_ready().await;
+        actor.begin_disconnect().await.unwrap();
+        let error = actor.dispatch_protocol(0x10, &[0; 8]).await.unwrap_err();
+        assert_eq!(
+            error
+                .diagnostic()
+                .downcast_ref::<ProtocolDispatchRejected>()
+                .unwrap()
+                .state,
+            ConnectionState::Disconnecting
+        );
+        assert_eq!(actor.lifecycle(), ConnectionState::Disconnecting);
+        no_packet(&mut server).await;
+
+        let (actor, _server, writer) = actor_fixture_with_writer().await;
+        actor.mark_ready().await;
+        writer.lock().await.inner.shutdown().await.unwrap();
+        let error = actor.dispatch_protocol(0x10, &[0; 8]).await.unwrap_err();
+        assert!(
+            error
+                .diagnostic()
+                .downcast_ref::<ProtocolDispatchRejected>()
+                .is_none()
+        );
+        assert_eq!(actor.lifecycle(), ConnectionState::ConnectionStateUnknown);
     }
 
     #[tokio::test]

@@ -20,6 +20,7 @@ include = [
     "/scripts/run_climbing_control.py",
     "/scripts/run_native_event_capacity.py",
     "/scripts/run_entity_parts_dispatch.py",
+    "/scripts/run_connection_stability.py",
     "/scripts/NativeReconfigurationControl.java",
     "/scripts/ExportRecipeDisplays.java",
     "/scripts/ExportCraftingReturns.java",
