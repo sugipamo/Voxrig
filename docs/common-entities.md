@@ -137,6 +137,23 @@ Survival/Creative の送信 ID と action、拒否した対象が送信されな
 親の受信出典・モデル・対象 ID を [dragon-parts-validation.json](dragon-parts-validation.json) に保存した。
 この確認では攻撃パケットを送っておらず、native 形状の実測や End 戦闘成功を示さない。
 
+最新 main と統合した SDK の追加検証では、`examples/entity_parts_dispatch_probe.rs` と
+`scripts/run_entity_parts_dispatch.py` を使い、公式両版へ実接続した。
+1.16.1 では Survival / Creative の頭・翼への一度だけの攻撃送信を元パケットと照合し、
+誤った mode handle、離陸後の頭、死亡・削除後の部位、別個体の生成後も古い対象、
+world 変更後の対象を拒否し、攻撃パケットを書かないことを確認した。
+1.21.11 では `UnsupportedVersion` を確認した。
+[追加の送信検証記録](evidence/dragon-part-dispatch-20261008.json) は元パケットと対象寿命の検証であり、
+NoAI の native 形状との一致、damage、End 戦闘、Golemkit 移行を確認したものではない。
+
+```sh
+cargo build --locked --example entity_parts_dispatch_probe
+python3 scripts/run_entity_parts_dispatch.py --accept-eula
+```
+
+この runner は隔離した localhost の公式サーバーを起動し、終了時に停止する。
+検証用の召喚・mode・phase・world 変更は、その一時サーバーだけに対して行う。
+
 Golemkit が固定する SDK `edddce3c` はこの common API より前の版である。
 Golemkit の adapter 移行と SDK pin 更新、移行後の実際の組み合わせによる End 検証は別途必要
 （[Golemkit #119](https://github.com/sugipamo/Golemkit/issues/119)）。
