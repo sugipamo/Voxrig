@@ -621,7 +621,7 @@ impl Creative {
     }
     /// Use the item in `hand` without a target (eat, drink, raise a shield, draw a bow).
     /// Dispatch only: whether use started is the received `PlayerObservation::using_item`.
-    /// Refused while a continuous control session runs, since its slowdown is not modeled.
+    /// A running control session applies the item-use slowdown once that is received.
     pub async fn use_item(&self, hand: super::Hand) -> Result<DispatchReceipt> {
         self.client
             .execute(GameMode::Creative, Action::UseItem(hand))
@@ -655,7 +655,7 @@ impl Survival {
     }
     /// Use the item in `hand` without a target (eat, drink, raise a shield, draw a bow).
     /// Dispatch only: whether use started is the received `PlayerObservation::using_item`.
-    /// Refused while a continuous control session runs, since its slowdown is not modeled.
+    /// A running control session applies the item-use slowdown once that is received.
     pub async fn use_item(&self, hand: super::Hand) -> Result<DispatchReceipt> {
         self.client
             .execute(GameMode::Survival, Action::UseItem(hand))

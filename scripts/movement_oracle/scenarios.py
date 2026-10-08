@@ -225,8 +225,22 @@ def water():
     yield scenario("lava_float_released", pool(fluid=lava), ticks(30), start=surface, on_ground=False)
 
 
+def item_use():
+    """Moving while an item is in use (LocalPlayer's input scaling and sprint rules)."""
+    shield = "minecraft:shield"
+    yield scenario("use_walk", floor(), ticks(10, forward=1) + ticks(20, forward=1, using=shield) + ticks(10, forward=1))
+    yield scenario("use_while_sprinting", floor(), ticks(10, forward=1, sprint=True) + ticks(20, forward=1, sprint=True, using=shield)
+                   + ticks(10, forward=1, sprint=True))
+    yield scenario("use_blocks_sprint_start", floor(), ticks(15, forward=1, sprint=True, using=shield) + ticks(15, forward=1, sprint=True))
+    yield scenario("use_sneak_diagonal", floor(), ticks(25, forward=1, strafe=1, sneak=True, using=shield, yaw=20.0) + ticks(5, yaw=20.0))
+    yield scenario("use_jump_walk", floor(), ticks(30, forward=1, jump=True, using=shield) + ticks(10))
+    yield scenario("use_swim", pool(), ticks(30, forward=1, jump=True, using=shield) + ticks(10, forward=1, jump=True), start=(0.5, -3.0, 0.5))
+    yield scenario("use_spear_sprint", floor(), ticks(10, forward=1, sprint=True, using="minecraft:wooden_spear") + ticks(10, forward=1, sprint=True),
+                   versions=["1.21.11"])
+
+
 def main():
-    items = [*baseline(), *materials(), *actions(), *modifiers(), *terrain(), *modifiers_extra(), *water()]
+    items = [*baseline(), *materials(), *actions(), *modifiers(), *terrain(), *modifiers_extra(), *water(), *item_use()]
     path = Path(__file__).with_name("scenarios.json")
     path.write_text(json.dumps(items, indent=1) + "\n")
     print(f"{len(items)} scenarios")

@@ -96,6 +96,10 @@ public final class MovementOracle {
             crouching = !abilities.flying && !isSwimming() && canEnterPose(Pose.CROUCHING)
                 && (isShiftKeyDown() || !isSleeping() && !canEnterPose(Pose.STANDING));
             tickInput(isMovingSlowly());
+            if (isUsingItem() && !isPassenger()) {
+                leftImpulse *= 0.2F;
+                forwardImpulse *= 0.2F;
+            }
             if (!noPhysics) {
                 double w = getBbWidth() * 0.35;
                 checkInBlock(getX() - w, getY() + 0.5, getZ() + w);
@@ -378,6 +382,15 @@ public final class MovementOracle {
             keys.shiftKeyDown = t.has("sneak") && t.get("sneak").getAsBoolean();
             keys.sprint = t.has("sprint") && t.get("sprint").getAsBoolean();
             player.next = keys;
+            // Item use as the client starts it (Minecraft.handleKeybinds runs before the player tick).
+            String using = t.has("using") ? t.get("using").getAsString() : null;
+            if (using != null && !player.isUsingItem()) {
+                player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,
+                    new net.minecraft.world.item.ItemStack(Registry.ITEM.get(new ResourceLocation(using))));
+                player.startUsingItem(net.minecraft.world.InteractionHand.MAIN_HAND);
+            } else if (using == null && player.isUsingItem()) {
+                player.stopUsingItem();
+            }
             player.yRot = t.get("yaw").getAsFloat();
             player.xRot = t.has("pitch") ? t.get("pitch").getAsFloat() : 0.0F;
             player.tick();
@@ -392,6 +405,7 @@ public final class MovementOracle {
             f.addProperty("pose", player.getPose().name());
             f.addProperty("in_water", player.isInWater());
             f.addProperty("swimming", player.isSwimming());
+            f.addProperty("using", player.isUsingItem());
             f.addProperty("speed", Float.toString(player.getSpeed()));
             f.addProperty("fall_distance", Double.toString(player.fallDistance));
             frames.add(f);

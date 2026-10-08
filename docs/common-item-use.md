@@ -67,11 +67,20 @@ client.wait_for_block([10, 64, 20], std::time::Duration::from_secs(3), |b| {
 
 ## 継続操作との関係
 
-アイテム使用中の減速（公式clientの入力×0.2）は[共有物理エンジン](physics-engine.md)にまだない。そのため:
+継続操作（`start_control`）の実行中も`use_item`・`release_use_item`・`use_on_block`を送れる。
+アイテム使用中の減速は[共有物理エンジン](physics-engine.md)が公式clientと同じ規則で再現する
+（[比較基準](movement-oracle.md)の場面`use_*`で両版ともbit単位で一致）。
 
-- 継続操作（`start_control`）の実行中は`use_item`を拒否する。
-- 受信した`using_item`が使用中のときは`start_control`を拒否し、実行中に使用中を受信したsessionは`Stopped`になる。
-- `use_on_block`と`release_use_item`は継続操作中も送れる。
+- 入力の縮小: 1.16.1は入力を×0.2（しゃがみの後）。1.21.11は×0.98の後に、使用中のアイテムの
+  `minecraft:use_effects`の`speed_multiplier`を掛ける（既定0.2。槍は1.0）。
+- ダッシュ: 使用中は開始しない（1.21.11は`can_sprint`がfalseのとき。槍は開始できる）。
+  すでにダッシュ中なら、使用を始めても止まらない（公式clientと同じ）。
+- 使用中かどうかは**受信した**`using_item`に従う。公式clientは使用を自分で始めた時点から減速するが、
+  Voxrigはserverの報告を受け取った時点から減速する（往復の遅れの分だけ、最初の数tickは減速しない）。
+  - `release_use_item`を送ると、その時点で減速をやめる（公式clientと同じ）。古い「使用中」の受信は使わない。
+  - 使用中のアイテムが受信したinventoryから分からない場合（1.21.11で`use_effects`が決まらない）は、
+    sessionを`Paused`にして何も送らない。
+- `ControlFrame::using_item`に、そのtickに適用した減速（`ItemUse`）が入る。
 
 ## 実サーバーでの確認（2026-10-08）
 
@@ -83,9 +92,8 @@ client.wait_for_block([10, 64, 20], std::time::Duration::from_secs(3), |b| {
 | --- | --- | --- |
 | 金のリンゴを食べる（main hand） | 使用中の受信 65 ms後、終了と個数2→1の受信 1.61 s後 | 21 ms後、1.60 s後 |
 | 盾（off hand）を構えて下ろす | 使用中→離して44 ms後に非使用 | 同じ（43 ms） |
-| 使用中の`start_control` | 拒否 | 拒否 |
 | 弓を1.2 s引いて放つ | 矢4→3 | 矢4→3 |
-| 継続操作中の`use_item` | 拒否 | 拒否 |
+| 盾を構えたまま継続操作でダッシュキーを押して歩く→下ろす→歩きながら構える | 減速・ダッシュなし→ダッシュ開始→ダッシュ継続のまま減速。serverの補正0回、serverの最後の位置が予測とbit単位で一致 | 同じ |
 | 床の上面へ松明 | 松明が設置され4→3 | 同じ（操作番号4） |
 | 素手でレバー・ドア | `powered=true`・`open=true`を受信 | 同じ |
 | 4.5より遠い対象 | 送信前に拒否 | 送信前に拒否 |

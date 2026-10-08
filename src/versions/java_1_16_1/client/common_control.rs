@@ -21,6 +21,12 @@ impl ContinuousControl {
     pub(crate) fn active(&self) -> bool {
         self.session.as_ref().is_some_and(ControlSession::running)
     }
+    /// A release was sent: the running session stops applying the item-use slowdown.
+    pub(crate) fn item_released(&mut self, received: &Received) {
+        if let Some(session) = self.session.as_mut().filter(|s| s.running()) {
+            session.item_released(received);
+        }
+    }
 }
 
 fn invalid(message: &str) -> Error {
@@ -41,7 +47,7 @@ fn uuid_text(u: [u8; 16]) -> String {
 
 impl Bot {
     /// Received facts for the engine, from the Bot's own-player projection.
-    async fn control_received(&self) -> Received {
+    pub(super) async fn control_received(&self) -> Received {
         let survival = self.survival.read().await;
         let mut environment = Environment::defaults(MinecraftVersion::Java1_16_1);
         if let Some(speed) = survival
@@ -84,18 +90,23 @@ impl Bot {
         environment.may_fly = survival.flying_allowed;
         environment.fast_lava = survival.dimension.as_deref() == Some("minecraft:the_nether");
         drop(survival);
-        let pose = self
-            .common_receipts
-            .lock()
-            .await
+        let receipts = self.common_receipts.lock().await;
+        let pose = receipts
             .pose
             .as_ref()
             .map(|p| (p.receive_sequence, p.position, Some([0.0; 3])));
+        let using_item = crate::client::item_use::received_use(
+            receipts.using_item.as_ref(),
+            receipts.selected_hotbar.as_ref().map(|s| s.value),
+            &receipts.inventory.slots,
+        );
+        drop(receipts);
         let velocity = *self.own_velocity_receipt.lock().await;
         Received {
             environment,
             pose,
             velocity,
+            using_item,
         }
     }
 
@@ -106,13 +117,6 @@ impl Bot {
         }
         if receipts.requested_flying || receipts.vehicles.motion_interrupted() {
             return Some("flying or riding");
-        }
-        if receipts
-            .using_item
-            .as_ref()
-            .is_some_and(|u| u.value.is_some())
-        {
-            return Some(crate::client::item_use::USING_ITEM_STOP);
         }
         drop(receipts);
         let survival = self.survival.read().await;

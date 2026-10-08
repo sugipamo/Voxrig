@@ -6,6 +6,7 @@
 use anyhow::{Context, bail, ensure};
 use std::io::Write;
 use std::time::{Duration, Instant};
+use voxrig::client::control::Controls;
 use voxrig::client::prelude::*;
 
 const NAME: &str = "ProbeUse";
@@ -159,13 +160,6 @@ async fn main() -> anyhow::Result<()> {
     // Shield in the off hand: raise, hold, lower.
     survival.use_item(Hand::Off).await?;
     wait_player(&client, "shield up", |s| using(s) == Some(Some(Hand::Off))).await?;
-    // Continuous control refuses to start while an item is in use.
-    let refused = survival.start_control().await;
-    println!(
-        "CONTROL_WHILE_USING {:?}",
-        refused.as_ref().map(|_| ()).map_err(|e| e.to_string())
-    );
-    ensure!(refused.is_err(), "control started while using an item");
     tokio::time::sleep(Duration::from_millis(500)).await;
     survival.release_use_item().await?;
     let (_, lowered) = wait_player(&client, "shield down", |s| using(s) == Some(None)).await?;
@@ -182,16 +176,6 @@ async fn main() -> anyhow::Result<()> {
     })
     .await?;
     println!("BOW arrows={}", count(&state, 38));
-
-    // Item use is refused during continuous control.
-    survival.start_control().await?;
-    let refused = survival.use_item(Hand::Main).await;
-    println!(
-        "USE_DURING_CONTROL {:?}",
-        refused.as_ref().map(|_| ()).map_err(|e| e.to_string())
-    );
-    ensure!(refused.is_err(), "item use accepted during control");
-    survival.stop_control().await?;
 
     // Torch on the floor block two cells ahead.
     survival.select_hotbar(3).await?;
@@ -256,6 +240,68 @@ async fn main() -> anyhow::Result<()> {
         .await;
     ensure!(far.is_err(), "out-of-reach target accepted");
     println!("FAR refused: {}", far.unwrap_err());
+
+    // Held-key movement with the shield raised, then lowered, then raised again.
+    survival.use_item(Hand::Off).await?;
+    wait_player(&client, "shield up", |s| using(s) == Some(Some(Hand::Off))).await?;
+    survival.start_control().await?;
+    let ahead = Controls {
+        forward: 1,
+        sprint: true,
+        ..Default::default()
+    };
+    survival.set_controls(ahead).await?;
+    tokio::time::sleep(Duration::from_millis(1000)).await;
+    let r = survival.control_record().await?.context("record")?;
+    let f = r.frame.clone().context("frame")?;
+    println!(
+        "CONTROL_SHIELD status={:?} using={:?} sprinting={} pos={:?}",
+        r.status, f.using_item, f.sprinting, f.position
+    );
+    ensure!(
+        f.using_item.is_some() && !f.sprinting,
+        "shield slowdown not applied"
+    );
+    survival.release_use_item().await?;
+    tokio::time::sleep(Duration::from_millis(1000)).await;
+    let f = survival
+        .control_record()
+        .await?
+        .context("record")?
+        .frame
+        .context("frame")?;
+    println!(
+        "CONTROL_LOWERED using={:?} sprinting={}",
+        f.using_item, f.sprinting
+    );
+    ensure!(
+        f.using_item.is_none() && f.sprinting,
+        "release did not end the slowdown"
+    );
+    survival.use_item(Hand::Off).await?;
+    tokio::time::sleep(Duration::from_millis(1000)).await;
+    let f = survival
+        .control_record()
+        .await?
+        .context("record")?
+        .frame
+        .context("frame")?;
+    println!(
+        "CONTROL_RAISED_WHILE_MOVING using={:?} sprinting={}",
+        f.using_item, f.sprinting
+    );
+    survival.set_controls(Controls::default()).await?;
+    tokio::time::sleep(Duration::from_millis(1000)).await;
+    survival.release_use_item().await?;
+    let r = survival.control_record().await?.context("record")?;
+    survival.stop_control().await?;
+    let f = r.frame.context("frame")?;
+    println!(
+        "FINAL corrections={} status={:?} pos={:?}",
+        r.corrections, r.status, f.position
+    );
+    cmd(format!("data get entity {NAME} Pos"))?;
+    tokio::time::sleep(Duration::from_millis(1000)).await;
     println!("DONE");
     client.disconnect().await?;
     Ok(())

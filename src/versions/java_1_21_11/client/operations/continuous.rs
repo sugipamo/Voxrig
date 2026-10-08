@@ -28,6 +28,14 @@ impl ContinuousControl {
     }
 }
 
+/// A release was sent: the running session stops applying the item-use slowdown.
+pub(in crate::versions::java_1_21_11::client) fn item_released(state: &mut State) {
+    let received = received(state);
+    if let Some(session) = state.control.session.as_mut().filter(|s| s.running()) {
+        session.item_released(&received);
+    }
+}
+
 fn effect(state: &State, name: &str) -> Option<i32> {
     let id = *crate::client::physics::blocks::table(crate::MinecraftVersion::Java1_21_11)
         .effect_ids
@@ -88,8 +96,18 @@ fn received(state: &State) -> Received {
         .dimension
         .as_ref()
         .is_some_and(|d| d.0 == "minecraft:the_nether");
+    let using_item = super::common_player_in_state(state, 0, false)
+        .ok()
+        .and_then(|player| {
+            crate::client::item_use::received_use(
+                player.using_item.as_ref(),
+                player.selected_hotbar.as_ref().map(|s| s.value),
+                &player.inventory.slots,
+            )
+        });
     Received {
         environment,
+        using_item,
         pose: state
             .motion
             .received_pose
@@ -121,13 +139,6 @@ fn stop_reason(state: &State, generation: u64, mode: GameMode) -> Option<&'stati
         .is_some_and(|h| h.health <= 0.0)
     {
         Some("player died")
-    } else if state
-        .operations
-        .local_player
-        .using_item
-        .is_some_and(|u| u.hand.is_some())
-    {
-        Some(crate::client::item_use::USING_ITEM_STOP)
     } else {
         None
     }

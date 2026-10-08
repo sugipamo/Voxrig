@@ -8,7 +8,7 @@
 use crate::client::physics::{self, Body, Environment};
 use crate::{MinecraftVersion, NativeBlockState, Result};
 
-pub use crate::client::physics::{Controls, Modifier, ModifierOperation, Pose};
+pub use crate::client::physics::{Controls, ItemUse, Modifier, ModifierOperation, Pose};
 
 /// Session state.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
@@ -52,6 +52,8 @@ pub struct ControlFrame {
     pub in_water: bool,
     /// Swimming (sprinting under water).
     pub swimming: bool,
+    /// Item-use slowdown applied this tick (from the received item-use flags).
+    pub using_item: Option<ItemUse>,
 }
 
 /// Observable record of the connection's control session.
@@ -89,6 +91,8 @@ pub(crate) struct Received {
     pub pose: Option<(u64, [f64; 3], Option<[f64; 3]>)>,
     /// Latest received own velocity (receive sequence, value).
     pub velocity: Option<(u64, [f64; 3])>,
+    /// Latest received item-use flags and the effects of the item in use.
+    pub using_item: Option<crate::client::item_use::ReceivedUse>,
 }
 
 /// Packets to write for one tick, in order.
@@ -122,6 +126,8 @@ pub(crate) struct ControlSession {
     sent_sneak: bool,
     sent_sprint: bool,
     sent_input: Option<u8>,
+    /// Receive sequence of the item-use flags current when use was released locally.
+    released_use: Option<u64>,
 }
 
 impl ControlSession {
@@ -153,7 +159,14 @@ impl ControlSession {
             sent_sneak: false,
             sent_sprint: false,
             sent_input: None,
+            released_use: None,
         }
+    }
+
+    /// The client stops using an item as soon as it releases it; the received flags
+    /// current at that moment no longer apply.
+    pub(crate) fn item_released(&mut self, received: &Received) {
+        self.released_use = received.using_item.as_ref().map(|u| u.0);
     }
 
     pub(crate) fn record(&self) -> ControlRecord {
@@ -203,12 +216,24 @@ impl ControlSession {
             return Ok(None);
         }
         self.apply_received(received);
+        let mut environment = received.environment.clone();
+        environment.using_item = match &received.using_item {
+            Some((sequence, _)) if self.released_use == Some(*sequence) => None,
+            Some((_, Ok(using))) => *using,
+            Some((_, Err(reason))) => {
+                self.status = ControlStatus::Paused {
+                    reason: reason.clone(),
+                };
+                return Ok(None);
+            }
+            None => None,
+        };
         self.tick += 1;
         let controls = self.controls;
         match physics::tick(
             self.version,
             &mut self.body,
-            &received.environment,
+            &environment,
             controls,
             block_at,
         ) {
@@ -233,6 +258,7 @@ impl ControlSession {
             crouching: b.crouching,
             in_water: b.in_water,
             swimming: b.swimming,
+            using_item: environment.using_item,
         });
         let modern = self.version == MinecraftVersion::Java1_21_11;
         let input = modern.then(|| input_bits(controls));
@@ -296,6 +322,7 @@ mod tests {
             environment: Environment::defaults(MinecraftVersion::Java1_21_11),
             pose,
             velocity,
+            using_item: None,
         }
     }
 
@@ -349,6 +376,38 @@ mod tests {
             session.dispatched(&steady);
             assert!(session.frame.as_ref().unwrap().position[2] > 0.5);
             assert_eq!(session.release().1, Some(false));
+        }
+    }
+
+    #[test]
+    fn item_use_follows_received_flags_and_local_release() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let mut start = received(Some((5, [0.5, 64.0, 0.5], None)), None);
+            let mut session = ControlSession::new(version, 1, [0.5, 64.0, 0.5], &start);
+            let mut blocks = world(false);
+            session.controls = Controls {
+                forward: 1,
+                sprint: true,
+                ..Default::default()
+            };
+            // The server reports a shield raised: slowed, and sprinting cannot start.
+            start.using_item = Some((8, Ok(Some(ItemUse::DEFAULT))));
+            session.step(&start, &mut blocks).unwrap().unwrap();
+            let frame = session.frame.clone().unwrap();
+            assert_eq!(frame.using_item, Some(ItemUse::DEFAULT));
+            assert!(!frame.sprinting);
+            // Released locally: the stale flags no longer apply.
+            session.item_released(&start);
+            session.step(&start, &mut blocks).unwrap().unwrap();
+            assert_eq!(session.frame.as_ref().unwrap().using_item, None);
+            assert!(session.frame.as_ref().unwrap().sprinting);
+            // Newer flags apply again; an unresolved item pauses without sending.
+            start.using_item = Some((9, Err("unknown".into())));
+            assert!(session.step(&start, &mut blocks).unwrap().is_none());
+            assert!(matches!(session.status, ControlStatus::Paused { .. }));
+            start.using_item = Some((10, Ok(None)));
+            assert!(session.step(&start, &mut blocks).unwrap().is_some());
+            assert_eq!(session.status, ControlStatus::Running);
         }
     }
 

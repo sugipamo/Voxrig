@@ -104,8 +104,13 @@ public final class MovementOracle {
         }
         boolean canStartSprinting() {
             return !isSprinting() && hasForwardImpulse() && isSprintingPossible(getAbilities().flying)
-                && !isUsingItem() && (!isFallFlying() || isUnderWater()) && (!isMovingSlowly() || isUnderWater());
+                && !isSlowDueToUsingItem() && (!isFallFlying() || isUnderWater()) && (!isMovingSlowly() || isUnderWater());
         }
+        net.minecraft.world.item.component.UseEffects useEffects() {
+            return getUseItem().getOrDefault(net.minecraft.core.component.DataComponents.USE_EFFECTS,
+                net.minecraft.world.item.component.UseEffects.DEFAULT);
+        }
+        boolean isSlowDueToUsingItem() { return isUsingItem() && !useEffects().canSprint(); }
         boolean shouldStopRunSprinting() {
             return !isSprintingPossible(getAbilities().flying) || !hasForwardImpulse()
                 || horizontalCollision && !minorHorizontalCollision;
@@ -147,6 +152,7 @@ public final class MovementOracle {
         Vec2 modifyInput(Vec2 v) {
             if (v.lengthSquared() == 0.0F) return v;
             Vec2 scaled = v.scale(0.98F);
+            if (isUsingItem() && !isPassenger()) scaled = scaled.scale(useEffects().speedMultiplier());
             if (isMovingSlowly()) scaled = scaled.scale((float) getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.SNEAKING_SPEED));
             float length = scaled.length();
             if (length <= 0.0F) return scaled;
@@ -382,6 +388,15 @@ public final class MovementOracle {
             player.next = new Input(forward > 0, forward < 0, strafe > 0, strafe < 0,
                 t.has("jump") && t.get("jump").getAsBoolean(), t.has("sneak") && t.get("sneak").getAsBoolean(),
                 t.has("sprint") && t.get("sprint").getAsBoolean());
+            // Item use as the client starts it (Minecraft.handleKeybinds runs before the player tick).
+            String using = t.has("using") ? t.get("using").getAsString() : null;
+            if (using != null && !player.isUsingItem()) {
+                player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND,
+                    new net.minecraft.world.item.ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.parse(using))));
+                player.startUsingItem(net.minecraft.world.InteractionHand.MAIN_HAND);
+            } else if (using == null && player.isUsingItem()) {
+                player.stopUsingItem();
+            }
             player.setYRot(t.get("yaw").getAsFloat());
             player.setXRot(t.has("pitch") ? t.get("pitch").getAsFloat() : 0.0F);
             player.tick();
@@ -396,6 +411,7 @@ public final class MovementOracle {
             f.addProperty("pose", player.getPose().name());
             f.addProperty("in_water", player.isInWater());
             f.addProperty("swimming", player.isSwimming());
+            f.addProperty("using", player.isUsingItem());
             f.addProperty("speed", Float.toString(player.getSpeed()));
             f.addProperty("fall_distance", Double.toString(player.fallDistance));
             frames.add(f);

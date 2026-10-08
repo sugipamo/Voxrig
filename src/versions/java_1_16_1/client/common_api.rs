@@ -245,11 +245,6 @@ impl Bot {
                 (0x2d, payload)
             }
             Action::UseItem(hand) => {
-                if self.common_control.lock().await.active() {
-                    return Err(common_state(
-                        "item use during continuous control is refused; its slowdown is not modeled",
-                    ));
-                }
                 let mut payload = Vec::new();
                 put_varint(&mut payload, hand as i32);
                 (0x2e, payload)
@@ -273,6 +268,10 @@ impl Bot {
             }
         }
         self.send(id, &payload).await?;
+        if matches!(action, Action::ReleaseUseItem) {
+            let received = self.control_received().await;
+            self.common_control.lock().await.item_released(&received);
+        }
         match action {
             Action::Look(rotation) => {
                 let mut player = self.player.lock().await;

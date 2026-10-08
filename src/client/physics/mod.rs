@@ -89,6 +89,25 @@ pub struct Environment {
     pub fast_lava: bool,
     pub food_level: i32,
     pub may_fly: bool,
+    /// Item in use as the client sees it (`LocalPlayer.isUsingItem`), with its use effects.
+    pub using_item: Option<ItemUse>,
+}
+
+/// Movement effects of the item in use (1.21.11 `minecraft:use_effects`; 1.16.1 is fixed).
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ItemUse {
+    /// Input scale while in use.
+    pub speed_multiplier: f32,
+    /// Whether sprinting may start while in use.
+    pub can_sprint: bool,
+}
+
+impl ItemUse {
+    /// `UseEffects.DEFAULT`, and the fixed 1.16.1 behavior.
+    pub const DEFAULT: Self = Self {
+        speed_multiplier: 0.2,
+        can_sprint: false,
+    };
 }
 
 impl Environment {
@@ -114,6 +133,7 @@ impl Environment {
             fast_lava: false,
             food_level: 20,
             may_fly: false,
+            using_item: None,
         }
     }
 }
@@ -924,11 +944,17 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 left = (f64::from(left) * 0.3) as f32;
                 forward = (f64::from(forward) * 0.3) as f32;
             }
+            // LocalPlayer.aiStep: using an item scales the impulses (not when riding).
+            if self.env.using_item.is_some() {
+                left *= 0.2;
+                forward *= 0.2;
+            }
             self.body.move_vector = [left, forward];
             self.push_out_legacy()?;
             let food = self.env.food_level > 6 || self.env.may_fly;
             let b = &*self.body;
-            let possible = food && !self.env.blindness && controls.sprint;
+            let possible =
+                food && !self.env.blindness && controls.sprint && self.env.using_item.is_none();
             if (b.on_ground || under)
                 && !sneaking_before
                 && !had_impulse
@@ -977,9 +1003,12 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             let forward = self.body.move_vector[1] > 1.0e-5;
             let moving_slowly =
                 self.body.crouching || self.body.pose == Pose::Swimming && !in_water;
+            // isSlowDueToUsingItem: in use and its effects forbid sprinting.
+            let slow_item = self.env.using_item.is_some_and(|u| !u.can_sprint);
             if !self.body.sprinting
                 && forward
                 && possible
+                && !slow_item
                 && (!moving_slowly || under)
                 && controls.sprint
             {
@@ -1024,6 +1053,10 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             return (x, y);
         }
         let (mut x, mut y) = (x * 0.98, y * 0.98);
+        if let Some(item) = self.env.using_item {
+            x *= item.speed_multiplier;
+            y *= item.speed_multiplier;
+        }
         if self.moving_slowly() {
             let s = self.env.sneaking_speed as f32;
             x *= s;

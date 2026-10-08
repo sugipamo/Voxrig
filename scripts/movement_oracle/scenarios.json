@@ -30308,5 +30308,1469 @@
    }
   ],
   "on_ground": false
+ },
+ {
+  "name": "use_walk",
+  "blocks": [
+   [
+    -6,
+    -1,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ]
+  ],
+  "start": [
+   0.5,
+   0.0,
+   0.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "use_while_sprinting",
+  "blocks": [
+   [
+    -6,
+    -1,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ]
+  ],
+  "start": [
+   0.5,
+   0.0,
+   0.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "use_blocks_sprint_start",
+  "blocks": [
+   [
+    -6,
+    -1,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ]
+  ],
+  "start": [
+   0.5,
+   0.0,
+   0.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "use_sneak_diagonal",
+  "blocks": [
+   [
+    -6,
+    -1,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ]
+  ],
+  "start": [
+   0.5,
+   0.0,
+   0.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "forward": 1,
+    "strafe": 1,
+    "sneak": true,
+    "using": "minecraft:shield",
+    "yaw": 20.0
+   },
+   {
+    "yaw": 20.0
+   },
+   {
+    "yaw": 20.0
+   },
+   {
+    "yaw": 20.0
+   },
+   {
+    "yaw": 20.0
+   },
+   {
+    "yaw": 20.0
+   }
+  ]
+ },
+ {
+  "name": "use_jump_walk",
+  "blocks": [
+   [
+    -6,
+    -1,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ]
+  ],
+  "start": [
+   0.5,
+   0.0,
+   0.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   },
+   {
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "use_swim",
+  "blocks": [
+   [
+    -6,
+    -4,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ],
+   [
+    -5,
+    -3,
+    -5,
+    5,
+    -1,
+    5,
+    "minecraft:water[level=0]"
+   ]
+  ],
+  "start": [
+   0.5,
+   -3.0,
+   0.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "using": "minecraft:shield",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "jump": true,
+    "yaw": 0.0
+   }
+  ]
+ },
+ {
+  "name": "use_spear_sprint",
+  "blocks": [
+   [
+    -6,
+    -1,
+    -6,
+    6,
+    -1,
+    6,
+    "minecraft:stone"
+   ]
+  ],
+  "start": [
+   0.5,
+   0.0,
+   0.5
+  ],
+  "ticks": [
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:wooden_spear",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:wooden_spear",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:wooden_spear",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:wooden_spear",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:wooden_spear",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:wooden_spear",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:wooden_spear",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:wooden_spear",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:wooden_spear",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "using": "minecraft:wooden_spear",
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   },
+   {
+    "forward": 1,
+    "sprint": true,
+    "yaw": 0.0
+   }
+  ],
+  "versions": [
+   "1.21.11"
+  ]
  }
 ]

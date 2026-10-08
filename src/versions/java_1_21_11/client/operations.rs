@@ -738,11 +738,6 @@ impl Operations {
         let state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
         self.require_mode(&state, Some(mode))?;
-        if state.control.active() {
-            return Err(invalid(
-                "item use during continuous control is refused; its slowdown is not modeled",
-            ));
-        }
         let seq = self.next_sequence()?;
         let mut payload = Vec::new();
         put_varint(&mut payload, hand as i32);
@@ -759,7 +754,7 @@ impl Operations {
     /// PLAYER_ACTION RELEASE_USE_ITEM with the zero position, face DOWN and sequence 0,
     /// as the official client sends it.
     async fn release_use_item_in(&self, mode: GameMode) -> Result<()> {
-        let state = self.bot.session.state.lock().await;
+        let mut state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
         self.require_mode(&state, Some(mode))?;
         let mut payload = Vec::new();
@@ -771,6 +766,7 @@ impl Operations {
             .session
             .send(ids::play_serverbound::BLOCK_DIG, &payload)
             .await?;
+        continuous::item_released(&mut state);
         Ok(())
     }
     pub(super) fn ready(&self, state: &State) -> Result<()> {

@@ -34,7 +34,7 @@ survival.stop_control().await?;                   // ダッシュとしゃがみ
 - 予測できないtick（範囲外の地形、未ロードのchunk）では`Paused`になり、そのtickは何も送らない。
   毎tick同じ状態からやり直し、予測できれば`Running`に戻る。
 - 次の場合は`Stopped`になる: `stop_control`、切断、world（死亡からの復帰・次元）の変化、game modeの変化、飛行、乗車、
-  爆発などエンジンの外の動き、死亡、アイテムの使用中の受信、送信の失敗。止まったsessionは再開しない（`start_control`で新しく始める）。
+  爆発などエンジンの外の動き、死亡、送信の失敗。止まったsessionは再開しない（`start_control`で新しく始める）。
 - sessionの間は、静止を前提にする操作（移動の予測・有限の移動・照準・採掘・設置・収納を開く）は拒否する。
   1.16.1では、sessionの間`Bot`自身の物理と`set_control`のloopを止める（開始時に`Bot`のキーが離されていることを要求する）。
 
@@ -42,8 +42,8 @@ survival.stop_control().await?;                   // ダッシュとしゃがみ
 
 - 地形・液体・効果の範囲は[エンジンの説明](physics-engine.md)のとおり。梯子・つるの登り、泡の柱、飛行、乗車は扱わない。
 - 1.16.1の深海探索者・ソウルスピードの靴は、まだ環境に反映していない。
-- アイテムの使用中（盾・弓・食事）の減速は扱わない。sessionの間は`use_item`を拒否し、
-  受信した`using_item`が使用中なら開始を拒否し、実行中なら`Stopped`にする（[アイテム使用](common-item-use.md)）。
+- アイテムの使用中（盾・弓・食事）の減速は、受信した`using_item`に従って再現する。sessionの間も`use_item`・
+  `release_use_item`を送れる（[アイテム使用](common-item-use.md)）。
 - 時刻はclientの時計で、serverのtickとは同期しない（公式clientと同じ）。
 
 ## 実サーバーでの確認（2026-10-07）

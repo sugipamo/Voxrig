@@ -121,7 +121,7 @@ pub(super) fn compare(
     let start: Vec<f64> = (0..3)
         .map(|i| scenario["start"][i].as_f64().unwrap())
         .collect();
-    let env = environment(version, scenario, &result["initial"]);
+    let mut env = environment(version, scenario, &result["initial"]);
     let mut body = Body::new(std::array::from_fn(|i| start[i] + f64::from(ORIGIN[i])));
     body.on_ground = scenario["on_ground"].as_bool().unwrap_or(true);
     // The oracle's player is a freshly created entity.
@@ -146,6 +146,16 @@ pub(super) fn compare(
             yaw: t["yaw"].as_f64().unwrap() as f32,
             pitch: t["pitch"].as_f64().unwrap_or(0.0) as f32,
         };
+        env.using_item = t["using"].as_str().map(|name| {
+            if version == MinecraftVersion::Java1_16_1 {
+                super::ItemUse::DEFAULT
+            } else {
+                let item = crate::client::registry::Registry::for_version(version)
+                    .item(name)
+                    .unwrap();
+                crate::client::item_use::prototype_use_effects(item.id.value()).unwrap()
+            }
+        });
         tick(version, &mut body, &env, controls, &mut block_at)
             .map_err(|e| format!("tick {index}: {e}"))?;
         for axis in 0..3 {
