@@ -172,6 +172,53 @@ impl SpawnLedger {
             .get(&native_id)
             .and_then(|spawn| spawn.name.as_deref())
     }
+    /// One surviving parent with its latest received state.
+    pub(crate) fn capture_one(
+        &self,
+        session: SessionStamp,
+        id: EntityId,
+        receive_sequence: u64,
+    ) -> crate::Result<EntityObservation> {
+        self.validate(session, id)?;
+        let spawn = self.0.get(&id.native_id).expect("validated lifetime");
+        let version = session.version;
+        let motion = self
+            .capture_motion(session, id, receive_sequence)
+            .expect("identity taken from this ledger");
+        let feet = motion
+            .position
+            .as_ref()
+            .map(|p| p.value.position)
+            .unwrap_or(spawn.position);
+        let bounding_box = spawn
+            .name
+            .as_deref()
+            .and_then(|name| dimensions(version, name))
+            .map(|(width, height)| Aabb {
+                min_x: feet[0] - width / 2.0,
+                min_y: feet[1],
+                min_z: feet[2] - width / 2.0,
+                max_x: feet[0] + width / 2.0,
+                max_y: feet[1] + height,
+                max_z: feet[2] + width / 2.0,
+            });
+        let living = spawn.living.or_else(|| {
+            let name = spawn.name.as_deref()?;
+            Some(
+                name == "minecraft:player"
+                    || version.table().entity_dimensions(name)?.living == Some(true),
+            )
+        });
+        Ok(EntityObservation {
+            motion,
+            bounding_box,
+            health: spawn.extra.health.clone(),
+            equipment: spawn.extra.equipment.clone(),
+            living,
+            metadata: spawn.extra.metadata.clone(),
+            metadata_complete: !spawn.extra.metadata_truncated,
+        })
+    }
     /// Every surviving spawn with its latest received state.
     pub(crate) fn capture_all(
         &self,
@@ -179,6 +226,7 @@ impl SpawnLedger {
         session: SessionStamp,
         receive_sequence: u64,
     ) -> EntitiesObservation {
+        debug_assert_eq!(version, session.version);
         let entities = self
             .0
             .iter()
@@ -188,42 +236,8 @@ impl SpawnLedger {
                     native_id,
                     spawn_sequence: spawn.sequence,
                 };
-                let motion = self
-                    .capture_motion(session, id, receive_sequence)
-                    .expect("identity taken from this ledger");
-                let feet = motion
-                    .position
-                    .as_ref()
-                    .map(|p| p.value.position)
-                    .unwrap_or(spawn.position);
-                let bounding_box = spawn
-                    .name
-                    .as_deref()
-                    .and_then(|name| dimensions(version, name))
-                    .map(|(width, height)| Aabb {
-                        min_x: feet[0] - width / 2.0,
-                        min_y: feet[1],
-                        min_z: feet[2] - width / 2.0,
-                        max_x: feet[0] + width / 2.0,
-                        max_y: feet[1] + height,
-                        max_z: feet[2] + width / 2.0,
-                    });
-                let living = spawn.living.or_else(|| {
-                    let name = spawn.name.as_deref()?;
-                    Some(
-                        name == "minecraft:player"
-                            || version.table().entity_dimensions(name)?.living == Some(true),
-                    )
-                });
-                EntityObservation {
-                    motion,
-                    bounding_box,
-                    health: spawn.extra.health.clone(),
-                    equipment: spawn.extra.equipment.clone(),
-                    living,
-                    metadata: spawn.extra.metadata.clone(),
-                    metadata_complete: !spawn.extra.metadata_truncated,
-                }
+                self.capture_one(session, id, receive_sequence)
+                    .expect("identity taken from this ledger")
             })
             .collect();
         EntitiesObservation {

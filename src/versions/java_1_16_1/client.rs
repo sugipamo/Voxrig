@@ -7,6 +7,8 @@ mod common_container;
 mod common_control;
 mod common_crafting;
 mod common_entity_motion;
+mod common_entity_parts;
+pub(crate) use common_entity_parts::derive_entity_parts;
 mod common_flight;
 mod common_inventory;
 mod common_mining;

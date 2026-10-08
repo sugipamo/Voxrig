@@ -1,0 +1,363 @@
+{
+  "schema": 1,
+  "sdk_base": "0121362bfc297511202181f0b244971e0a16d780",
+  "consumer_geometry_fixture": "sugipamo/Golemkit#103@e57f821f24d2e78c4ca275a7bf80383ca48a85e4",
+  "consumer_pinned_sdk": "edddce3c4db01557dfea5eaf3c2cfcb368afa8c6",
+  "official_server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+  "scope": "Java 1.16.1 official offline server; NoAI tagged dragon; parent spawn/metadata receipts and derived model transitions 6 -> 3 -> 9. Read-only public SDK probe; no attacks, native collision measurement, End battle or Golemkit adapter migration. TCP dispatch and lifetime behavior are separate automated tests.",
+  "commands": [
+    "gamemode creative ProbeParts",
+    "tp ProbeParts 0 80 0",
+    "summon minecraft:ender_dragon 0 85 5 {NoAI:1b,DragonPhase:6,Rotation:[90.0f,0.0f],Tags:[\"voxrig_multipart_probe\"]}",
+    "data merge entity @e[tag=voxrig_multipart_probe,limit=1] {DragonPhase:3}",
+    "data merge entity @e[tag=voxrig_multipart_probe,limit=1] {DragonPhase:9}",
+    "kill @e[tag=voxrig_multipart_probe]"
+  ],
+  "source_sha256": {
+    "src/client/entity/parts.rs": "0e93fb75376bfa667b92a850fb342da164da1081950f4c210d70486b9c3a6b1a",
+    "src/versions/java_1_16_1/client/common_entity_parts.rs": "5dbd9c9a4fc21a7b59a87d5408ff7d014d95b432725af0cf9a8402ac2cc1595c",
+    "src/versions/java_1_16_1/client/common_api.rs": "93626942547ca91332de1233d08d8db42274e9d171331306e2efa02327a94963",
+    "src/client/operations.rs": "9370e27f3dd97507b93a60fdbed78e148f38bd74008abc301752021e8b9074e1",
+    "examples/entity_parts_probe.rs": "6cb5e63db332e784d1bb5d322de78b68676e4b283b708670c9cfa3138cefd038"
+  },
+  "samples": [
+    {
+      "health": {
+        "source": {
+          "kind": "received",
+          "sequence": 992
+        },
+        "value": 200.0
+      },
+      "parent": {
+        "native_id": 123,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_16_1",
+          "world_generation": 1
+        },
+        "spawn_sequence": 991
+      },
+      "parts": {
+        "Ok": [
+          {
+            "kind": "DragonHead",
+            "state": {
+              "Derived": {
+                "bounds": {
+                  "max_x": 7.5,
+                  "max_y": 85.0,
+                  "max_z": 6.0,
+                  "min_x": 6.5,
+                  "min_y": 84.0,
+                  "min_z": 5.0
+                },
+                "evidence": {
+                  "health_source": {
+                    "kind": "received",
+                    "sequence": 992
+                  },
+                  "phase_source": {
+                    "kind": "received",
+                    "sequence": 992
+                  },
+                  "position_source": {
+                    "kind": "received",
+                    "sequence": 991
+                  },
+                  "receive_sequence": 996,
+                  "rotation_source": {
+                    "kind": "received",
+                    "sequence": 991
+                  }
+                },
+                "model": "DragonSittingRestPose",
+                "target": {
+                  "kind": "DragonHead",
+                  "native_id": 124,
+                  "parent": {
+                    "native_id": 123,
+                    "session": {
+                      "connection_id": 1,
+                      "version": "Java1_16_1",
+                      "world_generation": 1
+                    },
+                    "spawn_sequence": 991
+                  }
+                }
+              }
+            }
+          },
+          {
+            "kind": "DragonWing1",
+            "state": {
+              "Derived": {
+                "bounds": {
+                  "max_x": 2.5,
+                  "max_y": 89.0,
+                  "max_z": 12.0,
+                  "min_x": -1.4999999999999998,
+                  "min_y": 87.0,
+                  "min_z": 8.0
+                },
+                "evidence": {
+                  "health_source": {
+                    "kind": "received",
+                    "sequence": 992
+                  },
+                  "phase_source": {
+                    "kind": "received",
+                    "sequence": 992
+                  },
+                  "position_source": {
+                    "kind": "received",
+                    "sequence": 991
+                  },
+                  "receive_sequence": 996,
+                  "rotation_source": {
+                    "kind": "received",
+                    "sequence": 991
+                  }
+                },
+                "model": "DragonWingPose",
+                "target": {
+                  "kind": "DragonWing1",
+                  "native_id": 130,
+                  "parent": {
+                    "native_id": 123,
+                    "session": {
+                      "connection_id": 1,
+                      "version": "Java1_16_1",
+                      "world_generation": 1
+                    },
+                    "spawn_sequence": 991
+                  }
+                }
+              }
+            }
+          },
+          {
+            "kind": "DragonWing2",
+            "state": {
+              "Derived": {
+                "bounds": {
+                  "max_x": 2.4999999999999996,
+                  "max_y": 89.0,
+                  "max_z": 3.0,
+                  "min_x": -1.5000000000000002,
+                  "min_y": 87.0,
+                  "min_z": -1.0
+                },
+                "evidence": {
+                  "health_source": {
+                    "kind": "received",
+                    "sequence": 992
+                  },
+                  "phase_source": {
+                    "kind": "received",
+                    "sequence": 992
+                  },
+                  "position_source": {
+                    "kind": "received",
+                    "sequence": 991
+                  },
+                  "receive_sequence": 996,
+                  "rotation_source": {
+                    "kind": "received",
+                    "sequence": 991
+                  }
+                },
+                "model": "DragonWingPose",
+                "target": {
+                  "kind": "DragonWing2",
+                  "native_id": 131,
+                  "parent": {
+                    "native_id": 123,
+                    "session": {
+                      "connection_id": 1,
+                      "version": "Java1_16_1",
+                      "world_generation": 1
+                    },
+                    "spawn_sequence": 991
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "phase": {
+        "source": {
+          "kind": "received",
+          "sequence": 992
+        },
+        "value": {
+          "Int": 6
+        }
+      }
+    },
+    {
+      "health": {
+        "source": {
+          "kind": "received",
+          "sequence": 992
+        },
+        "value": 200.0
+      },
+      "parent": {
+        "native_id": 123,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_16_1",
+          "world_generation": 1
+        },
+        "spawn_sequence": 991
+      },
+      "parts": {
+        "Ok": [
+          {
+            "kind": "DragonHead",
+            "state": {
+              "Unavailable": "FlyingHead"
+            }
+          },
+          {
+            "kind": "DragonWing1",
+            "state": {
+              "Derived": {
+                "bounds": {
+                  "max_x": 2.5,
+                  "max_y": 89.0,
+                  "max_z": 12.0,
+                  "min_x": -1.4999999999999998,
+                  "min_y": 87.0,
+                  "min_z": 8.0
+                },
+                "evidence": {
+                  "health_source": {
+                    "kind": "received",
+                    "sequence": 992
+                  },
+                  "phase_source": {
+                    "kind": "received",
+                    "sequence": 1206
+                  },
+                  "position_source": {
+                    "kind": "received",
+                    "sequence": 1026
+                  },
+                  "receive_sequence": 1210,
+                  "rotation_source": {
+                    "kind": "received",
+                    "sequence": 991
+                  }
+                },
+                "model": "DragonWingPose",
+                "target": {
+                  "kind": "DragonWing1",
+                  "native_id": 130,
+                  "parent": {
+                    "native_id": 123,
+                    "session": {
+                      "connection_id": 1,
+                      "version": "Java1_16_1",
+                      "world_generation": 1
+                    },
+                    "spawn_sequence": 991
+                  }
+                }
+              }
+            }
+          },
+          {
+            "kind": "DragonWing2",
+            "state": {
+              "Derived": {
+                "bounds": {
+                  "max_x": 2.4999999999999996,
+                  "max_y": 89.0,
+                  "max_z": 3.0,
+                  "min_x": -1.5000000000000002,
+                  "min_y": 87.0,
+                  "min_z": -1.0
+                },
+                "evidence": {
+                  "health_source": {
+                    "kind": "received",
+                    "sequence": 992
+                  },
+                  "phase_source": {
+                    "kind": "received",
+                    "sequence": 1206
+                  },
+                  "position_source": {
+                    "kind": "received",
+                    "sequence": 1026
+                  },
+                  "receive_sequence": 1210,
+                  "rotation_source": {
+                    "kind": "received",
+                    "sequence": 991
+                  }
+                },
+                "model": "DragonWingPose",
+                "target": {
+                  "kind": "DragonWing2",
+                  "native_id": 131,
+                  "parent": {
+                    "native_id": 123,
+                    "session": {
+                      "connection_id": 1,
+                      "version": "Java1_16_1",
+                      "world_generation": 1
+                    },
+                    "spawn_sequence": 991
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "phase": {
+        "source": {
+          "kind": "received",
+          "sequence": 1206
+        },
+        "value": {
+          "Int": 3
+        }
+      }
+    },
+    {
+      "health": {
+        "source": {
+          "kind": "received",
+          "sequence": 992
+        },
+        "value": 200.0
+      },
+      "parent": {
+        "native_id": 123,
+        "session": {
+          "connection_id": 1,
+          "version": "Java1_16_1",
+          "world_generation": 1
+        },
+        "spawn_sequence": 991
+      },
+      "parts": {
+        "Err": "DeadParent"
+      },
+      "phase": {
+        "source": {
+          "kind": "received",
+          "sequence": 2013
+        },
+        "value": {
+          "Int": 9
+        }
+      }
+    }
+  ]
+}

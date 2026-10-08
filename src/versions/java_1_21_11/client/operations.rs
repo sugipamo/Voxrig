@@ -1586,6 +1586,12 @@ impl crate::client::adapter::CoreOps for Operations {
                     .await?;
             }
 
+            Action::EntityPart(_, _) => {
+                return Err(crate::client::inventory::unavailable(
+                    "multipart model is not supported for Java 1.21.11",
+                ));
+            }
+
             Action::Look(rotation) => {
                 crate::client::operations::validate_rotation(rotation)?;
                 self.look_in_mode(Some(mode), rotation).await?;
