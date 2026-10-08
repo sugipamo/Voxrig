@@ -48,6 +48,7 @@ HOOKS = {
     },
 }
 PROPERTIES = """online-mode=false
+server-ip=127.0.0.1
 server-port={port}
 level-type={level_type}
 generate-structures=false
@@ -121,7 +122,8 @@ def main():
     parser.add_argument("--version", choices=sorted(VERSIONS), action="append")
     parser.add_argument("--blocks-output", type=Path, default=ROOT / "data/client_api")
     args = parser.parse_args()
-    tool = args.downloads / "SpecialSource-1.11.4-shaded.jar"
+    args.blocks_output.mkdir(parents=True, exist_ok=True)
+    tool = (args.downloads / "SpecialSource-1.11.4-shaded.jar").resolve()
     assert digest(tool.read_bytes()) == SPECIAL_SOURCE_SHA256
     scenarios_bytes = args.scenarios.read_bytes()
     scenarios = json.loads(scenarios_bytes)
@@ -189,7 +191,7 @@ def main():
                      "harness_sha256": digest(source.read_bytes())})
     record = {
         "schema": 1,
-        "authority": "Official LivingEntity/Player movement run unchanged inside each official server JAR; "
+        "authority": "Official LivingEntity/Player and Boat movement run unchanged inside each official server JAR; "
                      "only LocalPlayer's client-side input handling is ported in the harness.",
         "special_source_sha256": SPECIAL_SOURCE_SHA256,
         "runner_sha256": digest(Path(__file__).read_bytes()),

@@ -6,10 +6,12 @@
 //! block state, block friction/speed/jump factors, slime and bed bounces, cobwebs
 //! and berry bushes, sneaking (including edge back-off), sprinting, movement
 //! attributes and effects, water and lava (currents, swimming, surfacing,
-//! jumping out onto ledges). Outside it the tick returns `ErrorKind::Unsupported`
-//! before changing state: climbing, bubble columns, flying, riding, levitation,
+//! jumping out onto ledges), ladders, vines and scaffolding. Outside it the tick
+//! returns `ErrorKind::Unsupported` before changing state: bubble columns,
+//! flying, riding, levitation,
 //! honey wall sliding and anything not reviewed in `blocks`.
 pub(crate) mod blocks;
+pub(crate) mod boat;
 pub(crate) mod collision;
 #[cfg(test)]
 mod oracle_tests;
@@ -276,6 +278,13 @@ impl Body {
     }
 }
 
+/// EntityCollisionContext.of(player), evaluated at each collision query.
+#[derive(Clone, Copy)]
+struct CollisionContext {
+    bottom: f64,
+    descending: bool,
+}
+
 /// Cached block facts around the player for one tick.
 struct Level<'a, F> {
     version: MinecraftVersion,
@@ -309,7 +318,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Level<'_, F> {
         ))
     }
     /// Collision boxes of one cell in world coordinates; refuses unreviewed shapes.
-    fn shape(&mut self, p: [i32; 3]) -> Result<Vec<[f64; 6]>> {
+    fn shape(&mut self, p: [i32; 3], context: CollisionContext) -> Result<Vec<[f64; 6]>> {
         let (state, block) = self.get(p)?;
         if let Effect::Unsupported(why) = block.shape {
             return Err(unsupported(format!("{why}: {}", block.name)));
@@ -317,7 +326,24 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Level<'_, F> {
         if state.positional {
             return Err(unsupported(format!("positional shape: {}", block.name)));
         }
-        let boxes = &blocks::table(self.version).shapes[usize::from(state.shape)];
+        // ScaffoldingBlock.getCollisionShape: the exported empty-context shape
+        // is STABLE_SHAPE. Players inside/below it pass through, except for the
+        // bottom plate of an unsupported bottom segment. isAbove uses float epsilon.
+        let boxes: &[[f64; 6]] = if block.shape == Effect::Scaffolding
+            && (context.descending || context.bottom <= f64::from(p[1]) + 1.0 - f64::from(1e-5f32))
+        {
+            let properties = &self.state(p)?.properties;
+            if properties.get("distance").map(String::as_str) != Some("0")
+                && properties.get("bottom").map(String::as_str) == Some("true")
+                && context.bottom > f64::from(p[1]) - f64::from(1e-5f32)
+            {
+                &[[0.0, 0.0, 0.0, 1.0, 0.125, 1.0]]
+            } else {
+                return Ok(Vec::new());
+            }
+        } else {
+            &blocks::table(self.version).shapes[usize::from(state.shape)]
+        };
         Ok(boxes
             .iter()
             .map(|b| std::array::from_fn(|i| b[i] + f64::from(p[i % 3])))
@@ -325,20 +351,20 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Level<'_, F> {
     }
     /// Shapes of every cell a box can touch (including neighbours whose shapes
     /// extend beyond their cell, such as fences).
-    fn geometry(&mut self, region: [f64; 6]) -> Result<Geometry> {
+    fn geometry(&mut self, region: [f64; 6], context: CollisionContext) -> Result<Geometry> {
         let mut geometry = Geometry::default();
         for x in floor(region[0] - 1e-7) - 1..=floor(region[3] + 1e-7) + 1 {
             for y in floor(region[1] - 1e-7) - 1..=floor(region[4] + 1e-7) + 1 {
                 for z in floor(region[2] - 1e-7) - 1..=floor(region[5] + 1e-7) + 1 {
-                    geometry.push(self.shape([x, y, z])?);
+                    geometry.push(self.shape([x, y, z], context)?);
                 }
             }
         }
         Ok(geometry)
     }
     /// Level.noCollision for blocks: no shape overlaps the box with positive volume.
-    fn no_collision(&mut self, b: [f64; 6]) -> Result<bool> {
-        Ok(!self.geometry(b)?.iter().any(|c| intersects(*c, b)))
+    fn no_collision(&mut self, b: [f64; 6], context: CollisionContext) -> Result<bool> {
+        Ok(!self.geometry(b, context)?.iter().any(|c| intersects(*c, b)))
     }
     fn fluid(&mut self, p: [i32; 3]) -> Result<Option<blocks::Fluid>> {
         Ok(self.get(p)?.0.fluid)
@@ -477,7 +503,6 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
     fn run(&mut self, controls: Controls) -> Result<()> {
         self.body.yaw = controls.yaw;
         self.body.pitch = controls.pitch;
-        self.check_scope()?;
         // Player.tick: updateIsUnderwater, then Entity.baseTick.
         self.body.under_water = self.body.eye_in_water;
         self.base_tick_fluids()?;
@@ -561,13 +586,36 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         self.update_pose()
     }
 
-    /// Refuse climbing (bubble columns and other unreviewed blocks are
-    /// refused where their effects apply).
-    fn check_scope(&mut self) -> Result<()> {
+    /// LivingEntity.onClimbable: only the feet cell, including aligned open trapdoors.
+    fn on_climbable(&mut self) -> Result<bool> {
         let feet = self.block_position();
         let block = self.level.block(feet)?;
-        if block.climbable || block.trapdoor && self.trapdoor_ladder(feet)? {
-            return Err(unsupported(format!("climbing: {}", block.name)));
+        Ok(block.climbable || block.trapdoor && self.trapdoor_ladder(feet)?)
+    }
+
+    fn collision_context(&self) -> CollisionContext {
+        CollisionContext {
+            bottom: self.body.position[1],
+            descending: self.body.keys.sneak,
+        }
+    }
+
+    /// LivingEntity.handleOnClimbable, before collision resolution.
+    fn handle_on_climbable(&mut self) -> Result<()> {
+        if self.on_climbable()? {
+            self.body.fall_distance = 0.0;
+            let limit = f64::from(0.15f32);
+            self.body.velocity[0] = self.body.velocity[0].clamp(-limit, limit);
+            self.body.velocity[2] = self.body.velocity[2].clamp(-limit, limit);
+            let y = self.body.velocity[1].max(-limit);
+            self.body.velocity[1] = if y < 0.0
+                && self.body.keys.sneak
+                && self.level.block(self.block_position())?.name != "minecraft:scaffolding"
+            {
+                0.0
+            } else {
+                y
+            };
         }
         Ok(())
     }
@@ -783,7 +831,8 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
     /// Entity.isFree: no collision and no liquid in the moved box.
     fn is_free(&mut self, d: [f64; 3]) -> Result<bool> {
         let b = shifted(self.body.bounds, d);
-        Ok(self.level.no_collision(b)? && !self.level.contains_liquid(b)?)
+        Ok(self.level.no_collision(b, self.collision_context())?
+            && !self.level.contains_liquid(b)?)
     }
 
     /// LivingEntity.travel in water or lava.
@@ -827,6 +876,9 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             self.accelerate(input, speed);
             let motion = self.body.velocity;
             self.do_move(motion)?;
+            if self.body.horizontal_collision && self.on_climbable()? {
+                self.body.velocity[1] = 0.2;
+            }
             let v = self.body.velocity;
             let v = [
                 v[0] * f64::from(slow),
@@ -935,7 +987,8 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         } else {
             make_box(self.body.position, pose)
         };
-        self.level.no_collision(deflate(b, 1e-7))
+        self.level
+            .no_collision(deflate(b, 1e-7), self.collision_context())
     }
 
     fn client_input(&mut self, controls: Controls) -> Result<()> {
@@ -1137,7 +1190,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                     if self.level.suffocating([x, y, z])?
                         && self
                             .level
-                            .shape([x, y, z])?
+                            .shape([x, y, z], self.collision_context())?
                             .iter()
                             .any(|s| intersects(*s, column))
                     {
@@ -1332,8 +1385,13 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         for (axis, value) in a.into_iter().enumerate() {
             self.body.velocity[axis] += value;
         }
+        self.handle_on_climbable()?;
         let motion = self.body.velocity;
         self.do_move(motion)?;
+        // Re-check after moving: leaving or entering the feet cell changes climbing.
+        if (self.body.horizontal_collision || self.body.keys.jump) && self.on_climbable()? {
+            self.body.velocity[1] = 0.2;
+        }
         let v = self.body.velocity;
         let mut y = v[1];
         if !legacy && v[1] <= 0.0 && self.env.slow_falling {
@@ -1397,7 +1455,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 b[5] + motion[2].max(0.0),
             ]
         };
-        let geometry = self.level.geometry(region)?;
+        let geometry = self.level.geometry(region, self.collision_context())?;
         let collided = collision::collide(
             self.version,
             self.body.bounds,
@@ -1449,7 +1507,9 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             }
         } else {
             if !self.body.in_water && collided[1] < 0.0 {
-                self.body.fall_distance -= collided[1];
+                // Modern Entity.checkFallDamage retains the native float cast
+                // of the movement even though fallDistance itself is double.
+                self.body.fall_distance -= f64::from(collided[1] as f32);
             }
             if self.body.on_ground {
                 self.body.fall_distance = 0.0;
@@ -1461,7 +1521,9 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 self.body.velocity[0] = 0.0;
             }
             if motion[2] != collided[2] {
-                self.body.velocity[2] = 0.0;
+                // Legacy Entity.move uses the same pre-collision velocity for
+                // both setters: the Z collision restores the original X.
+                self.body.velocity = [v[0], v[1], 0.0];
             }
         } else if self.body.horizontal_collision {
             self.body.velocity = [
@@ -1721,7 +1783,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 for z in floor(region[2] - 1e-7) - 1..=floor(region[5] + 1e-7) + 1 {
                     if !self
                         .level
-                        .shape([x, y, z])?
+                        .shape([x, y, z], self.collision_context())?
                         .iter()
                         .any(|s| intersects(*s, region))
                     {
@@ -1768,8 +1830,9 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 return Ok(motion);
             }
             let b = self.body.bounds;
+            let context = self.collision_context();
             let free = |level: &mut Level<'_, F>, dx: f64, dz: f64| {
-                level.no_collision(shifted(b, [dx, -step, dz]))
+                level.no_collision(shifted(b, [dx, -step, dz]), context)
             };
             let toward = |v: f64| {
                 if (-0.05..0.05).contains(&v) {
@@ -1831,14 +1894,17 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
 
     fn can_fall(&mut self, dx: f64, dz: f64, depth: f64) -> Result<bool> {
         let b = self.body.bounds;
-        self.level.no_collision([
-            b[0] + 1.0e-7 + dx,
-            b[1] - depth - 1.0e-7,
-            b[2] + 1.0e-7 + dz,
-            b[3] - 1.0e-7 + dx,
-            b[1],
-            b[5] - 1.0e-7 + dz,
-        ])
+        self.level.no_collision(
+            [
+                b[0] + 1.0e-7 + dx,
+                b[1] - depth - 1.0e-7,
+                b[2] + 1.0e-7 + dz,
+                b[3] - 1.0e-7 + dx,
+                b[1],
+                b[5] - 1.0e-7 + dz,
+            ],
+            self.collision_context(),
+        )
     }
 
     /// Player.updatePlayerPose and Entity.refreshDimensions.

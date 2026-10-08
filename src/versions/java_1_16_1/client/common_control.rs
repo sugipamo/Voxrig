@@ -150,6 +150,41 @@ impl Bot {
         self.send(0x1c, &payload).await
     }
 
+    async fn release_control(&self, session: &ControlSession) -> Result<()> {
+        let (sneak, sprint, _) = session.release();
+        if sprint.is_some() {
+            self.control_entity_action(4).await?;
+        }
+        if sneak.is_some() {
+            self.control_entity_action(1).await?;
+        }
+        Ok(())
+    }
+
+    // The connection owns release writes even if the caller stops awaiting them.
+    async fn stop_control_owned(&self, id: u64) -> Result<Option<ControlRecord>> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let mut control = self.common_control.lock().await;
+        let Some(session) = control.session.as_mut().filter(|s| s.id == id) else {
+            return Ok(None);
+        };
+        let mut release = Ok(());
+        if session.running() {
+            session.status = ControlStatus::Stopped {
+                reason: "stopped by request".into(),
+            };
+            if !self.stopped.load(Ordering::Acquire) {
+                release = self.release_control(session).await;
+            }
+            if let Err(error) = &release {
+                session.status = ControlStatus::Stopped {
+                    reason: format!("stopped; release write failed: {error}"),
+                };
+            }
+        }
+        release.map(|()| Some(session.record()))
+    }
+
     async fn run_control(&self, id: u64, generation: u64) {
         let mut interval = tokio::time::interval(Duration::from_millis(50));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -183,6 +218,14 @@ impl Bot {
                 session.status = ControlStatus::Stopped {
                     reason: reason.into(),
                 };
+                // A new world resets input; never send the old world's entity ID.
+                if reason != "world changed (respawn or dimension)" {
+                    if let Err(error) = self.release_control(session).await {
+                        session.status = ControlStatus::Stopped {
+                            reason: format!("{reason}; release write failed: {error}"),
+                        };
+                    }
+                }
                 return;
             }
             let output = {
@@ -324,29 +367,16 @@ impl crate::client::adapter::ControlOps for Bot {
     }
 
     async fn stop_control(&self) -> Result<Option<ControlRecord>> {
-        let _gate = self.coherent_state_gate.lock().await;
-        let mut control = self.common_control.lock().await;
-        let Some(session) = control.session.as_mut() else {
+        let control = self.common_control.lock().await;
+        let Some(session) = control.session.as_ref() else {
             return Ok(None);
         };
-        let mut release = Ok(());
-        if session.running() {
-            let (sneak, sprint, _) = session.release();
-            if sprint.is_some() {
-                release = self.control_entity_action(4).await;
-            }
-            if release.is_ok() && sneak.is_some() {
-                release = self.control_entity_action(1).await;
-            }
-            session.status = ControlStatus::Stopped {
-                reason: match &release {
-                    Ok(()) => "stopped by request".into(),
-                    Err(e) => format!("stopped; release write failed: {e}"),
-                },
-            };
-        }
-        let record = session.record();
-        release.map(|()| Some(record))
+        let id = session.id;
+        drop(control);
+        let owner = self.clone_internal();
+        tokio::spawn(async move { owner.stop_control_owned(id).await })
+            .await
+            .map_err(|error| invalid(&format!("control stop task failed: {error}")))?
     }
 
     async fn control_record(&self) -> Result<Option<ControlRecord>> {
@@ -357,5 +387,67 @@ impl crate::client::adapter::ControlOps for Bot {
             .session
             .as_ref()
             .map(ControlSession::record))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::client::adapter::ControlOps;
+    use crate::client::control::Output;
+    use tokio::time::timeout;
+
+    #[tokio::test]
+    async fn cancelling_stop_wait_still_releases_keys_and_retains_record() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.player.lock().await.entity_id = Some(42);
+        let received = bot.control_received().await;
+        let mut session =
+            ControlSession::new(MinecraftVersion::Java1_16_1, 1, [8.5, 65.0, 8.5], &received);
+        session.dispatched(&Output {
+            sneak: Some(true),
+            sprint: Some(true),
+            input: None,
+            position: [8.5, 65.0, 8.5],
+            rotation: [0.0; 2],
+            on_ground: true,
+            horizontal_collision: false,
+        });
+        bot.common_control.lock().await.session = Some(session);
+        let writer = bot.writer.lock().await;
+        let mut wait = Box::pin(bot.stop_control());
+        assert!(
+            timeout(Duration::from_millis(30), wait.as_mut())
+                .await
+                .is_err()
+        );
+        drop(wait);
+        drop(writer);
+        for action in [4, 1] {
+            assert_eq!(
+                timeout(Duration::from_secs(1), packets.recv())
+                    .await
+                    .unwrap()
+                    .unwrap(),
+                (0x1c, vec![42, action, 0])
+            );
+        }
+        let record = bot.control_record().await.unwrap().unwrap();
+        assert_eq!(record.session_id, 1);
+        assert!(matches!(record.status, ControlStatus::Stopped { .. }));
+        assert_eq!(bot.stop_control().await.unwrap(), Some(record));
+        assert!(
+            timeout(Duration::from_millis(30), packets.recv())
+                .await
+                .is_err()
+        );
+        drop(release);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
     }
 }

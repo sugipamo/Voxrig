@@ -145,6 +145,13 @@ impl ControlSession {
         if let Some((_, _, Some(v))) = received.pose {
             body.velocity = v;
         }
+        if let Some((sequence, value)) = received.velocity {
+            if received.pose.is_none_or(|(pose_sequence, _, velocity)| {
+                velocity.is_none() || sequence > pose_sequence
+            }) {
+                body.velocity = value;
+            }
+        }
         Self {
             version,
             id,
@@ -189,22 +196,39 @@ impl ControlSession {
 
     /// Apply receipts newer than the session has seen, as the client would.
     fn apply_received(&mut self, received: &Received) {
-        if let Some((sequence, position, velocity)) = received.pose {
-            if self.last_pose.is_none_or(|seen| sequence > seen) {
-                self.last_pose = Some(sequence);
-                self.body.teleport(self.version, position);
-                if let Some(v) = velocity {
-                    self.body.velocity = v;
-                }
-                self.corrections += 1;
-            }
+        let pose = received
+            .pose
+            .filter(|p| self.last_pose.is_none_or(|seen| p.0 > seen));
+        let velocity = received
+            .velocity
+            .filter(|v| self.last_velocity.is_none_or(|seen| v.0 > seen));
+        // A newer teleport can reset velocity. Apply the two latest receipts in
+        // arrival order, rather than replaying an older knockback after it.
+        if velocity.is_some_and(|v| pose.is_some_and(|p| v.0 < p.0)) {
+            self.apply_velocity(velocity);
+            self.apply_pose(pose);
+        } else {
+            self.apply_pose(pose);
+            self.apply_velocity(velocity);
         }
-        if let Some((sequence, value)) = received.velocity {
-            if self.last_velocity.is_none_or(|seen| sequence > seen) {
-                self.last_velocity = Some(sequence);
-                self.body.velocity = value;
-                self.velocity_updates += 1;
+    }
+
+    fn apply_pose(&mut self, pose: Option<(u64, [f64; 3], Option<[f64; 3]>)>) {
+        if let Some((sequence, position, velocity)) = pose {
+            self.last_pose = Some(sequence);
+            self.body.teleport(self.version, position);
+            if let Some(v) = velocity {
+                self.body.velocity = v;
             }
+            self.corrections += 1;
+        }
+    }
+
+    fn apply_velocity(&mut self, velocity: Option<(u64, [f64; 3])>) {
+        if let Some((sequence, value)) = velocity {
+            self.last_velocity = Some(sequence);
+            self.body.velocity = value;
+            self.velocity_updates += 1;
         }
     }
 
@@ -430,7 +454,35 @@ mod tests {
         assert_eq!((session.corrections, session.velocity_updates), (1, 1));
         let frame = session.frame.as_ref().unwrap();
         assert_eq!((frame.position[0], frame.position[2]), (3.5, 3.5));
-        assert!(frame.position[1] > 64.0, "received upward velocity applies");
+        assert_eq!(
+            frame.position[1], 64.0,
+            "newer teleport resets older velocity"
+        );
+        let knockback = received(moved.pose, Some((10, [0.0, 0.42, 0.0])));
+        session.step(&knockback, &mut blocks).unwrap();
+        assert!(session.frame.as_ref().unwrap().position[1] > 64.0);
+        assert_eq!((session.corrections, session.velocity_updates), (1, 2));
+    }
+
+    #[test]
+    fn starting_velocity_uses_the_latest_receipt() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            for (pose_sequence, pose_velocity, velocity_sequence, expected) in [
+                (5, Some([0.0; 3]), 7, [0.0, 0.42, 0.0]),
+                (7, Some([0.0; 3]), 5, [0.0; 3]),
+                (7, None, 5, [0.0, 0.42, 0.0]),
+            ] {
+                let start = received(
+                    Some((pose_sequence, [0.5, 64.0, 0.5], pose_velocity)),
+                    Some((velocity_sequence, [0.0, 0.42, 0.0])),
+                );
+                let mut session = ControlSession::new(version, 1, [0.5, 64.0, 0.5], &start);
+                assert_eq!(session.body.velocity, expected);
+                session.step(&start, &mut world(false)).unwrap();
+                assert_eq!((session.corrections, session.velocity_updates), (0, 0));
+                assert_eq!(session.body.position[1] > 64.0, expected[1] > 0.0);
+            }
+        }
     }
 
     #[test]
@@ -438,9 +490,40 @@ mod tests {
         let version = MinecraftVersion::Java1_16_1;
         let start = received(Some((5, [0.5, 64.0, 0.5], None)), None);
         let mut session = ControlSession::new(version, 1, [0.5, 64.0, 0.5], &start);
-        assert_eq!(session.step(&start, &mut world(true)).unwrap(), None);
+        let mut ordinary = world(false);
+        let mut unsupported = |p| {
+            if p == [0, 64, 0] {
+                Ok(NativeBlockState {
+                    name: "minecraft:bubble_column".into(),
+                    properties: [("drag".into(), "false".into())].into_iter().collect(),
+                })
+            } else {
+                ordinary(p)
+            }
+        };
+        assert_eq!(session.step(&start, &mut unsupported).unwrap(), None);
         assert!(matches!(session.status, ControlStatus::Paused { .. }));
         assert!(session.step(&start, &mut world(false)).unwrap().is_some());
         assert_eq!(session.status, ControlStatus::Running);
+    }
+
+    #[test]
+    fn ladders_keep_continuous_control_running_and_send_upward_motion() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let start = received(Some((5, [0.5, 64.0, 0.5], None)), None);
+            let mut session = ControlSession::new(version, 1, [0.5, 64.0, 0.5], &start);
+            session.controls = Controls {
+                jump: true,
+                ..Default::default()
+            };
+            let mut ladder = world(true);
+            for _ in 0..3 {
+                let output = session.step(&start, &mut ladder).unwrap().unwrap();
+                session.dispatched(&output);
+                assert_eq!(session.status, ControlStatus::Running);
+            }
+            assert_eq!(session.dispatched_ticks, 3);
+            assert!(session.frame.as_ref().unwrap().position[1] > 64.0);
+        }
     }
 }

@@ -1,0 +1,191 @@
+//! JSON-line driver for `scripts/run_climbing_control.py`; common API only.
+use std::io::Write;
+use std::time::Duration;
+use tokio::io::{AsyncBufReadExt, BufReader};
+use voxrig::client::control::Controls;
+use voxrig::client::prelude::*;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let port = std::env::var("VOXRIG_PORT")?.parse()?;
+    let client = Client::connect(ConnectionConfig::offline_from_env(
+        Server::new("127.0.0.1", port),
+        "ClimbingProbe",
+    )?)
+    .await?;
+    client.wait_until_ready().await?;
+    println!("{}", serde_json::json!({"ready":true}));
+    std::io::stdout().flush()?;
+    let survival = client.survival();
+    let mut mounted = None;
+    let creative_vehicle = std::env::var("VOXRIG_VEHICLE_MODE").as_deref() == Ok("creative");
+    let mut lines = BufReader::new(tokio::io::stdin()).lines();
+    while let Some(line) = lines.next_line().await? {
+        let request: serde_json::Value = serde_json::from_str(&line)?;
+        let value = match request["command"].as_str().unwrap_or_default() {
+            "prepare" => {
+                let target: [f64; 3] = serde_json::from_value(request["position"].clone())?;
+                tokio::time::timeout(Duration::from_secs(10), async {
+                    loop {
+                        let state = client.player_state().await?;
+                        if state.received_pose.as_ref().is_some_and(|p| {
+                            p.position
+                                .iter()
+                                .zip(target)
+                                .all(|(a, b)| (a - b).abs() < 0.01)
+                        }) {
+                            break Ok::<_, anyhow::Error>(());
+                        }
+                        tokio::time::sleep(Duration::from_millis(20)).await;
+                    }
+                })
+                .await??;
+                client
+                    .wait_for_loaded(
+                        Region {
+                            min: [-4, 60, -4],
+                            max: [4, 84, 4],
+                        },
+                        Duration::from_secs(10),
+                    )
+                    .await?;
+                // Chunk receipt precedes subsequent block/entity updates.
+                tokio::time::sleep(Duration::from_millis(200)).await;
+                serde_json::to_value(client.player_state().await?)?
+            }
+            "start" => serde_json::to_value(survival.start_control().await?)?,
+            "keys" => {
+                let controls: Controls = serde_json::from_value(request["controls"].clone())?;
+                serde_json::to_value(survival.set_controls(controls).await?)?
+            }
+            "ticks" => {
+                let initial = survival.control_record().await?.unwrap().dispatched_ticks;
+                let count = request["count"].as_u64().unwrap();
+                let record = tokio::time::timeout(Duration::from_secs(10), async {
+                    loop {
+                        let record = survival.control_record().await?.unwrap();
+                        if record.dispatched_ticks >= initial + count {
+                            break Ok::<_, anyhow::Error>(record);
+                        }
+                        tokio::time::sleep(Duration::from_millis(5)).await;
+                    }
+                })
+                .await??;
+                serde_json::to_value(record)?
+            }
+            "record" => serde_json::to_value(survival.control_record().await?)?,
+            "mount" => {
+                let entity_type = request["type"].as_str().unwrap();
+                let target = tokio::time::timeout(Duration::from_secs(10), async {
+                    loop {
+                        if let Some(entity) = client
+                            .entity_spawns()
+                            .await?
+                            .entities
+                            .into_iter()
+                            .find(|e| e.type_name.as_deref() == Some(entity_type))
+                        {
+                            break Ok::<_, anyhow::Error>(entity.id);
+                        }
+                        tokio::time::sleep(Duration::from_millis(20)).await;
+                    }
+                })
+                .await??;
+                if creative_vehicle {
+                    client
+                        .creative()
+                        .interact_entity(target, Hand::Main, false)
+                        .await?;
+                } else {
+                    survival.interact_entity(target, Hand::Main, false).await?;
+                }
+                let vehicle = tokio::time::timeout(Duration::from_secs(10), async {
+                    loop {
+                        let vehicle = client.vehicle_state().await?;
+                        if let Some(VehicleRelation::Mounted { mount }) =
+                            vehicle.relation.as_ref().map(|r| &r.value)
+                        {
+                            if mount.vehicle() == Some(target) {
+                                mounted = Some(*mount);
+                                break Ok::<_, anyhow::Error>(vehicle);
+                            }
+                        }
+                        tokio::time::sleep(Duration::from_millis(20)).await;
+                    }
+                })
+                .await??;
+                serde_json::to_value(vehicle)?
+            }
+            "drive" => {
+                let inputs: Vec<VehicleInput> = serde_json::from_value(request["inputs"].clone())?;
+                serde_json::to_value(if creative_vehicle {
+                    client
+                        .creative()
+                        .start_vehicle_control(mounted.unwrap(), &inputs)
+                        .await?
+                } else {
+                    survival
+                        .start_vehicle_control(mounted.unwrap(), &inputs)
+                        .await?
+                })?
+            }
+            "dismount" => {
+                let record = if creative_vehicle {
+                    client.creative().dismount(mounted.unwrap()).await?
+                } else {
+                    survival.dismount(mounted.unwrap()).await?
+                };
+                tokio::time::timeout(Duration::from_secs(10), async {
+                    loop {
+                        let current = client.dismount_record().await?.unwrap();
+                        if current.stage == DismountStage::ObservedUnmounted {
+                            break Ok::<_, anyhow::Error>(());
+                        }
+                        if current.requires_inspection.is_some() {
+                            anyhow::bail!("dismount interrupted");
+                        }
+                        tokio::time::sleep(Duration::from_millis(20)).await;
+                    }
+                })
+                .await??;
+                let complete = if creative_vehicle {
+                    client.creative().complete_dismount(record.id).await?
+                } else {
+                    survival.complete_dismount(record.id).await?
+                };
+                let stale_result = if creative_vehicle {
+                    client
+                        .creative()
+                        .start_vehicle_control(mounted.unwrap(), &[VehicleInput::default()])
+                        .await
+                } else {
+                    survival
+                        .start_vehicle_control(mounted.unwrap(), &[VehicleInput::default()])
+                        .await
+                };
+                anyhow::ensure!(stale_result.is_err());
+                serde_json::to_value(complete)?
+            }
+            "stop" => serde_json::to_value(survival.stop_control().await?)?,
+            "wait" => {
+                tokio::time::sleep(Duration::from_millis(request["ms"].as_u64().unwrap())).await;
+                serde_json::to_value(survival.control_record().await?)?
+            }
+            "disconnect" => {
+                client.disconnect().await?;
+                tokio::time::sleep(Duration::from_millis(150)).await;
+                println!(
+                    "{}",
+                    serde_json::to_value(survival.control_record().await?)?
+                );
+                std::io::stdout().flush()?;
+                return Ok(());
+            }
+            other => anyhow::bail!("unknown command: {other}"),
+        };
+        println!("{value}");
+        std::io::stdout().flush()?;
+    }
+    client.disconnect().await?;
+    Ok(())
+}

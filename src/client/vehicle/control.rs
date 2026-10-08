@@ -1,15 +1,30 @@
 //! Finite original mounted inputs, with an explicit final neutral frame.
 use super::{MountId, VehicleObservation, VehicleRelation};
 use crate::client::adapter::VehicleOps;
+pub use crate::client::physics::boat::BoatFrame;
 use crate::{
     Result,
     client::{self as api, GameMode, ValueSource, inventory::unavailable},
 };
 
+/// Boat prediction and submission history; received motion stays separate.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct BoatMotion {
+    /// Actual vehicle samples captured at admission.
+    pub received: api::EntityMotionObservation,
+    /// Declared seed, or the previous submitted run's final prediction.
+    pub initial_frame: BoatFrame,
+    /// Latest predicted frame retained before the multi-packet write.
+    pub attempted_frame: Option<BoatFrame>,
+    /// Predicted frames whose input, paddles and vehicle position were fully sent.
+    pub frames: Vec<BoatFrame>,
+}
+
 pub(crate) type History = std::sync::Arc<std::sync::Mutex<Option<VehicleControlRecord>>>;
 /// Maximum native input ticks in one owned mounted-control run.
 pub const MAX_VEHICLE_CONTROL_TICKS: usize = 120;
-/// Digital native mounted input. No position or vehicle physics is predicted.
+/// Digital native mounted input. Ordinary boats additionally submit predicted
+/// paddle and vehicle-motion packets; minecarts retain server-driven motion.
 /// Sneak is deliberately a separate owned `dismount` operation.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct VehicleInput {
@@ -70,6 +85,9 @@ pub struct VehicleControlRecord {
     pub stage: VehicleControlStage,
     /// First conflict or uncertain delivery.
     pub requires_inspection: Option<String>,
+    /// Boat-only prediction; other vehicles use their original server-side input.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub boat_motion: Option<BoatMotion>,
 }
 impl VehicleControlRecord {
     pub(crate) fn unresolved(&self) -> bool {
@@ -144,7 +162,113 @@ pub(crate) fn prepare(
         dispatched_ticks: 0,
         stage: VehicleControlStage::Running,
         requires_inspection: None,
+        boat_motion: None,
     })
+}
+
+pub(crate) fn configure_boat(
+    record: &mut VehicleControlRecord,
+    motion: Option<api::EntityMotionObservation>,
+    previous: Option<&VehicleControlRecord>,
+) -> Result<()> {
+    let Some(motion) = motion else {
+        return Ok(());
+    };
+    let name = motion.entity.type_name.as_deref().unwrap_or_default();
+    if name != "minecraft:boat" && !name.ends_with("_boat") && !name.ends_with("_raft") {
+        return Ok(());
+    }
+    if record
+        .vehicle
+        .passengers
+        .as_ref()
+        .and_then(|p| p.value.first())
+        .copied()
+        != record.vehicle.player_native_id
+    {
+        return Err(unavailable(
+            "boat control requires the first actual passenger",
+        ));
+    }
+    let seed = previous
+        .filter(|p| p.stage == VehicleControlStage::Submitted && p.id.mount() == record.id.mount())
+        .filter(|p| {
+            p.vehicle.motion_correction_sequence == record.vehicle.motion_correction_sequence
+        })
+        .and_then(|p| p.boat_motion.as_ref())
+        .and_then(|b| b.frames.last())
+        .cloned();
+    let initial_frame = match seed {
+        Some(frame) => frame,
+        None => BoatFrame::new(
+            motion
+                .position
+                .as_ref()
+                .ok_or_else(|| unavailable("boat requires received position"))?
+                .value
+                .position,
+            motion
+                .rotation
+                .as_ref()
+                .ok_or_else(|| unavailable("boat requires received rotation"))?
+                .value,
+            motion
+                .velocity
+                .as_ref()
+                .ok_or_else(|| unavailable("boat requires received velocity"))?
+                .value,
+        ),
+    };
+    record.boat_motion = Some(BoatMotion {
+        received: motion,
+        initial_frame,
+        attempted_frame: None,
+        frames: Vec::new(),
+    });
+    Ok(())
+}
+
+pub(crate) fn boat_step(
+    record: &VehicleControlRecord,
+    input: VehicleInput,
+    block_at: &mut impl FnMut([i32; 3]) -> Result<crate::NativeBlockState>,
+) -> Result<Option<BoatFrame>> {
+    record
+        .boat_motion
+        .as_ref()
+        .map(|boat| {
+            crate::client::physics::boat::tick(
+                record.id.mount().session().version,
+                boat.frames.last().unwrap_or(&boat.initial_frame),
+                input,
+                block_at,
+            )
+        })
+        .transpose()
+}
+
+pub(crate) fn boat_packets(
+    version: crate::MinecraftVersion,
+    frame: &BoatFrame,
+) -> [(i32, Vec<u8>); 2] {
+    let modern = version == crate::MinecraftVersion::Java1_21_11;
+    let mut position = Vec::with_capacity(33);
+    for v in frame.position {
+        position.extend(v.to_be_bytes());
+    }
+    for v in frame.rotation {
+        position.extend(v.to_be_bytes());
+    }
+    if modern {
+        position.push(u8::from(frame.on_ground));
+    }
+    [
+        (
+            if modern { 0x22 } else { 0x17 },
+            frame.paddles.map(u8::from).to_vec(),
+        ),
+        (if modern { 0x21 } else { 0x16 }, position),
+    ]
 }
 pub(crate) fn validate(
     record: &VehicleControlRecord,
@@ -155,6 +279,21 @@ pub(crate) fn validate(
         return Err(unavailable(
             "vehicle control cannot continue or replay retained failure",
         ));
+    }
+    if vehicle.motion_correction_sequence != record.vehicle.motion_correction_sequence {
+        return Err(unavailable(
+            "received vehicle correction or explosion interrupted control",
+        ));
+    }
+    if record.boat_motion.is_some()
+        && vehicle
+            .passengers
+            .as_ref()
+            .and_then(|p| p.value.first())
+            .copied()
+            != vehicle.player_native_id
+    {
+        return Err(unavailable("boat controlling passenger changed"));
     }
     context(player, vehicle, record.mode, record.id.mount)
 }

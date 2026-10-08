@@ -1,0 +1,105 @@
+{
+  "issue": "https://github.com/sugipamo/Voxrig/issues/19",
+  "live_validation_date": "2026-10-08",
+  "timezone": "Asia/Tokyo",
+  "authority": "Real common-Client connections to SHA-1 verified official loopback servers. Legacy native broadcast retains original entity payloads after common notification-log overflow; modern default connection remains usable. No GitHub publication is claimed.",
+  "runs": [
+    {
+      "version": "1.16.1",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "passed": true,
+      "local_report": ".local/climbing/live/1.16.1-20261008-145233/report.json",
+      "report_sha256": "0be2300f69ff9fcb6bd8ac8f352bc4882d6697e385a0390b02f8d4ac1340ac48",
+      "native_event_channel_capacity": 8192,
+      "native_events_retained": 6806,
+      "native_entity_payload_samples": 6726,
+      "native_entities": 128,
+      "common_notification_log_overflow": true,
+      "native_lagged": false,
+      "native_endpoint": "Armor Stand has the following entity data: [0.125d, 67.0d, 2.0d]"
+    },
+    {
+      "version": "1.21.11",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "passed": true,
+      "local_report": ".local/climbing/live/1.21.11-20261008-145255/report.json",
+      "report_sha256": "0d0ca6d06e00f1c97b68a1b555f3e1b0a69146947f781315cbc50e30f996de72",
+      "native_event_channel_capacity": null
+    }
+  ],
+  "tcp_regression": {
+    "events_per_connection": 8192,
+    "cases": [
+      {
+        "requested": null,
+        "retained": 256,
+        "lagged": 7936
+      },
+      {
+        "requested": 8192,
+        "retained": 8192,
+        "lagged": 0
+      },
+      {
+        "requested": 8192,
+        "recorded": true,
+        "retained": 8192,
+        "lagged": 0
+      },
+      {
+        "requested": 1000,
+        "retained": 1024,
+        "lagged": 7168
+      }
+    ],
+    "checked_fields": [
+      "original UUID/type",
+      "historical position",
+      "historical velocity",
+      "native event order",
+      "independent common-log overflow",
+      "recorded packet count"
+    ],
+    "invalid_before_io": [
+      "zero",
+      "above usize::MAX / 2",
+      "usize::MAX"
+    ],
+    "unsupported_before_io": "Some(capacity) on Java 1.21.11"
+  },
+  "scope": [
+    "Setting applies to the original native source at connection construction.",
+    "Native payload subscription still requires feature native.",
+    "Common events remain a fixed 4096-notification log without historical entity payloads.",
+    "An explicit capacity on modern is rejected; None preserves all defaults."
+  ],
+  "regression": {
+    "default": {
+      "passed": 875,
+      "ignored": 8
+    },
+    "native": {
+      "library_passed": 875,
+      "integration_passed": 4,
+      "ignored": 8
+    },
+    "doc_each_feature": {
+      "passed": 32,
+      "ignored": 1
+    },
+    "format": "passed",
+    "clippy_each_feature": "passed with -D warnings",
+    "msrv_each_feature": "Rust 1.85.0 check --all-targets passed; existing unfulfilled_lint_expectations warning in versions/table.rs"
+  },
+  "validation_log_sha256": {
+    "events-clippy-default.log": "975db5e473707e8d4d72d678563de209224164b2547a9c3e774f3369a865b8ef",
+    "events-clippy-native.log": "f9a8ee7182f8872b393503f83c7214fcfe99e2896be71b1306fe9921aa837177",
+    "events-default.log": "b8613e623acc9d07c05b6eaa65dc613c4e0a12fc6ff17e150430c723a1de4238",
+    "events-doc-default.log": "4559540dac0ad0d27ff596fa3e7c12fe916f7e9d83c36ba9056b204b1c2a5d34",
+    "events-doc-native.log": "d5f63836d8f1566b84124c3ab33fb66d5ff206bebd2026a639f374dd15c11f14",
+    "events-fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "events-msrv-default.log": "4a001f9163ac8e833abcb7fe2f1fca20563a66aa8d7a8aa703b6560934f27e74",
+    "events-msrv-native.log": "3b54399deace1396a432e2e0bf814551ab6d6b4c0dd9c2d57128f6dacd18b743",
+    "events-native.log": "99c03fa2d3b5098cb66943441e8c4cc65122f39cd7e50d08ee52b7ab96faf8b2"
+  }
+}

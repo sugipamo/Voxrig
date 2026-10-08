@@ -191,6 +191,35 @@ impl Operations {
         Ok(())
     }
 
+    async fn stop_control_owned(&self, id: u64) -> Result<Option<ControlRecord>> {
+        let mut state = self.bot.session.state.lock().await;
+        let entity = state.operations.local_player.entity_id;
+        let Some(mut session) = state.control.session.take() else {
+            return Ok(None);
+        };
+        if session.id != id {
+            state.control.session = Some(session);
+            return Ok(None);
+        }
+        let release = if session.running() && self.ready(&state).is_ok() {
+            self.write_release(&session, entity).await
+        } else {
+            Ok(())
+        };
+        if session.running() {
+            session.status = ControlStatus::Stopped {
+                reason: match &release {
+                    Ok(()) => "stopped by request".into(),
+                    Err(e) => format!("stopped; release write failed: {e}"),
+                },
+            };
+        }
+        let record = session.record();
+        state.control.session = Some(session);
+        self.bot.session.changed.notify_waiters();
+        release.map(|()| Some(record))
+    }
+
     async fn run_control(&self, id: u64, generation: u64, mode: GameMode) {
         let mut interval = tokio::time::interval(Duration::from_millis(50));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -210,8 +239,23 @@ impl Operations {
                 Ok(()) => stop_reason(&state, generation, mode).map(str::to_owned),
             };
             if let Some(reason) = stop {
-                let session = state.control.session.as_mut().unwrap();
-                session.status = ControlStatus::Stopped { reason };
+                // Send releases only in the original, ready world.
+                let release =
+                    if self.ready(&state).is_ok() && state.loading.generation == generation {
+                        self.write_release(
+                            state.control.session.as_ref().unwrap(),
+                            state.operations.local_player.entity_id,
+                        )
+                        .await
+                    } else {
+                        Ok(())
+                    };
+                state.control.session.as_mut().unwrap().status = ControlStatus::Stopped {
+                    reason: match release {
+                        Ok(()) => reason,
+                        Err(error) => format!("{reason}; release write failed: {error}"),
+                    },
+                };
                 self.bot.session.changed.notify_waiters();
                 return;
             }
@@ -377,28 +421,16 @@ impl crate::client::adapter::ControlOps for Operations {
     }
 
     async fn stop_control(&self) -> Result<Option<ControlRecord>> {
-        let mut state = self.bot.session.state.lock().await;
-        let entity = state.operations.local_player.entity_id;
-        let Some(mut session) = state.control.session.take() else {
+        let state = self.bot.session.state.lock().await;
+        let Some(session) = state.control.session.as_ref() else {
             return Ok(None);
         };
-        let release = if session.running() && self.ready(&state).is_ok() {
-            self.write_release(&session, entity).await
-        } else {
-            Ok(())
-        };
-        if session.running() {
-            session.status = ControlStatus::Stopped {
-                reason: match &release {
-                    Ok(()) => "stopped by request".into(),
-                    Err(e) => format!("stopped; release write failed: {e}"),
-                },
-            };
-        }
-        let record = session.record();
-        state.control.session = Some(session);
-        self.bot.session.changed.notify_waiters();
-        release.map(|()| Some(record))
+        let id = session.id;
+        drop(state);
+        let owner = self.clone();
+        tokio::spawn(async move { owner.stop_control_owned(id).await })
+            .await
+            .map_err(|error| invalid(&format!("control stop task failed: {error}")))?
     }
 
     async fn control_record(&self) -> Result<Option<ControlRecord>> {

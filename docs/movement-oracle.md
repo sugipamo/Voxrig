@@ -68,3 +68,46 @@ JDK 21で確認した。両版で約1分。サーバーは`localhost`だけで�
 
 P3・P5の共有エンジン（[説明](physics-engine.md)）は、アイテムの使用中の移動を加えた162場面（両版で310回）のすべてでbit単位で一致した。
 液体の場面では、サーバーのtickを進めないので、置いた水や溶岩は流れ出さない（指定した状態のまま比べる）。
+
+## 登りの比較（2026-10-08）
+
+`climbing_scenarios.py`で46場面を生成し、同じharnessで1.16.1の42場面と1.21.11の46場面を実行した。
+結果は`data/client_api/climbing_oracle.json.gz`へ別に保存している。位置・速度・落下距離・接地・横の衝突・
+ダッシュ・しゃがみ・水中・泳ぎをbit単位で比較し、すべて一致した。登りのテストは拒否も失敗として扱う。
+
+```bash
+mkdir -p .local/climbing/blocks
+python3 -B scripts/movement_oracle/climbing_scenarios.py .local/climbing/scenarios.json
+python3 scripts/movement_oracle/run.py \
+  --downloads /absolute/path/to/downloads --work "$PWD/.local/climbing/oracle" \
+  --scenarios "$PWD/.local/climbing/scenarios.json" \
+  --output "$PWD/data/client_api/climbing_oracle.json.gz" \
+  --blocks-output "$PWD/.local/climbing/blocks"
+cargo test --locked --lib client::physics::oracle_tests::climbing_reproduces_every_official_tick_without_refusals
+```
+
+通常のJDK 21（`java`・`javac`・`jar`）が必要。サーバーは127.0.0.1へbindする。
+場面には意図的に近隣の支えがない梯子や、実際のblock更新なら変化する足場の状態も含む。
+block更新を進めず、受信済みの指定状態に対するclientの移動だけを比較している。
+
+
+## ボートの比較（2026-10-08）
+
+`boat_scenarios.py`が17場面を生成する。両版の公式`Boat`／`AbstractBoat`の
+状態判定・浮力・操縦・`Entity.move`を、そのまま呼び出して比較する。
+9通りの前後左右、初期yaw、neutral後の惰性、水中への落下、壁、石と氷の摩擦を含む。
+人工の操縦者だけを乗せ、前の場面のentityが衝突に混ざらないように除去する。
+全34実行の位置・速度・回転・角速度・接地・水面接触・パドルが全tickで一致した。
+
+```bash
+python3 scripts/movement_oracle/boat_scenarios.py .local/climbing/boat-scenarios.json
+python3 scripts/movement_oracle/run.py \
+  --downloads /absolute/path/to/downloads --work "$PWD/.local/climbing/boat-oracle" \
+  --scenarios "$PWD/.local/climbing/boat-scenarios.json" \
+  --output "$PWD/data/client_api/boat_oracle.json.gz" \
+  --blocks-output "$PWD/.local/climbing/boat-blocks"
+cargo test --locked --lib every_supported_boat_tick_matches_unchanged_official_methods
+```
+
+これはボート自身のclient計算の比較で、サーバーとの同期や一般entity衝突の再現を意味しない。
+サーバー補正を受けた有限操作は中断する。実接続は[共通乗り物](common-vehicles.md)の手順を使う。

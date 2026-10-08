@@ -21,6 +21,8 @@ pub(crate) enum Effect {
     Honey,
     /// Legacy liquid block: marks the player as touching lava.
     Liquid,
+    /// Scaffolding: collision depends on the player's height and sneak key.
+    Scaffolding,
     /// Not reproduced by this engine; movement near it is refused.
     Unsupported(&'static str),
 }
@@ -289,7 +291,8 @@ fn shape_effect(collision: Option<&str>, inside: Option<&str>) -> Effect {
         ) => Effect::None,
         // Solid only for entities that can stand on fluid; empty for players.
         Some("LiquidBlock") => Effect::None,
-        // Entity context (scaffolding, powder snow, fluids), offsets (bamboo) or
+        Some("ScaffoldingBlock") => Effect::Scaffolding,
+        // Other entity context (powder snow), offsets (bamboo) or
         // block entities (moving pistons).
         Some(_) => Effect::Unsupported("context-dependent collision shape"),
     }
@@ -333,7 +336,7 @@ mod tests {
                 .find(|b| b.name == "minecraft:scaffolding")
                 .unwrap();
             assert!(scaffolding.climbable);
-            assert!(matches!(scaffolding.shape, Effect::Unsupported(_)));
+            assert_eq!(scaffolding.shape, Effect::Scaffolding);
             let bamboo = t
                 .blocks
                 .iter()
