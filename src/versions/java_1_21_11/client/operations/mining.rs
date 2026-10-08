@@ -903,10 +903,10 @@ impl crate::client::adapter::MiningOps for Operations {
         let Some(capture) = state.common_mining.clone() else {
             return Ok(None);
         };
-        if !state
+        if state
             .mining
             .as_ref()
-            .is_some_and(|m| m.intent.start_sequence == capture.start_sequence)
+            .is_none_or(|m| m.intent.start_sequence != capture.start_sequence)
         {
             return Err(unavailable(
                 "retained common mining no longer owns native intent",

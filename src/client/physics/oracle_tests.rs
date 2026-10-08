@@ -171,8 +171,8 @@ pub(super) fn compare(
                 body.fall_distance, expected["fall_distance"]
             )));
         }
-        for axis in 0..3 {
-            let position = body.position[axis] - f64::from(ORIGIN[axis]);
+        for (axis, origin) in ORIGIN.iter().enumerate() {
+            let position = body.position[axis] - f64::from(*origin);
             let want = exact(&expected["position"][axis]);
             let velocity = exact(&expected["velocity"][axis]);
             if position != want || body.velocity[axis] != velocity {
