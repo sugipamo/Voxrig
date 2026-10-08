@@ -272,7 +272,7 @@ impl Capabilities {
                 "docs/common-vehicles.md",
             ),
             Feature::VehicleInput => restricted(
-                "finite digital mounted inputs ending in neutral; no vehicle physics",
+                "finite mounted inputs; ordinary boats and server-driven minecarts; final neutral",
                 "docs/common-vehicles.md",
             ),
             Feature::VehicleGrounding => restricted(
@@ -312,7 +312,7 @@ impl Capabilities {
                 "docs/common-blocks.md",
             ),
             Feature::ContinuousControl => restricted(
-                "held survival keys on terrain and in fluids; no climbing, bubble columns, flying or riding",
+                "held survival keys on terrain, fluids, ladders, vines and scaffolding; no flying or riding",
                 "docs/common-control.md",
             ),
             Feature::ItemUse => restricted(

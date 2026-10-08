@@ -39,7 +39,7 @@ pub(super) fn state(text: &str) -> NativeBlockState {
     }
 }
 
-fn world(scenario: &Value, result: &Value) -> BTreeMap<[i32; 3], NativeBlockState> {
+pub(super) fn world(scenario: &Value, result: &Value) -> BTreeMap<[i32; 3], NativeBlockState> {
     let mut cells = BTreeMap::new();
     for fill in scenario["blocks"].as_array().unwrap() {
         let b: Vec<i64> = (0..6).map(|i| fill[i].as_i64().unwrap()).collect();
@@ -130,6 +130,11 @@ pub(super) fn compare(
         let relative: [i32; 3] = std::array::from_fn(|i| p[i] - ORIGIN[i]);
         Ok(cells.get(&relative).cloned().unwrap_or_else(|| air.clone()))
     };
+    assert!(!scenario["ticks"].as_array().unwrap().is_empty());
+    assert_eq!(
+        scenario["ticks"].as_array().unwrap().len(),
+        result["frames"].as_array().unwrap().len()
+    );
     for (index, (t, expected)) in scenario["ticks"]
         .as_array()
         .unwrap()
@@ -158,6 +163,14 @@ pub(super) fn compare(
         });
         tick(version, &mut body, &env, controls, &mut block_at)
             .map_err(|e| format!("tick {index}: {e}"))?;
+        if scenario["compare_fall_distance"].as_bool() == Some(true)
+            && body.fall_distance != exact(&expected["fall_distance"])
+        {
+            return Ok(Some(format!(
+                "tick {index}: fall distance {} vs {}",
+                body.fall_distance, expected["fall_distance"]
+            )));
+        }
         for (axis, origin) in ORIGIN.iter().enumerate() {
             let position = body.position[axis] - f64::from(*origin);
             let want = exact(&expected["position"][axis]);
@@ -219,4 +232,42 @@ fn engine_reproduces_official_trajectories() {
     }
     println!("{}", report.join("\n"));
     assert!(!failed, "{}", report.join("\n"));
+}
+
+#[test]
+fn climbing_reproduces_every_official_tick_without_refusals() {
+    let data: Value = serde_json::from_reader(flate2::read::GzDecoder::new(
+        &include_bytes!("../../../data/client_api/climbing_oracle.json.gz")[..],
+    ))
+    .unwrap();
+    let mut failures = Vec::new();
+    let mut compared = 0;
+    for (version, key, count) in [
+        (MinecraftVersion::Java1_16_1, "1.16.1", 42),
+        (MinecraftVersion::Java1_21_11, "1.21.11", 46),
+    ] {
+        let results = data["results"][key].as_array().unwrap();
+        assert_eq!(results.len(), count);
+        let scenarios: Vec<_> = data["scenarios"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|s| {
+                s["versions"]
+                    .as_array()
+                    .is_none_or(|versions| versions.iter().any(|v| v == key))
+            })
+            .collect();
+        assert_eq!(scenarios.len(), count);
+        for (scenario, result) in scenarios.into_iter().zip(results) {
+            let name = result["name"].as_str().unwrap();
+            assert_eq!(scenario["name"], result["name"]);
+            match compare(version, scenario, result) {
+                Ok(None) => compared += 1,
+                other => failures.push(format!("{key} {name}: {other:?}")),
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+    assert_eq!(compared, 88);
 }

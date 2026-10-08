@@ -1,0 +1,1065 @@
+{
+  "date": "2026-10-08",
+  "authority": "Common Client real connections to SHA-1 verified official loopback servers; independent RCON state and original forwarded packet traces. No public deployment or general vehicle synchronization is claimed.",
+  "runs": [
+    {
+      "version": "1.16.1",
+      "scenario": "climbing",
+      "mode": "survival",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "passed": true,
+      "local_report": ".local/climbing/live/1.16.1-20261008-132325/report.json",
+      "report_sha256": "9249e49dfccc4a5bd55e282e9ea1f25ea77282420ac9e57eef86d8f4ff59e110",
+      "checks": [
+        {
+          "name": "ladder_jump",
+          "stage": null,
+          "dispatched_ticks": 32
+        },
+        {
+          "name": "ladder_wall",
+          "stage": null,
+          "dispatched_ticks": 52
+        },
+        {
+          "name": "ladder_sneak",
+          "stage": null,
+          "dispatched_ticks": 64
+        },
+        {
+          "name": "ladder_stop",
+          "stage": null,
+          "dispatched_ticks": 64
+        },
+        {
+          "name": "vine_jump",
+          "stage": null,
+          "dispatched_ticks": 32
+        },
+        {
+          "name": "vine_wall",
+          "stage": null,
+          "dispatched_ticks": 52
+        },
+        {
+          "name": "vine_sneak",
+          "stage": null,
+          "dispatched_ticks": 64
+        },
+        {
+          "name": "vine_stop",
+          "stage": null,
+          "dispatched_ticks": 64
+        },
+        {
+          "name": "scaffolding_jump",
+          "stage": null,
+          "dispatched_ticks": 32
+        },
+        {
+          "name": "scaffolding_sneak",
+          "stage": null,
+          "dispatched_ticks": 44
+        },
+        {
+          "name": "scaffolding_stop",
+          "stage": null,
+          "dispatched_ticks": 44
+        },
+        {
+          "name": "waterlogged_ladder_jump",
+          "stage": null,
+          "dispatched_ticks": 32
+        },
+        {
+          "name": "waterlogged_ladder_wall",
+          "stage": null,
+          "dispatched_ticks": 52
+        },
+        {
+          "name": "waterlogged_ladder_sneak",
+          "stage": null,
+          "dispatched_ticks": 64
+        },
+        {
+          "name": "waterlogged_ladder_stop",
+          "stage": null,
+          "dispatched_ticks": 64
+        },
+        {
+          "name": "waterlogged_scaffolding_jump",
+          "stage": null,
+          "dispatched_ticks": 32
+        },
+        {
+          "name": "waterlogged_scaffolding_sneak",
+          "stage": null,
+          "dispatched_ticks": 44
+        },
+        {
+          "name": "waterlogged_scaffolding_stop",
+          "stage": null,
+          "dispatched_ticks": 44
+        },
+        {
+          "name": "trapdoor_north_true",
+          "stage": null,
+          "dispatched_ticks": 60
+        },
+        {
+          "name": "trapdoor_south_true",
+          "stage": null,
+          "dispatched_ticks": 60
+        },
+        {
+          "name": "trapdoor_north_false",
+          "stage": null,
+          "dispatched_ticks": 60
+        },
+        {
+          "name": "restart_sprint",
+          "stage": null,
+          "dispatched_ticks": 8
+        },
+        {
+          "name": "teleport",
+          "stage": null,
+          "dispatched_ticks": 16
+        },
+        {
+          "name": "mode_change",
+          "stage": null,
+          "dispatched_ticks": 16
+        },
+        {
+          "name": "disconnect",
+          "stage": null,
+          "dispatched_ticks": 3
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "scenario": "climbing",
+      "mode": "survival",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "passed": true,
+      "local_report": ".local/climbing/live/1.21.11-20261008-132414/report.json",
+      "report_sha256": "b6939f1cd948b84f1204510af59ebd0f26b85e517c97505386e4cc828fbf015d",
+      "checks": [
+        {
+          "name": "ladder_jump",
+          "stage": null,
+          "dispatched_ticks": 33
+        },
+        {
+          "name": "ladder_wall",
+          "stage": null,
+          "dispatched_ticks": 53
+        },
+        {
+          "name": "ladder_sneak",
+          "stage": null,
+          "dispatched_ticks": 65
+        },
+        {
+          "name": "ladder_stop",
+          "stage": null,
+          "dispatched_ticks": 65
+        },
+        {
+          "name": "vine_jump",
+          "stage": null,
+          "dispatched_ticks": 32
+        },
+        {
+          "name": "vine_wall",
+          "stage": null,
+          "dispatched_ticks": 52
+        },
+        {
+          "name": "vine_sneak",
+          "stage": null,
+          "dispatched_ticks": 64
+        },
+        {
+          "name": "vine_stop",
+          "stage": null,
+          "dispatched_ticks": 64
+        },
+        {
+          "name": "scaffolding_jump",
+          "stage": null,
+          "dispatched_ticks": 32
+        },
+        {
+          "name": "scaffolding_sneak",
+          "stage": null,
+          "dispatched_ticks": 44
+        },
+        {
+          "name": "scaffolding_stop",
+          "stage": null,
+          "dispatched_ticks": 44
+        },
+        {
+          "name": "waterlogged_ladder_jump",
+          "stage": null,
+          "dispatched_ticks": 32
+        },
+        {
+          "name": "waterlogged_ladder_wall",
+          "stage": null,
+          "dispatched_ticks": 52
+        },
+        {
+          "name": "waterlogged_ladder_sneak",
+          "stage": null,
+          "dispatched_ticks": 64
+        },
+        {
+          "name": "waterlogged_ladder_stop",
+          "stage": null,
+          "dispatched_ticks": 64
+        },
+        {
+          "name": "waterlogged_scaffolding_jump",
+          "stage": null,
+          "dispatched_ticks": 32
+        },
+        {
+          "name": "waterlogged_scaffolding_sneak",
+          "stage": null,
+          "dispatched_ticks": 44
+        },
+        {
+          "name": "waterlogged_scaffolding_stop",
+          "stage": null,
+          "dispatched_ticks": 44
+        },
+        {
+          "name": "trapdoor_north_true",
+          "stage": null,
+          "dispatched_ticks": 60
+        },
+        {
+          "name": "trapdoor_south_true",
+          "stage": null,
+          "dispatched_ticks": 61
+        },
+        {
+          "name": "trapdoor_north_false",
+          "stage": null,
+          "dispatched_ticks": 60
+        },
+        {
+          "name": "restart_sprint",
+          "stage": null,
+          "dispatched_ticks": 8
+        },
+        {
+          "name": "teleport",
+          "stage": null,
+          "dispatched_ticks": 16
+        },
+        {
+          "name": "mode_change",
+          "stage": null,
+          "dispatched_ticks": 16
+        },
+        {
+          "name": "disconnect",
+          "stage": null,
+          "dispatched_ticks": 3
+        }
+      ]
+    },
+    {
+      "version": "1.16.1",
+      "scenario": "boat",
+      "mode": "survival",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "passed": true,
+      "local_report": ".local/climbing/live/1.16.1-20261008-141026/report.json",
+      "report_sha256": "68aef8a1c354ca9d75d35e3d2c913b640d76d9d1d16f878cabebfd246c8917a9",
+      "checks": [
+        {
+          "name": "boat_mount"
+        },
+        {
+          "name": "boat_forward",
+          "stage": "submitted",
+          "dispatched_ticks": 24,
+          "predicted_final_position": [
+            0.5,
+            64.52751382985495,
+            6.637476379679086
+          ],
+          "final_paddles": [
+            false,
+            false
+          ],
+          "native_before": [
+            0.5,
+            64.62225563204727,
+            1.5
+          ],
+          "native_after": [
+            0.5,
+            64.52751382985495,
+            6.637476379679086
+          ],
+          "native_rotation": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "name": "boat_turn",
+          "stage": "submitted",
+          "dispatched_ticks": 18,
+          "predicted_final_position": [
+            1.3212522209149227,
+            64.52329926428474,
+            10.508038047227751
+          ],
+          "final_paddles": [
+            false,
+            false
+          ],
+          "native_before": [
+            0.5,
+            64.52751382985495,
+            6.637476379679086
+          ],
+          "native_after": [
+            1.3212522209149227,
+            64.52329926428474,
+            10.508038047227751
+          ],
+          "native_rotation": [
+            -74.76646,
+            0.0
+          ]
+        },
+        {
+          "name": "boat_reverse",
+          "stage": "submitted",
+          "dispatched_ticks": 22,
+          "predicted_final_position": [
+            1.2344060726485253,
+            64.52325837108305,
+            11.464814959497897
+          ],
+          "final_paddles": [
+            false,
+            false
+          ],
+          "native_before": [
+            1.3212522209149227,
+            64.52329926428474,
+            10.508038047227751
+          ],
+          "native_after": [
+            1.2344060726485253,
+            64.52325837108305,
+            11.464814959497897
+          ],
+          "native_rotation": [
+            -97.515045,
+            0.0
+          ]
+        },
+        {
+          "name": "boat_neutral",
+          "stage": "submitted",
+          "dispatched_ticks": 100,
+          "predicted_final_position": [
+            1.189072715187493,
+            64.52325937737082,
+            11.56539742862631
+          ],
+          "final_paddles": [
+            false,
+            false
+          ],
+          "native_before": [
+            1.2344060726485253,
+            64.52325837108305,
+            11.464814959497897
+          ],
+          "native_after": [
+            1.189072715187493,
+            64.52325937737082,
+            11.56539742862631
+          ],
+          "native_rotation": [
+            -99.99987,
+            0.0
+          ]
+        },
+        {
+          "name": "boat_dismount",
+          "stage": "completed",
+          "dispatched_ticks": null
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "scenario": "boat",
+      "mode": "survival",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "passed": true,
+      "local_report": ".local/climbing/live/1.21.11-20261008-141056/report.json",
+      "report_sha256": "5c0e3e45eb19c9aa678ee69cb3f9fcc1ef05b46dcbf3da19c882242da3be9f5a",
+      "checks": [
+        {
+          "name": "boat_mount"
+        },
+        {
+          "name": "boat_forward",
+          "stage": "submitted",
+          "dispatched_ticks": 24,
+          "predicted_final_position": [
+            0.5,
+            64.52328005848833,
+            6.637476379679086
+          ],
+          "final_paddles": [
+            false,
+            false
+          ],
+          "native_before": [
+            0.5,
+            64.52354400468494,
+            1.5
+          ],
+          "native_after": [
+            0.5,
+            64.52328005848833,
+            6.637476379679086
+          ],
+          "native_rotation": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "name": "boat_turn",
+          "stage": "submitted",
+          "dispatched_ticks": 18,
+          "predicted_final_position": [
+            1.3212522209149224,
+            64.52339314755142,
+            10.508038047227751
+          ],
+          "final_paddles": [
+            false,
+            false
+          ],
+          "native_before": [
+            0.5,
+            64.52328005848833,
+            6.637476379679086
+          ],
+          "native_after": [
+            1.3212522209149224,
+            64.52339314755142,
+            10.508038047227751
+          ],
+          "native_rotation": [
+            -74.76646,
+            0.0
+          ]
+        },
+        {
+          "name": "boat_reverse",
+          "stage": "submitted",
+          "dispatched_ticks": 22,
+          "predicted_final_position": [
+            1.2344060726485244,
+            64.52326617910441,
+            11.464814959497897
+          ],
+          "final_paddles": [
+            false,
+            false
+          ],
+          "native_before": [
+            1.3212522209149224,
+            64.52339314755142,
+            10.508038047227751
+          ],
+          "native_after": [
+            1.2344060726485244,
+            64.52326617910441,
+            11.464814959497897
+          ],
+          "native_rotation": [
+            -97.515045,
+            0.0
+          ]
+        },
+        {
+          "name": "boat_neutral",
+          "stage": "submitted",
+          "dispatched_ticks": 100,
+          "predicted_final_position": [
+            1.1877770345428216,
+            64.52326049804533,
+            11.568272193826635
+          ],
+          "final_paddles": [
+            false,
+            false
+          ],
+          "native_before": [
+            1.2344060726485244,
+            64.52326617910441,
+            11.464814959497897
+          ],
+          "native_after": [
+            1.187777172160869,
+            64.52326049804604,
+            11.56827188848938
+          ],
+          "native_rotation": [
+            -99.99986,
+            0.0
+          ]
+        },
+        {
+          "name": "boat_dismount",
+          "stage": "completed",
+          "dispatched_ticks": null
+        }
+      ]
+    },
+    {
+      "version": "1.16.1",
+      "scenario": "boat",
+      "mode": "creative",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "passed": true,
+      "local_report": ".local/climbing/live/1.16.1-20261008-141200/report.json",
+      "report_sha256": "7720268976ffaff3b6e06c62e7128cb7258754897036d80516c9ecdacf0047c8",
+      "checks": [
+        {
+          "name": "boat_mount"
+        },
+        {
+          "name": "boat_forward",
+          "stage": "submitted",
+          "dispatched_ticks": 24,
+          "predicted_final_position": [
+            0.5,
+            64.52687999695775,
+            6.637476379679086
+          ],
+          "final_paddles": [
+            false,
+            false
+          ],
+          "native_before": [
+            0.5,
+            64.62225563204727,
+            1.5
+          ],
+          "native_after": [
+            0.5,
+            64.52687999695775,
+            6.637476379679086
+          ],
+          "native_rotation": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "name": "boat_turn",
+          "stage": "submitted",
+          "dispatched_ticks": 18,
+          "predicted_final_position": [
+            1.3212522209149227,
+            64.52336683134985,
+            10.508038047227751
+          ],
+          "final_paddles": [
+            false,
+            false
+          ],
+          "native_before": [
+            0.5,
+            64.52687999695775,
+            6.637476379679086
+          ],
+          "native_after": [
+            1.3212522209149227,
+            64.52336683134985,
+            10.508038047227751
+          ],
+          "native_rotation": [
+            -74.76646,
+            0.0
+          ]
+        },
+        {
+          "name": "boat_reverse",
+          "stage": "submitted",
+          "dispatched_ticks": 22,
+          "predicted_final_position": [
+            1.2344060726485253,
+            64.52326183883399,
+            11.464814959497897
+          ],
+          "final_paddles": [
+            false,
+            false
+          ],
+          "native_before": [
+            1.3212522209149227,
+            64.52336683134985,
+            10.508038047227751
+          ],
+          "native_after": [
+            1.2344060726485253,
+            64.52326183883399,
+            11.464814959497897
+          ],
+          "native_rotation": [
+            -97.515045,
+            0.0
+          ]
+        },
+        {
+          "name": "boat_neutral",
+          "stage": "submitted",
+          "dispatched_ticks": 100,
+          "predicted_final_position": [
+            1.189072715187493,
+            64.52325937939925,
+            11.56539742862631
+          ],
+          "final_paddles": [
+            false,
+            false
+          ],
+          "native_before": [
+            1.2344060726485253,
+            64.52326183883399,
+            11.464814959497897
+          ],
+          "native_after": [
+            1.189072715187493,
+            64.52325937939925,
+            11.56539742862631
+          ],
+          "native_rotation": [
+            -99.99987,
+            0.0
+          ]
+        },
+        {
+          "name": "boat_dismount",
+          "stage": "completed",
+          "dispatched_ticks": null
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "scenario": "boat",
+      "mode": "creative",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "passed": true,
+      "local_report": ".local/climbing/live/1.21.11-20261008-141229/report.json",
+      "report_sha256": "f90076e825eaef0d0556911300a3a43e07b0bd948618e3b3b0418293ea7ce339",
+      "checks": [
+        {
+          "name": "boat_mount"
+        },
+        {
+          "name": "boat_forward",
+          "stage": "submitted",
+          "dispatched_ticks": 24,
+          "predicted_final_position": [
+            0.5,
+            64.52328005848833,
+            6.637476379679086
+          ],
+          "final_paddles": [
+            false,
+            false
+          ],
+          "native_before": [
+            0.5,
+            64.52354400468494,
+            1.5
+          ],
+          "native_after": [
+            0.5,
+            64.52328005848833,
+            6.637476379679086
+          ],
+          "native_rotation": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "name": "boat_turn",
+          "stage": "submitted",
+          "dispatched_ticks": 18,
+          "predicted_final_position": [
+            1.3212522209149224,
+            64.52339314755142,
+            10.508038047227751
+          ],
+          "final_paddles": [
+            false,
+            false
+          ],
+          "native_before": [
+            0.5,
+            64.52328005848833,
+            6.637476379679086
+          ],
+          "native_after": [
+            1.3212522209149224,
+            64.52339314755142,
+            10.508038047227751
+          ],
+          "native_rotation": [
+            -74.76646,
+            0.0
+          ]
+        },
+        {
+          "name": "boat_reverse",
+          "stage": "submitted",
+          "dispatched_ticks": 22,
+          "predicted_final_position": [
+            1.2344060726485244,
+            64.52326617910441,
+            11.464814959497897
+          ],
+          "final_paddles": [
+            false,
+            false
+          ],
+          "native_before": [
+            1.3212522209149224,
+            64.52339314755142,
+            10.508038047227751
+          ],
+          "native_after": [
+            1.2344060726485244,
+            64.52326617910441,
+            11.464814959497897
+          ],
+          "native_rotation": [
+            -97.515045,
+            0.0
+          ]
+        },
+        {
+          "name": "boat_neutral",
+          "stage": "submitted",
+          "dispatched_ticks": 100,
+          "predicted_final_position": [
+            1.1877770345428216,
+            64.52326049804533,
+            11.568272193826635
+          ],
+          "final_paddles": [
+            false,
+            false
+          ],
+          "native_before": [
+            1.2344060726485244,
+            64.52326617910441,
+            11.464814959497897
+          ],
+          "native_after": [
+            1.1877770345428216,
+            64.52326049804533,
+            11.568272193826635
+          ],
+          "native_rotation": [
+            -99.99987,
+            0.0
+          ]
+        },
+        {
+          "name": "boat_dismount",
+          "stage": "completed",
+          "dispatched_ticks": null
+        }
+      ]
+    },
+    {
+      "version": "1.16.1",
+      "scenario": "minecart",
+      "mode": "survival",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "passed": true,
+      "local_report": ".local/climbing/live/1.16.1-20261008-141624/report.json",
+      "report_sha256": "88966fe88cde4f32d8b692d0e01034cc2d11a30d95bddd4ca7c8d19177fee4bd",
+      "checks": [
+        {
+          "name": "minecart_mount"
+        },
+        {
+          "name": "minecart_forward",
+          "stage": "submitted",
+          "dispatched_ticks": 40,
+          "native_before": [
+            0.5,
+            65.1,
+            1.5
+          ],
+          "native_after": [
+            0.5,
+            65.0625,
+            2.5437732427707687
+          ],
+          "native_rotation": [
+            -90.0,
+            0.0
+          ]
+        },
+        {
+          "name": "minecart_neutral",
+          "stage": "submitted",
+          "dispatched_ticks": 100,
+          "native_before": [
+            0.5,
+            65.0625,
+            2.5860969707569166
+          ],
+          "native_after": [
+            0.5,
+            65.0625,
+            3.0228872146025867
+          ],
+          "native_rotation": [
+            -90.0,
+            0.0
+          ]
+        },
+        {
+          "name": "minecart_dismount",
+          "stage": "completed",
+          "dispatched_ticks": null
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "scenario": "minecart",
+      "mode": "survival",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "passed": true,
+      "local_report": ".local/climbing/live/1.21.11-20261008-141649/report.json",
+      "report_sha256": "5c95ac3af95a29115d9ce5ae5ad71dc5a385aad2e3bd2f154580e19932184b15",
+      "checks": [
+        {
+          "name": "minecart_mount"
+        },
+        {
+          "name": "minecart_forward",
+          "stage": "submitted",
+          "dispatched_ticks": 40,
+          "native_before": [
+            0.5,
+            65.0625,
+            1.5
+          ],
+          "native_after": [
+            0.5,
+            65.0625,
+            2.0708091949327105
+          ],
+          "native_rotation": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "name": "minecart_neutral",
+          "stage": "submitted",
+          "dispatched_ticks": 100,
+          "native_before": [
+            0.5,
+            65.0625,
+            2.0708091949327105
+          ],
+          "native_after": [
+            0.5,
+            65.0625,
+            3.001499785095108
+          ],
+          "native_rotation": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "name": "minecart_dismount",
+          "stage": "completed",
+          "dispatched_ticks": null
+        }
+      ]
+    },
+    {
+      "version": "1.16.1",
+      "scenario": "minecart",
+      "mode": "creative",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "passed": true,
+      "local_report": ".local/climbing/live/1.16.1-20261008-141753/report.json",
+      "report_sha256": "12129218b09fd348b38d6decc025923be81f7a8f12343003375f2d1325e4e916",
+      "checks": [
+        {
+          "name": "minecart_mount"
+        },
+        {
+          "name": "minecart_forward",
+          "stage": "submitted",
+          "dispatched_ticks": 40,
+          "native_before": [
+            0.5,
+            65.1,
+            1.5
+          ],
+          "native_after": [
+            0.5,
+            65.0625,
+            2.637582861797531
+          ],
+          "native_rotation": [
+            -90.0,
+            0.0
+          ]
+        },
+        {
+          "name": "minecart_neutral",
+          "stage": "submitted",
+          "dispatched_ticks": 100,
+          "native_before": [
+            0.5,
+            65.0625,
+            2.637582861797531
+          ],
+          "native_after": [
+            0.5,
+            65.0625,
+            3.057008657110971
+          ],
+          "native_rotation": [
+            -90.0,
+            0.0
+          ]
+        },
+        {
+          "name": "minecart_dismount",
+          "stage": "completed",
+          "dispatched_ticks": null
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "scenario": "minecart",
+      "mode": "creative",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "passed": true,
+      "local_report": ".local/climbing/live/1.21.11-20261008-141817/report.json",
+      "report_sha256": "5d3867a3ba562dbe8ba99ae3f5963aa607fd4091d4b001fb18826ba438cb1225",
+      "checks": [
+        {
+          "name": "minecart_mount"
+        },
+        {
+          "name": "minecart_forward",
+          "stage": "submitted",
+          "dispatched_ticks": 40,
+          "native_before": [
+            0.5,
+            65.0625,
+            1.5
+          ],
+          "native_after": [
+            0.5,
+            65.0625,
+            2.0708091949327105
+          ],
+          "native_rotation": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "name": "minecart_neutral",
+          "stage": "submitted",
+          "dispatched_ticks": 100,
+          "native_before": [
+            0.5,
+            65.0625,
+            2.0938467673479124
+          ],
+          "native_after": [
+            0.5,
+            65.0625,
+            3.001499785095108
+          ],
+          "native_rotation": [
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "name": "minecart_dismount",
+          "stage": "completed",
+          "dispatched_ticks": null
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Minecart stop uses unpowered powered rails; neutral alone does not prove stopping.",
+    "Boat predictions remain distinct from received entity samples and server acknowledgments.",
+    "Boat entity collisions, flowing-water forces, submersion, bubble columns and special block movement hooks are outside the verified boat model.",
+    "Issue #19 native event-source capacity remains unresolved."
+  ],
+  "regression": {
+    "default": {
+      "passed": 873,
+      "ignored": 8
+    },
+    "native": {
+      "library_passed": 873,
+      "integration_passed": 4,
+      "ignored": 8
+    },
+    "doc_each_feature": {
+      "passed": 31,
+      "ignored": 1
+    },
+    "format": "passed",
+    "clippy_each_feature": "passed with -D warnings",
+    "msrv_each_feature": "Rust 1.85.0 check --all-targets passed; pre-existing unfulfilled_lint_expectations warning in versions/table.rs"
+  },
+  "validation_logs": {
+    "final-clippy-default.log": "7483bdc0bda06f2604820bd603d8c9d349e358be35c5cc8d994e0486b5e0894b",
+    "final-clippy-native.log": "26dd2a620c38c4be564491e659beefb28fe7c84f0d825383b921f918d33fc4dd",
+    "final-default.log": "3e4a8b16c6deb1cb3c717e447cc49f1aa86269e9bfb6d94c261106aad0fdcad1",
+    "final-doc-default.log": "595e1d7f667fa5e60b63931ab676fec9b51b19120ec5bc0c59f632e2222c8a98",
+    "final-doc-native.log": "4a29cea52d2a4577486b6645d67124e395e62866c54f47b02389147c60525b22",
+    "final-fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "final-msrv-default.log": "bef3187f49ae0a61d7ca5f646967efb09b9cb44c882c09c9a382dee1e00b1df2",
+    "final-msrv-native.log": "5bb2362cda890ff521eaa67cb3d06eb7728a5d019e5107d1f24941ac71dab083",
+    "final-native.log": "d5a9d1c498422b4761217dfa69d5d9ee392085bc53f269ab28fc18e6f83053d2"
+  }
+}

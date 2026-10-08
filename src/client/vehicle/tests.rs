@@ -369,6 +369,24 @@ fn vehicle_control_requires_final_neutral_and_latches_original_mount_conflicts()
             None,
         )
         .unwrap();
+        // Even an unchanged mount is no longer a valid prediction context
+        // after the original server corrects vehicle motion.
+        let mut corrected_record = record.clone();
+        let mut corrected_vehicle = vehicle.clone();
+        corrected_vehicle.motion_correction_sequence = Some(13);
+        let mut corrected_player = player.clone();
+        corrected_player.receive_sequence = 13;
+        corrected_vehicle.receive_sequence = 13;
+        control::receive(&mut corrected_record, &corrected_player, &corrected_vehicle);
+        assert_eq!(
+            corrected_record.stage,
+            control::VehicleControlStage::RequiresInspection
+        );
+        assert_eq!(corrected_record.dispatched_ticks, 0);
+        assert!(control::validate(&corrected_record, &player, &vehicle).is_err());
+        let correction_reason = corrected_record.requires_inspection.clone();
+        control::receive(&mut corrected_record, &player, &vehicle);
+        assert_eq!(corrected_record.requires_inspection, correction_reason);
         assert!(
             control::prepare(
                 player.clone(),

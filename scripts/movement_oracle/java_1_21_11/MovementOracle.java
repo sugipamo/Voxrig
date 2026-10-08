@@ -351,6 +351,7 @@ public final class MovementOracle {
         JsonArray start = scenario.getAsJsonArray("start");
         player.setPos(origin.getX() + start.get(0).getAsDouble(), origin.getY() + start.get(1).getAsDouble(), origin.getZ() + start.get(2).getAsDouble());
         player.setOnGround(scenario.has("on_ground") ? scenario.get("on_ground").getAsBoolean() : true);
+        if (scenario.has("boat")) return boatScenario(level, origin, scenario, resolved, player);
         if (scenario.has("attributes")) {
             for (Map.Entry<String, JsonElement> a : scenario.getAsJsonObject("attributes").entrySet()) {
                 var holder = BuiltInRegistries.ATTRIBUTE.get(Identifier.parse(a.getKey())).orElseThrow();
@@ -422,6 +423,58 @@ public final class MovementOracle {
         out.add("states", resolved);
         out.add("frames", frames);
         return out;
+    }
+
+    // The unchanged native boat methods run inside the original ServerLevel.
+    // Only status/input scheduling is supplied; no vehicle method is replaced.
+    static JsonObject boatScenario(ServerLevel level, BlockPos origin, JsonObject scenario,
+                                   JsonObject resolved, OraclePlayer player) {
+        try {
+            var boat = new net.minecraft.world.entity.vehicle.boat.Boat(net.minecraft.world.entity.EntityType.OAK_BOAT, level, () -> net.minecraft.world.item.Items.OAK_BOAT);
+            boat.setPos(player.getX(), player.getY(), player.getZ());
+            boat.setYRot(scenario.has("yaw") ? scenario.get("yaw").getAsFloat() : 0.0F);
+            player.startRiding(boat, true, false);
+            if (scenario.has("velocity")) {
+                JsonArray v = scenario.getAsJsonArray("velocity");
+                boat.setDeltaMovement(new Vec3(v.get(0).getAsDouble(), v.get(1).getAsDouble(), v.get(2).getAsDouble()));
+            }
+            Class<?> base = net.minecraft.world.entity.vehicle.boat.AbstractBoat.class;
+            // Names from the pinned official mappings: reflection strings are
+            // not changed when SpecialSource remaps the harness bytecode.
+            Field status = base.getDeclaredField("aZ"), old = base.getDeclaredField("ba"), angular = base.getDeclaredField("aR");
+            for (Field f : List.of(status, old, angular)) f.setAccessible(true);
+            Method get = base.getDeclaredMethod("H"), floating = base.getDeclaredMethod("K"), control = base.getDeclaredMethod("L");
+            for (Method m : List.of(get, floating, control)) m.setAccessible(true);
+            JsonArray frames = new JsonArray();
+            for (JsonElement e : scenario.getAsJsonArray("ticks")) {
+                JsonObject t = e.getAsJsonObject();
+                int forward = t.has("forward") ? t.get("forward").getAsInt() : 0;
+                int strafe = t.has("strafe") ? t.get("strafe").getAsInt() : 0;
+                old.set(boat, status.get(boat));
+                status.set(boat, get.invoke(boat));
+                boat.setInput(strafe > 0, strafe < 0, forward > 0, forward < 0);
+                floating.invoke(boat);
+                control.invoke(boat);
+                boat.move(net.minecraft.world.entity.MoverType.SELF, boat.getDeltaMovement());
+                Vec3 v = boat.getDeltaMovement();
+                JsonObject f = new JsonObject();
+                f.add("position", vec(boat.getX()-origin.getX(), boat.getY()-origin.getY(), boat.getZ()-origin.getZ()));
+                f.add("velocity", vec(v.x, v.y, v.z));
+                f.add("rotation", vec(boat.getYRot(), boat.getXRot()));
+                f.addProperty("angular_velocity", Float.toString(angular.getFloat(boat)));
+                f.addProperty("on_ground", boat.onGround());
+                f.addProperty("in_water", status.get(boat).toString().equals("IN_WATER"));
+                JsonArray paddles = new JsonArray();
+                paddles.add(boat.getPaddleState(0)); paddles.add(boat.getPaddleState(1));
+                f.add("paddles", paddles);
+                frames.add(f);
+            }
+            player.stopRiding();
+            JsonObject out = new JsonObject();
+            out.addProperty("name", scenario.get("name").getAsString());
+            out.add("states", resolved); out.add("frames", frames);
+            return out;
+        } catch (Exception e) { throw new RuntimeException(e); }
     }
 
     public static void main(String[] args) {

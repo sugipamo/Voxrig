@@ -22,7 +22,7 @@ pub struct ConnectionConfig {
     pub username: String,
     /// Version of both wire packets and native registry IDs.
     pub version: MinecraftVersion,
-    /// Resource and timeout limits implemented by every adapter.
+    /// Resource and timeout limits, with explicit native-only adapter support.
     pub limits: crate::client::ClientLimits,
 }
 
@@ -53,6 +53,10 @@ impl ConnectionConfig {
             || self.server.host.is_empty()
             || self.server.port == 0
             || self.limits.max_chunks == 0
+            || self
+                .limits
+                .native_event_channel_capacity
+                .is_some_and(|capacity| capacity == 0 || capacity > usize::MAX / 2)
             || [
                 self.limits.connect_timeout,
                 self.limits.login_packet_timeout,
@@ -65,6 +69,14 @@ impl ConnectionConfig {
             return Err(Error::new(
                 ErrorKind::InvalidInput,
                 anyhow::anyhow!("invalid offline identity, server address, or client limits"),
+            ));
+        }
+        if self.limits.native_event_channel_capacity.is_some()
+            && self.version != MinecraftVersion::Java1_16_1
+        {
+            return Err(Error::new(
+                ErrorKind::Unsupported,
+                anyhow::anyhow!("native_event_channel_capacity is supported only by Java 1.16.1"),
             ));
         }
         Ok(())
@@ -635,6 +647,179 @@ mod tests {
             Err(error) => error,
         };
         assert_eq!(error.kind(), ErrorKind::InvalidInput);
+    }
+
+    #[tokio::test]
+    async fn invalid_or_unsupported_native_event_capacity_fails_before_network_io() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let mut config = ConnectionConfig::offline(
+                crate::client::Server::new("invalid.invalid", 1),
+                "CapacityProbe",
+                version,
+            );
+            for capacity in [0, usize::MAX / 2 + 1, usize::MAX] {
+                config.limits.native_event_channel_capacity = Some(capacity);
+                let error = match Client::connect(config.clone()).await {
+                    Ok(_) => panic!("invalid capacity connected"),
+                    Err(error) => error,
+                };
+                assert_eq!(error.kind(), ErrorKind::InvalidInput);
+                let error = match Client::connect_recorded(config.clone(), 4096).await {
+                    Ok(_) => panic!("invalid recorded capacity connected"),
+                    Err(error) => error,
+                };
+                assert_eq!(error.kind(), ErrorKind::InvalidInput);
+            }
+            config.limits.native_event_channel_capacity = Some(8192);
+            if version == MinecraftVersion::Java1_21_11 {
+                let error = match Client::connect(config.clone()).await {
+                    Ok(_) => panic!("unsupported capacity connected"),
+                    Err(error) => error,
+                };
+                assert_eq!(error.kind(), ErrorKind::Unsupported);
+                let error = match Client::connect_recorded(config, 4096).await {
+                    Ok(_) => panic!("unsupported recorded capacity connected"),
+                    Err(error) => error,
+                };
+                assert_eq!(error.kind(), ErrorKind::Unsupported);
+            } else {
+                config.validate().unwrap();
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn configured_native_source_retains_original_motion_payloads_across_common_log_overflow()
+    {
+        use crate::protocol::{put_varint, read_packet, write_packet};
+        use tokio::{
+            net::TcpListener,
+            sync::{broadcast::error::TryRecvError, oneshot},
+            time::timeout,
+        };
+        const COUNT: usize = 8192;
+        for (capacity, retained, recorded) in [
+            (None, 256, false),
+            (Some(8192), 8192, false),
+            (Some(8192), 8192, true),
+            (Some(1000), 1024, false),
+        ] {
+            let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+            let port = listener.local_addr().unwrap().port();
+            let (start, started) = oneshot::channel();
+            let fireball = (0..512)
+                .find(|&id| {
+                    matches!(
+                        legacy::registry::entity_name(id),
+                        Some("fireball" | "minecraft:fireball")
+                    )
+                })
+                .unwrap();
+            let server = tokio::spawn(async move {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                read_packet(&mut stream, None).await.unwrap();
+                let (_, login) = read_packet(&mut stream, None).await.unwrap();
+                write_packet(
+                    &mut stream,
+                    None,
+                    2,
+                    &crate::client::login::test_legacy_success(&login),
+                )
+                .await
+                .unwrap();
+                started.await.unwrap();
+                let mut spawn = Vec::new();
+                put_varint(&mut spawn, 42);
+                spawn.extend([7; 16]);
+                put_varint(&mut spawn, fireball);
+                for value in [0.0f64, 65.0, 0.5] {
+                    spawn.extend(value.to_be_bytes());
+                }
+                spawn.extend([0; 12]); // pitch, yaw, object data and initial velocity
+                write_packet(&mut stream, None, 0x00, &spawn).await.unwrap();
+                for index in 1..COUNT {
+                    let mut payload = vec![42];
+                    let id = if index % 2 == 1 {
+                        for value in [index as f64 / 32.0, 65.0, 0.5] {
+                            payload.extend(value.to_be_bytes());
+                        }
+                        payload.extend([0; 3]); // yaw, pitch, on-ground
+                        0x56
+                    } else {
+                        payload.extend((index as i16).to_be_bytes());
+                        payload.extend([0; 4]);
+                        0x46
+                    };
+                    write_packet(&mut stream, None, id, &payload).await.unwrap();
+                }
+                while read_packet(&mut stream, None).await.is_ok() {}
+            });
+            let mut config = ConnectionConfig::offline(
+                crate::client::Server::new("127.0.0.1", port),
+                "CapacityProbe",
+                MinecraftVersion::Java1_16_1,
+            );
+            config.limits.native_event_channel_capacity = capacity;
+            let client = if recorded {
+                Client::connect_recorded(config, 4 * 1024 * 1024)
+                    .await
+                    .unwrap()
+            } else {
+                Client::connect(config).await.unwrap()
+            };
+            let mut events = client.java_1_16_1().unwrap().subscribe();
+            start.send(()).unwrap();
+            timeout(Duration::from_secs(15), async {
+                loop {
+                    if client.player_state().await.unwrap().receive_sequence >= COUNT as u64 {
+                        break;
+                    }
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .unwrap();
+            assert_eq!(
+                client.events_after(0).await.unwrap_err().kind(),
+                ErrorKind::State
+            );
+            if retained < COUNT {
+                assert!(
+                    matches!(events.try_recv(), Err(TryRecvError::Lagged(n)) if n == (COUNT - retained) as u64)
+                );
+            }
+            for index in COUNT - retained..COUNT {
+                let event = events.try_recv().unwrap();
+                let entity = match event {
+                    legacy::Event::EntitySpawned(entity) if index == 0 => entity,
+                    legacy::Event::EntityUpdated(entity) if index > 0 => entity,
+                    other => panic!("unexpected native event: {other:?}"),
+                };
+                assert_eq!(entity.entity_id, 42);
+                assert_eq!(entity.uuid, Some([7; 16]));
+                assert_eq!(entity.type_id, Some(fireball));
+                let position_index = if index == 0 {
+                    0
+                } else {
+                    index - usize::from(index % 2 == 0)
+                };
+                assert_eq!(entity.position.x, position_index as f64 / 32.0);
+                assert_eq!(entity.position.y, 65.0);
+                assert_eq!(entity.velocity.x, (index - index % 2) as f64 / 8000.0);
+            }
+            assert!(matches!(events.try_recv(), Err(TryRecvError::Empty)));
+            if recorded {
+                assert_eq!(
+                    client.stop_packet_trace().await.unwrap().records.len(),
+                    COUNT
+                );
+            }
+            client.disconnect().await.unwrap();
+            timeout(Duration::from_secs(2), server)
+                .await
+                .unwrap()
+                .unwrap();
+        }
     }
 
     #[tokio::test]

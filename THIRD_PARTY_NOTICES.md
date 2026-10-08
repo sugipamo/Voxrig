@@ -58,6 +58,14 @@ speed and jump factors of Java 1.16.1 and 1.21.11. The original
 official servers using names from Mojang's published server mappings; no game
 code is copied. Hashes and arguments are in each `*_source.json` manifest.
 
+`data/client_api/climbing_oracle.json.gz` contains locally measured movement
+facts from the unchanged official Java 1.16.1 and 1.21.11 servers. The original
+`scripts/movement_oracle` harness calls official movement methods; it ports only
+client input handling. The fixture records server/mappings/tool/harness hashes,
+scenario inputs, and exact decimal results. `climbing_scenarios.py` generates the
+inputs; `docs/movement-oracle.md` records the reproduction command and scope.
+No Minecraft binaries or decompiled method bodies are redistributed.
+
 `data/java_1_21_11/entity_dimensions*.json` contains factual default entity-type
 widths, heights and eye heights. The original `scripts/ExportEntityDimensions.java`
 reads them reflectively from the unmodified official 1.21.11 server using names
@@ -482,3 +490,13 @@ fields, encoders and equality. The retained facts bind tool sources, requests,
 original JAR/mappings/classpath and JDK bytes. Original game method bodies,
 bytecode inspection logs and runtime binaries are not distributed. These facts
 do not attest a live server cache, inventory admission or gameplay result.
+
+
+`data/client_api/boat_oracle.json.gz` contains factual trajectories and paddle
+states from unchanged official Java 1.16.1 and 1.21.11 Boat/AbstractBoat and
+Entity movement methods. The owned `scripts/movement_oracle` harness uses
+Mojang's published mapping names, isolates artificial passengers per scenario,
+and records original JAR/mapping/tool/harness/runner and input hashes.
+`boat_scenarios.py` generates the inputs; reproduction and scope are recorded
+in `docs/movement-oracle.md`. No game binaries, mappings or decompiled method
+bodies are distributed or relicensed.

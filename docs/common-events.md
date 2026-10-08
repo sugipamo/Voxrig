@@ -83,3 +83,62 @@ consoleから`setblock`・`fill`・`summon`・`kill`・`tellraw`・`title`・`gi
 | 1.21.11 | BlocksChanged、ChunkLoaded、EntitySpawned/Removed、ChatReceived、InventoryChanged、UiChanged | `[-16,-64,0]..[-1,-49,15]`（section） | 昇順 | `Disconnected` |
 
 同じblockを置き直すとサーバーは変更を送らないため、確認ではいったんairにしてから置いた。
+
+
+## nativeイベント源の容量を維持する（#19）
+
+1.16.1の既存`Bot`から共通`Client`へ移すとき、接続前に次を指定できる。
+`Client::connect`、`connect_recorded`、`ClientManager::connect`は同じ接続設定を使う。
+
+```rust,no_run
+use voxrig::client::prelude::*;
+use voxrig::versions::java_1_16_1::Event as NativeEvent;
+use tokio::sync::broadcast::Receiver;
+
+async fn connect() -> Result<(Client, Receiver<NativeEvent>)> {
+    let mut config = ConnectionConfig::offline(
+        Server::default(), "AgentOne", MinecraftVersion::Java1_16_1,
+    );
+    config.limits.max_chunks = 256;
+    config.limits.native_event_channel_capacity = Some(8192);
+    let client = Client::connect(config).await?;
+    // features = ["native"] の場合、同じtransportの元イベント源を購読できる。
+    let events = client.java_1_16_1()?.subscribe();
+    Ok((client, events))
+}
+```
+
+この設定は接続時にnative `ConnectionOptions.event_channel_capacity`へ渡る。
+下流relayではなく、`EntitySpawned`／`EntityUpdated`の位置・速度payloadを持つ元のbroadcast源に適用する。
+別のBotを接続したり、接続済みBotのsession・receipt・revocationの所有権を移したりしない。
+`None`は既存のnative既定値256を維持する。接続後の容量変更は行わない。
+0と`usize::MAX / 2`を超える値は、通常・記録付き接続ともnetwork I/O前に`InvalidInput`となる。
+Tokioは要求容量を次の2の累乗へ切り上げる場合があり、たとえば1000は1024件となる。
+大きな容量は接続時のメモリ使用量を増やす。
+
+現在native broadcast源を持つのは1.16.1だけで、1.21.11に`Some(...)`を指定すると
+接続前に`Unsupported`となる。1.21.11の既定`None`は今までどおり接続できる。
+設定自体は共通APIで利用でき、元のnativeイベントの購読にはfeature `native`が必要。
+
+共通の`events_after`／`wait_for_events`は引き続き4096件の変更通知であり、native payload履歴にはならない。
+nativeの容量内に収まる間は、共通履歴があふれても元のpayloadを取得できる。
+容量を超えたnative receiverはこれまでどおり`Lagged(n)`で欠落を通知する。
+既存のrelayと、その欠落時に運動推定を破棄する処理はそのまま利用できる。
+
+検証では実TCPで8192件のfireball spawn・位置・速度更新を送り、既定256の`Lagged`と、
+指定8192の完全なpayload履歴を確認する。通常・記録付き接続を検査し、共通履歴のoverflowも独立に確認する。
+実サーバーの再検証は以下（公式JAR、Java 21、EULA同意が必要）。
+
+```bash
+cargo build --locked --example native_event_capacity_probe --features native
+python3 scripts/run_native_event_capacity.py --accept-eula \
+  --binary target/debug/examples/native_event_capacity_probe \
+  --jars /absolute/path/to/downloads
+```
+
+1.16.1では4096件を超える元entity更新を保持し、1.21.11では既定設定での共通接続を確認する。
+結果は`.local/climbing/live/*/report.json`に保存する。
+
+実接続では1.16.1で6,806件のnativeイベント（entity payload 6,726件）を欠落なく保持し、
+共通履歴のoverflowと過去の位置payloadの違いを確認した。1.21.11の既定接続も通過した。
+[検証記録](evidence/native-event-capacity-20261008.json)に結果と元reportのhashを保存した。

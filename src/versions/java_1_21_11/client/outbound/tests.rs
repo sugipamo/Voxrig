@@ -1098,6 +1098,70 @@ async fn common_ground_fixture(
 }
 
 #[tokio::test]
+async fn cancelling_control_stop_wait_still_releases_keys_and_retains_record() {
+    use crate::client::adapter::ControlOps;
+    use crate::client::control::{ControlSession, ControlStatus, Output, Received};
+    let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    let received = Received {
+        environment: crate::client::physics::Environment::defaults(
+            crate::MinecraftVersion::Java1_21_11,
+        ),
+        pose: Some((10, [8.5, 65.0, 8.5], Some([0.0; 3]))),
+        velocity: None,
+        using_item: None,
+    };
+    let mut control = ControlSession::new(
+        crate::MinecraftVersion::Java1_21_11,
+        1,
+        [8.5, 65.0, 8.5],
+        &received,
+    );
+    control.dispatched(&Output {
+        sneak: Some(true),
+        sprint: Some(true),
+        input: Some(32),
+        position: [8.5, 65.0, 8.5],
+        rotation: [0.0; 2],
+        on_ground: true,
+        horizontal_collision: false,
+    });
+    session.state.lock().await.control.session = Some(control);
+    let writer = session.writer.lock().await;
+    let mut wait = Box::pin(api.stop_control());
+    assert!(
+        timeout(Duration::from_millis(30), wait.as_mut())
+            .await
+            .is_err()
+    );
+    drop(wait);
+    drop(writer);
+    assert_eq!(
+        timeout(Duration::from_secs(1), read_packet(&mut peer, None))
+            .await
+            .unwrap()
+            .unwrap(),
+        (ids::play_serverbound::PLAYER_INPUT, vec![0])
+    );
+    assert_eq!(
+        timeout(Duration::from_secs(1), read_packet(&mut peer, None))
+            .await
+            .unwrap()
+            .unwrap(),
+        (ids::play_serverbound::ENTITY_ACTION, vec![42, 2, 0])
+    );
+    let record = api.control_record().await.unwrap().unwrap();
+    assert_eq!(record.session_id, 1);
+    assert!(matches!(record.status, ControlStatus::Stopped { .. }));
+    assert_eq!(api.stop_control().await.unwrap(), Some(record));
+    assert!(
+        timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+    session.stop();
+}
+
+#[tokio::test]
 async fn creative_ground_motion_keeps_mode_and_prediction_contract() {
     use crate::client::{
         GameMode,
@@ -2025,6 +2089,71 @@ async fn vehicle_control_latches_unmount_before_same_numeric_vehicle_reappears()
             .unwrap()
             .requires_inspection,
         record.requires_inspection
+    );
+}
+
+#[tokio::test]
+async fn received_vehicle_correction_stops_remaining_mounted_inputs() {
+    use crate::client::{GameMode, VehicleControlStage, VehicleInput, VehicleRelation};
+    let (session, api, mut peer) = common_ground_fixture(GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 1, 42], 256)
+        .unwrap();
+    let VehicleRelation::Mounted { mount } = client
+        .vehicle_state()
+        .await
+        .unwrap()
+        .relation
+        .unwrap()
+        .value
+    else {
+        panic!()
+    };
+    let inputs = vec![VehicleInput::default(); 20];
+    let ops = client.survival();
+    let attempt = tokio::spawn(async move { ops.start_vehicle_control(mount, &inputs).await });
+    timeout(Duration::from_secs(1), read_packet(&mut peer, None))
+        .await
+        .unwrap()
+        .unwrap();
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::VEHICLE_MOVE, &[0; 32], 256)
+        .unwrap();
+    assert!(attempt.await.unwrap().is_err());
+    let stopped = client.vehicle_control_record().await.unwrap().unwrap();
+    assert_eq!(stopped.stage, VehicleControlStage::RequiresInspection);
+    assert!(stopped.dispatched_ticks < 20);
+    assert!(
+        stopped
+            .requires_inspection
+            .as_deref()
+            .unwrap()
+            .contains("correction")
+    );
+    assert!(
+        client
+            .vehicle_state()
+            .await
+            .unwrap()
+            .motion_correction_sequence
+            .is_some()
+    );
+    tokio::time::sleep(Duration::from_millis(80)).await;
+    assert_eq!(
+        client
+            .vehicle_control_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .dispatched_ticks,
+        stopped.dispatched_ticks
     );
 }
 

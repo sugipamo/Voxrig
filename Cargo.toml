@@ -17,6 +17,8 @@ include = [
     "/scripts/generate_java_1_21_11.cjs",
     "/scripts/prepare_motion_confirmation.py",
     "/scripts/run_common_native.py",
+    "/scripts/run_climbing_control.py",
+    "/scripts/run_native_event_capacity.py",
     "/scripts/NativeReconfigurationControl.java",
     "/scripts/ExportRecipeDisplays.java",
     "/scripts/ExportCraftingReturns.java",
@@ -282,6 +284,10 @@ required-features = ["native"]
 
 [[example]]
 name = "multi_bot"
+required-features = ["native"]
+
+[[example]]
+name = "native_event_capacity_probe"
 required-features = ["native"]
 
 [[example]]

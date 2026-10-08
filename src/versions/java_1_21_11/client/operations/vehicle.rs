@@ -1,4 +1,5 @@
 //! Owned native Input dispatch; history remains readable while writer waits.
+use super::geometry::GeometryView;
 use super::*;
 use crate::client::{
     self as api,
@@ -167,6 +168,20 @@ impl Operations {
                         "vehicle control frame already claimed or uncertain",
                     ));
                 }
+                let boat_frame =
+                    api::vehicle::control::boat_step(&record, input, &mut |p| state.block(p))?;
+                if let Some(boat) = self
+                    .bot
+                    .vehicle_control_history
+                    .lock()
+                    .expect("vehicle control history")
+                    .as_mut()
+                    .unwrap()
+                    .boat_motion
+                    .as_mut()
+                {
+                    boat.attempted_frame = boat_frame.clone();
+                }
                 self.bot
                     .vehicle_control_history
                     .lock()
@@ -177,6 +192,13 @@ impl Operations {
                 let (packet, payload) =
                     api::vehicle::control::payload(id.mount().session().version, input);
                 self.bot.session.send(packet, &payload).await?;
+                if let Some(frame) = &boat_frame {
+                    for (packet, payload) in
+                        api::vehicle::control::boat_packets(id.mount().session().version, frame)
+                    {
+                        self.bot.session.send(packet, &payload).await?;
+                    }
+                }
                 let mut history = self
                     .bot
                     .vehicle_control_history
@@ -187,6 +209,9 @@ impl Operations {
                     .filter(|r| r.id == id)
                     .ok_or_else(|| unavailable("vehicle control owner superseded"))?;
                 record.dispatched_ticks = (index + 1) as u16;
+                if let (Some(boat), Some(frame)) = (record.boat_motion.as_mut(), boat_frame) {
+                    boat.frames.push(frame);
+                }
                 if self.bot.session.stopped.load(Ordering::Acquire) {
                     record.inspection("vehicle control connection closed during write");
                 }
@@ -367,13 +392,21 @@ impl crate::client::adapter::VehicleOps for Operations {
         self.mutable_for_dismount(&state)?;
         let player = self.common_player_unlocked(&state)?;
         let vehicle = capture(&state, &player);
+        let motion = mount
+            .vehicle()
+            .map(|target| {
+                state
+                    .entities
+                    .capture_motion(player.session, target, state.sequence)
+            })
+            .transpose()?;
         let record = {
             let mut history = self
                 .bot
                 .vehicle_control_history
                 .lock()
                 .expect("vehicle control history");
-            let record = api::vehicle::control::prepare(
+            let mut record = api::vehicle::control::prepare(
                 player,
                 vehicle,
                 mode,
@@ -381,6 +414,7 @@ impl crate::client::adapter::VehicleOps for Operations {
                 inputs,
                 history.as_ref(),
             )?;
+            api::vehicle::control::configure_boat(&mut record, motion, history.as_ref())?;
             *history = Some(record.clone());
             record
         };
