@@ -91,8 +91,8 @@ fn compare(version: MinecraftVersion, scenario: &Value, frames: &Value) -> Resul
     )
     .map_err(|e| format!("model refused: {e}"))?;
     for (tick, (frame, expected)) in predicted.iter().zip(frames.as_array().unwrap()).enumerate() {
-        for axis in 0..3 {
-            let position = frame.position[axis] - f64::from(ORIGIN[axis]);
+        for (axis, origin) in ORIGIN.iter().enumerate() {
+            let position = frame.position[axis] - f64::from(*origin);
             let want = exact(&expected["position"][axis]);
             let velocity = exact(&expected["velocity"][axis]);
             if position != want || frame.velocity[axis] != velocity {

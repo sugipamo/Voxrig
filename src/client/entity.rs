@@ -202,10 +202,10 @@ impl SpawnLedger {
     }
     pub(crate) fn validate(&self, session: SessionStamp, target: EntityId) -> Result<()> {
         if target.session != session
-            || !self
+            || self
                 .0
                 .get(&target.native_id)
-                .is_some_and(|spawn| spawn.sequence == target.spawn_sequence)
+                .is_none_or(|spawn| spawn.sequence != target.spawn_sequence)
         {
             return Err(super::inventory::unavailable(
                 "entity target belongs to another connection/world or a retired spawn",

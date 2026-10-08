@@ -158,8 +158,8 @@ pub(super) fn compare(
         });
         tick(version, &mut body, &env, controls, &mut block_at)
             .map_err(|e| format!("tick {index}: {e}"))?;
-        for axis in 0..3 {
-            let position = body.position[axis] - f64::from(ORIGIN[axis]);
+        for (axis, origin) in ORIGIN.iter().enumerate() {
+            let position = body.position[axis] - f64::from(*origin);
             let want = exact(&expected["position"][axis]);
             let velocity = exact(&expected["velocity"][axis]);
             if position != want || body.velocity[axis] != velocity {
