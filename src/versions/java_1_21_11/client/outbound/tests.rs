@@ -935,7 +935,7 @@ async fn common_creative_contract_dispatches_modern_packets_without_inventory_ec
     let client = crate::Client::from_java_1_21_11(api.bot.clone());
     crate::client::tests::common_creative_scenario(&client).await;
     let mut emitted = Vec::new();
-    for _ in 0..7 {
+    for _ in 0..9 {
         emitted.push(
             tokio::time::timeout(Duration::from_secs(1), read_packet(&mut peer, None))
                 .await
@@ -952,11 +952,29 @@ async fn common_creative_contract_dispatches_modern_packets_without_inventory_ec
             ids::play_serverbound::ABILITIES,
             ids::play_serverbound::POSITION_LOOK,
             ids::play_serverbound::BLOCK_DIG,
-            ids::play_serverbound::BLOCK_PLACE
+            ids::play_serverbound::BLOCK_PLACE,
+            ids::play_serverbound::USE_ITEM,
+            ids::play_serverbound::BLOCK_DIG
         ]
     );
     assert_eq!(&emitted[0].1[..2], &36i16.to_be_bytes());
     assert_eq!(emitted[3].1, [2]);
+    // Off hand, target, face UP, cursor, not inside, not border, interaction sequence 2.
+    let mut place = vec![1];
+    place.extend((1i64 << 12).to_be_bytes()); // packed x 0, y 0, z 1
+    place.push(1);
+    for v in [0.5f32; 3] {
+        place.extend(v.to_be_bytes());
+    }
+    place.extend([0, 0, 2]);
+    assert_eq!(emitted[6].1, place);
+    // Off hand, sequence 3, then the current rotation for the server's rotation snap.
+    let mut use_item = vec![1, 3];
+    use_item.extend(10.0f32.to_be_bytes());
+    use_item.extend(0.0f32.to_be_bytes());
+    assert_eq!(emitted[7].1, use_item);
+    // RELEASE_USE_ITEM, BlockPos.ZERO, Direction.DOWN, sequence 0.
+    assert_eq!(emitted[8].1, [5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     let mut slot = vec![0, 1];
     put_varint(
         &mut slot,

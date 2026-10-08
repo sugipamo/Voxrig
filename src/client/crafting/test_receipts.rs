@@ -49,6 +49,7 @@ pub(super) fn value(version: MinecraftVersion, hex: &str) -> SlotKnowledge {
 }
 pub(super) fn player(version: MinecraftVersion) -> PlayerObservation {
     PlayerObservation {
+        using_item: None,
         session: SessionStamp {
             version,
             connection_id: 7,

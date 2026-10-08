@@ -421,6 +421,7 @@ mod tests {
             world_generation: 1,
         };
         let initial = PlayerObservation {
+            using_item: None,
             session,
             receive_sequence: 10,
             pending_dispatch: false,

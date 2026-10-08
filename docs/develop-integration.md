@@ -161,7 +161,7 @@ package検証と隔離コピーのDustRoute互換性確認の結果は統合PR�
 
 loading・未解決操作・不確実なframe送信を共通の境界で扱う。
 採掘のair受信だけでは元接続の次のmutationを許可せず、明示的な退出確認とfresh recoveryを用いる。
-配置は対象block・材料消費・処理sequenceを照合する。survivalのraw `use_on_block`は拒否する。
+配置は対象block・材料消費・処理sequenceを照合する。1.21.11版固有のraw `use_on_block`はsurvivalでは拒否する（共通APIは[common-item-use.md](common-item-use.md)）。
 移動は最大120tickの入力列を利用側が選び、予測と独立接続の同一instanceの新しい位置受信を
 区別する。経路探索、汎用地形の物理や完全な建築executorは提供しない。
 公開API・移行表・対応一覧へ追加fieldと動作条件を記録した。

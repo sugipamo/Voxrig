@@ -38,6 +38,7 @@
 | `BlockQueries` | name search and collision-shape raycasts up to 32 blocks; unloaded cells reported | [common-blocks.md](common-blocks.md) | （新設。詳細は文書を参照） |
 | `EntityState` | received health and equipment; boxes use default type dimensions only | [common-entities.md](common-entities.md) | （新設。詳細は文書を参照） |
 | `ContinuousControl` | held survival keys on terrain and in fluids; no climbing, bubble columns, flying or riding | [common-control.md](common-control.md) | （新設。詳細は文書を参照） |
+| `ItemUse` | use, release and use on a block face; dispatch only, results are received updates | [common-item-use.md](common-item-use.md) | （新設。詳細は文書を参照） |
 | `Chat` | unsigned chat and commands; last 256 received messages in native encoding | [common-chat.md](common-chat.md) | （新設。詳細は文書を参照） |
 | `BossBars` | received boss bars, bounded to 4096 entries | [common-boss-bars.md](common-boss-bars.md) | received ADD/partial updates/REMOVE, per-field packet ordinals and native JSON/NBT text; bounded 4096 entries, unknown-UUID updates never synthesize bars; no rendering, entity health inference or complete server catalogue |
 | `Scoreboard` | received objectives, displays and scores, bounded to 4096 entries | [common-ui-context.md](common-ui-context.md) | received objective/display/score/reset facts and raw legacy JSON/modern NBT presentation; <=4096 entries; not a complete server catalogue or renderer; other UI remains incomplete |

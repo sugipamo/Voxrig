@@ -44,7 +44,9 @@ pub(crate) enum Action<'a> {
     MoveFlying([f64; 3], [f32; 2]),
     SetHotbar(u8, Option<(&'a str, u8)>),
     Dig([i32; 3], BlockFace),
-    UseOnBlock([i32; 3], BlockFace, [f32; 3]),
+    UseOnBlock([i32; 3], BlockFace, [f32; 3], super::Hand),
+    UseItem(super::Hand),
+    ReleaseUseItem,
 }
 impl Survival {
     /// Dispatch one interaction with an original received entity lifetime.
@@ -597,16 +599,72 @@ impl Creative {
             .execute(GameMode::Creative, Action::Dig(target, face))
             .await
     }
-    /// Use held item on a loaded reachable block face. Can place or activate.
-    /// Cursor coordinates are relative to the target block, each within 0..1.
+}
+impl Creative {
+    /// Use the item in `hand` on a loaded block face within 4.5 blocks of the eye
+    /// (place, open, press, light...). `cursor` is the hit point inside the target cell,
+    /// each axis within 0..1. Dispatch only: the server's result arrives as received block,
+    /// inventory and screen updates. See `docs/common-item-use.md`.
     pub async fn use_on_block(
         &self,
         target: [i32; 3],
         face: BlockFace,
         cursor: [f32; 3],
+        hand: super::Hand,
     ) -> Result<DispatchReceipt> {
         self.client
-            .execute(GameMode::Creative, Action::UseOnBlock(target, face, cursor))
+            .execute(
+                GameMode::Creative,
+                Action::UseOnBlock(target, face, cursor, hand),
+            )
+            .await
+    }
+    /// Use the item in `hand` without a target (eat, drink, raise a shield, draw a bow).
+    /// Dispatch only: whether use started is the received `PlayerObservation::using_item`.
+    /// Refused while a continuous control session runs, since its slowdown is not modeled.
+    pub async fn use_item(&self, hand: super::Hand) -> Result<DispatchReceipt> {
+        self.client
+            .execute(GameMode::Creative, Action::UseItem(hand))
+            .await
+    }
+    /// Release the item in use (shoot a bow, lower a shield, stop eating). Dispatch only.
+    pub async fn release_use_item(&self) -> Result<DispatchReceipt> {
+        self.client
+            .execute(GameMode::Creative, Action::ReleaseUseItem)
+            .await
+    }
+}
+impl Survival {
+    /// Use the item in `hand` on a loaded block face within 4.5 blocks of the eye
+    /// (place, open, press, light...). `cursor` is the hit point inside the target cell,
+    /// each axis within 0..1. Dispatch only: the server's result arrives as received block,
+    /// inventory and screen updates. See `docs/common-item-use.md`.
+    pub async fn use_on_block(
+        &self,
+        target: [i32; 3],
+        face: BlockFace,
+        cursor: [f32; 3],
+        hand: super::Hand,
+    ) -> Result<DispatchReceipt> {
+        self.client
+            .execute(
+                GameMode::Survival,
+                Action::UseOnBlock(target, face, cursor, hand),
+            )
+            .await
+    }
+    /// Use the item in `hand` without a target (eat, drink, raise a shield, draw a bow).
+    /// Dispatch only: whether use started is the received `PlayerObservation::using_item`.
+    /// Refused while a continuous control session runs, since its slowdown is not modeled.
+    pub async fn use_item(&self, hand: super::Hand) -> Result<DispatchReceipt> {
+        self.client
+            .execute(GameMode::Survival, Action::UseItem(hand))
+            .await
+    }
+    /// Release the item in use (shoot a bow, lower a shield, stop eating). Dispatch only.
+    pub async fn release_use_item(&self) -> Result<DispatchReceipt> {
+        self.client
+            .execute(GameMode::Survival, Action::ReleaseUseItem)
             .await
     }
 }

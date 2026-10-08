@@ -162,10 +162,11 @@ trait objectは使わない（`async fn`を`dyn`にするとbox化とSend境界�
 | look・hotbar選択 | ◎ | `look` `select_hotbar` | | |
 | 採掘 | ◎ | `start_mining` `finish_mining` `abort_mining` | `dig_block`（汎用） | 限定的な`start_survival_mining` |
 | 設置 | ◎ | `place_cube` | `place_block`（汎用） | 限定的な`place_survival_cube` |
-| creativeの破壊・使用 | ◎ | `Creative::break_block` `use_on_block` | | |
-| item使用（空中） | ▲ | — | `use_item` `release_item` `swing_arm` | なし |
+| creativeの破壊 | ◎ | `Creative::break_block` | | |
+| blockの面への使用（設置・操作） | ◎ | 両modeの`use_on_block`（送信のみ） | `place_block`（汎用） | `use_on_block`（survivalは拒否） |
+| item使用（空中） | ◎ | 両modeの`use_item` `release_use_item`、受信した`using_item` | `use_item` `release_item` `swing_arm` | なし |
 | 歩行・ジャンプ（有限入力列） | ◎ | `preview_path` `start_predicted_path` | 汎用物理 | 乾いた地形のみ |
-| 自由な継続入力（`set_control`） | ▲ | — | `set_control` `jump` `clear_control` | なし |
+| 自由な継続入力 | ◎ | `start_control` `set_controls` `stop_control`（共有物理エンジン） | `set_control` `jump` `clear_control` | なし |
 | 液体・梯子・登攀など汎用物理 | ▲ | — | `physics.rs` | なし |
 | creative飛行 | ◎ | `set_flying` `move_flying` `land` | | |
 | 乗り物 | ◎ | `dismount` `vehicle_control` `resume_ground` | `steer_boat` `set_vehicle_control` | |

@@ -505,20 +505,27 @@ pub(super) fn read_attribute_details(
 pub(super) struct PoseUpdate {
     pub supported: bool,
     pub received: bool,
+    /// Received LivingEntity flags byte, if present before any unsupported entry.
+    pub living_flags: Option<u8>,
 }
 pub(super) fn read_pose(
     r: &mut Reader<'_>,
     pose: &mut Option<PlayerPose>,
 ) -> anyhow::Result<PoseUpdate> {
+    let flags_index = crate::MinecraftVersion::Java1_21_11
+        .table()
+        .entities
+        .living_flags_metadata_index;
     let mut seen = BTreeSet::new();
-    let mut received = false;
+    let mut update = PoseUpdate {
+        supported: true,
+        received: false,
+        living_flags: None,
+    };
     loop {
         let key = r.u8()?;
         if key == 255 {
-            return Ok(PoseUpdate {
-                supported: true,
-                received,
-            });
+            return Ok(update);
         }
         if !seen.insert(key) {
             bail!("duplicate player metadata index");
@@ -529,12 +536,15 @@ pub(super) fn read_pose(
                 bail!("incorrect player pose serializer");
             }
             *pose = Some(PlayerPose::decode(r.varint()?));
-            received = true;
+            update.received = true;
+        } else if key == flags_index {
+            if kind != 0 {
+                bail!("incorrect living entity flags serializer");
+            }
+            update.living_flags = Some(r.u8()?);
         } else if !skip_metadata(r, kind)? {
-            return Ok(PoseUpdate {
-                supported: false,
-                received,
-            });
+            update.supported = false;
+            return Ok(update);
         }
     }
 }

@@ -120,7 +120,7 @@ staleなscreen revisionでもserverはクリックを実行し得るため、自
 `place_survival_cube`は受信した単純スタックと支持block・空きcellを確認して送信する。
 `wait_survival_placement`等は対象block、1個の材料消費、処理sequenceの受信を照合する。
 未解決・競合・timeoutは成功やrollbackへ読み替えず、同じ操作を繰り返さない。
-survivalのraw `use_on_block`は拒否し、この確認付き経路を使う。
+1.21.11版固有のraw `use_on_block`はsurvivalでは拒否し、この確認付き経路を使う（共通APIの送信だけの`Survival::use_on_block`は[common-item-use.md](common-item-use.md)）。
 
 位置誤差を含む照準は、同じfull cubeの同じ面へreach内で到達する条件と、
 視線が連続して通り得るcellを検査する。視線の外側のblockは遮蔽物と扱わず、

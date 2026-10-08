@@ -59,7 +59,7 @@ pub struct ReceivedEffect {
     pub amplifier: i32,
     /// Duration at receipt; -1 is infinite.
     pub duration_at_receipt: i32,
-    /// Ambient/particles/icon flags.
+    /// Ambient (1), particles (2), icon (4) and blend (8) flags.
     pub flags: u8,
     /// Packet ordinal.
     pub receive_sequence: u64,
@@ -118,6 +118,17 @@ pub struct LocalPlayerState {
     /// False: vanilla effect packets have no complete-list fence in this projection.
     /// An empty map must not authorize assumptions about absence for mining.
     pub effects_complete: bool,
+    /// Last received item-use flags; None before the first flags entry in this world.
+    pub using_item: Option<ReceivedItemUse>,
+}
+
+/// Own item-use state from received LivingEntity flags.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, serde::Deserialize)]
+pub struct ReceivedItemUse {
+    /// Hand in use, or None when the server reports no item in use.
+    pub hand: Option<crate::client::Hand>,
+    /// Receive ordinal of the metadata packet.
+    pub receive_sequence: u64,
 }
 
 // Audited against the game's native registry/default attribute container.
@@ -199,6 +210,12 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         }
         input::ENTITY_METADATA => {
             let update = players::read_pose(&mut r, &mut next.pose)?;
+            if let Some(flags) = update.living_flags {
+                next.using_item = Some(ReceivedItemUse {
+                    hand: crate::client::item_use::hand_from_living_flags(flags),
+                    receive_sequence: sequence,
+                });
+            }
             if !update.supported {
                 next.pose = None;
                 next.pose_basis = None;
@@ -228,7 +245,8 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
                 let amplifier = r.varint()?;
                 let duration_at_receipt = r.varint()?;
                 let flags = r.u8()?;
-                if !(0..=255).contains(&amplifier) || duration_at_receipt < -1 || flags & !7 != 0 {
+                // ClientboundUpdateMobEffectPacket flags: ambient 1, visible 2, icon 4, blend 8.
+                if !(0..=255).contains(&amplifier) || duration_at_receipt < -1 || flags & !15 != 0 {
                     bail!("invalid status effect");
                 }
                 if next.effect_updates.len() >= 256 && !next.effect_updates.contains_key(&effect_id)

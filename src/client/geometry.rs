@@ -28,7 +28,7 @@ impl BlockPos {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[repr(i32)]
 /// Version-independent Hand representation.
 pub enum Hand {

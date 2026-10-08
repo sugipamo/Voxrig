@@ -283,6 +283,7 @@ pub(crate) fn replay_packets(
         }
     }
     let player = api::PlayerObservation {
+        using_item: None,
         session: api::SessionStamp {
             version: crate::MinecraftVersion::Java1_16_1,
             connection_id: trace.connection_id,

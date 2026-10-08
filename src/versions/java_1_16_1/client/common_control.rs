@@ -107,6 +107,13 @@ impl Bot {
         if receipts.requested_flying || receipts.vehicles.motion_interrupted() {
             return Some("flying or riding");
         }
+        if receipts
+            .using_item
+            .as_ref()
+            .is_some_and(|u| u.value.is_some())
+        {
+            return Some(crate::client::item_use::USING_ITEM_STOP);
+        }
         drop(receipts);
         let survival = self.survival.read().await;
         if survival.game_mode != Some(0) {

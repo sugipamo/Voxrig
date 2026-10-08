@@ -141,7 +141,7 @@ geometryではエラーを利用側へ返し、送信成功や通常歩行の保
 chunk・位置受信の経路も用意してください。取消・write失敗の後は`UncertainDispatch`を扱い、
 閉じた接続から`operation_history()`で診断情報を読んでください。履歴から操作を再送しません。
 
-survivalのraw `use_on_block`は拒否します。`place_survival_cube`で意図を登録し、
+1.21.11版固有のraw `use_on_block`はsurvivalでは拒否します（共通APIの`Survival::use_on_block`は送信だけの別契約、[common-item-use.md](common-item-use.md)）。`place_survival_cube`で意図を登録し、
 対象block・材料消費・処理sequenceを読出し待機で確認してください。
 採掘ではair受信後も元接続のmutationは保留され、明示的なfresh recoveryを行います。
 独立観測方式では別接続の新しいUUID削除受信が必要です。単一プロフィール方式は以下を参照。

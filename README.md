@@ -8,7 +8,7 @@ Minecraft Java Edition 向けのRust製headless clientライブラリです。
 
 ```toml
 [dependencies]
-voxrig = { path = "../mc" }
+voxrig = { git = "https://github.com/sugipamo/Voxrig", branch = "main" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 ```
 

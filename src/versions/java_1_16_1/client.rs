@@ -5683,6 +5683,7 @@ impl Bot {
                     receipts.pose = None;
                     receipts.position_source = None;
                     receipts.health = None;
+                    receipts.using_item = None;
                     receipts.may_fly = None;
                     receipts.requested_flying = false;
                     receipts.container = None;
@@ -5832,6 +5833,17 @@ impl Bot {
                     }
                     if let Some(MetadataValue::VarInt(air_ticks)) = metadata.get(&1) {
                         *self.oxygen_level.lock().await = oxygen_level_from_air_ticks(*air_ticks);
+                    }
+                    let flags_index = crate::MinecraftVersion::Java1_16_1
+                        .table()
+                        .entities
+                        .living_flags_metadata_index;
+                    if let Some(MetadataValue::Byte(flags)) = metadata.get(&flags_index) {
+                        self.common_receipts.lock().await.using_item =
+                            Some(crate::client::received(
+                                crate::client::item_use::hand_from_living_flags(*flags as u8),
+                                packet_sequence,
+                            ));
                     }
                 }
                 let health_index = crate::MinecraftVersion::Java1_16_1

@@ -812,9 +812,21 @@ pub(crate) async fn common_creative_scenario(client: &Client) {
     ops.break_block([0, 0, 1], crate::BlockFace::Up)
         .await
         .unwrap();
-    ops.use_on_block([0, 0, 1], crate::BlockFace::Up, [0.5; 3])
+    ops.use_on_block([0, 0, 1], crate::BlockFace::Up, [0.5; 3], crate::Hand::Off)
         .await
         .unwrap();
+    assert!(
+        ops.use_on_block(
+            [0, 0, 1],
+            crate::BlockFace::Up,
+            [1.5, 0.5, 0.5],
+            crate::Hand::Main
+        )
+        .await
+        .is_err()
+    );
+    ops.use_item(crate::Hand::Off).await.unwrap();
+    ops.release_use_item().await.unwrap();
     assert_eq!(
         ops.player_state()
             .await

@@ -48,6 +48,8 @@ pub(crate) struct RegistryFns {
 pub(crate) struct EntityTable {
     /// LivingEntity health metadata index.
     pub health_metadata_index: u8,
+    /// LivingEntity flags metadata index (bit 1 using an item, bit 2 off hand).
+    pub living_flags_metadata_index: u8,
     /// Equipment slots indexed by native slot number.
     pub equipment_slots: &'static [EquipmentSlot],
     /// Default dimensions sorted by name.
@@ -303,6 +305,7 @@ pub(crate) const JAVA_1_16_1: VersionTable = VersionTable {
     },
     entities: EntityTable {
         health_metadata_index: 8,
+        living_flags_metadata_index: 7,
         equipment_slots: &[MainHand, OffHand, Feet, Legs, Chest, Head],
         dimensions: super::java_1_16_1::generated::ENTITY_DIMENSIONS,
     },
@@ -337,6 +340,7 @@ pub(crate) const JAVA_1_21_11: VersionTable = VersionTable {
     },
     entities: EntityTable {
         health_metadata_index: 9,
+        living_flags_metadata_index: 8,
         equipment_slots: &[MainHand, OffHand, Feet, Legs, Chest, Head, Body, Saddle],
         dimensions: super::java_1_21_11::generated::ENTITY_DIMENSIONS,
     },

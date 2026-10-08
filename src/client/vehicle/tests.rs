@@ -286,6 +286,7 @@ fn vehicle_control_requires_final_neutral_and_latches_original_mount_conflicts()
             panic!()
         };
         let player = PlayerObservation {
+            using_item: None,
             session,
             receive_sequence: 12,
             pending_dispatch: false,

@@ -4121,7 +4121,12 @@ async fn basic_workflow_probe(client: &Client) -> anyhow::Result<()> {
                 } else {
                     client
                         .creative()
-                        .use_on_block([2, 64, 0], BlockFace::Up, [0.5, 1.0, 0.5])
+                        .use_on_block(
+                            [2, 64, 0],
+                            BlockFace::Up,
+                            [0.5, 1.0, 0.5],
+                            voxrig::client::Hand::Main,
+                        )
                         .await?;
                 }
                 wait_block(client, [2, 65, 0], "minecraft:dirt").await?;
@@ -6579,7 +6584,12 @@ async fn main() -> anyhow::Result<()> {
             "place" => {
                 creative.look([-90.0, 69.0]).await?;
                 let receipt = creative
-                    .use_on_block([1, 64, 0], BlockFace::Up, [0.5, 1.0, 0.5])
+                    .use_on_block(
+                        [1, 64, 0],
+                        BlockFace::Up,
+                        [0.5, 1.0, 0.5],
+                        voxrig::client::Hand::Main,
+                    )
                     .await
                     .context("native creative placement dispatch")?;
                 wait_block(&client, [1, 65, 0], "minecraft:stone").await?;

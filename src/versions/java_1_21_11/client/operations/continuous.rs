@@ -121,6 +121,13 @@ fn stop_reason(state: &State, generation: u64, mode: GameMode) -> Option<&'stati
         .is_some_and(|h| h.health <= 0.0)
     {
         Some("player died")
+    } else if state
+        .operations
+        .local_player
+        .using_item
+        .is_some_and(|u| u.hand.is_some())
+    {
+        Some(crate::client::item_use::USING_ITEM_STOP)
     } else {
         None
     }

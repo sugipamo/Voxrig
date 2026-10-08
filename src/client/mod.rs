@@ -29,6 +29,7 @@ mod item;
 pub(crate) mod item_components;
 pub(crate) mod item_constructor;
 pub(crate) mod item_semantics;
+pub(crate) mod item_use;
 mod lifecycle;
 pub use lifecycle::ConnectionRevocation;
 pub(crate) mod login;
@@ -140,6 +141,7 @@ pub mod prelude {
         MAX_VEHICLE_CONTROL_TICKS, VehicleControlId, VehicleControlRecord, VehicleControlStage,
         VehicleInput,
     };
+    pub use super::{BlockFace, Hand, ObservedValue, ValueSource};
     pub use super::{
         Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,
         ConnectionRevocation, CraftingGridReturnPlan, CraftingGridReturnStep,

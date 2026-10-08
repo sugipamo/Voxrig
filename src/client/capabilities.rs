@@ -105,6 +105,8 @@ pub enum Feature {
     EntityState,
     /// Held survival keys with per-tick client physics (shared engine).
     ContinuousControl,
+    /// Item use, release and use on a block face, with the received item-in-use flag.
+    ItemUse,
     /// Received boss-bar ADD, partial updates and REMOVE.
     BossBars,
     /// Received scoreboard declarations, displays and entries.
@@ -157,6 +159,7 @@ impl Feature {
         Feature::BlockQueries,
         Feature::EntityState,
         Feature::ContinuousControl,
+        Feature::ItemUse,
         Feature::BossBars,
         Feature::Scoreboard,
         Feature::ClientManagement,
@@ -302,6 +305,10 @@ impl Capabilities {
             Feature::ContinuousControl => restricted(
                 "held survival keys on terrain and in fluids; no climbing, bubble columns, flying or riding",
                 "docs/common-control.md",
+            ),
+            Feature::ItemUse => restricted(
+                "use, release and use on a block face; dispatch only, results are received updates",
+                "docs/common-item-use.md",
             ),
             Feature::EntityState => restricted(
                 "received health and equipment; boxes use default type dimensions only",

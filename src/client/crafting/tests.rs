@@ -8,6 +8,7 @@ use crate::client::{
 
 fn player(version: MinecraftVersion) -> PlayerObservation {
     PlayerObservation {
+        using_item: None,
         session: SessionStamp {
             version,
             connection_id: 7,

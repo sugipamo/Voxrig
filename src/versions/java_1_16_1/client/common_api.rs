@@ -78,6 +78,7 @@ impl Bot {
             health: receipts.health.clone(),
             selected_hotbar: receipts.selected_hotbar.clone(),
             inventory: received_inventory,
+            using_item: receipts.using_item.clone(),
         })
     }
     pub(super) async fn execute_common_inner(
@@ -222,16 +223,11 @@ impl Bot {
                 payload.push(face as u8);
                 (0x1b, payload)
             }
-            Action::UseOnBlock(position, face, cursor) => {
-                require_creative(mode)?;
+            Action::UseOnBlock(position, face, cursor, hand) => {
+                api::item_use::validate_cursor(cursor)?;
                 self.common_reach(position).await?;
-                if cursor
-                    .iter()
-                    .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
-                {
-                    return Err(api::registry::invalid("invalid block hit"));
-                }
-                let mut payload = vec![0];
+                let mut payload = Vec::new();
+                put_varint(&mut payload, hand as i32);
                 payload.extend(
                     BlockPos {
                         x: position[0],
@@ -247,6 +243,24 @@ impl Bot {
                 }
                 payload.push(0);
                 (0x2d, payload)
+            }
+            Action::UseItem(hand) => {
+                if self.common_control.lock().await.active() {
+                    return Err(common_state(
+                        "item use during continuous control is refused; its slowdown is not modeled",
+                    ));
+                }
+                let mut payload = Vec::new();
+                put_varint(&mut payload, hand as i32);
+                (0x2e, payload)
+            }
+            Action::ReleaseUseItem => {
+                // PLAYER_ACTION RELEASE_USE_ITEM with the zero position and face DOWN.
+                let mut payload = Vec::new();
+                put_varint(&mut payload, 5);
+                payload.extend(0u64.to_be_bytes());
+                payload.push(0);
+                (0x1b, payload)
             }
         };
         // Retain uncertainty before any actor admission/write. Cancellation cannot
@@ -1735,6 +1749,47 @@ mod tests {
         server.await.unwrap();
     }
     #[tokio::test]
+    async fn own_living_flags_report_the_item_in_use() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        bot.player.lock().await.entity_id = Some(42);
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        assert_eq!(client.player_state().await.unwrap().using_item, None);
+        let flags = |value: u8| {
+            let mut packet = Vec::new();
+            put_varint(&mut packet, 42);
+            // Living flags: index 7, byte serializer 0.
+            packet.extend([7, 0, value, 255]);
+            packet
+        };
+        bot.apply_packet(0x44, flags(3)).await.unwrap();
+        let using = client.player_state().await.unwrap().using_item.unwrap();
+        assert_eq!(using.value, Some(api::Hand::Off));
+        assert!(matches!(using.source, api::ValueSource::Received { .. }));
+        bot.apply_packet(0x44, flags(0)).await.unwrap();
+        let using = client.player_state().await.unwrap().using_item.unwrap();
+        assert_eq!(using.value, None);
+        // Another entity's flags are not the local player's.
+        let mut other = Vec::new();
+        put_varint(&mut other, 43);
+        other.extend([7, 0, 1, 255]);
+        bot.apply_packet(0x44, other).await.unwrap();
+        assert_eq!(
+            client
+                .player_state()
+                .await
+                .unwrap()
+                .using_item
+                .unwrap()
+                .value,
+            None
+        );
+        release.send(()).unwrap();
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+    #[tokio::test]
     async fn common_creative_contract_dispatches_legacy_packets_without_inventory_echo() {
         let (bot, mut packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
@@ -1774,7 +1829,7 @@ mod tests {
                 break;
             }
         }
-        for _ in 0..6 {
+        for _ in 0..8 {
             emitted.push(
                 timeout(Duration::from_secs(1), packets.recv())
                     .await
@@ -1797,7 +1852,26 @@ mod tests {
             "block_place",
         ]
         .map(|name| wire["packets"][name]["id"].as_i64().unwrap() as i32);
-        assert_eq!(emitted.iter().map(|p| p.0).collect::<Vec<_>>(), expected);
+        assert_eq!(
+            emitted[..7].iter().map(|p| p.0).collect::<Vec<_>>(),
+            expected
+        );
+        // Off hand, target, face UP (varint), cursor, not inside.
+        let mut place = vec![1];
+        place.extend(BlockPos { x: 0, y: 0, z: 1 }.packed().to_be_bytes());
+        place.push(1);
+        for v in [0.5f32; 3] {
+            place.extend(v.to_be_bytes());
+        }
+        place.push(0);
+        assert_eq!(emitted[6].1, place);
+        // ServerboundUseItemPacket (0x2e): off hand.
+        assert_eq!(emitted[7], (0x2e, vec![1]));
+        // PLAYER_ACTION (block_dig) RELEASE_USE_ITEM, BlockPos.ZERO, Direction.DOWN.
+        assert_eq!(
+            emitted[8],
+            (expected[5], vec![5, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        );
         assert_eq!(&emitted[0].1[..2], &36i16.to_be_bytes());
         let item = read_slot(&mut &emitted[0].1[2..]).unwrap().unwrap();
         assert_eq!(item.name(), Some("stone"));

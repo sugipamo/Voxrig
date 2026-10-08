@@ -708,6 +708,7 @@ mod tests {
             10,
         ));
         let initial = PlayerObservation {
+            using_item: None,
             session: SessionStamp {
                 version,
                 connection_id: 42,

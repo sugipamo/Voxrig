@@ -164,6 +164,11 @@ fn own_receive_is_atomic_and_cannot_take_remote_entity_state() {
         s.operations.local_player.effect_updates[&3].duration_at_receipt,
         100
     );
+    // The official server sets the blend flag (8) on some effects, e.g. a golden apple's.
+    apply(&mut s, p::ENTITY_EFFECT, &owned(42, &[10, 1, 100, 15]));
+    assert_eq!(s.operations.local_player.effect_updates[&10].flags, 15);
+    assert!(receive(&mut s, p::ENTITY_EFFECT, &owned(42, &[10, 1, 100, 16])).is_err());
+    apply(&mut s, p::REMOVE_ENTITY_EFFECT, &[42, 10]);
     apply(&mut s, p::REMOVE_ENTITY_EFFECT, &[42, 3]);
     assert!(s.operations.local_player.effect_updates.is_empty());
     assert!(!s.operations.local_player.effects_complete);
@@ -599,4 +604,32 @@ fn movement_attribute_modifiers_do_not_get_applied_twice_or_to_other_fields() {
         assert_eq!(p.gravity.unwrap().value, 0.08);
         assert_eq!(p.step_height.unwrap().value, 0.6);
     }
+}
+
+#[test]
+fn living_flags_report_the_item_in_use() {
+    use ids::play_clientbound as p;
+    let mut s = state();
+    assert_eq!(s.operations.local_player.using_item, None);
+    // Living flags (index 8, byte serializer 0): using (1) with the off hand (2).
+    apply(&mut s, p::ENTITY_METADATA, &[42, 8, 0, 3, 255]);
+    assert_eq!(
+        s.operations.local_player.using_item,
+        Some(ReceivedItemUse {
+            hand: Some(crate::client::Hand::Off),
+            receive_sequence: s.sequence,
+        })
+    );
+    // Pose updates leave the flags as received.
+    apply(&mut s, p::ENTITY_METADATA, &[42, 6, 20, 0, 255]);
+    assert_eq!(
+        s.operations.local_player.using_item.unwrap().hand,
+        Some(crate::client::Hand::Off)
+    );
+    apply(&mut s, p::ENTITY_METADATA, &[42, 8, 0, 0, 255]);
+    assert_eq!(s.operations.local_player.using_item.unwrap().hand, None);
+    // A wrong serializer for the flags is rejected without changing state.
+    let before = s.operations.local_player.clone();
+    assert!(receive(&mut s, p::ENTITY_METADATA, &[42, 8, 1, 1, 255]).is_err());
+    assert_eq!(s.operations.local_player, before);
 }

@@ -318,6 +318,10 @@ pub struct PlayerObservation {
     pub selected_hotbar: Option<ObservedValue<u8>>,
     /// Received inventory and optional compatibility cache.
     pub inventory: InventoryObservation,
+    /// Item use from the own player's received living-entity flags: `Some(hand)` while the
+    /// server reports an item in use, `None` when it reports none. Absent until the first
+    /// flags packet in this world; a sent use request is never shown here.
+    pub using_item: Option<ObservedValue<Option<super::Hand>>>,
 }
 
 /// Player, inventory and received region at one adapter capture boundary.
@@ -382,6 +386,7 @@ pub(crate) struct LegacyReceipts {
     pub requested_flying: bool,
     pub abilities: Option<ObservedValue<u8>>,
     pub pending_dispatch: bool,
+    pub using_item: Option<ObservedValue<Option<super::Hand>>>,
 }
 impl LegacyReceipts {
     pub fn window_items(

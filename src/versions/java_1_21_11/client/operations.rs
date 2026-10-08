@@ -71,7 +71,7 @@ use serde::Serialize;
 pub use survival::RecordedStandingContext;
 pub use survival::{
     AttributeValue, LocalPlayerState, MotionInterruption, PlayerHealth, ReceivedEffect,
-    StandingContext, ValueBasis, VelocitySample,
+    ReceivedItemUse, StandingContext, ValueBasis, VelocitySample,
 };
 
 pub use crate::client::GameMode;
@@ -688,28 +688,37 @@ impl Operations {
         face: crate::BlockFace,
         cursor: [f32; 3],
     ) -> Result<i32> {
-        if cursor
-            .iter()
-            .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
-        {
-            return Err(invalid("invalid block hit"));
-        }
+        self.use_on_block_in(None, crate::client::Hand::Main, position, face, cursor)
+            .await
+    }
+    /// `mode` None is the native API, which keeps survival on the checked placement path.
+    async fn use_on_block_in(
+        &self,
+        mode: Option<GameMode>,
+        hand: crate::client::Hand,
+        position: [i32; 3],
+        face: crate::BlockFace,
+        cursor: [f32; 3],
+    ) -> Result<i32> {
+        crate::client::item_use::validate_cursor(cursor)?;
         let state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
+        self.require_mode(&state, mode)?;
         if state.operations.inventory.pending_swap.is_some() {
             return Err(Error::new(
                 ErrorKind::State,
                 anyhow::anyhow!("inventory swap needs inspection"),
             ));
         }
-        if state.operations.game_mode == Some(GameMode::Survival) {
+        if mode.is_none() && state.operations.game_mode == Some(GameMode::Survival) {
             return Err(invalid(
                 "survival placement requires place_survival_cube and received material accounting",
             ));
         }
         check_reach(&state, position)?;
         let seq = self.next_sequence()?;
-        let mut payload = vec![0];
+        let mut payload = Vec::new();
+        put_varint(&mut payload, hand as i32);
         payload.extend(pack_position(position).to_be_bytes());
         put_varint(&mut payload, face as i32);
         for v in cursor {
@@ -722,6 +731,47 @@ impl Operations {
             .send(ids::play_serverbound::BLOCK_PLACE, &payload)
             .await?;
         Ok(seq)
+    }
+    /// ServerboundUseItemPacket: hand, sequence, then the current rotation, which the
+    /// server snaps the player to before using the item.
+    async fn use_item_in(&self, mode: GameMode, hand: crate::client::Hand) -> Result<i32> {
+        let state = self.bot.session.state.lock().await;
+        self.mutable(&state)?;
+        self.require_mode(&state, Some(mode))?;
+        if state.control.active() {
+            return Err(invalid(
+                "item use during continuous control is refused; its slowdown is not modeled",
+            ));
+        }
+        let seq = self.next_sequence()?;
+        let mut payload = Vec::new();
+        put_varint(&mut payload, hand as i32);
+        put_varint(&mut payload, seq);
+        for v in state.rotation {
+            payload.extend(v.to_be_bytes());
+        }
+        self.bot
+            .session
+            .send(ids::play_serverbound::USE_ITEM, &payload)
+            .await?;
+        Ok(seq)
+    }
+    /// PLAYER_ACTION RELEASE_USE_ITEM with the zero position, face DOWN and sequence 0,
+    /// as the official client sends it.
+    async fn release_use_item_in(&self, mode: GameMode) -> Result<()> {
+        let state = self.bot.session.state.lock().await;
+        self.mutable(&state)?;
+        self.require_mode(&state, Some(mode))?;
+        let mut payload = Vec::new();
+        put_varint(&mut payload, 5);
+        payload.extend(0u64.to_be_bytes());
+        payload.push(0);
+        put_varint(&mut payload, 0);
+        self.bot
+            .session
+            .send(ids::play_serverbound::BLOCK_DIG, &payload)
+            .await?;
+        Ok(())
     }
     pub(super) fn ready(&self, state: &State) -> Result<()> {
         self.bot.session.check(state)?;
@@ -1321,6 +1371,10 @@ pub(super) fn common_player_in_state(
                     api::ValueSource::Submitted
                 },
             }),
+        using_item: native
+            .local_player
+            .using_item
+            .map(|u| api::received(u.hand, u.receive_sequence)),
         inventory: api::InventoryObservation {
             slots,
             cursor,
@@ -1498,9 +1552,14 @@ impl crate::client::adapter::CoreOps for Operations {
             Action::Dig(position, face) => {
                 return self.dig_creative(position, face).await.map(Some);
             }
-            Action::UseOnBlock(position, face, cursor) => {
-                return self.use_on_block(position, face, cursor).await.map(Some);
+            Action::UseOnBlock(position, face, cursor, hand) => {
+                return self
+                    .use_on_block_in(Some(mode), hand, position, face, cursor)
+                    .await
+                    .map(Some);
             }
+            Action::UseItem(hand) => return self.use_item_in(mode, hand).await.map(Some),
+            Action::ReleaseUseItem => self.release_use_item_in(mode).await?,
         }
         Ok(None)
     }
