@@ -50,6 +50,10 @@ pub(super) fn value(version: MinecraftVersion, hex: &str) -> SlotKnowledge {
 pub(super) fn player(version: MinecraftVersion) -> PlayerObservation {
     PlayerObservation {
         using_item: None,
+        entity_id: None,
+        attributes: Default::default(),
+        effects: Default::default(),
+        air_supply: None,
         session: SessionStamp {
             version,
             connection_id: 7,

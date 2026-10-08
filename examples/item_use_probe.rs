@@ -123,6 +123,7 @@ async fn main() -> anyhow::Result<()> {
         give(version, "hotbar.2", "arrow", 4),
         give(version, "hotbar.3", "torch", 4),
         give(version, "weapon.offhand", "shield", 1),
+        give(version, "hotbar.5", "iron_sword", 1),
     ] {
         cmd(line)?;
     }
@@ -156,6 +157,38 @@ async fn main() -> anyhow::Result<()> {
         receipt.interaction_sequence,
         count(&state, 36)
     );
+
+    // Received player facts: attack speed, the apple's effects, air and own entity ID.
+    let (state, _) = wait_player(&client, "apple effects", |s| {
+        s.effects.contains_key("minecraft:absorption")
+            && s.effects.contains_key("minecraft:regeneration")
+    })
+    .await?;
+    let attack_speed = state
+        .attributes
+        .get("minecraft:attack_speed")
+        .map(|a| a.value.value);
+    println!(
+        "FACTS entity_id={:?} attack_speed={attack_speed:?} effects={:?} air={:?}",
+        state.entity_id,
+        state
+            .effects
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.value.amplifier, v.value.duration_at_receipt))
+            .collect::<Vec<_>>(),
+        state.air_supply.as_ref().map(|a| a.value)
+    );
+    ensure!(state.entity_id.is_some(), "own entity ID missing");
+    survival.select_hotbar(5).await?;
+    let (state, _) = wait_player(&client, "sword attack speed", |s| {
+        s.attributes.contains_key("minecraft:attack_speed")
+    })
+    .await?;
+    println!(
+        "SWORD attack_speed={:?}",
+        state.attributes["minecraft:attack_speed"].value
+    );
+    survival.swing_arm(Hand::Main).await?;
 
     // Shield in the off hand: raise, hold, lower.
     survival.use_item(Hand::Off).await?;

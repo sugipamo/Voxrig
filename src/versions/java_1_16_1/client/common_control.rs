@@ -33,6 +33,19 @@ fn invalid(message: &str) -> Error {
     Error::new(ErrorKind::State, anyhow::anyhow!("{message}"))
 }
 
+/// A received 1.16.1 modifier in the shared form (UUID text identity).
+pub(super) fn legacy_modifier(m: &super::super::survival::AttributeModifier) -> Modifier {
+    Modifier {
+        id: uuid_text(m.uuid),
+        operation: match m.operation {
+            0 => ModifierOperation::Addition,
+            1 => ModifierOperation::MultiplyBase,
+            _ => ModifierOperation::MultiplyTotal,
+        },
+        amount: m.amount,
+    }
+}
+
 fn uuid_text(u: [u8; 16]) -> String {
     let h: String = u.iter().map(|b| format!("{b:02x}")).collect();
     format!(
@@ -63,15 +76,7 @@ impl Bot {
             environment.movement_speed_modifiers = speed
                 .modifiers
                 .iter()
-                .map(|m| Modifier {
-                    id: uuid_text(m.uuid),
-                    operation: match m.operation {
-                        0 => ModifierOperation::Addition,
-                        1 => ModifierOperation::MultiplyBase,
-                        _ => ModifierOperation::MultiplyTotal,
-                    },
-                    amount: m.amount,
-                })
+                .map(legacy_modifier)
                 .filter(|m| m.id != sprint)
                 .collect();
         }

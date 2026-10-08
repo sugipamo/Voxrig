@@ -21,6 +21,7 @@
 - [共通のentity現在状態](common-entities.md)
 - [共通の継続操作（キーを押し続ける移動）](common-control.md)
 - [共通のアイテム使用](common-item-use.md)
+- [共通の自分の状態（属性・効果・空気・entity ID）](common-player-facts.md)
 - [共通event streamの設計メモ](event-stream-design.md)
 - [Client共通化のロードマップ・現在地](client-unification.md)
 - [公開client APIの設計](public-client-api.md)

@@ -5660,6 +5660,12 @@ impl Bot {
                 let entity_id = get_varint(&mut rest)?;
                 let effect_id = *rest.first().context("missing removed effect ID")? as i8;
                 if Some(entity_id) == self.player.lock().await.entity_id {
+                    if let Some(name) = crate::client::player_facts::effect_name(
+                        crate::MinecraftVersion::Java1_16_1,
+                        i32::from(effect_id),
+                    ) {
+                        self.common_receipts.lock().await.effects.remove(&name);
+                    }
                     self.survival.write().await.effects.remove(&effect_id);
                     self.emit(Event::SurvivalStateUpdated);
                 }
@@ -5684,6 +5690,9 @@ impl Bot {
                     receipts.position_source = None;
                     receipts.health = None;
                     receipts.using_item = None;
+                    receipts.attributes.clear();
+                    receipts.effects.clear();
+                    receipts.air_supply = None;
                     receipts.may_fly = None;
                     receipts.requested_flying = false;
                     receipts.container = None;
@@ -5833,6 +5842,8 @@ impl Bot {
                     }
                     if let Some(MetadataValue::VarInt(air_ticks)) = metadata.get(&1) {
                         *self.oxygen_level.lock().await = oxygen_level_from_air_ticks(*air_ticks);
+                        self.common_receipts.lock().await.air_supply =
+                            Some(crate::client::received(*air_ticks, packet_sequence));
                     }
                     let flags_index = crate::MinecraftVersion::Java1_16_1
                         .table()
@@ -6150,6 +6161,27 @@ impl Bot {
             0x58 => {
                 let (entity_id, attributes) = parse_attributes(&p)?;
                 if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
+                    {
+                        let mut receipts = self.common_receipts.lock().await;
+                        for attribute in &attributes {
+                            let modifiers = attribute
+                                .modifiers
+                                .iter()
+                                .map(common_control::legacy_modifier)
+                                .collect();
+                            receipts.attributes.insert(
+                                crate::client::player_facts::legacy_attribute_name(&attribute.key),
+                                crate::client::received(
+                                    crate::client::player_facts::attribute(
+                                        crate::MinecraftVersion::Java1_16_1,
+                                        attribute.base,
+                                        modifiers,
+                                    ),
+                                    packet_sequence,
+                                ),
+                            );
+                        }
+                    }
                     let mut state = self.survival.write().await;
                     for attribute in attributes {
                         state.attributes.insert(attribute.key.clone(), attribute);
@@ -6163,6 +6195,22 @@ impl Bot {
                 if Some(entity_id) == self.player.lock().await.entity_id {
                     self.interrupt_common_motion("native effect interrupted finite motion")
                         .await;
+                    if let Some(name) = crate::client::player_facts::effect_name(
+                        crate::MinecraftVersion::Java1_16_1,
+                        i32::from(effect.id),
+                    ) {
+                        self.common_receipts.lock().await.effects.insert(
+                            name,
+                            crate::client::received(
+                                crate::client::player_facts::effect(
+                                    i32::from(effect.amplifier),
+                                    effect.duration_ticks,
+                                    effect.flags as u8,
+                                ),
+                                packet_sequence,
+                            ),
+                        );
+                    }
                     self.survival
                         .write()
                         .await

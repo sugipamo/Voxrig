@@ -386,8 +386,18 @@ fn movement_speed(version: MinecraftVersion, env: &Environment, sprinting: bool)
         .iter()
         .chain(sprint.as_ref())
         .collect();
-    let ordered = collision::attribute_order(version, &modifiers);
-    let mut value = env.movement_speed_base;
+    attribute_value(version, env.movement_speed_base, &modifiers).clamp(0.0, 1024.0)
+}
+
+/// `AttributeInstance.calculateValue` before the attribute's range clamp, with the
+/// modifiers in the version's native map order.
+pub(crate) fn attribute_value(
+    version: MinecraftVersion,
+    base: f64,
+    modifiers: &[&Modifier],
+) -> f64 {
+    let ordered = collision::attribute_order(version, modifiers);
+    let mut value = base;
     for m in ordered
         .iter()
         .filter(|m| m.operation == ModifierOperation::Addition)
@@ -407,7 +417,7 @@ fn movement_speed(version: MinecraftVersion, env: &Environment, sprinting: bool)
     {
         value *= 1.0 + m.amount;
     }
-    value.clamp(0.0, 1024.0)
+    value
 }
 
 fn trig(version: MinecraftVersion, degrees: f32, cosine: bool) -> f32 {

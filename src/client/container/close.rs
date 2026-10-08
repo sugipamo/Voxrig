@@ -540,6 +540,10 @@ mod tests {
         slots[9] = screen.slots[27].clone();
         let initial = PlayerObservation {
             using_item: None,
+            entity_id: None,
+            attributes: Default::default(),
+            effects: Default::default(),
+            air_supply: None,
             session,
             receive_sequence: 10,
             pending_dispatch: false,

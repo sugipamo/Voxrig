@@ -287,6 +287,10 @@ fn vehicle_control_requires_final_neutral_and_latches_original_mount_conflicts()
         };
         let player = PlayerObservation {
             using_item: None,
+            entity_id: None,
+            attributes: Default::default(),
+            effects: Default::default(),
+            air_supply: None,
             session,
             receive_sequence: 12,
             pending_dispatch: false,

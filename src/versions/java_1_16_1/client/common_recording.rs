@@ -284,6 +284,10 @@ pub(crate) fn replay_packets(
     }
     let player = api::PlayerObservation {
         using_item: None,
+        entity_id: None,
+        attributes: Default::default(),
+        effects: Default::default(),
+        air_supply: None,
         session: api::SessionStamp {
             version: crate::MinecraftVersion::Java1_16_1,
             connection_id: trace.connection_id,

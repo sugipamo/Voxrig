@@ -120,6 +120,10 @@ pub struct LocalPlayerState {
     pub effects_complete: bool,
     /// Last received item-use flags; None before the first flags entry in this world.
     pub using_item: Option<ReceivedItemUse>,
+    /// Receive ordinal of each attribute in `received_attributes`.
+    pub attribute_sequences: BTreeMap<i32, u64>,
+    /// Last received air supply (ticks) and its receive ordinal.
+    pub air_supply: Option<(i32, u64)>,
 }
 
 /// Own item-use state from received LivingEntity flags.
@@ -210,6 +214,9 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         }
         input::ENTITY_METADATA => {
             let update = players::read_pose(&mut r, &mut next.pose)?;
+            if let Some(air) = update.air_supply {
+                next.air_supply = Some((air, sequence));
+            }
             if let Some(flags) = update.living_flags {
                 next.using_item = Some(ReceivedItemUse {
                     hand: crate::client::item_use::hand_from_living_flags(flags),
@@ -232,6 +239,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             attributes::received(&mut next, &values, sequence);
             for (key, (_, raw)) in details {
                 next.received_attributes.insert(key, raw);
+                next.attribute_sequences.insert(key, sequence);
             }
         }
         input::ENTITY_EFFECT | input::REMOVE_ENTITY_EFFECT => {

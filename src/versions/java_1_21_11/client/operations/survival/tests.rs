@@ -628,6 +628,12 @@ fn living_flags_report_the_item_in_use() {
     );
     apply(&mut s, p::ENTITY_METADATA, &[42, 8, 0, 0, 255]);
     assert_eq!(s.operations.local_player.using_item.unwrap().hand, None);
+    // Air supply (index 1, VarInt).
+    apply(&mut s, p::ENTITY_METADATA, &[42, 1, 1, 120, 255]);
+    assert_eq!(
+        s.operations.local_player.air_supply,
+        Some((120, s.sequence))
+    );
     // A wrong serializer for the flags is rejected without changing state.
     let before = s.operations.local_player.clone();
     assert!(receive(&mut s, p::ENTITY_METADATA, &[42, 8, 1, 1, 255]).is_err());

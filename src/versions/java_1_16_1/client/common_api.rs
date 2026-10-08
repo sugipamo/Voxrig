@@ -79,6 +79,10 @@ impl Bot {
             selected_hotbar: receipts.selected_hotbar.clone(),
             inventory: received_inventory,
             using_item: receipts.using_item.clone(),
+            entity_id: player.entity_id,
+            attributes: receipts.attributes.clone(),
+            effects: receipts.effects.clone(),
+            air_supply: receipts.air_supply.clone(),
         })
     }
     pub(super) async fn execute_common_inner(
@@ -248,6 +252,11 @@ impl Bot {
                 let mut payload = Vec::new();
                 put_varint(&mut payload, hand as i32);
                 (0x2e, payload)
+            }
+            Action::Swing(hand) => {
+                let mut payload = Vec::new();
+                put_varint(&mut payload, hand as i32);
+                (0x2b, payload)
             }
             Action::ReleaseUseItem => {
                 // PLAYER_ACTION RELEASE_USE_ITEM with the zero position and face DOWN.
@@ -1768,6 +1777,50 @@ mod tests {
         bot.apply_packet(0x44, flags(0)).await.unwrap();
         let using = client.player_state().await.unwrap().using_item.unwrap();
         assert_eq!(using.value, None);
+        // Attributes (renamed to 1.21.11 keys), effects and air supply.
+        let mut attributes = Vec::new();
+        put_varint(&mut attributes, 42);
+        attributes.extend(1i32.to_be_bytes());
+        crate::protocol::put_string(&mut attributes, "minecraft:generic.attack_speed");
+        attributes.extend(4.0f64.to_be_bytes());
+        put_varint(&mut attributes, 1);
+        attributes.extend([7; 16]);
+        attributes.extend((-1.6f64).to_be_bytes());
+        attributes.push(0);
+        bot.apply_packet(0x58, attributes).await.unwrap();
+        let mut effect = Vec::new();
+        put_varint(&mut effect, 42);
+        effect.extend([1, 1]); // speed, amplifier 1
+        put_varint(&mut effect, 200);
+        effect.push(2);
+        bot.apply_packet(0x59, effect).await.unwrap();
+        let mut air = Vec::new();
+        put_varint(&mut air, 42);
+        air.extend([1, 1, 120, 255]); // index 1, VarInt, 120 ticks
+        bot.apply_packet(0x44, air).await.unwrap();
+        let state = client.player_state().await.unwrap();
+        assert_eq!(state.entity_id, Some(42));
+        let speed = &state.attributes["minecraft:attack_speed"].value;
+        assert_eq!((speed.base, speed.value), (4.0, 4.0 - 1.6));
+        assert_eq!(
+            speed.modifiers[0].id,
+            "07070707-0707-0707-0707-070707070707"
+        );
+        let speed_effect = state.effects["minecraft:speed"].value;
+        assert_eq!(
+            (
+                speed_effect.amplifier,
+                speed_effect.duration_at_receipt,
+                speed_effect.visible
+            ),
+            (1, 200, true)
+        );
+        assert_eq!(state.air_supply.unwrap().value, 120);
+        let mut removal = Vec::new();
+        put_varint(&mut removal, 42);
+        removal.push(1);
+        bot.apply_packet(0x38, removal).await.unwrap();
+        assert!(client.player_state().await.unwrap().effects.is_empty());
         // Another entity's flags are not the local player's.
         let mut other = Vec::new();
         put_varint(&mut other, 43);
@@ -1828,7 +1881,7 @@ mod tests {
                 break;
             }
         }
-        for _ in 0..8 {
+        for _ in 0..9 {
             emitted.push(
                 timeout(Duration::from_secs(1), packets.recv())
                     .await
@@ -1871,6 +1924,8 @@ mod tests {
             emitted[8],
             (expected[5], vec![5, 0, 0, 0, 0, 0, 0, 0, 0, 0])
         );
+        // ServerboundSwingPacket (0x2b): main hand.
+        assert_eq!(emitted[9], (0x2b, vec![0]));
         assert_eq!(&emitted[0].1[..2], &36i16.to_be_bytes());
         let item = read_slot(&mut &emitted[0].1[2..]).unwrap().unwrap();
         assert_eq!(item.name(), Some("stone"));

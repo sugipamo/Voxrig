@@ -935,7 +935,7 @@ async fn common_creative_contract_dispatches_modern_packets_without_inventory_ec
     let client = crate::Client::from_java_1_21_11(api.bot.clone());
     crate::client::tests::common_creative_scenario(&client).await;
     let mut emitted = Vec::new();
-    for _ in 0..9 {
+    for _ in 0..10 {
         emitted.push(
             tokio::time::timeout(Duration::from_secs(1), read_packet(&mut peer, None))
                 .await
@@ -954,7 +954,8 @@ async fn common_creative_contract_dispatches_modern_packets_without_inventory_ec
             ids::play_serverbound::BLOCK_DIG,
             ids::play_serverbound::BLOCK_PLACE,
             ids::play_serverbound::USE_ITEM,
-            ids::play_serverbound::BLOCK_DIG
+            ids::play_serverbound::BLOCK_DIG,
+            ids::play_serverbound::ARM_ANIMATION
         ]
     );
     assert_eq!(&emitted[0].1[..2], &36i16.to_be_bytes());
@@ -975,6 +976,7 @@ async fn common_creative_contract_dispatches_modern_packets_without_inventory_ec
     assert_eq!(emitted[7].1, use_item);
     // RELEASE_USE_ITEM, BlockPos.ZERO, Direction.DOWN, sequence 0.
     assert_eq!(emitted[8].1, [5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    assert_eq!(emitted[9].1, [0]);
     let mut slot = vec![0, 1];
     put_varint(
         &mut slot,

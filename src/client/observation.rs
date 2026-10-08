@@ -322,6 +322,17 @@ pub struct PlayerObservation {
     /// server reports an item in use, `None` when it reports none. Absent until the first
     /// flags packet in this world; a sent use request is never shown here.
     pub using_item: Option<ObservedValue<Option<super::Hand>>>,
+    /// Own native entity ID in this world, from the login or respawn handshake.
+    pub entity_id: Option<i32>,
+    /// Received attributes by 1.21.11 name (`minecraft:attack_speed`; 1.16.1 keys are
+    /// renamed). Absent until received in this world, even where the official client
+    /// keeps a value across a respawn.
+    pub attributes: std::collections::BTreeMap<String, ObservedValue<super::PlayerAttribute>>,
+    /// Received status effects by name, until a removal is received. Durations are
+    /// as received; no local countdown or expiry is applied.
+    pub effects: std::collections::BTreeMap<String, ObservedValue<super::PlayerEffect>>,
+    /// Received air supply in ticks (300 when full).
+    pub air_supply: Option<ObservedValue<i32>>,
 }
 
 /// Player, inventory and received region at one adapter capture boundary.
@@ -387,6 +398,9 @@ pub(crate) struct LegacyReceipts {
     pub abilities: Option<ObservedValue<u8>>,
     pub pending_dispatch: bool,
     pub using_item: Option<ObservedValue<Option<super::Hand>>>,
+    pub attributes: std::collections::BTreeMap<String, ObservedValue<super::PlayerAttribute>>,
+    pub effects: std::collections::BTreeMap<String, ObservedValue<super::PlayerEffect>>,
+    pub air_supply: Option<ObservedValue<i32>>,
 }
 impl LegacyReceipts {
     pub fn window_items(

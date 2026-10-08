@@ -1371,6 +1371,43 @@ pub(super) fn common_player_in_state(
             .local_player
             .using_item
             .map(|u| api::received(u.hand, u.receive_sequence)),
+        entity_id: native.local_player.entity_id,
+        attributes: native
+            .local_player
+            .received_attributes
+            .iter()
+            .filter_map(|(id, a)| {
+                let name = crate::client::player_facts::modern_attribute_name(*id)?;
+                let sequence = *native.local_player.attribute_sequences.get(id)?;
+                let value = crate::client::player_facts::attribute(
+                    crate::MinecraftVersion::Java1_21_11,
+                    a.base,
+                    a.modifiers.clone(),
+                );
+                Some((name, api::received(value, sequence)))
+            })
+            .collect(),
+        effects: native
+            .local_player
+            .effect_updates
+            .values()
+            .filter_map(|e| {
+                let name = crate::client::player_facts::effect_name(
+                    crate::MinecraftVersion::Java1_21_11,
+                    e.effect_id,
+                )?;
+                let value = crate::client::player_facts::effect(
+                    e.amplifier,
+                    e.duration_at_receipt,
+                    e.flags,
+                );
+                Some((name, api::received(value, e.receive_sequence)))
+            })
+            .collect(),
+        air_supply: native
+            .local_player
+            .air_supply
+            .map(|(air, sequence)| api::received(air, sequence)),
         inventory: api::InventoryObservation {
             slots,
             cursor,
@@ -1556,6 +1593,17 @@ impl crate::client::adapter::CoreOps for Operations {
             }
             Action::UseItem(hand) => return self.use_item_in(mode, hand).await.map(Some),
             Action::ReleaseUseItem => self.release_use_item_in(mode).await?,
+            Action::Swing(hand) => {
+                let state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                self.require_mode(&state, Some(mode))?;
+                let mut payload = Vec::new();
+                put_varint(&mut payload, hand as i32);
+                self.bot
+                    .session
+                    .send(ids::play_serverbound::ARM_ANIMATION, &payload)
+                    .await?;
+            }
         }
         Ok(None)
     }

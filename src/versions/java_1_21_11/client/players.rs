@@ -502,11 +502,15 @@ pub(super) fn read_attribute_details(
     }
     Ok(values)
 }
+/// Entity.DATA_AIR_SUPPLY_ID (an int).
+const AIR_SUPPLY_METADATA: u8 = 1;
 pub(super) struct PoseUpdate {
     pub supported: bool,
     pub received: bool,
     /// Received LivingEntity flags byte, if present before any unsupported entry.
     pub living_flags: Option<u8>,
+    /// Received Entity air supply, if present before any unsupported entry.
+    pub air_supply: Option<i32>,
 }
 pub(super) fn read_pose(
     r: &mut Reader<'_>,
@@ -521,6 +525,7 @@ pub(super) fn read_pose(
         supported: true,
         received: false,
         living_flags: None,
+        air_supply: None,
     };
     loop {
         let key = r.u8()?;
@@ -542,6 +547,11 @@ pub(super) fn read_pose(
                 bail!("incorrect living entity flags serializer");
             }
             update.living_flags = Some(r.u8()?);
+        } else if key == AIR_SUPPLY_METADATA {
+            if kind != 1 {
+                bail!("incorrect air supply serializer");
+            }
+            update.air_supply = Some(r.varint()?);
         } else if !skip_metadata(r, kind)? {
             update.supported = false;
             return Ok(update);

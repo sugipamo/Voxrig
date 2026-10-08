@@ -47,6 +47,7 @@ pub(crate) enum Action<'a> {
     UseOnBlock([i32; 3], BlockFace, [f32; 3], super::Hand),
     UseItem(super::Hand),
     ReleaseUseItem,
+    Swing(super::Hand),
 }
 impl Survival {
     /// Dispatch one interaction with an original received entity lifetime.
@@ -633,6 +634,13 @@ impl Creative {
             .execute(GameMode::Creative, Action::ReleaseUseItem)
             .await
     }
+    /// Swing an arm (ServerboundSwingPacket). The official client swings the main hand
+    /// after each attack and after a successful use; `attack_entity` does not.
+    pub async fn swing_arm(&self, hand: super::Hand) -> Result<DispatchReceipt> {
+        self.client
+            .execute(GameMode::Creative, Action::Swing(hand))
+            .await
+    }
 }
 impl Survival {
     /// Use the item in `hand` on a loaded block face within 4.5 blocks of the eye
@@ -665,6 +673,13 @@ impl Survival {
     pub async fn release_use_item(&self) -> Result<DispatchReceipt> {
         self.client
             .execute(GameMode::Survival, Action::ReleaseUseItem)
+            .await
+    }
+    /// Swing an arm (ServerboundSwingPacket). The official client swings the main hand
+    /// after each attack and after a successful use; `attack_entity` does not.
+    pub async fn swing_arm(&self, hand: super::Hand) -> Result<DispatchReceipt> {
+        self.client
+            .execute(GameMode::Survival, Action::Swing(hand))
             .await
     }
 }

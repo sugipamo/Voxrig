@@ -827,6 +827,7 @@ pub(crate) async fn common_creative_scenario(client: &Client) {
     );
     ops.use_item(crate::Hand::Off).await.unwrap();
     ops.release_use_item().await.unwrap();
+    ops.swing_arm(crate::Hand::Main).await.unwrap();
     assert_eq!(
         ops.player_state()
             .await
