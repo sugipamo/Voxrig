@@ -1,6 +1,32 @@
 use super::*;
 use crate::MinecraftVersion;
 
+/// Exercise actual controller publication, without assigning synthetic ground.
+pub(crate) async fn common_control_capture_scenario(client: &crate::Client) {
+    use crate::client::{ValueSource, control::Controls};
+    client.survival().start_control().await.unwrap();
+    client
+        .survival()
+        .set_controls(Controls::default())
+        .await
+        .unwrap();
+    let player = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        loop {
+            let player = client.player_state().await.unwrap();
+            if player.on_ground.is_some() && player.rotation_source == Some(ValueSource::Submitted)
+            {
+                break player;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(player.on_ground.unwrap().source, ValueSource::Predicted);
+    assert!(player.position.is_some());
+    client.survival().stop_control().await.unwrap();
+}
+
 /// Seed only the recipe catalogue; adapter tests deliver inventory through their receiver.
 pub(crate) fn recipe_placement_book_fixture(
     version: MinecraftVersion,

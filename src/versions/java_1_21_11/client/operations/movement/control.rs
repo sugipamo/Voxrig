@@ -617,6 +617,7 @@ impl Operations {
             state.position = Some(expected.position);
             state.rotation = rotation;
             state.motion.dispatched();
+            state.motion.on_ground = Some(expected.on_ground);
             state.survival_motion.as_mut().unwrap().dispatched_ticks = expected.tick;
             sync_landing_motion(&state);
         }

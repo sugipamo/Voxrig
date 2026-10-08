@@ -2060,6 +2060,8 @@ impl Bot {
             let mut player = self.player.lock().await;
             player.yaw = yaw;
             player.pitch = pitch;
+            self.common_receipts.lock().await.rotation_source =
+                Some(crate::client::ValueSource::Submitted);
         }
         Ok(outcome)
     }
@@ -2903,6 +2905,11 @@ impl Bot {
         let yaw = (p.yaw as f64).to_radians();
         p.x += -yaw.sin() * forward + yaw.cos() * strafe;
         p.z += yaw.cos() * forward + yaw.sin() * strafe;
+        {
+            let mut receipts = self.common_receipts.lock().await;
+            receipts.position_source = Some(crate::client::ValueSource::Submitted);
+            receipts.ground_source = None;
+        }
         drop(p);
         self.send_position().await
     }
@@ -2918,6 +2925,8 @@ impl Bot {
         let mut p = self.player.lock().await;
         p.yaw = yaw;
         p.pitch = pitch.clamp(-90.0, 90.0);
+        self.common_receipts.lock().await.rotation_source =
+            Some(crate::client::ValueSource::Submitted);
         drop(p);
         self.send_position().await
     }
@@ -4543,6 +4552,8 @@ impl Bot {
         let mut player = self.player.lock().await;
         let mut motion = self.motion.lock().await;
         let was_on_ground = player.on_ground;
+        // A partial/unknown collision update must not expose the old flag as current.
+        self.common_receipts.lock().await.ground_source = None;
         let mut forward = f64::from(i8::from(control.forward) - i8::from(control.back));
         let mut strafe = f64::from(i8::from(control.right) - i8::from(control.left));
         if control.sneak {
@@ -4653,6 +4664,8 @@ impl Bot {
         player.y = moved.min_y;
         player.z = (moved.min_z + moved.max_z) * 0.5;
         player.on_ground = collided_y && requested.y < 0.0;
+        self.common_receipts.lock().await.ground_source =
+            Some(crate::client::ValueSource::Predicted);
         motion.collided_horizontal = collided_x || collided_z;
         motion.collided_vertical = collided_y;
         if player.on_ground {
@@ -5726,6 +5739,13 @@ impl Bot {
         s.z = next_z;
         s.yaw = next_yaw;
         s.pitch = next_pitch;
+        {
+            let mut receipts = self.common_receipts.lock().await;
+            receipts.ground_source = None;
+            receipts.rotation_source = Some(crate::client::ValueSource::Received {
+                sequence: self.protocol_packet_sequence.load(Ordering::Acquire),
+            });
+        }
         let snapshot = s.clone();
         drop(s);
         self.common_receipts.lock().await.position_source =

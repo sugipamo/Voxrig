@@ -299,6 +299,10 @@ pub(crate) fn replay_packets(
         dimension,
         position: None,
         rotation: receipts.pose.as_ref().map_or([0.0; 2], |p| p.rotation),
+        rotation_source: receipts.pose.as_ref().map(|p| api::ValueSource::Received {
+            sequence: p.receive_sequence,
+        }),
+        on_ground: None,
         received_pose: receipts.pose.clone(),
         game_mode,
         may_fly: receipts.may_fly,

@@ -120,6 +120,8 @@ fn initial(version: MinecraftVersion) -> PlayerObservation {
         position: None,
         received_pose: None,
         rotation: [0., 0.],
+        rotation_source: None,
+        on_ground: None,
         game_mode: None,
         may_fly: None,
         health: None,

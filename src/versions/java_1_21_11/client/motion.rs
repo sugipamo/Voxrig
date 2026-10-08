@@ -50,6 +50,12 @@ pub enum PositionBasis {
 /// Current position basis and retained history; serialized data grants no authority.
 #[derive(Clone, Debug, Default, Serialize, serde::Deserialize, PartialEq)]
 pub struct OwnMotion {
+    /// Origin of current local rotation, independent of position submissions.
+    #[serde(default)]
+    pub rotation_source: Option<crate::client::ValueSource>,
+    /// Last supported local model update, invalidated by correction/reset/submission.
+    #[serde(default)]
+    pub on_ground: Option<bool>,
     /// Provenance for the current position.
     pub position_basis: PositionBasis,
     /// Last actual position receipt, retained across local submissions/reset.
@@ -63,6 +69,10 @@ pub struct OwnMotion {
 }
 impl OwnMotion {
     pub(super) fn receive(&mut self, pose: ReceivedPose) {
+        self.rotation_source = Some(crate::client::ValueSource::Received {
+            sequence: pose.receive_sequence,
+        });
+        self.on_ground = None;
         if let Some(attempt) = &mut self.last_submission {
             attempt.superseded_at.get_or_insert(pose.receive_sequence);
         }
@@ -71,6 +81,8 @@ impl OwnMotion {
         self.invalidation = None;
     }
     pub(super) fn invalidate(&mut self, sequence: u64, reason: &str) {
+        self.rotation_source = None;
+        self.on_ground = None;
         if let Some(attempt) = &mut self.last_submission {
             attempt.superseded_at.get_or_insert(sequence);
         }
@@ -84,6 +96,7 @@ impl OwnMotion {
         position: [f64; 3],
         rotation: [f32; 2],
     ) -> anyhow::Result<()> {
+        self.on_ground = None;
         self.next_attempt = self
             .next_attempt
             .checked_add(1)
@@ -101,6 +114,7 @@ impl OwnMotion {
         Ok(())
     }
     pub(super) fn dispatched(&mut self) {
+        self.rotation_source = Some(crate::client::ValueSource::Submitted);
         self.last_submission
             .as_mut()
             .expect("before-I/O attempt")
