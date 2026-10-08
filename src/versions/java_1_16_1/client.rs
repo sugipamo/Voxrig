@@ -2905,7 +2905,11 @@ impl Bot {
         let yaw = (p.yaw as f64).to_radians();
         p.x += -yaw.sin() * forward + yaw.cos() * strafe;
         p.z += yaw.cos() * forward + yaw.sin() * strafe;
-        self.common_receipts.lock().await.ground_source = None;
+        {
+            let mut receipts = self.common_receipts.lock().await;
+            receipts.position_source = Some(crate::client::ValueSource::Submitted);
+            receipts.ground_source = None;
+        }
         drop(p);
         self.send_position().await
     }

@@ -740,6 +740,17 @@ mod tests {
             looked.position.as_ref().unwrap().source,
             corrected.position.as_ref().unwrap().source
         );
+        bot.move_relative_unchecked(0.0, 0.0).await.unwrap();
+        let moved = client.player_state().await.unwrap();
+        assert_eq!(
+            moved.position.as_ref().unwrap().value,
+            corrected.position.as_ref().unwrap().value
+        );
+        assert_eq!(
+            moved.position.as_ref().unwrap().source,
+            api::ValueSource::Submitted
+        );
+        assert!(moved.on_ground.is_none());
         bot.physics_tick(ControlState::default(), false)
             .await
             .unwrap();
