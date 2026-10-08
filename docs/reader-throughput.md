@@ -95,3 +95,47 @@ containers). Their state locks use the same `try_lock`/async fallback, so an idl
 hook does not consume cooperative budget and the 32-frame batch boundary holds.
 The prefetched-login test sends a complete login profile because login success
 is now validated against the requested name.
+
+## Eleven-client original-server fixture
+
+`scripts/run_reader_multiclient.py` exercises the common SDK alone on a
+checksum-verified official vanilla Java 1.16.1 server. Eleven clients share a
+four-worker Tokio runtime. Each repeatedly captures player, loaded chunks and
+entities and consumes common event cursors, with a 50 ms pause between rounds.
+Six persistent fixture wolves are observed by every client. An own Java launcher
+uses unchanged `MinecraftServer.addTickable` and `ServerLevel.broadcastEntityEvent`
+methods to broadcast status 8 twice per wolf per server tick (nominally 240
+events per second per connection). This is controlled valid traffic, not a claim
+that autonomous vanilla wolves exhibit this rate.
+
+The byte-for-byte proxy forwards every original frame. Its optional diagnostic
+retention saves KeepAlive and non-play frames and counts the rest, so high-rate
+status traffic does not grow the retained history or log without bound. A socket
+regression verifies discarded diagnostic records still forward exactly the
+original wire bytes. KeepAlive identities are matched per connection. Response
+times are measured between complete-frame observations in this proxy, including
+its own forwarding and observation overhead; they are not TCP segment arrival
+times or SDK-only decode/write latency. Actual server-side player removal and
+successful common disconnect are checked for all eleven clients.
+
+```sh
+cargo build --locked --example connection_stability_probe
+python3 scripts/run_reader_multiclient.py --accept-eula \
+  --binary target/debug/examples/connection_stability_probe \
+  --jars .local/climbing/downloads --seconds 1800
+```
+
+Java 21 with `javac` is needed. The runner owns disposable loopback-only fixtures
+and stops its own server on success or failure. It checks at least 200 received
+status-8 events per second per connection and requires every observed KeepAlive
+to have a matching response below 15 seconds. Reports/progress go under
+`.local/climbing/live`. `--seconds` supports 30 seconds through four hours.
+
+The latest [issue #5 report](https://github.com/sugipamo/Voxrig/issues/5#issuecomment-6039435877)
+describes an Evolto-side synchronous Board-lock preflight blocking Tokio workers,
+fixed in Evolto `668f3aa`, with unequal-load endurance still outstanding. The
+SDK-only fixture does not include Evolto supervision, knowledge/LLM, Board locks,
+Golemkit consumers, distinct real worker goals or accumulated application state.
+A passing fixture is a negative SDK reproduction, not a causal fix or authority
+to close #5. No packet suppression, scheduling/deadline change, reconnect or
+application mutation is introduced by this validation work.

@@ -132,7 +132,7 @@ def matched(response, pattern):
 
 class PacketTraceProxy:
     """Byte-for-byte forwarding with read-only compressed-frame diagnostics."""
-    def __init__(self, server_port, version, path):
+    def __init__(self, server_port, version, path, record_filter=None):
         self.server_port, self.version = server_port, version
         self.listener = socket.socket()
         self.listener.bind(("127.0.0.1", 0))
@@ -143,6 +143,9 @@ class PacketTraceProxy:
         self.frames, self.errors, self.connections, self.workers = [], [], [], []
         self.error_contexts, self.terminal_events = [], []
         self.connection_states, self.terminal_deliveries = [], []
+        self.record_filter = record_filter
+        self.frame_count = 0
+        self.packet_counts = {}
         self.log = path.open("w")
         self.acceptor = threading.Thread(target=self.accept, daemon=True)
         self.acceptor.start()
@@ -224,13 +227,21 @@ class PacketTraceProxy:
                     recorded_phase = state["phase"]
                     if recorded_phase == "await_configuration_ack":
                         recorded_phase = "configuration" if direction == "clientbound" else "play"
-                    record = {"ordinal": len(self.frames) + 1, "connection": state["connection"], "direction": direction, "phase": recorded_phase, "packet_id": packet, "body_length": len(body), "wire_sha256": hashlib.sha256(header + frame).hexdigest(), "body_sha256": hashlib.sha256(body).hexdigest()}
+                    self.frame_count += 1
+                    record = {"ordinal": self.frame_count, "connection": state["connection"], "direction": direction, "phase": recorded_phase, "packet_id": packet, "body_length": len(body), "wire_sha256": hashlib.sha256(header + frame).hexdigest(), "body_sha256": hashlib.sha256(body).hexdigest()}
                     if len(body) <= 512 or (self.version == "1.16.1" and state["phase"] == "play" and direction == "clientbound" and packet == 0x25):
                         record["body_hex"] = body.hex()
-                    self.frames.append(record)
                     recorded_ordinal = record["ordinal"]
-                    self.log.write(json.dumps(record) + "\n")
-                    self.log.flush()
+                    retain = True
+                    if self.record_filter is not None:
+                        key = (state["connection"], direction, recorded_phase, packet)
+                        self.packet_counts[key] = self.packet_counts.get(key, 0) + 1
+                        record["observed_monotonic_seconds"] = time.monotonic()
+                        retain = self.record_filter(record)
+                    if retain:
+                        self.frames.append(record)
+                        self.log.write(json.dumps(record) + "\n")
+                        self.log.flush()
                     if direction == "serverbound" and state["phase"] == "handshake":
                         state["phase"] = "login"
                     elif direction == "clientbound" and state["phase"] == "login":
