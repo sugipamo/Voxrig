@@ -6,8 +6,10 @@ use super::{
 };
 use crate::{MinecraftVersion, Result};
 use std::collections::BTreeMap;
+mod data;
 mod motion;
 mod state;
+pub use data::{EntityDataField, EntityDataReading, EntityDataSource};
 pub use motion::{EntityMotionObservation, EntityPosition, EntityPositionCorrection};
 pub(crate) use motion::{NativeMotion, NativeSpawnMotion};
 pub(crate) use state::modern_living;

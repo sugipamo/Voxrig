@@ -288,6 +288,7 @@ pub(crate) fn replay_packets(
         attributes: Default::default(),
         effects: Default::default(),
         air_supply: None,
+        world_time: None,
         session: api::SessionStamp {
             version: crate::MinecraftVersion::Java1_16_1,
             connection_id: trace.connection_id,

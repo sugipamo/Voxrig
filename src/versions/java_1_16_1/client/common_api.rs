@@ -83,6 +83,7 @@ impl Bot {
             attributes: receipts.attributes.clone(),
             effects: receipts.effects.clone(),
             air_supply: receipts.air_supply.clone(),
+            world_time: receipts.world_time.clone(),
         })
     }
     pub(super) async fn execute_common_inner(

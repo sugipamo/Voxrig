@@ -544,6 +544,7 @@ mod tests {
             attributes: Default::default(),
             effects: Default::default(),
             air_supply: None,
+            world_time: None,
             session,
             receive_sequence: 10,
             pending_dispatch: false,

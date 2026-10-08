@@ -332,7 +332,7 @@ impl Capabilities {
                 "docs/common-inventory-helpers.md",
             ),
             Feature::EntityState => restricted(
-                "received health and equipment; boxes use default type dimensions only",
+                "received health, equipment and named data with type defaults; default-dimension boxes",
                 "docs/common-entities.md",
             ),
             Feature::Chat => restricted(

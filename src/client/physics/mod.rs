@@ -177,7 +177,7 @@ pub struct Body {
     pitch: f32,
     pub in_water: bool,
     /// Water at the eyes (fluidOnEyes) and its value one tick earlier.
-    eye_in_water: bool,
+    pub eye_in_water: bool,
     was_eye_in_water: bool,
     /// Player.wasUnderwater, which LocalPlayer.isUnderWater returns.
     under_water: bool,

@@ -1,0 +1,15 @@
+{
+  "arguments": "w.a amv.a cgk cgu alw a modern a ama$a b ama$b a c cJ",
+  "generator": {
+    "scripts/ExportEntityData.java": "9a89c8535c1b97e42151594c0d084ef80633ce3792242aa91fe2711af7fc080f",
+    "scripts/generate_entity_data.py": "3a14e8881671fbfba6e661ce71f45b4fbff3650f1498ee5a297a555744838e9f"
+  },
+  "mappings": "Mojang official server mappings",
+  "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+  "minecraft": "Java 1.21.11",
+  "outputs": {
+    "data/client_api/entity_data-1.21.11.json": "5ddf0eaae58e16e0f2b80165eb131586f716c0c74d563090dfc2caf6a8a0ce32"
+  },
+  "server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "transformation": "Bootstraps the unmodified server, reads every static EntityDataAccessor id of each Entity subclass and each EntityType constant's entity class (its generic argument), and lists per registry name the accessors of the class and its superclasses with their Mojang-mapped owner class and field names. Defaults come from calling defineSynchedData on a constructor-less instance of the type's class; the Entity constructor's own base defines are constants read from its bytecode, except the air supply, which is the type's getMaxAirSupply(). Nine classes (cat, chicken, cow, frog, painting, pig, wolf, zombie nautilus, zombie villager) stop defining at a registry-backed variant without a world; the constant defines of their defineSynchedData bytecode (javap -c -p) fill the rest, and non-constant defaults stay unknown."
+}

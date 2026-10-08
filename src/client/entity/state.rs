@@ -53,6 +53,10 @@ pub struct EntityObservation {
     /// Latest received entity data by native index. Indices and serializers are
     /// version-specific (`docs/common-entities.md`).
     pub metadata: BTreeMap<u8, ObservedValue<EntityDataValue>>,
+    /// False once a received entity-data packet for this entity could not be decoded to
+    /// its end. Fields absent from `metadata` are then unknown rather than the type's
+    /// default; see [`EntityObservation::data`].
+    pub metadata_complete: bool,
 }
 
 /// One received entity-data value. Integer, float, boolean and string serializers are
@@ -91,6 +95,8 @@ pub(super) struct Extra {
     pub health: Option<ObservedValue<f32>>,
     pub equipment: BTreeMap<EquipmentSlot, ObservedValue<SlotKnowledge>>,
     pub metadata: BTreeMap<u8, ObservedValue<EntityDataValue>>,
+    /// Set when a received entity-data packet was not decoded to its end.
+    pub metadata_truncated: bool,
 }
 
 /// Default (width, height) of a namespaced entity type.
@@ -121,13 +127,16 @@ impl SpawnLedger {
         }
     }
     /// Record received entity-data entries (each replaces the previous value).
+    /// `complete` is false when the packet's decoder stopped before its terminator.
     pub(crate) fn receive_metadata(
         &mut self,
         native_id: i32,
         entries: impl IntoIterator<Item = (u8, EntityDataValue)>,
+        complete: bool,
         sequence: u64,
     ) {
         if let Some(spawn) = self.0.get_mut(&native_id) {
+            spawn.extra.metadata_truncated |= !complete;
             for (index, value) in entries {
                 spawn.extra.metadata.insert(
                     index,
@@ -213,6 +222,7 @@ impl SpawnLedger {
                     equipment: spawn.extra.equipment.clone(),
                     living,
                     metadata: spawn.extra.metadata.clone(),
+                    metadata_complete: !spawn.extra.metadata_truncated,
                 }
             })
             .collect();
@@ -312,10 +322,11 @@ mod tests {
                 )
                 .unwrap();
         }
-        ledger.receive_metadata(1, [(0, EntityDataValue::Byte(1))], 2);
+        ledger.receive_metadata(1, [(0, EntityDataValue::Byte(1))], true, 2);
         ledger.receive_metadata(
             1,
             [(0, EntityDataValue::Byte(3)), (15, EntityDataValue::Int(2))],
+            true,
             3,
         );
         let all = ledger.capture_all(version, session, 4);

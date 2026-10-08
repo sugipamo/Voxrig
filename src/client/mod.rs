@@ -79,8 +79,9 @@ pub use crafting::{
     RecipePlacementStage, RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern,
 };
 pub use entity::{
-    EntitiesObservation, EntityDataValue, EntityId, EntityMotionObservation, EntityObservation,
-    EntityPosition, EntityPositionCorrection, EntitySpawn, EntitySpawns, EquipmentSlot,
+    EntitiesObservation, EntityDataField, EntityDataReading, EntityDataSource, EntityDataValue,
+    EntityId, EntityMotionObservation, EntityObservation, EntityPosition, EntityPositionCorrection,
+    EntitySpawn, EntitySpawns, EquipmentSlot,
 };
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
 pub use item::ItemProperties;
@@ -88,7 +89,7 @@ pub(crate) use item::{modern_prototype_components, modern_weight_defaults};
 pub use observation::{
     Capture, ConnectionIdentity, Dimension, GameMode, Health, InventoryObservation, ItemComponent,
     ItemComponentPatch, ItemData, ItemStack, ObservedValue, PlayerObservation, ReceivedPose,
-    SessionStamp, SlotKnowledge, ValueSource,
+    SessionStamp, SlotKnowledge, ValueSource, WorldTime,
 };
 pub(crate) use observation::{LegacyReceipts, legacy_slot, received};
 pub use operations::{Creative, DispatchReceipt, Survival};

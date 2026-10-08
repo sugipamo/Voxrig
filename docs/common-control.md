@@ -27,6 +27,7 @@ survival.stop_control().await?;                   // ダッシュとしゃがみ
   - 1.16.1: ダッシュの開始・停止、しゃがみの押下・解除（変化したとき）、位置・向き・接地。
   - ダッシュは、キーを押していて公式clientの開始条件を満たすときに始まり、停止条件で止まる（ダブルタップは使わない）。
 - 送った位置は**送信であってserverの受理ではない**。`ControlRecord::frame`は予測値。
+- `ControlFrame::eye_in_water`は、予測した姿勢での目が水中かどうか（公式の`updateFluidOnEyes`）。
 - 受信したものは公式clientと同じように取り込み、続ける。
   - serverからの位置（テレポート・補正）: 位置を置き換える（`corrections`に数える）。
   - 自分への速度（ノックバック等）: 速度を置き換える（`velocity_updates`に数える）。

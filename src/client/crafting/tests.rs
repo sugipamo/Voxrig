@@ -13,6 +13,7 @@ fn player(version: MinecraftVersion) -> PlayerObservation {
         attributes: Default::default(),
         effects: Default::default(),
         air_supply: None,
+        world_time: None,
         session: SessionStamp {
             version,
             connection_id: 7,

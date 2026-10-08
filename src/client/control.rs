@@ -52,6 +52,8 @@ pub struct ControlFrame {
     pub in_water: bool,
     /// Swimming (sprinting under water).
     pub swimming: bool,
+    /// Eye position in water (`Entity.isEyeInFluid(WATER)` for the predicted pose).
+    pub eye_in_water: bool,
     /// Item-use slowdown applied this tick (from the received item-use flags).
     pub using_item: Option<ItemUse>,
 }
@@ -258,6 +260,7 @@ impl ControlSession {
             crouching: b.crouching,
             in_water: b.in_water,
             swimming: b.swimming,
+            eye_in_water: b.eye_in_water,
             using_item: environment.using_item,
         });
         let modern = self.version == MinecraftVersion::Java1_21_11;

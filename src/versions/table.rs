@@ -32,6 +32,32 @@ pub(crate) struct BlockPhysics {
     pub jump_factor: f32,
 }
 
+/// Default of a synched entity-data field, as the official server defines it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum EntityDataDefault {
+    Byte(i8),
+    Int(i32),
+    Long(i64),
+    Float(f32),
+    Bool(bool),
+    /// A serializer whose default the common layer does not decode.
+    Other,
+    /// Not determinable without a world (registry-backed variants and what follows them).
+    Unknown,
+}
+
+/// One synched entity-data accessor of an entity type, with Mojang-mapped names.
+#[derive(Debug)]
+pub(crate) struct EntityDataRow {
+    /// Namespaced type name; tables are sorted by it, then by index.
+    pub entity: &'static str,
+    /// Simple name of the class declaring the accessor.
+    pub owner: &'static str,
+    pub field: &'static str,
+    pub index: u8,
+    pub default: EntityDataDefault,
+}
+
 /// Static per-version functions over bundled registries.
 pub(crate) struct RegistryFns {
     pub native_state: fn(i32) -> Result<NativeBlockState>,
@@ -54,6 +80,8 @@ pub(crate) struct EntityTable {
     pub equipment_slots: &'static [EquipmentSlot],
     /// Default dimensions sorted by name.
     pub dimensions: &'static [EntityDimensions],
+    /// Synched data accessors per type, sorted by type name then index.
+    pub data: &'static [EntityDataRow],
 }
 
 /// Bundled data files read by the common layer.
@@ -315,6 +343,7 @@ pub(crate) const JAVA_1_16_1: VersionTable = VersionTable {
         living_flags_metadata_index: 7,
         equipment_slots: &[MainHand, OffHand, Feet, Legs, Chest, Head],
         dimensions: super::java_1_16_1::generated::ENTITY_DIMENSIONS,
+        data: super::java_1_16_1::generated::ENTITY_DATA,
     },
     block_physics: super::java_1_16_1::generated::BLOCK_PHYSICS,
     generic_slot_class: "bhw",
@@ -350,6 +379,7 @@ pub(crate) const JAVA_1_21_11: VersionTable = VersionTable {
         living_flags_metadata_index: 8,
         equipment_slots: &[MainHand, OffHand, Feet, Legs, Chest, Head, Body, Saddle],
         dimensions: super::java_1_21_11::generated::ENTITY_DIMENSIONS,
+        data: super::java_1_21_11::generated::ENTITY_DATA,
     },
     block_physics: super::java_1_21_11::generated::BLOCK_PHYSICS,
     generic_slot_class: "dji",
@@ -394,6 +424,13 @@ impl VersionTable {
             .binary_search_by(|row| row.name.cmp(name))
             .ok()
             .map(|index| &table[index])
+    }
+    /// Synched data accessors of a namespaced entity type, ordered by index.
+    pub(crate) fn entity_data(&self, name: &str) -> &'static [EntityDataRow] {
+        let table = self.entities.data;
+        let start = table.partition_point(|row| row.entity < name);
+        let end = table.partition_point(|row| row.entity <= name);
+        &table[start..end]
     }
     /// Movement factors of a namespaced block; unlisted blocks use the defaults.
     #[cfg_attr(
@@ -443,7 +480,45 @@ mod tests {
             assert_eq!(table.protocol, version.protocol());
             assert_eq!(table.name, version.name());
             assert!(table.entities.dimensions.is_sorted_by_key(|row| row.name));
+            assert!(
+                table
+                    .entities
+                    .data
+                    .is_sorted_by_key(|row| (row.entity, row.index))
+            );
         }
+    }
+
+    /// The exported accessor tables agree with the hand-written living indices.
+    #[test]
+    fn entity_data_tables_agree_with_living_indices() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let table = version.table();
+            let zombie = table.entity_data("minecraft:zombie");
+            let index = |field: &str| zombie.iter().find(|row| row.field == field).unwrap().index;
+            assert_eq!(
+                index("DATA_HEALTH_ID"),
+                table.entities.health_metadata_index
+            );
+            assert_eq!(
+                index("DATA_LIVING_ENTITY_FLAGS"),
+                table.entities.living_flags_metadata_index
+            );
+            for name in table.entities.dimensions.iter().map(|row| row.name) {
+                assert!(!table.entity_data(name).is_empty(), "{name}");
+            }
+        }
+        let creeper = MinecraftVersion::Java1_21_11
+            .table()
+            .entity_data("minecraft:creeper");
+        let ignited = creeper
+            .iter()
+            .find(|row| row.field == "DATA_IS_IGNITED")
+            .unwrap();
+        assert_eq!(
+            (ignited.index, ignited.default),
+            (18, EntityDataDefault::Bool(false))
+        );
     }
 
     /// Generated tables record their source digest; regenerate with
@@ -463,6 +538,14 @@ mod tests {
             (
                 include_str!("java_1_16_1/generated.rs"),
                 &include_bytes!("../../data/client_api/block_physics-1.16.1.json")[..],
+            ),
+            (
+                include_str!("java_1_16_1/generated.rs"),
+                &include_bytes!("../../data/client_api/entity_data-1.16.1.json")[..],
+            ),
+            (
+                include_str!("java_1_21_11/generated.rs"),
+                &include_bytes!("../../data/client_api/entity_data-1.21.11.json")[..],
             ),
             (
                 include_str!("java_1_21_11/generated.rs"),

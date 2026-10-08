@@ -254,6 +254,53 @@ pub(crate) fn eye_in_water(
     Ok(f64::from(cell_y as f32 + height) > probe)
 }
 
+/// [`eye_in_water`] at the standing eye height (1.62) above `feet`; `None` when
+/// the eye cell or the one above it is not loaded.
+async fn standing_eye_in_water(client: &crate::Client, feet: [f64; 3]) -> Result<Option<bool>> {
+    let version = client.version();
+    let eye_y = feet[1] + 1.62;
+    let probe_y = if version == MinecraftVersion::Java1_16_1 {
+        eye_y - f64::from(0.11111111f32)
+    } else {
+        eye_y
+    };
+    let cell = [
+        feet[0].floor() as i32,
+        probe_y.floor() as i32,
+        feet[2].floor() as i32,
+    ];
+    match (
+        client.block_state(cell).await?,
+        client.block_state([cell[0], cell[1] + 1, cell[2]]).await?,
+    ) {
+        (Some(at), Some(above)) => eye_in_water(version, eye_y, &at, &above, cell[1]).map(Some),
+        _ => Ok(None),
+    }
+}
+
+impl crate::Client {
+    /// Whether the own player's eyes are in water (`Entity.isEyeInFluid(WATER)`).
+    /// While a control session runs, this is its latest predicted frame, which
+    /// follows the predicted pose. Otherwise it is computed from the received
+    /// position and received blocks at the standing eye height, so a crouching or
+    /// swimming pose outside a control session is not reflected. `None` when the
+    /// position or the cells at the eye are unknown.
+    pub async fn eye_in_water(&self) -> Result<Option<bool>> {
+        if let Some(record) = self.survival().control_record().await? {
+            if let (super::control::ControlStatus::Running, Some(frame)) =
+                (&record.status, &record.frame)
+            {
+                return Ok(Some(frame.eye_in_water));
+            }
+        }
+        let player = self.player_state().await?;
+        match player.position {
+            Some(position) => standing_eye_in_water(self, position.value).await,
+            None => Ok(None),
+        }
+    }
+}
+
 impl super::Survival {
     /// The dig time of `target` with what the player holds now.
     pub async fn dig_estimate(&self, target: [i32; 3]) -> Result<DigEstimate> {
@@ -321,26 +368,9 @@ impl super::Survival {
             .as_ref()
             .ok_or_else(|| invalid("player position unavailable"))?
             .value;
-        let eye_y = feet[1] + 1.62;
-        let probe_y = if version == MinecraftVersion::Java1_16_1 {
-            eye_y - f64::from(0.11111111f32)
-        } else {
-            eye_y
-        };
-        let cell = [
-            feet[0].floor() as i32,
-            probe_y.floor() as i32,
-            feet[2].floor() as i32,
-        ];
-        let eye_in_water = match (
-            self.client.block_state(cell).await?,
-            self.client
-                .block_state([cell[0], cell[1] + 1, cell[2]])
-                .await?,
-        ) {
-            (Some(at), Some(above)) => eye_in_water(version, eye_y, &at, &above, cell[1])?,
-            _ => return Err(invalid("cells at the eye are not loaded")),
-        };
+        let eye_in_water = standing_eye_in_water(&self.client, feet)
+            .await?
+            .ok_or_else(|| invalid("cells at the eye are not loaded"))?;
         let on_ground = crate::client::dispatch!(&self.client.adapter, a => crate::client::adapter::DigOps::own_on_ground(a).await)?;
         let estimate = estimate(
             version,

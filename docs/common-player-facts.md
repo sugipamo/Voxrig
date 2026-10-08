@@ -8,6 +8,7 @@
 | `attributes` | 受信した属性。キーは1.21.11の名前（`minecraft:attack_speed`、`minecraft:movement_speed`など）。1.16.1の`generic.attack_speed`・`horse.jump_strength`・`zombie.spawn_reinforcements`も同じ名前に直す |
 | `effects` | 受信した状態効果（`minecraft:speed`など）。削除を受信するまで残す。残り時間は受信時の値で、clientで数え下げない |
 | `air_supply` | 受信した空気（tick。満タンは300） |
+| `world_time` | 最後に受信したworldの時刻（`game_time`・`day_time`）。serverは約20tickごとに送るので、現在のgame timeはこれより最大でその分進んでいる。respawnでも消さない |
 | `using_item` | 受信したアイテムの使用中（[アイテム使用](common-item-use.md)） |
 
 ## 属性
@@ -30,3 +31,13 @@
 - 公式clientは攻撃の直後に主の手を振る。同じにするには続けて`swing_arm(Hand::Main)`を送る。
 - 攻撃の強さの回復はserver側で数えられる。間隔（`20 / attack_speed`tick）は
   `attributes["minecraft:attack_speed"]`（なければ4.0）から利用側で計算する。
+
+## 目が水中か
+
+`client.eye_in_water()`は、公式の`Entity.isEyeInFluid(WATER)`と同じ判定を返す（溺れ・水中採掘の遅さなどの条件）。
+
+- control sessionが動いている間は、その最新の予測frame（`ControlFrame::eye_in_water`）を返す。予測の姿勢（泳ぎ・しゃがみ）に従う。
+- それ以外は、受信した位置と受信したブロックから、立った目の高さ（1.62）で計算する。control sessionの外でのしゃがみ・泳ぎの姿勢は反映しない。
+- 位置や目の位置のブロックが分からなければ`None`。
+- 2026-10-08に両版の公式serverで、乾いた場所で`Some(false)`、目の高さのブロックを水源にすると`Some(true)`になった
+  （`examples/entity_data_probe.rs`）。

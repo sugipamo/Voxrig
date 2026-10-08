@@ -333,6 +333,20 @@ pub struct PlayerObservation {
     pub effects: std::collections::BTreeMap<String, ObservedValue<super::PlayerEffect>>,
     /// Received air supply in ticks (300 when full).
     pub air_supply: Option<ObservedValue<i32>>,
+    /// Latest received world time sample. Servers send one about every 20 ticks, so
+    /// the current game time can be ahead of it by that much.
+    pub world_time: Option<ObservedValue<WorldTime>>,
+}
+
+/// World clock as received from the server's periodic time packet.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+pub struct WorldTime {
+    /// Game time in ticks (`Level.getGameTime`); compare with
+    /// [`super::EntityDataField::AngerEndTime`].
+    pub game_time: i64,
+    /// Time of day in ticks, as received (negative when the daylight cycle is stopped
+    /// on Java 1.16.1).
+    pub day_time: i64,
 }
 
 /// Player, inventory and received region at one adapter capture boundary.
@@ -401,6 +415,7 @@ pub(crate) struct LegacyReceipts {
     pub attributes: std::collections::BTreeMap<String, ObservedValue<super::PlayerAttribute>>,
     pub effects: std::collections::BTreeMap<String, ObservedValue<super::PlayerEffect>>,
     pub air_supply: Option<ObservedValue<i32>>,
+    pub world_time: Option<ObservedValue<WorldTime>>,
     pub death_message: Option<ObservedValue<super::ui::UiText>>,
     pub disconnect_reason: Option<super::ui::UiText>,
 }

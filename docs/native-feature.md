@@ -22,6 +22,9 @@ voxrig = { git = "https://github.com/sugipamo/Voxrig", branch = "main", features
 | `player()` / `player_snapshot()` / `state()` | `client.player_state()` |
 | `inventory()` / `inventory_snapshot()` / `open_window_snapshot()` | `player_state().inventory`、`client.screen_state()` |
 | `entities()` / `observe_entities()` | `client.entities()` |
+| entityの`metadata[index]` | `EntityObservation::data(EntityDataField::…)`（版ごとのindexと既定値を補う）、`angry(game_time)` |
+| `survival_state()`の時刻 | `player_state().world_time` |
+| `environment_state().eyes_submerged` | `client.eye_in_water()` |
 | `block()` / `observe()` / `world_view_snapshot()` | `client.observe_region(region)`、`client.chunk([x, z])` |
 | `loaded_chunks()` / `chunk_snapshot()` / `is_chunk_loaded()` | `client.loaded_chunks()`、`client.chunk([x, z])` |
 | `raycast_blocks()` | `client.raycast_blocks(..)` |
@@ -40,4 +43,4 @@ voxrig = { git = "https://github.com/sugipamo/Voxrig", branch = "main", features
 | 接続状態 | `client.connection_status()`、`disconnect_reason()` |
 | `subscribe()`（イベント） | `client.events_after(cursor)`、`wait_for_events(..)` |
 
-`physics_metrics()` と `environment_state()` には、まだ共通の対応がありません。必要な値は `player_state()`（属性・effect・空気）から読めるものもあります。
+`physics_metrics()` と、`environment_state()` の目の水中判定以外の値には、まだ共通の対応がありません。必要な値は `player_state()`（属性・effect・空気）から読めるものもあります。

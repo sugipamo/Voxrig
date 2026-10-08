@@ -5931,9 +5931,11 @@ impl Bot {
             0x44 => {
                 let (entity_id, metadata) = parse_metadata(&p)?;
                 let (_, common) = crate::versions::java_1_16_1::entity::common_metadata(&p)?;
+                // The legacy decoder reads a packet to its end or fails it.
                 self.common_receipts.lock().await.entities.receive_metadata(
                     entity_id,
                     common,
+                    true,
                     packet_sequence,
                 );
                 if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
@@ -6161,7 +6163,13 @@ impl Bot {
                 state.world_age = c.read_i64::<BigEndian>()?;
                 state.time_of_day = c.read_i64::<BigEndian>()?;
                 self.world_time_observed.store(true, Ordering::Release);
+                let time = crate::client::WorldTime {
+                    game_time: state.world_age,
+                    day_time: state.time_of_day,
+                };
                 drop(state);
+                self.common_receipts.lock().await.world_time =
+                    Some(crate::client::received(time, packet_sequence));
                 self.emit(Event::SurvivalStateUpdated);
             }
             0x4f => {

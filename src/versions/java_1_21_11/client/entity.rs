@@ -57,10 +57,10 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         // Health and equipment are best-effort: a payload this reader cannot
         // follow is left to the other receivers and records nothing here.
         ids::play_clientbound::ENTITY_METADATA => {
-            if let Some((entity, values)) = common_metadata(payload) {
+            if let Some((entity, values, complete)) = common_metadata(payload) {
                 state
                     .entities
-                    .receive_metadata(entity, values, state.sequence);
+                    .receive_metadata(entity, values, complete, state.sequence);
             }
             if let Some((entity, health)) = living_health(state, payload) {
                 state
@@ -100,14 +100,21 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
 /// Health (the table's LivingEntity metadata index, float) of a living entity type.
 /// Entity data in the common form. Entries after a serializer this reader cannot follow
 /// are not recorded (the ones before it are).
-fn common_metadata(payload: &[u8]) -> Option<(i32, Vec<(u8, crate::client::EntityDataValue)>)> {
+/// Entity id, entries and whether the terminator was reached.
+type DecodedMetadata = (i32, Vec<(u8, crate::client::EntityDataValue)>, bool);
+
+/// Values decoded up to the first entry this reader cannot follow; the flag is
+/// true when the terminator was reached.
+fn common_metadata(payload: &[u8]) -> Option<DecodedMetadata> {
     use crate::client::EntityDataValue as V;
     let mut r = Reader::new(payload);
     let entity = r.varint().ok()?;
     let mut values = Vec::new();
+    let mut complete = false;
     loop {
         let Ok(key) = r.u8() else { break };
         if key == 255 {
+            complete = true;
             break;
         }
         let Ok(kind) = r.varint() else { break };
@@ -126,7 +133,7 @@ fn common_metadata(payload: &[u8]) -> Option<(i32, Vec<(u8, crate::client::Entit
         let Some(value) = value else { break };
         values.push((key, value));
     }
-    Some((entity, values))
+    Some((entity, values, complete))
 }
 
 fn living_health(state: &State, payload: &[u8]) -> Option<(i32, f32)> {
@@ -311,8 +318,9 @@ mod common_metadata_tests {
         let mut payload = vec![9, 0, 0, 1, 17, 2, 0xac, 0x02, 6, 20, 1, 9, 3];
         payload.extend(2.5f32.to_be_bytes());
         payload.extend([8, 8, 1, 10, 99, 0, 11, 0, 0, 255]);
-        let (entity, values) = common_metadata(&payload).unwrap();
+        let (entity, values, complete) = common_metadata(&payload).unwrap();
         assert_eq!(entity, 9);
+        assert!(!complete);
         assert_eq!(
             values,
             vec![
@@ -323,5 +331,7 @@ mod common_metadata_tests {
                 (8, V::Bool(true))
             ]
         );
+        let (_, values, complete) = common_metadata(&[9, 0, 0, 1, 255]).unwrap();
+        assert_eq!((values, complete), (vec![(0, V::Byte(1))], true));
     }
 }

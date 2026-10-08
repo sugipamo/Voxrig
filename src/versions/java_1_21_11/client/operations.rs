@@ -1432,6 +1432,15 @@ pub(super) fn common_player_in_state(
             .local_player
             .air_supply
             .map(|(air, sequence)| api::received(air, sequence)),
+        world_time: native.server_time.as_ref().map(|time| {
+            api::received(
+                api::WorldTime {
+                    game_time: time.game_age,
+                    day_time: time.day_time,
+                },
+                time.receive_sequence,
+            )
+        }),
         inventory: api::InventoryObservation {
             slots,
             cursor,
