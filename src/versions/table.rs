@@ -192,10 +192,6 @@ pub(crate) struct VersionTable {
     pub physics: PhysicsConstants,
     pub physics_rules: PhysicsRules,
     /// Blocks with non-default movement factors, sorted by name.
-    #[cfg_attr(
-        not(test),
-        expect(dead_code, reason = "read by the shared physics engine from P3")
-    )]
     pub block_physics: &'static [BlockPhysics],
     pub data: DataFiles,
 }
