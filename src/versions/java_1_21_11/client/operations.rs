@@ -509,7 +509,7 @@ impl Operations {
         let mut state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
         self.require_mode(&state, mode)?;
-        if flying && !state.operations.abilities.is_some_and(|a| a & 4 != 0) {
+        if flying && state.operations.abilities.is_none_or(|a| a & 4 == 0) {
             return Err(invalid("server has not granted flight"));
         }
         self.bot
@@ -538,7 +538,7 @@ impl Operations {
         self.mutable(&state)?;
         self.require_mode(&state, mode)?;
         if !state.operations.requested_flying
-            || !state.operations.abilities.is_some_and(|a| a & 4 != 0)
+            || state.operations.abilities.is_none_or(|a| a & 4 == 0)
         {
             return Err(invalid("flight must be permitted and requested"));
         }

@@ -214,7 +214,7 @@ impl Reconstruction {
         }
         let vacated: Vec<_> = super::adhesion::position_map_order(&plan.moved)?
             .into_iter()
-            .filter(|p| !destinations.contains(p) && !(extending && *p == start))
+            .filter(|p| !(destinations.contains(p) || extending && *p == start))
             .collect();
         for p in &vacated {
             self.put(world, *p, state("air", &[]), seq, false, 0)?;

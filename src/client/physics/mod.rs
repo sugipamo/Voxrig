@@ -1009,7 +1009,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             let in_water = self.body.in_water;
             let able = !self.env.blindness && (self.env.food_level > 6 || self.env.may_fly);
             // isSprintingPossible(flying=false): not in shallow water.
-            let possible = able && !(in_water && !under);
+            let possible = able && (!in_water || under);
             let forward = self.body.move_vector[1] > 1.0e-5;
             let moving_slowly =
                 self.body.crouching || self.body.pose == Pose::Swimming && !in_water;
