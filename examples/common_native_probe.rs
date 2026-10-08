@@ -1077,8 +1077,7 @@ async fn mining_probe(
                     .context("fresh placement support missing")?;
                 anyhow::ensure!(
                     hit.position == support && hit.face == BlockFace::Up,
-                    "unexpected fresh placement hit: {:?}",
-                    hit
+                    "unexpected fresh placement hit: {hit:?}"
                 );
                 ops.place_cube(hit.position, hit.face).await?;
                 let placed = tokio::time::timeout(Duration::from_secs(15), async {
@@ -2242,8 +2241,8 @@ async fn container_probe(client: &Client) -> anyhow::Result<()> {
                 anyhow::ensure!(
                     placement_next.material_maximum() == if named { 0 } else { 1 }
                         && placement_maximum.material_maximum() == if named { 0 } else { 1 }
-                        && placement_next.can_place() == !named
-                        && placement_maximum.can_place() == !named,
+                        && placement_next.can_place() != named
+                        && placement_maximum.can_place() != named,
                     "coherent recipe placement preflight differs from actual native fixture"
                 );
                 anyhow::ensure!(
@@ -4448,8 +4447,7 @@ async fn dry_terrain_probe(client: &Client) -> anyhow::Result<()> {
                 let last = preview.frames.last().unwrap();
                 anyhow::ensure!(
                     last.position[1] == 67. && last.position[2] >= 4. && last.resting,
-                    "terrain route did not reach raised platform: {:?}",
-                    last
+                    "terrain route did not reach raised platform: {last:?}"
                 );
                 let captured = if mode == GameMode::Survival {
                     let scene = client

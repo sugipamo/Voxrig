@@ -3767,19 +3767,46 @@ impl Bot {
             .max(0.1);
         drop(survival);
         let cooldown = Duration::from_secs_f64(1.0 / attack_speed);
-        let mut last_attack = self.last_attack.lock().await;
-        if let Some(last) = *last_attack {
-            tokio::time::sleep(cooldown.saturating_sub(last.elapsed())).await;
+        loop {
+            let mut last_attack = self.last_attack.lock().await;
+            let remaining = last_attack.map_or(Duration::ZERO, |last| {
+                cooldown.saturating_sub(last.elapsed())
+            });
+            if !remaining.is_zero() {
+                // Do not hold the dispatch lock while charging. An immediate
+                // defensive hit can reset the shared clock during this wait.
+                drop(last_attack);
+                tokio::time::sleep(remaining).await;
+                continue;
+            }
+            return self.dispatch_attack(entity_id, &mut last_attack).await;
         }
+    }
+    /// Dispatches an attack without waiting for locally calculated charge.
+    ///
+    /// Damage may be reduced or rejected by the server. Success confirms only
+    /// packet dispatch, not a hit, knockback or a mob AI phase change. The
+    /// shared attack clock is reset, so a subsequent [`Self::attack`] waits
+    /// for recovery. Transport and dispatch serialization may still wait.
+    pub async fn attack_immediate(&self, entity_id: i32) -> Result<()> {
+        let mut last_attack = self.last_attack.lock().await;
+        self.dispatch_attack(entity_id, &mut last_attack).await
+    }
+    async fn dispatch_attack(
+        &self,
+        entity_id: i32,
+        last_attack: &mut Option<std::time::Instant>,
+    ) -> Result<()> {
         let mut payload = Vec::new();
         put_varint(&mut payload, entity_id);
         put_varint(&mut payload, 1);
         payload.push(u8::from(
             self.connection.control_snapshot().await.value.sneak,
         ));
+        // Keep the clock conservative even if attack/swing dispatch is ambiguous.
+        *last_attack = Some(std::time::Instant::now());
         self.send(0x0e, &payload).await?;
         self.swing_arm(Hand::Main).await?;
-        *last_attack = Some(std::time::Instant::now());
         Ok(())
     }
     /// Dispatches a chat message after local length validation.
@@ -10406,6 +10433,48 @@ mod tests {
         .await
         .unwrap();
         (bot, received, release, server)
+    }
+
+    #[tokio::test]
+    async fn immediate_attack_bypasses_charge_and_resets_waiting_normal_attack() {
+        let (bot, mut packets, _release, server) = operation_test_bot(0x7f, 0x7f, vec![]).await;
+        // Default bare-hand recovery is 250ms.
+        *bot.last_attack.lock().await = Some(std::time::Instant::now());
+        let normal_bot = bot.clone();
+        let normal = tokio::spawn(async move { normal_bot.attack(77).await });
+        tokio::time::sleep(Duration::from_millis(40)).await;
+        tokio::time::timeout(Duration::from_millis(100), bot.attack_immediate(88))
+            .await
+            .unwrap()
+            .unwrap();
+        let immediate_at = std::time::Instant::now();
+        let first = tokio::time::timeout(Duration::from_millis(100), async {
+            loop {
+                let packet = packets.recv().await.unwrap();
+                if packet.0 == 0x0e {
+                    break packet;
+                }
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(first.1, vec![88, 1, 0]);
+        assert!(!normal.is_finished());
+        let second = tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                let packet = packets.recv().await.unwrap();
+                if packet.0 == 0x0e {
+                    break packet;
+                }
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(second.1, vec![77, 1, 0]);
+        assert!(immediate_at.elapsed() >= Duration::from_millis(230));
+        normal.await.unwrap().unwrap();
+        bot.disconnect().await.unwrap();
+        server.abort();
     }
 
     #[tokio::test]

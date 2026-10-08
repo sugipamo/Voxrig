@@ -56,7 +56,7 @@ async fn main() -> anyhow::Result<()> {
         state([0, 4, 0]).properties["facing"] == "north",
         "stair facing was lost"
     );
-    println!("VERSION_OBSERVATION {:?}", observation);
+    println!("VERSION_OBSERVATION {observation:?}");
     client.disconnect().await?;
     Ok(())
 }
