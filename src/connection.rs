@@ -481,6 +481,12 @@ impl Client {
         crate::client::dispatch!(&self.adapter, a => crate::client::adapter::ChunkOps::chunk(a, position).await)
     }
 
+    /// The received state of one cell; None when it is not loaded.
+    pub(crate) async fn block_state(&self, p: [i32; 3]) -> Result<Option<crate::NativeBlockState>> {
+        let observation = self.observe_region(Region { min: p, max: p }).await?;
+        Ok(observation.blocks.into_iter().next().and_then(|b| b.state))
+    }
+
     /// Gets all cells under one world lock; this does not send confirmation commands.
     pub async fn observe_region(&self, region: Region) -> Result<Observation> {
         region.volume()?;

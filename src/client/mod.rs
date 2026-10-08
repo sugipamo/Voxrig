@@ -22,6 +22,8 @@ pub(crate) mod fraction;
 pub mod furnace;
 pub use flight::{FlightCommand, FlightLanding, FlightRecord, FlightStage};
 pub(crate) mod chunks;
+mod dig;
+pub use dig::{DigEstimate, DigRecord};
 mod geometry;
 mod hash_ops;
 pub(crate) mod identifier;
@@ -146,8 +148,8 @@ pub mod prelude {
         VehicleInput,
     };
     pub use super::{
-        BlockFace, ChunkObservation, ConnectionStatus, Hand, LoadedChunks, ObservedValue,
-        PlayerAttribute, PlayerEffect, ValueSource,
+        BlockFace, ChunkObservation, ConnectionStatus, DigEstimate, DigRecord, Hand, LoadedChunks,
+        ObservedValue, PlayerAttribute, PlayerEffect, ValueSource,
     };
     pub use super::{
         Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,

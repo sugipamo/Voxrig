@@ -48,6 +48,10 @@ pub(crate) enum Action<'a> {
     UseItem(super::Hand),
     ReleaseUseItem,
     Swing(super::Hand),
+    /// Survival START_DESTROY_BLOCK.
+    DigStart([i32; 3], BlockFace),
+    /// Survival STOP_DESTROY_BLOCK.
+    DigFinish([i32; 3], BlockFace),
 }
 impl Survival {
     /// Dispatch one interaction with an original received entity lifetime.

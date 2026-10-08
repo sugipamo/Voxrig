@@ -107,6 +107,8 @@ pub enum Feature {
     ContinuousControl,
     /// Item use, release and use on a block face, with the received item-in-use flag.
     ItemUse,
+    /// Survival digging of any breakable block, timed like the official client.
+    Digging,
     /// Received boss-bar ADD, partial updates and REMOVE.
     BossBars,
     /// Received scoreboard declarations, displays and entries.
@@ -160,6 +162,7 @@ impl Feature {
         Feature::EntityState,
         Feature::ContinuousControl,
         Feature::ItemUse,
+        Feature::Digging,
         Feature::BossBars,
         Feature::Scoreboard,
         Feature::ClientManagement,
@@ -309,6 +312,10 @@ impl Capabilities {
             Feature::ItemUse => restricted(
                 "use, release and use on a block face; dispatch only, results are received updates",
                 "docs/common-item-use.md",
+            ),
+            Feature::Digging => restricted(
+                "any breakable block with the held item; default item speeds, received effects/attributes",
+                "docs/common-dig.md",
             ),
             Feature::EntityState => restricted(
                 "received health and equipment; boxes use default type dimensions only",

@@ -253,6 +253,27 @@ impl Bot {
                 put_varint(&mut payload, hand as i32);
                 (0x2e, payload)
             }
+            Action::DigStart(position, face) | Action::DigFinish(position, face) => {
+                self.common_reach(position).await?;
+                let status = if matches!(action, Action::DigStart(..)) {
+                    0
+                } else {
+                    2
+                };
+                let mut payload = Vec::new();
+                put_varint(&mut payload, status);
+                payload.extend(
+                    BlockPos {
+                        x: position[0],
+                        y: position[1],
+                        z: position[2],
+                    }
+                    .packed()
+                    .to_be_bytes(),
+                );
+                payload.push(face as u8);
+                (0x1b, payload)
+            }
             Action::Swing(hand) => {
                 let mut payload = Vec::new();
                 put_varint(&mut payload, hand as i32);

@@ -85,6 +85,13 @@ pub(crate) trait CoreOps {
     ) -> Result<Option<i32>>;
 }
 
+/// Facts the dig timing needs that only the adapter knows.
+pub(crate) trait DigOps {
+    /// The client's own ground flag: a running control session's frame, else the
+    /// adapter's own-player state.
+    async fn own_on_ground(&self) -> Result<bool>;
+}
+
 /// Whole loaded chunk columns.
 pub(crate) trait ChunkOps {
     async fn loaded_chunks(&self) -> Result<super::LoadedChunks>;
@@ -290,6 +297,7 @@ pub(crate) trait VersionAdapter:
     + FlightOps
     + VehicleOps
     + ChunkOps
+    + DigOps
 {
 }
 impl<T> VersionAdapter for T where
@@ -313,6 +321,7 @@ impl<T> VersionAdapter for T where
         + FlightOps
         + VehicleOps
         + ChunkOps
+        + DigOps
 {
 }
 

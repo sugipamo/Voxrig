@@ -70,6 +70,8 @@ pub(crate) struct DataFiles {
     pub crafting_outlines: &'static [u8],
     pub item_properties: &'static str,
     pub mining_tools: &'static [u8],
+    /// Official dig profiles (hardness, correct tool, default item speeds) of every state.
+    pub dig_profiles: &'static [u8],
     pub storage_outlines: &'static str,
     /// Audited per-state collision and per-block movement behaviour.
     pub movement_blocks: &'static str,
@@ -226,6 +228,11 @@ macro_rules! data_files {
             )),
             mining_tools: include_bytes!(concat!(
                 "../../data/client_api/mining_tools-",
+                $v,
+                ".json.gz"
+            )),
+            dig_profiles: include_bytes!(concat!(
+                "../../data/client_api/dig_profiles-",
                 $v,
                 ".json.gz"
             )),

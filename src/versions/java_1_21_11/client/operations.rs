@@ -732,6 +732,30 @@ impl Operations {
             .await?;
         Ok(seq)
     }
+    /// PLAYER_ACTION START (0) or STOP (2) _DESTROY_BLOCK with its interaction sequence.
+    async fn dig_survival(
+        &self,
+        mode: GameMode,
+        position: [i32; 3],
+        face: crate::BlockFace,
+        status: i32,
+    ) -> Result<i32> {
+        let state = self.bot.session.state.lock().await;
+        self.mutable(&state)?;
+        self.require_mode(&state, Some(mode))?;
+        check_reach(&state, position)?;
+        let seq = self.next_sequence()?;
+        let mut payload = Vec::new();
+        put_varint(&mut payload, status);
+        payload.extend(pack_position(position).to_be_bytes());
+        payload.push(face as u8);
+        put_varint(&mut payload, seq);
+        self.bot
+            .session
+            .send(ids::play_serverbound::BLOCK_DIG, &payload)
+            .await?;
+        Ok(seq)
+    }
     /// ServerboundUseItemPacket: hand, sequence, then the current rotation, which the
     /// server snaps the player to before using the item.
     async fn use_item_in(&self, mode: GameMode, hand: crate::client::Hand) -> Result<i32> {
@@ -1593,6 +1617,12 @@ impl crate::client::adapter::CoreOps for Operations {
             }
             Action::UseItem(hand) => return self.use_item_in(mode, hand).await.map(Some),
             Action::ReleaseUseItem => self.release_use_item_in(mode).await?,
+            Action::DigStart(position, face) => {
+                return self.dig_survival(mode, position, face, 0).await.map(Some);
+            }
+            Action::DigFinish(position, face) => {
+                return self.dig_survival(mode, position, face, 2).await.map(Some);
+            }
             Action::Swing(hand) => {
                 let state = self.bot.session.state.lock().await;
                 self.mutable(&state)?;
@@ -1841,5 +1871,22 @@ impl crate::client::adapter::ChunkOps for Operations {
             sky_light: light.sky,
             block_light: light.block,
         }))
+    }
+}
+
+impl crate::client::adapter::DigOps for Operations {
+    async fn own_on_ground(&self) -> Result<bool> {
+        let mut state = self.bot.session.state.lock().await;
+        if let Some(frame) = state
+            .control
+            .session
+            .as_ref()
+            .filter(|s| s.running())
+            .and_then(|s| s.frame.as_ref())
+        {
+            return Ok(frame.on_ground);
+        }
+        let tick = self.bot.session.started.elapsed().as_millis() as u64 / 50;
+        Ok(survival::context(&mut state, self.bot.session.id, tick)?.on_ground)
     }
 }
