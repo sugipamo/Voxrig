@@ -13,6 +13,31 @@ class ClosedDestination:
         pass
 
 class TraceTests(unittest.TestCase):
+    def test_diagnostic_retention_never_filters_original_wire_bytes(self):
+        class Destination:
+            def __init__(self): self.wire = bytearray()
+            def sendall(self, wire): self.wire.extend(wire)
+            def shutdown(self, _): pass
+        with tempfile.TemporaryDirectory() as folder:
+            trace = PacketTraceProxy(1, '1.16.1', Path(folder)/'frames.jsonl',
+                                     record_filter=lambda record: record['packet_id'] == 0x20)
+            incoming, outgoing = socket.socketpair()
+            state = {'compression': None, 'phase': 'play', 'connection': 1}
+            destination = Destination()
+            # One status event followed by an actual eight-byte KeepAlive.
+            wire = bytes([6, 0x1b, 0, 0, 0, 42, 8, 9, 0x20]) + (71).to_bytes(8, 'big')
+            try:
+                outgoing.sendall(wire); outgoing.shutdown(socket.SHUT_WR)
+                trace.forward(incoming, destination, 'clientbound', state)
+                self.assertEqual(bytes(destination.wire), wire)
+                self.assertEqual(trace.frame_count, 2)
+                self.assertEqual(len(trace.frames), 1)
+                self.assertEqual(trace.frames[0]['ordinal'], 2)
+                self.assertEqual(trace.packet_counts[(1, 'clientbound', 'play', 0x1b)], 1)
+                self.assertEqual(trace.errors, [])
+            finally:
+                incoming.close(); outgoing.close(); trace.close()
+
     def forward(self, wire, direction, requested):
         with tempfile.TemporaryDirectory() as folder:
             trace=PacketTraceProxy(1,'1.21.11',Path(folder)/'frames.jsonl')

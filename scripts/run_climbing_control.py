@@ -129,7 +129,8 @@ def run_vehicle_checks(version, vehicle, mode, command, request, trace, report):
     request("disconnect")
 
 
-def run(version, binary, jars, vehicle=None, mode="survival", check=None, server_properties=None):
+def run(version, binary, jars, vehicle=None, mode="survival", check=None, server_properties=None,
+        trace_factory=PacketTraceProxy, server_launcher=None):
     folder = ROOT / (version + "-" + time.strftime("%Y%m%d-%H%M%S"))
     folder.mkdir(parents=True)
     if jars:
@@ -172,8 +173,11 @@ def run(version, binary, jars, vehicle=None, mode="survival", check=None, server
     server = probe = rcon = trace = None
     try:
         with (folder / "server.log").open("w") as log:
-            server = subprocess.Popen(["java", "-XX:ActiveProcessorCount=1", "-Xms256M", "-Xmx1024M",
-                                       "-jar", str(jar), "nogui"], cwd=folder,
+            java = ["java", "-XX:ActiveProcessorCount=1", "-Xms256M", "-Xmx1024M"]
+            launch = (["-jar", str(jar)] if server_launcher is None else
+                      ["--add-opens=java.base/java.lang=ALL-UNNAMED", "-cp",
+                       str(server_launcher[0]) + os.pathsep + str(jar), server_launcher[1]])
+            server = subprocess.Popen(java + launch + ["nogui"], cwd=folder,
                                       stdin=subprocess.PIPE, stdout=log, stderr=subprocess.STDOUT, text=True)
 
             def connect():
@@ -205,7 +209,7 @@ def run(version, binary, jars, vehicle=None, mode="survival", check=None, server
                                 if version == "1.16.1" else [('minecraft:respawn_radius', '0'),
                                 ('minecraft:spawn_mobs', 'false'), ('minecraft:advance_time', 'false')]):
                 command(f"gamerule {rule} {value}")
-            trace = PacketTraceProxy(port, version, folder / "packets.jsonl")
+            trace = trace_factory(port, version, folder / "packets.jsonl")
             with (folder / "probe.log").open("w") as output, (folder / "probe.stderr.log").open("w") as stderr:
                 probe = subprocess.Popen([str(binary)], cwd=REPO, env=dict(os.environ,
                     VOXRIG_MINECRAFT_VERSION=version, VOXRIG_PORT=str(trace.port), VOXRIG_VEHICLE_MODE=mode), stdin=subprocess.PIPE,
