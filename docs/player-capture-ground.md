@@ -39,3 +39,5 @@ model ground from an outbound ground bit or an incomplete packet trace.
 Consumers own navigation, protections and missing-data policy. They must not label
 the flag `Received`, default missing ground to true/false, reimplement SDK collision
 physics to fill it, or treat a predicted ground flag as server action authority.
+
+Real-connection validation and reproduction: [player-ground-capture.md](player-ground-capture.md).

@@ -21,6 +21,7 @@ include = [
     "/scripts/run_native_event_capacity.py",
     "/scripts/run_entity_parts_dispatch.py",
     "/scripts/run_connection_stability.py",
+    "/scripts/run_player_ground_capture.py",
     "/scripts/run_reader_multiclient.py",
     "/scripts/NativeReaderStressControl.java",
     "/scripts/NativeReconfigurationControl.java",
