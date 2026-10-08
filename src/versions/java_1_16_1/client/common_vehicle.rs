@@ -139,6 +139,23 @@ impl Bot {
                         "vehicle control frame already claimed or uncertain",
                     ));
                 }
+                let boat_frame = {
+                    let world = self.world.lock().await;
+                    api::vehicle::control::boat_step(&record, input, &mut |p| {
+                        super::common_motion::legacy_motion_block(&world, p)
+                    })?
+                };
+                if let Some(boat) = self
+                    .vehicle_control_history
+                    .lock()
+                    .expect("vehicle control history")
+                    .as_mut()
+                    .unwrap()
+                    .boat_motion
+                    .as_mut()
+                {
+                    boat.attempted_frame = boat_frame.clone();
+                }
                 self.vehicle_control_history
                     .lock()
                     .expect("vehicle control history")
@@ -148,6 +165,13 @@ impl Bot {
                 let (packet, payload) =
                     api::vehicle::control::payload(id.mount().session().version, input);
                 self.send(packet, &payload).await?;
+                if let Some(frame) = &boat_frame {
+                    for (packet, payload) in
+                        api::vehicle::control::boat_packets(id.mount().session().version, frame)
+                    {
+                        self.send(packet, &payload).await?;
+                    }
+                }
                 let mut history = self
                     .vehicle_control_history
                     .lock()
@@ -157,6 +181,9 @@ impl Bot {
                     .filter(|r| r.id == id)
                     .ok_or_else(|| unavailable("vehicle control owner superseded"))?;
                 record.dispatched_ticks = (index + 1) as u16;
+                if let (Some(boat), Some(frame)) = (record.boat_motion.as_mut(), boat_frame) {
+                    boat.frames.push(frame);
+                }
                 if self.is_stopped() {
                     record.inspection("vehicle control connection closed during write");
                 }
@@ -374,12 +401,20 @@ impl crate::client::adapter::VehicleOps for Bot {
             ));
         }
         let (player, vehicle) = self.vehicle_capture_unlocked().await?;
+        let motion = match mount.vehicle() {
+            Some(target) => Some(self.common_receipts.lock().await.entities.capture_motion(
+                player.session,
+                target,
+                player.receive_sequence,
+            )?),
+            None => None,
+        };
         let record = {
             let mut history = self
                 .vehicle_control_history
                 .lock()
                 .expect("vehicle control history");
-            let record = api::vehicle::control::prepare(
+            let mut record = api::vehicle::control::prepare(
                 player,
                 vehicle,
                 mode,
@@ -387,6 +422,7 @@ impl crate::client::adapter::VehicleOps for Bot {
                 inputs,
                 history.as_ref(),
             )?;
+            api::vehicle::control::configure_boat(&mut record, motion, history.as_ref())?;
             *history = Some(record.clone());
             record
         };

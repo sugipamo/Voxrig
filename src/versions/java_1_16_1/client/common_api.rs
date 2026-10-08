@@ -682,6 +682,69 @@ mod tests {
     use crate::client::adapter::CoreOps;
 
     #[tokio::test]
+    async fn received_vehicle_correction_stops_remaining_mounted_inputs() {
+        use api::{VehicleControlStage, VehicleInput, VehicleRelation};
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.survival.write().await.game_mode = Some(0);
+        bot.player.lock().await.entity_id = Some(42);
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        bot.apply_packet(0x4b, vec![10, 1, 42]).await.unwrap();
+        let VehicleRelation::Mounted { mount } = client
+            .vehicle_state()
+            .await
+            .unwrap()
+            .relation
+            .unwrap()
+            .value
+        else {
+            panic!()
+        };
+        let inputs = vec![VehicleInput::default(); 20];
+        let ops = client.survival();
+        let attempt = tokio::spawn(async move { ops.start_vehicle_control(mount, &inputs).await });
+        tokio::time::timeout(std::time::Duration::from_secs(1), packets.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        bot.apply_packet(0x2c, vec![0; 32]).await.unwrap();
+        assert!(attempt.await.unwrap().is_err());
+        let stopped = client.vehicle_control_record().await.unwrap().unwrap();
+        assert_eq!(stopped.stage, VehicleControlStage::RequiresInspection);
+        assert!(stopped.dispatched_ticks < 20);
+        assert!(
+            stopped
+                .requires_inspection
+                .as_deref()
+                .unwrap()
+                .contains("correction")
+        );
+        assert!(
+            client
+                .vehicle_state()
+                .await
+                .unwrap()
+                .motion_correction_sequence
+                .is_some()
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(80)).await;
+        assert_eq!(
+            client
+                .vehicle_control_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .dispatched_ticks,
+            stopped.dispatched_ticks
+        );
+        release.send(()).unwrap();
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn common_display_receipts_clear_reset_and_atomic_tab_match_native_packets() {
         let (bot, _packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;

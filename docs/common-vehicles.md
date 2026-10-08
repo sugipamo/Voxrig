@@ -83,8 +83,7 @@ legacyの自動地上physicsも乗車受信後に止め、未完了の共通地�
 後続frameを送らない。下車の完了だけでは地上支持や立位の許可を戻さない。
 下車後の通常地上操作は、freshなown poseと既知の乾いた支持を検査する
 `resume_ground(record.id)`へ接続した。[地上継続の契約](common-dismount-grounding.md)を参照。
-車両の現在位置は`entity_motion`で観測する。乗員の一般entity state・boat paddle・
-physicsや下車後の広いmotion条件はBで統合する。実サーバーの検証範囲は[検証記録](common-client-native-validation.md)に記載する。
+車両の現在位置は`entity_motion`で観測する。乗員の一般entity stateと、下車後の広いmotion条件には引き続き制約がある。実サーバーの検証範囲は[検証記録](common-client-native-validation.md)に記載する。
 
 
 ## 有限の乗車入力
@@ -127,7 +126,7 @@ frame数で、サーバーからの確認ではない。`Submitted`も移動・�
 両版の元codecに全18入力ずつを照合し、実サーバーでは短い地上移動→乗車→
 有限入力→neutral→実下車→切断を両modeで検証する。
 車両付近の乾いたrail地形は[共通地形](common-dry-terrain.md#車両付近の乾いたrail)、
-車両の受信位置観測は下記へ接続した。boat操縦・paddleと車両physics全体は引き続き残る。
+車両の受信位置観測は下記へ接続した。通常のboat操縦とpaddleは下記へ接続した。乗り物全般のphysicsには引き続き制約がある。
 
 
 ## 乗車中の受信motion
@@ -138,3 +137,44 @@ frame数で、サーバーからの確認ではない。`Submitted`も移動・�
 両版・両modeで有限乗車入力による位置更新を観測し、独立RCONの移動と照合した。
 [観測契約と未解決の相対補正](common-entity-motion.md)を参照する。
 車両physics・停止・下車後の地上操作許可は、この観測から補完しない。
+
+
+## ボートとトロッコ（2026-10-08）
+
+同じ`start_vehicle_control`で通常のボートを操縦できる。最初の実乗員であることを確認し、
+各tickで元の入力・パドル・車両位置を送る。水面の浮力、前進・後退・旋回、惰性、
+空中から水面への移行、通常のブロック衝突と陸上の摩擦を版ごとに計算する。
+`boat_motion.received`は受信した元のentity sample、`initial_frame`と`frames`は予測であり、
+受信位置やサーバーの承認を合成しない。最初の角速度は明示的な0のseedとする。
+同じ連続乗車の完全送信済みrunからは、最後の予測を引き継ぐ。
+`attempted_frame`は3パケットのI/O前に残す。3つすべての送信後だけ`frames`へ追加する。
+
+未読込の地形、潜水中のボート、泡の柱、溶岩、スライム・蜂蜜・クモの巣などの未実装hookは、
+そのtickの送信前に拒否する。他entityとの衝突や水流による押し、乗り物固有の効果全般は再現していない。
+検証済みの範囲は単独の通常ボートと静止した水面・空中・通常の陸上地形。
+操作中にサーバーから車両位置補正や爆発を受けた場合、同じ乗車が続いていても
+`RequiresInspection`へ移し、後続tickを送らない。乗員順序が変わり操縦席から外れた場合も中断する。
+`vehicle_state().motion_correction_sequence`はその受信境界であり、補正位置そのものではない。
+
+最後のneutralはパドルを解除する。速度を瞬時に0にはせず、惰性が残る。
+トロッコは元の入力をサーバーへ送り、サーバー側のレールとphysicsに任せる。
+停止には無給電のパワードレールなどの制動条件が必要。`Submitted`を停止確認として使わない。
+
+公式の両版で17場面ずつ、合計1,540tickの位置・速度・回転・角速度・接地・水面接触・パドルを
+元の処理と完全一致で比較した。再生成手順は[移動oracle](movement-oracle.md#ボートの比較2026-10-08)。
+実接続の再検証には次を使う（JDK 21、ビルド済みprobe、公式JARが必要）。
+
+```bash
+cargo build --locked --example climbing_control_probe
+python3 scripts/run_climbing_control.py --accept-eula \
+  --binary target/debug/examples/climbing_control_probe \
+  --jars /absolute/path/to/downloads --vehicle boat --vehicle-mode survival
+```
+
+`--vehicle minecart`、`--vehicle-mode creative`も指定できる。両版へ接続し、
+元の乗車受信、前進、neutral後の停止、実際の下車と古い乗車IDの拒否を検査する。
+ボートでは旋回・後退と全tickの実パケットも検査する。
+RCONで独立に位置・停止・乗車関係を確認し、proxyは元のバイトをそのまま転送する。
+結果とパケット記録は`.local/climbing/live/*/report.json`へ残す。
+両版・両modeの通過結果と座標・元reportのhashは
+[検証記録](evidence/climbing-vehicle-control-20261008.json)へ保存した。

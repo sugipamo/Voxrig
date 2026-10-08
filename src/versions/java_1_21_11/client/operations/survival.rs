@@ -159,6 +159,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         // These known packets previously had no advertised projection. Do not
         // pretend their ignored complex payload establishes stationary motion.
         interrupt(state, id);
+        state.vehicles.interrupt_motion(state.sequence);
         return Ok(true);
     }
     if id == input::SET_PASSENGERS {

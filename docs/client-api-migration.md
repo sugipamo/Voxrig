@@ -1,5 +1,11 @@
 # 0.2 client APIへの移行
 
+1.16.1のnativeイベントrelayを維持する場合は、接続前に
+`config.limits.native_event_channel_capacity = Some(8192)`を指定できる。
+元の位置・速度payloadと`Lagged`の処理を維持するため、feature `native`の
+`client.java_1_16_1()?.subscribe()`を使う。
+[容量設定と検証](common-events.md#nativeイベント源の容量を維持する19)を参照。
+
 registry entryの共通検索は`server_registry_state().await?`から
 `find_entry(registry, name)`/`bind_entry(registry, native_id)`で行い、`entry_name(&id)`で解決する。
 `RegistryEntryId`が版・registry名・固定/実受信の所有範囲を保持するので、数値だけを保存しない。

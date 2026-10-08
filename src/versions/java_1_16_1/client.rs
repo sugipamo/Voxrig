@@ -5349,6 +5349,11 @@ impl Bot {
             }
             0x1c => {
                 let explosion = parse_explosion(&p)?;
+                self.common_receipts
+                    .lock()
+                    .await
+                    .vehicles
+                    .interrupt_motion(self.protocol_packet_sequence.load(Ordering::Acquire));
                 self.world
                     .lock()
                     .await
@@ -5575,6 +5580,11 @@ impl Bot {
                 if !pose.yaw.is_finite() || !pose.pitch.is_finite() {
                     bail!("vehicle position contains a non-finite rotation");
                 }
+                self.common_receipts
+                    .lock()
+                    .await
+                    .vehicles
+                    .interrupt_motion(self.protocol_packet_sequence.load(Ordering::Acquire));
                 if let Some(vehicle) = self.vehicle().await {
                     if let Some(tracked) = self
                         .entities

@@ -3,8 +3,8 @@ use super::{EntityId, ObservedValue, SessionStamp, entity::SpawnLedger, received
 use crate::protocol::get_varint;
 pub mod control;
 pub use control::{
-    MAX_VEHICLE_CONTROL_TICKS, VehicleControlId, VehicleControlRecord, VehicleControlStage,
-    VehicleInput,
+    BoatFrame, BoatMotion, MAX_VEHICLE_CONTROL_TICKS, VehicleControlId, VehicleControlRecord,
+    VehicleControlStage, VehicleInput,
 };
 pub mod dismount;
 pub use dismount::{DismountGrounding, DismountId, DismountRecord, DismountStage};
@@ -66,6 +66,9 @@ pub struct VehicleObservation {
     pub session: SessionStamp,
     /// Capture boundary, separate from the relation's actual source ordinal.
     pub receive_sequence: u64,
+    /// Latest own-vehicle correction or explosion receipt. This is a packet
+    /// boundary, not an acknowledged vehicle pose.
+    pub motion_correction_sequence: Option<u64>,
     /// Native own player identity actually received in JOIN/LOGIN.
     pub player_native_id: Option<i32>,
     /// Last explicit own-player relationship; None means no applicable receipt.
@@ -122,8 +125,12 @@ pub(crate) struct PassengerLedger {
     passengers: Option<ObservedValue<Vec<i32>>>,
     // Removing the player from a list does not prove ordinary standing geometry.
     motion_interrupted: bool,
+    motion_correction_sequence: Option<u64>,
 }
 impl PassengerLedger {
+    pub(crate) fn interrupt_motion(&mut self, sequence: u64) {
+        self.motion_correction_sequence = Some(sequence);
+    }
     pub(crate) fn clear(&mut self) {
         *self = Self::default();
     }
@@ -255,6 +262,7 @@ impl PassengerLedger {
         VehicleObservation {
             session,
             receive_sequence: sequence,
+            motion_correction_sequence: self.motion_correction_sequence,
             player_native_id: player,
             passengers: relation.as_ref().and(self.passengers.clone()),
             relation,

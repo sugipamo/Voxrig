@@ -44,3 +44,12 @@ voxrig = { git = "https://github.com/sugipamo/Voxrig", branch = "main", features
 | `subscribe()`（イベント） | `client.events_after(cursor)`、`wait_for_events(..)` |
 
 `physics_metrics()` と、`environment_state()` の目の水中判定以外の値には、まだ共通の対応がありません。必要な値は `player_state()`（属性・effect・空気）から読めるものもあります。
+
+
+## 接続時のnativeイベント容量
+
+共通`ConnectionConfig`の`limits.native_event_channel_capacity = Some(8192)`で、
+1.16.1の元broadcast源の容量を指定できる。共通Clientから同じBotの`subscribe()`を使い、
+既存のpayload付きnative relayを保ったまま移行する。
+既定値・対応版・通知履歴との違い・検証手順は
+[共通イベントの接続設定](common-events.md#nativeイベント源の容量を維持する19)を参照。
