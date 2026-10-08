@@ -35,7 +35,7 @@ pub(crate) mod player_facts;
 pub use chunks::{ChunkObservation, LoadedChunks};
 pub use player_facts::{PlayerAttribute, PlayerEffect};
 mod lifecycle;
-pub use lifecycle::ConnectionRevocation;
+pub use lifecycle::{ConnectionRevocation, ConnectionStatus};
 pub(crate) mod login;
 pub use furnace::{FurnaceObservation, FurnaceSlot};
 pub mod manager;
@@ -73,8 +73,8 @@ pub use crafting::{
     RecipePlacementStage, RecipeSlotDisplay, RecipeTrimDefinition, RecipeTrimPattern,
 };
 pub use entity::{
-    EntitiesObservation, EntityId, EntityMotionObservation, EntityObservation, EntityPosition,
-    EntityPositionCorrection, EntitySpawn, EntitySpawns, EquipmentSlot,
+    EntitiesObservation, EntityDataValue, EntityId, EntityMotionObservation, EntityObservation,
+    EntityPosition, EntityPositionCorrection, EntitySpawn, EntitySpawns, EquipmentSlot,
 };
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
 pub use item::ItemProperties;
@@ -146,8 +146,8 @@ pub mod prelude {
         VehicleInput,
     };
     pub use super::{
-        BlockFace, ChunkObservation, Hand, LoadedChunks, ObservedValue, PlayerAttribute,
-        PlayerEffect, ValueSource,
+        BlockFace, ChunkObservation, ConnectionStatus, Hand, LoadedChunks, ObservedValue,
+        PlayerAttribute, PlayerEffect, ValueSource,
     };
     pub use super::{
         Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,

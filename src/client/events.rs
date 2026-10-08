@@ -59,8 +59,31 @@ pub enum EventKind {
     ChatReceived,
     /// Scoreboard, boss bar, team, player list, title, tab list or world border.
     UiChanged,
-    /// The connection closed. No later event follows.
+    /// The connection closed. No later event follows; the server's reason, when it
+    /// sent one, is `Client::disconnect_reason`.
     Disconnected,
+    /// Received motion, rotation, velocity, entity data or equipment of an entity.
+    EntityUpdated {
+        /// Native entity id within the current world.
+        native_id: i32,
+    },
+    /// Received entity status (`ClientboundEntityEventPacket`); codes are version-specific.
+    EntityStatus {
+        /// Native entity id within the current world.
+        native_id: i32,
+        /// Native status code.
+        status: i8,
+    },
+    /// An entity was hurt: 1.16.1 statuses 2, 33, 36, 37 and 44, or a 1.21.11 damage event.
+    EntityDamaged {
+        /// Native entity id within the current world.
+        native_id: i32,
+    },
+    /// The own player died; the message is `Client::death_message`.
+    PlayerKilled {
+        /// Native entity id of the player.
+        native_id: i32,
+    },
 }
 
 /// One change notification.
@@ -68,6 +91,9 @@ pub enum EventKind {
 pub struct ClientEvent {
     /// Receive sequence of the packet that caused it; the same axis as observations.
     pub receive_sequence: u64,
+    /// Time from the creation of the connection's event log to recording this event
+    /// (the packet's application), on the client's clock.
+    pub received_after: Duration,
     /// What changed.
     pub kind: EventKind,
 }
@@ -86,13 +112,28 @@ pub struct EventLog {
 
 /// Bounded per-connection event log. Ordinals are assigned per event so that
 /// several events from one packet can be read separately.
-#[derive(Default)]
 pub(crate) struct EventLedger {
     events: VecDeque<(u64, ClientEvent)>,
     next: u64,
     dropped_through: u64,
     closed: bool,
+    started: std::time::Instant,
 }
+
+impl Default for EventLedger {
+    fn default() -> Self {
+        Self {
+            events: VecDeque::new(),
+            next: 0,
+            dropped_through: 0,
+            closed: false,
+            started: std::time::Instant::now(),
+        }
+    }
+}
+
+/// 1.16.1 entity statuses that mean "hurt" (LivingEntity.handleEntityEvent).
+pub(crate) const LEGACY_HURT_STATUSES: [i8; 5] = [2, 33, 36, 37, 44];
 
 impl EventLedger {
     pub(crate) fn record(&mut self, receive_sequence: u64, kind: EventKind) {
@@ -107,6 +148,7 @@ impl EventLedger {
             self.next,
             ClientEvent {
                 receive_sequence,
+                received_after: self.started.elapsed(),
                 kind,
             },
         ));
@@ -161,6 +203,18 @@ pub(crate) fn bounds(positions: impl IntoIterator<Item = [i32; 3]>) -> Option<Ev
 }
 
 impl super::Client {
+    /// Last received death message of the own player (native JSON in 1.16.1, NBT in
+    /// 1.21.11), kept until another one arrives. Readable after the connection closes.
+    pub async fn death_message(&self) -> Result<Option<super::ObservedValue<super::ui::UiText>>> {
+        crate::client::dispatch!(&self.adapter, a => crate::client::adapter::EventOps::death_message(a).await)
+    }
+
+    /// Text of the server's kick message, when the server closed the connection with
+    /// one. Readable after the connection closes.
+    pub async fn disconnect_reason(&self) -> Result<Option<super::ui::UiText>> {
+        crate::client::dispatch!(&self.adapter, a => crate::client::adapter::EventOps::disconnect_reason(a).await)
+    }
+
     /// Events after `cursor` (0 for everything retained). Readable after the
     /// connection closes. Fails if older events were dropped.
     pub async fn events_after(&self, cursor: u64) -> Result<EventLog> {

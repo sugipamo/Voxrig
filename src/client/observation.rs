@@ -401,6 +401,8 @@ pub(crate) struct LegacyReceipts {
     pub attributes: std::collections::BTreeMap<String, ObservedValue<super::PlayerAttribute>>,
     pub effects: std::collections::BTreeMap<String, ObservedValue<super::PlayerEffect>>,
     pub air_supply: Option<ObservedValue<i32>>,
+    pub death_message: Option<ObservedValue<super::ui::UiText>>,
+    pub disconnect_reason: Option<super::ui::UiText>,
 }
 impl LegacyReceipts {
     pub fn window_items(

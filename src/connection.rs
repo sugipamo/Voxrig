@@ -456,6 +456,11 @@ impl Client {
         crate::client::adapter::version_of(&self.adapter)
     }
 
+    /// Where the connection is in its lifecycle.
+    pub async fn connection_status(&self) -> crate::client::ConnectionStatus {
+        crate::client::dispatch!(&self.adapter, a => SessionOps::connection_status(a).await)
+    }
+
     /// Waits for the selected adapter's initial playable state.
     pub async fn wait_until_ready(&self) -> Result<()> {
         crate::client::dispatch!(&self.adapter, a => SessionOps::wait_until_ready(a).await)

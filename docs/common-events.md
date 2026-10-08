@@ -45,11 +45,32 @@ loop {
 | `ChatReceived` | `Chat` | `SYSTEM_CHAT`、`PLAYER_CHAT`、`PROFILELESS_CHAT` |
 | `UiChanged` | `UiStateUpdated`、`PlayerListUpdated` | scoreboard・boss bar・teams・player info・title・tab list・world borderの各パケット |
 | `Disconnected` | `Disconnected`、接続エラー | 切断を検知した最初の読み出し時 |
+| `EntityUpdated { native_id }` | `EntityUpdated`（移動・向き・速度・metadata・装備） | `SYNC_ENTITY_POSITION`、`REL_ENTITY_MOVE`、`ENTITY_MOVE_LOOK`、`ENTITY_LOOK`、`ENTITY_HEAD_ROTATION`、`ENTITY_METADATA`、`ENTITY_VELOCITY`、`ENTITY_EQUIPMENT`、`ENTITY_TELEPORT` |
+| `EntityStatus { native_id, status }` | `EntityStatus` | `ENTITY_STATUS`（codeは版ごとに違う） |
+| `EntityDamaged { native_id }` | `EntityStatus`のうち被害のcode（2・33・36・37・44） | `DAMAGE_EVENT` |
+| `PlayerKilled { native_id }` | 自分の死亡（combat eventのdeath） | `DEATH_COMBAT_EVENT` |
 
 - `BlocksChanged`の範囲は実際の変更を含む上位集合。1.21.11のmulti-block変更はsection（16×16×16）単位になる。
 - entityのeventは`EntityId`ではなく`native_id`を持つ。操作に使う`EntityId`は`entity_spawns()`で対応する
   ものを引く（`EntityId`はworld単位の識別を含み、event記録時点では安全に作れないため）。
+- 各eventの`received_after`は、接続のevent logを作ってからそのeventを記録する（パケットを適用する）までの
+  時間（clientの時計）。移動の標本の到着時刻などに使う。
 - 1.16.1の`Bot::subscribe()` / `Event`はネイティブAPIとしてそのまま残る。
+
+## 死亡の文言・切断の理由・接続状態
+
+- `Client::death_message()`: 自分の最後の死亡の文言（1.16.1はnativeのJSON、1.21.11はNBTの`UiText`）と受信連番。
+  次の死亡まで残る。切断後も読める。
+- `Client::disconnect_reason()`: serverがkickで送った文言。切断後も読める。
+- `Client::connection_status()`: `Joining`（login・設定・最初の同期）、`Ready`、`Closing`、`Closed`、`Unknown`
+  （送受信の結果が分からない終わり方）。
+- 1.16.1は待機中も毎tick位置を送る。serverがkickの直後に接続を閉じると、この送信が先に失敗して状態は`Unknown`になる。
+  そのときも、すでに届いているframeを最大200 ms読み、kickの文言だけを記録する（ほかのパケットは適用しない）。
+  文言は状態が変わった少し後に入る。読む前に送信の失敗で受信bufferが破棄された場合は残らない。
+- 1.21.11は待機中に送らないので、kickは`Closed`と文言になる。
+- 2026-10-08に両版の公式serverで確認した: 豚のteleportで`EntityUpdated`、即時ダメージの効果で
+  `EntityDamaged`、`kill`で自分の`PlayerKilled`と死亡の文言、`kick`で文言（1.16.1は`Unknown`、1.21.11は`Closed`）を
+  受け取った（`examples/entity_events_probe.rs`）。
 
 ## 実サーバーでの確認（2026-10-07）
 

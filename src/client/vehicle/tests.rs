@@ -112,6 +112,7 @@ fn vehicle_receipts_keep_unknown_explicit_absence_and_original_lifetimes_distinc
         );
         assert!(capture(&ledger, &spawns).relation.is_none());
         let spawn = || NativeSpawn {
+            living: None,
             id: 10,
             uuid: Some([7; 16]),
             type_id: None,

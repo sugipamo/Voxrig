@@ -56,6 +56,27 @@ fn read(id: i32, payload: &[u8]) -> anyhow::Result<Vec<K>> {
         | input::ABILITIES
         | input::GAME_STATE_CHANGE => vec![K::PlayerChanged],
         input::LOGIN | input::RESPAWN | input::START_CONFIGURATION => vec![K::WorldChanged],
+        input::SYNC_ENTITY_POSITION
+        | input::REL_ENTITY_MOVE
+        | input::ENTITY_MOVE_LOOK
+        | input::ENTITY_LOOK
+        | input::ENTITY_HEAD_ROTATION
+        | input::ENTITY_METADATA
+        | input::ENTITY_VELOCITY
+        | input::ENTITY_EQUIPMENT
+        | input::ENTITY_TELEPORT => vec![K::EntityUpdated {
+            native_id: r.varint()?,
+        }],
+        input::ENTITY_STATUS => vec![K::EntityStatus {
+            native_id: r.i32()?,
+            status: r.u8()? as i8,
+        }],
+        input::DAMAGE_EVENT => vec![K::EntityDamaged {
+            native_id: r.varint()?,
+        }],
+        input::DEATH_COMBAT_EVENT => vec![K::PlayerKilled {
+            native_id: r.varint()?,
+        }],
         input::SPAWN_ENTITY => vec![K::EntitySpawned {
             native_id: r.varint()?,
         }],
@@ -128,5 +149,33 @@ mod tests {
         assert_eq!(kinds(input::SET_SLOT, &[0]), vec![K::InventoryChanged]);
         assert_eq!(kinds(input::SET_SLOT, &[3]), vec![K::ScreenChanged]);
         assert!(kinds(input::BLOCK_CHANGE, &[1]).is_empty());
+    }
+}
+
+#[cfg(test)]
+mod entity_event_tests {
+    use super::*;
+
+    #[test]
+    fn entity_updates_status_damage_and_death_map_to_common_kinds() {
+        assert_eq!(
+            kinds(input::REL_ENTITY_MOVE, &[5, 0, 1, 0, 0, 0, 0, 1]),
+            vec![K::EntityUpdated { native_id: 5 }]
+        );
+        assert_eq!(
+            kinds(input::ENTITY_STATUS, &[0, 0, 0, 5, 3]),
+            vec![K::EntityStatus {
+                native_id: 5,
+                status: 3
+            }]
+        );
+        assert_eq!(
+            kinds(input::DAMAGE_EVENT, &[5, 1, 0, 0, 0]),
+            vec![K::EntityDamaged { native_id: 5 }]
+        );
+        assert_eq!(
+            kinds(input::DEATH_COMBAT_EVENT, &[7, 8, 0]),
+            vec![K::PlayerKilled { native_id: 7 }]
+        );
     }
 }

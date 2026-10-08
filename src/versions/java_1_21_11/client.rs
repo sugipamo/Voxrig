@@ -55,6 +55,10 @@ use crate::client::recording::{LocalPlayerBasis, PacketPhase, TraceCapture};
 pub use crate::client::recording::{PacketRecord, PacketTrace};
 
 struct State {
+    /// Last received own death message (DEATH_COMBAT_EVENT).
+    death_message: Option<crate::client::ObservedValue<crate::client::ui::UiText>>,
+    /// Text of the last received KICK_DISCONNECT.
+    disconnect_reason: Option<crate::client::ui::UiText>,
     loading: loading::InteractionLoading,
     motion: motion::OwnMotion,
     identity: Option<LoginIdentity>,
@@ -114,6 +118,8 @@ struct State {
 impl Default for State {
     fn default() -> Self {
         Self {
+            death_message: None,
+            disconnect_reason: None,
             loading: loading::InteractionLoading::default(),
             motion: motion::OwnMotion::default(),
             identity: None,
@@ -290,6 +296,21 @@ pub(crate) struct Bot {
 impl Bot {
     pub(crate) fn connection_id(&self) -> u64 {
         self.session.id
+    }
+    pub(crate) async fn connection_status(&self) -> crate::client::ConnectionStatus {
+        use crate::client::ConnectionStatus as S;
+        let state = self.session.state.lock().await;
+        if self.session.stopped.load(Ordering::Acquire) {
+            if state.failure.is_some() && state.disconnect_reason.is_none() {
+                S::Unknown
+            } else {
+                S::Closed
+            }
+        } else if state.ready && state.phase == Phase::Play {
+            S::Ready
+        } else {
+            S::Joining
+        }
     }
     pub fn operations(&self) -> operations::Operations {
         operations::Operations { bot: self.clone() }
@@ -1133,7 +1154,23 @@ fn apply_play(
             responses.push((output::CONFIGURATION_ACKNOWLEDGED, vec![]));
             responses.push((ids::configuration_serverbound::SETTINGS, settings()));
         }
-        input::KICK_DISCONNECT => bail!("server disconnected"),
+        input::KICK_DISCONNECT => {
+            state.disconnect_reason = Some(crate::client::ui::UiText::NativeNbt {
+                bytes: payload.to_vec(),
+            });
+            bail!("server disconnected")
+        }
+        input::DEATH_COMBAT_EVENT => {
+            let player = r.varint()?;
+            if Some(player) == state.operations.local_player.entity_id {
+                state.death_message = Some(crate::client::received(
+                    crate::client::ui::UiText::NativeNbt {
+                        bytes: r.take(r.remaining().len())?.to_vec(),
+                    },
+                    state.sequence,
+                ));
+            }
+        }
         input::TAGS => {
             state
                 .registries
@@ -1175,6 +1212,21 @@ impl crate::client::adapter::EventOps for operations::Operations {
                 .record(sequence, crate::client::EventKind::Disconnected);
         }
         state.events.after(cursor, state.sequence)
+    }
+    async fn death_message(
+        &self,
+    ) -> Result<Option<crate::client::ObservedValue<crate::client::ui::UiText>>> {
+        Ok(self.bot.session.state.lock().await.death_message.clone())
+    }
+    async fn disconnect_reason(&self) -> Result<Option<crate::client::ui::UiText>> {
+        Ok(self
+            .bot
+            .session
+            .state
+            .lock()
+            .await
+            .disconnect_reason
+            .clone())
     }
 }
 

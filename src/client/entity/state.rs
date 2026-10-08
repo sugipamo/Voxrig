@@ -46,6 +46,33 @@ pub struct EntityObservation {
     pub health: Option<ObservedValue<f32>>,
     /// Latest received item per equipment slot.
     pub equipment: BTreeMap<EquipmentSlot, ObservedValue<SlotKnowledge>>,
+    /// Living entity (including players): from the 1.16.1 spawn packet, or from the
+    /// 1.21.11 type (`minecraft:player` or a type with default attributes).
+    /// None when the type is unknown.
+    pub living: Option<bool>,
+    /// Latest received entity data by native index. Indices and serializers are
+    /// version-specific (`docs/common-entities.md`).
+    pub metadata: BTreeMap<u8, ObservedValue<EntityDataValue>>,
+}
+
+/// One received entity-data value. Integer, float, boolean and string serializers are
+/// decoded; any other serializer keeps only its native kind.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub enum EntityDataValue {
+    /// Byte serializer.
+    Byte(i8),
+    /// Int (VarInt) serializer.
+    Int(i32),
+    /// Long (VarLong) serializer.
+    Long(i64),
+    /// Float serializer.
+    Float(f32),
+    /// Boolean serializer.
+    Bool(bool),
+    /// String serializer.
+    String(String),
+    /// Another serializer, by native serializer ID.
+    Other(i32),
 }
 
 /// All received entities at one boundary (the own player is excluded).
@@ -63,6 +90,7 @@ pub struct EntitiesObservation {
 pub(super) struct Extra {
     pub health: Option<ObservedValue<f32>>,
     pub equipment: BTreeMap<EquipmentSlot, ObservedValue<SlotKnowledge>>,
+    pub metadata: BTreeMap<u8, ObservedValue<EntityDataValue>>,
 }
 
 /// Default (width, height) of a namespaced entity type.
@@ -90,6 +118,25 @@ impl SpawnLedger {
                 value: health,
                 source: crate::client::ValueSource::Received { sequence },
             });
+        }
+    }
+    /// Record received entity-data entries (each replaces the previous value).
+    pub(crate) fn receive_metadata(
+        &mut self,
+        native_id: i32,
+        entries: impl IntoIterator<Item = (u8, EntityDataValue)>,
+        sequence: u64,
+    ) {
+        if let Some(spawn) = self.0.get_mut(&native_id) {
+            for (index, value) in entries {
+                spawn.extra.metadata.insert(
+                    index,
+                    ObservedValue {
+                        value,
+                        source: crate::client::ValueSource::Received { sequence },
+                    },
+                );
+            }
         }
     }
     /// Record one received equipment slot.
@@ -152,11 +199,20 @@ impl SpawnLedger {
                         max_y: feet[1] + height,
                         max_z: feet[2] + width / 2.0,
                     });
+                let living = spawn.living.or_else(|| {
+                    let name = spawn.name.as_deref()?;
+                    Some(
+                        name == "minecraft:player"
+                            || version.table().entity_dimensions(name)?.living == Some(true),
+                    )
+                });
                 EntityObservation {
                     motion,
                     bounding_box,
                     health: spawn.extra.health.clone(),
                     equipment: spawn.extra.equipment.clone(),
+                    living,
+                    metadata: spawn.extra.metadata.clone(),
                 }
             })
             .collect();
@@ -203,6 +259,7 @@ mod tests {
             .insert(
                 version,
                 NativeSpawn {
+                    living: None,
                     id: 7,
                     uuid: None,
                     type_id: Some(pig.value()),
@@ -226,5 +283,49 @@ mod tests {
             [b.min_x, b.min_y, b.max_x, b.max_y],
             [9.55, 64.0, 10.45, 64.9]
         );
+        assert_eq!(pig.living, Some(true)); // From the 1.21.11 type table.
+    }
+
+    #[test]
+    fn metadata_entries_replace_by_index_and_spawn_kind_wins() {
+        let version = MinecraftVersion::Java1_16_1;
+        let session = SessionStamp {
+            version,
+            connection_id: 1,
+            world_generation: 0,
+        };
+        let mut ledger = SpawnLedger::default();
+        for (id, living) in [(1, Some(false)), (2, None)] {
+            ledger
+                .insert(
+                    version,
+                    NativeSpawn {
+                        living,
+                        id,
+                        uuid: None,
+                        type_id: None,
+                        dedicated_type_name: None,
+                        position: [0.0; 3],
+                    },
+                    1,
+                    16,
+                )
+                .unwrap();
+        }
+        ledger.receive_metadata(1, [(0, EntityDataValue::Byte(1))], 2);
+        ledger.receive_metadata(
+            1,
+            [(0, EntityDataValue::Byte(3)), (15, EntityDataValue::Int(2))],
+            3,
+        );
+        let all = ledger.capture_all(version, session, 4);
+        let first = &all.entities[0];
+        assert_eq!(first.living, Some(false));
+        assert_eq!(first.metadata[&0].value, EntityDataValue::Byte(3));
+        assert_eq!(
+            first.metadata[&15].source,
+            crate::client::ValueSource::Received { sequence: 3 }
+        );
+        assert_eq!(all.entities[1].living, None); // Unknown type.
     }
 }

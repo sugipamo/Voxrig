@@ -11,7 +11,7 @@ mod state;
 pub use motion::{EntityMotionObservation, EntityPosition, EntityPositionCorrection};
 pub(crate) use motion::{NativeMotion, NativeSpawnMotion};
 pub(crate) use state::modern_living;
-pub use state::{EntitiesObservation, EntityObservation, EquipmentSlot};
+pub use state::{EntitiesObservation, EntityDataValue, EntityObservation, EquipmentSlot};
 
 /// An original received spawn on one connection/world, independent of reusable numeric IDs.
 /// Saved diagnostics cannot construct live targets.
@@ -102,6 +102,7 @@ struct Spawn {
     native_type: Option<i32>,
     entity_type: Option<BuiltinRegistryId>,
     name: Option<String>,
+    living: Option<bool>,
     position: [f64; 3],
     motion: motion::Motion,
     extra: state::Extra,
@@ -112,6 +113,8 @@ pub(crate) struct NativeSpawn {
     pub type_id: Option<i32>,
     pub dedicated_type_name: Option<&'static str>,
     pub position: [f64; 3],
+    /// Living (or player) when the spawn packet says so (1.16.1); None derives it from the type.
+    pub living: Option<bool>,
 }
 impl SpawnLedger {
     pub(crate) fn spawn_sequence(&self, native_id: i32) -> Option<u64> {
@@ -169,6 +172,7 @@ impl SpawnLedger {
                 uuid: native.uuid,
                 native_type: native.type_id,
                 entity_type,
+                living: native.living,
                 name,
                 position: native.position,
                 motion: Default::default(),
@@ -230,6 +234,7 @@ mod tests {
         for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
             let mut ledger = SpawnLedger::default();
             let spawn = || NativeSpawn {
+                living: None,
                 id: 42,
                 uuid: Some([7; 16]),
                 type_id: None,

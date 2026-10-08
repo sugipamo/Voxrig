@@ -21,6 +21,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             state.entities.insert(
                 crate::MinecraftVersion::Java1_21_11,
                 NativeSpawn {
+                    living: None,
                     id: entity_id,
                     uuid: Some(uuid),
                     type_id: Some(type_id),
@@ -56,6 +57,11 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         // Health and equipment are best-effort: a payload this reader cannot
         // follow is left to the other receivers and records nothing here.
         ids::play_clientbound::ENTITY_METADATA => {
+            if let Some((entity, values)) = common_metadata(payload) {
+                state
+                    .entities
+                    .receive_metadata(entity, values, state.sequence);
+            }
             if let Some((entity, health)) = living_health(state, payload) {
                 state
                     .entities
@@ -92,6 +98,37 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
 }
 
 /// Health (the table's LivingEntity metadata index, float) of a living entity type.
+/// Entity data in the common form. Entries after a serializer this reader cannot follow
+/// are not recorded (the ones before it are).
+fn common_metadata(payload: &[u8]) -> Option<(i32, Vec<(u8, crate::client::EntityDataValue)>)> {
+    use crate::client::EntityDataValue as V;
+    let mut r = Reader::new(payload);
+    let entity = r.varint().ok()?;
+    let mut values = Vec::new();
+    loop {
+        let Ok(key) = r.u8() else { break };
+        if key == 255 {
+            break;
+        }
+        let Ok(kind) = r.varint() else { break };
+        let value = match kind {
+            0 => r.u8().ok().map(|v| V::Byte(v as i8)),
+            1 => r.varint().ok().map(V::Int),
+            2 => r.varlong().ok().map(V::Long),
+            3 => r.f32().ok().map(V::Float),
+            4 => r.string().ok().map(V::String),
+            8 => r.bool().ok().map(V::Bool),
+            _ => super::players::skip_metadata(&mut r, kind)
+                .ok()
+                .filter(|known| *known)
+                .map(|_| V::Other(kind)),
+        };
+        let Some(value) = value else { break };
+        values.push((key, value));
+    }
+    Some((entity, values))
+}
+
 fn living_health(state: &State, payload: &[u8]) -> Option<(i32, f32)> {
     let mut r = Reader::new(payload);
     let entity = r.varint().ok()?;
@@ -260,4 +297,31 @@ fn coordinates(r: &mut Reader<'_>) -> anyhow::Result<[f64; 3]> {
         "entity coordinate out of bounds"
     );
     Ok(position)
+}
+
+#[cfg(test)]
+mod common_metadata_tests {
+    use super::*;
+    use crate::client::EntityDataValue as V;
+
+    #[test]
+    fn plain_values_decode_and_unknown_serializers_stop_the_entry_list() {
+        // entity 9: index 0 byte 1, 17 varlong 300, 6 pose (20) 1, 9 float, 8 bool true,
+        // then an unsupported serializer (99) and an entry after it.
+        let mut payload = vec![9, 0, 0, 1, 17, 2, 0xac, 0x02, 6, 20, 1, 9, 3];
+        payload.extend(2.5f32.to_be_bytes());
+        payload.extend([8, 8, 1, 10, 99, 0, 11, 0, 0, 255]);
+        let (entity, values) = common_metadata(&payload).unwrap();
+        assert_eq!(entity, 9);
+        assert_eq!(
+            values,
+            vec![
+                (0, V::Byte(1)),
+                (17, V::Long(300)),
+                (6, V::Other(20)),
+                (9, V::Float(2.5)),
+                (8, V::Bool(true))
+            ]
+        );
+    }
 }

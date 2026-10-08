@@ -4695,82 +4695,110 @@ impl Bot {
         // Compression negotiation finishes before entering the play reader.
         let compression = self.writer.lock().await.compression;
         let diagnostics = ReaderDiagnostics::new(self.connection_generation().get());
+        // Set when cancellation interrupts reading: frames already received may still
+        // carry the server's kick reason (see `drain_disconnect_reason`).
+        let mut cancelled_frame: Option<Option<Frame>> = None;
         while !self.stopped.load(Ordering::Acquire) {
             diagnostics.enter(ReaderPhase::Reading, None);
             diagnostics.read_started();
             // A capture may interrupt waiting, but must not discard bytes
             // already consumed from this packet. Keep both read progress and
             // its original deadline until the packet completes or we exit.
-            let packet_read = timeout(
-                self.connection_options.play_packet_timeout,
-                read_packet(&mut reader, compression),
-            );
-            tokio::pin!(packet_read);
-            let packet = loop {
-                tokio::select! {
-                    biased;
-                    _ = &mut cancelled => return Ok(()),
-                    request = capture_requests.recv() => {
-                        let Some(request) = request else {
-                            return Ok(());
-                        };
-                        let started = std::time::Instant::now();
-                        diagnostics.enter(ReaderPhase::Capture, None);
-                        let result = self
-                            .capture_observation_at_sequence(request.request, next_observation_sequence)
-                            .await;
-                        self.trace_slow_capture("coherent", next_observation_sequence, started.elapsed(), result.is_ok());
-                        diagnostics.capture_completed();
-                        diagnostics.enter(ReaderPhase::Reading, None);
-                        if result.is_ok() {
-                            next_observation_sequence = next_observation_sequence
-                                .checked_add(1)
-                                .context("coherent observation sequence exhausted")?;
+            let packet = {
+                let packet_read = timeout(
+                    self.connection_options.play_packet_timeout,
+                    read_packet(&mut reader, compression),
+                );
+                tokio::pin!(packet_read);
+                loop {
+                    tokio::select! {
+                        biased;
+                        _ = &mut cancelled => {
+                            cancelled_frame = Some(if self.fail_closed() {
+                                finish_frame(packet_read.as_mut()).await
+                            } else {
+                                None
+                            });
+                            break None;
                         }
-                        let _ = request.reply.send(result);
-                    }
-                    request = traversal_movement_facts_requests.recv() => {
-                        let Some(request) = request else {
-                            return Ok(());
-                        };
-                        let started = std::time::Instant::now();
-                        diagnostics.enter(ReaderPhase::MovementCapture, None);
-                        let result = self
-                            .capture_traversal_movement_facts_at_sequence(
-                                request.request,
-                                next_observation_sequence,
-                            )
-                            .await;
-                        self.trace_slow_capture("movement", next_observation_sequence, started.elapsed(), result.is_ok());
-                        diagnostics.capture_completed();
-                        diagnostics.enter(ReaderPhase::Reading, None);
-                        if result.is_ok() {
-                            next_observation_sequence = next_observation_sequence
-                                .checked_add(1)
-                                .context("coherent observation sequence exhausted")?;
+                        request = capture_requests.recv() => {
+                            let Some(request) = request else {
+                                return Ok(());
+                            };
+                            let started = std::time::Instant::now();
+                            diagnostics.enter(ReaderPhase::Capture, None);
+                            let result = self
+                                .capture_observation_at_sequence(request.request, next_observation_sequence)
+                                .await;
+                            self.trace_slow_capture("coherent", next_observation_sequence, started.elapsed(), result.is_ok());
+                            diagnostics.capture_completed();
+                            diagnostics.enter(ReaderPhase::Reading, None);
+                            if result.is_ok() {
+                                next_observation_sequence = next_observation_sequence
+                                    .checked_add(1)
+                                    .context("coherent observation sequence exhausted")?;
+                            }
+                            let _ = request.reply.send(result);
                         }
-                        let _ = request.reply.send(result);
+                        request = traversal_movement_facts_requests.recv() => {
+                            let Some(request) = request else {
+                                return Ok(());
+                            };
+                            let started = std::time::Instant::now();
+                            diagnostics.enter(ReaderPhase::MovementCapture, None);
+                            let result = self
+                                .capture_traversal_movement_facts_at_sequence(
+                                    request.request,
+                                    next_observation_sequence,
+                                )
+                                .await;
+                            self.trace_slow_capture("movement", next_observation_sequence, started.elapsed(), result.is_ok());
+                            diagnostics.capture_completed();
+                            diagnostics.enter(ReaderPhase::Reading, None);
+                            if result.is_ok() {
+                                next_observation_sequence = next_observation_sequence
+                                    .checked_add(1)
+                                    .context("coherent observation sequence exhausted")?;
+                            }
+                            let _ = request.reply.send(result);
+                        }
+                        packet = std::future::poll_fn(|cx| diagnostics.poll(packet_read.as_mut(), cx)) => break Some(packet.context("play packet timed out")?),
                     }
-                    packet = std::future::poll_fn(|cx| diagnostics.poll(packet_read.as_mut(), cx)) => break packet.context("play packet timed out")?,
+                    // Give the same packet read (and its deadline) one poll after
+                    // each capture, without letting a packet backlog starve captures.
+                    tokio::select! {
+                        biased;
+                        _ = &mut cancelled => {
+                            cancelled_frame = Some(if self.fail_closed() {
+                                finish_frame(packet_read.as_mut()).await
+                            } else {
+                                None
+                            });
+                            break None;
+                        }
+                        packet = std::future::poll_fn(|cx| {
+                            std::task::Poll::Ready(diagnostics.poll(packet_read.as_mut(), cx))
+                        }) => {
+                            if let std::task::Poll::Ready(packet) = packet {
+                                break Some(packet.context("play packet timed out")?);
+                            }
+                        }
+                    }
                 }
-                // Give the same packet read (and its deadline) one poll after
-                // each capture, without letting a packet backlog starve captures.
-                tokio::select! {
-                    biased;
-                    _ = &mut cancelled => return Ok(()),
-                    packet = std::future::poll_fn(|cx| {
-                        std::task::Poll::Ready(diagnostics.poll(packet_read.as_mut(), cx))
-                    }) => {
-                        if let std::task::Poll::Ready(packet) = packet {
-                            break packet.context("play packet timed out")?;
-                        }
-                    }
-                }
+            };
+            let Some(packet) = packet else {
+                break;
             };
             let (id, p) = packet?;
             diagnostics.enter(ReaderPhase::ApplyGate, Some(id));
             let applied = self.apply_packet_diagnosed(id, p, Some(&diagnostics)).await;
             self.packet_applied.notify_waiters();
+            if applied.is_err() && self.fail_closed() {
+                // A failed reply write (the server already closed after a kick) ends
+                // reading here; the kick itself may be the next frame.
+                self.drain_disconnect_reason(None, &mut reader, compression)
+                    .await;
+            }
             if !applied? {
                 break;
             }
@@ -4783,7 +4811,55 @@ impl Bot {
                 tokio::task::yield_now().await;
             }
         }
+        // Only a completed in-flight frame keeps the following frames aligned.
+        if let Some(Some(first)) = cancelled_frame {
+            self.drain_disconnect_reason(Some(first), &mut reader, compression)
+                .await;
+        }
         Ok(())
+    }
+
+    /// The connection already ended unclassified (a failed write): the only case in
+    /// which remaining frames are read for a kick reason.
+    fn fail_closed(&self) -> bool {
+        self.connection.lifecycle() == ConnectionState::ConnectionStateUnknown
+    }
+
+    /// After a fail-close (for example a write that failed because the server already
+    /// closed the socket), frames the server sent before closing may still be readable.
+    /// Only a kick's reason is recorded from them; nothing else is applied and the
+    /// lifecycle classification is unchanged.
+    async fn drain_disconnect_reason<R: tokio::io::AsyncRead + Unpin>(
+        &self,
+        first: Option<Frame>,
+        reader: &mut R,
+        compression: Option<i32>,
+    ) {
+        let deadline = tokio::time::Instant::now() + Duration::from_millis(200);
+        let mut frame = match first {
+            Some(frame) => Some(frame),
+            None => tokio::time::timeout_at(deadline, read_packet(reader, compression))
+                .await
+                .ok()
+                .map(|r| r.map_err(Into::into)),
+        };
+        for _ in 0..64 {
+            match frame {
+                Some(Ok((0x1a, payload))) => {
+                    if let Ok(reason) = get_string(&mut payload.as_slice()) {
+                        self.common_receipts.lock().await.disconnect_reason =
+                            Some(crate::client::ui::UiText::LegacyJson { json: reason });
+                    }
+                    return;
+                }
+                Some(Ok(_)) => {}
+                _ => return,
+            }
+            frame = tokio::time::timeout_at(deadline, read_packet(reader, compression))
+                .await
+                .ok()
+                .map(|r| r.map_err(Into::into));
+        }
     }
 
     fn trace_slow_capture(&self, kind: &str, sequence: u64, elapsed: Duration, success: bool) {
@@ -5225,6 +5301,10 @@ impl Bot {
                 // A truncated kick is malformed input and must remain
                 // classifiable as unknown by the supervisor.
                 let reason = get_string(&mut s)?;
+                self.common_receipts.lock().await.disconnect_reason =
+                    Some(crate::client::ui::UiText::LegacyJson {
+                        json: reason.clone(),
+                    });
                 self.physics.lock().await.record_disconnect();
                 self.connection
                     .mark_terminal(TerminalClassification::Disconnected)
@@ -5583,7 +5663,26 @@ impl Bot {
                 drop(state);
                 self.emit(Event::SurvivalStateUpdated);
             }
-            0x32 => self.emit(Event::Combat(parse_combat_event(&p)?)),
+            0x32 => {
+                let event = parse_combat_event(&p)?;
+                if let crate::versions::java_1_16_1::CombatEvent::Death {
+                    player_id,
+                    message_json,
+                    ..
+                } = &event
+                {
+                    if Some(*player_id) == lock_packet_state(&self.player).await.entity_id {
+                        self.common_receipts.lock().await.death_message =
+                            Some(crate::client::received(
+                                crate::client::ui::UiText::LegacyJson {
+                                    json: message_json.clone(),
+                                },
+                                packet_sequence,
+                            ));
+                    }
+                }
+                self.emit(Event::Combat(event));
+            }
             0x33 => {
                 self.common_player_list.lock().await.receive(
                     crate::MinecraftVersion::Java1_16_1,
@@ -5831,6 +5930,12 @@ impl Bot {
             }
             0x44 => {
                 let (entity_id, metadata) = parse_metadata(&p)?;
+                let (_, common) = crate::versions::java_1_16_1::entity::common_metadata(&p)?;
+                self.common_receipts.lock().await.entities.receive_metadata(
+                    entity_id,
+                    common,
+                    packet_sequence,
+                );
                 if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
                     if let Some(MetadataValue::VarInt(pose)) = metadata.get(&6) {
                         *self.local_pose.lock().await = Some(*pose);
@@ -6581,6 +6686,11 @@ impl Bot {
                     type_id: entity.type_id,
                     dedicated_type_name: entity.type_name,
                     position: [entity.position.x, entity.position.y, entity.position.z],
+                    living: Some(matches!(
+                        entity.kind,
+                        crate::versions::java_1_16_1::entity::EntityKind::Living
+                            | crate::versions::java_1_16_1::entity::EntityKind::Player
+                    )),
                 },
                 self.protocol_packet_sequence.load(Ordering::Acquire),
                 self.connection_options.max_entities,
@@ -6860,6 +6970,20 @@ impl Bot {
 }
 /// Common change notifications for one native event. Multi-block changes are
 /// recorded with their bounds where the packet is applied.
+/// One decoded play frame: packet ID and payload.
+type Frame = Result<(i32, Vec<u8>)>;
+
+/// Complete an in-flight frame read after cancellation, waiting at most 200 ms.
+async fn finish_frame<F, E>(read: std::pin::Pin<&mut F>) -> Option<Frame>
+where
+    F: std::future::Future<Output = std::result::Result<anyhow::Result<(i32, Vec<u8>)>, E>>,
+{
+    match tokio::time::timeout(Duration::from_millis(200), read).await {
+        Ok(Ok(frame)) => Some(frame.map_err(Into::into)),
+        _ => None,
+    }
+}
+
 fn common_event_kinds(event: &Event) -> Vec<crate::client::EventKind> {
     use crate::client::EventKind as K;
     let block = |x, y, z| K::BlocksChanged {
@@ -6900,7 +7024,70 @@ fn common_event_kinds(event: &Event) -> Vec<crate::client::EventKind> {
         | Event::Error {
             kind: "connection", ..
         } => vec![K::Disconnected],
+        Event::EntityUpdated(entity) => vec![K::EntityUpdated {
+            native_id: entity.entity_id,
+        }],
+        Event::EntityStatus { entity_id, status } => {
+            let mut kinds = vec![K::EntityStatus {
+                native_id: *entity_id,
+                status: *status,
+            }];
+            if crate::client::events::LEGACY_HURT_STATUSES.contains(status) {
+                kinds.push(K::EntityDamaged {
+                    native_id: *entity_id,
+                });
+            }
+            kinds
+        }
+        Event::Combat(crate::versions::java_1_16_1::CombatEvent::Death { player_id, .. }) => {
+            vec![K::PlayerKilled {
+                native_id: *player_id,
+            }]
+        }
         _ => Vec::new(),
+    }
+}
+
+#[cfg(test)]
+mod common_event_kind_tests {
+    use super::*;
+    use crate::client::EventKind as K;
+
+    #[test]
+    fn hurt_statuses_also_report_damage_and_own_death_reports_a_kill() {
+        assert_eq!(
+            common_event_kinds(&Event::EntityStatus {
+                entity_id: 4,
+                status: 2
+            }),
+            vec![
+                K::EntityStatus {
+                    native_id: 4,
+                    status: 2
+                },
+                K::EntityDamaged { native_id: 4 }
+            ]
+        );
+        assert_eq!(
+            common_event_kinds(&Event::EntityStatus {
+                entity_id: 4,
+                status: 9
+            }),
+            vec![K::EntityStatus {
+                native_id: 4,
+                status: 9
+            }]
+        );
+        assert_eq!(
+            common_event_kinds(&Event::Combat(
+                crate::versions::java_1_16_1::CombatEvent::Death {
+                    player_id: 7,
+                    entity_id: -1,
+                    message_json: "{}".into()
+                }
+            )),
+            vec![K::PlayerKilled { native_id: 7 }]
+        );
     }
 }
 
@@ -7126,6 +7313,14 @@ async fn next_operation_event(events: &mut broadcast::Receiver<Event>) -> Result
 }
 
 impl crate::client::adapter::EventOps for Bot {
+    async fn death_message(
+        &self,
+    ) -> Result<Option<crate::client::ObservedValue<crate::client::ui::UiText>>> {
+        Ok(self.common_receipts.lock().await.death_message.clone())
+    }
+    async fn disconnect_reason(&self) -> Result<Option<crate::client::ui::UiText>> {
+        Ok(self.common_receipts.lock().await.disconnect_reason.clone())
+    }
     async fn events_after(&self, cursor: u64) -> Result<crate::client::EventLog> {
         // Packet application holds this gate, so the log and sequence agree.
         let _gate = self.coherent_state_gate.lock().await;

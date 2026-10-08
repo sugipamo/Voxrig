@@ -30,3 +30,18 @@ impl ConnectionRevocation {
     }
 }
 crate::diagnostic_projection::identity!(ConnectionRevocation);
+
+/// Where the connection is in its lifecycle, as the client sees it.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+pub enum ConnectionStatus {
+    /// Login, configuration or the first world synchronization is in progress.
+    Joining,
+    /// Playable: operations may be admitted (each still checks its own preconditions).
+    Ready,
+    /// Shutdown began; no new operation is admitted.
+    Closing,
+    /// The connection ended. See `Client::disconnect_reason` for a server kick.
+    Closed,
+    /// The transport ended in a way whose delivery effects cannot be classified.
+    Unknown,
+}

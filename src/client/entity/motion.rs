@@ -251,6 +251,7 @@ mod tests {
             .insert(
                 version,
                 NativeSpawn {
+                    living: None,
                     id: 42,
                     uuid: Some([7; 16]),
                     type_id: None,
@@ -486,6 +487,7 @@ mod tests {
             .insert(
                 version,
                 NativeSpawn {
+                    living: None,
                     id: 42,
                     uuid: Some([7; 16]),
                     type_id: None,

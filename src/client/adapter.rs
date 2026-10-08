@@ -48,6 +48,7 @@ pub(crate) trait SessionOps {
     const VERSION: MinecraftVersion;
     /// Process-local transport identity.
     fn connection_id(&self) -> u64;
+    async fn connection_status(&self) -> super::ConnectionStatus;
     async fn wait_until_ready(&self) -> Result<()>;
     async fn disconnect(&self) -> Result<()>;
     async fn start_packet_trace(&self, maximum_bytes: usize) -> Result<()>;
@@ -95,6 +96,10 @@ pub(crate) trait EventOps {
     /// Events after `cursor`, with the receive sequence read under the same
     /// boundary. Readable after the connection closes.
     async fn events_after(&self, cursor: u64) -> Result<super::events::EventLog>;
+    /// Last received own death message; readable after the connection closes.
+    async fn death_message(&self) -> Result<Option<super::ObservedValue<super::ui::UiText>>>;
+    /// Text of a received server kick; readable after the connection closes.
+    async fn disconnect_reason(&self) -> Result<Option<super::ui::UiText>>;
 }
 
 /// Waiting for receive progress.
@@ -317,6 +322,17 @@ impl SessionOps for java_1_16_1::Bot {
     fn connection_id(&self) -> u64 {
         java_1_16_1::Bot::connection_id(self)
     }
+    async fn connection_status(&self) -> super::ConnectionStatus {
+        use super::ConnectionStatus as S;
+        use java_1_16_1::ConnectionState as C;
+        match java_1_16_1::Bot::connection_state(self) {
+            C::Connecting => S::Joining,
+            C::Ready => S::Ready,
+            C::Disconnecting => S::Closing,
+            C::Disconnected => S::Closed,
+            C::ConnectionStateUnknown => S::Unknown,
+        }
+    }
     async fn wait_until_ready(&self) -> Result<()> {
         java_1_16_1::Bot::wait_until_ready(self).await
     }
@@ -334,6 +350,9 @@ impl SessionOps for java_1_21_11::operations::Operations {
     const VERSION: MinecraftVersion = MinecraftVersion::Java1_21_11;
     fn connection_id(&self) -> u64 {
         self.bot().connection_id()
+    }
+    async fn connection_status(&self) -> super::ConnectionStatus {
+        self.bot().connection_status().await
     }
     async fn wait_until_ready(&self) -> Result<()> {
         self.bot().wait_until_ready().await
