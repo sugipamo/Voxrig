@@ -162,12 +162,32 @@ pub(crate) enum Adapter {
     Java1_21_11(crate::versions::java_1_21_11::Bot),
 }
 
-/// Version-specific access returned by [`Client::native`].
-pub enum Native<'a> {
+/// Declares an item `pub` with feature `native`, otherwise `pub(crate)`.
+macro_rules! native_api {
+    ($(#[$m:meta])* fn $($rest:tt)*) => {
+        #[cfg(feature = "native")]
+        $(#[$m])* pub fn $($rest)*
+        #[cfg(not(feature = "native"))]
+        #[allow(dead_code)]
+        $(#[$m])* pub(crate) fn $($rest)*
+    };
+    ($(#[$m:meta])* enum $($rest:tt)*) => {
+        #[cfg(feature = "native")]
+        $(#[$m])* pub enum $($rest)*
+        #[cfg(not(feature = "native"))]
+        #[allow(dead_code)]
+        $(#[$m])* pub(crate) enum $($rest)*
+    };
+}
+
+native_api! {
+/// Version-specific access returned by [`Client::native`] (feature `native`).
+enum Native<'a> {
     /// The established Java 1.16.1 API.
     Java1_16_1(&'a legacy::Bot),
     /// Java 1.21.11 reconstruction, unrestricted operations and the checked contract.
     Java1_21_11(crate::versions::java_1_21_11::NativeClient),
+}
 }
 
 fn wrong_version(expected: MinecraftVersion) -> Error {
@@ -374,8 +394,9 @@ impl Client {
             adapter: Adapter::Java1_21_11(bot),
         }
     }
-    /// Version-specific functionality outside the common API.
-    pub fn native(&self) -> Native<'_> {
+    native_api! {
+    /// Version-specific functionality outside the common API (feature `native`).
+    fn native(&self) -> Native<'_> {
         match &self.adapter {
             Adapter::Java1_16_1(bot) => Native::Java1_16_1(bot),
             Adapter::Java1_21_11(bot) => Native::Java1_21_11(
@@ -383,19 +404,24 @@ impl Client {
             ),
         }
     }
-    /// The Java 1.16.1 `Bot`, or `Unsupported` for other versions.
-    pub fn java_1_16_1(&self) -> Result<&legacy::Bot> {
+    }
+    native_api! {
+    /// The Java 1.16.1 `Bot`, or `Unsupported` for other versions (feature `native`).
+    fn java_1_16_1(&self) -> Result<&legacy::Bot> {
         match self.native() {
             Native::Java1_16_1(bot) => Ok(bot),
             _ => Err(wrong_version(MinecraftVersion::Java1_16_1)),
         }
     }
-    /// The Java 1.21.11 native handle, or `Unsupported` for other versions.
-    pub fn java_1_21_11(&self) -> Result<crate::versions::java_1_21_11::NativeClient> {
+    }
+    native_api! {
+    /// The Java 1.21.11 native handle, or `Unsupported` for other versions (feature `native`).
+    fn java_1_21_11(&self) -> Result<crate::versions::java_1_21_11::NativeClient> {
         match self.native() {
             Native::Java1_21_11(native) => Ok(native),
             _ => Err(wrong_version(MinecraftVersion::Java1_21_11)),
         }
+    }
     }
     /// Captures exact incoming packets for a bounded diagnostic interval on either version.
     /// Late-start traces retain original ordinals but cannot be replayed without

@@ -144,6 +144,12 @@ include = [
 name = "voxrig"
 path = "src/lib.rs"
 
+[features]
+# Version-specific APIs outside the common `Client` (`Client::native`,
+# `voxrig::versions::java_1_16_1`, `voxrig::versions::java_1_21_11`).
+# See docs/native-feature.md.
+native = []
+
 [dependencies]
 anyhow = "1"
 byteorder = "1"
@@ -156,3 +162,192 @@ tokio = { version = "1", features = ["full"] }
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util"] }
 hex = "0.4"
+
+# Examples that use the version-specific APIs.
+[[example]]
+name = "api_surface_probe"
+required-features = ["native"]
+
+[[example]]
+name = "attack_probe"
+required-features = ["native"]
+
+[[example]]
+name = "bubble_probe"
+required-features = ["native"]
+
+[[example]]
+name = "chat_sound_probe"
+required-features = ["native"]
+
+[[example]]
+name = "circuit_observation_probe"
+required-features = ["native"]
+
+[[example]]
+name = "click_probe"
+required-features = ["native"]
+
+[[example]]
+name = "client_recovery_probe"
+required-features = ["native"]
+
+[[example]]
+name = "climb_probe"
+required-features = ["native"]
+
+[[example]]
+name = "coherent_observation_probe"
+required-features = ["native"]
+
+[[example]]
+name = "common_native_probe"
+required-features = ["native"]
+
+[[example]]
+name = "control_probe"
+required-features = ["native"]
+
+[[example]]
+name = "cooperation_probe"
+required-features = ["native"]
+
+[[example]]
+name = "crafting_probe"
+required-features = ["native"]
+
+[[example]]
+name = "crafting_table_probe"
+required-features = ["native"]
+
+[[example]]
+name = "door_probe"
+required-features = ["native"]
+
+[[example]]
+name = "endurance"
+required-features = ["native"]
+
+[[example]]
+name = "entity_probe"
+required-features = ["native"]
+
+[[example]]
+name = "flat_100_probe"
+required-features = ["native"]
+
+[[example]]
+name = "food_equipment_probe"
+required-features = ["native"]
+
+[[example]]
+name = "furnace_observation_probe"
+required-features = ["native"]
+
+[[example]]
+name = "furnace_probe"
+required-features = ["native"]
+
+[[example]]
+name = "hunger_probe"
+required-features = ["native"]
+
+[[example]]
+name = "inspect_inventory"
+required-features = ["native"]
+
+[[example]]
+name = "interaction_probe"
+required-features = ["native"]
+
+[[example]]
+name = "inventory_probe"
+required-features = ["native"]
+
+[[example]]
+name = "jump_probe"
+required-features = ["native"]
+
+[[example]]
+name = "liquid_probe"
+required-features = ["native"]
+
+[[example]]
+name = "metrics_probe"
+required-features = ["native"]
+
+[[example]]
+name = "modern_operations_probe"
+required-features = ["native"]
+
+[[example]]
+name = "multi_bot"
+required-features = ["native"]
+
+[[example]]
+name = "packet_trace_probe"
+required-features = ["native"]
+
+[[example]]
+name = "phase2_course"
+required-features = ["native"]
+
+[[example]]
+name = "player_observation_probe"
+required-features = ["native"]
+
+[[example]]
+name = "shape_landing_probe"
+required-features = ["native"]
+
+[[example]]
+name = "sneak_probe"
+required-features = ["native"]
+
+[[example]]
+name = "special_block_probe"
+required-features = ["native"]
+
+[[example]]
+name = "sprint_jump_probe"
+required-features = ["native"]
+
+[[example]]
+name = "sprint_probe"
+required-features = ["native"]
+
+[[example]]
+name = "step_probe"
+required-features = ["native"]
+
+[[example]]
+name = "surface_probe"
+required-features = ["native"]
+
+[[example]]
+name = "survival_respawn_probe"
+required-features = ["native"]
+
+[[example]]
+name = "survival_state_probe"
+required-features = ["native"]
+
+[[example]]
+name = "version_control_probe"
+required-features = ["native"]
+
+[[example]]
+name = "version_interaction_probe"
+required-features = ["native"]
+
+[[example]]
+name = "wall_probe"
+required-features = ["native"]
+
+[[example]]
+name = "window_probe"
+required-features = ["native"]
+
+[[test]]
+name = "assumed_survival_scene"
+required-features = ["native"]

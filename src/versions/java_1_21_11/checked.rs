@@ -10,10 +10,12 @@
 //! must implement the same contract or declare a different one explicitly.
 //! The Java 1.16.1 survival state remains under its version module:
 //! ```
+//! # #[cfg(feature = "native")]
 //! let _: Option<voxrig::versions::java_1_16_1::survival::SurvivalState> = None;
 //! ```
 //! Survival controls are reachable; creative/command shortcuts are not:
 //! ```no_run
+//! # #[cfg(feature = "native")]
 //! async fn look(ops: &voxrig::versions::java_1_21_11::checked::Operations) {
 //!     ops.look([0.0, 0.0]).await.unwrap();
 //! }

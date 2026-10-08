@@ -6,17 +6,14 @@
 //! It deliberately does not provide pathfinding, semantic perception, planning,
 //! memory, or an AI runtime. Those belong in a consumer crate.
 //!
-//! The established `Bot` API targets Java 1.16.1 (736). [`Client`] also offers a
-//! Java 1.21.11 (774) adapter for native block observations, packet traces,
-//! outline targeting, creative inventory and block operations, direct movement,
-//! received-result-checked survival inventory swaps, and bounded stationary
-//! standing contact with own-player state observations. Bounded survival mining,
-//! material-accounted placement and dry-cube walking/jump controls through
-//! [`versions::java_1_21_11::NativeClient::checked_survival`] use separate intent, dispatch, prediction and result evidence.
-//! Mining removal alone does not authorize another mutation, and motion is not
-//! server-confirmed rest. [`versions::java_1_21_11::NativeClient::observe_client_region`] additionally
-//! reconstructs a bounded set of piston and neighbor effects, including independent
-//! moving carriers, while preserving the unchanged received-state view.
+//! [`Client`] is one API for every supported release, Java 1.16.1 (736) and
+//! Java 1.21.11 (774); the version is chosen at connect time and adapters supply
+//! the wire formats and physics. See [`client::Capabilities`] for what each
+//! version supports.
+//!
+//! The version-specific APIs (`Client::native`, `voxrig::versions::java_1_16_1`,
+//! `voxrig::versions::java_1_21_11`) sit behind the `native` feature. They are
+//! being replaced by the common API and will be removed; see `docs/native-feature.md`.
 //! Neither adapter's local cache is independent confirmation of server state.
 //! It does not implement Microsoft authentication or online-mode encryption.
 //!
@@ -57,7 +54,9 @@ pub mod versions;
 
 // The established 1.16.1 API remains source-compatible and explicitly pinned.
 pub use block_state::NativeBlockState;
-pub use connection::{Client, ConnectionConfig, Native, Observation, ObservedBlock, Region};
+#[cfg(feature = "native")]
+pub use connection::Native;
+pub use connection::{Client, ConnectionConfig, Observation, ObservedBlock, Region};
 pub use error::{Error, ErrorKind, Result};
 pub use versions::MinecraftVersion;
 // Java 1.16.1 types stay reachable inside the crate by their historical root

@@ -25,6 +25,7 @@
 - [共通の採掘（任意のblock）](common-dig.md)
 - [設置の事前確認](common-placement-check.md)
 - [inventory の補助](common-inventory-helpers.md)
+- [版固有API（feature `native`）](native-feature.md)
 - [共通の自分の状態（属性・効果・空気・entity ID）](common-player-facts.md)
 - [共通event streamの設計メモ](event-stream-design.md)
 - [Client共通化のロードマップ・現在地](client-unification.md)

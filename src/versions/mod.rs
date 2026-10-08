@@ -1,7 +1,15 @@
 //! Explicit version implementations. Wire IDs and registries never select a version implicitly.
 
+#[cfg(feature = "native")]
 pub mod java_1_16_1;
+#[cfg(not(feature = "native"))]
+#[allow(dead_code, unused_imports, clippy::enum_variant_names)] // The native surface.
+pub(crate) mod java_1_16_1;
+#[cfg(feature = "native")]
 pub mod java_1_21_11;
+#[cfg(not(feature = "native"))]
+#[allow(dead_code, unused_imports, clippy::enum_variant_names)] // The native surface.
+pub(crate) mod java_1_21_11;
 pub(crate) mod table;
 
 /// Explicit Minecraft wire and registry version for one connection.

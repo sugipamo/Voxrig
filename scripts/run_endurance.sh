@@ -3,7 +3,7 @@ set -euo pipefail
 
 mc_port="${MC_PORT:-25566}"
 mkdir -p reports
-cargo build --release --example endurance
+cargo build --release --features native --example endurance
 
 MC_PORT="$mc_port" BOT_COUNT=1 BOT_PREFIX=FinalOne DURATION_SECS=3600 \
   REPORT_PATH=reports/1bot-1hour.md target/release/examples/endurance

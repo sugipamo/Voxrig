@@ -3488,7 +3488,7 @@ def main():
         "baseline_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO).decode().strip(),
         "source_sha256": {path: hashlib.sha256((REPO / path).read_bytes()).hexdigest() for path in paths},
     }
-    subprocess.run(["cargo", "build", "--locked", "-j1", "--example", "common_native_probe"], cwd=REPO, env=dict(os.environ, CARGO_BUILD_JOBS="1"), check=True)
+    subprocess.run(["cargo", "build", "--locked", "-j1", "--features", "native", "--example", "common_native_probe"], cwd=REPO, env=dict(os.environ, CARGO_BUILD_JOBS="1"), check=True)
     if any(hashlib.sha256((REPO / path).read_bytes()).hexdigest() != digest
            for path, digest in runtime_inputs["source_sha256"].items()):
         raise RuntimeError("native inputs changed during build")
