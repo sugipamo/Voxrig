@@ -4822,16 +4822,27 @@ impl Bot {
             diagnostics.enter(ReaderPhase::ApplyGate, Some(id));
             let applied = self.apply_packet_diagnosed(id, p, Some(&diagnostics)).await;
             self.packet_applied.notify_waiters();
-            if applied.is_err() && self.fail_closed() {
-                // A failed reply write (the server already closed after a kick) ends
-                // reading here; the kick itself may be the next frame.
-                self.drain_disconnect_reason(None, &mut reader, compression)
-                    .await;
+            let rejected_during_disconnect = applied.as_ref().err().is_some_and(|error| {
+                self.connection.lifecycle() == ConnectionState::Disconnecting
+                    && error
+                        .diagnostic()
+                        .downcast_ref::<super::lifecycle::ProtocolDispatchRejected>()
+                        .is_some_and(|rejection| rejection.state == ConnectionState::Disconnecting)
+            });
+            if !rejected_during_disconnect {
+                if applied.is_err() && self.fail_closed() {
+                    // A failed reply write may precede the server's kick reason.
+                    self.drain_disconnect_reason(None, &mut reader, compression)
+                        .await;
+                }
+                if !applied? {
+                    break;
+                }
+                diagnostics.applied();
             }
-            if !applied? {
-                break;
-            }
-            diagnostics.applied();
+            // Intentional pre-write rejection is neither a delivered reply nor
+            // a transport end. Consume subsequent frames until actual EOF (or
+            // another real error), retaining the ordinary batch yield below.
             packets_since_yield += 1;
             if packets_since_yield == 32 {
                 // Yield without cache/gate guards even when all frames and locks are ready.
@@ -8710,6 +8721,84 @@ mod tests {
         assert!(disconnect.await.unwrap().is_ok());
         assert_eq!(lifecycle.connection_state(), ConnectionState::Disconnected);
         server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn disconnect_protocol_rejection_waits_for_transport_end_and_preserves_errors() {
+        for malformed_tail in [false, true] {
+            let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+            let port = listener.local_addr().unwrap().port();
+            let (written_tx, written_rx) = oneshot::channel();
+            let (end_tx, end_rx) = oneshot::channel();
+            let server = tokio::spawn(async move {
+                let (stream, _) = listener.accept().await.unwrap();
+                let (mut reader, mut writer) = stream.into_split();
+                read_packet(&mut reader, None).await.unwrap();
+                let (_, login) = read_packet(&mut reader, None).await.unwrap();
+                write_packet(
+                    &mut writer,
+                    None,
+                    2,
+                    &crate::client::login::test_legacy_success(&login),
+                )
+                .await
+                .unwrap();
+                // Read the caller's actual write-half shutdown, then deliver an
+                // in-flight server challenge while retaining the server half.
+                while read_packet(&mut reader, None).await.is_ok() {}
+                write_packet(&mut writer, None, 0x20, &71_i64.to_be_bytes())
+                    .await
+                    .unwrap();
+                written_tx.send(()).unwrap();
+                end_rx.await.unwrap();
+                if malformed_tail {
+                    // An overlong frame-length VarInt is a protocol failure,
+                    // distinct from the intentional admission rejection.
+                    tokio::io::AsyncWriteExt::write_all(
+                        &mut writer,
+                        &[0x80, 0x80, 0x80, 0x80, 0x80, 0],
+                    )
+                    .await
+                    .unwrap();
+                }
+            });
+            let bot = Bot::connect(
+                Server::new("127.0.0.1", port),
+                Player::offline("DiscProtocol"),
+                Arc::new(crate::SharedChunkStorage::default()),
+                ConnectionOptions::default(),
+            )
+            .await
+            .unwrap();
+            let applied = bot.packet_applied.notified();
+            tokio::pin!(applied);
+            applied.as_mut().enable();
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            let mut disconnect = tokio::spawn(async move { client.disconnect().await });
+            written_rx.await.unwrap();
+            timeout(Duration::from_secs(2), &mut applied).await.unwrap();
+            assert!(
+                timeout(Duration::from_millis(50), &mut disconnect)
+                    .await
+                    .is_err()
+            );
+            assert_eq!(bot.connection_state(), ConnectionState::Disconnecting);
+            end_tx.send(()).unwrap();
+            let result = timeout(Duration::from_secs(2), disconnect)
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(result.is_ok(), !malformed_tail);
+            assert_eq!(
+                bot.connection_state(),
+                if malformed_tail {
+                    ConnectionState::ConnectionStateUnknown
+                } else {
+                    ConnectionState::Disconnected
+                }
+            );
+            server.await.unwrap();
+        }
     }
 
     #[tokio::test]
