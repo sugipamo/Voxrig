@@ -70,6 +70,11 @@ impl Bot {
             }),
             received_pose: receipts.pose.clone(),
             rotation: [player.yaw, player.pitch],
+            rotation_source: receipts.rotation_source,
+            on_ground: receipts.ground_source.map(|source| api::ObservedValue {
+                value: player.on_ground,
+                source,
+            }),
             game_mode: survival
                 .game_mode
                 .map(|id| api::GameMode::decode(id & 7))
@@ -323,6 +328,8 @@ impl Bot {
                 let mut player = self.player.lock().await;
                 player.yaw = rotation[0];
                 player.pitch = rotation[1];
+                self.common_receipts.lock().await.rotation_source =
+                    Some(api::ValueSource::Submitted);
             }
             Action::SelectHotbar(slot) => {
                 self.inventory.write().await.selected_hotbar = slot;
@@ -344,6 +351,9 @@ impl Bot {
                 player.yaw = rotation[0];
                 player.pitch = rotation[1];
                 player.on_ground = false;
+                let mut receipts = self.common_receipts.lock().await;
+                receipts.rotation_source = Some(api::ValueSource::Submitted);
+                receipts.ground_source = None;
             }
             _ => {}
         }
@@ -680,6 +690,80 @@ impl crate::client::adapter::CoreOps for Bot {
 mod tests {
     use super::*;
     use crate::client::adapter::CoreOps;
+
+    #[tokio::test]
+    async fn player_capture_ground_and_rotation_keep_independent_origins_and_reset() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let initial = client.player_state().await.unwrap();
+        assert!(initial.on_ground.is_none() && initial.rotation_source.is_none());
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.physics_tick(ControlState::default(), false)
+            .await
+            .unwrap();
+        bot.physics_tick(ControlState::default(), false)
+            .await
+            .unwrap();
+        let grounded = client.player_state().await.unwrap();
+        assert_eq!(
+            grounded.on_ground,
+            Some(api::ObservedValue {
+                value: true,
+                source: api::ValueSource::Predicted,
+            })
+        );
+        bot.player.lock().await.entity_id = Some(42);
+        crate::client::tests::common_control_capture_scenario(&client).await;
+        let mut correction = Vec::new();
+        for n in [8.5f64, 65.0, 8.5] {
+            correction.extend(n.to_be_bytes());
+        }
+        correction.extend(0.0f32.to_be_bytes());
+        correction.extend(0.0f32.to_be_bytes());
+        correction.extend([0, 1]);
+        bot.apply_packet(0x35, correction).await.unwrap();
+        let corrected = client.player_state().await.unwrap();
+        assert!(corrected.on_ground.is_none());
+        assert_eq!(
+            corrected.rotation_source,
+            Some(api::ValueSource::Received {
+                sequence: corrected.receive_sequence
+            })
+        );
+        // Even an unchanged numeric angle becomes a local submission.
+        bot.look(0.0, 0.0).await.unwrap();
+        let looked = client.player_state().await.unwrap();
+        assert_eq!(looked.rotation, corrected.rotation);
+        assert_eq!(looked.rotation_source, Some(api::ValueSource::Submitted));
+        assert_eq!(
+            looked.position.as_ref().unwrap().source,
+            corrected.position.as_ref().unwrap().source
+        );
+        bot.physics_tick(ControlState::default(), false)
+            .await
+            .unwrap();
+        assert_eq!(
+            client.player_state().await.unwrap().rotation_source,
+            Some(api::ValueSource::Submitted)
+        );
+        let mut respawn = Vec::new();
+        put_string(&mut respawn, "minecraft:overworld");
+        put_string(&mut respawn, "minecraft:overworld");
+        respawn.extend([0; 8]);
+        respawn.extend([0, 255, 0, 0, 1]);
+        bot.apply_packet(0x3a, respawn).await.unwrap();
+        let reset = client.player_state().await.unwrap();
+        assert_ne!(
+            reset.session.world_generation,
+            corrected.session.world_generation
+        );
+        assert!(reset.on_ground.is_none() && reset.rotation_source.is_none());
+        client.disconnect().await.unwrap();
+        assert!(client.player_state().await.is_err());
+        let _ = release.send(());
+        server.await.unwrap();
+    }
 
     #[tokio::test]
     async fn received_vehicle_correction_stops_remaining_mounted_inputs() {

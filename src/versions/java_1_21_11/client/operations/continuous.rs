@@ -339,6 +339,7 @@ impl Operations {
                     state.position = Some(output.position);
                     state.rotation = output.rotation;
                     state.motion.dispatched();
+                    state.motion.on_ground = Some(output.on_ground);
                     session.dispatched(&output);
                     state.control.session = Some(session);
                     self.bot.session.changed.notify_waiters();

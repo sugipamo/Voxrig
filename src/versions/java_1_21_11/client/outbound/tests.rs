@@ -9,6 +9,57 @@ use std::{
 use tokio::io::{AsyncReadExt, AsyncWrite};
 
 #[tokio::test]
+async fn player_capture_ground_and_rotation_keep_independent_origins_and_reset() {
+    use crate::client::{GameMode, ValueSource};
+    let (session, ops, _peer) = common_ground_fixture(GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(ops.bot.clone());
+    let initial = client.player_state().await.unwrap();
+    assert!(initial.on_ground.is_none());
+    assert!(matches!(
+        initial.rotation_source,
+        Some(ValueSource::Received { .. })
+    ));
+    ops.look(initial.rotation).await.unwrap();
+    let looked = client.player_state().await.unwrap();
+    assert_eq!(looked.rotation, initial.rotation);
+    assert_eq!(looked.rotation_source, Some(ValueSource::Submitted));
+    assert_eq!(looked.position, initial.position);
+    crate::client::tests::common_control_capture_scenario(&client).await;
+    {
+        let mut state = session.state.lock().await;
+        state.motion.on_ground = Some(false);
+    }
+    let airborne = client.player_state().await.unwrap();
+    assert_eq!(
+        airborne.on_ground.unwrap(),
+        crate::client::ObservedValue {
+            value: false,
+            source: ValueSource::Predicted
+        }
+    );
+    {
+        let mut state = session.state.lock().await;
+        let mut pose = state.motion.received_pose.clone().unwrap();
+        pose.receive_sequence += 1;
+        state.motion.receive(pose);
+    }
+    assert!(client.player_state().await.unwrap().on_ground.is_none());
+    {
+        let mut state = session.state.lock().await;
+        state.loading.reset(12);
+        state.motion.invalidate(12, "world reset");
+    }
+    let reset = client.player_state().await.unwrap();
+    assert!(reset.on_ground.is_none() && reset.rotation_source.is_none());
+    assert_ne!(
+        reset.session.world_generation,
+        initial.session.world_generation
+    );
+    session.stop();
+    assert!(client.player_state().await.is_err());
+}
+
+#[tokio::test]
 async fn common_dismount_requires_receipt_before_release_and_never_replays() {
     use crate::client::{
         GameMode,

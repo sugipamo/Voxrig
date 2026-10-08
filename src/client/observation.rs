@@ -308,6 +308,13 @@ pub struct PlayerObservation {
     pub received_pose: Option<ReceivedPose>,
     /// Current local rotation; may reflect submitted look or physics.
     pub rotation: [f32; 2],
+    /// Independent origin of `rotation`; absent before a supported update in this world.
+    /// Equal numeric values do not establish a packet receipt.
+    pub rotation_source: Option<ValueSource>,
+    /// Current native model's ground flag at this same capture boundary.
+    /// Absence is not false. Corrections/reset invalidate it until a new supported
+    /// model update; this is never an own-player server ground receipt.
+    pub on_ground: Option<ObservedValue<bool>>,
     /// Latest received mode.
     pub game_mode: Option<GameMode>,
     /// Last received flight permission; None before any abilities packet.
@@ -403,6 +410,8 @@ pub(crate) struct LegacyReceipts {
     pub generation: u64,
     pub pose: Option<ReceivedPose>,
     pub position_source: Option<ValueSource>,
+    pub rotation_source: Option<ValueSource>,
+    pub ground_source: Option<ValueSource>,
     pub health: Option<ObservedValue<Health>>,
     pub may_fly: Option<bool>,
     pub selected_hotbar: Option<ObservedValue<u8>>,

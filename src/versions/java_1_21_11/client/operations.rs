@@ -598,6 +598,7 @@ impl Operations {
             .send(ids::play_serverbound::LOOK, &payload)
             .await?;
         state.rotation = rotation;
+        state.motion.rotation_source = Some(crate::client::ValueSource::Submitted);
         Ok(())
     }
     /// Submit a default item to a creative hotbar slot (0..8). No inventory echo is invented.
@@ -1366,6 +1367,11 @@ pub(super) fn common_player_in_state(
         },
         received_pose: pose,
         rotation: state.rotation,
+        rotation_source: state.motion.rotation_source,
+        on_ground: state.motion.on_ground.map(|value| api::ObservedValue {
+            value,
+            source: api::ValueSource::Predicted,
+        }),
         game_mode: native.game_mode,
         may_fly: native.abilities.map(|flags| flags & 4 != 0),
         health: native.local_player.health.as_ref().map(|health| {

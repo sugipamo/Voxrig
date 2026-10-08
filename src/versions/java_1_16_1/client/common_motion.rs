@@ -693,6 +693,11 @@ impl Bot {
             player.yaw = control.yaw;
             player.pitch = 0.0;
             player.on_ground = expected.on_ground;
+            {
+                let mut receipts = self.common_receipts.lock().await;
+                receipts.ground_source = Some(crate::client::ValueSource::Predicted);
+                receipts.rotation_source = Some(crate::client::ValueSource::Submitted);
+            }
             let mut motion = self.motion.lock().await;
             let previous = **motion;
             let previous_y = if run.record.dispatched_ticks == 0 {
@@ -937,6 +942,8 @@ impl Bot {
         run.expected_motion_revision = motion.revision();
         drop(motion);
         self.player.lock().await.on_ground = true;
+        self.common_receipts.lock().await.ground_source =
+            Some(crate::client::ValueSource::Predicted);
         *self.common_motion.lock().await = Some(run.clone());
         run
     }

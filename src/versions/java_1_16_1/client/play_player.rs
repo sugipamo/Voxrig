@@ -32,6 +32,8 @@ impl Bot {
         {
             let mut receipts = self.common_receipts.lock().await;
             receipts.generation = packet_sequence;
+            receipts.ground_source = None;
+            receipts.rotation_source = None;
             receipts.entities.clear();
             receipts.vehicles.clear();
             receipts
@@ -132,6 +134,9 @@ impl Bot {
         let dz = target.z - player.z;
         player.yaw = (-dx).atan2(dz).to_degrees() as f32;
         player.pitch = (-dy).atan2(dx.hypot(dz)).to_degrees() as f32;
+        // A direction computed from a target is not a received yaw/pitch value.
+        self.common_receipts.lock().await.rotation_source =
+            Some(crate::client::ValueSource::Predicted);
         self.emit(Event::Position(player.clone()));
         Ok(())
     }
@@ -162,6 +167,8 @@ impl Bot {
             receipts.vehicles.clear();
             receipts.pose = None;
             receipts.position_source = None;
+            receipts.ground_source = None;
+            receipts.rotation_source = None;
             receipts.health = None;
             receipts.using_item = None;
             receipts.attributes.clear();

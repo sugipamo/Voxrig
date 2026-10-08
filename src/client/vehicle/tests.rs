@@ -300,6 +300,8 @@ fn vehicle_control_requires_final_neutral_and_latches_original_mount_conflicts()
             position: None,
             received_pose: None,
             rotation: [0.; 2],
+            rotation_source: None,
+            on_ground: None,
             game_mode: Some(GameMode::Survival),
             may_fly: None,
             health: Some(received(

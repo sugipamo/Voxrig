@@ -282,6 +282,9 @@ impl Bot {
                 player.yaw = output.rotation[0];
                 player.pitch = output.rotation[1];
                 player.on_ground = output.on_ground;
+                let mut receipts = self.common_receipts.lock().await;
+                receipts.ground_source = Some(crate::client::ValueSource::Predicted);
+                receipts.rotation_source = Some(crate::client::ValueSource::Submitted);
                 player.clone()
             };
             {

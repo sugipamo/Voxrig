@@ -24,6 +24,8 @@ fn player(version: MinecraftVersion, sequence: u64) -> PlayerObservation {
         position: None,
         received_pose: None,
         rotation: [0.0; 2],
+        rotation_source: None,
+        on_ground: None,
         game_mode: None,
         may_fly: None,
         health: None,
