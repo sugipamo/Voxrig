@@ -30,10 +30,16 @@ contract; the fixture restores a received baseline after continuous control.
 Neither stopping input nor matching RCON establishes indefinite server contact.
 These short functional runs do not resolve application endurance issue #5.
 
+An additional ordered TCP regression applies the native respawn packet and seeds new-world geometry
+before the new own pose. The unguarded SDK reproduced model ground publication
+for an unavailable position. The final guard suppresses native physics updates,
+old-position movement packets and ground capture until the own pose arrives.
+
 [Evidence](evidence/player-ground-capture-20261008.json) contains captured fields,
 matched original frame records, official server identities and hashes of the
-complete local reports, traces and executable. Both traces have zero errors. The SDK source tree and commit identify the tested
-#26 implementation; the additional probe source is hashed separately.
+complete local reports, traces and executable. Both traces have zero errors. The SDK source tree and commit identify the final tested code, with #26 preserved
+as its baseline. The follow-up pre-pose guard passed the ordered regression and
+this repeated real-connection run. Probe source is hashed separately.
 An earlier modern fixture tried stationary look directly after continuous
 control and was refused by the existing admission contract; it is excluded from
 the passing runs. All owned fixture processes were stopped/reaped.

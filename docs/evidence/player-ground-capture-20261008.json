@@ -2,21 +2,32 @@
   "issue": 25,
   "recorded_on": "2026-10-08",
   "scope": "common-only vanilla functional ground/rotation capture, not endurance or Golemkit validation",
-  "sdk_commit": "02136f0f7afabca4cad9651ae36bb4d0cdaa5010",
-  "sdk_src_tree": "8649fd122ba4a8fca5844d730211e0bd3c4f40bd",
-  "probe_sha256": "5ccb20b308948184a825fd057497988ec08e21cb599f9c86f38899cc01a71ed1",
+  "sdk_base_commit": "02136f0f7afabca4cad9651ae36bb4d0cdaa5010",
+  "sdk_commit": "ec8285af2d1d7fcb60e8f158ac91ad4ad5090e55",
+  "sdk_src_tree": "3c07f55dc7f8d11b4111a6187325a5df81abea88",
+  "probe_sha256": "3a404f9c02b737fb03776c7b17e58368c82609359cc025a19af82cb751576ec5",
   "probe_source_sha256": "aa548e3f7e3df00683bfcee5d87012a9e42cdfd1b3cc84baea5fc1d161ca6a8c",
   "official_server_sha1": {
     "1.16.1": "a412fd69db1f81db3f511c1463fd304675244077",
     "1.21.11": "64bb6d763bed0a9f1d632ec347938594144943ed"
   },
+  "pre_pose_regression": {
+    "failed_before_guard": true,
+    "passed_after_guard": true,
+    "checks": [
+      "no ground with unavailable own pose",
+      "no physics movement before current own pose"
+    ],
+    "before_log_sha256": "ce56f52fedda242c1fc6d04aa405e3b338ad8b66127fbad358e1e6bbfca04fc7",
+    "after_log_sha256": "ed31fcbe6aee25c0cba42ad55f852c370ea445890d4ab4f08692d6601fba9d55"
+  },
   "runs": [
     {
       "version": "1.16.1",
       "passed": true,
-      "local_report": ".local/climbing/live/pr26-1.16.1-20261008-224658/report.json",
-      "report_sha256": "a2bf6c0dd436e193d4cfc5b8515cd6c35c33730d108471c41c5af2a8cd4efb73",
-      "trace_sha256": "2ea3f020838a4a83186cfdd01c70e0b3ba8c76d968fccedf1c12f80f374174d0",
+      "local_report": ".local/climbing/live/1.16.1-20261008-230319/report.json",
+      "report_sha256": "4dd1cb28cdba2b941591d1ab81e19988a52d8df3b3c0c42b3c829410c8fbf2d4",
+      "trace_sha256": "079f353420756b24ad61938430bc8c363b41d80445f21713f43abb0f37c2c793",
       "checks": [
         {
           "name": "correction_missing_ground",
@@ -25,11 +36,11 @@
             "version": "Java1_16_1",
             "world_generation": 1
           },
-          "receive_sequence": 63,
+          "receive_sequence": 62,
           "position": {
             "source": {
               "kind": "received",
-              "sequence": 45
+              "sequence": 42
             },
             "value": [
               0.5,
@@ -44,7 +55,7 @@
           ],
           "rotation_source": {
             "kind": "received",
-            "sequence": 45
+            "sequence": 42
           }
         },
         {
@@ -54,7 +65,7 @@
             "version": "Java1_16_1",
             "world_generation": 1
           },
-          "receive_sequence": 68,
+          "receive_sequence": 66,
           "position": {
             "source": {
               "kind": "predicted"
@@ -79,7 +90,7 @@
             "kind": "submitted"
           },
           "matching_native_frame": {
-            "ordinal": 80,
+            "ordinal": 79,
             "connection": 1,
             "direction": "serverbound",
             "phase": "play",
@@ -99,7 +110,7 @@
             "version": "Java1_16_1",
             "world_generation": 1
           },
-          "receive_sequence": 72,
+          "receive_sequence": 70,
           "position": {
             "source": {
               "kind": "predicted"
@@ -124,7 +135,7 @@
             "kind": "submitted"
           },
           "matching_native_frame": {
-            "ordinal": 89,
+            "ordinal": 86,
             "connection": 1,
             "direction": "serverbound",
             "phase": "play",
@@ -144,7 +155,7 @@
             "version": "Java1_16_1",
             "world_generation": 1
           },
-          "receive_sequence": 101,
+          "receive_sequence": 97,
           "position": {
             "source": {
               "kind": "predicted"
@@ -169,7 +180,7 @@
             "kind": "submitted"
           },
           "matching_native_frame": {
-            "ordinal": 80,
+            "ordinal": 79,
             "connection": 1,
             "direction": "serverbound",
             "phase": "play",
@@ -189,7 +200,7 @@
             "version": "Java1_16_1",
             "world_generation": 1
           },
-          "receive_sequence": 101,
+          "receive_sequence": 97,
           "position": {
             "source": {
               "kind": "predicted"
@@ -214,7 +225,7 @@
             "kind": "submitted"
           },
           "matching_native_frame": {
-            "ordinal": 80,
+            "ordinal": 79,
             "connection": 1,
             "direction": "serverbound",
             "phase": "play",
@@ -234,11 +245,11 @@
             "version": "Java1_16_1",
             "world_generation": 1
           },
-          "receive_sequence": 108,
+          "receive_sequence": 104,
           "position": {
             "source": {
               "kind": "received",
-              "sequence": 102
+              "sequence": 98
             },
             "value": [
               0.5,
@@ -262,11 +273,11 @@
             "version": "Java1_16_1",
             "world_generation": 1
           },
-          "receive_sequence": 121,
+          "receive_sequence": 112,
           "position": {
             "source": {
               "kind": "received",
-              "sequence": 109
+              "sequence": 105
             },
             "value": [
               0.5,
@@ -281,7 +292,7 @@
           ],
           "rotation_source": {
             "kind": "received",
-            "sequence": 109
+            "sequence": 105
           }
         },
         {
@@ -289,13 +300,13 @@
           "session": {
             "connection_id": 1,
             "version": "Java1_16_1",
-            "world_generation": 143
+            "world_generation": 126
           },
-          "receive_sequence": 257,
+          "receive_sequence": 214,
           "position": {
             "source": {
               "kind": "received",
-              "sequence": 144
+              "sequence": 127
             },
             "value": [
               0.5,
@@ -310,7 +321,7 @@
           ],
           "rotation_source": {
             "kind": "received",
-            "sequence": 144
+            "sequence": 127
           }
         },
         {
@@ -318,13 +329,13 @@
           "session": {
             "connection_id": 1,
             "version": "Java1_16_1",
-            "world_generation": 143
+            "world_generation": 126
           },
-          "receive_sequence": 259,
+          "receive_sequence": 239,
           "position": {
             "source": {
               "kind": "received",
-              "sequence": 259
+              "sequence": 226
             },
             "value": [
               0.5,
@@ -339,7 +350,7 @@
           ],
           "rotation_source": {
             "kind": "received",
-            "sequence": 259
+            "sequence": 226
           }
         },
         {
@@ -358,9 +369,9 @@
     {
       "version": "1.21.11",
       "passed": true,
-      "local_report": ".local/climbing/live/pr26-1.21.11-20261008-224720/report.json",
-      "report_sha256": "2903c415d811b8e54e24f996817ae548cfa87b05164d47119ee64eb994441b33",
-      "trace_sha256": "cd43690f2f309aaa67166e751445b8d3e562fcf6b8235087c784340bb6f69d3f",
+      "local_report": ".local/climbing/live/1.21.11-20261008-230342/report.json",
+      "report_sha256": "6e22453576b675bad12ad0bbe96b7094188f7b0b19dca5a400b6038ebbcd5693",
+      "trace_sha256": "b8bc0ca717c97da2bbf7843d6aa28332d5abc7261476cab14a0585bc095621dc",
       "checks": [
         {
           "name": "correction_missing_ground",
@@ -369,11 +380,11 @@
             "version": "Java1_21_11",
             "world_generation": 29
           },
-          "receive_sequence": 112,
+          "receive_sequence": 111,
           "position": {
             "source": {
               "kind": "received",
-              "sequence": 67
+              "sequence": 68
             },
             "value": [
               0.5,
@@ -388,7 +399,7 @@
           ],
           "rotation_source": {
             "kind": "received",
-            "sequence": 67
+            "sequence": 68
           }
         },
         {
@@ -578,7 +589,7 @@
             "version": "Java1_21_11",
             "world_generation": 29
           },
-          "receive_sequence": 120,
+          "receive_sequence": 121,
           "position": {
             "source": {
               "kind": "received",
@@ -606,11 +617,11 @@
             "version": "Java1_21_11",
             "world_generation": 29
           },
-          "receive_sequence": 121,
+          "receive_sequence": 122,
           "position": {
             "source": {
               "kind": "received",
-              "sequence": 121
+              "sequence": 122
             },
             "value": [
               0.5,
@@ -625,7 +636,7 @@
           ],
           "rotation_source": {
             "kind": "received",
-            "sequence": 121
+            "sequence": 122
           }
         },
         {
@@ -635,7 +646,7 @@
             "version": "Java1_21_11",
             "world_generation": 131
           },
-          "receive_sequence": 167,
+          "receive_sequence": 168,
           "position": {
             "source": {
               "kind": "received",
@@ -664,7 +675,7 @@
             "version": "Java1_21_11",
             "world_generation": 131
           },
-          "receive_sequence": 210,
+          "receive_sequence": 213,
           "position": {
             "source": {
               "kind": "received",
