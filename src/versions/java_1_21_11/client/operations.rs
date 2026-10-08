@@ -1810,3 +1810,36 @@ impl crate::client::adapter::CoreOps for Operations {
         })
     }
 }
+
+impl crate::client::adapter::ChunkOps for Operations {
+    async fn loaded_chunks(&self) -> Result<crate::client::LoadedChunks> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        Ok(crate::client::LoadedChunks {
+            session: player.session,
+            receive_sequence: state.sequence,
+            chunks: state.world.loaded_chunks().collect(),
+        })
+    }
+
+    async fn chunk(&self, position: [i32; 2]) -> Result<Option<crate::client::ChunkObservation>> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let Some((_, dimension)) = state.world.dimension.as_ref() else {
+            return Ok(None);
+        };
+        let Some((sections, light)) = state.world.column(position[0], position[1]) else {
+            return Ok(None);
+        };
+        Ok(Some(crate::client::ChunkObservation {
+            session: player.session,
+            receive_sequence: state.sequence,
+            position,
+            min_y: dimension.min_y,
+            height: dimension.height,
+            sections,
+            sky_light: light.sky,
+            block_light: light.block,
+        }))
+    }
+}

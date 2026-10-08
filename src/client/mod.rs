@@ -21,6 +21,7 @@ pub mod flight;
 pub(crate) mod fraction;
 pub mod furnace;
 pub use flight::{FlightCommand, FlightLanding, FlightRecord, FlightStage};
+pub(crate) mod chunks;
 mod geometry;
 mod hash_ops;
 pub(crate) mod identifier;
@@ -31,6 +32,7 @@ pub(crate) mod item_constructor;
 pub(crate) mod item_semantics;
 pub(crate) mod item_use;
 pub(crate) mod player_facts;
+pub use chunks::{ChunkObservation, LoadedChunks};
 pub use player_facts::{PlayerAttribute, PlayerEffect};
 mod lifecycle;
 pub use lifecycle::ConnectionRevocation;
@@ -143,7 +145,10 @@ pub mod prelude {
         MAX_VEHICLE_CONTROL_TICKS, VehicleControlId, VehicleControlRecord, VehicleControlStage,
         VehicleInput,
     };
-    pub use super::{BlockFace, Hand, ObservedValue, PlayerAttribute, PlayerEffect, ValueSource};
+    pub use super::{
+        BlockFace, ChunkObservation, Hand, LoadedChunks, ObservedValue, PlayerAttribute,
+        PlayerEffect, ValueSource,
+    };
     pub use super::{
         Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,
         ConnectionRevocation, CraftingGridReturnPlan, CraftingGridReturnStep,

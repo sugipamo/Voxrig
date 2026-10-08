@@ -1014,6 +1014,9 @@ fn apply_play(
             moved.push(0);
             responses.push((output::POSITION_LOOK, moved));
         }
+        input::UPDATE_LIGHT => {
+            state.world.update_light(payload)?;
+        }
         input::MAP_CHUNK => {
             let chunk = [r.i32()?, r.i32()?];
             let pistons = state.world.load(payload, max_chunks)?;

@@ -18,6 +18,7 @@
 - [共通の待機API](common-waits.md)
 - [共通のchange通知（event）](common-events.md)
 - [共通のblock検索とraycast](common-blocks.md)
+- [共通のchunk列（block stateと光）](common-chunks.md)
 - [共通のentity現在状態](common-entities.md)
 - [共通の継続操作（キーを押し続ける移動）](common-control.md)
 - [共通のアイテム使用](common-item-use.md)

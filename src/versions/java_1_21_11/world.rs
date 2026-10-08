@@ -21,10 +21,19 @@ impl Dimension {
     }
 }
 
+/// Received light of one column: sections from one below the dimension to one above.
+/// `None` is unknown (never received, or invalidated by a block change).
+#[derive(Clone, Default)]
+pub(crate) struct ColumnLight {
+    pub sky: Vec<Option<Arc<[u8; 2048]>>>,
+    pub block: Vec<Option<Arc<[u8; 2048]>>>,
+}
+
 #[derive(Default)]
 pub(crate) struct World {
     pub dimension: Option<(String, Dimension)>,
     chunks: HashMap<(i32, i32), Vec<Arc<[i32; 4096]>>>,
+    light: HashMap<(i32, i32), ColumnLight>,
     pub revision: u64,
 }
 
@@ -43,12 +52,61 @@ impl World {
     pub fn select_dimension(&mut self, name: String, dimension: Dimension) {
         self.dimension = Some((name, dimension));
         self.chunks.clear();
+        self.light.clear();
         self.revision += 1;
     }
     pub fn reset(&mut self) {
         self.dimension = None;
         self.chunks.clear();
+        self.light.clear();
         self.revision += 1;
+    }
+    /// A loaded column's sections (shared) and its received light.
+    pub fn column(&self, x: i32, z: i32) -> Option<(Vec<Arc<[i32; 4096]>>, ColumnLight)> {
+        let sections = self.chunks.get(&(x, z))?.clone();
+        let light = self.light.get(&(x, z)).cloned().unwrap_or_else(|| {
+            let count = sections.len() + 2;
+            ColumnLight {
+                sky: vec![None; count],
+                block: vec![None; count],
+            }
+        });
+        Some((sections, light))
+    }
+    /// ClientboundLightUpdatePacket: received arrays replace the masked sections.
+    pub fn update_light(&mut self, payload: &[u8]) -> Result<[i32; 2]> {
+        let mut r = Reader::new(payload);
+        let x = r.varint()?;
+        let z = r.varint()?;
+        let count = self.light_sections()?;
+        let mut light = self.light.get(&(x, z)).cloned().unwrap_or(ColumnLight {
+            sky: vec![None; count],
+            block: vec![None; count],
+        });
+        read_light(&mut r, &mut light, count)?;
+        r.end()?;
+        // Light is kept only with loaded terrain (it arrives with the chunk packet).
+        if self.chunks.contains_key(&(x, z)) {
+            self.light.insert((x, z), light);
+            self.revision += 1;
+        }
+        Ok([x, z])
+    }
+    fn light_sections(&self) -> Result<usize> {
+        let dimension = self.dimension.as_ref().context("light before dimension")?.1;
+        Ok((dimension.height / 16 + 2) as usize)
+    }
+    /// A received block change makes the light of its column and the eight around it
+    /// unknown: Voxrig does not propagate light (as for 1.16.1).
+    fn invalidate_light(&mut self, x: i32, z: i32) {
+        for dx in -1..=1 {
+            for dz in -1..=1 {
+                if let Some(light) = self.light.get_mut(&(x + dx, z + dz)) {
+                    light.sky.iter_mut().for_each(|s| *s = None);
+                    light.block.iter_mut().for_each(|s| *s = None);
+                }
+            }
+        }
     }
     pub fn block(&self, p: [i32; 3]) -> Option<i32> {
         let dimension = self.dimension.as_ref()?.1;
@@ -79,9 +137,12 @@ impl World {
             .get_mut(&(p[0].div_euclid(16), p[2].div_euclid(16)))
         {
             let section = &mut sections[((p[1] - dimension.min_y) / 16) as usize];
-            Arc::make_mut(section)[(p[1].rem_euclid(16) * 256
-                + p[2].rem_euclid(16) * 16
-                + p[0].rem_euclid(16)) as usize] = id;
+            let cell = (p[1].rem_euclid(16) * 256 + p[2].rem_euclid(16) * 16 + p[0].rem_euclid(16))
+                as usize;
+            if section[cell] != id {
+                Arc::make_mut(section)[cell] = id;
+                self.invalidate_light(p[0].div_euclid(16), p[2].div_euclid(16));
+            }
             self.revision += 1;
         }
         Ok(())
@@ -141,6 +202,7 @@ impl World {
         let x = r.i32()?;
         r.end()?;
         self.chunks.remove(&(x, z));
+        self.light.remove(&(x, z));
         self.revision += 1;
         Ok(())
     }
@@ -223,22 +285,69 @@ impl World {
                 r.skip_optional_nbt()?;
             }
         }
-        for _ in 0..4 {
-            let count = r.count(1024)?;
-            r.take(count * 8)?;
-        }
-        for _ in 0..2 {
-            for _ in 0..r.count(1024)? {
-                if r.byte_array(2048)?.len() != 2048 {
-                    bail!("invalid light array size");
-                }
-            }
-        }
+        // Same terrain keeps the previous light under the packet's own arrays; changed
+        // or new terrain starts unknown.
+        let count = (dimension.height / 16 + 2) as usize;
+        let unchanged = self.chunks.get(&(x, z)) == Some(&sections);
+        let mut light = match self.light.get(&(x, z)) {
+            Some(previous) if unchanged => previous.clone(),
+            _ => ColumnLight {
+                sky: vec![None; count],
+                block: vec![None; count],
+            },
+        };
+        read_light(&mut r, &mut light, count)?;
         r.end()?;
         self.chunks.insert((x, z), sections);
+        self.light.insert((x, z), light);
         self.revision += 1;
         Ok(pistons)
     }
+}
+
+/// ClientboundLightUpdatePacketData: sky, block, empty-sky and empty-block masks
+/// (BitSets), then the sky and block arrays in mask order.
+fn read_light(r: &mut Reader<'_>, light: &mut ColumnLight, count: usize) -> Result<()> {
+    let mut masks: [Vec<bool>; 4] = Default::default();
+    for mask in &mut masks {
+        *mask = vec![false; count];
+        for word in 0..r.count(1024)? {
+            let value = r.u64()?;
+            for bit in 0..64 {
+                if value & (1 << bit) != 0 {
+                    *mask
+                        .get_mut(word * 64 + bit)
+                        .context("light mask outside the dimension")? = true;
+                }
+            }
+        }
+    }
+    let [sky, block, empty_sky, empty_block] = masks;
+    for (mask, empty, layers) in [
+        (sky, empty_sky, &mut light.sky),
+        (block, empty_block, &mut light.block),
+    ] {
+        if mask.iter().zip(&empty).any(|(a, b)| *a && *b) {
+            bail!("overlapping light masks");
+        }
+        let arrays = r.count(count)?;
+        if arrays != mask.iter().filter(|b| **b).count() {
+            bail!("light array count differs from its mask");
+        }
+        for (index, layer) in layers.iter_mut().enumerate() {
+            if empty[index] {
+                *layer = Some(Arc::new([0; 2048]));
+            }
+            if mask[index] {
+                let array: [u8; 2048] = r
+                    .byte_array(2048)?
+                    .try_into()
+                    .map_err(|_| anyhow::anyhow!("invalid light array size"))?;
+                *layer = Some(Arc::new(array));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn palette(
@@ -319,6 +428,68 @@ mod tests {
         assert!(palette(&mut Reader::new(&[32]), 4096, 4, 8, 16).is_err());
         assert!(palette(&mut Reader::new(&[4, 1, 0]), 4096, 4, 8, 16).is_err());
     }
+    fn light_update(x: u8, z: u8, sky_bit: u32, empty_block_bit: u32, value: u8) -> Vec<u8> {
+        light_masks(
+            x,
+            z,
+            [1u64 << sky_bit, 0, 0, 1u64 << empty_block_bit],
+            value,
+        )
+    }
+    /// Masks: sky, block, empty sky, empty block; one sky array, no block arrays.
+    fn light_masks(x: u8, z: u8, masks: [u64; 4], value: u8) -> Vec<u8> {
+        let mut p = vec![x, z];
+        for mask in masks {
+            if mask == 0 {
+                p.push(0);
+            } else {
+                p.push(1);
+                p.extend(mask.to_be_bytes());
+            }
+        }
+        p.push(1); // one sky array
+        p.extend([0x80, 0x10]); // varint 2048
+        p.extend([value; 2048]);
+        p.push(0); // no block arrays
+        p
+    }
+
+    #[test]
+    fn light_follows_updates_and_block_changes_invalidate_columns() {
+        let mut world = World::default();
+        world.select_dimension(
+            "minecraft:overworld".into(),
+            Dimension::new(-64, 384).unwrap(),
+        );
+        // Updates for unloaded columns are validated but not kept.
+        world.update_light(&light_update(0, 0, 1, 2, 0x21)).unwrap();
+        assert!(world.column(0, 0).is_none());
+        let empty = Arc::new([0; 4096]);
+        world.chunks.insert((0, 0), vec![empty.clone(); 24]);
+        world.chunks.insert((1, 0), vec![empty; 24]);
+        world.update_light(&light_update(0, 0, 1, 2, 0x21)).unwrap();
+        world.update_light(&light_update(1, 0, 1, 2, 0x21)).unwrap();
+        let (_, light) = world.column(0, 0).unwrap();
+        assert_eq!(light.sky.len(), 26);
+        assert_eq!(light.sky[1].as_deref().map(|a| a[0]), Some(0x21));
+        assert_eq!(light.block[2].as_deref().map(|a| a[0]), Some(0));
+        assert!(light.sky[0].is_none());
+        // Repeating the same state keeps light; a real change clears it around.
+        world.set_block([0, -64, 0], 0).unwrap();
+        assert!(world.column(1, 0).unwrap().1.sky[1].is_some());
+        world.set_block([0, -64, 0], 1).unwrap();
+        assert!(world.column(0, 0).unwrap().1.sky[1].is_none());
+        assert!(world.column(1, 0).unwrap().1.sky[1].is_none());
+        // Masks outside the dimension or with overlapping bits are rejected.
+        assert!(world.update_light(&light_update(0, 0, 30, 2, 0)).is_err());
+        assert!(world.update_light(&light_update(0, 0, 3, 3, 0)).is_ok()); // different channels
+        assert!(
+            world
+                .update_light(&light_masks(0, 0, [1 << 3, 0, 1 << 3, 0], 0))
+                .is_err()
+        );
+    }
+
     #[test]
     fn negative_height_updates_unload_and_dimension_reset_are_distinct() {
         let mut world = World::default();

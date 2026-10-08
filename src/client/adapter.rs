@@ -84,6 +84,12 @@ pub(crate) trait CoreOps {
     ) -> Result<Option<i32>>;
 }
 
+/// Whole loaded chunk columns.
+pub(crate) trait ChunkOps {
+    async fn loaded_chunks(&self) -> Result<super::LoadedChunks>;
+    async fn chunk(&self, position: [i32; 2]) -> Result<Option<super::ChunkObservation>>;
+}
+
 /// Change notifications.
 pub(crate) trait EventOps {
     /// Events after `cursor`, with the receive sequence read under the same
@@ -278,6 +284,7 @@ pub(crate) trait VersionAdapter:
     + ControlOps
     + FlightOps
     + VehicleOps
+    + ChunkOps
 {
 }
 impl<T> VersionAdapter for T where
@@ -300,6 +307,7 @@ impl<T> VersionAdapter for T where
         + ControlOps
         + FlightOps
         + VehicleOps
+        + ChunkOps
 {
 }
 

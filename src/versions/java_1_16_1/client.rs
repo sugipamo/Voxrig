@@ -1,6 +1,7 @@
 //! Connection lifecycle, protocol events, observations, and player operations.
 
 mod common_api;
+mod common_chunks;
 mod common_click;
 mod common_container;
 mod common_control;

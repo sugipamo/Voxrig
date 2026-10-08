@@ -461,6 +461,21 @@ impl Client {
         crate::client::dispatch!(&self.adapter, a => SessionOps::wait_until_ready(a).await)
     }
 
+    /// Loaded chunk columns of the current world.
+    pub async fn loaded_chunks(&self) -> Result<crate::client::LoadedChunks> {
+        crate::client::dispatch!(&self.adapter, a => crate::client::adapter::ChunkOps::loaded_chunks(a).await)
+    }
+
+    /// One loaded chunk column with its received block states and light, or `None`
+    /// when it is not loaded. Sections are shared, not copied, so reading every loaded
+    /// column each tick is cheap. See `docs/common-chunks.md`.
+    pub async fn chunk(
+        &self,
+        position: [i32; 2],
+    ) -> Result<Option<crate::client::ChunkObservation>> {
+        crate::client::dispatch!(&self.adapter, a => crate::client::adapter::ChunkOps::chunk(a, position).await)
+    }
+
     /// Gets all cells under one world lock; this does not send confirmation commands.
     pub async fn observe_region(&self, region: Region) -> Result<Observation> {
         region.volume()?;
