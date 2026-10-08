@@ -1,0 +1,109 @@
+{
+  "baseline": "14a27d9",
+  "scope": "Common-only real connections after protocol handler extraction, unchanged official loopback servers; multipart checks prove dispatch/refusal and received state, not damage.",
+  "runs": [
+    {
+      "version": "1.16.1",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "report_sha256": "a1868fdc29d890446f88ec1cb1291cbe6dffb88b2ba1776b5e8da3c9c7f8f4be",
+      "checks": [
+        "ladder_jump",
+        "ladder_wall",
+        "ladder_sneak",
+        "ladder_stop",
+        "vine_jump",
+        "vine_wall",
+        "vine_sneak",
+        "vine_stop",
+        "scaffolding_jump",
+        "scaffolding_sneak",
+        "scaffolding_stop",
+        "waterlogged_ladder_jump",
+        "waterlogged_ladder_wall",
+        "waterlogged_ladder_sneak",
+        "waterlogged_ladder_stop",
+        "waterlogged_scaffolding_jump",
+        "waterlogged_scaffolding_sneak",
+        "waterlogged_scaffolding_stop",
+        "trapdoor_north_true",
+        "trapdoor_south_true",
+        "trapdoor_north_false",
+        "restart_sprint",
+        "teleport",
+        "mode_change",
+        "disconnect"
+      ],
+      "passed": true,
+      "trace_errors": []
+    },
+    {
+      "version": "1.21.11",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "report_sha256": "7d07584d9a8c11a46db4d4a460421f9944f02c2c81c29c478efd6141208e6059",
+      "checks": [
+        "ladder_jump",
+        "ladder_wall",
+        "ladder_sneak",
+        "ladder_stop",
+        "vine_jump",
+        "vine_wall",
+        "vine_sneak",
+        "vine_stop",
+        "scaffolding_jump",
+        "scaffolding_sneak",
+        "scaffolding_stop",
+        "waterlogged_ladder_jump",
+        "waterlogged_ladder_wall",
+        "waterlogged_ladder_sneak",
+        "waterlogged_ladder_stop",
+        "waterlogged_scaffolding_jump",
+        "waterlogged_scaffolding_sneak",
+        "waterlogged_scaffolding_stop",
+        "trapdoor_north_true",
+        "trapdoor_south_true",
+        "trapdoor_north_false",
+        "restart_sprint",
+        "teleport",
+        "mode_change",
+        "disconnect"
+      ],
+      "passed": true,
+      "trace_errors": []
+    },
+    {
+      "version": "1.16.1",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "report_sha256": "390252bc2bbdd30b2cc03b43f8bd18524c5184c4c600ebf98adc058135e99a99",
+      "checks": [
+        "original_parent_and_derived_parts",
+        "survival_wrong_handle",
+        "survival_head_dispatch",
+        "survival_wing_dispatch",
+        "creative_wrong_handle",
+        "creative_head_dispatch",
+        "creative_wing_dispatch",
+        "received_takeoff",
+        "takeoff_rejects_old_head",
+        "flying_wing_dispatch",
+        "received_death",
+        "death_rejects_old_wing",
+        "removal_rejects_old_head",
+        "replacement_keeps_old_head_retired",
+        "fresh_replacement_head_dispatch",
+        "world_change_rejects_old_head"
+      ],
+      "passed": true,
+      "trace_errors": []
+    },
+    {
+      "version": "1.21.11",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "report_sha256": "b121aa734e18c7779825155e53f15131d8f739dcea8b4a1645d8d5b99ac56f5d",
+      "checks": [
+        "modern_model_unsupported"
+      ],
+      "passed": true,
+      "trace_errors": []
+    }
+  ]
+}

@@ -72,6 +72,7 @@ use crate::versions::java_1_16_1::{
 };
 use anyhow::Context;
 mod reader_diagnostics;
+
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use reader_diagnostics::{Diagnostics as ReaderDiagnostics, Phase as ReaderPhase};
 use std::{
@@ -342,6 +343,13 @@ macro_rules! bail {
         return Err(crate::versions::java_1_16_1::Error::from(anyhow::anyhow!($($argument)*)).into())
     };
 }
+
+mod play_entities;
+mod play_inventory;
+mod play_player;
+mod play_session;
+mod play_ui;
+mod play_world;
 
 fn oxygen_level_from_air_ticks(air_ticks: i32) -> Option<u8> {
     if air_ticks < 0 {
@@ -4997,50 +5005,8 @@ impl Bot {
                 self.emit(Event::StatisticsUpdated);
             }
             0x07 => {
-                let acknowledgement = parse_digging_ack(&p)?;
-                let geometry_revision_before = self.block_geometry_revision.load(Ordering::Acquire);
-                self.world.lock().await.apply_acknowledged_block_state(
-                    acknowledgement.position,
-                    acknowledgement.block_state_id,
-                );
-                self.advance_block_geometry_revision();
-                let geometry_revision_after = self.block_geometry_revision.load(Ordering::Acquire);
-                self.world_updated.notify_waiters();
-                let confirmation = self
-                    .connection
-                    .confirm_dig_transaction_detailed(
-                        acknowledgement.position,
-                        acknowledgement.status,
-                        acknowledgement.successful,
-                    )
-                    .await;
-                if let Some(correlation) = confirmation.diagnostic_correlation {
-                    crate::lifecycle::emit_dig_lifecycle(|| {
-                        serde_json::json!({
-                            "stage": "acknowledgement_received",
-                            "correlation_id": correlation.get(),
-                            "position": {"x": acknowledgement.position.x, "y": acknowledgement.position.y, "z": acknowledgement.position.z},
-                            "status": acknowledgement.status,
-                            "successful": acknowledgement.successful,
-                            "block_state_id": acknowledgement.block_state_id,
-                            "geometry_revision_before": geometry_revision_before,
-                            "geometry_revision_after": geometry_revision_after,
-                            "pending_matched": true,
-                        })
-                    });
-                }
-                self.common_mining_target_received(
-                    [
-                        acknowledgement.position.x,
-                        acknowledgement.position.y,
-                        acknowledgement.position.z,
-                    ],
-                    acknowledgement.block_state_id,
-                    packet_sequence,
-                    Some((acknowledgement.status, acknowledgement.successful)),
-                )
-                .await?;
-                self.emit(Event::DiggingAcknowledged(acknowledgement));
+                self.receive_digging_acknowledgement(&p, packet_sequence)
+                    .await?
             }
             0x08 => self.emit(Event::BlockBreakProgress(parse_break_progress(&p)?)),
             0x09 => {
@@ -5061,25 +5027,8 @@ impl Bot {
                 };
                 self.emit(Event::BlockAction(event));
             }
-            0x0b => {
-                let (x, y, z, state_id) = self.world.lock().await.apply_block_change(&p)?;
-                self.advance_block_geometry_revision();
-                self.world_updated.notify_waiters();
-                self.common_mining_target_received([x, y, z], state_id, packet_sequence, None)
-                    .await?;
-                self.common_placement_block_received([x, y, z], state_id, packet_sequence)
-                    .await?;
-                self.emit(Event::BlockChanged { x, y, z, state_id });
-            }
-            0x0c => {
-                self.common_boss_bars.lock().await.receive(
-                    crate::MinecraftVersion::Java1_16_1,
-                    &p,
-                    packet_sequence,
-                )?;
-                self.ui.write().await.apply_boss_bar(&p)?;
-                self.emit(Event::UiStateUpdated(UiUpdateKind::BossBar));
-            }
+            0x0b => self.receive_block_change(&p, packet_sequence).await?,
+            0x0c => self.receive_boss_bar(&p, packet_sequence).await?,
             0x0d => {
                 let difficulty = Difficulty {
                     id: *p.first().context("missing difficulty")?,
@@ -5096,187 +5045,18 @@ impl Bot {
                     .receive_legacy(&p, packet_sequence)?;
                 self.emit(Event::Chat(chat));
             }
-            0x0f => {
-                let changes = self
-                    .world
-                    .lock()
-                    .await
-                    .apply_multi_block_change_with_changes(&p)?;
-                let count = changes.len();
-                if let Some(kind) =
-                    crate::client::events::bounds(changes.iter().map(|(p, _)| [p.x, p.y, p.z]))
-                {
-                    self.common_events
-                        .lock()
-                        .expect("event ledger poisoned")
-                        .record(packet_sequence, kind);
-                }
-                for (position, state_id) in changes {
-                    self.common_placement_block_received(
-                        [position.x, position.y, position.z],
-                        state_id,
-                        packet_sequence,
-                    )
-                    .await?;
-                    self.common_mining_target_received(
-                        [position.x, position.y, position.z],
-                        state_id,
-                        packet_sequence,
-                        None,
-                    )
-                    .await?;
-                }
-                self.advance_block_geometry_revision();
-                self.world_updated.notify_waiters();
-                self.emit(Event::MultiBlockChanged { count });
-            }
+            0x0f => self.receive_multi_block_change(&p, packet_sequence).await?,
             0x10 => self.emit(Event::TabCompletion(parse_tab_completion(&p)?)),
             0x11 => {
                 **self.command_tree.write().await = Some(parse_command_tree(&p)?);
                 self.emit(Event::CommandTreeUpdated);
             }
             0x12 => {
-                let mut c = Cursor::new(&p);
-                let transaction = WindowTransaction {
-                    window_id: c.read_i8()?,
-                    action: c.read_i16::<BigEndian>()?,
-                    accepted: c.read_u8()? != 0,
-                    packet_sequence,
-                };
-                self.inventory.write().await.last_transaction = Some(transaction);
-                let transaction_context = (
-                    transaction.window_id,
-                    transaction.action,
-                    transaction.accepted,
-                );
-                let confirmation_observed = self
-                    .connection
-                    .observe_window_confirmation(
-                        transaction_context.0,
-                        transaction_context.1,
-                        transaction_context.2,
-                    )
-                    .await;
-                let identity = (transaction.window_id, transaction.action);
-                let exact = self
-                    .exact_window_barriers
-                    .lock()
-                    .await
-                    .contains_key(&identity);
-                let mut inventory = self.inventory.write().await;
-                if confirmation_observed {
-                    let pending = inventory
-                        .pending_clicks
-                        .remove(&(transaction.window_id, transaction.action));
-                    if let Some(pending) = &pending {
-                        if exact && transaction.accepted && pending.mode == ClickMode::Normal {
-                            apply_accepted_normal_click(&mut inventory, pending)?;
-                        } else if !exact && !transaction.accepted {
-                            rollback_click(&mut inventory, pending);
-                        } else if !exact && pending.mode == ClickMode::Normal {
-                            rollback_click(&mut inventory, pending);
-                            predict_normal_click(
-                                &mut inventory,
-                                pending.window_id,
-                                pending.slot,
-                                pending.button,
-                            )?;
-                            sync_player_inventory_from_window(&mut inventory, pending.window_id);
-                        }
-                    }
-                }
-                drop(inventory);
-                if confirmation_observed {
-                    if !transaction.accepted {
-                        self.exact_window_barriers.lock().await.remove(&identity);
-                    } else if exact {
-                        if let Some(barrier) =
-                            self.exact_window_barriers.lock().await.get_mut(&identity)
-                        {
-                            barrier.confirmation_seen = true;
-                        }
-                        self.commit_satisfied_window_barriers().await;
-                    } else {
-                        let _ = self
-                            .connection
-                            .commit_window_barrier(transaction.window_id, transaction.action)
-                            .await;
-                    }
-                }
-                if !transaction.accepted {
-                    let mut payload = Vec::new();
-                    payload.write_i8(transaction.window_id)?;
-                    payload.write_i16::<BigEndian>(transaction.action)?;
-                    payload.push(1);
-                    self.send_protocol(0x07, &payload).await?;
-                }
-                self.common_inventory_reply_received(transaction).await;
-                self.common_click_reply_received(transaction).await;
-                self.common_crafting_reply_received(transaction).await;
-                self.common_transfer_reply_received(transaction).await;
-                self.common_container_return_reply(transaction).await;
-                self.emit(Event::WindowTransaction(transaction));
+                self.receive_window_confirmation(&p, packet_sequence)
+                    .await?
             }
-            0x13 => {
-                if p.len() != 1 {
-                    return Err(crate::Error::new(
-                        crate::ErrorKind::Protocol,
-                        anyhow::anyhow!("invalid close window payload length"),
-                    ));
-                }
-                let window_id = *p.first().context("missing closed window ID")? as i8;
-                self.common_container_close_received(i32::from(window_id), packet_sequence)
-                    .await;
-                let mut inventory = self.inventory.write().await;
-                if inventory
-                    .open_window
-                    .as_ref()
-                    .is_some_and(|window| window.id == window_id)
-                {
-                    inventory.open_window = None;
-                }
-                {
-                    let mut receipts = self.common_receipts.lock().await;
-                    if receipts
-                        .container
-                        .as_ref()
-                        .is_some_and(|screen| screen.window == i32::from(window_id))
-                    {
-                        receipts.container = None;
-                        receipts.inventory.window_id = Some(0);
-                    }
-                }
-                inventory.last_transaction = None;
-                inventory.merchant_offers = None;
-                inventory.windows.remove(&window_id);
-                inventory.properties.retain(|(id, _), _| *id != window_id);
-                inventory
-                    .pending_clicks
-                    .retain(|(id, _), _| *id != window_id);
-                let mut furnace_window_position = self.furnace_window_position.lock().await;
-                if furnace_window_position.is_some_and(|(id, _)| id == window_id) {
-                    *furnace_window_position = None;
-                }
-                drop(furnace_window_position);
-                drop(inventory);
-                self.emit(Event::WindowClosed { window_id });
-            }
-            0x14 => {
-                let (window_id, slots) = parse_window_items(&p)?;
-                let mut inventory = self.inventory.write().await;
-                self.common_receipts.lock().await.window_items(
-                    window_id,
-                    &slots,
-                    packet_sequence,
-                )?;
-                apply_window_items(&mut inventory, window_id, slots);
-                drop(inventory);
-                self.commit_satisfied_window_barriers().await;
-                self.emit(Event::InventoryUpdated {
-                    window_id,
-                    packet_sequence,
-                });
-            }
+            0x13 => self.receive_close_window(&p, packet_sequence).await?,
+            0x14 => self.receive_window_items(&p, packet_sequence).await?,
             0x15 => {
                 let mut c = Cursor::new(&p);
                 let property = WindowProperty {
@@ -5291,18 +5071,7 @@ impl Bot {
                     .insert((property.window_id, property.property), property.value);
                 self.emit(Event::WindowProperty(property));
             }
-            0x16 => {
-                let mut update = parse_set_slot(&p)?;
-                update.packet_sequence = packet_sequence;
-                let mut inventory = self.inventory.write().await;
-                self.common_receipts.lock().await.slot(&update)?;
-                apply_slot(&mut inventory, &update)?;
-                let observed = inventory.map_snapshot(|_| update.clone());
-                drop(inventory);
-                self.emit(Event::InventorySlotObserved(observed));
-                self.commit_satisfied_window_barriers().await;
-                self.emit(Event::SlotUpdated(update));
-            }
+            0x16 => self.receive_set_slot(&p, packet_sequence).await?,
             0x17 => {
                 let mut rest = p.as_slice();
                 let item_id = get_varint(&mut rest)?;
@@ -5314,138 +5083,19 @@ impl Bot {
                     .insert(item_id, ticks);
                 self.emit(Event::ItemCooldown { item_id, ticks });
             }
-            0x18 => {
-                let mut rest = p.as_slice();
-                let channel = get_string(&mut rest)?;
-                if rest.len() > self.connection_options.max_custom_payload_bytes {
-                    bail!(
-                        "custom payload has {} bytes, limit is {}",
-                        rest.len(),
-                        self.connection_options.max_custom_payload_bytes
-                    );
-                }
-                let data = Arc::from(rest);
-                if channel == "minecraft:brand" {
-                    let mut brand_data = rest;
-                    if let Ok(brand) = get_string(&mut brand_data) {
-                        **self.server_brand.write().await = Some(brand.clone());
-                        self.emit(Event::ServerBrand(brand));
-                    }
-                }
-                self.emit(Event::CustomPayload { channel, data });
-            }
+            0x18 => self.receive_custom_payload(&p).await?,
             0x19 => self.handle_sound(&p, true)?,
-            0x1a => {
-                let mut s = p.as_slice();
-                // Decode the terminal reason before committing lifecycle.
-                // A truncated kick is malformed input and must remain
-                // classifiable as unknown by the supervisor.
-                let reason = get_string(&mut s)?;
-                self.common_receipts.lock().await.disconnect_reason =
-                    Some(crate::client::ui::UiText::LegacyJson {
-                        json: reason.clone(),
-                    });
-                self.physics.lock().await.record_disconnect();
-                self.connection
-                    .mark_terminal(TerminalClassification::Disconnected)
-                    .await;
-                self.emit(Event::Disconnected { reason });
-                return Ok(false);
-            }
+            0x1a => return self.receive_disconnect_packet(&p).await,
             0x1b => {
                 let mut c = Cursor::new(&p);
                 let entity_id = c.read_i32::<BigEndian>()?;
                 let status = c.read_i8()?;
                 self.emit(Event::EntityStatus { entity_id, status });
             }
-            0x1c => {
-                let explosion = parse_explosion(&p)?;
-                self.common_receipts
-                    .lock()
-                    .await
-                    .vehicles
-                    .interrupt_motion(self.protocol_packet_sequence.load(Ordering::Acquire));
-                self.world
-                    .lock()
-                    .await
-                    .apply_explosion_blocks(&explosion.affected_blocks);
-                self.advance_block_geometry_revision();
-                self.world_updated.notify_waiters();
-                let mut motion = self.motion.lock().await;
-                motion.velocity.x += explosion.player_motion.x;
-                motion.velocity.y += explosion.player_motion.y;
-                motion.velocity.z += explosion.player_motion.z;
-                drop(motion);
-                self.interrupt_common_motion("native explosion interrupted finite motion")
-                    .await;
-                self.emit(Event::Explosion(explosion));
-            }
-            0x1d => {
-                let (x, z) = self.world.lock().await.unload_chunk(&p)?;
-                self.advance_block_geometry_revision();
-                self.common_mining_chunk_changed([x, z]).await;
-                self.common_placement_chunk_changed([x, z]).await;
-                self.emit(Event::ChunkUnloaded { x, z });
-            }
-            0x1e => {
-                let mut c = Cursor::new(&p);
-                let change = GameStateChange {
-                    reason: c.read_u8()?,
-                    value: c.read_f32::<BigEndian>()?,
-                };
-                let mut state = self.survival.write().await;
-                match change.reason {
-                    1 => state.raining = Some(false),
-                    2 => state.raining = Some(true),
-                    3 => state.game_mode = Some(change.value as u8),
-                    7 => state.rain_level = Some(change.value),
-                    8 => state.thunder_level = Some(change.value),
-                    _ => {}
-                }
-                drop(state);
-                if change.reason == 3 {
-                    self.interrupt_common_motion(
-                        "native game mode changed after finite motion started",
-                    )
-                    .await;
-                }
-                self.emit(Event::GameStateChange(change));
-            }
-            0x1f => {
-                let mut rest = p.as_slice();
-                let window_id = i8::try_from(*rest.first().context("missing horse window ID")?)
-                    .context("horse window ID out of range")?;
-                rest = &rest[1..];
-                let declared_slots = get_varint(&mut rest)?;
-                let mut cursor = Cursor::new(rest);
-                let entity_id = cursor.read_i32::<BigEndian>()?;
-                let window = OpenWindow {
-                    id: window_id,
-                    window_type: -1,
-                    title_json: String::new(),
-                    entity_id: Some(entity_id),
-                    declared_slots: Some(declared_slots),
-                };
-                {
-                    let mut inventory = self.inventory.write().await;
-                    inventory.window_player_starts.remove(&window.id);
-                    inventory.windows.remove(&window.id);
-                    inventory.open_window = Some(window.clone());
-                    let mut receipts = self.common_receipts.lock().await;
-                    receipts.inventory.window_id = Some(i32::from(window.id));
-                    receipts.inventory.cursor = None;
-                    receipts.player_starts.remove(&window.id);
-                    receipts.container = Some(crate::client::container::ScreenReceipts::open(
-                        crate::MinecraftVersion::Java1_16_1,
-                        i32::from(window.id),
-                        None,
-                        crate::client::container::ScreenTitle::Unavailable,
-                        packet_sequence,
-                    ));
-                }
-                *self.furnace_window_position.lock().await = None;
-                self.emit(Event::WindowOpened(window));
-            }
+            0x1c => self.receive_explosion(&p).await?,
+            0x1d => self.receive_unload_chunk(&p).await?,
+            0x1e => self.receive_game_state_change(&p).await?,
+            0x1f => self.receive_horse_window(&p, packet_sequence).await?,
             0x20 => {
                 let result = self.send_protocol(0x10, &p).await;
                 crate::lifecycle::emit_protocol_timing(|| {
@@ -5457,74 +5107,11 @@ impl Bot {
                 });
                 result?;
             }
-            0x21 => match self
-                .world
-                .lock()
-                .await
-                .apply_chunk(&p, self.connection_options.max_chunks)
-            {
-                Ok((x, z)) => {
-                    self.advance_block_geometry_revision();
-                    self.world_updated.notify_waiters();
-                    self.common_mining_chunk_changed([x, z]).await;
-                    self.common_placement_chunk_changed([x, z]).await;
-                    self.emit(Event::ChunkLoaded { x, z });
-                }
-                Err(e) => self.emit(Event::Error {
-                    kind: "chunk_decode",
-                    message: e.to_string(),
-                }),
-            },
+            0x21 => self.receive_chunk_data(&p).await?,
             0x22 => self.emit(Event::WorldEvent(parse_world_event(&p)?)),
             0x23 => self.emit(Event::Particle(parse_particle(&p)?)),
-            0x24 => match self
-                .world
-                .lock()
-                .await
-                .apply_light(&p, self.connection_options.max_chunks)
-            {
-                Ok((x, z)) => {
-                    self.world_updated.notify_waiters();
-                    self.emit(Event::ChunkLightUpdated { x, z });
-                }
-                Err(e) => self.emit(Event::Error {
-                    kind: "light_decode",
-                    message: e.to_string(),
-                }),
-            },
-            0x25 => {
-                let join = parse_join(&p)?;
-                {
-                    let mut receipts = self.common_receipts.lock().await;
-                    receipts.generation = packet_sequence;
-                    receipts.entities.clear();
-                    receipts.vehicles.clear();
-                    receipts
-                        .registries
-                        .legacy_join(join.registry_codec.clone(), packet_sequence)?;
-                    receipts.recipes = Default::default();
-                    receipts.container = None;
-                    receipts.inventory.window_id = None;
-                    receipts.inventory.cursor = None;
-                    receipts.player_starts.clear();
-                }
-                let mut player = self.player.lock().await;
-                player.entity_id = Some(join.entity_id);
-                player.spawned = true;
-                drop(player);
-                *self.oxygen_level.lock().await = Some(protocol_default_oxygen_level());
-                *self.local_pose.lock().await = Some(0);
-                let mut survival = self.survival.write().await;
-                survival.game_mode = Some(join.game_mode);
-                survival.previous_game_mode = Some(join.previous_game_mode);
-                survival.dimension = Some(join.dimension);
-                survival.world_name = Some(join.world_name);
-                drop(survival);
-                self.ready.notify_waiters();
-                self.emit(Event::Spawn);
-                self.set_client_settings_protocol(self.client_settings().await)
-                    .await?;
-            }
+            0x24 => self.receive_light_update(&p).await?,
+            0x25 => self.receive_join_game(&p, packet_sequence).await?,
             0x26 => {
                 let update = parse_map_update(&p)?;
                 self.maps
@@ -5538,36 +5125,8 @@ impl Bot {
                 self.inventory.write().await.merchant_offers = Some(offers.clone());
                 self.emit(Event::MerchantOffers(offers));
             }
-            0x28 | 0x29 => {
-                let mut rest = p.as_slice();
-                let entity_id = get_varint(&mut rest)?;
-                if let Some(entity) = write_entity_update(&self.entities)
-                    .await
-                    .entities
-                    .get_mut(&entity_id)
-                {
-                    apply_relative(entity, &p, id == 0x29)?;
-                    self.emit(Event::EntityUpdated(entity.clone()));
-                }
-            }
-            0x2a => {
-                let mut rest = p.as_slice();
-                let entity_id = get_varint(&mut rest)?;
-                if let Some(entity) = write_entity_update(&self.entities)
-                    .await
-                    .entities
-                    .get_mut(&entity_id)
-                {
-                    entity.yaw = f32::from(*rest.first().context("missing entity yaw")? as i8)
-                        * 360.0
-                        / 256.0;
-                    entity.pitch = f32::from(*rest.get(1).context("missing entity pitch")? as i8)
-                        * 360.0
-                        / 256.0;
-                    entity.on_ground = *rest.get(2).context("missing entity ground flag")? != 0;
-                    self.emit(Event::EntityUpdated(entity.clone()));
-                }
-            }
+            0x28 | 0x29 => self.receive_entity_relative_move(&p, id).await?,
+            0x2a => self.receive_entity_rotation(&p).await?,
             0x2b => {
                 // Original base MoveEntity contains only the entity ID, no ground flag.
                 let mut rest = p.as_slice();
@@ -5576,41 +5135,7 @@ impl Bot {
                     bail!("invalid base entity packet");
                 }
             }
-            0x2c => {
-                let mut cursor = Cursor::new(&p);
-                let pose = VehiclePose {
-                    position: Vec3 {
-                        x: cursor.read_f64::<BigEndian>()?,
-                        y: cursor.read_f64::<BigEndian>()?,
-                        z: cursor.read_f64::<BigEndian>()?,
-                    },
-                    yaw: cursor.read_f32::<BigEndian>()?,
-                    pitch: cursor.read_f32::<BigEndian>()?,
-                };
-                validate_position(pose.position.x, pose.position.y, pose.position.z)?;
-                if !pose.yaw.is_finite() || !pose.pitch.is_finite() {
-                    bail!("vehicle position contains a non-finite rotation");
-                }
-                self.common_receipts
-                    .lock()
-                    .await
-                    .vehicles
-                    .interrupt_motion(self.protocol_packet_sequence.load(Ordering::Acquire));
-                if let Some(vehicle) = self.vehicle().await {
-                    if let Some(tracked) = self
-                        .entities
-                        .write()
-                        .await
-                        .entities
-                        .get_mut(&vehicle.entity_id)
-                    {
-                        tracked.position = pose.position;
-                        tracked.yaw = pose.yaw;
-                        tracked.pitch = pose.pitch;
-                    }
-                }
-                self.emit(Event::VehiclePosition(pose));
-            }
+            0x2c => self.receive_vehicle_position(&p).await?,
             0x2d => {
                 let mut rest = p.as_slice();
                 let hand = match get_varint(&mut rest)? {
@@ -5620,206 +5145,22 @@ impl Bot {
                 };
                 self.emit(Event::BookOpened { hand });
             }
-            0x2e => {
-                let mut rest = p.as_slice();
-                let id = get_varint(&mut rest)?;
-                if !(1..=127).contains(&id) {
-                    bail!("invalid open window ID {id}");
-                }
-                let window = OpenWindow {
-                    id: id as i8,
-                    window_type: get_varint(&mut rest)?,
-                    title_json: get_string(&mut rest)?,
-                    entity_id: None,
-                    declared_slots: None,
-                };
-                {
-                    let mut inventory = self.inventory.write().await;
-                    inventory.window_player_starts.remove(&window.id);
-                    inventory.windows.remove(&window.id);
-                    inventory.open_window = Some(window.clone());
-                    let mut receipts = self.common_receipts.lock().await;
-                    receipts.inventory.window_id = Some(i32::from(window.id));
-                    receipts.inventory.cursor = None;
-                    receipts.player_starts.remove(&window.id);
-                    receipts.container = Some(crate::client::container::ScreenReceipts::open(
-                        crate::MinecraftVersion::Java1_16_1,
-                        i32::from(window.id),
-                        Some(window.window_type),
-                        crate::client::container::ScreenTitle::LegacyJson {
-                            json: window.title_json.clone(),
-                        },
-                        packet_sequence,
-                    ));
-                }
-                let furnace_position = self
-                    .connection
-                    .observe_furnace_window(window.window_type)
-                    .await;
-                *self.furnace_window_position.lock().await =
-                    furnace_position.map(|position| (window.id, position));
-                self.emit(Event::WindowOpened(window));
-            }
+            0x2e => self.receive_open_window(&p, packet_sequence).await?,
             0x2f => {
                 let mut cursor = Cursor::new(&p);
                 self.emit(Event::SignEditorOpened {
                     position: BlockPos::unpack(cursor.read_u64::<BigEndian>()?),
                 });
             }
-            0x30 => {
-                let (window_id, recipe_id) = common_recipe_placement::decode_ghost(&p)?;
-                let close = self.common_container_close.lock().await.clone();
-                let mut receipts = self.common_receipts.lock().await;
-                let context = crate::client::crafting::ghost::GhostContext {
-                    generation: receipts.generation,
-                    sequence: packet_sequence,
-                    active_window: receipts.inventory.window_id,
-                    screen: receipts.container.clone(),
-                    close,
-                    registries: receipts.registries.clone(),
-                };
-                receipts.recipe_ghost = Some(crate::client::crafting::ghost::GhostReceipts::named(
-                    context,
-                    i32::from(window_id),
-                    recipe_id.clone(),
-                    &receipts.recipes,
-                ));
-                drop(receipts);
-                self.emit(Event::CraftRecipeResponse {
-                    window_id,
-                    recipe_id,
-                });
-            }
-            0x31 => {
-                let mut c = Cursor::new(&p);
-                let flags = c.read_i8()? as u8;
-                let mut state = self.survival.write().await;
-                state.invulnerable = flags & 0x01 != 0;
-                state.flying = flags & 0x02 != 0;
-                state.flying_allowed = flags & 0x04 != 0;
-                let mut receipts = self.common_receipts.lock().await;
-                receipts.may_fly = Some(state.flying_allowed);
-                receipts.abilities = Some(crate::client::received(
-                    flags,
-                    self.protocol_packet_sequence.load(Ordering::Acquire),
-                ));
-                if !state.flying_allowed {
-                    receipts.requested_flying = false;
-                }
-                drop(receipts);
-                state.creative_mode = flags & 0x08 != 0;
-                state.flying_speed = c.read_f32::<BigEndian>()?;
-                state.walking_speed = c.read_f32::<BigEndian>()?;
-                drop(state);
-                self.emit(Event::SurvivalStateUpdated);
-            }
-            0x32 => {
-                let event = parse_combat_event(&p)?;
-                if let crate::versions::java_1_16_1::CombatEvent::Death {
-                    player_id,
-                    message_json,
-                    ..
-                } = &event
-                {
-                    if Some(*player_id) == lock_packet_state(&self.player).await.entity_id {
-                        self.common_receipts.lock().await.death_message =
-                            Some(crate::client::received(
-                                crate::client::ui::UiText::LegacyJson {
-                                    json: message_json.clone(),
-                                },
-                                packet_sequence,
-                            ));
-                    }
-                }
-                self.emit(Event::Combat(event));
-            }
-            0x33 => {
-                self.common_player_list.lock().await.receive(
-                    crate::MinecraftVersion::Java1_16_1,
-                    id,
-                    &p,
-                    packet_sequence,
-                )?;
-                let mut players = self.players.write().await;
-                let (action, uuids) = apply_player_info(&mut players, &p)?;
-                drop(players);
-                self.emit(Event::PlayerListUpdated { action, uuids });
-            }
-            0x34 => {
-                let mut rest = p.as_slice();
-                let source_anchor = get_varint(&mut rest)?;
-                let mut cursor = Cursor::new(rest);
-                let target = Vec3 {
-                    x: cursor.read_f64::<BigEndian>()?,
-                    y: cursor.read_f64::<BigEndian>()?,
-                    z: cursor.read_f64::<BigEndian>()?,
-                };
-                let consumed = cursor.position() as usize;
-                rest = &rest[consumed..];
-                let is_entity = *rest.first().context("missing face-player entity flag")? != 0;
-                rest = &rest[1..];
-                if is_entity {
-                    let _ = get_varint(&mut rest)?;
-                    let _ = get_varint(&mut rest)?;
-                }
-                let mut player = self.player.lock().await;
-                let source_y = player.y + if source_anchor == 1 { 1.62 } else { 0.0 };
-                let dx = target.x - player.x;
-                let dy = target.y - source_y;
-                let dz = target.z - player.z;
-                player.yaw = (-dx).atan2(dz).to_degrees() as f32;
-                player.pitch = (-dy).atan2(dx.hypot(dz)).to_degrees() as f32;
-                self.emit(Event::Position(player.clone()));
-            }
+            0x30 => self.receive_recipe_ghost(&p, packet_sequence).await?,
+            0x31 => self.receive_player_abilities(&p).await?,
+            0x32 => self.receive_combat_event(&p, packet_sequence).await?,
+            0x33 => self.receive_player_info(&p, id, packet_sequence).await?,
+            0x34 => self.receive_face_player(&p).await?,
             0x35 => self.handle_position(&p).await?,
-            0x36 => {
-                let mut book = self.recipe_book.write().await;
-                book.apply(&p)?;
-                let mut header = p.as_slice();
-                let initial = get_varint(&mut header)? == 0;
-                self.common_receipts.lock().await.recipes.legacy_book(
-                    book.unlocked.iter().cloned().collect(),
-                    book.displayed.iter().cloned().collect(),
-                    initial,
-                    packet_sequence,
-                );
-                drop(book);
-                self.emit(Event::RecipeBookUpdated);
-            }
-            0x37 => {
-                let mut rest = p.as_slice();
-                let count = get_varint(&mut rest)?;
-                if !(0..=65_536).contains(&count) {
-                    bail!("invalid destroyed entity count {count}");
-                }
-                let mut entity_ids = Vec::with_capacity(count as usize);
-                let mut entities = self.entities.write().await;
-                for _ in 0..count {
-                    let entity_id = get_varint(&mut rest)?;
-                    entities.entities.remove(&entity_id);
-                    let mut receipts = self.common_receipts.lock().await;
-                    receipts.entities.remove(entity_id);
-                    receipts.vehicles.retire(entity_id);
-                    entity_ids.push(entity_id);
-                }
-                drop(entities);
-                self.emit(Event::EntitiesDestroyed { entity_ids });
-            }
-            0x38 => {
-                let mut rest = p.as_slice();
-                let entity_id = get_varint(&mut rest)?;
-                let effect_id = *rest.first().context("missing removed effect ID")? as i8;
-                if Some(entity_id) == self.player.lock().await.entity_id {
-                    if let Some(name) = crate::client::player_facts::effect_name(
-                        crate::MinecraftVersion::Java1_16_1,
-                        i32::from(effect_id),
-                    ) {
-                        self.common_receipts.lock().await.effects.remove(&name);
-                    }
-                    self.survival.write().await.effects.remove(&effect_id);
-                    self.emit(Event::SurvivalStateUpdated);
-                }
-            }
+            0x36 => self.receive_recipe_book(&p, packet_sequence).await?,
+            0x37 => self.receive_destroy_entities(&p).await?,
+            0x38 => self.receive_remove_effect(&p).await?,
             0x39 => {
                 let mut rest = p.as_slice();
                 let request = ResourcePackRequest {
@@ -5829,80 +5170,8 @@ impl Bot {
                 **self.resource_pack.write().await = Some(request.clone());
                 self.emit(Event::ResourcePackRequested(request));
             }
-            0x3a => {
-                let respawn = parse_respawn(&p)?;
-                {
-                    let mut receipts = self.common_receipts.lock().await;
-                    receipts.generation = packet_sequence;
-                    receipts.entities.clear();
-                    receipts.vehicles.clear();
-                    receipts.pose = None;
-                    receipts.position_source = None;
-                    receipts.health = None;
-                    receipts.using_item = None;
-                    receipts.attributes.clear();
-                    receipts.effects.clear();
-                    receipts.air_supply = None;
-                    receipts.may_fly = None;
-                    receipts.requested_flying = false;
-                    receipts.container = None;
-                    receipts.inventory.window_id = None;
-                    receipts.inventory.cursor = None;
-                    receipts.player_starts.clear();
-                    if !respawn.copy_metadata {
-                        receipts.inventory = Default::default();
-                        receipts.selected_hotbar = None;
-                        receipts.player_starts.clear();
-                    }
-                }
-                if !respawn.copy_metadata {
-                    *self.local_pose.lock().await = Some(0);
-                }
-                let mut state = self.survival.write().await;
-                state.dimension = Some(respawn.dimension.clone());
-                state.world_name = Some(respawn.world_name.clone());
-                state.game_mode = Some(respawn.game_mode);
-                state.previous_game_mode = Some(respawn.previous_game_mode);
-                self.world_time_observed.store(false, Ordering::Release);
-                let mut oxygen_level = self.oxygen_level.lock().await;
-                *oxygen_level = oxygen_level_after_respawn(*oxygen_level, respawn.copy_metadata);
-                drop(oxygen_level);
-                if !respawn.copy_metadata {
-                    state.effects.clear();
-                    state.attributes.clear();
-                }
-                drop(state);
-                self.world.lock().await.clear();
-                self.advance_block_geometry_revision();
-                **self.motion.lock().await = MotionState::default();
-                *self.positioned.lock().await = false;
-                **self.entities.write().await = EntityTracker::default();
-                if !respawn.copy_metadata {
-                    **self.inventory.write().await = InventoryState::default();
-                } else {
-                    self.inventory.write().await.last_transaction = None;
-                }
-                crate::client::respawn::received(
-                    &self.respawn_history,
-                    packet_sequence,
-                    packet_sequence,
-                );
-                self.emit(Event::Respawn(respawn));
-            }
-            0x3b => {
-                let mut rest = p.as_slice();
-                let entity_id = get_varint(&mut rest)?;
-                if let Some(entity) = write_entity_update(&self.entities)
-                    .await
-                    .entities
-                    .get_mut(&entity_id)
-                {
-                    entity.head_yaw =
-                        f32::from(*rest.first().context("missing entity head yaw")? as i8) * 360.0
-                            / 256.0;
-                    self.emit(Event::EntityUpdated(entity.clone()));
-                }
-            }
+            0x3a => self.receive_respawn(&p, packet_sequence).await?,
+            0x3b => self.receive_entity_head_yaw(&p).await?,
             0x3c => {
                 let mut rest = p.as_slice();
                 let selected = if *rest.first().context("missing advancement tab flag")? != 0 {
@@ -5914,18 +5183,7 @@ impl Bot {
                 self.advancements.write().await.selected_tab = selected;
                 self.emit(Event::AdvancementsUpdated);
             }
-            0x3d => {
-                let generation = self.common_receipts.lock().await.generation;
-                self.common_display.lock().await.receive(
-                    crate::MinecraftVersion::Java1_16_1,
-                    id,
-                    &p,
-                    packet_sequence,
-                    generation,
-                )?;
-                self.ui.write().await.apply_border(&p)?;
-                self.emit(Event::UiStateUpdated(UiUpdateKind::WorldBorder));
-            }
+            0x3d => self.receive_world_border(&p, id, packet_sequence).await?,
             0x3e => {
                 let mut rest = p.as_slice();
                 let entity_id = get_varint(&mut rest)?;
@@ -5969,85 +5227,10 @@ impl Bot {
                 self.emit(Event::SpawnPosition(position));
             }
             0x43 => {
-                self.common_scoreboard.lock().await.receive(
-                    crate::MinecraftVersion::Java1_16_1,
-                    id,
-                    &p,
-                    packet_sequence,
-                )?;
-                self.ui.write().await.apply_display(&p)?;
-                self.emit(Event::UiStateUpdated(UiUpdateKind::DisplayObjective));
+                self.receive_display_objective(&p, id, packet_sequence)
+                    .await?
             }
-            0x44 => {
-                let (entity_id, metadata) = parse_metadata(&p)?;
-                let (_, common) = crate::versions::java_1_16_1::entity::common_metadata(&p)?;
-                // The legacy decoder reads a packet to its end or fails it.
-                self.common_receipts.lock().await.entities.receive_metadata(
-                    entity_id,
-                    common,
-                    true,
-                    packet_sequence,
-                );
-                if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
-                    if let Some(MetadataValue::VarInt(pose)) = metadata.get(&6) {
-                        *self.local_pose.lock().await = Some(*pose);
-                        if *pose != 0 {
-                            self.interrupt_common_motion(
-                                "native posture changed during finite motion",
-                            )
-                            .await;
-                        }
-                    }
-                    if let Some(MetadataValue::VarInt(air_ticks)) = metadata.get(&1) {
-                        *self.oxygen_level.lock().await = oxygen_level_from_air_ticks(*air_ticks);
-                        self.common_receipts.lock().await.air_supply =
-                            Some(crate::client::received(*air_ticks, packet_sequence));
-                    }
-                    let flags_index = crate::MinecraftVersion::Java1_16_1
-                        .table()
-                        .entities
-                        .living_flags_metadata_index;
-                    if let Some(MetadataValue::Byte(flags)) = metadata.get(&flags_index) {
-                        self.common_receipts.lock().await.using_item =
-                            Some(crate::client::received(
-                                crate::client::item_use::hand_from_living_flags(*flags as u8),
-                                packet_sequence,
-                            ));
-                    }
-                }
-                let health_index = crate::MinecraftVersion::Java1_16_1
-                    .table()
-                    .entities
-                    .health_metadata_index;
-                let health = match metadata.get(&health_index) {
-                    Some(MetadataValue::Float(health)) => Some(*health),
-                    _ => None,
-                };
-                // Read the kind first so no two locks are held at once.
-                let living = self
-                    .entities
-                    .read()
-                    .await
-                    .entities
-                    .get(&entity_id)
-                    .is_some_and(|entity| {
-                        matches!(
-                            entity.kind,
-                            crate::EntityKind::Living | crate::EntityKind::Player
-                        )
-                    });
-                if let (true, Some(health)) = (living, health) {
-                    self.common_receipts.lock().await.entities.receive_health(
-                        entity_id,
-                        health,
-                        packet_sequence,
-                    );
-                }
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
-                    entity.metadata.extend(metadata);
-                    self.emit(Event::EntityUpdated(entity.clone()));
-                }
-            }
+            0x44 => self.receive_entity_metadata(&p, packet_sequence).await?,
             0x45 => {
                 let mut cursor = Cursor::new(&p);
                 let entity_id = cursor.read_i32::<BigEndian>()?;
@@ -6061,179 +5244,23 @@ impl Bot {
                     attached_to,
                 });
             }
-            0x46 => {
-                let mut rest = p.as_slice();
-                let entity_id = get_varint(&mut rest)?;
-                let mut c = Cursor::new(rest);
-                let velocity = Vec3 {
-                    x: f64::from(c.read_i16::<BigEndian>()?) / 8000.0,
-                    y: f64::from(c.read_i16::<BigEndian>()?) / 8000.0,
-                    z: f64::from(c.read_i16::<BigEndian>()?) / 8000.0,
-                };
-                if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
-                    self.motion.lock().await.velocity = velocity;
-                    *self.own_velocity_receipt.lock().await = Some((
-                        self.protocol_packet_sequence.load(Ordering::Acquire),
-                        [velocity.x, velocity.y, velocity.z],
-                    ));
-                    self.interrupt_common_motion(
-                        "native own-player velocity interrupted finite motion",
-                    )
-                    .await;
-                }
-                if let Some(entity) = write_entity_update(&self.entities)
-                    .await
-                    .entities
-                    .get_mut(&entity_id)
-                {
-                    entity.velocity = velocity;
-                    self.emit(Event::EntityUpdated(entity.clone()));
-                }
-            }
-            0x47 => {
-                let mut rest = p.as_slice();
-                let entity_id = get_varint(&mut rest)?;
-                let mut equipment = Vec::new();
-                loop {
-                    if equipment.len() >= 16 {
-                        bail!("entity equipment packet exceeds 16 entries");
-                    }
-                    let raw_slot = *rest.first().context("missing equipment slot")?;
-                    rest = &rest[1..];
-                    equipment.push(((raw_slot & 0x7f) as i8, read_slot(&mut rest)?));
-                    if raw_slot & 0x80 == 0 {
-                        break;
-                    }
-                }
-                {
-                    let mut receipts = self.common_receipts.lock().await;
-                    for (slot, stack) in &equipment {
-                        let Some(slot) = crate::client::EquipmentSlot::from_native(
-                            crate::MinecraftVersion::Java1_16_1,
-                            *slot as u8,
-                        ) else {
-                            continue;
-                        };
-                        let item = crate::client::legacy_slot(stack.as_ref())
-                            .unwrap_or(crate::client::SlotKnowledge::Unavailable);
-                        receipts
-                            .entities
-                            .receive_equipment(entity_id, slot, item, packet_sequence);
-                    }
-                }
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
-                    entity.equipment.extend(equipment);
-                    self.emit(Event::EntityUpdated(entity.clone()));
-                }
-            }
+            0x46 => self.receive_entity_velocity(&p).await?,
+            0x47 => self.receive_entity_equipment(&p, packet_sequence).await?,
             0x48 => {
                 let experience = parse_experience(&p)?;
                 self.survival.write().await.experience = experience;
                 self.emit(Event::Experience(experience));
             }
-            0x49 => {
-                let vitals = parse_vitals(&p)?;
-                self.survival.write().await.vitals = Some(vitals);
-                self.common_receipts.lock().await.health = Some(crate::client::received(
-                    crate::client::Health {
-                        health: vitals.health,
-                        food: vitals.food,
-                        saturation: vitals.saturation,
-                    },
-                    packet_sequence,
-                ));
-                self.emit(Event::Vitals(vitals));
-            }
+            0x49 => self.receive_vitals(&p, packet_sequence).await?,
             0x4a => {
-                self.common_scoreboard.lock().await.receive(
-                    crate::MinecraftVersion::Java1_16_1,
-                    id,
-                    &p,
-                    packet_sequence,
-                )?;
-                self.ui.write().await.apply_objective(&p)?;
-                self.emit(Event::UiStateUpdated(UiUpdateKind::Objective));
+                self.receive_scoreboard_objective(&p, id, packet_sequence)
+                    .await?
             }
-            0x4b => {
-                let update = crate::client::vehicle::NativePassengers::decode(&p)?;
-                let player_id = self.player.lock().await.entity_id;
-                {
-                    let mut receipts = self.common_receipts.lock().await;
-                    let receipts = &mut *receipts;
-                    receipts.vehicles.receive(
-                        &update,
-                        player_id,
-                        &receipts.entities,
-                        packet_sequence,
-                    );
-                }
-                if player_id.is_some_and(|id| update.passengers.contains(&id)) {
-                    self.retire_common_for_mount().await;
-                    self.interrupt_common_motion_operations(
-                        "actual own mount interrupted ground operations",
-                    )
-                    .await;
-                }
-                if let Some(vehicle) = self
-                    .entities
-                    .write()
-                    .await
-                    .entities
-                    .get_mut(&update.vehicle)
-                {
-                    vehicle.passengers = update.passengers.clone();
-                }
-                self.emit(Event::PassengersUpdated {
-                    vehicle_id: update.vehicle,
-                    passengers: update.passengers,
-                });
-            }
-            0x4c => {
-                self.common_teams.lock().await.receive(
-                    crate::MinecraftVersion::Java1_16_1,
-                    &p,
-                    packet_sequence,
-                )?;
-                self.ui.write().await.apply_team(&p)?;
-                self.emit(Event::UiStateUpdated(UiUpdateKind::Team));
-            }
-            0x4d => {
-                self.common_scoreboard.lock().await.receive(
-                    crate::MinecraftVersion::Java1_16_1,
-                    id,
-                    &p,
-                    packet_sequence,
-                )?;
-                self.ui.write().await.apply_score(&p)?;
-                self.emit(Event::UiStateUpdated(UiUpdateKind::Score));
-            }
-            0x4e => {
-                let mut c = Cursor::new(&p);
-                let mut state = self.survival.write().await;
-                state.world_age = c.read_i64::<BigEndian>()?;
-                state.time_of_day = c.read_i64::<BigEndian>()?;
-                self.world_time_observed.store(true, Ordering::Release);
-                let time = crate::client::WorldTime {
-                    game_time: state.world_age,
-                    day_time: state.time_of_day,
-                };
-                drop(state);
-                self.common_receipts.lock().await.world_time =
-                    Some(crate::client::received(time, packet_sequence));
-                self.emit(Event::SurvivalStateUpdated);
-            }
-            0x4f => {
-                let generation = self.common_receipts.lock().await.generation;
-                self.common_display.lock().await.receive(
-                    crate::MinecraftVersion::Java1_16_1,
-                    id,
-                    &p,
-                    packet_sequence,
-                    generation,
-                )?;
-                self.ui.write().await.apply_title(&p)?;
-                self.emit(Event::UiStateUpdated(UiUpdateKind::Title));
-            }
+            0x4b => self.receive_passengers(&p, packet_sequence).await?,
+            0x4c => self.receive_team(&p, packet_sequence).await?,
+            0x4d => self.receive_score(&p, id, packet_sequence).await?,
+            0x4e => self.receive_world_time(&p, packet_sequence).await?,
+            0x4f => self.receive_title(&p, id, packet_sequence).await?,
             0x50 => self.handle_entity_sound(&p)?,
             0x51 => self.handle_sound(&p, false)?,
             0x52 => {
@@ -6255,18 +5282,7 @@ impl Bot {
                     sound_name,
                 }));
             }
-            0x53 => {
-                let generation = self.common_receipts.lock().await.generation;
-                self.common_display.lock().await.receive(
-                    crate::MinecraftVersion::Java1_16_1,
-                    id,
-                    &p,
-                    packet_sequence,
-                    generation,
-                )?;
-                self.ui.write().await.apply_tab(&p)?;
-                self.emit(Event::UiStateUpdated(UiUpdateKind::TabList));
-            }
+            0x53 => self.receive_tab_list(&p, id, packet_sequence).await?,
             0x54 => {
                 let mut rest = p.as_slice();
                 let transaction_id = get_varint(&mut rest)?;
@@ -6275,135 +5291,16 @@ impl Bot {
                     nbt: Arc::from(rest.to_vec()),
                 }));
             }
-            0x55 => {
-                let mut rest = p.as_slice();
-                let collected_entity_id = get_varint(&mut rest)?;
-                let collector_entity_id = get_varint(&mut rest)?;
-                let count = get_varint(&mut rest)?;
-                let collected_item_name = self
-                    .entities
-                    .read()
-                    .await
-                    .entities
-                    .get(&collected_entity_id)
-                    .and_then(EntityState::item_drop)
-                    .and_then(ItemStack::name);
-                self.emit(Event::ItemCollected(ItemCollected {
-                    collected_entity_id,
-                    collector_entity_id,
-                    count,
-                    packet_sequence,
-                    collected_item_name,
-                }));
-            }
-            0x56 => {
-                let mut rest = p.as_slice();
-                let entity_id = get_varint(&mut rest)?;
-                let mut c = Cursor::new(rest);
-                if let Some(entity) = write_entity_update(&self.entities)
-                    .await
-                    .entities
-                    .get_mut(&entity_id)
-                {
-                    let position = Vec3 {
-                        x: c.read_f64::<BigEndian>()?,
-                        y: c.read_f64::<BigEndian>()?,
-                        z: c.read_f64::<BigEndian>()?,
-                    };
-                    validate_position(position.x, position.y, position.z)?;
-                    entity.position = position;
-                    entity.yaw = f32::from(c.read_i8()?) * 360.0 / 256.0;
-                    entity.pitch = f32::from(c.read_i8()?) * 360.0 / 256.0;
-                    entity.on_ground = c.read_u8()? != 0;
-                    self.emit(Event::EntityUpdated(entity.clone()));
-                }
-            }
+            0x55 => self.receive_collect_item(&p, packet_sequence).await?,
+            0x56 => self.receive_entity_teleport(&p).await?,
             0x57 => {
                 self.advancements.write().await.apply(&p)?;
                 self.emit(Event::AdvancementsUpdated);
             }
-            0x58 => {
-                let (entity_id, attributes) = parse_attributes(&p)?;
-                if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
-                    {
-                        let mut receipts = self.common_receipts.lock().await;
-                        for attribute in &attributes {
-                            let modifiers = attribute
-                                .modifiers
-                                .iter()
-                                .map(common_control::legacy_modifier)
-                                .collect();
-                            receipts.attributes.insert(
-                                crate::client::player_facts::legacy_attribute_name(&attribute.key),
-                                crate::client::received(
-                                    crate::client::player_facts::attribute(
-                                        crate::MinecraftVersion::Java1_16_1,
-                                        attribute.base,
-                                        modifiers,
-                                    ),
-                                    packet_sequence,
-                                ),
-                            );
-                        }
-                    }
-                    let mut state = self.survival.write().await;
-                    for attribute in attributes {
-                        state.attributes.insert(attribute.key.clone(), attribute);
-                    }
-                    drop(state);
-                    self.emit(Event::SurvivalStateUpdated);
-                }
-            }
-            0x59 => {
-                let (entity_id, effect) = parse_effect(&p)?;
-                if Some(entity_id) == self.player.lock().await.entity_id {
-                    self.interrupt_common_motion("native effect interrupted finite motion")
-                        .await;
-                    if let Some(name) = crate::client::player_facts::effect_name(
-                        crate::MinecraftVersion::Java1_16_1,
-                        i32::from(effect.id),
-                    ) {
-                        self.common_receipts.lock().await.effects.insert(
-                            name,
-                            crate::client::received(
-                                crate::client::player_facts::effect(
-                                    i32::from(effect.amplifier),
-                                    effect.duration_ticks,
-                                    effect.flags as u8,
-                                ),
-                                packet_sequence,
-                            ),
-                        );
-                    }
-                    self.survival
-                        .write()
-                        .await
-                        .effects
-                        .insert(effect.id, effect);
-                    self.emit(Event::SurvivalStateUpdated);
-                }
-            }
-            0x5a => {
-                let recipes = parse_recipes(&p)?;
-                let common = crate::client::crafting::recipes::legacy_entries(&recipes)?;
-                **self.server_recipes.write().await = recipes;
-                self.common_receipts
-                    .lock()
-                    .await
-                    .recipes
-                    .declare_legacy(common, packet_sequence);
-                self.emit(Event::RecipesDeclared);
-            }
-            0x5b => {
-                let tags = parse_tags(&p)?;
-                self.common_receipts.lock().await.registries.receive_tags(
-                    &p,
-                    packet_sequence,
-                    crate::MinecraftVersion::Java1_16_1,
-                )?;
-                **self.tags.write().await = tags;
-                self.emit(Event::TagsUpdated);
-            }
+            0x58 => self.receive_entity_attributes(&p, packet_sequence).await?,
+            0x59 => self.receive_entity_effect(&p, packet_sequence).await?,
+            0x5a => self.receive_declare_recipes(&p, packet_sequence).await?,
+            0x5b => self.receive_tags(&p, packet_sequence).await?,
             _ => {}
         }
         self.common_dismount_context_received().await;
