@@ -38,6 +38,7 @@ pub struct Creative {
 
 pub(crate) enum Action<'a> {
     Entity(super::EntityId, super::entity::EntityAction),
+    EntityPart(super::EntityPartId, super::entity::EntityAction),
     Look([f32; 2]),
     SelectHotbar(u8),
     SetFlying(bool),
@@ -85,6 +86,22 @@ impl Survival {
             .execute(
                 GameMode::Survival,
                 Action::Entity(target, super::entity::EntityAction::Attack { sneaking }),
+            )
+            .await
+    }
+
+    /// Dispatch one attack to a derived part of a received parent lifetime.
+    /// Rechecks mode, connection/world/spawn and currently supported geometry.
+    /// No aim, reach, cooldown, retry, collision or damage confirmation is supplied.
+    pub async fn attack_entity_part(
+        &self,
+        target: super::EntityPartId,
+        sneaking: bool,
+    ) -> Result<DispatchReceipt> {
+        self.client
+            .execute(
+                GameMode::Survival,
+                Action::EntityPart(target, super::entity::EntityAction::Attack { sneaking }),
             )
             .await
     }
@@ -376,6 +393,22 @@ impl Creative {
             .execute(
                 GameMode::Creative,
                 Action::Entity(target, super::entity::EntityAction::Attack { sneaking }),
+            )
+            .await
+    }
+
+    /// Dispatch one attack to a derived part of a received parent lifetime.
+    /// Rechecks mode, connection/world/spawn and currently supported geometry.
+    /// No aim, reach, cooldown, retry, collision or damage confirmation is supplied.
+    pub async fn attack_entity_part(
+        &self,
+        target: super::EntityPartId,
+        sneaking: bool,
+    ) -> Result<DispatchReceipt> {
+        self.client
+            .execute(
+                GameMode::Creative,
+                Action::EntityPart(target, super::entity::EntityAction::Attack { sneaking }),
             )
             .await
     }

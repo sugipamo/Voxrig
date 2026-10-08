@@ -143,6 +143,21 @@ impl Bot {
                 (0x0e, interaction.payload(target))
             }
 
+            Action::EntityPart(target, interaction) => {
+                let receipts = self.common_receipts.lock().await;
+                let session = api::SessionStamp {
+                    version: crate::MinecraftVersion::Java1_16_1,
+                    connection_id: self.connection_id(),
+                    world_generation: receipts.generation,
+                };
+                let native_id = receipts.entities.validate_part(
+                    session,
+                    target,
+                    self.protocol_packet_sequence.load(Ordering::Acquire),
+                )?;
+                (0x0e, interaction.payload_native(native_id))
+            }
+
             Action::Look(rotation) => {
                 api::operations::validate_rotation(rotation)?;
                 let player = self.player.lock().await;
@@ -1527,6 +1542,172 @@ mod tests {
         release.send(()).unwrap();
         drop(client);
         drop(bot);
+        server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn common_dragon_part_dispatch_rechecks_receipts_before_native_io() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.teleport_barrier_ticks.store(u8::MAX, Ordering::Release);
+        bot.survival.write().await.game_mode = Some(0);
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let mut spawn = vec![100];
+        spawn.extend([7; 16]);
+        put_varint(
+            &mut spawn,
+            client
+                .registry()
+                .builtin_id("minecraft:entity_type", "minecraft:ender_dragon")
+                .unwrap()
+                .value(),
+        );
+        for v in [1.0f64, 65.0, 2.0] {
+            spawn.extend(v.to_be_bytes());
+        }
+        spawn.extend([64, 0, 64]); // body yaw 90 degrees, pitch 0, head yaw 90.
+        spawn.extend([0; 6]);
+        bot.apply_packet(0x02, spawn.clone()).await.unwrap();
+        bot.apply_packet(0x44, vec![100, 15, 1, 6, 255])
+            .await
+            .unwrap();
+        let parent = client.entities().await.unwrap();
+        assert_eq!(parent.entities.len(), 1);
+        let parts = parent.entities[0].derived_parts().unwrap();
+        let part_target = |part: &api::EntityPartObservation| match part.state {
+            api::EntityPartState::Derived { target, .. } => target,
+            _ => panic!("expected supported part"),
+        };
+        let head = part_target(&parts[0]);
+        let wing = part_target(&parts[1]);
+        assert!(
+            client
+                .creative()
+                .attack_entity_part(head, false)
+                .await
+                .is_err()
+        );
+        let dispatch = client
+            .survival()
+            .attack_entity_part(head, false)
+            .await
+            .unwrap();
+        assert_eq!(dispatch.connection_id, parent.session.connection_id);
+        assert_eq!(dispatch.interaction_sequence, None);
+        assert_eq!(
+            timeout(Duration::from_secs(1), packets.recv())
+                .await
+                .unwrap()
+                .unwrap(),
+            (0x0e, vec![101, 1, 0])
+        );
+        bot.apply_packet(0x44, vec![100, 15, 1, 3, 255])
+            .await
+            .unwrap();
+        assert!(
+            client
+                .survival()
+                .attack_entity_part(head, false)
+                .await
+                .is_err()
+        );
+        client
+            .survival()
+            .attack_entity_part(wing, true)
+            .await
+            .unwrap();
+        assert_eq!(
+            timeout(Duration::from_secs(1), packets.recv())
+                .await
+                .unwrap()
+                .unwrap(),
+            (0x0e, vec![107, 1, 1])
+        );
+        for phase in [9, 10] {
+            bot.apply_packet(0x44, vec![100, 15, 1, phase, 255])
+                .await
+                .unwrap();
+            assert!(
+                client
+                    .survival()
+                    .attack_entity_part(wing, false)
+                    .await
+                    .is_err()
+            );
+        }
+        bot.apply_packet(0x44, vec![100, 15, 1, 6, 255])
+            .await
+            .unwrap();
+        let mut dead = vec![100, 8, 2];
+        dead.extend(0.0f32.to_be_bytes());
+        dead.push(255);
+        bot.apply_packet(0x44, dead).await.unwrap();
+        assert!(
+            client
+                .survival()
+                .attack_entity_part(head, false)
+                .await
+                .is_err()
+        );
+        bot.apply_packet(0x37, vec![1, 100]).await.unwrap();
+        assert!(
+            client
+                .survival()
+                .attack_entity_part(head, false)
+                .await
+                .is_err()
+        );
+        bot.apply_packet(0x02, spawn).await.unwrap();
+        bot.apply_packet(0x44, vec![100, 15, 1, 6, 255])
+            .await
+            .unwrap();
+        assert!(
+            client
+                .survival()
+                .attack_entity_part(head, false)
+                .await
+                .is_err()
+        );
+        let fresh = client.entities().await.unwrap().entities[0]
+            .derived_parts()
+            .unwrap();
+        let fresh_head = part_target(&fresh[0]);
+        assert_ne!(fresh_head, head);
+        bot.survival.write().await.game_mode = Some(1);
+        assert!(
+            client
+                .survival()
+                .attack_entity_part(fresh_head, false)
+                .await
+                .is_err()
+        );
+        client
+            .creative()
+            .attack_entity_part(fresh_head, true)
+            .await
+            .unwrap();
+        assert_eq!(
+            timeout(Duration::from_secs(1), packets.recv())
+                .await
+                .unwrap()
+                .unwrap(),
+            (0x0e, vec![101, 1, 1])
+        );
+        bot.common_receipts.lock().await.generation += 1;
+        assert!(
+            client
+                .creative()
+                .attack_entity_part(fresh_head, false)
+                .await
+                .is_err()
+        );
+        assert!(
+            timeout(Duration::from_millis(50), packets.recv())
+                .await
+                .is_err()
+        );
+        client.disconnect().await.unwrap();
+        let _ = release.send(());
         server.await.unwrap();
     }
     #[tokio::test]

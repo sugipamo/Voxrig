@@ -80,8 +80,9 @@ pub use crafting::{
 };
 pub use entity::{
     EntitiesObservation, EntityDataField, EntityDataReading, EntityDataSource, EntityDataValue,
-    EntityId, EntityMotionObservation, EntityObservation, EntityPosition, EntityPositionCorrection,
-    EntitySpawn, EntitySpawns, EquipmentSlot,
+    EntityId, EntityMotionObservation, EntityObservation, EntityPartEvidence, EntityPartId,
+    EntityPartKind, EntityPartModel, EntityPartObservation, EntityPartState, EntityPartUnavailable,
+    EntityPosition, EntityPositionCorrection, EntitySpawn, EntitySpawns, EquipmentSlot,
 };
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
 pub use item::ItemProperties;
@@ -112,7 +113,11 @@ pub mod prelude {
         ContainerOpenTargetState, ContainerScreen, CursorReturnPlanStep, PlayerScreenAccess,
         ScreenId, ScreenObservation,
     };
-    pub use super::entity::{EntitiesObservation, EntityObservation, EquipmentSlot};
+    pub use super::entity::{
+        EntitiesObservation, EntityObservation, EntityPartEvidence, EntityPartId, EntityPartKind,
+        EntityPartModel, EntityPartObservation, EntityPartState, EntityPartUnavailable,
+        EquipmentSlot,
+    };
     pub use super::events::{ClientEvent, EventKind, EventLog};
     pub use super::inventory::{
         InventoryClickButton, InventoryClickId, InventoryClickRecord, InventoryClickSource,

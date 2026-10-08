@@ -8,10 +8,15 @@ use crate::{MinecraftVersion, Result};
 use std::collections::BTreeMap;
 mod data;
 mod motion;
+mod parts;
 mod state;
 pub use data::{EntityDataField, EntityDataReading, EntityDataSource};
 pub use motion::{EntityMotionObservation, EntityPosition, EntityPositionCorrection};
 pub(crate) use motion::{NativeMotion, NativeSpawnMotion};
+pub use parts::{
+    EntityPartEvidence, EntityPartId, EntityPartKind, EntityPartModel, EntityPartObservation,
+    EntityPartState, EntityPartUnavailable,
+};
 pub(crate) use state::modern_living;
 pub use state::{EntitiesObservation, EntityDataValue, EntityObservation, EquipmentSlot};
 
@@ -79,8 +84,11 @@ impl EntityAction {
     // Both pinned native serializers: VarInt entity ID, enum ordinal, action
     // fields (hand only for INTERACT), then the secondary-action boolean.
     pub(crate) fn payload(self, target: EntityId) -> Vec<u8> {
+        self.payload_native(target.native_id)
+    }
+    pub(crate) fn payload_native(self, native_id: i32) -> Vec<u8> {
         let mut payload = Vec::new();
-        crate::protocol::put_varint(&mut payload, target.native_id);
+        crate::protocol::put_varint(&mut payload, native_id);
         match self {
             Self::Interact { hand, sneaking } => {
                 crate::protocol::put_varint(&mut payload, 0);
