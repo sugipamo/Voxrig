@@ -33,8 +33,10 @@ pub(crate) mod item_components;
 pub(crate) mod item_constructor;
 pub(crate) mod item_semantics;
 pub(crate) mod item_use;
+mod placement_check;
 pub(crate) mod player_facts;
 pub use chunks::{ChunkObservation, LoadedChunks};
+pub use placement_check::PlacementCheck;
 pub use player_facts::{PlayerAttribute, PlayerEffect};
 mod lifecycle;
 pub use lifecycle::{ConnectionRevocation, ConnectionStatus};
@@ -149,7 +151,7 @@ pub mod prelude {
     };
     pub use super::{
         BlockFace, ChunkObservation, ConnectionStatus, DigEstimate, DigRecord, Hand, LoadedChunks,
-        ObservedValue, PlayerAttribute, PlayerEffect, ValueSource,
+        ObservedValue, PlacementCheck, PlayerAttribute, PlayerEffect, ValueSource,
     };
     pub use super::{
         Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,

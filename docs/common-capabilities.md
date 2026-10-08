@@ -39,6 +39,7 @@
 | `EntityState` | received health and equipment; boxes use default type dimensions only | [common-entities.md](common-entities.md) | （新設。詳細は文書を参照） |
 | `ContinuousControl` | held survival keys on terrain and in fluids; no climbing, bubble columns, flying or riding | [common-control.md](common-control.md) | （新設。詳細は文書を参照） |
 | `Digging` | any breakable block with the held item; default item speeds, received effects/attributes | [common-dig.md](common-dig.md) | （新設。詳細は文書を参照） |
+| `PlacementCheck` | received state only; cube target cell, standing eye, default entity boxes | [common-placement-check.md](common-placement-check.md) | （新設。詳細は文書を参照） |
 | `ItemUse` | use, release and use on a block face; dispatch only, results are received updates | [common-item-use.md](common-item-use.md) | （新設。詳細は文書を参照） |
 | `Chat` | unsigned chat and commands; last 256 received messages in native encoding | [common-chat.md](common-chat.md) | （新設。詳細は文書を参照） |
 | `BossBars` | received boss bars, bounded to 4096 entries | [common-boss-bars.md](common-boss-bars.md) | received ADD/partial updates/REMOVE, per-field packet ordinals and native JSON/NBT text; bounded 4096 entries, unknown-UUID updates never synthesize bars; no rendering, entity health inference or complete server catalogue |

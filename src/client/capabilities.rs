@@ -109,6 +109,8 @@ pub enum Feature {
     ItemUse,
     /// Survival digging of any breakable block, timed like the official client.
     Digging,
+    /// Received-state pre-check of one placement: loaded, reach, own player and blocking entities.
+    PlacementCheck,
     /// Received boss-bar ADD, partial updates and REMOVE.
     BossBars,
     /// Received scoreboard declarations, displays and entries.
@@ -163,6 +165,7 @@ impl Feature {
         Feature::ContinuousControl,
         Feature::ItemUse,
         Feature::Digging,
+        Feature::PlacementCheck,
         Feature::BossBars,
         Feature::Scoreboard,
         Feature::ClientManagement,
@@ -316,6 +319,10 @@ impl Capabilities {
             Feature::Digging => restricted(
                 "any breakable block with the held item; default item speeds, received effects/attributes",
                 "docs/common-dig.md",
+            ),
+            Feature::PlacementCheck => restricted(
+                "received state only; cube target cell, standing eye, default entity boxes",
+                "docs/common-placement-check.md",
             ),
             Feature::EntityState => restricted(
                 "received health and equipment; boxes use default type dimensions only",
