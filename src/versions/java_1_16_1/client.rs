@@ -4533,6 +4533,12 @@ impl Bot {
         movement_fraction: f64,
     ) -> Result<()> {
         let _coherent_state = self.coherent_state_gate.lock().await;
+        // Respawn keeps compatibility coordinates until the new own-position
+        // packet. New chunks alone cannot make that preceding-world pose valid.
+        if !*self.positioned.lock().await {
+            self.common_receipts.lock().await.ground_source = None;
+            return Ok(());
+        }
         if self.common_native_physics_paused().await {
             return Ok(());
         }

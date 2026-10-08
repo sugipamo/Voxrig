@@ -53,6 +53,32 @@ async fn main() -> anyhow::Result<()> {
                 tokio::time::sleep(Duration::from_millis(200)).await;
                 serde_json::to_value(client.player_state().await?)?
             }
+            "respawn" => serde_json::to_value(client.respawn().await?)?,
+            "player" => serde_json::to_value(client.player_state().await?)?,
+            "capture" => serde_json::to_value(
+                client
+                    .capture(Region {
+                        min: [0, 64, 0],
+                        max: [0, 66, 0],
+                    })
+                    .await?,
+            )?,
+            "look" => {
+                survival
+                    .look(serde_json::from_value(request["rotation"].clone())?)
+                    .await?;
+                serde_json::to_value(client.player_state().await?)?
+            }
+            "revoke" => {
+                let revoked = client.revoke_connection();
+                let rejected = client.player_state().await.is_err();
+                println!(
+                    "{}",
+                    serde_json::json!({"revoked":revoked,"player_rejected":rejected})
+                );
+                std::io::stdout().flush()?;
+                return Ok(());
+            }
             "start" => serde_json::to_value(survival.start_control().await?)?,
             "keys" => {
                 let controls: Controls = serde_json::from_value(request["controls"].clone())?;

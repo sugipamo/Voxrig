@@ -12,6 +12,7 @@ impl Bot {
             ));
         }
         let player = self.player.lock().await.clone();
+        let positioned = *self.positioned.lock().await;
         let survival = self.survival.read().await;
         let inventory = self.inventory.read().await;
         let receipts = self.common_receipts.lock().await;
@@ -62,7 +63,7 @@ impl Bot {
             }),
             // The compatibility player cache is updated by local 20Hz physics.
             // Retain the actual correction separately; equality is not provenance.
-            position: (*self.positioned.lock().await).then_some(api::ObservedValue {
+            position: positioned.then_some(api::ObservedValue {
                 value: [player.x, player.y, player.z],
                 source: receipts
                     .position_source
@@ -71,9 +72,11 @@ impl Bot {
             received_pose: receipts.pose.clone(),
             rotation: [player.yaw, player.pitch],
             rotation_source: receipts.rotation_source,
-            on_ground: receipts.ground_source.map(|source| api::ObservedValue {
-                value: player.on_ground,
-                source,
+            on_ground: receipts.ground_source.filter(|_| positioned).map(|source| {
+                api::ObservedValue {
+                    value: player.on_ground,
+                    source,
+                }
             }),
             game_mode: survival
                 .game_mode
@@ -690,6 +693,79 @@ impl crate::client::adapter::CoreOps for Bot {
 mod tests {
     use super::*;
     use crate::client::adapter::CoreOps;
+
+    #[tokio::test]
+    async fn respawn_chunks_before_own_pose_cannot_publish_ground_or_send_old_movement() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.physics_tick(ControlState::default(), false)
+            .await
+            .unwrap();
+        bot.physics_tick(ControlState::default(), false)
+            .await
+            .unwrap();
+        for _ in 0..2 {
+            assert_eq!(
+                tokio::time::timeout(std::time::Duration::from_secs(1), packets.recv())
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .0,
+                0x13
+            );
+        }
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let before = client.player_state().await.unwrap();
+        assert!(before.on_ground.unwrap().value);
+        let mut respawn = Vec::new();
+        put_string(&mut respawn, "minecraft:overworld");
+        put_string(&mut respawn, "world");
+        respawn.extend([0; 8]);
+        respawn.extend([0, 255, 0, 0, 1]);
+        bot.apply_packet(0x3a, respawn).await.unwrap();
+        // New-world geometry can arrive before the own-position packet. The
+        // compatibility player coordinates still belong to the preceding world.
+        {
+            let mut world = bot.world.lock().await;
+            world.apply_chunk(&[0; 14], 256).unwrap();
+            for x in 0..16 {
+                for z in 0..16 {
+                    world.set_block_for_test(BlockPos { x, y: 64, z }, 1);
+                }
+            }
+        }
+        bot.physics_tick(ControlState::default(), false)
+            .await
+            .unwrap();
+        bot.physics_tick(ControlState::default(), false)
+            .await
+            .unwrap();
+        let reset = tokio::time::timeout(std::time::Duration::from_secs(1), client.player_state())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_ne!(
+            reset.session.world_generation,
+            before.session.world_generation
+        );
+        assert!(reset.position.is_none());
+        assert!(
+            reset.on_ground.is_none(),
+            "ground derived from a preceding world's coordinates is not current pose knowledge"
+        );
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(30), packets.recv())
+                .await
+                .is_err(),
+            "physics must not submit an old-world position before the new own pose"
+        );
+        let _ = client.revoke_connection();
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
 
     #[tokio::test]
     async fn player_capture_ground_and_rotation_keep_independent_origins_and_reset() {

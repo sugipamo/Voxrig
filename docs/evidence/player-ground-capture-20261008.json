@@ -1,0 +1,714 @@
+{
+  "issue": 25,
+  "recorded_on": "2026-10-08",
+  "scope": "common-only vanilla functional ground/rotation capture, not endurance or Golemkit validation",
+  "sdk_base_commit": "02136f0f7afabca4cad9651ae36bb4d0cdaa5010",
+  "sdk_commit": "ec8285af2d1d7fcb60e8f158ac91ad4ad5090e55",
+  "sdk_src_tree": "3c07f55dc7f8d11b4111a6187325a5df81abea88",
+  "probe_sha256": "3a404f9c02b737fb03776c7b17e58368c82609359cc025a19af82cb751576ec5",
+  "probe_source_sha256": "aa548e3f7e3df00683bfcee5d87012a9e42cdfd1b3cc84baea5fc1d161ca6a8c",
+  "official_server_sha1": {
+    "1.16.1": "a412fd69db1f81db3f511c1463fd304675244077",
+    "1.21.11": "64bb6d763bed0a9f1d632ec347938594144943ed"
+  },
+  "pre_pose_regression": {
+    "failed_before_guard": true,
+    "passed_after_guard": true,
+    "checks": [
+      "no ground with unavailable own pose",
+      "no physics movement before current own pose"
+    ],
+    "before_log_sha256": "ce56f52fedda242c1fc6d04aa405e3b338ad8b66127fbad358e1e6bbfca04fc7",
+    "after_log_sha256": "ed31fcbe6aee25c0cba42ad55f852c370ea445890d4ab4f08692d6601fba9d55"
+  },
+  "runs": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "local_report": ".local/climbing/live/1.16.1-20261008-230319/report.json",
+      "report_sha256": "4dd1cb28cdba2b941591d1ab81e19988a52d8df3b3c0c42b3c829410c8fbf2d4",
+      "trace_sha256": "079f353420756b24ad61938430bc8c363b41d80445f21713f43abb0f37c2c793",
+      "checks": [
+        {
+          "name": "correction_missing_ground",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_16_1",
+            "world_generation": 1
+          },
+          "receive_sequence": 62,
+          "position": {
+            "source": {
+              "kind": "received",
+              "sequence": 42
+            },
+            "value": [
+              0.5,
+              65.0,
+              0.5
+            ]
+          },
+          "on_ground": null,
+          "rotation": [
+            0.0,
+            0.0
+          ],
+          "rotation_source": {
+            "kind": "received",
+            "sequence": 42
+          }
+        },
+        {
+          "name": "standing_prediction",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_16_1",
+            "world_generation": 1
+          },
+          "receive_sequence": 66,
+          "position": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": [
+              0.5,
+              65.0,
+              0.5
+            ]
+          },
+          "on_ground": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": true
+          },
+          "rotation": [
+            0.0,
+            0.0
+          ],
+          "rotation_source": {
+            "kind": "submitted"
+          },
+          "matching_native_frame": {
+            "ordinal": 79,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 19,
+            "body_length": 33,
+            "wire_sha256": "f979371d12c924ae48792581008ffb7361f24bc0961ced2a2acf4b3b63d0004d",
+            "body_sha256": "0fa2119a1426a8126fc074e876adc48bb47de6729a5477a8bb1967d56e82c641",
+            "body_hex": "3fe000000000000040504000000000003fe0000000000000000000000000000001"
+          },
+          "later_native_on_ground": "ClimbingProbe has the following entity data: 1b",
+          "later_native_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        },
+        {
+          "name": "jump_prediction",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_16_1",
+            "world_generation": 1
+          },
+          "receive_sequence": 70,
+          "position": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": [
+              0.5,
+              65.7531999805212,
+              0.5
+            ]
+          },
+          "on_ground": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": false
+          },
+          "rotation": [
+            25.0,
+            5.0
+          ],
+          "rotation_source": {
+            "kind": "submitted"
+          },
+          "matching_native_frame": {
+            "ordinal": 86,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 19,
+            "body_length": 33,
+            "wire_sha256": "22abf21f3d53c8706b1897e4bf8e186642c68513e8461a66bc168ad7e66d1fbe",
+            "body_sha256": "d74917d95d849bc93f06148ca9911eb46112ff88c380211028840057da0924c0",
+            "body_hex": "3fe0000000000000405070346db0ebee3fe000000000000041c8000040a0000000"
+          },
+          "later_native_on_ground": "ClimbingProbe has the following entity data: 0b",
+          "later_native_position": "ClimbingProbe has the following entity data: [0.5d, 65.7531999805212d, 0.5d]"
+        },
+        {
+          "name": "landing_prediction",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_16_1",
+            "world_generation": 1
+          },
+          "receive_sequence": 97,
+          "position": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": [
+              0.5,
+              65.0,
+              0.5
+            ]
+          },
+          "on_ground": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": true
+          },
+          "rotation": [
+            25.0,
+            5.0
+          ],
+          "rotation_source": {
+            "kind": "submitted"
+          },
+          "matching_native_frame": {
+            "ordinal": 79,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 19,
+            "body_length": 33,
+            "wire_sha256": "f979371d12c924ae48792581008ffb7361f24bc0961ced2a2acf4b3b63d0004d",
+            "body_sha256": "0fa2119a1426a8126fc074e876adc48bb47de6729a5477a8bb1967d56e82c641",
+            "body_hex": "3fe000000000000040504000000000003fe0000000000000000000000000000001"
+          },
+          "later_native_on_ground": "ClimbingProbe has the following entity data: 1b",
+          "later_native_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        },
+        {
+          "name": "stopped_local_prediction",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_16_1",
+            "world_generation": 1
+          },
+          "receive_sequence": 97,
+          "position": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": [
+              0.5,
+              65.0,
+              0.5
+            ]
+          },
+          "on_ground": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": true
+          },
+          "rotation": [
+            25.0,
+            5.0
+          ],
+          "rotation_source": {
+            "kind": "submitted"
+          },
+          "matching_native_frame": {
+            "ordinal": 79,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 19,
+            "body_length": 33,
+            "wire_sha256": "f979371d12c924ae48792581008ffb7361f24bc0961ced2a2acf4b3b63d0004d",
+            "body_sha256": "0fa2119a1426a8126fc074e876adc48bb47de6729a5477a8bb1967d56e82c641",
+            "body_hex": "3fe000000000000040504000000000003fe0000000000000000000000000000001"
+          },
+          "later_native_on_ground": "ClimbingProbe has the following entity data: 1b",
+          "later_native_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        },
+        {
+          "name": "independent_look_source",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_16_1",
+            "world_generation": 1
+          },
+          "receive_sequence": 104,
+          "position": {
+            "source": {
+              "kind": "received",
+              "sequence": 98
+            },
+            "value": [
+              0.5,
+              65.0,
+              0.5
+            ]
+          },
+          "on_ground": null,
+          "rotation": [
+            70.0,
+            0.0
+          ],
+          "rotation_source": {
+            "kind": "submitted"
+          }
+        },
+        {
+          "name": "same_coordinate_correction_clears_ground",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_16_1",
+            "world_generation": 1
+          },
+          "receive_sequence": 112,
+          "position": {
+            "source": {
+              "kind": "received",
+              "sequence": 105
+            },
+            "value": [
+              0.5,
+              65.0,
+              0.5
+            ]
+          },
+          "on_ground": null,
+          "rotation": [
+            70.0,
+            0.0
+          ],
+          "rotation_source": {
+            "kind": "received",
+            "sequence": 105
+          }
+        },
+        {
+          "name": "native_respawn_generation",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_16_1",
+            "world_generation": 126
+          },
+          "receive_sequence": 214,
+          "position": {
+            "source": {
+              "kind": "received",
+              "sequence": 127
+            },
+            "value": [
+              0.5,
+              65.1,
+              0.5
+            ]
+          },
+          "on_ground": null,
+          "rotation": [
+            0.0,
+            0.0
+          ],
+          "rotation_source": {
+            "kind": "received",
+            "sequence": 127
+          }
+        },
+        {
+          "name": "respawn_pose_has_no_old_ground",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_16_1",
+            "world_generation": 126
+          },
+          "receive_sequence": 239,
+          "position": {
+            "source": {
+              "kind": "received",
+              "sequence": 226
+            },
+            "value": [
+              0.5,
+              65.0,
+              0.5
+            ]
+          },
+          "on_ground": null,
+          "rotation": [
+            0.0,
+            0.0
+          ],
+          "rotation_source": {
+            "kind": "received",
+            "sequence": 226
+          }
+        },
+        {
+          "name": "revoke_refuses_new_capture",
+          "result": {
+            "player_rejected": true,
+            "revoked": {
+              "connection_id": 1,
+              "version": "Java1_16_1"
+            }
+          }
+        }
+      ],
+      "trace_errors": []
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "local_report": ".local/climbing/live/1.21.11-20261008-230342/report.json",
+      "report_sha256": "6e22453576b675bad12ad0bbe96b7094188f7b0b19dca5a400b6038ebbcd5693",
+      "trace_sha256": "b8bc0ca717c97da2bbf7843d6aa28332d5abc7261476cab14a0585bc095621dc",
+      "checks": [
+        {
+          "name": "correction_missing_ground",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "receive_sequence": 111,
+          "position": {
+            "source": {
+              "kind": "received",
+              "sequence": 68
+            },
+            "value": [
+              0.5,
+              65.0,
+              0.5
+            ]
+          },
+          "on_ground": null,
+          "rotation": [
+            0.0,
+            0.0
+          ],
+          "rotation_source": {
+            "kind": "received",
+            "sequence": 68
+          }
+        },
+        {
+          "name": "standing_prediction",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "receive_sequence": 118,
+          "position": {
+            "source": {
+              "kind": "submitted"
+            },
+            "value": [
+              0.5,
+              65.0,
+              0.5
+            ]
+          },
+          "on_ground": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": true
+          },
+          "rotation": [
+            0.0,
+            0.0
+          ],
+          "rotation_source": {
+            "kind": "submitted"
+          },
+          "matching_native_frame": {
+            "ordinal": 140,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 30,
+            "body_length": 33,
+            "wire_sha256": "72a43176fbe37c63cde26355d1908bc98580bbd40e319c79f61680a354f9c403",
+            "body_sha256": "0fa2119a1426a8126fc074e876adc48bb47de6729a5477a8bb1967d56e82c641",
+            "body_hex": "3fe000000000000040504000000000003fe0000000000000000000000000000001"
+          },
+          "later_native_on_ground": "ClimbingProbe has the following entity data: 1b",
+          "later_native_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        },
+        {
+          "name": "jump_prediction",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "receive_sequence": 118,
+          "position": {
+            "source": {
+              "kind": "submitted"
+            },
+            "value": [
+              0.5,
+              65.7531999805212,
+              0.5
+            ]
+          },
+          "on_ground": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": false
+          },
+          "rotation": [
+            25.0,
+            5.0
+          ],
+          "rotation_source": {
+            "kind": "submitted"
+          },
+          "matching_native_frame": {
+            "ordinal": 144,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 30,
+            "body_length": 33,
+            "wire_sha256": "f743b1f6f20f3fa3fe12d9509bbb665c017fb3112b8419ddc78039582a1b8119",
+            "body_sha256": "d74917d95d849bc93f06148ca9911eb46112ff88c380211028840057da0924c0",
+            "body_hex": "3fe0000000000000405070346db0ebee3fe000000000000041c8000040a0000000"
+          },
+          "later_native_on_ground": "ClimbingProbe has the following entity data: 0b",
+          "later_native_position": "ClimbingProbe has the following entity data: [0.5d, 65.7531999805212d, 0.5d]"
+        },
+        {
+          "name": "landing_prediction",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "receive_sequence": 119,
+          "position": {
+            "source": {
+              "kind": "submitted"
+            },
+            "value": [
+              0.5,
+              65.0,
+              0.5
+            ]
+          },
+          "on_ground": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": true
+          },
+          "rotation": [
+            25.0,
+            5.0
+          ],
+          "rotation_source": {
+            "kind": "submitted"
+          },
+          "matching_native_frame": {
+            "ordinal": 140,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 30,
+            "body_length": 33,
+            "wire_sha256": "72a43176fbe37c63cde26355d1908bc98580bbd40e319c79f61680a354f9c403",
+            "body_sha256": "0fa2119a1426a8126fc074e876adc48bb47de6729a5477a8bb1967d56e82c641",
+            "body_hex": "3fe000000000000040504000000000003fe0000000000000000000000000000001"
+          },
+          "later_native_on_ground": "ClimbingProbe has the following entity data: 1b",
+          "later_native_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        },
+        {
+          "name": "stopped_local_prediction",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "receive_sequence": 119,
+          "position": {
+            "source": {
+              "kind": "submitted"
+            },
+            "value": [
+              0.5,
+              65.0,
+              0.5
+            ]
+          },
+          "on_ground": {
+            "source": {
+              "kind": "predicted"
+            },
+            "value": true
+          },
+          "rotation": [
+            25.0,
+            5.0
+          ],
+          "rotation_source": {
+            "kind": "submitted"
+          },
+          "matching_native_frame": {
+            "ordinal": 140,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 30,
+            "body_length": 33,
+            "wire_sha256": "72a43176fbe37c63cde26355d1908bc98580bbd40e319c79f61680a354f9c403",
+            "body_sha256": "0fa2119a1426a8126fc074e876adc48bb47de6729a5477a8bb1967d56e82c641",
+            "body_hex": "3fe000000000000040504000000000003fe0000000000000000000000000000001"
+          },
+          "later_native_on_ground": "ClimbingProbe has the following entity data: 1b",
+          "later_native_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        },
+        {
+          "name": "independent_look_source",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "receive_sequence": 121,
+          "position": {
+            "source": {
+              "kind": "received",
+              "sequence": 120
+            },
+            "value": [
+              0.5,
+              65.0,
+              0.5
+            ]
+          },
+          "on_ground": null,
+          "rotation": [
+            70.0,
+            0.0
+          ],
+          "rotation_source": {
+            "kind": "submitted"
+          }
+        },
+        {
+          "name": "same_coordinate_correction_clears_ground",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "receive_sequence": 122,
+          "position": {
+            "source": {
+              "kind": "received",
+              "sequence": 122
+            },
+            "value": [
+              0.5,
+              65.0,
+              0.5
+            ]
+          },
+          "on_ground": null,
+          "rotation": [
+            70.0,
+            0.0
+          ],
+          "rotation_source": {
+            "kind": "received",
+            "sequence": 122
+          }
+        },
+        {
+          "name": "native_respawn_generation",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 131
+          },
+          "receive_sequence": 168,
+          "position": {
+            "source": {
+              "kind": "received",
+              "sequence": 132
+            },
+            "value": [
+              0.5,
+              65.1,
+              0.5
+            ]
+          },
+          "on_ground": null,
+          "rotation": [
+            0.0,
+            0.0
+          ],
+          "rotation_source": {
+            "kind": "received",
+            "sequence": 132
+          }
+        },
+        {
+          "name": "respawn_pose_has_no_old_ground",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 131
+          },
+          "receive_sequence": 213,
+          "position": {
+            "source": {
+              "kind": "received",
+              "sequence": 170
+            },
+            "value": [
+              0.5,
+              65.0,
+              0.5
+            ]
+          },
+          "on_ground": null,
+          "rotation": [
+            0.0,
+            0.0
+          ],
+          "rotation_source": {
+            "kind": "received",
+            "sequence": 170
+          }
+        },
+        {
+          "name": "revoke_refuses_new_capture",
+          "result": {
+            "player_rejected": true,
+            "revoked": {
+              "connection_id": 1,
+              "version": "Java1_21_11"
+            }
+          }
+        }
+      ],
+      "trace_errors": []
+    }
+  ]
+}

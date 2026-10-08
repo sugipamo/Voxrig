@@ -15,7 +15,9 @@ packets in these adapters do not supply a ground bit. Sending a ground bit does
 not convert this model value into a server receipt or certify executable motion.
 
 Java 1.16.1 publishes its normal collision-physics result, finite movement model,
-declared landing model, and continuous controller result. An incomplete collision
+declared landing model, and continuous controller result. While the own position is unavailable (including the respawn boundary), native
+physics does not reuse preceding-world coordinates or dispatch movement; capture
+keeps ground unavailable. An incomplete collision
 update clears the flag instead of presenting the old value as current. Java
 1.21.11 publishes finite movement and continuous controller results; without one
 of these model updates it keeps ground unavailable. No new physics runs merely
@@ -39,3 +41,5 @@ model ground from an outbound ground bit or an incomplete packet trace.
 Consumers own navigation, protections and missing-data policy. They must not label
 the flag `Received`, default missing ground to true/false, reimplement SDK collision
 physics to fill it, or treat a predicted ground flag as server action authority.
+
+Real-connection validation and reproduction: [player-ground-capture.md](player-ground-capture.md).
