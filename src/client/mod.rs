@@ -28,6 +28,8 @@ mod geometry;
 mod hash_ops;
 pub(crate) mod identifier;
 pub mod inventory;
+mod inventory_helpers;
+pub use inventory_helpers::{CraftOnceRecord, CraftingFillRecord};
 mod item;
 pub(crate) mod item_components;
 pub(crate) mod item_constructor;
@@ -150,8 +152,9 @@ pub mod prelude {
         VehicleInput,
     };
     pub use super::{
-        BlockFace, ChunkObservation, ConnectionStatus, DigEstimate, DigRecord, Hand, LoadedChunks,
-        ObservedValue, PlacementCheck, PlayerAttribute, PlayerEffect, ValueSource,
+        BlockFace, ChunkObservation, ConnectionStatus, CraftOnceRecord, CraftingFillRecord,
+        DigEstimate, DigRecord, Hand, LoadedChunks, ObservedValue, PlacementCheck, PlayerAttribute,
+        PlayerEffect, ValueSource,
     };
     pub use super::{
         Client, ClientLimits, ClientManager, ConnectionConfig, ConnectionIdentity,

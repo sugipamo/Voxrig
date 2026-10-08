@@ -111,6 +111,8 @@ pub enum Feature {
     Digging,
     /// Received-state pre-check of one placement: loaded, reach, own player and blocking entities.
     PlacementCheck,
+    /// Cursor storing, partial-stack merging, hand-filled crafting grids and craft-once.
+    InventoryHelpers,
     /// Received boss-bar ADD, partial updates and REMOVE.
     BossBars,
     /// Received scoreboard declarations, displays and entries.
@@ -166,6 +168,7 @@ impl Feature {
         Feature::ItemUse,
         Feature::Digging,
         Feature::PlacementCheck,
+        Feature::InventoryHelpers,
         Feature::BossBars,
         Feature::Scoreboard,
         Feature::ClientManagement,
@@ -323,6 +326,10 @@ impl Capabilities {
             Feature::PlacementCheck => restricted(
                 "received state only; cube target cell, standing eye, default entity boxes",
                 "docs/common-placement-check.md",
+            ),
+            Feature::InventoryHelpers => restricted(
+                "composed from ordinary clicks, one received outcome per click; same item and data merge",
+                "docs/common-inventory-helpers.md",
             ),
             Feature::EntityState => restricted(
                 "received health and equipment; boxes use default type dimensions only",
