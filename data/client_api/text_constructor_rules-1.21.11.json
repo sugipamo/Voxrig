@@ -1,0 +1,20 @@
+{
+  "contents": [
+    "text",
+    "translatable",
+    "keybind",
+    "score",
+    "selector",
+    "nbt",
+    "object"
+  ],
+  "objects": [
+    "atlas",
+    "player"
+  ],
+  "sources": [
+    "entity",
+    "block",
+    "storage"
+  ]
+}

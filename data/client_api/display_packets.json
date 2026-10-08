@@ -1,0 +1,467 @@
+{
+  "schema": 1,
+  "versions": [
+    {
+      "packets": [
+        {
+          "group": "title",
+          "operation": 0,
+          "packet_id": 79,
+          "payload_hex": "00107b2274657874223a225469746c65227d",
+          "text": "Title"
+        },
+        {
+          "group": "title",
+          "operation": 1,
+          "packet_id": 79,
+          "payload_hex": "01137b2274657874223a225375627469746c65227d",
+          "text": "Subtitle"
+        },
+        {
+          "group": "title",
+          "operation": 2,
+          "packet_id": 79,
+          "payload_hex": "02127b2274657874223a224f7665726c6179227d",
+          "text": "Overlay"
+        },
+        {
+          "fade_in": 3,
+          "fade_out": 9,
+          "group": "title",
+          "operation": 3,
+          "packet_id": 79,
+          "payload_hex": "0300000003ffffffff00000009",
+          "stay": -1
+        },
+        {
+          "group": "title",
+          "operation": 4,
+          "packet_id": 79,
+          "payload_hex": "04",
+          "reset_times": false
+        },
+        {
+          "group": "title",
+          "operation": 5,
+          "packet_id": 79,
+          "payload_hex": "05",
+          "reset_times": true
+        },
+        {
+          "footer": "Footer",
+          "group": "tab",
+          "header": "Header\u96ea",
+          "operation": 0,
+          "packet_id": 83,
+          "payload_hex": "147b2274657874223a22486561646572e99baa227d117b2274657874223a22466f6f746572227d"
+        },
+        {
+          "diameter": 128.5,
+          "group": "border",
+          "operation": 0,
+          "packet_id": 61,
+          "payload_hex": "004060100000000000"
+        },
+        {
+          "duration": {
+            "unit": "milliseconds",
+            "value": 10000
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 1,
+          "packet_id": 61,
+          "payload_hex": "0140590000000000004069000000000000904e",
+          "to_diameter": 200.0
+        },
+        {
+          "center_x": 10.25,
+          "center_z": -20.5,
+          "group": "border",
+          "operation": 2,
+          "packet_id": 61,
+          "payload_hex": "024024800000000000c034800000000000"
+        },
+        {
+          "absolute_max_size": 60000000,
+          "center_x": 10.25,
+          "center_z": -20.5,
+          "duration": {
+            "unit": "milliseconds",
+            "value": 10000
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 3,
+          "packet_id": 61,
+          "payload_hex": "034024800000000000c03480000000000040590000000000004069000000000000904e808ece1c0311",
+          "to_diameter": 200.0,
+          "warning_delay": 17,
+          "warning_distance": 3
+        },
+        {
+          "group": "border",
+          "operation": 4,
+          "packet_id": 61,
+          "payload_hex": "0411",
+          "warning_delay": 17
+        },
+        {
+          "group": "border",
+          "operation": 5,
+          "packet_id": 61,
+          "payload_hex": "0503",
+          "warning_distance": 3
+        },
+        {
+          "duration": {
+            "unit": "milliseconds",
+            "value": 0
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 1,
+          "packet_id": 61,
+          "payload_hex": "014059000000000000406900000000000000",
+          "to_diameter": 200.0
+        },
+        {
+          "absolute_max_size": 60000000,
+          "center_x": 10.25,
+          "center_z": -20.5,
+          "duration": {
+            "unit": "milliseconds",
+            "value": 0
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 3,
+          "packet_id": 61,
+          "payload_hex": "034024800000000000c0348000000000004059000000000000406900000000000000808ece1c0311",
+          "to_diameter": 200.0,
+          "warning_delay": 17,
+          "warning_distance": 3
+        },
+        {
+          "duration": {
+            "unit": "milliseconds",
+            "value": 35184372088832
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 1,
+          "packet_id": 61,
+          "payload_hex": "014059000000000000406900000000000080808080808008",
+          "to_diameter": 200.0
+        },
+        {
+          "absolute_max_size": 60000000,
+          "center_x": 10.25,
+          "center_z": -20.5,
+          "duration": {
+            "unit": "milliseconds",
+            "value": 35184372088832
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 3,
+          "packet_id": 61,
+          "payload_hex": "034024800000000000c0348000000000004059000000000000406900000000000080808080808008808ece1c0311",
+          "to_diameter": 200.0,
+          "warning_delay": 17,
+          "warning_distance": 3
+        },
+        {
+          "duration": {
+            "unit": "milliseconds",
+            "value": 9223372036854775807
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 1,
+          "packet_id": 61,
+          "payload_hex": "0140590000000000004069000000000000ffffffffffffffff7f",
+          "to_diameter": 200.0
+        },
+        {
+          "absolute_max_size": 60000000,
+          "center_x": 10.25,
+          "center_z": -20.5,
+          "duration": {
+            "unit": "milliseconds",
+            "value": 9223372036854775807
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 3,
+          "packet_id": 61,
+          "payload_hex": "034024800000000000c03480000000000040590000000000004069000000000000ffffffffffffffff7f808ece1c0311",
+          "to_diameter": 200.0,
+          "warning_delay": 17,
+          "warning_distance": 3
+        },
+        {
+          "duration": {
+            "unit": "milliseconds",
+            "value": -1
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 1,
+          "packet_id": 61,
+          "payload_hex": "0140590000000000004069000000000000ffffffffffffffffff01",
+          "to_diameter": 200.0
+        },
+        {
+          "absolute_max_size": 60000000,
+          "center_x": 10.25,
+          "center_z": -20.5,
+          "duration": {
+            "unit": "milliseconds",
+            "value": -1
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 3,
+          "packet_id": 61,
+          "payload_hex": "034024800000000000c03480000000000040590000000000004069000000000000ffffffffffffffffff01808ece1c0311",
+          "to_diameter": 200.0,
+          "warning_delay": 17,
+          "warning_distance": 3
+        }
+      ],
+      "version": "1.16.1"
+    },
+    {
+      "packets": [
+        {
+          "group": "title",
+          "operation": 0,
+          "packet_id": 112,
+          "payload_hex": "0800055469746c65",
+          "text": "Title"
+        },
+        {
+          "group": "title",
+          "operation": 1,
+          "packet_id": 110,
+          "payload_hex": "0800085375627469746c65",
+          "text": "Subtitle"
+        },
+        {
+          "group": "title",
+          "operation": 2,
+          "packet_id": 85,
+          "payload_hex": "0800074f7665726c6179",
+          "text": "Overlay"
+        },
+        {
+          "fade_in": 3,
+          "fade_out": 9,
+          "group": "title",
+          "operation": 3,
+          "packet_id": 113,
+          "payload_hex": "00000003ffffffff00000009",
+          "stay": -1
+        },
+        {
+          "group": "title",
+          "operation": 4,
+          "packet_id": 14,
+          "payload_hex": "00",
+          "reset_times": false
+        },
+        {
+          "group": "title",
+          "operation": 5,
+          "packet_id": 14,
+          "payload_hex": "01",
+          "reset_times": true
+        },
+        {
+          "footer": "Footer",
+          "group": "tab",
+          "header": "Header\u96ea",
+          "operation": 0,
+          "packet_id": 120,
+          "payload_hex": "080009486561646572e99baa080006466f6f746572"
+        },
+        {
+          "diameter": 128.5,
+          "group": "border",
+          "operation": 0,
+          "packet_id": 88,
+          "payload_hex": "4060100000000000"
+        },
+        {
+          "duration": {
+            "unit": "ticks",
+            "value": 10000
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 1,
+          "packet_id": 87,
+          "payload_hex": "40590000000000004069000000000000904e",
+          "to_diameter": 200.0
+        },
+        {
+          "center_x": 10.25,
+          "center_z": -20.5,
+          "group": "border",
+          "operation": 2,
+          "packet_id": 86,
+          "payload_hex": "4024800000000000c034800000000000"
+        },
+        {
+          "absolute_max_size": 60000000,
+          "center_x": 10.25,
+          "center_z": -20.5,
+          "duration": {
+            "unit": "ticks",
+            "value": 10000
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 3,
+          "packet_id": 42,
+          "payload_hex": "4024800000000000c03480000000000040590000000000004069000000000000904e808ece1c0311",
+          "to_diameter": 200.0,
+          "warning_delay": 17,
+          "warning_distance": 3
+        },
+        {
+          "group": "border",
+          "operation": 4,
+          "packet_id": 89,
+          "payload_hex": "11",
+          "warning_delay": 17
+        },
+        {
+          "group": "border",
+          "operation": 5,
+          "packet_id": 90,
+          "payload_hex": "03",
+          "warning_distance": 3
+        },
+        {
+          "duration": {
+            "unit": "ticks",
+            "value": 0
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 1,
+          "packet_id": 87,
+          "payload_hex": "4059000000000000406900000000000000",
+          "to_diameter": 200.0
+        },
+        {
+          "absolute_max_size": 60000000,
+          "center_x": 10.25,
+          "center_z": -20.5,
+          "duration": {
+            "unit": "ticks",
+            "value": 0
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 3,
+          "packet_id": 42,
+          "payload_hex": "4024800000000000c0348000000000004059000000000000406900000000000000808ece1c0311",
+          "to_diameter": 200.0,
+          "warning_delay": 17,
+          "warning_distance": 3
+        },
+        {
+          "duration": {
+            "unit": "ticks",
+            "value": 35184372088832
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 1,
+          "packet_id": 87,
+          "payload_hex": "4059000000000000406900000000000080808080808008",
+          "to_diameter": 200.0
+        },
+        {
+          "absolute_max_size": 60000000,
+          "center_x": 10.25,
+          "center_z": -20.5,
+          "duration": {
+            "unit": "ticks",
+            "value": 35184372088832
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 3,
+          "packet_id": 42,
+          "payload_hex": "4024800000000000c0348000000000004059000000000000406900000000000080808080808008808ece1c0311",
+          "to_diameter": 200.0,
+          "warning_delay": 17,
+          "warning_distance": 3
+        },
+        {
+          "duration": {
+            "unit": "ticks",
+            "value": 9223372036854775807
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 1,
+          "packet_id": 87,
+          "payload_hex": "40590000000000004069000000000000ffffffffffffffff7f",
+          "to_diameter": 200.0
+        },
+        {
+          "absolute_max_size": 60000000,
+          "center_x": 10.25,
+          "center_z": -20.5,
+          "duration": {
+            "unit": "ticks",
+            "value": 9223372036854775807
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 3,
+          "packet_id": 42,
+          "payload_hex": "4024800000000000c03480000000000040590000000000004069000000000000ffffffffffffffff7f808ece1c0311",
+          "to_diameter": 200.0,
+          "warning_delay": 17,
+          "warning_distance": 3
+        },
+        {
+          "duration": {
+            "unit": "ticks",
+            "value": -1
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 1,
+          "packet_id": 87,
+          "payload_hex": "40590000000000004069000000000000ffffffffffffffffff01",
+          "to_diameter": 200.0
+        },
+        {
+          "absolute_max_size": 60000000,
+          "center_x": 10.25,
+          "center_z": -20.5,
+          "duration": {
+            "unit": "ticks",
+            "value": -1
+          },
+          "from_diameter": 100.0,
+          "group": "border",
+          "operation": 3,
+          "packet_id": 42,
+          "payload_hex": "4024800000000000c03480000000000040590000000000004069000000000000ffffffffffffffffff01808ece1c0311",
+          "to_diameter": 200.0,
+          "warning_delay": 17,
+          "warning_distance": 3
+        }
+      ],
+      "version": "1.21.11"
+    }
+  ]
+}

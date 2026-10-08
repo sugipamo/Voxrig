@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, ensure};
 use std::time::Duration;
-use voxrig::{BotManager, Player, Server};
+use voxrig::versions::java_1_16_1::{BotManager, Player, Server};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -25,7 +25,7 @@ async fn main() -> Result<()> {
     {
         let mut corrections = Vec::new();
         while let Ok(event) = events.try_recv() {
-            if let voxrig::Event::PositionCorrection(c) = event {
+            if let voxrig::versions::java_1_16_1::Event::PositionCorrection(c) = event {
                 corrections.push(c);
             }
         }

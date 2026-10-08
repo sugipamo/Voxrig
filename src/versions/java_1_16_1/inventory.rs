@@ -363,6 +363,32 @@ pub(crate) fn apply_slot(state: &mut InventoryState, update: &SlotUpdate) -> Res
     if update.slot < 0 {
         return Ok(());
     }
+    // Set Slot window -2 addresses Inventory, not InventoryMenu. The native
+    // pickup path sends its raw inventory index even when another menu is open.
+    if update.window_id == -2 {
+        let Some(index) = player_inventory_slot(update.slot) else {
+            return Ok(());
+        };
+        let player = state.windows.entry(0).or_insert_with(|| vec![None; 46]);
+        if player.len() < 46 {
+            player.resize(46, None);
+        }
+        player[index] = update.item.clone();
+        if (9..45).contains(&index) {
+            if let Some(window_id) = state.open_window.as_ref().map(|window| window.id) {
+                if let Some(start) = state.window_player_starts.get(&window_id) {
+                    if let Some(slot) = state
+                        .windows
+                        .get_mut(&window_id)
+                        .and_then(|slots| slots.get_mut(start + index - 9))
+                    {
+                        *slot = update.item.clone();
+                    }
+                }
+            }
+        }
+        return Ok(());
+    }
     let slots = state.windows.entry(update.window_id).or_default();
     let index = update.slot as usize;
     if index >= 4096 {
@@ -374,6 +400,18 @@ pub(crate) fn apply_slot(state: &mut InventoryState, update: &SlotUpdate) -> Res
     slots[index] = update.item.clone();
     sync_player_slot_from_window(state, update.window_id, index);
     Ok(())
+}
+
+/// Native Inventory indices converted to the shared player-screen layout.
+/// Checked against the official 1.16.1 InventoryMenu constructor and pickup sender.
+pub(crate) fn player_inventory_slot(slot: i16) -> Option<usize> {
+    match slot {
+        0..=8 => Some(36 + slot as usize),
+        9..=35 => Some(slot as usize),
+        36..=39 => Some(44 - slot as usize),
+        40 => Some(45),
+        _ => None,
+    }
 }
 
 pub(crate) fn apply_window_items(
@@ -545,6 +583,84 @@ mod tests {
     use super::*;
     use crate::versions::java_1_16_1::protocol::put_varint;
     use byteorder::WriteBytesExt;
+
+    #[test]
+    fn raw_inventory_updates_preserve_screen_layout_and_open_container() {
+        let mut state = InventoryState::default();
+        let crafting = ItemStack {
+            item_id: 2,
+            count: 1,
+            nbt: None,
+        };
+        let mut slots = vec![None; 46];
+        slots[0] = Some(crafting.clone());
+        apply_window_items(&mut state, 0, slots);
+        apply_window_items(&mut state, 7, vec![None; 63]);
+        state.open_window = Some(OpenWindow {
+            id: 7,
+            window_type: 2,
+            title_json: "{}".into(),
+            entity_id: None,
+            declared_slots: None,
+        });
+        // Expected indices come from native InventoryMenu's constructor, rather
+        // than the conversion helper under test. Every raw player slot is covered.
+        let expected: Vec<usize> = (36..45)
+            .chain(9..36)
+            .chain((5..9).rev())
+            .chain([45])
+            .collect();
+        for (raw, screen) in expected.into_iter().enumerate() {
+            let stack = ItemStack {
+                item_id: 1,
+                count: raw as i8 + 1,
+                nbt: None,
+            };
+            apply_slot(
+                &mut state,
+                &SlotUpdate {
+                    window_id: -2,
+                    slot: raw as i16,
+                    item: Some(stack.clone()),
+                    packet_sequence: raw as u64 + 1,
+                },
+            )
+            .unwrap();
+            assert_eq!(state.player_slots()[screen], Some(stack.clone()));
+            if (9..45).contains(&screen) {
+                assert_eq!(state.windows[&7][27 + screen - 9], Some(stack));
+            }
+        }
+        assert_eq!(state.player_slots()[0], Some(crafting));
+        assert_eq!(state.open_window.as_ref().unwrap().id, 7);
+        assert!(!state.windows.contains_key(&-2));
+        let before = state.clone();
+        for slot in [-1, 41, i16::MAX] {
+            apply_slot(
+                &mut state,
+                &SlotUpdate {
+                    window_id: -2,
+                    slot,
+                    item: None,
+                    packet_sequence: 100,
+                },
+            )
+            .unwrap();
+        }
+        assert_eq!(state, before);
+        apply_slot(
+            &mut state,
+            &SlotUpdate {
+                window_id: -2,
+                slot: 0,
+                item: None,
+                packet_sequence: 101,
+            },
+        )
+        .unwrap();
+        assert!(state.player_slots()[36].is_none());
+        assert!(state.windows[&7][54].is_none());
+    }
 
     #[test]
     fn trailing_closed_window_slot_keeps_its_original_player_offset() {

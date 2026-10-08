@@ -1,7 +1,8 @@
 //! Observe native moving-piston chunk data on an isolated, already prepared server.
 //! This probe does not place blocks, issue commands, or change server ticking.
 use std::{fs::OpenOptions, time::Duration};
-use voxrig::{Client, ConnectionConfig, MinecraftVersion, Region, Server};
+use voxrig::client::Server;
+use voxrig::{Client, ConnectionConfig, MinecraftVersion, Region};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -25,7 +26,7 @@ async fn main() -> anyhow::Result<()> {
         let failure = async {
             client.wait_until_ready().await?;
             for _ in 0..100 {
-                let sample = client.observe_client_region(region).await?;
+                let sample = client.java_1_21_11()?.observe_client_region(region).await?;
                 loaded |= sample.received.blocks.iter().all(|b| b.state.is_some());
                 restored |= sample.blocks.iter().any(|b| {
                     b.moving

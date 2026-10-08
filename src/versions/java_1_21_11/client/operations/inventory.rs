@@ -2,6 +2,11 @@
 use super::*;
 use crate::diagnostic_projection::diagnostic_record;
 use std::time::Duration;
+pub(in crate::versions::java_1_21_11::client) mod click;
+pub(in crate::versions::java_1_21_11::client) mod common;
+pub(in crate::versions::java_1_21_11::client) mod crafting;
+pub(in crate::versions::java_1_21_11::client) mod recipe_placement;
+pub(in crate::versions::java_1_21_11::client) mod transfer;
 
 diagnostic_record! {
     /// One submitted SWAP click, tied to this connection and received baseline.
@@ -54,13 +59,51 @@ fn prepare(
     main_slot: u8,
     hotbar: u8,
 ) -> Result<(InventorySwap, Vec<u8>)> {
+    prepare_with_player_revision(
+        inventory,
+        connection_id,
+        after_sequence,
+        main_slot,
+        hotbar,
+        None,
+    )
+}
+// Only the common owner may provide an actual historical player revision after
+// a coherently validated, completely dispatched close. Native-only entry stays strict.
+fn prepare_with_player_revision(
+    inventory: &Inventory,
+    connection_id: u64,
+    after_sequence: u64,
+    main_slot: u8,
+    hotbar: u8,
+    after_close_revision: Option<i32>,
+) -> Result<(InventorySwap, Vec<u8>)> {
+    prepare_with_item_data(
+        inventory,
+        connection_id,
+        after_sequence,
+        main_slot,
+        hotbar,
+        after_close_revision,
+        false,
+    )
+}
+fn prepare_with_item_data(
+    inventory: &Inventory,
+    connection_id: u64,
+    after_sequence: u64,
+    main_slot: u8,
+    hotbar: u8,
+    after_close_revision: Option<i32>,
+    allow_components: bool,
+) -> Result<(InventorySwap, Vec<u8>)> {
     if !(9..=35).contains(&main_slot) || hotbar > 8 {
         return Err(invalid("swap requires main slot 9..35 and hotbar 0..8"));
     }
     if inventory.pending_swap.is_some() || !inventory.pending_creative.is_empty() {
         return Err(unavailable("prior inventory mutation needs inspection"));
     }
-    if inventory.window_id != Some(0)
+    if (inventory.window_id != Some(0) && after_close_revision.is_none())
         || inventory.cursor != InventorySlot::Empty
         || inventory.unsupported_components
     {
@@ -68,8 +111,8 @@ fn prepare(
             "received player screen and empty supported cursor required",
         ));
     }
-    let screen_revision = inventory
-        .screen_revision
+    let screen_revision = after_close_revision
+        .or(inventory.screen_revision)
         .ok_or_else(|| unavailable("player screen revision unavailable"))?;
     let main_before = inventory.slots[usize::from(main_slot)].clone();
     let hotbar_before = inventory.slots[36 + usize::from(hotbar)].clone();
@@ -79,7 +122,23 @@ fn prepare(
         return Err(unavailable("swap slot contents unavailable"));
     }
     for stack in [&main_before, &hotbar_before] {
-        if let InventorySlot::Item { item } = stack {
+        if matches!(stack, InventorySlot::ItemWithComponents { .. }) && !allow_components {
+            return Err(crate::Error::new(
+                crate::ErrorKind::Unsupported,
+                anyhow::anyhow!("native default swap does not support component-bearing stacks"),
+            ));
+        }
+        if allow_components {
+            let value = super::common_slot(stack)?;
+            if let crate::client::SlotKnowledge::Item { item } = value {
+                if item.count
+                    > u32::try_from(item.properties()?.max_stack_size)
+                        .map_err(|_| invalid("invalid effective swap capacity"))?
+                {
+                    return Err(invalid("swap item exceeds its effective stack capacity"));
+                }
+            }
+        } else if let InventorySlot::Item { item } = stack {
             if items()
                 .iter()
                 .find(|definition| definition.id == item.item_id)
@@ -115,8 +174,44 @@ fn prepare(
     let mut payload = vec![0];
     put_varint(&mut payload, screen_revision);
     payload.extend(i16::from(main_slot).to_be_bytes());
-    payload.extend([hotbar, 2, 0, 0]);
+    payload.extend([hotbar, 2, 0]);
+    put_default_cursor_hash(&mut payload, &InventorySlot::Empty)?;
     Ok((submission, payload))
+}
+
+// The native hash of a default stack is its holder ID/count and empty patch
+// additions/removals, not a predicted cursor result. Capacity/mode/slot checks
+// belong to click admission; the codec itself also represents overstacks.
+fn put_default_cursor_hash(payload: &mut Vec<u8>, cursor: &InventorySlot) -> Result<()> {
+    match cursor {
+        InventorySlot::ItemWithComponents { .. } => {
+            return Err(crate::Error::new(
+                crate::ErrorKind::Unsupported,
+                anyhow::anyhow!("default cursor hash cannot encode a component-bearing stack"),
+            ));
+        }
+        InventorySlot::Empty => payload.push(0),
+        InventorySlot::Unavailable => {
+            return Err(unavailable("actual supported cursor unavailable"));
+        }
+        InventorySlot::Item { item } => {
+            if item.count <= 0
+                || items()
+                    .iter()
+                    .find(|d| d.id == item.item_id)
+                    .is_none_or(|d| item.name != format!("minecraft:{}", d.name) || d.name == "air")
+            {
+                return Err(invalid(
+                    "default cursor hash requires known nonempty native item identity",
+                ));
+            }
+            payload.push(1);
+            put_varint(payload, item.item_id);
+            put_varint(payload, item.count);
+            payload.extend([0, 0]);
+        }
+    }
+    Ok(())
 }
 
 fn observed(
@@ -203,6 +298,14 @@ impl Operations {
                 {
                     let mut state = self.bot.session.state.lock().await;
                     self.ready(&state)?;
+                    if state.common_inventory_swap.as_ref().is_some_and(|s| {
+                        s.record.stage
+                            != crate::client::inventory::InventorySwapStage::ObservedSwapped
+                    }) {
+                        return Err(unavailable(
+                            "common attempt owns this swap; use inventory_swap_record",
+                        ));
+                    }
                     if state.operations.game_mode != Some(GameMode::Survival)
                         || state.operations.inventory.pending_swap.as_ref() != Some(submission)
                     {
@@ -236,8 +339,42 @@ fn invalidate(inventory: &mut Inventory, window: Option<i32>) {
     inventory.window_id = window;
     inventory.screen_revision = None;
     inventory.cursor = InventorySlot::Unavailable;
+    inventory.cursor_sequence = None;
     inventory.slots.fill(InventorySlot::Unavailable);
     inventory.slot_sequences.fill(None);
+}
+
+// Regular screen OPEN/CLOSE does not supply or alter player equipment. Keep its
+// last actual values/ordinals, independently of foreign appended-player layouts.
+// Unsupported packet invalidation still clears all knowledge; world reset uses Default.
+fn invalidate_screen(inventory: &mut Inventory, window: Option<i32>) {
+    let equipment =
+        [5, 6, 7, 8, 45].map(|i| (i, inventory.slots[i].clone(), inventory.slot_sequences[i]));
+    invalidate(inventory, window);
+    for (i, value, sequence) in equipment {
+        inventory.slots[i] = value;
+        inventory.slot_sequences[i] = sequence;
+    }
+}
+
+fn invalidate_container_contents(inventory: &mut Inventory) {
+    if let Some(screen) = &mut inventory.container {
+        screen.slots.fill(None);
+        screen.full_contents_sequence = None;
+        screen.revision = None;
+    }
+}
+fn common_received_slot(
+    value: &InventorySlot,
+    sequence: u64,
+) -> anyhow::Result<Option<crate::client::ObservedValue<crate::client::SlotKnowledge>>> {
+    if matches!(value, InventorySlot::Unavailable) {
+        return Ok(None);
+    }
+    Ok(Some(crate::client::received(
+        super::common_slot(value)?,
+        sequence,
+    )))
 }
 
 pub(super) fn receive(
@@ -245,6 +382,7 @@ pub(super) fn receive(
     id: i32,
     payload: &[u8],
     sequence: u64,
+    player_access_after_close: bool,
 ) -> anyhow::Result<()> {
     use ids::play_clientbound as input;
     let mut r = Reader::new(payload);
@@ -254,27 +392,34 @@ pub(super) fn receive(
             if window == 0 {
                 bail!("open container cannot use player screen ID");
             }
-            r.count(i32::MAX as usize)?;
-            r.skip_nbt()?;
+            let kind = r.count(i32::MAX as usize)? as i32;
+            let title = r.encoded_nbt()?;
             r.end()?;
-            invalidate(inventory, Some(window));
+            invalidate_screen(inventory, Some(window));
+            inventory.container = Some(crate::client::container::ScreenReceipts::open(
+                crate::MinecraftVersion::Java1_21_11,
+                window,
+                Some(kind),
+                crate::client::container::ScreenTitle::NativeNbt { bytes: title },
+                sequence,
+            ));
         }
         input::CLOSE_WINDOW => {
             let window = r.varint()?;
             r.end()?;
             if inventory.window_id == Some(window) {
-                invalidate(inventory, None);
+                invalidate_screen(inventory, None);
+                inventory.container = None;
             }
         }
         input::WINDOW_ITEMS => {
             let window = r.varint()?;
             let revision = r.count(i32::MAX as usize)? as i32;
             let count = r.count(1024)?;
-            if window != 0 {
-                invalidate(inventory, Some(window));
-                return Ok(());
+            if window < 0 {
+                bail!("negative container ID");
             }
-            if count != 46 {
+            if window == 0 && count != 46 {
                 bail!("unexpected player inventory size");
             }
             let mut slots = Vec::with_capacity(count);
@@ -282,6 +427,7 @@ pub(super) fn receive(
                 let Some(value) = slot(&mut r)? else {
                     invalidate(inventory, inventory.window_id);
                     inventory.unsupported_components = true;
+                    invalidate_container_contents(inventory);
                     inventory.receive_sequence = Some(sequence);
                     return Ok(());
                 };
@@ -290,19 +436,47 @@ pub(super) fn receive(
             let Some(cursor) = slot(&mut r)? else {
                 invalidate(inventory, inventory.window_id);
                 inventory.unsupported_components = true;
+                invalidate_container_contents(inventory);
                 inventory.receive_sequence = Some(sequence);
                 return Ok(());
             };
             r.end()?;
-            inventory.slots = slots;
-            inventory.slot_sequences.fill(Some(sequence));
-            if inventory.window_id.is_none_or(|w| w == 0) {
-                inventory.window_id = Some(0);
-                inventory.screen_revision = Some(revision);
+            if window == 0 {
+                inventory.player_revision = Some(crate::client::received(revision, sequence));
+                inventory.slots = slots;
+                inventory.slot_sequences.fill(Some(sequence));
+                if inventory.window_id.is_none_or(|w| w == 0) || player_access_after_close {
+                    inventory.window_id = Some(0);
+                    inventory.screen_revision = Some(revision);
+                    inventory.cursor = cursor;
+                    inventory.cursor_sequence = Some(sequence);
+                }
+                inventory.pending_creative.clear();
+                inventory.unsupported_components = false;
+            } else if inventory
+                .container
+                .as_ref()
+                .is_some_and(|screen| screen.window == window)
+            {
+                let values = slots
+                    .iter()
+                    .map(|value| common_received_slot(value, sequence))
+                    .collect::<anyhow::Result<Vec<_>>>()?;
+                let screen = inventory.container.as_mut().expect("matching opening");
+                screen.full_items(values, Some(revision), sequence)?;
+                if let Some(layout) = &screen.layout {
+                    for mapping in &layout.player_slots {
+                        inventory.slots[mapping.player_slot] = slots[mapping.screen_slot].clone();
+                        inventory.slot_sequences[mapping.player_slot] = Some(sequence);
+                    }
+                }
                 inventory.cursor = cursor;
+                inventory.cursor_sequence = Some(sequence);
+                inventory.unsupported_components = false;
+            } else if inventory.container.is_none() {
+                // Actual contents without an opening cannot establish a menu/layout.
+                invalidate(inventory, Some(window));
             }
-            inventory.pending_creative.clear();
-            inventory.unsupported_components = false;
             inventory.receive_sequence = Some(sequence);
         }
         input::SET_CURSOR_ITEM => {
@@ -314,45 +488,96 @@ pub(super) fn receive(
                 inventory.unsupported_components = true;
                 InventorySlot::Unavailable
             };
+            inventory.cursor_sequence =
+                (!matches!(inventory.cursor, InventorySlot::Unavailable)).then_some(sequence);
             inventory.receive_sequence = Some(sequence);
         }
         input::SET_SLOT | input::SET_PLAYER_INVENTORY => {
-            let index = if id == input::SET_SLOT {
+            let (window, revision, index) = if id == input::SET_SLOT {
                 let window = r.varint()?;
+                if window < 0 {
+                    bail!("negative container ID");
+                }
                 let revision = r.count(i32::MAX as usize)? as i32;
-                let index = r.u16()? as i16;
-                if window != 0 {
-                    invalidate(inventory, Some(window));
-                    return Ok(());
-                }
-                if inventory.window_id == Some(0) {
-                    inventory.screen_revision = Some(revision);
-                }
-                usize::try_from(index).context("negative player slot")?
+                let index = usize::try_from(r.u16()? as i16).context("negative screen slot")?;
+                (window, Some(revision), index)
             } else {
-                match r.count(40)? {
+                let index = match r.count(40)? {
                     v @ 0..=8 => v + 36,
                     v @ 9..=35 => v,
                     v @ 36..=39 => 44 - v,
                     40 => 45,
                     _ => unreachable!(),
-                }
+                };
+                (0, None, index)
             };
-            if index >= 46 {
-                bail!("invalid player slot");
+            if (window == 0 && index >= 46) || index >= 4096 {
+                bail!("invalid screen slot");
             }
-            let value = slot(&mut r)?;
-            inventory.slots[index] = if let Some(value) = value {
+            let decoded = slot(&mut r)?;
+            let value = if let Some(value) = decoded {
                 r.end()?;
-                inventory
-                    .pending_creative
-                    .retain(|s| 36 + usize::from(*s) != index);
                 value
             } else {
                 inventory.unsupported_components = true;
                 InventorySlot::Unavailable
             };
-            inventory.slot_sequences[index] = Some(sequence);
+            if window == 0 {
+                if let Some(revision) = revision {
+                    inventory.player_revision = Some(crate::client::received(revision, sequence));
+                }
+                if inventory.window_id == Some(0) && revision.is_some() {
+                    inventory.screen_revision = revision;
+                }
+                inventory.slots[index] = value.clone();
+                inventory.slot_sequences[index] = Some(sequence);
+                if !matches!(value, InventorySlot::Unavailable) {
+                    inventory
+                        .pending_creative
+                        .retain(|s| 36 + usize::from(*s) != index);
+                }
+                // A raw player update is an actual value for the corresponding
+                // slot in the active menu, but does not invent a menu revision.
+                if id == input::SET_PLAYER_INVENTORY {
+                    let screen_index = inventory
+                        .container
+                        .as_ref()
+                        .and_then(|screen| screen.layout.as_ref())
+                        .and_then(|layout| {
+                            layout.player_slots.iter().find(|m| m.player_slot == index)
+                        })
+                        .map(|m| m.screen_slot);
+                    if let Some(screen_index) = screen_index {
+                        let received = common_received_slot(&value, sequence)?;
+                        inventory.container.as_mut().expect("active layout").slot(
+                            screen_index,
+                            received,
+                            None,
+                            sequence,
+                        )?;
+                    }
+                }
+            } else if inventory
+                .container
+                .as_ref()
+                .is_some_and(|screen| screen.window == window)
+            {
+                let received = common_received_slot(&value, sequence)?;
+                let screen = inventory.container.as_mut().expect("matching opening");
+                screen.slot(index, received, revision, sequence)?;
+                if let Some(mapping) = screen
+                    .layout
+                    .as_ref()
+                    .and_then(|layout| layout.player_slots.iter().find(|m| m.screen_slot == index))
+                {
+                    inventory.slots[mapping.player_slot] = value;
+                    inventory.slot_sequences[mapping.player_slot] = Some(sequence);
+                }
+            } else if inventory.container.is_none() {
+                // A foreign menu update without an observed opening preserves
+                // uncertainty, without inventing metadata or a player layout.
+                invalidate(inventory, Some(window));
+            }
             inventory.receive_sequence = Some(sequence);
         }
         _ => unreachable!("inventory packet dispatch"),

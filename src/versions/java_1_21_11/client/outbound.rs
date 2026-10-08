@@ -24,6 +24,20 @@ impl Drop for WriteAttempt<'_> {
 }
 
 impl Session {
+    pub(super) fn revoke(self: &Arc<Self>) {
+        // No async state/writer lock or active-runtime lookup precedes the fence.
+        self.stop();
+        if self.revoked.swap(true, Ordering::AcqRel) {
+            return;
+        }
+        if let Some(receiver) = self.receiver_abort.get() {
+            receiver.abort();
+        }
+        let session = self.clone();
+        self.runtime.spawn(async move {
+            let _ = session.writer.lock().await.stream.shutdown().await;
+        });
+    }
     pub(super) fn stop(&self) {
         self.stopped.store(true, Ordering::Release);
         // Wake both a blocked writer and the receive loop. Retain a permit for
@@ -54,9 +68,16 @@ impl Session {
     }
 
     pub(super) async fn send(&self, id: i32, payload: &[u8]) -> Result<()> {
+        let cancelled = self.cancel.notified();
+        tokio::pin!(cancelled);
+        cancelled.as_mut().enable();
         self.check_outbound()?;
         // Cancellation while waiting for this lock cannot interrupt a frame.
-        let mut writer = self.writer.lock().await;
+        let mut writer = tokio::select! {
+            biased;
+            _ = &mut cancelled => return self.check_outbound(),
+            writer = self.writer.lock() => writer,
+        };
         let compression = writer.compression;
         self.write_frame(&mut writer.stream, compression, id, payload)
             .await

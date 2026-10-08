@@ -59,7 +59,7 @@ pub struct ReceivedEffect {
     pub amplifier: i32,
     /// Duration at receipt; -1 is infinite.
     pub duration_at_receipt: i32,
-    /// Ambient/particles/icon flags.
+    /// Ambient (1), particles (2), icon (4) and blend (8) flags.
     pub flags: u8,
     /// Packet ordinal.
     pub receive_sequence: u64,
@@ -113,26 +113,30 @@ pub struct LocalPlayerState {
     pub health: Option<PlayerHealth>,
     /// Effect updates not yet removed by a packet. No local expiration is invented.
     pub effect_updates: BTreeMap<i32, ReceivedEffect>,
+    /// Received attribute bases and modifiers by native attribute id.
+    pub received_attributes: BTreeMap<i32, crate::client::control::ReceivedAttribute>,
     /// False: vanilla effect packets have no complete-list fence in this projection.
     /// An empty map must not authorize assumptions about absence for mining.
     pub effects_complete: bool,
+    /// Last received item-use flags; None before the first flags entry in this world.
+    pub using_item: Option<ReceivedItemUse>,
+    /// Receive ordinal of each attribute in `received_attributes`.
+    pub attribute_sequences: BTreeMap<i32, u64>,
+    /// Last received air supply (ticks) and its receive ordinal.
+    pub air_supply: Option<(i32, u64)>,
+}
+
+/// Own item-use state from received LivingEntity flags.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, serde::Deserialize)]
+pub struct ReceivedItemUse {
+    /// Hand in use, or None when the server reports no item in use.
+    pub hand: Option<crate::client::Hand>,
+    /// Receive ordinal of the metadata packet.
+    pub receive_sequence: u64,
 }
 
 // Audited against the game's native registry/default attribute container.
-pub(super) const DRY_CUBES: &[&str] = &[
-    "minecraft:stone",
-    "minecraft:dirt",
-    "minecraft:grass_block",
-    "minecraft:cobblestone",
-    "minecraft:oak_planks",
-    "minecraft:spruce_planks",
-    "minecraft:quartz_block",
-    "minecraft:smooth_quartz",
-    "minecraft:white_concrete",
-    "minecraft:glass",
-    "minecraft:andesite",
-    "minecraft:granite",
-];
+pub(super) use crate::client::survival::model::DRY_CUBES;
 impl LocalPlayerState {
     pub(in crate::versions::java_1_21_11::client) fn spawned(entity_id: i32) -> Self {
         let mut player = Self {
@@ -158,21 +162,14 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         return Ok(true);
     }
     if id == input::SET_PASSENGERS {
-        let mut r = Reader::new(payload);
-        let vehicle = r.varint()?;
-        if vehicle < 0 {
-            bail!("invalid vehicle entity ID");
-        }
-        let mut own = false;
-        for _ in 0..r.count(1024)? {
-            let passenger = r.varint()?;
-            if passenger < 0 {
-                bail!("invalid passenger entity ID");
-            }
-            own |= Some(passenger) == state.operations.local_player.entity_id;
-        }
-        r.end()?;
+        let update = crate::client::vehicle::NativePassengers::decode(payload)?;
+        let player = state.operations.local_player.entity_id;
+        let own = player.is_some_and(|id| update.passengers.contains(&id));
+        state
+            .vehicles
+            .receive(&update, player, &state.entities, state.sequence);
         if own {
+            super::movement::retire_common_for_mount(state)?;
             interrupt(state, id);
         }
         return Ok(true);
@@ -217,6 +214,15 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         }
         input::ENTITY_METADATA => {
             let update = players::read_pose(&mut r, &mut next.pose)?;
+            if let Some(air) = update.air_supply {
+                next.air_supply = Some((air, sequence));
+            }
+            if let Some(flags) = update.living_flags {
+                next.using_item = Some(ReceivedItemUse {
+                    hand: crate::client::item_use::hand_from_living_flags(flags),
+                    receive_sequence: sequence,
+                });
+            }
             if !update.supported {
                 next.pose = None;
                 next.pose_basis = None;
@@ -228,8 +234,13 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             }
         }
         input::ENTITY_UPDATE_ATTRIBUTES => {
-            let values = players::read_attributes(&mut r)?;
+            let details = players::read_attribute_details(&mut r)?;
+            let values = details.iter().map(|(k, (v, _))| (*k, *v)).collect();
             attributes::received(&mut next, &values, sequence);
+            for (key, (_, raw)) in details {
+                next.received_attributes.insert(key, raw);
+                next.attribute_sequences.insert(key, sequence);
+            }
         }
         input::ENTITY_EFFECT | input::REMOVE_ENTITY_EFFECT => {
             let effect_id = r.varint()?;
@@ -242,7 +253,8 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
                 let amplifier = r.varint()?;
                 let duration_at_receipt = r.varint()?;
                 let flags = r.u8()?;
-                if !(0..=255).contains(&amplifier) || duration_at_receipt < -1 || flags & !7 != 0 {
+                // ClientboundUpdateMobEffectPacket flags: ambient 1, visible 2, icon 4, blend 8.
+                if !(0..=255).contains(&amplifier) || duration_at_receipt < -1 || flags & !15 != 0 {
                     bail!("invalid status effect");
                 }
                 if next.effect_updates.len() >= 256 && !next.effect_updates.contains_key(&effect_id)
@@ -402,12 +414,53 @@ pub(super) fn context_with_basis(
     tick: u64,
     position_basis: StandingPositionBasis,
 ) -> Result<StandingContext> {
+    context_core(state, connection_id, tick, position_basis, false, false)
+}
+pub(super) fn landing_context(
+    state: &mut State,
+    connection_id: u64,
+    tick: u64,
+    position_basis: StandingPositionBasis,
+) -> Result<StandingContext> {
+    if !matches!(
+        position_basis,
+        StandingPositionBasis::DeclaredCreativeStop { .. }
+    ) {
+        return Err(unavailable(
+            "landing requires its declared private controller basis",
+        ));
+    }
+    context_core(state, connection_id, tick, position_basis, true, false)
+}
+pub(super) fn dismount_context(
+    state: &mut State,
+    connection_id: u64,
+    tick: u64,
+    basis: StandingPositionBasis,
+) -> Result<StandingContext> {
+    if !matches!(basis, StandingPositionBasis::DeclaredDismountStop { .. }) {
+        return Err(unavailable(
+            "dismount requires its private declared controller basis",
+        ));
+    }
+    context_core(state, connection_id, tick, basis, false, true)
+}
+fn context_core(
+    state: &mut State,
+    connection_id: u64,
+    tick: u64,
+    position_basis: StandingPositionBasis,
+    landing: bool,
+    dismount: bool,
+) -> Result<StandingContext> {
     let player = &state.operations.local_player;
-    if let Some(interruption) = &player.motion_interruption {
-        return Err(unavailable(format!(
-            "unsupported player motion packet {} at receive sequence {}; fresh world baseline required",
-            interruption.packet_id, interruption.receive_sequence
-        )));
+    if !dismount && !super::movement::submitted_dismount_stop(state) {
+        if let Some(interruption) = &player.motion_interruption {
+            return Err(unavailable(format!(
+                "unsupported player motion packet {} at receive sequence {}; fresh world baseline required",
+                interruption.packet_id, interruption.receive_sequence
+            )));
+        }
     }
     if player.entity_id.is_none()
         || player.pose != Some(PlayerPose::Standing)
@@ -417,7 +470,11 @@ pub(super) fn context_with_basis(
             "stationary context requires known normal-size standing posture",
         ));
     }
-    if state.operations.requested_flying || state.operations.abilities.is_some_and(|a| a & 2 != 0) {
+    if !landing
+        && (state.operations.requested_flying
+            || (state.operations.abilities.is_some_and(|a| a & 2 != 0)
+                && !super::movement::submitted_flight_stop(state)))
+    {
         return Err(unavailable("stationary context refuses active flight"));
     }
     if player.health.as_ref().is_some_and(|h| h.health <= 0.0) {
@@ -432,8 +489,12 @@ pub(super) fn context_with_basis(
         return Err(unavailable("client reconstruction incomplete"));
     }
     let geometry = standing_geometry(state, position, position_basis.geometry_reserve())?;
-    if matches!(position_basis, StandingPositionBasis::Predicted { .. })
-        && geometry.support.is_empty()
+    if matches!(
+        position_basis,
+        StandingPositionBasis::Predicted { .. }
+            | StandingPositionBasis::DeclaredCreativeStop { .. }
+            | StandingPositionBasis::DeclaredDismountStop { .. }
+    ) && geometry.support.is_empty()
     {
         return Err(unavailable(
             "predicted standing lost its currently received floor support",
@@ -481,51 +542,37 @@ pub(super) fn standing_geometry(
             for z in min[2]..=max[2] {
                 let p = [x, y, z];
                 let block = state.block(p)?;
-                match block.name.as_str() {
-                    "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air" => {}
-                    name if DRY_CUBES.contains(&name) => {
-                        let cube = [
-                            f64::from(x),
-                            f64::from(y),
-                            f64::from(z),
-                            f64::from(x + 1),
-                            f64::from(y + 1),
-                            f64::from(z + 1),
-                        ];
-                        let horizontal = bounds[0] < cube[3]
-                            && bounds[3] > cube[0]
-                            && bounds[2] < cube[5]
-                            && bounds[5] > cube[2];
-                        if horizontal && bounds[1] < cube[4] && bounds[4] > cube[1] {
-                            return Err(unavailable(format!(
-                                "standing body intersects solid geometry at {p:?}"
-                            )));
-                        }
-                        let gap = bounds[1] - cube[4];
-                        // Native VoxelShape axis probing shrinks the other two axes by 1e-7.
-                        let probe_horizontal = bounds[0] + 1e-7 < cube[3]
-                            && bounds[3] - 1e-7 > cube[0]
-                            && bounds[2] + 1e-7 < cube[5]
-                            && bounds[5] - 1e-7 > cube[2];
-                        if probe_horizontal
-                            && (0.0..1e-7).contains(&gap)
-                            && (error == [0.0; 3]
-                                || (bounds[0] + 2.0 * error[0] + 1e-7 < cube[3]
-                                    && bounds[3] - 2.0 * error[0] - 1e-7 > cube[0]
-                                    && bounds[2] + 2.0 * error[2] + 1e-7 < cube[5]
-                                    && bounds[5] - 2.0 * error[2] - 1e-7 > cube[2]))
-                        {
-                            support.push(p);
-                        }
+                for local in crate::client::survival::model::collision_shape(
+                    crate::MinecraftVersion::Java1_21_11,
+                    &block,
+                )? {
+                    let cube: [f64; 6] =
+                        std::array::from_fn(|axis| local[axis] + f64::from(p[axis % 3]));
+                    let horizontal = bounds[0] < cube[3]
+                        && bounds[3] > cube[0]
+                        && bounds[2] < cube[5]
+                        && bounds[5] > cube[2];
+                    if horizontal && bounds[1] < cube[4] && bounds[4] > cube[1] {
+                        return Err(unavailable(format!(
+                            "standing body intersects solid geometry at {p:?}"
+                        )));
                     }
-                    _ => {
-                        return Err(Error::new(
-                            ErrorKind::Unsupported,
-                            anyhow::anyhow!(
-                                "unsupported standing geometry {} at {p:?}",
-                                block.name
-                            ),
-                        ));
+                    let gap = bounds[1] - cube[4];
+                    // Native VoxelShape axis probing shrinks the other two axes by 1e-7.
+                    let probe_horizontal = bounds[0] + 1e-7 < cube[3]
+                        && bounds[3] - 1e-7 > cube[0]
+                        && bounds[2] + 1e-7 < cube[5]
+                        && bounds[5] - 1e-7 > cube[2];
+                    if probe_horizontal
+                        && (0.0..1e-7).contains(&gap)
+                        && (error == [0.0; 3]
+                            || (bounds[0] + 2.0 * error[0] + 1e-7 < cube[3]
+                                && bounds[3] - 2.0 * error[0] - 1e-7 > cube[0]
+                                && bounds[2] + 2.0 * error[2] + 1e-7 < cube[5]
+                                && bounds[5] - 2.0 * error[2] - 1e-7 > cube[2]))
+                        && !support.contains(&p)
+                    {
+                        support.push(p);
                     }
                 }
             }

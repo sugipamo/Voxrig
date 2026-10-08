@@ -6,7 +6,7 @@ bot_count="${BOT_COUNT:-10}"
 duration_secs="${DURATION_SECS:-600}"
 
 mkdir -p reports
-cargo build --release --example endurance
+cargo build --release --features native --example endurance
 
 MC_PORT="$mc_port" \
 BOT_COUNT="$bot_count" \

@@ -40,6 +40,44 @@ fn state() -> State {
     s.world.seed_replay_cell([0, 0, 0], 1); // Native stone.
     s
 }
+#[test]
+fn dry_terrain_standing_accepts_slab_support_and_refuses_embedded_body_or_water() {
+    let mut s = state();
+    for x in -1..=1 {
+        for y in -1..=3 {
+            for z in -1..=1 {
+                s.world.seed_replay_cell([x, y, z], 0);
+            }
+        }
+    }
+    let mut terrain = crate::NativeBlockState {
+        name: "minecraft:stone_slab".into(),
+        properties: [
+            ("type".into(), "bottom".into()),
+            ("waterlogged".into(), "false".into()),
+        ]
+        .into(),
+    };
+    s.world
+        .seed_replay_cell([0, 0, 0], state_id(&terrain).unwrap());
+    assert_eq!(
+        standing_geometry(&s, [0.5, 0.5, 0.5], [0.; 3])
+            .unwrap()
+            .support,
+        vec![[0, 0, 0]]
+    );
+    terrain.properties.insert("type".into(), "top".into());
+    s.world
+        .seed_replay_cell([0, 0, 0], state_id(&terrain).unwrap());
+    assert!(standing_geometry(&s, [0.5, 0.5, 0.5], [0.; 3]).is_err());
+    terrain.properties.insert("type".into(), "bottom".into());
+    terrain
+        .properties
+        .insert("waterlogged".into(), "true".into());
+    s.world
+        .seed_replay_cell([0, 0, 0], state_id(&terrain).unwrap());
+    assert!(standing_geometry(&s, [0.5, 0.5, 0.5], [0.; 3]).is_err());
+}
 fn owned(id: i32, tail: &[u8]) -> Vec<u8> {
     let mut p = Vec::new();
     put_varint(&mut p, id);
@@ -126,6 +164,11 @@ fn own_receive_is_atomic_and_cannot_take_remote_entity_state() {
         s.operations.local_player.effect_updates[&3].duration_at_receipt,
         100
     );
+    // The official server sets the blend flag (8) on some effects, e.g. a golden apple's.
+    apply(&mut s, p::ENTITY_EFFECT, &owned(42, &[10, 1, 100, 15]));
+    assert_eq!(s.operations.local_player.effect_updates[&10].flags, 15);
+    assert!(receive(&mut s, p::ENTITY_EFFECT, &owned(42, &[10, 1, 100, 16])).is_err());
+    apply(&mut s, p::REMOVE_ENTITY_EFFECT, &[42, 10]);
     apply(&mut s, p::REMOVE_ENTITY_EFFECT, &[42, 3]);
     assert!(s.operations.local_player.effect_updates.is_empty());
     assert!(!s.operations.local_player.effects_complete);
@@ -313,12 +356,45 @@ async fn survival_look_sends_native_ground_bit_and_refusal_sends_nothing() {
         changed: Notify::new(),
         cancel: Notify::new(),
         stopped: AtomicBool::new(false),
+        revoked: AtomicBool::new(false),
+        receiver_abort: std::sync::OnceLock::new(),
+        runtime: tokio::runtime::Handle::current(),
         interrupted_packet: AtomicI32::new(-1),
-        limits: crate::ConnectionOptions::default(),
+        limits: crate::client::ClientLimits::default(),
         interaction_sequence: AtomicI32::new(0),
     });
     let operations = Operations {
         bot: Bot {
+            respawn_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.respawn_history.clone()
+            },
+            recipe_placement_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.recipe_placement_history.clone()
+            },
+            crafting_take_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.crafting_take_history.clone()
+            },
+            flight_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.flight_history.clone()
+            },
+            vehicle_control_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.vehicle_control_history.clone()
+            },
+            dismount_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.dismount_history.clone()
+            },
+            close_history: session
+                .state
+                .try_lock()
+                .expect("new session")
+                .close_history
+                .clone(),
             session: session.clone(),
             _lease: Arc::new(Lease(Arc::downgrade(&session))),
         },
@@ -528,4 +604,38 @@ fn movement_attribute_modifiers_do_not_get_applied_twice_or_to_other_fields() {
         assert_eq!(p.gravity.unwrap().value, 0.08);
         assert_eq!(p.step_height.unwrap().value, 0.6);
     }
+}
+
+#[test]
+fn living_flags_report_the_item_in_use() {
+    use ids::play_clientbound as p;
+    let mut s = state();
+    assert_eq!(s.operations.local_player.using_item, None);
+    // Living flags (index 8, byte serializer 0): using (1) with the off hand (2).
+    apply(&mut s, p::ENTITY_METADATA, &[42, 8, 0, 3, 255]);
+    assert_eq!(
+        s.operations.local_player.using_item,
+        Some(ReceivedItemUse {
+            hand: Some(crate::client::Hand::Off),
+            receive_sequence: s.sequence,
+        })
+    );
+    // Pose updates leave the flags as received.
+    apply(&mut s, p::ENTITY_METADATA, &[42, 6, 20, 0, 255]);
+    assert_eq!(
+        s.operations.local_player.using_item.unwrap().hand,
+        Some(crate::client::Hand::Off)
+    );
+    apply(&mut s, p::ENTITY_METADATA, &[42, 8, 0, 0, 255]);
+    assert_eq!(s.operations.local_player.using_item.unwrap().hand, None);
+    // Air supply (index 1, VarInt).
+    apply(&mut s, p::ENTITY_METADATA, &[42, 1, 1, 120, 255]);
+    assert_eq!(
+        s.operations.local_player.air_supply,
+        Some((120, s.sequence))
+    );
+    // A wrong serializer for the flags is rejected without changing state.
+    let before = s.operations.local_player.clone();
+    assert!(receive(&mut s, p::ENTITY_METADATA, &[42, 8, 1, 1, 255]).is_err());
+    assert_eq!(s.operations.local_player, before);
 }

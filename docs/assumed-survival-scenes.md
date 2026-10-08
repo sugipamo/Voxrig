@@ -1,6 +1,6 @@
 # Read-only assumed survival scenes
 
-`checked_survival::AssumedSurvivalScene::new(region, blocks, start)` admits
+`java_1_21_11::checked::AssumedSurvivalScene::new(region, blocks, start)` admits
 caller-supplied geometry for the same Java 1.21.11 dry-cube model as captured
 scenes. It performs no network I/O and never constructs `StandingContext`.
 
@@ -36,6 +36,12 @@ cannot deserialize native intents, scenes or previews. Historical movement
 records now carry tagged source provenance; old direct-standing source records
 need explicit data migration if callers retain them. No reverse conversion is
 provided.
+
+On the common Client branch, component-bearing `InventorySlot` values project to
+`diagnostic::RecordedInventorySlot`. Component patches and validated registry IDs
+likewise have separate `Recorded*` facts. Persist those records rather than
+deserializing native slots or IDs; wire bytes, patch removals and version ownership
+are retained, while private slot/cursor/screen guards remain live-only.
 
 This API supports reproducible model checks, not an independent Minecraft
 physics oracle, live freshness proof, inventory receipt or executable plan.

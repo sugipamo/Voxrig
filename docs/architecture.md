@@ -61,7 +61,7 @@ registry名はraw IDと併存させます。NBT、raw JSON chat、metadataなど
 
 ## 診断記録と実行用の型
 
-`checked_survival::diagnostic`は、一方向の`ToDiagnostic::diagnostic`と用途別の
+`java_1_21_11::checked::diagnostic`は、一方向の`ToDiagnostic::diagnostic`と用途別の
 `Recorded*`を公開します。接続や操作を行わず、現在の値から保存可能なRustデータを作ります。
 JSONに一度変換して型を作る実装ではありません。
 

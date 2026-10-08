@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, ensure};
 use std::{collections::HashMap, sync::Arc, time::Duration};
-use voxrig::{BotManager, ChunkPos, Player, Server};
+use voxrig::versions::java_1_16_1::{BotManager, ChunkPos, Player, Server};
 
 #[tokio::main]
 async fn main() -> Result<()> {

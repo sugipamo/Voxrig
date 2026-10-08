@@ -1,0 +1,210 @@
+[
+  {
+    "window": -128,
+    "display": {
+      "type": "minecraft:crafting_shaped",
+      "width": 1,
+      "height": 2,
+      "ingredients": [
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:oak_planks"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:oak_planks"
+        }
+      ],
+      "result": {
+        "type": "minecraft:item",
+        "item": "minecraft:stick"
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    }
+  },
+  {
+    "window": -1,
+    "display": {
+      "type": "minecraft:crafting_shaped",
+      "width": 1,
+      "height": 2,
+      "ingredients": [
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:oak_planks"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:oak_planks"
+        }
+      ],
+      "result": {
+        "type": "minecraft:item",
+        "item": "minecraft:stick"
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    }
+  },
+  {
+    "window": 0,
+    "display": {
+      "type": "minecraft:crafting_shaped",
+      "width": 1,
+      "height": 2,
+      "ingredients": [
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:oak_planks"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:oak_planks"
+        }
+      ],
+      "result": {
+        "type": "minecraft:item",
+        "item": "minecraft:stick"
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    }
+  },
+  {
+    "window": 3,
+    "display": {
+      "type": "minecraft:crafting_shaped",
+      "width": 1,
+      "height": 2,
+      "ingredients": [
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:oak_planks"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:oak_planks"
+        }
+      ],
+      "result": {
+        "type": "minecraft:item",
+        "item": "minecraft:stick"
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    }
+  },
+  {
+    "window": 127,
+    "display": {
+      "type": "minecraft:crafting_shaped",
+      "width": 1,
+      "height": 2,
+      "ingredients": [
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:oak_planks"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:oak_planks"
+        }
+      ],
+      "result": {
+        "type": "minecraft:item",
+        "item": "minecraft:stick"
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    }
+  },
+  {
+    "window": 128,
+    "display": {
+      "type": "minecraft:crafting_shaped",
+      "width": 1,
+      "height": 2,
+      "ingredients": [
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:oak_planks"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:oak_planks"
+        }
+      ],
+      "result": {
+        "type": "minecraft:item",
+        "item": "minecraft:stick"
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    }
+  },
+  {
+    "window": 130,
+    "display": {
+      "type": "minecraft:crafting_shaped",
+      "width": 1,
+      "height": 2,
+      "ingredients": [
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:oak_planks"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:oak_planks"
+        }
+      ],
+      "result": {
+        "type": "minecraft:item",
+        "item": "minecraft:stick"
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    }
+  },
+  {
+    "window": 300,
+    "display": {
+      "type": "minecraft:crafting_shaped",
+      "width": 1,
+      "height": 2,
+      "ingredients": [
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:oak_planks"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:oak_planks"
+        }
+      ],
+      "result": {
+        "type": "minecraft:item",
+        "item": "minecraft:stick"
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    }
+  }
+]

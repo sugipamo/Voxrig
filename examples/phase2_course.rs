@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, ensure};
 use std::time::Duration;
-use voxrig::{BotManager, ControlState, Player, Server};
+use voxrig::versions::java_1_16_1::{BotManager, ControlState, Player, Server};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -57,7 +57,7 @@ async fn main() -> Result<()> {
     manager.disconnect_all().await?;
     Ok(())
 }
-async fn wait_ground(bot: &voxrig::Bot) -> Result<()> {
+async fn wait_ground(bot: &voxrig::versions::java_1_16_1::Bot) -> Result<()> {
     tokio::time::timeout(Duration::from_secs(3), async {
         while !bot.player().await.on_ground {
             tokio::time::sleep(Duration::from_millis(10)).await;
@@ -67,7 +67,7 @@ async fn wait_ground(bot: &voxrig::Bot) -> Result<()> {
     .context("ground wait timed out")?;
     Ok(())
 }
-async fn wait_air(bot: &voxrig::Bot) -> Result<()> {
+async fn wait_air(bot: &voxrig::versions::java_1_16_1::Bot) -> Result<()> {
     tokio::time::timeout(Duration::from_secs(3), async {
         while bot.player().await.on_ground {
             tokio::time::sleep(Duration::from_millis(10)).await;

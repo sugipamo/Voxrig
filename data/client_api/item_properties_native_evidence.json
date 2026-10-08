@@ -1,0 +1,2208 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "scope": "Same public ItemStack.properties on actual received named stone in original vanilla 1.16.1/1.21.11 survival/creative: legacy Damage=7 preserved, modern effective max_stack_size=16 overrides static default64. Independent RCON matches; original item bytes and actual item receipt provenance, pose and readonly frames retained. Existing common workflows passed.",
+  "authority_limits": [
+    "Inputs captured before compilation at4105a49 plus staged prototype/property/source/consumer/driver/oracle changes. New evidence and later documentation are collected afterward, not retroactive execution inputs.",
+    "Properties are interpreted from item data and pinned native prototypes. Source belongs to the underlying item, not a separate property packet, gameplay acceptance or action permission.",
+    "Original JVMs sequential heap1GiB CPU1, normal exit0; disposable runtime children removed after export. No game methods or packets replaced.",
+    "Trace errors0; one modern complete native clientbound frame after explicitly requested disconnect is retained as undelivered, not Client receipt. Actual property-read scope has separate original readonly frames.",
+    "General item/component/text equality, full inventory/cache hash, registry-reference meaning, slot rules and data-bearing operations remain pending."
+  ],
+  "runs": [
+    {
+      "version": "1.16.1",
+      "run_id": "trial-1.16.1-551ab705",
+      "result": "passed",
+      "scenario_result": "passed",
+      "server_exit_code": 0,
+      "runtime_inputs": {
+        "baseline_commit": "4105a49461ea52bf7e2a3c869e0bf95a1eeb4296",
+        "source_sha256": {
+          "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+          "Cargo.toml": "d1cb76ebbce8f19df7852f5491ae2cf3b1ed7633ddb97bbf411b40ef5143d1da",
+          "data/block_collision_shapes.json": "133fa12949ee8f5a2d94551f5d03468b0441ac7994905a36509b7fd6956af944",
+          "data/block_state_ranges.json": "e09fe5973d72086d0139e9b80a3006bfd176bc701618fd442e1f2e2a6d6218ca",
+          "data/blocks.json": "9955a271f507cf8d8d47b3d52c52137539dd5f70171353870f7cb0b72f6e41a0",
+          "data/client_api/common_native_evidence.json": "20bf22cefe79e681b659af611c94c19d744f3e531286785f692de08814c3a2ad",
+          "data/client_api/container_close_packets.json": "521af67af23adeaad7980e7dca4535d4a5097b5bec325162ae55005235587067",
+          "data/client_api/cursor_close_native_evidence.json": "71942c61d1d79a9b468283b750ba968907744e7651741dbb050971ac112ecd61",
+          "data/client_api/cursor_return_cases-1.16.1.json.gz": "2299a157fc2fd01eaf5fb8c8591905486b81dea9ce3f8f8b08a96af90cadfe6c",
+          "data/client_api/cursor_return_cases-1.21.11.json.gz": "75e10837cc26bf009c80402f3c17b76ac0a5eeb0a32333ae67bf3a3a02e6a347",
+          "data/client_api/cursor_return_native_evidence.json": "1b9f6b7ecb8719c16b1e665aec745b532c28014b7f566b4881135796ba5de7e5",
+          "data/client_api/cursor_return_packets-1.16.1.json": "b02c4279ee7baa4d602b6faf57e5928df0b8fec8a3899adb9b59cd8388103e1f",
+          "data/client_api/cursor_return_packets-1.21.11.json": "c77c5279e7fcdbc4bb9657ab66cc8efcf3f8c4d395fabc713469268a9db78f0b",
+          "data/client_api/cursor_return_profiles-1.16.1.json": "7d57d7c7d8e28124483e23af5c272f7a62ee346b39c8a134f0bd7018c0b513fd",
+          "data/client_api/cursor_return_profiles-1.21.11.json": "987ee61adaa6fef59bd4e5430748422b5bb4b4a39a2ccd505126b44dac6f6bae",
+          "data/client_api/cursor_return_source.json": "13969b34380ace2ec158141a64b1e3215da26071f8fcfde9d94b44e6cb7ff31f",
+          "data/client_api/inventory_transfer_cases-1.16.1.json.gz": "f8020629e98e1f71ff3b29edc06cab9d608a590e81af7973cdc77e5643a3359d",
+          "data/client_api/inventory_transfer_cases-1.21.11.json.gz": "5ec0261be324b7e16bc7994b8f560d0724eb046a288ab85787284354d81ebe3a",
+          "data/client_api/inventory_transfer_native_evidence.json": "fe99707b4dbf104717e1827efb1d7f65f272455e5c2ae2d2ed698b65149f2703",
+          "data/client_api/inventory_transfer_packets-1.16.1.json": "4d113a85c14436afbccab68c953781f3ba04032376542bd1ae02f15a637f647c",
+          "data/client_api/inventory_transfer_packets-1.21.11.json": "03056de95bf17248ba3f947672b162def5eb8b00b5361dbd3a34a4b79b701ba2",
+          "data/client_api/inventory_transfer_profiles-1.16.1.json": "08f8928c78ca47b594ab6e486a7972c636f5f735d4b7a76b89ebe6193465a3ab",
+          "data/client_api/inventory_transfer_profiles-1.21.11.json": "c3cc20917f1c52cf9423d0697e308ec850154b5502f1a557011dcdbc8034200b",
+          "data/client_api/inventory_transfer_source.json": "dd6d78e81d22ba01855218f86147c2ea6243c099be6a873c638e6f053a8b1c1d",
+          "data/client_api/item_component_cases-1.21.11.json": "d9e3580aedb274aa6f7df087869917703e9de0ca88e1e57edb23ab1703a613fa",
+          "data/client_api/item_component_requests-1.21.11.json": "66bbec26eb2a0532dd393275fa348f70ccdd67a1143313374d38f5c1205c0581",
+          "data/client_api/item_component_schema-1.21.11.json": "daca9c75291d430e50fca686b0dd22d60c3674e894449fbfd9a0a7106a9b611e",
+          "data/client_api/item_component_schema_source.json": "c486b964a16218f21cab7f1742e88d30c8105bd05a56eebcacb37b28f46a892c",
+          "data/client_api/item_component_source.json": "e87d2618453d822c5264b80676781da46a019a74634e12126cbdb5ecfd4a6d7a",
+          "data/client_api/item_components-1.21.11.json": "5f3452aa05267683b0405a998e9b118b5e4d20c82f2ae1ca892c257e3e58c291",
+          "data/client_api/item_data_complex_native_evidence.json": "26c67695619b92cc52bc16bc27356197b0d558296d9219701df4afafbb7850a2",
+          "data/client_api/item_data_native_evidence.json": "3e411552935c7592d56baa6ed5796bd6b15efb00a530566fd7e685689f929414",
+          "data/client_api/item_properties-1.16.1.json": "5d863789ca31e7154d6e49e199868d1479bdfe22a3a4b61b0b4396042b974ab9",
+          "data/client_api/item_properties-1.21.11.json": "b1b6089955b92b25999a136e8789abde088693a63c2453868436c61f74452000",
+          "data/client_api/item_properties_requests.json": "7b208aad7fdd7af6a846505289c3c7f1df3e7ab389e08f8e6a5f4915ad80671e",
+          "data/client_api/item_properties_source.json": "88752b249571e108beb0847360f6b498d89684dced9c87fb5a01a64e30dd50be",
+          "data/client_api/java_1_16_1_dry_movement.json": "235cf33deacb7fd9fd64a3806fe581984361508ab1ce5cbb480a50236d3ab885",
+          "data/client_api/java_1_16_1_dry_movement_source.json": "12d76e69564f2aff5d3f28493c8ab0abdbbed05e909a62fe6b3348bcf96afaec",
+          "data/client_api/java_1_16_1_wire.json": "298d151e86c647f51d36595a04a6bbcc836e492b9af9465d22e28e42737c008d",
+          "data/client_api/legacy_inventory_swap_packets.json": "73b7573912ca821b518385fb6a256f13183bea665f6d6884dd11eb508bcdc688",
+          "data/client_api/legacy_targeting_oracle.json": "ddb04af17bb62019696ec460bec062f5bbb181a367eeda4027b9137b936e34d0",
+          "data/client_api/legacy_targeting_source.json": "0a21bfe19738c36c3b3060d9034b3c9a6fd8f90e5e2bd9516b8b74704f83c686",
+          "data/client_api/menus-1.16.1.json": "6f24bb20bffee0b0e6207640f5cb4308302b010883da5fdbfe15839f7939d4cd",
+          "data/client_api/menus-1.21.11.json": "203c3ccc2a5c6206cbaef4fd4d48bdc2f3bf283fb8de815df412d6b90d91c9ca",
+          "data/client_api/nbt_semantics-1.16.1.json": "bb908d5edb8dc20b217ab5c8cb805d67a14a90d320468dd8aee3660fed3d2664",
+          "data/client_api/nbt_semantics-1.21.11.json": "8957ce0fb8da43fcac6b2ca4662456c5824373a0c29e73e910ecf3cd8cf9f6d2",
+          "data/client_api/nbt_semantics_native_evidence.json": "27fe7dc2b97b2f9ecb6d1d01946853fff5e9065f728c40d4aa79ae8e07e7f574",
+          "data/client_api/nbt_semantics_requests.json": "6dc775719eeba44443f7be97e39be348eded05675aea37e845f9c72fa4695f88",
+          "data/client_api/nbt_semantics_source.json": "fb97ff6953647a753f6740972147e4c275c45b4d1cb17f51e199ec5286829183",
+          "data/client_api/ordinary_pickup_native_evidence.json": "e320083df5822fd830d8d82f53aa69732d296a2225a9bf43bb8f780aff92dd61",
+          "data/client_api/regular_click_cases-1.16.1.json.gz": "77b1c4ae76671431a492cbc20d2b24dbfab059d0e0ac2bddf9ee2aa8e3b93d78",
+          "data/client_api/regular_click_cases-1.21.11.json.gz": "adfd504a690bc5629594818cd2cf129a42f91a6a7de47b452c90555de1ef8bb4",
+          "data/client_api/regular_click_native_evidence.json": "64d53e36f2ae0ad74f67e513da8b7a5402b1f139433c82c6db67cdb987fbb417",
+          "data/client_api/regular_click_packets-1.16.1.json": "bb5f48c1b213887b1786319e447b31d9d93bf8112a560268109475c89f1e0424",
+          "data/client_api/regular_click_packets-1.21.11.json": "130a9826719d0ffd809b75d7acd708092ca438fc9400c7d26b17423187b78adb",
+          "data/client_api/regular_click_profiles-1.16.1.json": "b4a3f8cd7ef6613f5731982853311c38444eba6a9ead6a515b841d53a8910f15",
+          "data/client_api/regular_click_profiles-1.21.11.json": "1dabd56a059430bf76e18a375666d8066603ae0fa5b52c8dc1f6b1aa2c7a9e45",
+          "data/client_api/regular_click_source.json": "ee22d0157740c95baab56cba65941e11d3b35808470f99f83f484ad59d101d90",
+          "data/client_api/server_registry_native_evidence.json": "99c1bf2f3c1266eb62780eb9f27b00f6a611bca3da79a0c2e92d12e12ac67a71",
+          "data/client_api/storage_activation_source.json": "618a9ecc4b899807709507a068daa6af5fcccc9a6d0d3e8106fa7bf943bf9f8c",
+          "data/client_api/storage_outline_rays-1.16.1.json.gz": "79330dfe1a9a0315eb4532ed5552085077d2a1ba5288da9850ec6b2147be46b4",
+          "data/client_api/storage_outline_rays-1.21.11.json.gz": "79330dfe1a9a0315eb4532ed5552085077d2a1ba5288da9850ec6b2147be46b4",
+          "data/client_api/storage_outline_source.json": "eaab9a1a97ada364f5f34042b6a7f9e977eaf5cf6095e4573182db930ad68783",
+          "data/client_api/storage_outlines-1.16.1.json": "e5e93a03c3dac0a318f29eb74a26d0b910b58a8ce3924b7fec77fb321e8e3e9d",
+          "data/client_api/storage_outlines-1.21.11.json": "8181669f1c98d417b12f0bf95871165a4cae4361a9276649df80245f1b7d0555",
+          "data/enchantments-source.json": "d2b07c82aba9cd804affc96f3462d4f553be7c814a3a4bc6288df2bdb5cee8ad",
+          "data/enchantments.json": "e6e19e5d3e09c5946d78ae94cb9751655f0090d460ceaf4d87f8f3cee87b0d77",
+          "data/entities.json": "5d50e5f819001980262faebd3984dff05cfb1c2e6101ec02d3a6ae4f34687cf7",
+          "data/harvest_gate_corrections.json": "ffc94117427e00ad135ec161bcadcf1bebc4430eeaabfd6789a66684fa7f66e8",
+          "data/items.json": "94132023a25ffbe5410c186a263dce79a3e6f469f196e2978778e9a129a69021",
+          "data/java_1_21_11/blocks.json": "b152350461ff183c7444ad3107a98ac555de579c4afadd092f2c2d03fb5b80eb",
+          "data/java_1_21_11/collision_shapes.json": "1ee9dd534848604495193ad8b3c06ffd1674cda09a609850c12a9746ba1b9812",
+          "data/java_1_21_11/dry_movement.json": "c11d2071a8cbb1d26a7aecf29986eca52b14e4749671b98094250c85659a0bb4",
+          "data/java_1_21_11/dry_movement_source.json": "25badc36cbaf8ed9e43ad6ba827af8b200d62ef443d3e268d8557e11a4045906",
+          "data/java_1_21_11/inventory_swap_packets.json": "916e61040a033a90432b85a08c34f474fa98b7c4a9db7aa4fb00a8cb934c6f63",
+          "data/java_1_21_11/items.json": "528dc62f92a40981e32ee8826adcf7ad00bce153484c17d5109d0f4353a70264",
+          "data/java_1_21_11/outline_coverage.json": "88b5ec0d474012479a3d3fb8c4659cee29094700720e37a207b93e0cb0c3a92d",
+          "data/java_1_21_11/outline_raycast_cases.json.gz": "a1900f4eed584de07fe3628bcae4fb57f0df2d94e11d4a3dfe23d75e36a251d4",
+          "data/java_1_21_11/outline_rotation_cases.json.gz": "837458b1aa9fdf731e4774685ea6ba6711d26f161cdd6d3e8e4caf5f19764430",
+          "data/java_1_21_11/outline_shapes.json": "f96c141d4bbfe12d14157ce6228802a9ec4ee5caffa40467c260c054e00311d2",
+          "data/java_1_21_11/outline_source.json": "7a0cd1a511ab009a3dc9e2cf222cd8fb7a203b9be93b1f99cf572373aed4e134",
+          "data/java_1_21_11/position_corrections.json": "0eabe98ed2f21cc593c8784fceca3e8a6ebc8f4f8c8c74c99541528e0f9621d1",
+          "data/java_1_21_11/source.json": "ea9a050eeb3513b9017b4112da1f1beabaec218b828a922989e2355308d09578",
+          "data/java_1_21_11/survival_foundation.json": "3e4a7eb97acb3b6c50a11954261c7b70160d6b4e55f9dbc1c303c4e1ef6f96b4",
+          "data/java_1_21_11/survival_foundation_source.json": "f0fe0e27a4b35c10828240d438360d3c75bdd063e467d46153899571b2ad379f",
+          "data/java_1_21_11/survival_movement.json": "3fa48dea890294c551a70f618e4e0bca9f79d2b4285c2621328a65ae7bd2087e",
+          "data/java_1_21_11/survival_movement_source.json": "56e485e2835fb75963d50214ec10f4715c7ef77378e19bfe20cd1c75be9afeb1",
+          "data/java_1_21_11/survival_placement.json": "42205603305e85e94a6f5044f5f7600168faa8118664f7d2bb65256a39644269",
+          "data/java_1_21_11/survival_placement_source.json": "7d91063620ddaed62c6108d88424dc3734d4cff58ff01d2aa030f5c9f5dd0aaa",
+          "data/materials.json": "64172813642aae7c05321fe36136a37b2f98845732541e025d296628a7944b1f",
+          "data/prismarine_physics_fixtures.json": "8333fc4d2b7e10d609bc390d0721e2d51baa9bf2cc0e56ba32dc643e63b323cb",
+          "data/recipes.json": "f2d8d44a5c80b224d1ae33d1910800c5f43ced5b535a7adfb927a029550b2e21",
+          "data/sounds.json": "625dfab3246730311b4a228d4d01e62d6c8429065c0e4df3530e4f71fb7c943f",
+          "examples/common_native_probe.rs": "f278a686b7618b579654ba285877d998621e66c443887b236c0cb832223778da",
+          "scripts/run_common_native.py": "3ac456745f5ffc3a96b511617c7e9194c080a6c95c3b7b807e1547973ba025ac",
+          "src/block_state.rs": "8f1f169bbee43fe8fdf91931cfd433cae7e1a23752aad2c35555ee4af3cbd0e2",
+          "src/client/capabilities.rs": "e7b6d113af7a8af9fe300cf50fe39032033b345a03d3998b5d2258e73a4cec7d",
+          "src/client/config.rs": "f61f7cd82ca773202f6b851af73434a7f8ff3330c7549fc9337644da3f812f02",
+          "src/client/container.rs": "edfbfe08f714a8a3c2280d2051e9dc8e60a2b802b1af2fe67f2450cd6475035a",
+          "src/client/container/close.rs": "764fb11f30633aa7892e97063b69b6ac9d593837b29697f1a13650ad44a16d70",
+          "src/client/container/native_return_evidence_tests.rs": "1c6172fc4b3d28f9d4ce15e961dace3886d66376e190672c8dd9f84fc6ae8199",
+          "src/client/container/open.rs": "f5832d0855e831272e4e07b48683a555e9ea7ee62ce32a18c9317c5c29d26780",
+          "src/client/container/outline.rs": "cc5b0d705e01ce8095db46ef4f461a2b9fd01164b7a86919ea15ffaf737de5c5",
+          "src/client/geometry.rs": "69b7a146407675ed30e7878075166c2739f5b47957fac6d43e78899a3e5e943f",
+          "src/client/inventory.rs": "18ad5efe3f8d5914a8c853cb6fedd160b6f792e8a9ddaee2d3ea942e6e7a71bc",
+          "src/client/inventory/click.rs": "79cde2bf6bb95c0de70396b25eff36c043d9e78a69d00ec5cf34b03fd3079030",
+          "src/client/inventory/return_policy.rs": "c1391d1d2c455f832118071aaaa7f4e837604b726682c6916eebc408988f4f02",
+          "src/client/inventory/slot_policy.rs": "14900a8deb8213ba7c5a810cc186576ee0ce31fd0fd1c0394747166a3f494500",
+          "src/client/inventory/transfer.rs": "149ae3d32f9831f4baf5582554276077968a62ae04d2ef542b63ed3251e2bcce",
+          "src/client/inventory/transfer_policy.rs": "3a5eef1e2eba083fe49313fc88b72811d8090a2fb3feb940c2d3c1828f615a4b",
+          "src/client/item.rs": "44e3db6e0ff24732eae58c5b6ec4afdfe34a18a25509b79917b4d0778521e46f",
+          "src/client/mod.rs": "805dc72e4b433562c8880d811465c471938ea84d7bc2909e745126b5c9654c19",
+          "src/client/nbt.rs": "7584ce40b20887b4d5c776ea0a4791b3455dff90c3d08c741fb0e85c85e0b90b",
+          "src/client/observation.rs": "ad3d28c9dfec996b6a0408bea85e1656bfa895ddbb6d1d0d6d1cd3630c68aad7",
+          "src/client/operations.rs": "3f2432a598e5f111b0c88304f3cd8c7a90b05fbdc0dc8793087f63a233df5d22",
+          "src/client/registry.rs": "2eaa5eb03ffd539aaab4aff5f7995cc7921a18274a4674e52b7c8487b5fc1dce",
+          "src/client/registry/received.rs": "33f054f5024df961ef10a19f000754923bb5d23dd45f333f10b7a0f1f129e8d7",
+          "src/client/survival.rs": "7be78a0216b2ecfa94e4816bdd49500f116f91538853a789dce1655ca5aeb4e5",
+          "src/client/survival/checked.rs": "1e6105da20b38e56cefbe1ed7c34f19f8ae9bd01a744c0933b7a6f46533182d8",
+          "src/client/survival/mining.rs": "96c2588f3e21f4e9cb86dab1aab9cf8662f9b986c5bd96aadcb1f83924291347",
+          "src/client/survival/model.rs": "5142678df9a4936000f5c83c1864b7fd00bd63d1be7fc553a1673baee6ca1592",
+          "src/client/survival/motion.rs": "edee38d19269693f7a7ca194a980b61a92aaa4ab24914c5500b5be88c1dd022a",
+          "src/client/survival/placement.rs": "615da875af2b620d08bc06b5c41683d9852b56f79f0b929e9b5ead8ef147b74a",
+          "src/client/survival/target.rs": "433b7c0e184a1d1b5832749c6625d6eb02cbea10876dc0e964eea397a7e261b4",
+          "src/client/tests.rs": "ab89e836946dd6fa01dd9b3b4cac4c4780358e700a3978de571e93acbed761ec",
+          "src/connection.rs": "76f0c6145f0776c64d641a9fa3cbb5ba025ffc9faf18987b67d0968161e03bb5",
+          "src/error.rs": "1f5aeb1c74b0a3b8cc72703fd059bb86035e833d56c8b83d703d2d5d525f25b0",
+          "src/lib.rs": "2e46844d713bdfa6a8bca98ccda88f1e2f7cb9094f73c0745c5801ff3b257b45",
+          "src/protocol.rs": "e982aef0864b5280e81bbdb0daaa275e44cda36efeb40a1c33a5004e7ca0786b",
+          "src/snapshot.rs": "4a32c3fe6c1995595c1c0da21eaec9dc0368d3e58e89111fb4a216335a8a894a",
+          "src/versions/java_1_16_1/chat.rs": "3f2295100317f9197b0bf9d0c6600bc9cdc115b2bfc2afb3bdf3b31231f1c0c9",
+          "src/versions/java_1_16_1/client.rs": "222ba26bbc909ee450a1ae9f43823930d229b244b65f4ad9da33429e36d7def8",
+          "src/versions/java_1_16_1/client/common_api.rs": "48713486bab5644c215e5e09bd475aef49551a9a5f0080108818aee7c3052dcb",
+          "src/versions/java_1_16_1/client/common_click.rs": "ee593e1c1c1418632697ffe2f9f93deb3fed2673b039bcd4ac18ba744cbe364a",
+          "src/versions/java_1_16_1/client/common_container.rs": "85502e4856ecef58d5eee34d29ab5e4ded0027a1100ff61fed3c03002665afde",
+          "src/versions/java_1_16_1/client/common_inventory.rs": "64bf9e8cefeb493877704082925c13469867a9771ce394273bf5ca0d631fa94b",
+          "src/versions/java_1_16_1/client/common_mining.rs": "ef4a1f26555a8040c58596191027157b96ac9244cdb731cfc6428e82aaf032e4",
+          "src/versions/java_1_16_1/client/common_motion.rs": "cddc3385e48b5a7ac1528a61ce22e414036273ad6b8861ef1ddc667611e52555",
+          "src/versions/java_1_16_1/client/common_placement.rs": "bc897ce7cda4fbd818d97c356eb1c4ac0dddf377c4a6a1fdf7d32547fa699e1a",
+          "src/versions/java_1_16_1/client/common_transfer.rs": "0c3219dcbfd75d28e9a74345a9944304075ebbfccc8c5ed66cc444c37aea37f7",
+          "src/versions/java_1_16_1/client/packet_deadline_tests.rs": "877c2370ec2b564f227b5c665506881c09050980ab54c3c84cf51306bcc81e68",
+          "src/versions/java_1_16_1/client/storage_tests.rs": "75c07a149cecaac7954abbd217ec9d16d943fe2358348f54b273fd0e349dee41",
+          "src/versions/java_1_16_1/collision.rs": "d4ce098e6a0e8abaf59dca0e34ad8562287f39dcaf5c3effbb929aff7a5c0780",
+          "src/versions/java_1_16_1/entity.rs": "a1fda57736c36e6e64b7280c53f6e074867008203c131b3eb97b1cd9fbbf999f",
+          "src/versions/java_1_16_1/interaction.rs": "d048da265194099bcd16cb8baeb7449b9d853b6aebebae7a4c83fe2022ff8c2e",
+          "src/versions/java_1_16_1/inventory.rs": "fc1abbb539ce5ebb66455a032702e50d074b8070308e2d52c1a48f362393aaf9",
+          "src/versions/java_1_16_1/lifecycle.rs": "46824d395f6b913f8d2fb0b93d066019ca0af7eb7aa77658a1c6881341acd134",
+          "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "5a4b41aebb1b97911481835e0fde8e59c4d9ef17b23599e7a4bbf528dd22571a",
+          "src/versions/java_1_16_1/lifecycle/bounded_motion_tests.rs": "267ca02d1b9db963783bf955a82748d14ece3220c571f153059f31837a880ed8",
+          "src/versions/java_1_16_1/manager.rs": "75ad7f97da8cf7cd1dd420816a31ced98cc3eff88ed5201818ae7b057f9cae9c",
+          "src/versions/java_1_16_1/map.rs": "3f6b09de2f7a8a2e86dabe3c60607ee88e831897648b4e51aecc1fbe9b76f0b9",
+          "src/versions/java_1_16_1/mining_environment.rs": "28591403893c806f8489f04c5c69d04e30746d77eed06e8179ef949097792523",
+          "src/versions/java_1_16_1/mod.rs": "2f7679b9bf8c6839e5fca7dccb2e124c9af7289aae883269f3c277fdbe90a5a0",
+          "src/versions/java_1_16_1/observation.rs": "588b2094bfd82ff078f9c73882e5ae59d542ff68d390f8cfdfe9510643e13739",
+          "src/versions/java_1_16_1/operation.rs": "5f007d6dd0342a2ba73e72e27886e31228ab5d6da9859b423ee8ffb596febecd",
+          "src/versions/java_1_16_1/physics.rs": "5fa4d246cb5a6e7c637ba07de6e53806558a72b6f3bc6cdbaeb4adb15eb8546f",
+          "src/versions/java_1_16_1/progress.rs": "350a2e41d4dd348fed92a9dbfeb01f1de47a99311fa4e07b2204d7babed6df99",
+          "src/versions/java_1_16_1/registry.rs": "063b48394b3d796b29f40040a3e8236034a8708859394fd098714eac1fee2f8d",
+          "src/versions/java_1_16_1/registry_harvest_corrections.rs": "c779923efefa6706f217efd6d317fcca1f21c474a6eeca455dd34469ecc7de26",
+          "src/versions/java_1_16_1/server_registry.rs": "0b61fdc1bc0fe5ce94d0aac64d9f263975144a48410cced47d1dcb4042bb2ce2",
+          "src/versions/java_1_16_1/survival.rs": "82ce19057b8e1d5f3c57055f561a9d8032d57860c25aee92762e06a11bcbda4d",
+          "src/versions/java_1_16_1/ui.rs": "4ec80717a019f72b3b5676ec956cfb5b6b36364f3312755b9ee0e1ae74ca906e",
+          "src/versions/java_1_16_1/unstable.rs": "7e2791ac9b9d48dbee335b07905ce111586f60c54966474395b4aee2b9e93570",
+          "src/versions/java_1_16_1/world.rs": "d1451ea09a36c27df09b44861bd2ca715f6e61ec08726caa0ccd251f4072f3df",
+          "src/versions/java_1_21_11/client.rs": "ce68d467718b0ac5d8784a63236fc99229ec5bb94f2f275466d8e68fdb88b705",
+          "src/versions/java_1_21_11/client/correction.rs": "e2d7d58ccf934aedcb2759464cf9b673ddd6f07c94ee64d9408a48f34996cdd9",
+          "src/versions/java_1_21_11/client/edge_native_trials.rs": "323860a9fd7ea2d46eabeedf046ef80ede96564db655daa0ba2306b27c685c19",
+          "src/versions/java_1_21_11/client/loading.rs": "4b8b746d2e7dd23167fd432034b45766f2c52bf686920294b09579782a9e729a",
+          "src/versions/java_1_21_11/client/loading/tests.rs": "76e27cad394267edf805458263acc11500b59dd7b2e8f582b0fe39cf10957d92",
+          "src/versions/java_1_21_11/client/mining_native_trials.rs": "ed982aad12cb45cd689df7618aee1ca905abab2db3c323ac79567808ba919e2d",
+          "src/versions/java_1_21_11/client/motion.rs": "312eb801d83b976d3b63bbe2e298ced1f56c13aa899b945dfcee98cfee723e98",
+          "src/versions/java_1_21_11/client/movement_native_trials.rs": "5d7e80daf8f4bf12ea652dc969e0ca57aca2becef04652bb9f8c39e5045f5c81",
+          "src/versions/java_1_21_11/client/observations.rs": "6b60093264c85be724b36a811ed2f22d14a678e43b02a584a5e23f82cd914f6c",
+          "src/versions/java_1_21_11/client/operations.rs": "40af0caba0cfc6265cb58caef31b85e093257e0c094aca42ae037754cbc49976",
+          "src/versions/java_1_21_11/client/operations/component_tests.rs": "abb8900890adb299cc517b85c0788dcfdf3c7b2076a073134d76f40220679b1f",
+          "src/versions/java_1_21_11/client/operations/container.rs": "7247f53a55fe6d79305d7711f9a970de411876d65152eadbb66ae4abcdc056ae",
+          "src/versions/java_1_21_11/client/operations/geometry.rs": "5b504de281198fda5b4c0d76753d8538424f48039131e28a60bb5c37622ae48f",
+          "src/versions/java_1_21_11/client/operations/inventory.rs": "255b884ba6ab1ca17075ad70bf5903ed00919ad15c4ba7062bb5c4eb76e80a96",
+          "src/versions/java_1_21_11/client/operations/inventory/click.rs": "c62f0ef5db9129b936a20e74620416110297b15763233133cf41839fbc13b5e7",
+          "src/versions/java_1_21_11/client/operations/inventory/common.rs": "317ae77017ed4a78fcabbbcb7614a8335eb9201e49f5a85ef8bc000a64b63f83",
+          "src/versions/java_1_21_11/client/operations/inventory/tests.rs": "8f5b5c9dc365c181cf9efa52ff37875003de7fc3866eda2ed9ddff80bf831b25",
+          "src/versions/java_1_21_11/client/operations/inventory/transfer.rs": "aadce9dc94771ef8fcd9aa1fadd695a45c77914811ec69b2b1cd2798c7d153b0",
+          "src/versions/java_1_21_11/client/operations/mining.rs": "458c08568388035610223d21134e890152a98c6f9f0c7f9ed3250dfdff8a8339",
+          "src/versions/java_1_21_11/client/operations/mining/inventory_tests.rs": "a9c1b71fcbcef1fd2487af918a3a3a88b9429e47a31e74698d16e27fad6c5918",
+          "src/versions/java_1_21_11/client/operations/mining/prediction_tests.rs": "a50370c834d1fc1c12300af4ed6ba8725364cce35226f9cdb01063bd6c28c8b4",
+          "src/versions/java_1_21_11/client/operations/mining/profile_tests.rs": "f99953d9cb8f3f1eafa64739690bcd700b2482c8f4a5f8346a06250be3da8b7b",
+          "src/versions/java_1_21_11/client/operations/mining/tests.rs": "b380536726b1d50fc1d41875e9691084c8d477daeaaee0475e5bdfd44ff6ba42",
+          "src/versions/java_1_21_11/client/operations/movement.rs": "09c5139848e429f2881a4fc183974c11b0e1fa8f734f275da3a0a2ac068c1000",
+          "src/versions/java_1_21_11/client/operations/movement/control.rs": "5827110068926d9c17fc40e41f8dadbcee6ccf9738f865d05ceb8e33d0f0a228",
+          "src/versions/java_1_21_11/client/operations/movement/endpoint.rs": "f3f81df0d01d4bacb97cf456a183cabcd485db672c70e4aed4502964eeff70b1",
+          "src/versions/java_1_21_11/client/operations/movement/scenario.rs": "6054e9d6ddbac73824737ad7d56f792b3446d79332a60f3cc3746a69f203e91f",
+          "src/versions/java_1_21_11/client/operations/placement.rs": "31d44c3f0b87fb601ec8203209515e68ced3c8c7811f2e6ba3b15d7a7e0d6f39",
+          "src/versions/java_1_21_11/client/operations/placement/tests.rs": "7e027a78053285a23fdb6b5446c244086367e86da98038b8aaeb495ba22c4cff",
+          "src/versions/java_1_21_11/client/operations/profile_recovery.rs": "08082accb5eb765e83da52441e49af28e7c8512afde6f9ded1150909b4825ed6",
+          "src/versions/java_1_21_11/client/operations/recovery.rs": "17b10627358cce5786fcf094315fe6b620fc58f7e6392b3fd0b80953affb3d65",
+          "src/versions/java_1_21_11/client/operations/retirement.rs": "268476b3e961f7df8357625ddf87d207aa0345a206c70cb19549e418aa585eeb",
+          "src/versions/java_1_21_11/client/operations/survival.rs": "f2e9e7174701feeb86990f8f951d58cb8a690fd85c183207992661613fb498b3",
+          "src/versions/java_1_21_11/client/operations/survival/attributes.rs": "3c24ac65afc7cb35096726231c1f3bd5e9044bd7934a38629c87149ba311c156",
+          "src/versions/java_1_21_11/client/operations/survival/tests.rs": "2055c160eae448a7b5e2034e2e60fbfbc3caec8cf67b00d0e05b702148d90647",
+          "src/versions/java_1_21_11/client/operations/tests.rs": "3a6d5d8e8040881d0dc33b4dfc5d6ac9ecd501b43a83941457a7caf3592541c4",
+          "src/versions/java_1_21_11/client/outbound.rs": "0cfd4cac22076813b155b2ad5c02b27579b1c07f8f0c607e12011bfaad1515c6",
+          "src/versions/java_1_21_11/client/outbound/tests.rs": "ed043b0c8f8f79291d7def0606e32f566e35158995959f1df9e71653ddc0ebf1",
+          "src/versions/java_1_21_11/client/placement_native_trials.rs": "b7a3e4b69e53ec12a34ff60a7a731cbeda19fa808f397bdb1e3b0c446d5c54b0",
+          "src/versions/java_1_21_11/client/players.rs": "1b78ebc0010b50a2dc7a3d1e8ff2fcdbf213f0e2241c8dd61baacb9f7483f895",
+          "src/versions/java_1_21_11/client/players/motion.rs": "48ae0e823b43ca2a129ef2bf712a09025fcaf8f3e81723a0ce70564ed41b04f6",
+          "src/versions/java_1_21_11/client/players/tests.rs": "34f7283a900c94ee492cd9c051742a46c3f94fdea936151147ab821712c0fc9f",
+          "src/versions/java_1_21_11/client/raycast.rs": "97e95b79b4e0a26a0e442cb60ea81eaa97ebb66adf45ef3dc50e9e4d4440c7c6",
+          "src/versions/java_1_21_11/client/raycast/outline.rs": "93f4d6742058139500401dfeba9b838becd23c142c284f1be5fc4652c176c5c5",
+          "src/versions/java_1_21_11/client/raycast/outline/uncertainty.rs": "438ee23c2a6a131d7f3d61956eae5aceba657cd17f9e07daeca7ec1b9a104958",
+          "src/versions/java_1_21_11/client/recording.rs": "de3c6ad62e7229218ec041f66c33e2902bbb9d397296b52d6ab1d2315d37a426",
+          "src/versions/java_1_21_11/client/tests.rs": "20c4e5a0fd067b4ed655c1e0332a5b119630a123ba3fc9673c6f558e77c9e0ca",
+          "src/versions/java_1_21_11/component_nbt.rs": "bce1b6920f3d9fd958c102d2a93818c36fad4b604783b4baa71e219fe52f83ab",
+          "src/versions/java_1_21_11/ids.rs": "55f81e9b0f7eb0f03e42111de7d7e8ffc19b420e3df53fa661643a24ef06d6e1",
+          "src/versions/java_1_21_11/item_components.rs": "d605b693a7eec84e20f1f1d9cd2caae0fff37ed9ad13aa7a368bc87d370dedde",
+          "src/versions/java_1_21_11/item_components/framing.rs": "1892e9e41647f357812f1a1770a7fe89f7f4b81da45794a6bd4a4f527a41fde4",
+          "src/versions/java_1_21_11/item_components/native_evidence_tests.rs": "04eabb0cf89de292a3115c024ed876387fdbf6b5d515a726fcdc0f8bcee77715",
+          "src/versions/java_1_21_11/math.rs": "d780a16da40530bc203bb3fdd2f24aabdd131bf3b41e3fd20ae4f88dfd334ef3",
+          "src/versions/java_1_21_11/mod.rs": "98e560db5b019a5c4e6770ecb8fddb70576359bd45bcd3c513bbcea3dbfe7fa0",
+          "src/versions/java_1_21_11/piston_nbt.rs": "d40ebd94b8a8b3eeeb4cba5c5af94e06e34a2892d2285a50941a67483dd8f5ac",
+          "src/versions/java_1_21_11/reconstruction.rs": "b1462d8efb0c966c30187dc643d1269145a58758e88e5c59b26304dcbd39c15e",
+          "src/versions/java_1_21_11/reconstruction/adhesion.rs": "6d25b703fc47566042dd6d8b78a7f60954263962c4860e8e4bc9c40f310be924",
+          "src/versions/java_1_21_11/reconstruction/motion.rs": "67578f90f3d6f662c2fd0e9657279670c2dabfb36101c8bfc262c546d11b568b",
+          "src/versions/java_1_21_11/reconstruction/rules.rs": "4c8eea74418e3d7af737a0f6d61123798e6d200bd9d547d840c11230b474536f",
+          "src/versions/java_1_21_11/reconstruction/tests.rs": "53316c79b97689e61a638ce6152b0008b9bb5940d9143dc7de781a5e8c7a785e",
+          "src/versions/java_1_21_11/reconstruction/wire_updates.rs": "e3e9d12d073c0f728d5eb3a08b602e88648e9b66e01f03a0f728fd16badb19ee",
+          "src/versions/java_1_21_11/recovery_tests.rs": "a30d0542997bfdc2f5b995a10f1ddfab3644c75deed2865e8cd809d554c2a4e5",
+          "src/versions/java_1_21_11/wire.rs": "7e457fd2b119cb36d770570bda23c2ca47b3d352dd9f3f907dcef4c6795d30fd",
+          "src/versions/java_1_21_11/world.rs": "c58faa72de6d954b0fc4d9551da4f0f460cd445e21c829290ffe194d971f97ee",
+          "src/versions/mod.rs": "bc02286fe6c7f028d718f5140f6839f10afe8b74cd0c48a713efab2e3fabc6fe"
+        },
+        "consumer_binary_sha256": "fe0e02707d4a1b4dda7a6cab1e3f05228c136be81d464360b14770c27dc231bb"
+      },
+      "packet_trace": {
+        "records": 2359,
+        "errors": [],
+        "error_contexts": [],
+        "terminal_events": [
+          {
+            "connection": 1,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 204,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 204,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 1,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 204,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 2,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 375,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 2,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 375,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 2,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 375,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 3,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 535,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 3,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 535,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 3,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 535,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 4,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 701,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 4,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 701,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 4,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 701,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 5,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 1190,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 5,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 1191,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 5,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 1191,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 6,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 1377,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 6,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 1378,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 6,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 1378,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 7,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 1555,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 7,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 1555,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 7,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 1555,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 8,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 1740,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 8,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 1740,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 8,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 1740,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 9,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 1908,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 9,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 1908,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 9,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 1908,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 10,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 2116,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 10,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 2116,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 10,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 2116,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 11,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 2359,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 11,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 2359,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 11,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 2359,
+            "kind": "clean_eof"
+          }
+        ],
+        "terminal_deliveries": [],
+        "authority_limits": "Read-only byte-for-byte forwarding of original protocol frames; decompression only for diagnostics, no game method/packet replacement. Trace errors remain failures; terminal context does not fabricate a complete frame."
+      },
+      "runtime_removed": true,
+      "original_native_source": {
+        "version": "1.16.1",
+        "metadata_url": "https://piston-meta.mojang.com/v1/packages/54fa3af57d041d2771e66d390197b2c0288e697c/1.16.1.json",
+        "metadata_sha1": "54fa3af57d041d2771e66d390197b2c0288e697c",
+        "server": {
+          "sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+          "size": 37968964,
+          "url": "https://piston-data.mojang.com/v1/objects/a412fd69db1f81db3f511c1463fd304675244077/server.jar"
+        }
+      },
+      "raw_output_sha256": {
+        "report.json": "115b2a73610c59ccaf007706077195cdad9d5cb6e43a1f544476a3a94cfd7bc8",
+        "packet-trace.jsonl": "18aa869e1bb74f927aefebff450fe429b199bdd6a816ee2d386f4e2ec80d742e",
+        "probe.jsonl": "43056af147a30c3583d841502cf5fb368ea8dc13005a913fb6dc3a186e64a240",
+        "probe-stderr.log": "37421e92127ef9617c4c12f73d312f0e71703f55503ac94d6058eb594126855c",
+        "server.log": "75623d8edc02f9384004cda7ea9f494253c12b8c21b9a0917d53b4f59da41568",
+        "process.json": "12fe1b44ec689552a1a19b38e6018eb74b2c418fc8529a5dd945e989a34815d2"
+      },
+      "effective_property_observations": {
+        "survival": {
+          "fixture": {
+            "mode": "",
+            "clear": "Removed 2 items from player UnifiedProbe",
+            "item": "Replaced a slot on UnifiedProbe with [VoxrigDataSurvival]",
+            "clear_after": "Removed 7 items from player UnifiedProbe",
+            "restore": "Replaced a slot on UnifiedProbe with [Dirt]"
+          },
+          "name": "VoxrigDataSurvival",
+          "marker": 17,
+          "count": 7,
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "rotation_before": "UnifiedProbe has the following entity data: [0.0f, 35.0f]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "rotation_after": "UnifiedProbe has the following entity data: [0.0f, 35.0f]",
+          "native_inventory": "UnifiedProbe has the following entity data: [{Slot: 9b, id: \"minecraft:stone\", Count: 7b, tag: {Damage: 7, display: {Name: '{\"text\":\"VoxrigDataSurvival\"}'}, VoxrigProbe: 17}}]",
+          "native_marker": "UnifiedProbe has the following entity data: 17",
+          "native_name": "UnifiedProbe has the following entity data: '{\"text\":\"VoxrigDataSurvival\"}'",
+          "native_property_value": "UnifiedProbe has the following entity data: 7",
+          "decoded_item_properties": {
+            "value": {
+              "damage": 7,
+              "damageable": false,
+              "damaged": false,
+              "max_damage": 0,
+              "max_stack_size": 64,
+              "stackable": true
+            },
+            "source": {
+              "kind": "received",
+              "sequence": 382
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "item": {
+              "item": {
+                "count": 7,
+                "data": {
+                  "bytes": [
+                    10,
+                    0,
+                    0,
+                    3,
+                    0,
+                    6,
+                    68,
+                    97,
+                    109,
+                    97,
+                    103,
+                    101,
+                    0,
+                    0,
+                    0,
+                    7,
+                    10,
+                    0,
+                    7,
+                    100,
+                    105,
+                    115,
+                    112,
+                    108,
+                    97,
+                    121,
+                    8,
+                    0,
+                    4,
+                    78,
+                    97,
+                    109,
+                    101,
+                    0,
+                    29,
+                    123,
+                    34,
+                    116,
+                    101,
+                    120,
+                    116,
+                    34,
+                    58,
+                    34,
+                    86,
+                    111,
+                    120,
+                    114,
+                    105,
+                    103,
+                    68,
+                    97,
+                    116,
+                    97,
+                    83,
+                    117,
+                    114,
+                    118,
+                    105,
+                    118,
+                    97,
+                    108,
+                    34,
+                    125,
+                    0,
+                    3,
+                    0,
+                    11,
+                    86,
+                    111,
+                    120,
+                    114,
+                    105,
+                    103,
+                    80,
+                    114,
+                    111,
+                    98,
+                    101,
+                    0,
+                    0,
+                    0,
+                    17,
+                    0
+                  ],
+                  "kind": "legacy_nbt"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 1,
+                  "version": "Java1_16_1"
+                },
+                "name": "minecraft:stone"
+              },
+              "kind": "item"
+            },
+            "native_property_value": "UnifiedProbe has the following entity data: 7",
+            "authority_limits": "Same public item.properties getter, actual received data/source preserved. Independent RCON confirms legacy Damage=7 or modern max_stack_size=16. Original prototype/scalar/removal oracle separately verifies native getters; not item equality, inventory/cache hash, slot rules or nondefault action permission."
+          },
+          "frames": [
+            {
+              "ordinal": 1168,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 22,
+              "body_length": 4,
+              "wire_sha256": "1db891e5f5cf52ca6f5a56e8c7393a5f6a453fbc407e799b90418574c40d3896",
+              "body_sha256": "01fa73a0fb02076e71438b1a1433eb9aaf0c76448230b415d458fe13152482fa",
+              "body_hex": "00000900"
+            },
+            {
+              "ordinal": 1169,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 22,
+              "body_length": 4,
+              "wire_sha256": "4d573aef3fce3f33060005de868afe5e4e6dacdf8a5f8165dffc51472f2a76e8",
+              "body_sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+              "body_hex": "00000000"
+            },
+            {
+              "ordinal": 1170,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 22,
+              "body_length": 4,
+              "wire_sha256": "6f866eb3e8f7408a03cf911b6af3edd79337426ff215f945f7eadfd9282b63d5",
+              "body_sha256": "6fc6f4524161c3ae0d316812d7088e3fcd372023edaea2d7821093be40ae1060",
+              "body_hex": "ffffff00"
+            },
+            {
+              "ordinal": 1171,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 22,
+              "body_length": 90,
+              "wire_sha256": "c347f5d19e81258cc7e1df5900f71c135cc2fa1a5b76491afcd2f1a7f96338bc",
+              "body_sha256": "091f0671bf8636246e31f4475425e8efb7a4e03c9158e5ede96a15a85c859761",
+              "body_hex": "0000090101070a000003000644616d616765000000070a0007646973706c61790800044e616d65001d7b2274657874223a22566f7872696744617461537572766976616c227d0003000b566f7872696750726f62650000001100"
+            },
+            {
+              "ordinal": 1172,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 11,
+              "body_length": 10,
+              "wire_sha256": "197fd4e334f6b2995c81357c25aa3147b870a1f13ec6b555f3049d0117f0d139",
+              "body_sha256": "bacc76a6fa0af532fa066d4ec40279fbe63c136bc21942e21b7e30f0a88bca83",
+              "body_hex": "0000000000002041c873"
+            },
+            {
+              "ordinal": 1173,
+              "connection": 5,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "ed28a9606a1e2cede5ab7f40131517a48ea0d60b055c12414c567b9233e039e3",
+              "body_sha256": "f7fe0ae3131f249fa7ab014e4be56e0d1e84350807f29a0483788d2176ad5b0a",
+              "body_hex": "3fe000000000000040504000000000003fe000000000000000000000420c000001"
+            }
+          ],
+          "authority_limits": "Same public Client observation receives fresh exact item identity/count and original legacy NBT or modern custom-data/name, nested named item, registry-referencing enchantment and book patch. Independent RCON fields confirm values and unchanged pose. Read-only original frames contain no outgoing click/close/creative-slot mutation. Raw reference retention does not resolve arbitrary live registry bindings or authorize component-bearing gameplay."
+        },
+        "creative": {
+          "fixture": {
+            "mode": "Set UnifiedProbe's game mode to Creative Mode",
+            "clear": "Removed 2 items from player UnifiedProbe",
+            "item": "Replaced a slot on UnifiedProbe with [VoxrigDataCreative]",
+            "clear_after": "Removed 8 items from player UnifiedProbe",
+            "restore": "Replaced a slot on UnifiedProbe with [Dirt]"
+          },
+          "name": "VoxrigDataCreative",
+          "marker": 18,
+          "count": 8,
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "rotation_before": "UnifiedProbe has the following entity data: [0.0f, 35.0f]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "rotation_after": "UnifiedProbe has the following entity data: [0.0f, 35.0f]",
+          "native_inventory": "UnifiedProbe has the following entity data: [{Slot: 9b, id: \"minecraft:stone\", Count: 8b, tag: {Damage: 7, display: {Name: '{\"text\":\"VoxrigDataCreative\"}'}, VoxrigProbe: 18}}]",
+          "native_marker": "UnifiedProbe has the following entity data: 18",
+          "native_name": "UnifiedProbe has the following entity data: '{\"text\":\"VoxrigDataCreative\"}'",
+          "native_property_value": "UnifiedProbe has the following entity data: 7",
+          "decoded_item_properties": {
+            "value": {
+              "damage": 7,
+              "damageable": false,
+              "damaged": false,
+              "max_damage": 0,
+              "max_stack_size": 64,
+              "stackable": true
+            },
+            "source": {
+              "kind": "received",
+              "sequence": 396
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "item": {
+              "item": {
+                "count": 8,
+                "data": {
+                  "bytes": [
+                    10,
+                    0,
+                    0,
+                    3,
+                    0,
+                    6,
+                    68,
+                    97,
+                    109,
+                    97,
+                    103,
+                    101,
+                    0,
+                    0,
+                    0,
+                    7,
+                    10,
+                    0,
+                    7,
+                    100,
+                    105,
+                    115,
+                    112,
+                    108,
+                    97,
+                    121,
+                    8,
+                    0,
+                    4,
+                    78,
+                    97,
+                    109,
+                    101,
+                    0,
+                    29,
+                    123,
+                    34,
+                    116,
+                    101,
+                    120,
+                    116,
+                    34,
+                    58,
+                    34,
+                    86,
+                    111,
+                    120,
+                    114,
+                    105,
+                    103,
+                    68,
+                    97,
+                    116,
+                    97,
+                    67,
+                    114,
+                    101,
+                    97,
+                    116,
+                    105,
+                    118,
+                    101,
+                    34,
+                    125,
+                    0,
+                    3,
+                    0,
+                    11,
+                    86,
+                    111,
+                    120,
+                    114,
+                    105,
+                    103,
+                    80,
+                    114,
+                    111,
+                    98,
+                    101,
+                    0,
+                    0,
+                    0,
+                    18,
+                    0
+                  ],
+                  "kind": "legacy_nbt"
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 1,
+                  "version": "Java1_16_1"
+                },
+                "name": "minecraft:stone"
+              },
+              "kind": "item"
+            },
+            "native_property_value": "UnifiedProbe has the following entity data: 7",
+            "authority_limits": "Same public item.properties getter, actual received data/source preserved. Independent RCON confirms legacy Damage=7 or modern max_stack_size=16. Original prototype/scalar/removal oracle separately verifies native getters; not item equality, inventory/cache hash, slot rules or nondefault action permission."
+          },
+          "frames": [
+            {
+              "ordinal": 1178,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 49,
+              "body_length": 9,
+              "wire_sha256": "d67d0527de59dd364c241bb4a8a2047ed47c5f5bf3650ab0e90da27aa6a90ecf",
+              "body_sha256": "1e1adbe7f73771329075036810af5f7ee8585b85cb36d198a38da58c20eb1922",
+              "body_hex": "0d3d4ccccd3dcccccd"
+            },
+            {
+              "ordinal": 1179,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 51,
+              "body_length": 19,
+              "wire_sha256": "17270548f6058d71b6175861a1789ffcd3347fa9cdd7ca4f772ab043eaebebc4",
+              "body_sha256": "9998e299cdf9faa77962cd293140ca817cc1d432aa22031b2b92ad4d41a67bf7",
+              "body_hex": "01017af52aef398f3a62b13e88adcd0ea96d01"
+            },
+            {
+              "ordinal": 1180,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 5,
+              "wire_sha256": "bb63bc3e709f64a1139e0bfbc5cd039eac3377e33870eb57dead685833a77c6b",
+              "body_sha256": "6144d4ba5ba72443ebe071e808dc437c8f70676ac28ad68b86ea0453bbea3f65",
+              "body_hex": "033f800000"
+            },
+            {
+              "ordinal": 1181,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 49,
+              "body_length": 9,
+              "wire_sha256": "d67d0527de59dd364c241bb4a8a2047ed47c5f5bf3650ab0e90da27aa6a90ecf",
+              "body_sha256": "1e1adbe7f73771329075036810af5f7ee8585b85cb36d198a38da58c20eb1922",
+              "body_hex": "0d3d4ccccd3dcccccd"
+            },
+            {
+              "ordinal": 1182,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 14,
+              "body_length": 93,
+              "wire_sha256": "7cd2bea8890ae6d24bf8737ebe23ae9683045feac761bcad840773aee5615a7a",
+              "body_sha256": "ab5ed82d7114b68f563eeb9cb685d997ef3eec37de3ff9e61696b90ab05dc420",
+              "body_hex": "4b7b227472616e736c617465223a2267616d654d6f64652e6368616e676564222c2277697468223a5b7b227472616e736c617465223a2267616d654d6f64652e6372656174697665227d5d7d0100000000000000000000000000000000"
+            },
+            {
+              "ordinal": 1183,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 22,
+              "body_length": 4,
+              "wire_sha256": "1db891e5f5cf52ca6f5a56e8c7393a5f6a453fbc407e799b90418574c40d3896",
+              "body_sha256": "01fa73a0fb02076e71438b1a1433eb9aaf0c76448230b415d458fe13152482fa",
+              "body_hex": "00000900"
+            },
+            {
+              "ordinal": 1184,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 22,
+              "body_length": 4,
+              "wire_sha256": "4d573aef3fce3f33060005de868afe5e4e6dacdf8a5f8165dffc51472f2a76e8",
+              "body_sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+              "body_hex": "00000000"
+            },
+            {
+              "ordinal": 1185,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 22,
+              "body_length": 4,
+              "wire_sha256": "6f866eb3e8f7408a03cf911b6af3edd79337426ff215f945f7eadfd9282b63d5",
+              "body_sha256": "6fc6f4524161c3ae0d316812d7088e3fcd372023edaea2d7821093be40ae1060",
+              "body_hex": "ffffff00"
+            },
+            {
+              "ordinal": 1186,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 22,
+              "body_length": 90,
+              "wire_sha256": "4298307cd1f129c2b15270bb7bdf3a9c6261ad22742e31b376fbcfaaf5d1fb3b",
+              "body_sha256": "cfd1d025193d335a32246add09482990618fe7acee8a8131626d20074f0bed89",
+              "body_hex": "0000090101080a000003000644616d616765000000070a0007646973706c61790800044e616d65001d7b2274657874223a22566f78726967446174614372656174697665227d0003000b566f7872696750726f62650000001200"
+            },
+            {
+              "ordinal": 1187,
+              "connection": 5,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "ed28a9606a1e2cede5ab7f40131517a48ea0d60b055c12414c567b9233e039e3",
+              "body_sha256": "f7fe0ae3131f249fa7ab014e4be56e0d1e84350807f29a0483788d2176ad5b0a",
+              "body_hex": "3fe000000000000040504000000000003fe000000000000000000000420c000001"
+            }
+          ],
+          "authority_limits": "Same public Client observation receives fresh exact item identity/count and original legacy NBT or modern custom-data/name, nested named item, registry-referencing enchantment and book patch. Independent RCON fields confirm values and unchanged pose. Read-only original frames contain no outgoing click/close/creative-slot mutation. Raw reference retention does not resolve arbitrary live registry bindings or authorize component-bearing gameplay."
+        }
+      }
+    },
+    {
+      "version": "1.21.11",
+      "run_id": "trial-1.21.11-55e202a3",
+      "result": "passed",
+      "scenario_result": "passed",
+      "server_exit_code": 0,
+      "runtime_inputs": {
+        "baseline_commit": "4105a49461ea52bf7e2a3c869e0bf95a1eeb4296",
+        "source_sha256": {
+          "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+          "Cargo.toml": "d1cb76ebbce8f19df7852f5491ae2cf3b1ed7633ddb97bbf411b40ef5143d1da",
+          "data/block_collision_shapes.json": "133fa12949ee8f5a2d94551f5d03468b0441ac7994905a36509b7fd6956af944",
+          "data/block_state_ranges.json": "e09fe5973d72086d0139e9b80a3006bfd176bc701618fd442e1f2e2a6d6218ca",
+          "data/blocks.json": "9955a271f507cf8d8d47b3d52c52137539dd5f70171353870f7cb0b72f6e41a0",
+          "data/client_api/common_native_evidence.json": "20bf22cefe79e681b659af611c94c19d744f3e531286785f692de08814c3a2ad",
+          "data/client_api/container_close_packets.json": "521af67af23adeaad7980e7dca4535d4a5097b5bec325162ae55005235587067",
+          "data/client_api/cursor_close_native_evidence.json": "71942c61d1d79a9b468283b750ba968907744e7651741dbb050971ac112ecd61",
+          "data/client_api/cursor_return_cases-1.16.1.json.gz": "2299a157fc2fd01eaf5fb8c8591905486b81dea9ce3f8f8b08a96af90cadfe6c",
+          "data/client_api/cursor_return_cases-1.21.11.json.gz": "75e10837cc26bf009c80402f3c17b76ac0a5eeb0a32333ae67bf3a3a02e6a347",
+          "data/client_api/cursor_return_native_evidence.json": "1b9f6b7ecb8719c16b1e665aec745b532c28014b7f566b4881135796ba5de7e5",
+          "data/client_api/cursor_return_packets-1.16.1.json": "b02c4279ee7baa4d602b6faf57e5928df0b8fec8a3899adb9b59cd8388103e1f",
+          "data/client_api/cursor_return_packets-1.21.11.json": "c77c5279e7fcdbc4bb9657ab66cc8efcf3f8c4d395fabc713469268a9db78f0b",
+          "data/client_api/cursor_return_profiles-1.16.1.json": "7d57d7c7d8e28124483e23af5c272f7a62ee346b39c8a134f0bd7018c0b513fd",
+          "data/client_api/cursor_return_profiles-1.21.11.json": "987ee61adaa6fef59bd4e5430748422b5bb4b4a39a2ccd505126b44dac6f6bae",
+          "data/client_api/cursor_return_source.json": "13969b34380ace2ec158141a64b1e3215da26071f8fcfde9d94b44e6cb7ff31f",
+          "data/client_api/inventory_transfer_cases-1.16.1.json.gz": "f8020629e98e1f71ff3b29edc06cab9d608a590e81af7973cdc77e5643a3359d",
+          "data/client_api/inventory_transfer_cases-1.21.11.json.gz": "5ec0261be324b7e16bc7994b8f560d0724eb046a288ab85787284354d81ebe3a",
+          "data/client_api/inventory_transfer_native_evidence.json": "fe99707b4dbf104717e1827efb1d7f65f272455e5c2ae2d2ed698b65149f2703",
+          "data/client_api/inventory_transfer_packets-1.16.1.json": "4d113a85c14436afbccab68c953781f3ba04032376542bd1ae02f15a637f647c",
+          "data/client_api/inventory_transfer_packets-1.21.11.json": "03056de95bf17248ba3f947672b162def5eb8b00b5361dbd3a34a4b79b701ba2",
+          "data/client_api/inventory_transfer_profiles-1.16.1.json": "08f8928c78ca47b594ab6e486a7972c636f5f735d4b7a76b89ebe6193465a3ab",
+          "data/client_api/inventory_transfer_profiles-1.21.11.json": "c3cc20917f1c52cf9423d0697e308ec850154b5502f1a557011dcdbc8034200b",
+          "data/client_api/inventory_transfer_source.json": "dd6d78e81d22ba01855218f86147c2ea6243c099be6a873c638e6f053a8b1c1d",
+          "data/client_api/item_component_cases-1.21.11.json": "d9e3580aedb274aa6f7df087869917703e9de0ca88e1e57edb23ab1703a613fa",
+          "data/client_api/item_component_requests-1.21.11.json": "66bbec26eb2a0532dd393275fa348f70ccdd67a1143313374d38f5c1205c0581",
+          "data/client_api/item_component_schema-1.21.11.json": "daca9c75291d430e50fca686b0dd22d60c3674e894449fbfd9a0a7106a9b611e",
+          "data/client_api/item_component_schema_source.json": "c486b964a16218f21cab7f1742e88d30c8105bd05a56eebcacb37b28f46a892c",
+          "data/client_api/item_component_source.json": "e87d2618453d822c5264b80676781da46a019a74634e12126cbdb5ecfd4a6d7a",
+          "data/client_api/item_components-1.21.11.json": "5f3452aa05267683b0405a998e9b118b5e4d20c82f2ae1ca892c257e3e58c291",
+          "data/client_api/item_data_complex_native_evidence.json": "26c67695619b92cc52bc16bc27356197b0d558296d9219701df4afafbb7850a2",
+          "data/client_api/item_data_native_evidence.json": "3e411552935c7592d56baa6ed5796bd6b15efb00a530566fd7e685689f929414",
+          "data/client_api/item_properties-1.16.1.json": "5d863789ca31e7154d6e49e199868d1479bdfe22a3a4b61b0b4396042b974ab9",
+          "data/client_api/item_properties-1.21.11.json": "b1b6089955b92b25999a136e8789abde088693a63c2453868436c61f74452000",
+          "data/client_api/item_properties_requests.json": "7b208aad7fdd7af6a846505289c3c7f1df3e7ab389e08f8e6a5f4915ad80671e",
+          "data/client_api/item_properties_source.json": "88752b249571e108beb0847360f6b498d89684dced9c87fb5a01a64e30dd50be",
+          "data/client_api/java_1_16_1_dry_movement.json": "235cf33deacb7fd9fd64a3806fe581984361508ab1ce5cbb480a50236d3ab885",
+          "data/client_api/java_1_16_1_dry_movement_source.json": "12d76e69564f2aff5d3f28493c8ab0abdbbed05e909a62fe6b3348bcf96afaec",
+          "data/client_api/java_1_16_1_wire.json": "298d151e86c647f51d36595a04a6bbcc836e492b9af9465d22e28e42737c008d",
+          "data/client_api/legacy_inventory_swap_packets.json": "73b7573912ca821b518385fb6a256f13183bea665f6d6884dd11eb508bcdc688",
+          "data/client_api/legacy_targeting_oracle.json": "ddb04af17bb62019696ec460bec062f5bbb181a367eeda4027b9137b936e34d0",
+          "data/client_api/legacy_targeting_source.json": "0a21bfe19738c36c3b3060d9034b3c9a6fd8f90e5e2bd9516b8b74704f83c686",
+          "data/client_api/menus-1.16.1.json": "6f24bb20bffee0b0e6207640f5cb4308302b010883da5fdbfe15839f7939d4cd",
+          "data/client_api/menus-1.21.11.json": "203c3ccc2a5c6206cbaef4fd4d48bdc2f3bf283fb8de815df412d6b90d91c9ca",
+          "data/client_api/nbt_semantics-1.16.1.json": "bb908d5edb8dc20b217ab5c8cb805d67a14a90d320468dd8aee3660fed3d2664",
+          "data/client_api/nbt_semantics-1.21.11.json": "8957ce0fb8da43fcac6b2ca4662456c5824373a0c29e73e910ecf3cd8cf9f6d2",
+          "data/client_api/nbt_semantics_native_evidence.json": "27fe7dc2b97b2f9ecb6d1d01946853fff5e9065f728c40d4aa79ae8e07e7f574",
+          "data/client_api/nbt_semantics_requests.json": "6dc775719eeba44443f7be97e39be348eded05675aea37e845f9c72fa4695f88",
+          "data/client_api/nbt_semantics_source.json": "fb97ff6953647a753f6740972147e4c275c45b4d1cb17f51e199ec5286829183",
+          "data/client_api/ordinary_pickup_native_evidence.json": "e320083df5822fd830d8d82f53aa69732d296a2225a9bf43bb8f780aff92dd61",
+          "data/client_api/regular_click_cases-1.16.1.json.gz": "77b1c4ae76671431a492cbc20d2b24dbfab059d0e0ac2bddf9ee2aa8e3b93d78",
+          "data/client_api/regular_click_cases-1.21.11.json.gz": "adfd504a690bc5629594818cd2cf129a42f91a6a7de47b452c90555de1ef8bb4",
+          "data/client_api/regular_click_native_evidence.json": "64d53e36f2ae0ad74f67e513da8b7a5402b1f139433c82c6db67cdb987fbb417",
+          "data/client_api/regular_click_packets-1.16.1.json": "bb5f48c1b213887b1786319e447b31d9d93bf8112a560268109475c89f1e0424",
+          "data/client_api/regular_click_packets-1.21.11.json": "130a9826719d0ffd809b75d7acd708092ca438fc9400c7d26b17423187b78adb",
+          "data/client_api/regular_click_profiles-1.16.1.json": "b4a3f8cd7ef6613f5731982853311c38444eba6a9ead6a515b841d53a8910f15",
+          "data/client_api/regular_click_profiles-1.21.11.json": "1dabd56a059430bf76e18a375666d8066603ae0fa5b52c8dc1f6b1aa2c7a9e45",
+          "data/client_api/regular_click_source.json": "ee22d0157740c95baab56cba65941e11d3b35808470f99f83f484ad59d101d90",
+          "data/client_api/server_registry_native_evidence.json": "99c1bf2f3c1266eb62780eb9f27b00f6a611bca3da79a0c2e92d12e12ac67a71",
+          "data/client_api/storage_activation_source.json": "618a9ecc4b899807709507a068daa6af5fcccc9a6d0d3e8106fa7bf943bf9f8c",
+          "data/client_api/storage_outline_rays-1.16.1.json.gz": "79330dfe1a9a0315eb4532ed5552085077d2a1ba5288da9850ec6b2147be46b4",
+          "data/client_api/storage_outline_rays-1.21.11.json.gz": "79330dfe1a9a0315eb4532ed5552085077d2a1ba5288da9850ec6b2147be46b4",
+          "data/client_api/storage_outline_source.json": "eaab9a1a97ada364f5f34042b6a7f9e977eaf5cf6095e4573182db930ad68783",
+          "data/client_api/storage_outlines-1.16.1.json": "e5e93a03c3dac0a318f29eb74a26d0b910b58a8ce3924b7fec77fb321e8e3e9d",
+          "data/client_api/storage_outlines-1.21.11.json": "8181669f1c98d417b12f0bf95871165a4cae4361a9276649df80245f1b7d0555",
+          "data/enchantments-source.json": "d2b07c82aba9cd804affc96f3462d4f553be7c814a3a4bc6288df2bdb5cee8ad",
+          "data/enchantments.json": "e6e19e5d3e09c5946d78ae94cb9751655f0090d460ceaf4d87f8f3cee87b0d77",
+          "data/entities.json": "5d50e5f819001980262faebd3984dff05cfb1c2e6101ec02d3a6ae4f34687cf7",
+          "data/harvest_gate_corrections.json": "ffc94117427e00ad135ec161bcadcf1bebc4430eeaabfd6789a66684fa7f66e8",
+          "data/items.json": "94132023a25ffbe5410c186a263dce79a3e6f469f196e2978778e9a129a69021",
+          "data/java_1_21_11/blocks.json": "b152350461ff183c7444ad3107a98ac555de579c4afadd092f2c2d03fb5b80eb",
+          "data/java_1_21_11/collision_shapes.json": "1ee9dd534848604495193ad8b3c06ffd1674cda09a609850c12a9746ba1b9812",
+          "data/java_1_21_11/dry_movement.json": "c11d2071a8cbb1d26a7aecf29986eca52b14e4749671b98094250c85659a0bb4",
+          "data/java_1_21_11/dry_movement_source.json": "25badc36cbaf8ed9e43ad6ba827af8b200d62ef443d3e268d8557e11a4045906",
+          "data/java_1_21_11/inventory_swap_packets.json": "916e61040a033a90432b85a08c34f474fa98b7c4a9db7aa4fb00a8cb934c6f63",
+          "data/java_1_21_11/items.json": "528dc62f92a40981e32ee8826adcf7ad00bce153484c17d5109d0f4353a70264",
+          "data/java_1_21_11/outline_coverage.json": "88b5ec0d474012479a3d3fb8c4659cee29094700720e37a207b93e0cb0c3a92d",
+          "data/java_1_21_11/outline_raycast_cases.json.gz": "a1900f4eed584de07fe3628bcae4fb57f0df2d94e11d4a3dfe23d75e36a251d4",
+          "data/java_1_21_11/outline_rotation_cases.json.gz": "837458b1aa9fdf731e4774685ea6ba6711d26f161cdd6d3e8e4caf5f19764430",
+          "data/java_1_21_11/outline_shapes.json": "f96c141d4bbfe12d14157ce6228802a9ec4ee5caffa40467c260c054e00311d2",
+          "data/java_1_21_11/outline_source.json": "7a0cd1a511ab009a3dc9e2cf222cd8fb7a203b9be93b1f99cf572373aed4e134",
+          "data/java_1_21_11/position_corrections.json": "0eabe98ed2f21cc593c8784fceca3e8a6ebc8f4f8c8c74c99541528e0f9621d1",
+          "data/java_1_21_11/source.json": "ea9a050eeb3513b9017b4112da1f1beabaec218b828a922989e2355308d09578",
+          "data/java_1_21_11/survival_foundation.json": "3e4a7eb97acb3b6c50a11954261c7b70160d6b4e55f9dbc1c303c4e1ef6f96b4",
+          "data/java_1_21_11/survival_foundation_source.json": "f0fe0e27a4b35c10828240d438360d3c75bdd063e467d46153899571b2ad379f",
+          "data/java_1_21_11/survival_movement.json": "3fa48dea890294c551a70f618e4e0bca9f79d2b4285c2621328a65ae7bd2087e",
+          "data/java_1_21_11/survival_movement_source.json": "56e485e2835fb75963d50214ec10f4715c7ef77378e19bfe20cd1c75be9afeb1",
+          "data/java_1_21_11/survival_placement.json": "42205603305e85e94a6f5044f5f7600168faa8118664f7d2bb65256a39644269",
+          "data/java_1_21_11/survival_placement_source.json": "7d91063620ddaed62c6108d88424dc3734d4cff58ff01d2aa030f5c9f5dd0aaa",
+          "data/materials.json": "64172813642aae7c05321fe36136a37b2f98845732541e025d296628a7944b1f",
+          "data/prismarine_physics_fixtures.json": "8333fc4d2b7e10d609bc390d0721e2d51baa9bf2cc0e56ba32dc643e63b323cb",
+          "data/recipes.json": "f2d8d44a5c80b224d1ae33d1910800c5f43ced5b535a7adfb927a029550b2e21",
+          "data/sounds.json": "625dfab3246730311b4a228d4d01e62d6c8429065c0e4df3530e4f71fb7c943f",
+          "examples/common_native_probe.rs": "f278a686b7618b579654ba285877d998621e66c443887b236c0cb832223778da",
+          "scripts/run_common_native.py": "3ac456745f5ffc3a96b511617c7e9194c080a6c95c3b7b807e1547973ba025ac",
+          "src/block_state.rs": "8f1f169bbee43fe8fdf91931cfd433cae7e1a23752aad2c35555ee4af3cbd0e2",
+          "src/client/capabilities.rs": "e7b6d113af7a8af9fe300cf50fe39032033b345a03d3998b5d2258e73a4cec7d",
+          "src/client/config.rs": "f61f7cd82ca773202f6b851af73434a7f8ff3330c7549fc9337644da3f812f02",
+          "src/client/container.rs": "edfbfe08f714a8a3c2280d2051e9dc8e60a2b802b1af2fe67f2450cd6475035a",
+          "src/client/container/close.rs": "764fb11f30633aa7892e97063b69b6ac9d593837b29697f1a13650ad44a16d70",
+          "src/client/container/native_return_evidence_tests.rs": "1c6172fc4b3d28f9d4ce15e961dace3886d66376e190672c8dd9f84fc6ae8199",
+          "src/client/container/open.rs": "f5832d0855e831272e4e07b48683a555e9ea7ee62ce32a18c9317c5c29d26780",
+          "src/client/container/outline.rs": "cc5b0d705e01ce8095db46ef4f461a2b9fd01164b7a86919ea15ffaf737de5c5",
+          "src/client/geometry.rs": "69b7a146407675ed30e7878075166c2739f5b47957fac6d43e78899a3e5e943f",
+          "src/client/inventory.rs": "18ad5efe3f8d5914a8c853cb6fedd160b6f792e8a9ddaee2d3ea942e6e7a71bc",
+          "src/client/inventory/click.rs": "79cde2bf6bb95c0de70396b25eff36c043d9e78a69d00ec5cf34b03fd3079030",
+          "src/client/inventory/return_policy.rs": "c1391d1d2c455f832118071aaaa7f4e837604b726682c6916eebc408988f4f02",
+          "src/client/inventory/slot_policy.rs": "14900a8deb8213ba7c5a810cc186576ee0ce31fd0fd1c0394747166a3f494500",
+          "src/client/inventory/transfer.rs": "149ae3d32f9831f4baf5582554276077968a62ae04d2ef542b63ed3251e2bcce",
+          "src/client/inventory/transfer_policy.rs": "3a5eef1e2eba083fe49313fc88b72811d8090a2fb3feb940c2d3c1828f615a4b",
+          "src/client/item.rs": "44e3db6e0ff24732eae58c5b6ec4afdfe34a18a25509b79917b4d0778521e46f",
+          "src/client/mod.rs": "805dc72e4b433562c8880d811465c471938ea84d7bc2909e745126b5c9654c19",
+          "src/client/nbt.rs": "7584ce40b20887b4d5c776ea0a4791b3455dff90c3d08c741fb0e85c85e0b90b",
+          "src/client/observation.rs": "ad3d28c9dfec996b6a0408bea85e1656bfa895ddbb6d1d0d6d1cd3630c68aad7",
+          "src/client/operations.rs": "3f2432a598e5f111b0c88304f3cd8c7a90b05fbdc0dc8793087f63a233df5d22",
+          "src/client/registry.rs": "2eaa5eb03ffd539aaab4aff5f7995cc7921a18274a4674e52b7c8487b5fc1dce",
+          "src/client/registry/received.rs": "33f054f5024df961ef10a19f000754923bb5d23dd45f333f10b7a0f1f129e8d7",
+          "src/client/survival.rs": "7be78a0216b2ecfa94e4816bdd49500f116f91538853a789dce1655ca5aeb4e5",
+          "src/client/survival/checked.rs": "1e6105da20b38e56cefbe1ed7c34f19f8ae9bd01a744c0933b7a6f46533182d8",
+          "src/client/survival/mining.rs": "96c2588f3e21f4e9cb86dab1aab9cf8662f9b986c5bd96aadcb1f83924291347",
+          "src/client/survival/model.rs": "5142678df9a4936000f5c83c1864b7fd00bd63d1be7fc553a1673baee6ca1592",
+          "src/client/survival/motion.rs": "edee38d19269693f7a7ca194a980b61a92aaa4ab24914c5500b5be88c1dd022a",
+          "src/client/survival/placement.rs": "615da875af2b620d08bc06b5c41683d9852b56f79f0b929e9b5ead8ef147b74a",
+          "src/client/survival/target.rs": "433b7c0e184a1d1b5832749c6625d6eb02cbea10876dc0e964eea397a7e261b4",
+          "src/client/tests.rs": "ab89e836946dd6fa01dd9b3b4cac4c4780358e700a3978de571e93acbed761ec",
+          "src/connection.rs": "76f0c6145f0776c64d641a9fa3cbb5ba025ffc9faf18987b67d0968161e03bb5",
+          "src/error.rs": "1f5aeb1c74b0a3b8cc72703fd059bb86035e833d56c8b83d703d2d5d525f25b0",
+          "src/lib.rs": "2e46844d713bdfa6a8bca98ccda88f1e2f7cb9094f73c0745c5801ff3b257b45",
+          "src/protocol.rs": "e982aef0864b5280e81bbdb0daaa275e44cda36efeb40a1c33a5004e7ca0786b",
+          "src/snapshot.rs": "4a32c3fe6c1995595c1c0da21eaec9dc0368d3e58e89111fb4a216335a8a894a",
+          "src/versions/java_1_16_1/chat.rs": "3f2295100317f9197b0bf9d0c6600bc9cdc115b2bfc2afb3bdf3b31231f1c0c9",
+          "src/versions/java_1_16_1/client.rs": "222ba26bbc909ee450a1ae9f43823930d229b244b65f4ad9da33429e36d7def8",
+          "src/versions/java_1_16_1/client/common_api.rs": "48713486bab5644c215e5e09bd475aef49551a9a5f0080108818aee7c3052dcb",
+          "src/versions/java_1_16_1/client/common_click.rs": "ee593e1c1c1418632697ffe2f9f93deb3fed2673b039bcd4ac18ba744cbe364a",
+          "src/versions/java_1_16_1/client/common_container.rs": "85502e4856ecef58d5eee34d29ab5e4ded0027a1100ff61fed3c03002665afde",
+          "src/versions/java_1_16_1/client/common_inventory.rs": "64bf9e8cefeb493877704082925c13469867a9771ce394273bf5ca0d631fa94b",
+          "src/versions/java_1_16_1/client/common_mining.rs": "ef4a1f26555a8040c58596191027157b96ac9244cdb731cfc6428e82aaf032e4",
+          "src/versions/java_1_16_1/client/common_motion.rs": "cddc3385e48b5a7ac1528a61ce22e414036273ad6b8861ef1ddc667611e52555",
+          "src/versions/java_1_16_1/client/common_placement.rs": "bc897ce7cda4fbd818d97c356eb1c4ac0dddf377c4a6a1fdf7d32547fa699e1a",
+          "src/versions/java_1_16_1/client/common_transfer.rs": "0c3219dcbfd75d28e9a74345a9944304075ebbfccc8c5ed66cc444c37aea37f7",
+          "src/versions/java_1_16_1/client/packet_deadline_tests.rs": "877c2370ec2b564f227b5c665506881c09050980ab54c3c84cf51306bcc81e68",
+          "src/versions/java_1_16_1/client/storage_tests.rs": "75c07a149cecaac7954abbd217ec9d16d943fe2358348f54b273fd0e349dee41",
+          "src/versions/java_1_16_1/collision.rs": "d4ce098e6a0e8abaf59dca0e34ad8562287f39dcaf5c3effbb929aff7a5c0780",
+          "src/versions/java_1_16_1/entity.rs": "a1fda57736c36e6e64b7280c53f6e074867008203c131b3eb97b1cd9fbbf999f",
+          "src/versions/java_1_16_1/interaction.rs": "d048da265194099bcd16cb8baeb7449b9d853b6aebebae7a4c83fe2022ff8c2e",
+          "src/versions/java_1_16_1/inventory.rs": "fc1abbb539ce5ebb66455a032702e50d074b8070308e2d52c1a48f362393aaf9",
+          "src/versions/java_1_16_1/lifecycle.rs": "46824d395f6b913f8d2fb0b93d066019ca0af7eb7aa77658a1c6881341acd134",
+          "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "5a4b41aebb1b97911481835e0fde8e59c4d9ef17b23599e7a4bbf528dd22571a",
+          "src/versions/java_1_16_1/lifecycle/bounded_motion_tests.rs": "267ca02d1b9db963783bf955a82748d14ece3220c571f153059f31837a880ed8",
+          "src/versions/java_1_16_1/manager.rs": "75ad7f97da8cf7cd1dd420816a31ced98cc3eff88ed5201818ae7b057f9cae9c",
+          "src/versions/java_1_16_1/map.rs": "3f6b09de2f7a8a2e86dabe3c60607ee88e831897648b4e51aecc1fbe9b76f0b9",
+          "src/versions/java_1_16_1/mining_environment.rs": "28591403893c806f8489f04c5c69d04e30746d77eed06e8179ef949097792523",
+          "src/versions/java_1_16_1/mod.rs": "2f7679b9bf8c6839e5fca7dccb2e124c9af7289aae883269f3c277fdbe90a5a0",
+          "src/versions/java_1_16_1/observation.rs": "588b2094bfd82ff078f9c73882e5ae59d542ff68d390f8cfdfe9510643e13739",
+          "src/versions/java_1_16_1/operation.rs": "5f007d6dd0342a2ba73e72e27886e31228ab5d6da9859b423ee8ffb596febecd",
+          "src/versions/java_1_16_1/physics.rs": "5fa4d246cb5a6e7c637ba07de6e53806558a72b6f3bc6cdbaeb4adb15eb8546f",
+          "src/versions/java_1_16_1/progress.rs": "350a2e41d4dd348fed92a9dbfeb01f1de47a99311fa4e07b2204d7babed6df99",
+          "src/versions/java_1_16_1/registry.rs": "063b48394b3d796b29f40040a3e8236034a8708859394fd098714eac1fee2f8d",
+          "src/versions/java_1_16_1/registry_harvest_corrections.rs": "c779923efefa6706f217efd6d317fcca1f21c474a6eeca455dd34469ecc7de26",
+          "src/versions/java_1_16_1/server_registry.rs": "0b61fdc1bc0fe5ce94d0aac64d9f263975144a48410cced47d1dcb4042bb2ce2",
+          "src/versions/java_1_16_1/survival.rs": "82ce19057b8e1d5f3c57055f561a9d8032d57860c25aee92762e06a11bcbda4d",
+          "src/versions/java_1_16_1/ui.rs": "4ec80717a019f72b3b5676ec956cfb5b6b36364f3312755b9ee0e1ae74ca906e",
+          "src/versions/java_1_16_1/unstable.rs": "7e2791ac9b9d48dbee335b07905ce111586f60c54966474395b4aee2b9e93570",
+          "src/versions/java_1_16_1/world.rs": "d1451ea09a36c27df09b44861bd2ca715f6e61ec08726caa0ccd251f4072f3df",
+          "src/versions/java_1_21_11/client.rs": "ce68d467718b0ac5d8784a63236fc99229ec5bb94f2f275466d8e68fdb88b705",
+          "src/versions/java_1_21_11/client/correction.rs": "e2d7d58ccf934aedcb2759464cf9b673ddd6f07c94ee64d9408a48f34996cdd9",
+          "src/versions/java_1_21_11/client/edge_native_trials.rs": "323860a9fd7ea2d46eabeedf046ef80ede96564db655daa0ba2306b27c685c19",
+          "src/versions/java_1_21_11/client/loading.rs": "4b8b746d2e7dd23167fd432034b45766f2c52bf686920294b09579782a9e729a",
+          "src/versions/java_1_21_11/client/loading/tests.rs": "76e27cad394267edf805458263acc11500b59dd7b2e8f582b0fe39cf10957d92",
+          "src/versions/java_1_21_11/client/mining_native_trials.rs": "ed982aad12cb45cd689df7618aee1ca905abab2db3c323ac79567808ba919e2d",
+          "src/versions/java_1_21_11/client/motion.rs": "312eb801d83b976d3b63bbe2e298ced1f56c13aa899b945dfcee98cfee723e98",
+          "src/versions/java_1_21_11/client/movement_native_trials.rs": "5d7e80daf8f4bf12ea652dc969e0ca57aca2becef04652bb9f8c39e5045f5c81",
+          "src/versions/java_1_21_11/client/observations.rs": "6b60093264c85be724b36a811ed2f22d14a678e43b02a584a5e23f82cd914f6c",
+          "src/versions/java_1_21_11/client/operations.rs": "40af0caba0cfc6265cb58caef31b85e093257e0c094aca42ae037754cbc49976",
+          "src/versions/java_1_21_11/client/operations/component_tests.rs": "abb8900890adb299cc517b85c0788dcfdf3c7b2076a073134d76f40220679b1f",
+          "src/versions/java_1_21_11/client/operations/container.rs": "7247f53a55fe6d79305d7711f9a970de411876d65152eadbb66ae4abcdc056ae",
+          "src/versions/java_1_21_11/client/operations/geometry.rs": "5b504de281198fda5b4c0d76753d8538424f48039131e28a60bb5c37622ae48f",
+          "src/versions/java_1_21_11/client/operations/inventory.rs": "255b884ba6ab1ca17075ad70bf5903ed00919ad15c4ba7062bb5c4eb76e80a96",
+          "src/versions/java_1_21_11/client/operations/inventory/click.rs": "c62f0ef5db9129b936a20e74620416110297b15763233133cf41839fbc13b5e7",
+          "src/versions/java_1_21_11/client/operations/inventory/common.rs": "317ae77017ed4a78fcabbbcb7614a8335eb9201e49f5a85ef8bc000a64b63f83",
+          "src/versions/java_1_21_11/client/operations/inventory/tests.rs": "8f5b5c9dc365c181cf9efa52ff37875003de7fc3866eda2ed9ddff80bf831b25",
+          "src/versions/java_1_21_11/client/operations/inventory/transfer.rs": "aadce9dc94771ef8fcd9aa1fadd695a45c77914811ec69b2b1cd2798c7d153b0",
+          "src/versions/java_1_21_11/client/operations/mining.rs": "458c08568388035610223d21134e890152a98c6f9f0c7f9ed3250dfdff8a8339",
+          "src/versions/java_1_21_11/client/operations/mining/inventory_tests.rs": "a9c1b71fcbcef1fd2487af918a3a3a88b9429e47a31e74698d16e27fad6c5918",
+          "src/versions/java_1_21_11/client/operations/mining/prediction_tests.rs": "a50370c834d1fc1c12300af4ed6ba8725364cce35226f9cdb01063bd6c28c8b4",
+          "src/versions/java_1_21_11/client/operations/mining/profile_tests.rs": "f99953d9cb8f3f1eafa64739690bcd700b2482c8f4a5f8346a06250be3da8b7b",
+          "src/versions/java_1_21_11/client/operations/mining/tests.rs": "b380536726b1d50fc1d41875e9691084c8d477daeaaee0475e5bdfd44ff6ba42",
+          "src/versions/java_1_21_11/client/operations/movement.rs": "09c5139848e429f2881a4fc183974c11b0e1fa8f734f275da3a0a2ac068c1000",
+          "src/versions/java_1_21_11/client/operations/movement/control.rs": "5827110068926d9c17fc40e41f8dadbcee6ccf9738f865d05ceb8e33d0f0a228",
+          "src/versions/java_1_21_11/client/operations/movement/endpoint.rs": "f3f81df0d01d4bacb97cf456a183cabcd485db672c70e4aed4502964eeff70b1",
+          "src/versions/java_1_21_11/client/operations/movement/scenario.rs": "6054e9d6ddbac73824737ad7d56f792b3446d79332a60f3cc3746a69f203e91f",
+          "src/versions/java_1_21_11/client/operations/placement.rs": "31d44c3f0b87fb601ec8203209515e68ced3c8c7811f2e6ba3b15d7a7e0d6f39",
+          "src/versions/java_1_21_11/client/operations/placement/tests.rs": "7e027a78053285a23fdb6b5446c244086367e86da98038b8aaeb495ba22c4cff",
+          "src/versions/java_1_21_11/client/operations/profile_recovery.rs": "08082accb5eb765e83da52441e49af28e7c8512afde6f9ded1150909b4825ed6",
+          "src/versions/java_1_21_11/client/operations/recovery.rs": "17b10627358cce5786fcf094315fe6b620fc58f7e6392b3fd0b80953affb3d65",
+          "src/versions/java_1_21_11/client/operations/retirement.rs": "268476b3e961f7df8357625ddf87d207aa0345a206c70cb19549e418aa585eeb",
+          "src/versions/java_1_21_11/client/operations/survival.rs": "f2e9e7174701feeb86990f8f951d58cb8a690fd85c183207992661613fb498b3",
+          "src/versions/java_1_21_11/client/operations/survival/attributes.rs": "3c24ac65afc7cb35096726231c1f3bd5e9044bd7934a38629c87149ba311c156",
+          "src/versions/java_1_21_11/client/operations/survival/tests.rs": "2055c160eae448a7b5e2034e2e60fbfbc3caec8cf67b00d0e05b702148d90647",
+          "src/versions/java_1_21_11/client/operations/tests.rs": "3a6d5d8e8040881d0dc33b4dfc5d6ac9ecd501b43a83941457a7caf3592541c4",
+          "src/versions/java_1_21_11/client/outbound.rs": "0cfd4cac22076813b155b2ad5c02b27579b1c07f8f0c607e12011bfaad1515c6",
+          "src/versions/java_1_21_11/client/outbound/tests.rs": "ed043b0c8f8f79291d7def0606e32f566e35158995959f1df9e71653ddc0ebf1",
+          "src/versions/java_1_21_11/client/placement_native_trials.rs": "b7a3e4b69e53ec12a34ff60a7a731cbeda19fa808f397bdb1e3b0c446d5c54b0",
+          "src/versions/java_1_21_11/client/players.rs": "1b78ebc0010b50a2dc7a3d1e8ff2fcdbf213f0e2241c8dd61baacb9f7483f895",
+          "src/versions/java_1_21_11/client/players/motion.rs": "48ae0e823b43ca2a129ef2bf712a09025fcaf8f3e81723a0ce70564ed41b04f6",
+          "src/versions/java_1_21_11/client/players/tests.rs": "34f7283a900c94ee492cd9c051742a46c3f94fdea936151147ab821712c0fc9f",
+          "src/versions/java_1_21_11/client/raycast.rs": "97e95b79b4e0a26a0e442cb60ea81eaa97ebb66adf45ef3dc50e9e4d4440c7c6",
+          "src/versions/java_1_21_11/client/raycast/outline.rs": "93f4d6742058139500401dfeba9b838becd23c142c284f1be5fc4652c176c5c5",
+          "src/versions/java_1_21_11/client/raycast/outline/uncertainty.rs": "438ee23c2a6a131d7f3d61956eae5aceba657cd17f9e07daeca7ec1b9a104958",
+          "src/versions/java_1_21_11/client/recording.rs": "de3c6ad62e7229218ec041f66c33e2902bbb9d397296b52d6ab1d2315d37a426",
+          "src/versions/java_1_21_11/client/tests.rs": "20c4e5a0fd067b4ed655c1e0332a5b119630a123ba3fc9673c6f558e77c9e0ca",
+          "src/versions/java_1_21_11/component_nbt.rs": "bce1b6920f3d9fd958c102d2a93818c36fad4b604783b4baa71e219fe52f83ab",
+          "src/versions/java_1_21_11/ids.rs": "55f81e9b0f7eb0f03e42111de7d7e8ffc19b420e3df53fa661643a24ef06d6e1",
+          "src/versions/java_1_21_11/item_components.rs": "d605b693a7eec84e20f1f1d9cd2caae0fff37ed9ad13aa7a368bc87d370dedde",
+          "src/versions/java_1_21_11/item_components/framing.rs": "1892e9e41647f357812f1a1770a7fe89f7f4b81da45794a6bd4a4f527a41fde4",
+          "src/versions/java_1_21_11/item_components/native_evidence_tests.rs": "04eabb0cf89de292a3115c024ed876387fdbf6b5d515a726fcdc0f8bcee77715",
+          "src/versions/java_1_21_11/math.rs": "d780a16da40530bc203bb3fdd2f24aabdd131bf3b41e3fd20ae4f88dfd334ef3",
+          "src/versions/java_1_21_11/mod.rs": "98e560db5b019a5c4e6770ecb8fddb70576359bd45bcd3c513bbcea3dbfe7fa0",
+          "src/versions/java_1_21_11/piston_nbt.rs": "d40ebd94b8a8b3eeeb4cba5c5af94e06e34a2892d2285a50941a67483dd8f5ac",
+          "src/versions/java_1_21_11/reconstruction.rs": "b1462d8efb0c966c30187dc643d1269145a58758e88e5c59b26304dcbd39c15e",
+          "src/versions/java_1_21_11/reconstruction/adhesion.rs": "6d25b703fc47566042dd6d8b78a7f60954263962c4860e8e4bc9c40f310be924",
+          "src/versions/java_1_21_11/reconstruction/motion.rs": "67578f90f3d6f662c2fd0e9657279670c2dabfb36101c8bfc262c546d11b568b",
+          "src/versions/java_1_21_11/reconstruction/rules.rs": "4c8eea74418e3d7af737a0f6d61123798e6d200bd9d547d840c11230b474536f",
+          "src/versions/java_1_21_11/reconstruction/tests.rs": "53316c79b97689e61a638ce6152b0008b9bb5940d9143dc7de781a5e8c7a785e",
+          "src/versions/java_1_21_11/reconstruction/wire_updates.rs": "e3e9d12d073c0f728d5eb3a08b602e88648e9b66e01f03a0f728fd16badb19ee",
+          "src/versions/java_1_21_11/recovery_tests.rs": "a30d0542997bfdc2f5b995a10f1ddfab3644c75deed2865e8cd809d554c2a4e5",
+          "src/versions/java_1_21_11/wire.rs": "7e457fd2b119cb36d770570bda23c2ca47b3d352dd9f3f907dcef4c6795d30fd",
+          "src/versions/java_1_21_11/world.rs": "c58faa72de6d954b0fc4d9551da4f0f460cd445e21c829290ffe194d971f97ee",
+          "src/versions/mod.rs": "bc02286fe6c7f028d718f5140f6839f10afe8b74cd0c48a713efab2e3fabc6fe"
+        },
+        "consumer_binary_sha256": "fe0e02707d4a1b4dda7a6cab1e3f05228c136be81d464360b14770c27dc231bb"
+      },
+      "packet_trace": {
+        "records": 2417,
+        "errors": [],
+        "error_contexts": [],
+        "terminal_events": [
+          {
+            "connection": 1,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 277,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 277,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 1,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 277,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 2,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 437,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 2,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 437,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 2,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 437,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 3,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 576,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 3,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 577,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 3,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 577,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 4,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 735,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 4,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 735,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 4,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 735,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 5,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 1126,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 5,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 1126,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 5,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 1126,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 6,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 1296,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 6,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 1296,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 6,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 1296,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 7,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 1460,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 7,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 1460,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 7,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 1460,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 8,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 1625,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 8,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 1625,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 8,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 1625,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 9,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 1789,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 9,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 1789,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 9,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 1789,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 10,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 1947,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 10,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 1947,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 10,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 1947,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 11,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 2103,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 11,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 2103,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 12,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 2269,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 12,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 2269,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 12,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 2270,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 13,
+            "direction": "caller",
+            "phase": "play",
+            "after_frame_ordinal": 2413,
+            "kind": "disconnect_requested"
+          },
+          {
+            "connection": 13,
+            "direction": "serverbound",
+            "phase": "play",
+            "after_frame_ordinal": 2417,
+            "kind": "clean_eof"
+          },
+          {
+            "connection": 13,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 2417,
+            "kind": "clean_eof"
+          }
+        ],
+        "terminal_deliveries": [
+          {
+            "error": "[Errno 32] Broken pipe",
+            "connection": 11,
+            "direction": "clientbound",
+            "phase": "play",
+            "after_frame_ordinal": 2105,
+            "recorded_frame_ordinal": 2105,
+            "disconnect_requested": true,
+            "expected_body_length": 10,
+            "received_body_length": 10,
+            "partial_wire_sha256": "358ad60bf956e849c573acd4bcd848465f06a92cf747605eb559090c5e0c5c8a",
+            "opposite_clean_eof": true,
+            "source_frame_complete": true,
+            "delivered": false,
+            "authority_limits": "Original complete native frame after this connection's explicitly requested Client disconnect; no Client receipt or complete delivery is inferred."
+          }
+        ],
+        "authority_limits": "Read-only byte-for-byte forwarding of original protocol frames; decompression only for diagnostics, no game method/packet replacement. Trace errors remain failures; terminal context does not fabricate a complete frame."
+      },
+      "runtime_removed": true,
+      "original_native_source": {
+        "version": "1.21.11",
+        "metadata_url": "https://piston-meta.mojang.com/v1/packages/4f6bd9388f12e9d7adc2ded64acba66212d60521/1.21.11.json",
+        "metadata_sha1": "4f6bd9388f12e9d7adc2ded64acba66212d60521",
+        "server": {
+          "sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+          "size": 56327581,
+          "url": "https://piston-data.mojang.com/v1/objects/64bb6d763bed0a9f1d632ec347938594144943ed/server.jar"
+        }
+      },
+      "raw_output_sha256": {
+        "report.json": "20159185f3ea1ffd2a568af503070737f0771f78f03275500390af6b069104ac",
+        "packet-trace.jsonl": "35ec4658a3ca45aa7b8af2063f3f1801370a835570c0cad2760ef39e5e16cd80",
+        "probe.jsonl": "02d4c869c940bbb0b0ffb3293fd2eb4dae470393d848cc3c0a1494ba3be10d5e",
+        "probe-stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "server.log": "80777b3f443ddf913752a293ae51373756b3d545b9782fca3fe6538423631000",
+        "process.json": "e0a86e1a3a5d8cfccb13c83b640b628dda58f2aa69a12b3fa60f80fc8fa50890"
+      },
+      "effective_property_observations": {
+        "survival": {
+          "fixture": {
+            "mode": "",
+            "clear": "Removed 2 item(s) from player UnifiedProbe",
+            "item": "Replaced a slot on UnifiedProbe with [VoxrigDataSurvival]",
+            "clear_after": "Removed 7 item(s) from player UnifiedProbe",
+            "restore": "Replaced a slot on UnifiedProbe with [Dirt]"
+          },
+          "name": "VoxrigDataSurvival",
+          "marker": 17,
+          "count": 7,
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "rotation_before": "UnifiedProbe has the following entity data: [0.0f, 35.0f]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "rotation_after": "UnifiedProbe has the following entity data: [0.0f, 35.0f]",
+          "native_inventory": {
+            "inventory": "UnifiedProbe has the following entity data: [{components: {\"minecraft:bundle_contents\": [{components: {\"minecraft:custom_name\": \"NestedProbe\", \"minecraft:custom_data\": {VoxrigNestedProbe: 19}}, count: 2, id: \"minecraft:stone\"}], \"minecraft:max_stack_size\": 16, \"minecraft:enchantments\": {\"minecraft:unbreaking\": 2}, \"minecraft:written_book_content\": {pages: [{raw: \"ComplexProbe\"}], author: \"Voxrig\", title: {raw: \"VoxrigBook\"}, resolved: 1b}, \"minecraft:custom_name\": \"VoxrigDataSurvival\", \"minecraft:custom_data\": {VoxrigProbe: 17}}, count: 7, Slot: 9b, id: \"minecraft:stone\"}]",
+            "equipment_head": "Test passed"
+          },
+          "native_marker": "UnifiedProbe has the following entity data: 17",
+          "native_name": "UnifiedProbe has the following entity data: \"VoxrigDataSurvival\"",
+          "native_property_value": "UnifiedProbe has the following entity data: 16",
+          "decoded_item_properties": {
+            "value": {
+              "damage": 0,
+              "damageable": false,
+              "damaged": false,
+              "max_damage": 0,
+              "max_stack_size": 16,
+              "stackable": true
+            },
+            "source": {
+              "kind": "received",
+              "sequence": 329
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "item": {
+              "item": {
+                "count": 7,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          16
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 1,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:max_stack_size"
+                        }
+                      },
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          11,
+                          86,
+                          111,
+                          120,
+                          114,
+                          105,
+                          103,
+                          80,
+                          114,
+                          111,
+                          98,
+                          101,
+                          0,
+                          0,
+                          0,
+                          17,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      },
+                      {
+                        "bytes": [
+                          8,
+                          0,
+                          18,
+                          86,
+                          111,
+                          120,
+                          114,
+                          105,
+                          103,
+                          68,
+                          97,
+                          116,
+                          97,
+                          83,
+                          117,
+                          114,
+                          118,
+                          105,
+                          118,
+                          97,
+                          108
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 6,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_name"
+                        }
+                      },
+                      {
+                        "bytes": [
+                          1,
+                          2,
+                          1,
+                          2,
+                          0,
+                          6,
+                          8,
+                          0,
+                          11,
+                          78,
+                          101,
+                          115,
+                          116,
+                          101,
+                          100,
+                          80,
+                          114,
+                          111,
+                          98,
+                          101,
+                          0,
+                          10,
+                          3,
+                          0,
+                          17,
+                          86,
+                          111,
+                          120,
+                          114,
+                          105,
+                          103,
+                          78,
+                          101,
+                          115,
+                          116,
+                          101,
+                          100,
+                          80,
+                          114,
+                          111,
+                          98,
+                          101,
+                          0,
+                          0,
+                          0,
+                          19,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 48,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:bundle_contents"
+                        }
+                      },
+                      {
+                        "bytes": [
+                          1,
+                          40,
+                          2
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 13,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:enchantments"
+                        }
+                      },
+                      {
+                        "bytes": [
+                          10,
+                          86,
+                          111,
+                          120,
+                          114,
+                          105,
+                          103,
+                          66,
+                          111,
+                          111,
+                          107,
+                          0,
+                          6,
+                          86,
+                          111,
+                          120,
+                          114,
+                          105,
+                          103,
+                          0,
+                          1,
+                          8,
+                          0,
+                          12,
+                          67,
+                          111,
+                          109,
+                          112,
+                          108,
+                          101,
+                          120,
+                          80,
+                          114,
+                          111,
+                          98,
+                          101,
+                          0,
+                          1
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 53,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:written_book_content"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 1,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:stone"
+              },
+              "kind": "item"
+            },
+            "native_property_value": "UnifiedProbe has the following entity data: 16",
+            "authority_limits": "Same public item.properties getter, actual received data/source preserved. Independent RCON confirms legacy Damage=7 or modern max_stack_size=16. Original prototype/scalar/removal oracle separately verifies native getters; not item equality, inventory/cache hash, slot rules or nondefault action permission."
+          },
+          "frames": [
+            {
+              "ordinal": 1110,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 20,
+              "body_length": 5,
+              "wire_sha256": "d6e783e15243c49f28f1f5cf2578e4c702b74a0d4f8295543cf0ff1ea8a5ae2f",
+              "body_sha256": "6866f3d4a1dd26674d3bfbbe814cfdcf8fe221f65e44d15e05dcbb7384d99280",
+              "body_hex": "0026000900"
+            },
+            {
+              "ordinal": 1111,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 20,
+              "body_length": 5,
+              "wire_sha256": "4c8d204e85a5bc5b3fa61406a95f1e2f25759c22b5154d36b2ca65440618351c",
+              "body_sha256": "e07daaee19dd527bcb30d1e7e5366b361f934833aee4e393acda0e628ffdb19d",
+              "body_hex": "0027000000"
+            },
+            {
+              "ordinal": 1112,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 20,
+              "body_length": 144,
+              "wire_sha256": "211d6fd16a8985af4105637d721867cd4b84e3f8eb08bbd856f0298792d74e6c",
+              "body_sha256": "6826ec2c3becc6282126e8209f60ba14e66b7ca8ceb11e71b8cf3550025807d9",
+              "body_hex": "00280009070106000110000a03000b566f7872696750726f6265000000110006080012566f7872696744617461537572766976616c3001020102000608000b4e657374656450726f6265000a030011566f787269674e657374656450726f626500000013000d012802350a566f78726967426f6f6b0006566f78726967000108000c436f6d706c657850726f62650001"
+            }
+          ],
+          "authority_limits": "Same public Client observation receives fresh exact item identity/count and original legacy NBT or modern custom-data/name, nested named item, registry-referencing enchantment and book patch. Independent RCON fields confirm values and unchanged pose. Read-only original frames contain no outgoing click/close/creative-slot mutation. Raw reference retention does not resolve arbitrary live registry bindings or authorize component-bearing gameplay."
+        },
+        "creative": {
+          "fixture": {
+            "mode": "Set UnifiedProbe's game mode to Creative Mode",
+            "clear": "Removed 2 item(s) from player UnifiedProbe",
+            "item": "Replaced a slot on UnifiedProbe with [VoxrigDataCreative]",
+            "clear_after": "Removed 8 item(s) from player UnifiedProbe",
+            "restore": "Replaced a slot on UnifiedProbe with [Dirt]"
+          },
+          "name": "VoxrigDataCreative",
+          "marker": 18,
+          "count": 8,
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "rotation_before": "UnifiedProbe has the following entity data: [0.0f, 35.0f]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "rotation_after": "UnifiedProbe has the following entity data: [0.0f, 35.0f]",
+          "native_inventory": {
+            "inventory": "UnifiedProbe has the following entity data: [{components: {\"minecraft:bundle_contents\": [{components: {\"minecraft:custom_name\": \"NestedProbe\", \"minecraft:custom_data\": {VoxrigNestedProbe: 19}}, count: 2, id: \"minecraft:stone\"}], \"minecraft:max_stack_size\": 16, \"minecraft:enchantments\": {\"minecraft:unbreaking\": 2}, \"minecraft:written_book_content\": {pages: [{raw: \"ComplexProbe\"}], author: \"Voxrig\", title: {raw: \"VoxrigBook\"}, resolved: 1b}, \"minecraft:custom_name\": \"VoxrigDataCreative\", \"minecraft:custom_data\": {VoxrigProbe: 18}}, count: 8, Slot: 9b, id: \"minecraft:stone\"}]",
+            "equipment_head": "Test passed"
+          },
+          "native_marker": "UnifiedProbe has the following entity data: 18",
+          "native_name": "UnifiedProbe has the following entity data: \"VoxrigDataCreative\"",
+          "native_property_value": "UnifiedProbe has the following entity data: 16",
+          "decoded_item_properties": {
+            "value": {
+              "damage": 0,
+              "damageable": false,
+              "damaged": false,
+              "max_damage": 0,
+              "max_stack_size": 16,
+              "stackable": true
+            },
+            "source": {
+              "kind": "received",
+              "sequence": 340
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "item": {
+              "item": {
+                "count": 8,
+                "data": {
+                  "kind": "modern_components",
+                  "patch": {
+                    "added": [
+                      {
+                        "bytes": [
+                          16
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 1,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:max_stack_size"
+                        }
+                      },
+                      {
+                        "bytes": [
+                          10,
+                          3,
+                          0,
+                          11,
+                          86,
+                          111,
+                          120,
+                          114,
+                          105,
+                          103,
+                          80,
+                          114,
+                          111,
+                          98,
+                          101,
+                          0,
+                          0,
+                          0,
+                          18,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 0,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_data"
+                        }
+                      },
+                      {
+                        "bytes": [
+                          8,
+                          0,
+                          18,
+                          86,
+                          111,
+                          120,
+                          114,
+                          105,
+                          103,
+                          68,
+                          97,
+                          116,
+                          97,
+                          67,
+                          114,
+                          101,
+                          97,
+                          116,
+                          105,
+                          118,
+                          101
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 6,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:custom_name"
+                        }
+                      },
+                      {
+                        "bytes": [
+                          1,
+                          2,
+                          1,
+                          2,
+                          0,
+                          6,
+                          8,
+                          0,
+                          11,
+                          78,
+                          101,
+                          115,
+                          116,
+                          101,
+                          100,
+                          80,
+                          114,
+                          111,
+                          98,
+                          101,
+                          0,
+                          10,
+                          3,
+                          0,
+                          17,
+                          86,
+                          111,
+                          120,
+                          114,
+                          105,
+                          103,
+                          78,
+                          101,
+                          115,
+                          116,
+                          101,
+                          100,
+                          80,
+                          114,
+                          111,
+                          98,
+                          101,
+                          0,
+                          0,
+                          0,
+                          19,
+                          0
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 48,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:bundle_contents"
+                        }
+                      },
+                      {
+                        "bytes": [
+                          1,
+                          40,
+                          2
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 13,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:enchantments"
+                        }
+                      },
+                      {
+                        "bytes": [
+                          10,
+                          86,
+                          111,
+                          120,
+                          114,
+                          105,
+                          103,
+                          66,
+                          111,
+                          111,
+                          107,
+                          0,
+                          6,
+                          86,
+                          111,
+                          120,
+                          114,
+                          105,
+                          103,
+                          0,
+                          1,
+                          8,
+                          0,
+                          12,
+                          67,
+                          111,
+                          109,
+                          112,
+                          108,
+                          101,
+                          120,
+                          80,
+                          114,
+                          111,
+                          98,
+                          101,
+                          0,
+                          1
+                        ],
+                        "definition": {
+                          "id": {
+                            "kind": "ItemComponent",
+                            "value": 53,
+                            "version": "Java1_21_11"
+                          },
+                          "name": "minecraft:written_book_content"
+                        }
+                      }
+                    ],
+                    "removed": []
+                  }
+                },
+                "id": {
+                  "kind": "Item",
+                  "value": 1,
+                  "version": "Java1_21_11"
+                },
+                "name": "minecraft:stone"
+              },
+              "kind": "item"
+            },
+            "native_property_value": "UnifiedProbe has the following entity data: 16",
+            "authority_limits": "Same public item.properties getter, actual received data/source preserved. Independent RCON confirms legacy Damage=7 or modern max_stack_size=16. Original prototype/scalar/removal oracle separately verifies native getters; not item equality, inventory/cache hash, slot rules or nondefault action permission."
+          },
+          "frames": [
+            {
+              "ordinal": 1116,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 62,
+              "body_length": 9,
+              "wire_sha256": "f9127cf1bb5f22ae2a5d4764db1422dde9756301a1e4bec190e68f6136b9f9f8",
+              "body_sha256": "1e1adbe7f73771329075036810af5f7ee8585b85cb36d198a38da58c20eb1922",
+              "body_hex": "0d3d4ccccd3dcccccd"
+            },
+            {
+              "ordinal": 1117,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 68,
+              "body_length": 19,
+              "wire_sha256": "43bfae8904befb70489473d1e045805dbaf2c2d29b15d67405b9aabe64b6a9cb",
+              "body_sha256": "d04a8d69f2aec5af10a541718b612460d29d374a7752eb60b8d6f0a510272d73",
+              "body_hex": "04017af52aef398f3a62b13e88adcd0ea96d01"
+            },
+            {
+              "ordinal": 1118,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 38,
+              "body_length": 5,
+              "wire_sha256": "0afff7079bbff3edb1ce906223b8d019c438c85750d1a3a80285178ce963adb5",
+              "body_sha256": "6144d4ba5ba72443ebe071e808dc437c8f70676ac28ad68b86ea0453bbea3f65",
+              "body_hex": "033f800000"
+            },
+            {
+              "ordinal": 1119,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 62,
+              "body_length": 9,
+              "wire_sha256": "f9127cf1bb5f22ae2a5d4764db1422dde9756301a1e4bec190e68f6136b9f9f8",
+              "body_sha256": "1e1adbe7f73771329075036810af5f7ee8585b85cb36d198a38da58c20eb1922",
+              "body_hex": "0d3d4ccccd3dcccccd"
+            },
+            {
+              "ordinal": 1120,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 119,
+              "body_length": 77,
+              "wire_sha256": "25b42da720079c2faad6c72b11e14f8e26f1cf30a2a519046852c0e15088245e",
+              "body_sha256": "44b45cf8adc1c6a1d6f4a5b69c3980891a0777ef0b8bc4640c7d5faa4feefe8f",
+              "body_hex": "0a090004776974680a000000010800097472616e736c617465001167616d654d6f64652e6372656174697665000800097472616e736c617465001067616d654d6f64652e6368616e6765640000"
+            },
+            {
+              "ordinal": 1121,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 20,
+              "body_length": 5,
+              "wire_sha256": "97ea9a543ab8032a8a3768b712bd38fae804ed97329348649c7d336801f46398",
+              "body_sha256": "9f3e4488ea443ddab0035445d2de08bcb06be52f4f9ff36c7700b96b5d1fbbcd",
+              "body_hex": "002c000900"
+            },
+            {
+              "ordinal": 1122,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 20,
+              "body_length": 5,
+              "wire_sha256": "947337b47777670397ed5aff217a7a1dfb620740fcaed0ddef827854f4f272e7",
+              "body_sha256": "1243630a11aaea0c95d1843037063b8fd7bbc92486e5c8ba6602b296d6e7f4a8",
+              "body_hex": "002d000000"
+            },
+            {
+              "ordinal": 1123,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 20,
+              "body_length": 144,
+              "wire_sha256": "19bb60b376b85ba381c4e770714ba286e4ad55d8a348d1a1045fa1577f30e039",
+              "body_sha256": "53482c53ec98cc8bae23c73183ae8fd7b6c37a11e76bc863fbbd9be2c7f4ea52",
+              "body_hex": "002e0009080106000110000a03000b566f7872696750726f6265000000120006080012566f787269674461746143726561746976653001020102000608000b4e657374656450726f6265000a030011566f787269674e657374656450726f626500000013000d012802350a566f78726967426f6f6b0006566f78726967000108000c436f6d706c657850726f62650001"
+            },
+            {
+              "ordinal": 1124,
+              "connection": 5,
+              "direction": "clientbound",
+              "phase": "play",
+              "packet_id": 129,
+              "body_length": 113,
+              "wire_sha256": "a4633f9dac8e7f279627c190a2e40fa90661250b074fea094847166e685e71a9",
+              "body_sha256": "c9d34d38f7558f4d5c825e9eeef841fee7c31fa902d8f679ee5fbf078d2058e5",
+              "body_hex": "060206401200000000000001236d696e6563726166743a63726561746976655f6d6f64655f626c6f636b5f72616e67653fe0000000000000000a400800000000000001246d696e6563726166743a63726561746976655f6d6f64655f656e746974795f72616e6765400000000000000000"
+            }
+          ],
+          "authority_limits": "Same public Client observation receives fresh exact item identity/count and original legacy NBT or modern custom-data/name, nested named item, registry-referencing enchantment and book patch. Independent RCON fields confirm values and unchanged pose. Read-only original frames contain no outgoing click/close/creative-slot mutation. Raw reference retention does not resolve arbitrary live registry bindings or authorize component-bearing gameplay."
+        }
+      }
+    }
+  ]
+}

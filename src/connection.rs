@@ -1,5 +1,6 @@
 //! Version-selected client API. Local observations never claim server confirmation.
 
+use crate::client::adapter::{CoreOps, SessionOps};
 use crate::versions::java_1_16_1 as legacy;
 use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Result};
 use std::sync::Arc;
@@ -16,19 +17,61 @@ pub(crate) fn next_connection_id() -> u64 {
 #[derive(Clone, Debug)]
 pub struct ConnectionConfig {
     /// Server address; no automatic protocol downgrade is performed.
-    pub server: legacy::Server,
+    pub server: crate::client::Server,
     /// Offline player name.
     pub username: String,
     /// Version of both wire packets and native registry IDs.
     pub version: MinecraftVersion,
-    /// Existing resource and timeout limits.
-    pub limits: legacy::ConnectionOptions,
+    /// Resource and timeout limits implemented by every adapter.
+    pub limits: crate::client::ClientLimits,
 }
 
 impl ConnectionConfig {
+    /// Reads the exact supported version from `VOXRIG_MINECRAFT_VERSION`.
+    /// Missing, non-Unicode, and unsupported values fail before network I/O.
+    /// Supporting new releases/blocks requires an updated Voxrig build.
+    pub fn offline_from_env(
+        server: crate::client::Server,
+        username: impl Into<String>,
+    ) -> Result<Self> {
+        let value = std::env::var("VOXRIG_MINECRAFT_VERSION").map_err(|error| {
+            Error::new(
+                ErrorKind::InvalidInput,
+                anyhow::anyhow!("VOXRIG_MINECRAFT_VERSION: {error}"),
+            )
+        })?;
+        Ok(Self::offline(server, username, value.parse()?))
+    }
+
+    /// Validates common inputs without opening a connection.
+    pub fn validate(&self) -> Result<()> {
+        if !(3..=16).contains(&self.username.len())
+            || !self
+                .username
+                .bytes()
+                .all(|c| c.is_ascii_alphanumeric() || c == b'_')
+            || self.server.host.is_empty()
+            || self.server.port == 0
+            || self.limits.max_chunks == 0
+            || [
+                self.limits.connect_timeout,
+                self.limits.login_packet_timeout,
+                self.limits.play_packet_timeout,
+                self.limits.ready_timeout,
+            ]
+            .iter()
+            .any(Duration::is_zero)
+        {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                anyhow::anyhow!("invalid offline identity, server address, or client limits"),
+            ));
+        }
+        Ok(())
+    }
     /// Creates an explicit offline-mode connection configuration.
     pub fn offline(
-        server: legacy::Server,
+        server: crate::client::Server,
         username: impl Into<String>,
         version: MinecraftVersion,
     ) -> Self {
@@ -36,13 +79,14 @@ impl ConnectionConfig {
             server,
             username: username.into(),
             version,
-            limits: legacy::ConnectionOptions::default(),
+            limits: crate::client::ClientLimits::default(),
         }
     }
 }
 
 /// Inclusive region, independent of a protocol's chunk representation.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Region {
     /// Minimum x, y and z coordinates.
     pub min: [i32; 3],
@@ -113,119 +157,308 @@ pub struct Observation<B = Vec<ObservedBlock>> {
 }
 
 #[derive(Clone)]
-enum Adapter {
+pub(crate) enum Adapter {
     Java1_16_1(Box<legacy::Bot>),
     Java1_21_11(crate::versions::java_1_21_11::Bot),
+}
+
+/// Declares an item `pub` with feature `native`, otherwise `pub(crate)`.
+macro_rules! native_api {
+    ($(#[$m:meta])* fn $($rest:tt)*) => {
+        #[cfg(feature = "native")]
+        $(#[$m])* pub fn $($rest)*
+        #[cfg(not(feature = "native"))]
+        #[allow(dead_code)]
+        $(#[$m])* pub(crate) fn $($rest)*
+    };
+    ($(#[$m:meta])* enum $($rest:tt)*) => {
+        #[cfg(feature = "native")]
+        $(#[$m])* pub enum $($rest)*
+        #[cfg(not(feature = "native"))]
+        #[allow(dead_code)]
+        $(#[$m])* pub(crate) enum $($rest)*
+    };
+}
+
+native_api! {
+/// Version-specific access returned by [`Client::native`] (feature `native`).
+enum Native<'a> {
+    /// The established Java 1.16.1 API.
+    Java1_16_1(&'a legacy::Bot),
+    /// Java 1.21.11 reconstruction, unrestricted operations and the checked contract.
+    Java1_21_11(crate::versions::java_1_21_11::NativeClient),
+}
+}
+
+fn wrong_version(expected: MinecraftVersion) -> Error {
+    Error::new(
+        ErrorKind::Unsupported,
+        anyhow::anyhow!(
+            "this client does not use the Java {} adapter",
+            expected.name()
+        ),
+    )
 }
 
 /// A client whose protocol, registry and behavior belong to one version adapter.
 #[derive(Clone)]
 pub struct Client {
-    adapter: Adapter,
+    pub(crate) adapter: Adapter,
 }
 
 impl Client {
+    #[cfg(test)]
+    pub(crate) fn from_java_1_16_1(bot: legacy::Bot) -> Self {
+        Self {
+            adapter: Adapter::Java1_16_1(Box::new(bot)),
+        }
+    }
+    /// Common static implementation support, separate from live permissions.
+    pub fn capabilities(&self) -> crate::client::Capabilities {
+        crate::client::Capabilities::for_version(self.version())
+    }
+    /// Registry bound to this client's immutable selected version.
+    pub fn registry(&self) -> crate::client::registry::Registry {
+        crate::client::registry::Registry::for_version(self.version())
+    }
+    /// Capture registries and tags actually received on this connection.
+    /// Static bundled registry IDs and server-assigned configuration IDs are distinct.
+    ///
+    /// ```no_run
+    /// use voxrig::client::prelude::*;
+    /// async fn inspect(client: &Client) -> Result<()> {
+    ///     let state = client.server_registry_state().await?;
+    ///     if client.version() == MinecraftVersion::Java1_21_11 {
+    ///         let id = state.find("minecraft:enchantment", "minecraft:unbreaking")?;
+    ///         assert_eq!(state.resolve(&id)?.name, "minecraft:unbreaking");
+    ///     }
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn server_registry_state(
+        &self,
+    ) -> Result<crate::client::registry::ServerRegistryObservation> {
+        crate::client::dispatch!(&self.adapter, a => CoreOps::server_registry_state(a).await)
+    }
+    /// Read the UUID/name actually received in LOGIN_SUCCESS, with this session stamp.
+    /// Profile identity alone does not prove old-player retirement or recovery.
+    pub async fn connection_identity(&self) -> Result<crate::client::ConnectionIdentity> {
+        crate::client::dispatch!(&self.adapter, a => CoreOps::connection_identity(a).await)
+    }
+    /// Capture received entity spawns which have not been removed in this world.
+    /// Coordinates retain their original spawn ordinal; current movement, metadata
+    /// and hitboxes are not inferred. Opaque targets are rechecked before dispatch.
+    pub async fn entity_spawns(&self) -> Result<crate::client::EntitySpawns> {
+        crate::client::dispatch!(&self.adapter, a => CoreOps::entity_spawns(a).await)
+    }
+    /// Capture the latest received motion fields for an original spawn lifetime.
+    /// Packet targets and velocity samples do not establish current native physics.
+    pub async fn entity_motion(
+        &self,
+        target: crate::client::EntityId,
+    ) -> Result<crate::client::EntityMotionObservation> {
+        crate::client::dispatch!(&self.adapter, a => CoreOps::entity_motion(a, target).await)
+    }
+    /// Every received entity with its latest motion, health, equipment and a
+    /// default-dimension bounding box, at one receive boundary.
+    pub async fn entities(&self) -> Result<crate::client::EntitiesObservation> {
+        crate::client::dispatch!(&self.adapter, a => CoreOps::entities(a).await)
+    }
+    /// Capture actual own-player passenger relationships. Before an applicable
+    /// receipt, the relationship is unknown. A received dismount does not prove
+    /// default stationary motion or authorize a ground operation.
+    pub async fn vehicle_state(&self) -> Result<crate::client::VehicleObservation> {
+        crate::client::dispatch!(&self.adapter, a => CoreOps::vehicle_state(a).await)
+    }
+    /// Survival-mode handle available on each adapter. Does not change game mode.
+    pub fn survival(&self) -> crate::client::Survival {
+        crate::client::Survival {
+            client: self.clone(),
+        }
+    }
+    /// Creative-mode handle available on each adapter. Does not grant creative permission.
+    pub fn creative(&self) -> crate::client::Creative {
+        crate::client::Creative {
+            client: self.clone(),
+        }
+    }
+    /// Common player and received inventory captured under one adapter lock boundary.
+    pub async fn player_state(&self) -> Result<crate::client::PlayerObservation> {
+        crate::client::dispatch!(&self.adapter, a => CoreOps::player_state(a).await)
+    }
+    /// Capture actual inventory receipts and their registry owner together.
+    /// Retain this immutable value when inspecting server-assigned IDs in item
+    /// data; separately captured registries can belong to a later configuration.
+    /// Local inventory predictions are excluded.
+    ///
+    /// ```no_run
+    /// use voxrig::client::prelude::*;
+    /// async fn inspect(client: &Client) -> Result<()> {
+    ///     let inventory = client.received_inventory().await?;
+    ///     if let Some(item) = inventory.slot(9)?.and_then(ReceivedSlot::item) {
+    ///         let id = item.registry_state().find_entry("minecraft:item", &item.stack().name)?;
+    ///         println!("{}: {}", item.registry_state().entry_name(&id)?, item.stack().count);
+    ///     }
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn received_inventory(&self) -> Result<crate::client::ReceivedInventory> {
+        crate::client::dispatch!(&self.adapter, a => CoreOps::received_inventory(a).await)
+    }
+    /// Capture the actual received recipe catalogue and its registry/tag owner.
+    /// Displays and book membership do not predict inventory or authorize crafting.
+    pub async fn received_recipes(&self) -> Result<crate::client::ReceivedRecipes> {
+        crate::client::dispatch!(&self.adapter, a => CoreOps::received_recipes(a).await)
+    }
+
+    /// Last actual ghost UI packet with its original opening and frozen context.
+    /// It is display evidence, not received ingredients or crafted output.
+    pub async fn received_recipe_ghost(
+        &self,
+    ) -> Result<Option<crate::client::ReceivedRecipeGhost>> {
+        crate::client::dispatch!(&self.adapter, a => CoreOps::received_recipe_ghost(a).await)
+    }
+    /// Capture recipes/tags, player inventory and the active player/table grid
+    /// together. Other active UIs return None. This is read-only planning data,
+    /// not permission to mutate the grid or evidence of recipe consumption.
+    pub async fn received_crafting_context(
+        &self,
+    ) -> Result<Option<crate::client::ReceivedCraftingContext>> {
+        crate::client::dispatch!(&self.adapter, a => CoreOps::received_crafting_context(a).await)
+    }
+
+    /// Inventory-only recipe-book material assignment and bounded maximum.
+    /// Captures actual recipes/tags and main/hotbar receipts at one adapter boundary.
+    /// Positive native batch sizes are required. Missing stock/requirements are errors.
+    /// This excludes grid/cursor stock and is not a placement or consumption plan.
+    pub async fn recipe_book_materials(
+        &self,
+        recipe: &crate::client::RecipeId,
+        crafts: u32,
+        maximum_bound: u32,
+    ) -> Result<crate::client::RecipeBookMaterials> {
+        crate::client::dispatch!(&self.adapter, a => CoreOps::recipe_book_materials(a, recipe, crafts, maximum_bound).await)
+    }
+
+    /// Actual player/table crafting inputs and displayed result, with native
+    /// topology and registry ownership captured together. Other active UIs
+    /// return None. Missing receipts do not become empty ingredients.
+    ///
+    /// ```no_run
+    /// use voxrig::client::prelude::*;
+    /// async fn inspect(client: &Client) -> Result<()> {
+    ///     if let Some(grid) = client.received_crafting().await? {
+    ///         let [width, height] = grid.dimensions();
+    ///         for y in 0..height {
+    ///             for x in 0..width {
+    ///                 if let Some(input) = grid.input(x, y)? {
+    ///                     println!("({x},{y}): {:?}", input.value());
+    ///                 }
+    ///             }
+    ///         }
+    ///     }
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn received_crafting(&self) -> Result<Option<crate::client::ReceivedCrafting>> {
+        crate::client::dispatch!(&self.adapter, a => CoreOps::received_crafting(a).await)
+    }
+    /// Actual open-container contents and cursor at one native capture boundary.
+    /// Numeric window IDs may be reused; use the session-bound screen identity.
+    pub async fn screen_state(&self) -> Result<crate::client::container::ScreenObservation> {
+        crate::client::dispatch!(&self.adapter, a => CoreOps::screen_state(a).await)
+    }
+    /// Capture player, inventory and a received region at one adapter boundary.
+    /// Missing data stays unavailable; neither local physics nor a capture is server confirmation.
+    pub async fn capture(&self, region: Region) -> Result<crate::client::Capture> {
+        region.volume()?;
+        crate::client::dispatch!(&self.adapter, a => CoreOps::capture(a, region).await)
+    }
+    pub(crate) async fn execute(
+        &self,
+        mode: crate::client::GameMode,
+        action: crate::client::operations::Action<'_>,
+    ) -> Result<crate::client::DispatchReceipt> {
+        let (connection_id, interaction_sequence) = crate::client::dispatch!(&self.adapter, a => (
+            SessionOps::connection_id(a),
+            CoreOps::execute(a, mode, action).await?,
+        ));
+        Ok(crate::client::DispatchReceipt {
+            version: self.version(),
+            connection_id,
+            interaction_sequence,
+        })
+    }
     pub(crate) fn from_java_1_21_11(bot: crate::versions::java_1_21_11::Bot) -> Self {
         Self {
             adapter: Adapter::Java1_21_11(bot),
         }
     }
-    /// Version-specific modern controls. The established 1.16.1 Bot API coexists.
-    pub fn java_1_21_11_operations(
-        &self,
-    ) -> Result<crate::versions::java_1_21_11::operations::Operations> {
+    native_api! {
+    /// Version-specific functionality outside the common API (feature `native`).
+    fn native(&self) -> Native<'_> {
         match &self.adapter {
-            Adapter::Java1_21_11(bot) => Ok(bot.operations()),
-            Adapter::Java1_16_1(_) => Err(Error::new(
-                ErrorKind::Unsupported,
-                anyhow::anyhow!("Java 1.21.11 operations require that version adapter"),
-            )),
+            Adapter::Java1_16_1(bot) => Native::Java1_16_1(bot),
+            Adapter::Java1_21_11(bot) => Native::Java1_21_11(
+                crate::versions::java_1_21_11::NativeClient::new(self.clone(), bot.clone()),
+            ),
         }
     }
-    /// Returns the Java 1.21.11 client reconstruction alongside the unchanged received cache.
-    /// Inspect both the typed issue and cell availability; this is not server confirmation.
-    pub async fn observe_client_region(
-        &self,
-        region: Region,
-    ) -> Result<crate::versions::java_1_21_11::reconstruction::ClientObservation> {
-        match &self.adapter {
-            Adapter::Java1_21_11(bot) => bot.observe_client_region(region).await,
-            Adapter::Java1_16_1(_) => Err(Error::new(
-                ErrorKind::Unsupported,
-                anyhow::anyhow!("client piston reconstruction is not implemented for Java 1.16.1"),
-            )),
+    }
+    native_api! {
+    /// The Java 1.16.1 `Bot`, or `Unsupported` for other versions (feature `native`).
+    fn java_1_16_1(&self) -> Result<&legacy::Bot> {
+        match self.native() {
+            Native::Java1_16_1(bot) => Ok(bot),
+            _ => Err(wrong_version(MinecraftVersion::Java1_16_1)),
         }
     }
-    /// Shares immutable region cells within one receive/reconstruction generation.
-    /// Every call still captures a new receive boundary and local frame.
-    pub async fn observe_shared_client_region(
-        &self,
-        region: Region,
-    ) -> Result<crate::versions::java_1_21_11::reconstruction::SharedClientRegion> {
-        match &self.adapter {
-            Adapter::Java1_21_11(bot) => bot.observe_shared_client_region(region).await,
-            Adapter::Java1_16_1(_) => Err(Error::new(
-                ErrorKind::Unsupported,
-                anyhow::anyhow!("client piston reconstruction is not implemented for Java 1.16.1"),
-            )),
+    }
+    native_api! {
+    /// The Java 1.21.11 native handle, or `Unsupported` for other versions (feature `native`).
+    fn java_1_21_11(&self) -> Result<crate::versions::java_1_21_11::NativeClient> {
+        match self.native() {
+            Native::Java1_21_11(native) => Ok(native),
+            _ => Err(wrong_version(MinecraftVersion::Java1_21_11)),
         }
     }
-    /// Captures exact incoming packets for a bounded diagnostic interval.
+    }
+    /// Captures exact incoming packets for a bounded diagnostic interval on either version.
+    /// Late-start traces retain original ordinals but cannot be replayed without
+    /// an initial baseline; use `connect_recorded` for replayable histories.
     pub async fn start_packet_trace(&self, maximum_bytes: usize) -> Result<()> {
-        match &self.adapter {
-            Adapter::Java1_21_11(bot) => bot.start_packet_trace(maximum_bytes).await,
-            Adapter::Java1_16_1(_) => Err(Error::new(
-                ErrorKind::Unsupported,
-                anyhow::anyhow!(
-                    "packet capture is not implemented for the 1.16.1 compatibility adapter"
-                ),
-            )),
-        }
+        crate::client::dispatch!(&self.adapter, a => SessionOps::start_packet_trace(a, maximum_bytes).await)
     }
 
-    /// Finishes a diagnostic capture; incomplete captures are explicitly marked.
-    pub async fn stop_packet_trace(&self) -> Result<crate::versions::java_1_21_11::PacketTrace> {
-        match &self.adapter {
-            Adapter::Java1_21_11(bot) => bot.stop_packet_trace().await,
-            Adapter::Java1_16_1(_) => Err(Error::new(
-                ErrorKind::Unsupported,
-                anyhow::anyhow!(
-                    "packet capture is not implemented for the 1.16.1 compatibility adapter"
-                ),
-            )),
-        }
-    }
-
-    /// Sends an ordinary use-on-block interaction. Dispatch is not acceptance.
-    pub async fn interact_block(&self, position: [i32; 3], face: crate::BlockFace) -> Result<()> {
-        match &self.adapter {
-            Adapter::Java1_21_11(bot) => bot.interact_block(position, face).await,
-            Adapter::Java1_16_1(bot) => {
-                bot.place_block(
-                    legacy::Hand::Main,
-                    legacy::BlockPos {
-                        x: position[0],
-                        y: position[1],
-                        z: position[2],
-                    },
-                    face,
-                    [0.5; 3],
-                    false,
-                )
-                .await
-            }
-        }
+    /// Finish exact received evidence. Overflow and original ordinals are retained.
+    pub async fn stop_packet_trace(&self) -> Result<crate::client::PacketTrace> {
+        crate::client::dispatch!(&self.adapter, a => SessionOps::stop_packet_trace(a).await)
     }
 
     /// Connects using only the selected version. Unsupported adapters fail before I/O.
     pub async fn connect(config: ConnectionConfig) -> Result<Self> {
+        Self::connect_with_packet_trace(config, None).await
+    }
+    /// Connect with capture enabled before the first configuration/play packet.
+    /// Authentication/login packets are excluded. No packet gap is hidden by
+    /// starting capture after connect or wait_until_ready.
+    pub async fn connect_recorded(config: ConnectionConfig, maximum_bytes: usize) -> Result<Self> {
+        crate::client::recording::validate_limit(maximum_bytes)?;
+        Self::connect_with_packet_trace(config, Some(maximum_bytes)).await
+    }
+    async fn connect_with_packet_trace(
+        config: ConnectionConfig,
+        trace_limit: Option<usize>,
+    ) -> Result<Self> {
+        config.validate()?;
         match config.version {
             MinecraftVersion::Java1_16_1 => {
-                let bot = legacy::Bot::connect(
+                let bot = legacy::Bot::connect_with_packet_trace(
                     config.server,
                     legacy::Player::offline(config.username),
                     Arc::new(legacy::SharedChunkStorage::default()),
-                    config.limits,
+                    config.limits.legacy(),
+                    trace_limit,
                 )
                 .await?;
                 Ok(Self {
@@ -234,7 +467,11 @@ impl Client {
             }
             MinecraftVersion::Java1_21_11 => Ok(Self {
                 adapter: Adapter::Java1_21_11(
-                    crate::versions::java_1_21_11::Bot::connect(config).await?,
+                    crate::versions::java_1_21_11::Bot::connect_with_packet_trace(
+                        config,
+                        trace_limit,
+                    )
+                    .await?,
                 ),
             }),
         }
@@ -242,18 +479,38 @@ impl Client {
 
     /// Exact version of this connection.
     pub fn version(&self) -> MinecraftVersion {
-        match self.adapter {
-            Adapter::Java1_16_1(_) => MinecraftVersion::Java1_16_1,
-            Adapter::Java1_21_11(_) => MinecraftVersion::Java1_21_11,
-        }
+        crate::client::adapter::version_of(&self.adapter)
+    }
+
+    /// Where the connection is in its lifecycle.
+    pub async fn connection_status(&self) -> crate::client::ConnectionStatus {
+        crate::client::dispatch!(&self.adapter, a => SessionOps::connection_status(a).await)
     }
 
     /// Waits for the selected adapter's initial playable state.
     pub async fn wait_until_ready(&self) -> Result<()> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.wait_until_ready().await,
-            Adapter::Java1_21_11(bot) => bot.wait_until_ready().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => SessionOps::wait_until_ready(a).await)
+    }
+
+    /// Loaded chunk columns of the current world.
+    pub async fn loaded_chunks(&self) -> Result<crate::client::LoadedChunks> {
+        crate::client::dispatch!(&self.adapter, a => crate::client::adapter::ChunkOps::loaded_chunks(a).await)
+    }
+
+    /// One loaded chunk column with its received block states and light, or `None`
+    /// when it is not loaded. Sections are shared, not copied, so reading every loaded
+    /// column each tick is cheap. See `docs/common-chunks.md`.
+    pub async fn chunk(
+        &self,
+        position: [i32; 2],
+    ) -> Result<Option<crate::client::ChunkObservation>> {
+        crate::client::dispatch!(&self.adapter, a => crate::client::adapter::ChunkOps::chunk(a, position).await)
+    }
+
+    /// The received state of one cell; None when it is not loaded.
+    pub(crate) async fn block_state(&self, p: [i32; 3]) -> Result<Option<crate::NativeBlockState>> {
+        let observation = self.observe_region(Region { min: p, max: p }).await?;
+        Ok(observation.blocks.into_iter().next().and_then(|b| b.state))
     }
 
     /// Gets all cells under one world lock; this does not send confirmation commands.
@@ -289,12 +546,39 @@ impl Client {
         }
     }
 
-    /// Ends the connection. A clone refers to the same session.
+    /// Irreversibly fence this transport without waiting for observation, writer
+    /// admission, pending writes or normal disconnect cleanup. All clones share
+    /// the fence. Native receive tasks are aborted and shutdown is scheduled.
+    ///
+    /// The returned local fact does not certify transport closure or server-side
+    /// stillness. Already admitted writes may have unknown effects. Do not retry
+    /// their commands or reuse this Client; retain diagnostics for inspection.
+    ///
+    /// ```no_run
+    /// use voxrig::client::prelude::*;
+    /// fn quarantine(client: &Client) -> ConnectionRevocation {
+    ///     client.revoke_connection()
+    /// }
+    /// ```
+    #[must_use]
+    pub fn revoke_connection(&self) -> crate::client::ConnectionRevocation {
+        let connection_id = match &self.adapter {
+            Adapter::Java1_16_1(bot) => {
+                let revoked = bot.revoke_connection();
+                revoked.generation().get()
+            }
+            Adapter::Java1_21_11(bot) => {
+                bot.revoke_connection();
+                bot.connection_id()
+            }
+        };
+        crate::client::ConnectionRevocation::new(self.version(), connection_id)
+    }
+
+    /// Ends the connection. A clone refers to the same session. This may wait
+    /// for cleanup or writer shutdown; use `revoke_connection` for local fencing.
     pub async fn disconnect(&self) -> Result<()> {
-        match &self.adapter {
-            Adapter::Java1_16_1(bot) => bot.disconnect().await,
-            Adapter::Java1_21_11(bot) => bot.disconnect().await,
-        }
+        crate::client::dispatch!(&self.adapter, a => SessionOps::disconnect(a).await)
     }
 }
 
@@ -364,8 +648,15 @@ mod tests {
                 let (mut stream, _) = listener.accept().await.unwrap();
                 let (_, payload) = read_packet(&mut stream, None).await.unwrap();
                 assert_eq!(get_varint(&mut payload.as_slice()).unwrap(), 736);
-                read_packet(&mut stream, None).await.unwrap();
-                write_packet(&mut stream, None, 2, &[]).await.unwrap();
+                let (_, login) = read_packet(&mut stream, None).await.unwrap();
+                write_packet(
+                    &mut stream,
+                    None,
+                    2,
+                    &crate::client::login::test_legacy_success(&login),
+                )
+                .await
+                .unwrap();
                 // No chunk arrives; the client must not label missing data as air.
                 while read_packet(&mut stream, None).await.is_ok() {}
             }
@@ -380,10 +671,20 @@ mod tests {
             max: [0, 0, 0],
         };
         let one = Client::connect(config.clone()).await.unwrap();
-        assert_eq!(one.survival_capabilities().checked_contract, None);
-        assert!(matches!(one.survival(), Err(e) if e.kind() == ErrorKind::Unsupported));
+        assert_eq!(
+            crate::versions::java_1_21_11::checked::SurvivalCapabilities::for_version(
+                one.version()
+            )
+            .checked_contract,
+            None
+        );
+        assert!(matches!(one.java_1_21_11(), Err(e) if e.kind() == ErrorKind::Unsupported));
+        let identity = one.connection_identity().await.unwrap();
+        assert_eq!(identity.uuid, [3; 16]);
+        assert_eq!(identity.name, "Observe");
         let first = one.observe_region(region).await.unwrap();
         assert_eq!(first.blocks.len(), 4);
+        assert_eq!(identity.session.connection_id, first.connection_id);
         assert!(first.blocks.iter().all(|b| b.state.is_none()));
         assert_eq!(first.version, MinecraftVersion::Java1_16_1);
         assert!(

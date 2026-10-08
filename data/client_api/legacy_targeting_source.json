@@ -1,0 +1,25 @@
+{
+  "version": "1.16.1",
+  "metadata_url": "https://piston-meta.mojang.com/v1/packages/54fa3af57d041d2771e66d390197b2c0288e697c/1.16.1.json",
+  "metadata_sha1": "54fa3af57d041d2771e66d390197b2c0288e697c",
+  "server": {
+    "sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+    "size": 37968964,
+    "url": "https://piston-data.mojang.com/v1/objects/a412fd69db1f81db3f511c1463fd304675244077/server.jar"
+  },
+  "server_mappings": {
+    "sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+    "url": "https://piston-data.mojang.com/v1/objects/11120c39da4df293c4bd020896391fb9ddd6c2ba/server.txt"
+  },
+  "verifier": "scripts/VerifyLegacyTargeting.java",
+  "verifier_sha256": "5562d6b50693632566b28727bd0eeb34bd4b41a4c06ac3ed053255a1277071cc",
+  "fixture_sha256": "ddb04af17bb62019696ec460bec062f5bbb181a367eeda4027b9137b936e34d0",
+  "scope": "Native Entity.calculateViewVector, every state of the 12 audited cube outlines and BlockGetter.clip with native OUTLINE/NONE/empty CollisionContext. Includes ties, inside hits, near edges and tiny/zero rays. Does not establish general legacy outline support, fluids/entities or server targeting authority.",
+  "fixture": "data/client_api/legacy_targeting_oracle.json",
+  "rotation_cases": 72,
+  "outline_state_cases": 13,
+  "ray_cases": 585,
+  "context": "Legacy ClipContext has no empty-entity constructor: reflection initializes its five data fields with native vectors/enums/empty CollisionContext. calculateViewVector is called on an uninitialized concrete ArmorStand because that pure method reads no entity fields. Traversal, clipping and shape methods run unmodified.",
+  "java": "OpenJDK 21.0.12.1",
+  "command": "java -XX:ActiveProcessorCount=1 -Xmx512M --class-path /absolute/path/to/1.16.1-server.jar /absolute/path/to/scripts/VerifyLegacyTargeting.java /absolute/path/to/data/client_api/legacy_targeting_oracle.json"
+}

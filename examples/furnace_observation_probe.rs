@@ -1,7 +1,7 @@
 use anyhow::{Result, ensure};
 use std::time::Duration;
 use tokio::time::{sleep, timeout};
-use voxrig::{
+use voxrig::versions::java_1_16_1::{
     BlockFace, BlockPos, BotManager, CoherentObservationRequest, DispatchOutcome, Hand, Operation,
     Player, Server,
 };
@@ -29,7 +29,7 @@ async fn main() -> Result<()> {
                 face: BlockFace::Up,
                 cursor: [0.5, 1.0, 0.5],
                 inside_block: false,
-                sneak: voxrig::InteractionSneakRequirement::not_required(),
+                sneak: voxrig::versions::java_1_16_1::InteractionSneakRequirement::not_required(),
             },
         )
         .await?;

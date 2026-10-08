@@ -6,56 +6,16 @@ fn unavailable(message: &str) -> Error {
     Error::new(ErrorKind::State, anyhow::anyhow!("{message}"))
 }
 
-/// Fresh connection and stationary target observation after validated retirement.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum MiningRecoveryMethod {
-    /// Exact independently received profile removal before reconnect.
-    IndependentRemoval,
-    /// New same-profile login success under audited direct vanilla semantics.
-    SameProfileLogin,
-}
-/// Caller-declared condition on the newly received target. No edit is sent.
-#[derive(Clone, Debug, PartialEq, Serialize, serde::Deserialize)]
-#[serde(tag = "kind", content = "state", rename_all = "snake_case")]
-pub enum MiningRecoveryTarget {
-    /// Require the exact original baseline or an exact ordinary air state.
-    Exact(crate::NativeBlockState),
-    /// Admit only the original baseline or ordinary air for caller reconciliation.
-    OriginalOrAir,
-}
+pub use crate::client::survival::{
+    MiningRecoveryAttempt, MiningRecoveryMethod, MiningRecoveryTarget,
+};
 impl MiningRecoveryTarget {
-    fn air(state: &crate::NativeBlockState) -> bool {
-        state.properties.is_empty()
-            && matches!(
-                state.name.as_str(),
-                "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air"
-            )
-    }
     pub(super) fn validate(&self, intent: &MiningIntent) -> Result<()> {
-        if let Self::Exact(state) = self {
-            if *state != intent.baseline && !Self::air(state) {
-                return Err(invalid(
-                    "recovery requires air or the original supported target baseline",
-                ));
-            }
-        }
-        Ok(())
+        self.validate_baseline(&intent.baseline)
     }
     fn allows(&self, state: &crate::NativeBlockState, intent: &MiningIntent) -> bool {
-        match self {
-            Self::Exact(expected) => state == expected,
-            Self::OriginalOrAir => *state == intent.baseline || Self::air(state),
-        }
+        self.allows_baseline(state, &intent.baseline)
     }
-}
-/// Original connection's retained before-I/O claim, not a login result.
-#[derive(Clone, Debug, Serialize, serde::Deserialize, PartialEq)]
-pub struct MiningRecoveryAttempt {
-    /// Selected native retirement semantics.
-    pub method: MiningRecoveryMethod,
-    /// Declared fresh target condition.
-    pub target: MiningRecoveryTarget,
 }
 diagnostic_record! {
     /// Evidence establishing which native recovery boundary was used.

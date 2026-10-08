@@ -251,8 +251,15 @@ mod tests {
             let (stream, _) = listener.accept().await.unwrap();
             let (mut reader, mut writer) = stream.into_split();
             read_packet(&mut reader, None).await.unwrap();
-            read_packet(&mut reader, None).await.unwrap();
-            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            let (_, login) = read_packet(&mut reader, None).await.unwrap();
+            write_packet(
+                &mut writer,
+                None,
+                2,
+                &crate::client::login::test_legacy_success(&login),
+            )
+            .await
+            .unwrap();
             let mut byte = [0_u8; 1];
             let _ = reader.read_exact(&mut byte).await;
             write_packet(&mut writer, None, 0x1a, &[0]).await.unwrap();
@@ -299,8 +306,15 @@ mod tests {
             let (stream, _) = listener.accept().await.unwrap();
             let (mut reader, mut writer) = stream.into_split();
             read_packet(&mut reader, None).await.unwrap();
-            read_packet(&mut reader, None).await.unwrap();
-            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            let (_, login) = read_packet(&mut reader, None).await.unwrap();
+            write_packet(
+                &mut writer,
+                None,
+                2,
+                &crate::client::login::test_legacy_success(&login),
+            )
+            .await
+            .unwrap();
             let mut byte = [0_u8; 1];
             let _ = reader.read(&mut byte).await;
             let _ = shutdown_seen_tx.send(());
@@ -311,8 +325,15 @@ mod tests {
             let (stream, _) = listener.accept().await.unwrap();
             let (mut reader, mut writer) = stream.into_split();
             read_packet(&mut reader, None).await.unwrap();
-            read_packet(&mut reader, None).await.unwrap();
-            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            let (_, login) = read_packet(&mut reader, None).await.unwrap();
+            write_packet(
+                &mut writer,
+                None,
+                2,
+                &crate::client::login::test_legacy_success(&login),
+            )
+            .await
+            .unwrap();
             second_release_rx.await.unwrap();
             write_packet(&mut writer, None, 0x1a, &[0]).await.unwrap();
         });
@@ -363,8 +384,15 @@ mod tests {
             let (stream, _) = listener.accept().await.unwrap();
             let (mut reader, mut writer) = stream.into_split();
             read_packet(&mut reader, None).await.unwrap();
-            read_packet(&mut reader, None).await.unwrap();
-            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            let (_, login) = read_packet(&mut reader, None).await.unwrap();
+            write_packet(
+                &mut writer,
+                None,
+                2,
+                &crate::client::login::test_legacy_success(&login),
+            )
+            .await
+            .unwrap();
             let mut byte = [0_u8; 1];
             let _ = reader.read(&mut byte).await;
             let _ = shutdown_seen_tx.send(());

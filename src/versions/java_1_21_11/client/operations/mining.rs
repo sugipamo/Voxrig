@@ -1,4 +1,4 @@
-//! Bounded empty-hand cube mining. Cancellation never authorizes a safe abort.
+//! Retained native empty-hand mining and common default-tool dry mining.
 use super::*;
 use crate::diagnostic_projection::diagnostic_record;
 use std::time::Duration;
@@ -27,10 +27,14 @@ diagnostic_record! {
         pub baseline: crate::NativeBlockState,
         /// Received stationary feet position before submission.
         pub position: [f64; 3],
-        /// Empty main-hand slot selected by an ordered send or server update.
+        /// Main-hand slot selected by an ordered send or server update.
         pub selection: HotbarSelection,
-        /// Receive sequence which established that slot as empty.
+        /// Receive sequence which established the original selected slot.
         pub held_receive_sequence: u64,
+        /// Exact original native slot; later changed tools remain latched.
+        pub held_stack: InventorySlot,
+        /// Common default-item schedule; native compatibility remains empty-hand.
+        pub estimate: Option<crate::client::survival::MiningEstimate>,
         /// Local scheduling estimate only; no server-tick or cancellation guarantee.
         pub estimated_wait_ms: u64,
     }
@@ -69,23 +73,14 @@ diagnostic_record! {
     }
     diagnostic_serde {}
 }
-/// Received inventory prerequisite that interrupted pending empty-hand mining.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum MiningInventoryChangeKind {
-    /// The original selected hotbar slot is no longer selected with its provenance.
-    SelectionChanged,
-    /// The player screen/cursor is unavailable or no longer suitable.
-    PlayerScreenChanged,
-    /// Components or an unresolved inventory operation invalidate the projection.
-    InventoryUnavailable,
-    /// The selected slot is occupied or unavailable, rather than received empty.
-    SelectedHandChanged,
-}
+// Common ownership, with the native compatibility path preserved.
+pub use crate::client::survival::MiningInventoryChangeKind;
+
+diagnostic_record! {
 /// First incompatible received inventory state. Diagnostic evidence only; does
 /// not attribute an item to pickup, gathering, a player or a server command.
-#[derive(Clone, Debug, Serialize, serde::Deserialize, PartialEq)]
-pub struct MiningInventoryChange {
+#[derive(Clone, Debug, Serialize, PartialEq)]
+pub struct MiningInventoryChange => RecordedMiningInventoryChange {
     /// Which prerequisite changed first.
     pub kind: MiningInventoryChangeKind,
     /// Receive ordinal at which the incompatible state was applied.
@@ -105,6 +100,9 @@ pub struct MiningInventoryChange {
     /// True only while no other inspection cause has been recorded.
     /// Earlier or later conflicts are never recategorized as inventory-only.
     pub sole_cause: bool,
+}
+
+    diagnostic_serde {}
 }
 
 const INVENTORY_CHANGED: &str = "received inventory prerequisites changed during mining";
@@ -177,7 +175,7 @@ fn owning(state: &State, intent: &MiningIntent, connection_id: u64) -> Result<()
     }
     Ok(())
 }
-fn empty_hand(state: &State) -> Result<(HotbarSelection, u64)> {
+fn selected_hand(state: &State, tools: bool) -> Result<(HotbarSelection, u64)> {
     let inventory = &state.operations.inventory;
     let selection = state
         .operations
@@ -191,15 +189,41 @@ fn empty_hand(state: &State) -> Result<(HotbarSelection, u64)> {
         || inventory.unsupported_components
         || inventory.pending_swap.is_some()
         || !inventory.pending_creative.is_empty()
-        || inventory.slots[slot] != InventorySlot::Empty
+        || (if tools {
+            inventory.slots[slot] == InventorySlot::Unavailable
+        } else {
+            inventory.slots[slot] != InventorySlot::Empty
+        })
     {
         return Err(unavailable(
-            "mining requires a received empty selected hand and supported player screen",
+            "mining requires a received supported selected hand and player screen",
         ));
     }
     let sequence = inventory.slot_sequences[slot]
-        .ok_or_else(|| unavailable("selected empty-hand receive evidence unavailable"))?;
+        .ok_or_else(|| unavailable("selected hand receive evidence unavailable"))?;
     Ok((selection, sequence))
+}
+fn common_estimate(
+    state: &State,
+    connection_id: u64,
+    baseline: &crate::NativeBlockState,
+) -> Result<crate::client::survival::MiningEstimate> {
+    let selection = selected_hand(state, true)?.0;
+    let hand = common_slot(&state.operations.inventory.slots[36 + usize::from(selection.slot)])?;
+    let registries = state.registries.capture(
+        crate::client::SessionStamp {
+            version: MinecraftVersion::Java1_21_11,
+            connection_id,
+            world_generation: state.loading.generation,
+        },
+        state.sequence,
+    );
+    crate::client::survival::mining_tools::estimate(
+        MinecraftVersion::Java1_21_11,
+        baseline,
+        &hand,
+        Some(&registries),
+    )
 }
 fn prepared(
     state: &mut State,
@@ -207,6 +231,7 @@ fn prepared(
     tick: u64,
     target: [i32; 3],
     face: u8,
+    tools: bool,
 ) -> Result<(StandingContext, crate::NativeBlockState)> {
     if state.operations.game_mode != Some(GameMode::Survival) {
         return Err(unavailable("mining requires received survival mode"));
@@ -235,7 +260,7 @@ fn prepared(
     }
     // An empty effect map is NOT a complete-list fence. The estimated wait below
     // is scheduling only; received removal remains the acceptance criterion.
-    empty_hand(state)?;
+    selected_hand(state, tools)?;
     let hit = super::super::raycast::stationary_outline_hit(state, standing.eye_position, 4.5)?
         .ok_or_else(|| unavailable("no available native outline hit for mining"))?;
     survival::uncertain_target(state, &standing, &hit)?;
@@ -244,7 +269,12 @@ fn prepared(
             "target/face differs from the current first native outline hit",
         ));
     }
-    admitted_material(&hit.state)?;
+    if tools {
+        crate::client::survival::mining_tools::material(MinecraftVersion::Java1_21_11, &hit.state)?;
+        common_estimate(state, connection_id, &hit.state)?;
+    } else {
+        admitted_material(&hit.state)?;
+    }
     Ok((standing, hit.state))
 }
 // Shared material admission for real mining and hypothetical removal geometry.
@@ -277,12 +307,50 @@ impl Operations {
         target: [i32; 3],
         face: crate::BlockFace,
     ) -> Result<MiningIntent> {
+        self.start_mining_in(target, face, false).await
+    }
+    async fn start_mining_in(
+        &self,
+        target: [i32; 3],
+        face: crate::BlockFace,
+        capture_common: bool,
+    ) -> Result<MiningIntent> {
         let mut state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
+        let common = capture_common
+            .then(|| self.common_player_unlocked(&state))
+            .transpose()?;
+        if let Some(initial) = &common {
+            if initial.received_pose.is_none()
+                || initial.dimension.is_none()
+                || !matches!(
+                    initial.inventory.cursor.as_ref(),
+                    Some(crate::client::ObservedValue {
+                        value: crate::client::SlotKnowledge::Empty,
+                        source: crate::client::ValueSource::Received { .. },
+                    })
+                )
+            {
+                return Err(unavailable(
+                    "common mining requires received own pose, dimension and empty cursor",
+                ));
+            }
+        }
         let tick = self.bot.session.started.elapsed().as_millis() as u64 / 50;
-        let (standing, baseline) =
-            prepared(&mut state, self.bot.session.id, tick, target, face as u8)?;
-        let (selection, held_receive_sequence) = empty_hand(&state)?;
+        let (standing, baseline) = prepared(
+            &mut state,
+            self.bot.session.id,
+            tick,
+            target,
+            face as u8,
+            common.is_some(),
+        )?;
+        let (selection, held_receive_sequence) = selected_hand(&state, common.is_some())?;
+        let held_stack = state.operations.inventory.slots[36 + usize::from(selection.slot)].clone();
+        let estimate = common
+            .as_ref()
+            .map(|_| common_estimate(&state, self.bot.session.id, &baseline))
+            .transpose()?;
         let intent = MiningIntent {
             connection_id: self.bot.session.id,
             after_sequence: state.sequence,
@@ -293,13 +361,21 @@ impl Operations {
             position: standing.position,
             selection,
             held_receive_sequence,
-            estimated_wait_ms: if baseline.name == "minecraft:dirt" {
+            held_stack,
+            estimated_wait_ms: if let Some(e) = &estimate {
+                e.wait_ms()
+            } else if baseline.name == "minecraft:dirt" {
                 1100
             } else {
                 8500
             },
             baseline,
+            estimate,
         };
+        state.common_mining = common.map(|initial| CommonMiningCapture {
+            initial,
+            start_sequence: intent.start_sequence,
+        });
         state.mining = Some(MiningRecord {
             intent: intent.clone(),
             start_dispatched: false,
@@ -363,12 +439,17 @@ impl Operations {
                 tick,
                 intent.target,
                 intent.face_id,
+                intent.estimate.is_some(),
             );
             match validation {
                 Ok((standing, block))
                     if block == intent.baseline
                         && standing.position == intent.position
-                        && empty_hand(&state)?.0 == intent.selection => {}
+                        && selected_hand(&state, intent.estimate.is_some())?.0
+                            == intent.selection
+                        && state.operations.inventory.slots
+                            [36 + usize::from(intent.selection.slot)]
+                            == intent.held_stack => {}
                 outcome => {
                     let reason = match outcome {
                         Err(e) => e.to_string(),
@@ -510,7 +591,7 @@ pub(super) fn mining_inventory_received(state: &mut State) {
         || !inventory.pending_creative.is_empty()
     {
         MiningInventoryChangeKind::InventoryUnavailable
-    } else if inventory.slots[original_slot] != InventorySlot::Empty {
+    } else if inventory.slots[original_slot] != record.intent.held_stack {
         MiningInventoryChangeKind::SelectedHandChanged
     } else {
         return;
@@ -657,4 +738,293 @@ pub(in crate::versions::java_1_21_11::client) fn mining_received(
         });
     }
     Ok(())
+}
+
+/// Kept under the same state lock before START I/O; not captured after an await.
+#[derive(Clone)]
+pub(in crate::versions::java_1_21_11::client) struct CommonMiningCapture {
+    initial: crate::client::PlayerObservation,
+    start_sequence: i32,
+}
+impl CommonMiningCapture {
+    fn id(&self) -> crate::client::survival::MiningId {
+        crate::client::survival::MiningId::new(self.initial.session, self.start_sequence as u64 + 1)
+    }
+}
+// Common mining keeps its dry standing prerequisites at every receive boundary.
+// Restoration in a later packet must not erase a transient loss of support,
+// body clearance, posture or the owning pose. This does not reinterpret a
+// native-only mining record or turn target air into continuation authority.
+pub(in crate::versions::java_1_21_11::client) fn common_mining_context_received(state: &mut State) {
+    let Some(capture) = state.common_mining.clone() else {
+        return;
+    };
+    if state.mining.as_ref().is_none_or(|m| m.removal.is_some()) {
+        return;
+    }
+    let check = (|| -> Result<()> {
+        let initial = &capture.initial;
+        if state.operations.game_mode != Some(GameMode::Survival)
+            || state.position != initial.position.as_ref().map(|p| p.value)
+            || state.rotation != initial.rotation
+            || state.loading.generation != initial.session.world_generation
+            || state
+                .motion
+                .received_pose
+                .as_ref()
+                .map(|p| p.receive_sequence)
+                != initial.received_pose.as_ref().map(|p| p.receive_sequence)
+        {
+            return Err(unavailable("mining player/world context changed"));
+        }
+        let standing = survival::context(
+            state,
+            initial.session.connection_id,
+            state.reconstruction.tick,
+        )?;
+        if !standing.on_ground
+            || !standing
+                .player
+                .health
+                .as_ref()
+                .is_some_and(|h| h.health > 0.0)
+            || standing.player.block_break_speed.map(|v| v.value) != Some(1.0)
+            || standing.player.mining_efficiency.map(|v| v.value) != Some(0.0)
+            || !standing.player.effect_updates.is_empty()
+        {
+            return Err(unavailable(
+                "mining healthy dry standing prerequisites changed",
+            ));
+        }
+        if let Some(intent) = state
+            .mining
+            .as_ref()
+            .map(|m| m.intent.clone())
+            .filter(|i| i.estimate.is_some())
+        {
+            let registries = state.registries.capture(initial.session, state.sequence);
+            crate::client::survival::mining_tools::estimate(
+                MinecraftVersion::Java1_21_11,
+                &intent.baseline,
+                &common_slot(&intent.held_stack)?,
+                Some(&registries),
+            )?;
+        }
+        Ok(())
+    })();
+    if let Err(error) = check {
+        mining_world_changed(state, &format!("common mining context changed: {error}"));
+    } else if state.mining.as_ref().is_some_and(|m| {
+        m.start_dispatched
+            && m.intent.estimate.is_some()
+            && m.intent.held_stack != InventorySlot::Empty
+    }) {
+        // Preserve fresh removal before a later durability packet, without
+        // releasing this source or inventing a completion ACK.
+        let _ = status(state);
+    }
+}
+impl Operations {
+    pub(crate) async fn common_profile_recovery_watch(
+        &self,
+        id: crate::client::survival::MiningId,
+    ) -> Result<MiningProfileRecoveryWatch> {
+        let intent = {
+            let state = self.bot.session.state.lock().await;
+            let capture = state
+                .common_mining
+                .as_ref()
+                .filter(|c| c.id() == id)
+                .ok_or_else(|| unavailable("recovery belongs to another common mining attempt"))?;
+            state
+                .mining
+                .as_ref()
+                .filter(|m| m.intent.start_sequence == capture.start_sequence)
+                .ok_or_else(|| unavailable("common mining no longer owns native intent"))?
+                .intent
+                .clone()
+        };
+        self.prepare_survival_mining_profile_recovery(&intent).await
+    }
+}
+
+impl crate::client::adapter::MiningOps for Operations {
+    async fn start_mining(
+        &self,
+        target: [i32; 3],
+        face: crate::BlockFace,
+    ) -> Result<crate::client::survival::MiningRecord> {
+        self.start_mining_in(target, face, true).await?;
+        self.mining_record()
+            .await?
+            .ok_or_else(|| unavailable("common mining capture missing"))
+    }
+    async fn mining_send(
+        &self,
+        id: crate::client::survival::MiningId,
+        action: crate::client::survival::MiningAction,
+    ) -> Result<crate::client::survival::MiningRecord> {
+        let intent = {
+            let state = self.bot.session.state.lock().await;
+            if !state.common_mining.as_ref().is_some_and(|m| m.id() == id) {
+                return Err(unavailable(
+                    "common mining id belongs to another connection/attempt",
+                ));
+            }
+            state
+                .mining
+                .as_ref()
+                .filter(|m| {
+                    Some(m.intent.start_sequence)
+                        == state.common_mining.as_ref().map(|c| c.start_sequence)
+                })
+                .ok_or_else(|| unavailable("common mining no longer owns native intent"))?
+                .intent
+                .clone()
+        };
+        match action {
+            crate::client::survival::MiningAction::Start => {
+                return Err(unavailable("START may not be replayed"));
+            }
+            crate::client::survival::MiningAction::Finish => {
+                self.finish_survival_mining(&intent).await?;
+            }
+            crate::client::survival::MiningAction::Abort => {
+                self.abort_survival_mining(&intent).await?;
+            }
+        }
+        self.mining_record()
+            .await?
+            .ok_or_else(|| unavailable("common mining capture missing"))
+    }
+    async fn mining_record(&self) -> Result<Option<crate::client::survival::MiningRecord>> {
+        use crate::client::{self as common, survival as api};
+        let mut state = self.bot.session.state.lock().await;
+        let Some(capture) = state.common_mining.clone() else {
+            return Ok(None);
+        };
+        if !state
+            .mining
+            .as_ref()
+            .is_some_and(|m| m.intent.start_sequence == capture.start_sequence)
+        {
+            return Err(unavailable(
+                "retained common mining no longer owns native intent",
+            ));
+        }
+        if self
+            .bot
+            .session
+            .stopped
+            .load(std::sync::atomic::Ordering::Acquire)
+            || state.failure.is_some()
+            || !state.ready
+            || !matches!(state.phase, Phase::Play)
+        {
+            mining_world_changed(&mut state, "mining connection closed or uncertain");
+        }
+        if state.mining.as_ref().is_some_and(|m| {
+            !m.start_dispatched
+                && m.target_receipt
+                    .as_ref()
+                    .is_some_and(|r| r.state != m.intent.baseline)
+        }) {
+            mining_world_changed(
+                &mut state,
+                "target changed without a complete common START dispatch",
+            );
+        }
+        let observed = status(&mut state);
+        let native = state.mining.as_ref().expect("owning native mining");
+        let stage = match observed {
+            MiningStatus::Mining { .. } => api::MiningStage::Mining,
+            MiningStatus::PendingAfterFinish { .. } => api::MiningStage::PendingAfterFinish,
+            MiningStatus::ObservedRemoved { .. } => api::MiningStage::ObservedRemoved,
+            MiningStatus::RequiresInspection { .. } => api::MiningStage::RequiresInspection,
+        };
+        let inventory_change = native
+            .inventory_change
+            .as_ref()
+            .map(|change| -> Result<_> {
+                Ok(api::MiningInventoryChange {
+                    kind: change.kind,
+                    receive_sequence: change.receive_sequence,
+                    selection: change.selection.as_ref().map(|s| common::ObservedValue {
+                        value: s.slot,
+                        source: if s.from_server {
+                            common::ValueSource::Received {
+                                sequence: s.sequence,
+                            }
+                        } else {
+                            common::ValueSource::Submitted
+                        },
+                    }),
+                    original_hand: super::common_slot(&change.original_hand)?,
+                    hand_receive_sequence: change.hand_receive_sequence,
+                    window_id: change.window_id,
+                    cursor: super::common_slot(&change.cursor)?,
+                    unsupported_components: change.unsupported_components,
+                    sole_cause: change.sole_cause,
+                })
+            })
+            .transpose()?;
+        let send = |s: &MiningSend| api::MiningSend {
+            after_sequence: s.after_sequence,
+            interaction_sequence: Some(s.sequence),
+            dispatched: s.dispatched,
+        };
+        let protocol = state
+            .operations
+            .ack
+            .zip(state.operations.ack_receive_sequence)
+            .filter(|(sequence, receive)| {
+                *sequence >= native.intent.start_sequence && *receive > native.intent.after_sequence
+            })
+            .map(
+                |(sequence, receive_sequence)| api::MiningProtocolObservation::ModernProcessing {
+                    sequence,
+                    receive_sequence,
+                },
+            );
+        Ok(Some(api::MiningRecord {
+            id: capture.id(),
+            initial: capture.initial,
+            target: native.intent.target,
+            face: [
+                crate::BlockFace::Down,
+                crate::BlockFace::Up,
+                crate::BlockFace::North,
+                crate::BlockFace::South,
+                crate::BlockFace::West,
+                crate::BlockFace::East,
+            ][native.intent.face_id as usize],
+            baseline: native.intent.baseline.clone(),
+            estimated_wait_ms: native.intent.estimated_wait_ms,
+            estimate: native
+                .intent
+                .estimate
+                .clone()
+                .ok_or_else(|| unavailable("common mining estimate missing"))?,
+            start: api::MiningSend {
+                after_sequence: native.intent.after_sequence,
+                interaction_sequence: Some(native.intent.start_sequence),
+                dispatched: native.start_dispatched,
+            },
+            finish: native.finish.as_ref().map(send),
+            abort: native.abort.as_ref().map(send),
+            target_receipt: native
+                .target_receipt
+                .as_ref()
+                .map(|r| api::MiningTargetReceipt {
+                    state: r.state.clone(),
+                    receive_sequence: r.receive_sequence,
+                }),
+            protocol,
+            inventory_change,
+            requires_inspection: native.requires_inspection.clone(),
+            stage,
+            recovery_attempt: native.recovery_attempt.clone(),
+            continuation_validated: false,
+        }))
+    }
 }

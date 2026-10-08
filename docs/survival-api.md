@@ -1,8 +1,8 @@
 # Checked survival API and ownership
 
-`Client::survival_capabilities()` and
-`checked_survival::SurvivalCapabilities::for_version(version)` describe static
-adapter support. `Client::survival()` returns a session-bound checked handle, or
+`checked::SurvivalCapabilities::for_version()` and
+`java_1_21_11::checked::SurvivalCapabilities::for_version(version)` describe static
+adapter support. `client.java_1_21_11()?.checked_survival()` returns a session-bound checked handle, or
 `Unsupported` before I/O for Java 1.16.1. Its legacy `Bot` and `survival` module
 remain unchanged. Java 1.21.11 implements `ObservedDryCubeV1` and the separately advertised
 `PredictedDryCubeV1`; existing observed entry points keep their contract.

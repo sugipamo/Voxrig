@@ -189,6 +189,7 @@ pub struct RespawnState {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct JoinState {
+    pub registry_codec: Vec<u8>,
     pub entity_id: i32,
     pub game_mode: u8,
     pub previous_game_mode: u8,
@@ -356,11 +357,16 @@ pub(crate) fn parse_join(payload: &[u8]) -> Result<JoinState> {
         let _ = get_string(&mut rest)?;
     }
     let mut cursor = Cursor::new(rest);
+    if rest.first() != Some(&10) {
+        bail!("join registry codec must be a named compound");
+    }
     skip_nbt(&mut cursor)?;
+    let registry_codec = rest[..cursor.position() as usize].to_vec();
     rest = &rest[cursor.position() as usize..];
     let dimension = get_string(&mut rest)?;
     let world_name = get_string(&mut rest)?;
     Ok(JoinState {
+        registry_codec,
         entity_id,
         game_mode,
         previous_game_mode,

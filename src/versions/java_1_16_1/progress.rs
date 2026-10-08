@@ -175,6 +175,12 @@ impl AdvancementState {
 
 impl RecipeBookState {
     pub(crate) fn apply(&mut self, payload: &[u8]) -> Result<()> {
+        let mut next = self.clone();
+        next.apply_inner(payload)?;
+        *self = next;
+        Ok(())
+    }
+    fn apply_inner(&mut self, payload: &[u8]) -> Result<()> {
         let mut rest = payload;
         let action = get_varint(&mut rest)?;
         self.crafting_open = take_bool(&mut rest)?;
@@ -195,6 +201,9 @@ impl RecipeBookState {
                 }
             }
             _ => bail!("unknown recipe-book action {action}"),
+        }
+        if !rest.is_empty() {
+            bail!("trailing recipe-book data");
         }
         Ok(())
     }
@@ -276,6 +285,32 @@ mod tests {
         put_string(&mut remove, "minecraft:stick");
         state.apply(&remove).unwrap();
         assert!(state.unlocked.is_empty());
+    }
+
+    #[test]
+    fn recipe_book_rejects_truncation_unknown_action_and_trailing_data_atomically() {
+        let mut initial = vec![0, 1, 0, 1, 0];
+        put_varint(&mut initial, 1);
+        put_string(&mut initial, "minecraft:stick");
+        put_varint(&mut initial, 1);
+        put_string(&mut initial, "minecraft:stick");
+        let mut state = RecipeBookState::default();
+        state.apply(&initial).unwrap();
+        assert!(state.unlocked.contains("minecraft:stick"));
+        assert!(state.displayed.contains("minecraft:stick"));
+        let before = state.clone();
+        for end in 0..initial.len() {
+            assert!(state.apply(&initial[..end]).is_err());
+            assert_eq!(state, before);
+        }
+        let mut trailing = initial.clone();
+        trailing.push(0);
+        assert!(state.apply(&trailing).is_err());
+        assert_eq!(state, before);
+        let mut unknown = initial;
+        unknown[0] = 3;
+        assert!(state.apply(&unknown).is_err());
+        assert_eq!(state, before);
     }
 
     #[test]

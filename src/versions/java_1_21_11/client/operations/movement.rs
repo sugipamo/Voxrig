@@ -1,16 +1,19 @@
-//! Bounded dry-cube prediction and separately observed native controls.
+//! Bounded dry-terrain prediction and separately observed native controls.
 mod control;
 mod endpoint;
 mod scenario;
 use super::geometry::GeometryView;
 use super::*;
 use crate::diagnostic_projection::diagnostic_record;
-use crate::versions::java_1_21_11::math::trig;
-pub(super) use control::standing_basis;
 pub use control::{RecordedSurvivalMotionRecheck, RecordedSurvivalMotionRecord};
 pub use control::{
     StandingPositionBasis, SurvivalMotionContract, SurvivalMotionRecheck, SurvivalMotionRecord,
     SurvivalMotionStatus,
+};
+pub(super) use control::{
+    dismount_ground_plan, flight_can_retire, landing_common_record, landing_plan,
+    retire_common_for_flight, retire_common_for_mount, standing_basis, submitted_dismount_stop,
+    submitted_flight_stop,
 };
 pub use scenario::{
     AssumedSurvivalScene, AssumedSurvivalStart, CapturedSurvivalScene, HypotheticalAimRequirement,
@@ -24,26 +27,10 @@ pub use scenario::{
     RecordedHypotheticalReconnectBoundary, RecordedHypotheticalSceneSource,
 };
 
-/// Digital walking input for one predicted native game tick, without sprint/sneak.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, serde::Deserialize)]
-pub struct SurvivalInput {
-    /// -1 backwards, 0 released, 1 forwards.
-    pub forward: i8,
-    /// -1 right, 0 released, 1 left.
-    pub strafe: i8,
-    /// Jump key state, including native repeat cooldown.
-    pub jump: bool,
-}
-/// One native tick's heading and digital input. Route selection belongs to the caller.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, serde::Deserialize)]
-pub struct SurvivalControl {
-    /// Native body yaw in degrees.
-    pub yaw: f32,
-    /// No sprint/sneak or implicit controls.
-    pub input: SurvivalInput,
-}
-/// Bound on a single finite connection-owned control run.
-pub const MAX_SURVIVAL_CONTROL_TICKS: usize = 120;
+pub use crate::client::survival::{
+    MAX_SURVIVAL_CONTROL_TICKS, PredictedMotionFrame, SurvivalControl, SurvivalInput,
+    TerminalClearance,
+};
 fn fixed_controls(yaw: f32, inputs: &[SurvivalInput]) -> Result<Vec<SurvivalControl>> {
     if inputs.is_empty() || inputs.len() > MAX_SURVIVAL_CONTROL_TICKS {
         return Err(invalid("motion requires 1..120 bounded digital inputs"));
@@ -52,22 +39,6 @@ fn fixed_controls(yaw: f32, inputs: &[SurvivalInput]) -> Result<Vec<SurvivalCont
         .iter()
         .map(|input| SurvivalControl { yaw, input: *input })
         .collect())
-}
-/// A simulated player frame, never a received pose or permission to build.
-#[derive(Clone, Debug, PartialEq, Serialize, serde::Deserialize)]
-pub struct PredictedMotionFrame {
-    /// Tick count from the preview's initial context, not server time.
-    pub tick: u16,
-    /// Predicted feet position.
-    pub position: [f64; 3],
-    /// Simulated next-tick velocity, including gravity while resting on a floor.
-    pub velocity: [f64; 3],
-    /// Predicted downward collision.
-    pub on_ground: bool,
-    /// Predicted X/Z obstruction.
-    pub horizontal_collision: bool,
-    /// No displacement with released controls and predicted floor contact.
-    pub resting: bool,
 }
 diagnostic_record! {
     /// Read-only simulation against one received world snapshot. Not a reusable plan.
@@ -88,21 +59,6 @@ diagnostic_record! {
     }
     diagnostic_serde {}
 }
-/// Why a predicted endpoint can or cannot be used as a construction stop.
-#[derive(Clone, Debug, Serialize, serde::Deserialize, PartialEq)]
-#[serde(tag = "status", rename_all = "snake_case")]
-pub enum TerminalClearance {
-    /// Resting with conservative support and a margin from solid walls.
-    Admitted {
-        /// Per-axis model-space planning reserve. Not a physical error bound for predicted continuation.
-        horizontal_margin: f64,
-    },
-    /// Input planning must change before any movement packet is sent.
-    RequiresReplan {
-        /// Specific rest/support/geometry issue.
-        reason: String,
-    },
-}
 const TERMINAL_MARGIN: f64 = 1.0 / 16.0;
 fn terminal_clearance(state: &impl GeometryView, frame: &PredictedMotionFrame) -> Result<()> {
     if !frame.resting {
@@ -119,7 +75,62 @@ fn terminal_clearance(state: &impl GeometryView, frame: &PredictedMotionFrame) -
     Ok(())
 }
 impl Operations {
-    /// Preview at most 120 dry-cube walking/jump ticks. Uses native default motion
+    pub(super) fn common_target_unlocked(
+        &self,
+        state: &mut State,
+        mode: crate::client::GameMode,
+        distance: f64,
+    ) -> Result<crate::client::survival::BlockTargetObservation> {
+        use crate::client::survival::target;
+        if state.operations.game_mode != Some(mode) {
+            return Err(invalid(
+                "stationary geometry requires matching received mode",
+            ));
+        }
+        let native = survival::context(
+            state,
+            self.bot.session.id,
+            self.bot.session.started.elapsed().as_millis() as u64 / 50,
+        )?;
+        validate_initial(&native)?;
+        let initial = self.common_player_unlocked(state)?;
+        if !initial
+            .health
+            .as_ref()
+            .is_some_and(|h| h.value.health > 0.0)
+        {
+            return Err(invalid(
+                "stationary geometry requires received healthy player",
+            ));
+        }
+        target::validate_rotation(initial.rotation)?;
+        let eye = native.eye_position;
+        let hit = super::super::raycast::stationary_outline_hit(state, eye, distance)?;
+        let vector = target::direction(crate::MinecraftVersion::Java1_21_11, initial.rotation);
+        let length = vector.iter().map(|v| v * v).sum::<f64>().sqrt();
+        let hit = hit.map(|hit| crate::client::survival::BlockTargetHit {
+            position: hit.position,
+            state: hit.state,
+            distance: hit.distance,
+            face: [
+                crate::BlockFace::Down,
+                crate::BlockFace::Up,
+                crate::BlockFace::North,
+                crate::BlockFace::South,
+                crate::BlockFace::West,
+                crate::BlockFace::East,
+            ][hit.face.expect("outline entry face") as usize],
+            point: std::array::from_fn(|i| eye[i] + vector[i] * (hit.distance / length)),
+        });
+        Ok(crate::client::survival::BlockTargetObservation {
+            initial,
+            world_revision: state.world.revision,
+            eye,
+            maximum_distance: distance,
+            hit,
+        })
+    }
+    /// Preview at most 120 known dry-terrain walking/jump ticks. Uses native default motion
     /// attributes, normal posture and no received effect updates. This is a
     /// prediction from the projection, not evidence that effects are absent on
     /// the server, that motion occurred, or that future geometry will stay fixed.
@@ -153,11 +164,24 @@ fn preview(
     tick: u64,
     controls: &[SurvivalControl],
 ) -> Result<SurvivalMovementPreview> {
-    if state.operations.game_mode != Some(GameMode::Survival) {
-        return Err(invalid("survival mode required"));
+    preview_in_mode(state, connection_id, tick, controls, GameMode::Survival)
+}
+fn preview_in_mode(
+    state: &mut State,
+    connection_id: u64,
+    tick: u64,
+    controls: &[SurvivalControl],
+    mode: GameMode,
+) -> Result<SurvivalMovementPreview> {
+    if !matches!(mode, GameMode::Survival | GameMode::Creative)
+        || state.operations.game_mode != Some(mode)
+    {
+        return Err(invalid(
+            "ground motion requires matching received survival/creative mode",
+        ));
     }
     let initial = survival::context(state, connection_id, tick)?;
-    validate_initial(&initial)?;
+    validate_motion_initial(state, &initial, controls)?;
     let mut model = Model::from_context(&initial);
     let initial_frame = model.initial_frame();
     let frames = predict(state, &mut model, controls)?;
@@ -171,10 +195,57 @@ fn preview(
         frames,
     })
 }
-fn validate_initial(initial: &StandingContext) -> Result<()> {
+fn validate_motion_initial(
+    state: &State,
+    initial: &StandingContext,
+    controls: &[SurvivalControl],
+) -> Result<()> {
+    if initial.on_ground {
+        return validate_initial(initial);
+    }
+    let spawn = crate::client::respawn::snapshot(&state.respawn_history)
+        .filter(|r| r.dispatched && r.requires_inspection.is_none())
+        .and_then(|r| r.received_spawn);
+    let valid_spawn = spawn.as_ref().is_some_and(|s| {
+        s.value.connection_id == initial.connection_id
+            && s.value.world_generation == state.loading.generation
+            && matches!(s.source, crate::client::ValueSource::Received {sequence}
+            if sequence == state.loading.generation)
+    });
+    let valid_pose = matches!(initial.position_basis, StandingPositionBasis::Received {receive_sequence}
+        if receive_sequence > state.loading.generation);
+    if !valid_spawn
+        || !valid_pose
+        || controls.is_empty()
+        || controls.iter().any(|c| c.input != SurvivalInput::default())
+        || initial
+            .player
+            .velocity
+            .as_ref()
+            .is_none_or(|v| v.value != [0.; 3] || v.receive_sequence <= state.loading.generation)
+        || initial.player.health.as_ref().is_none_or(|h| {
+            !h.health.is_finite()
+                || h.health <= 0.0
+                || h.receive_sequence <= state.loading.generation
+        })
+    {
+        return Err(invalid(
+            "airborne settling requires owned received respawn, fresh zero-velocity pose/healthy player and released inputs",
+        ));
+    }
+    validate_motion_attributes(initial)
+}
+pub(super) fn validate_initial(initial: &StandingContext) -> Result<()> {
+    if !initial.on_ground {
+        return Err(invalid(
+            "dry motion preview requires grounded native default movement attributes and no received effects",
+        ));
+    }
+    validate_motion_attributes(initial)
+}
+fn validate_motion_attributes(initial: &StandingContext) -> Result<()> {
     let p = &initial.player;
-    if !initial.on_ground
-        || !p.effect_updates.is_empty()
+    if !p.effect_updates.is_empty()
         || p.movement_speed.map(|v| v.value) != Some(f64::from(0.1f32))
         || p.gravity.map(|v| v.value) != Some(0.08)
         || p.jump_strength.map(|v| v.value) != Some(f64::from(0.42f32))
@@ -191,33 +262,7 @@ fn predict(
     model: &mut Model,
     controls: &[SurvivalControl],
 ) -> Result<Vec<PredictedMotionFrame>> {
-    if controls.is_empty()
-        || controls.len() > MAX_SURVIVAL_CONTROL_TICKS
-        || controls.iter().any(|c| {
-            !c.yaw.is_finite()
-                || !(-1..=1).contains(&c.input.forward)
-                || !(-1..=1).contains(&c.input.strafe)
-        })
-    {
-        return Err(invalid("motion requires 1..120 bounded digital inputs"));
-    }
-    let origin_y = model.frame.position[1];
-    model.frame.tick = 0;
-    let mut frames = Vec::with_capacity(controls.len());
-    for control in controls {
-        let input = control.input;
-        let proposed = model.intent(input, control.yaw);
-        if proposed.iter().any(|v| v.abs() > 1.0) {
-            return Err(invalid("motion exceeds bounded dry preview step"));
-        }
-        let geometry = geometry(state, model.frame.position, proposed)?;
-        model.advance(input, proposed, &geometry);
-        if model.frame.position[1] < origin_y - 3.0 {
-            return Err(invalid("preview falls outside bounded construction height"));
-        }
-        frames.push(model.frame.clone());
-    }
-    Ok(frames)
+    crate::client::survival::model::predict(|p| state.block(p), model, controls)
 }
 fn clearance(state: &impl GeometryView, frame: &PredictedMotionFrame) -> TerminalClearance {
     match terminal_clearance(state, frame) {
@@ -230,176 +275,37 @@ fn clearance(state: &impl GeometryView, frame: &PredictedMotionFrame) -> Termina
     }
 }
 
-fn body(p: [f64; 3]) -> [f64; 6] {
-    let half = f64::from(0.6f32) / 2.0;
-    [
-        p[0] - half,
-        p[1],
-        p[2] - half,
-        p[0] + half,
-        p[1] + f64::from(1.8f32),
-        p[2] + half,
-    ]
-}
-fn geometry(state: &impl GeometryView, p: [f64; 3], motion: [f64; 3]) -> Result<Vec<[f64; 6]>> {
-    let a = body(p);
-    let b = body(std::array::from_fn(|i| p[i] + motion[i]));
-    let min: [i32; 3] = std::array::from_fn(|i| a[i].min(b[i]).floor() as i32 - 1);
-    let max: [i32; 3] = std::array::from_fn(|i| a[i + 3].max(b[i + 3]).floor() as i32 + 1);
-    let mut boxes = Vec::new();
-    for x in min[0]..=max[0] {
-        for y in min[1]..=max[1] {
-            for z in min[2]..=max[2] {
-                let p = [x, y, z];
-                let block = state.block(p)?;
-                match block.name.as_str() {
-                    "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air" => {}
-                    name if survival::DRY_CUBES.contains(&name) => boxes.push([
-                        x as f64,
-                        y as f64,
-                        z as f64,
-                        (x + 1) as f64,
-                        (y + 1) as f64,
-                        (z + 1) as f64,
-                    ]),
-                    _ => {
-                        return Err(Error::new(
-                            ErrorKind::Unsupported,
-                            anyhow::anyhow!("unsupported motion geometry {} at {p:?}", block.name),
-                        ));
-                    }
-                }
-            }
-        }
-    }
-    Ok(boxes)
-}
-fn acceleration(input: SurvivalInput, yaw: f32, speed: f32) -> [f64; 3] {
-    let (mut x, mut z) = (f32::from(input.strafe), f32::from(input.forward));
-    let length = (x * x + z * z).sqrt();
-    if length == 0.0 {
-        return [0.0; 3];
-    }
-    x = (x / length) * 0.98f32;
-    z = (z / length) * 0.98f32;
-    let length = (x * x + z * z).sqrt();
-    let (nx, nz) = (x * (1.0 / length), z * (1.0 / length));
-    let ratio = nx.abs().min(nz.abs()) / nx.abs().max(nz.abs());
-    let magnitude = (length * (1.0 + ratio * ratio).sqrt()).min(1.0);
-    let (mut x, mut z) = (f64::from(nx * magnitude), f64::from(nz * magnitude));
-    let length = x * x + z * z;
-    if length < 1e-7 {
-        return [0.0; 3];
-    }
-    if length > 1.0 {
-        let inverse = 1.0 / length.sqrt();
-        x *= inverse;
-        z *= inverse;
-    }
-    x *= f64::from(speed);
-    z *= f64::from(speed);
-    let angle = yaw * (std::f32::consts::PI / 180.0);
-    let (s, c) = (f64::from(trig(angle, false)), f64::from(trig(angle, true)));
-    [x * c - z * s, 0.0, z * c + x * s]
-}
-fn collide(mut bounds: [f64; 6], motion: [f64; 3], boxes: &[[f64; 6]]) -> [f64; 3] {
-    let mut result = [0.0; 3];
-    let order = if motion[0].abs() < motion[2].abs() {
-        [1, 2, 0]
-    } else {
-        [1, 0, 2]
-    };
-    for axis in order {
-        let mut distance = motion[axis];
-        if distance == 0.0 {
-            continue;
-        }
-        for cube in boxes {
-            if distance.abs() < 1e-7 {
-                distance = 0.0;
-                break;
-            }
-            if (0..3).any(|i| {
-                i != axis && (bounds[i] + 1e-7 >= cube[i + 3] || bounds[i + 3] - 1e-7 <= cube[i])
-            }) {
-                continue;
-            }
-            let ahead = cube[axis] - bounds[axis + 3];
-            let behind = cube[axis + 3] - bounds[axis];
-            if distance > 0.0 && ahead >= -1e-7 {
-                distance = distance.min(ahead);
-            } else if distance < 0.0 && behind <= 1e-7 {
-                distance = distance.max(behind);
-            }
-        }
-        result[axis] = distance;
-        bounds[axis] += distance;
-        bounds[axis + 3] += distance;
-    }
-    result
-}
-// Native Entity.adjustMovementForCollisions step search, restricted to the
-// already admitted full cubes and native 0.6f step height.
-fn collide_with_step(
-    bounds: [f64; 6],
+use crate::client::survival::model::Model;
+#[cfg(test)]
+use crate::client::survival::model::body;
+fn geometry(
+    state: &impl GeometryView,
+    p: [f64; 3],
     motion: [f64; 3],
-    boxes: &[[f64; 6]],
-    on_ground: bool,
-) -> [f64; 3] {
-    let adjusted = collide(bounds, motion, boxes);
-    let downward = motion[1] < 0.0 && motion[1] != adjusted[1];
-    if !(downward || on_ground) || (motion[0] == adjusted[0] && motion[2] == adjusted[2]) {
-        return adjusted;
-    }
-    let mut base = bounds;
-    if downward {
-        base[1] += adjusted[1];
-        base[4] += adjusted[1];
-    }
-    let mut scan = base;
-    scan[0] += motion[0].min(0.0);
-    scan[3] += motion[0].max(0.0);
-    scan[2] += motion[2].min(0.0);
-    scan[5] += motion[2].max(0.0);
-    scan[4] += f64::from(0.6f32);
-    if !downward {
-        scan[1] -= f64::from(1e-5f32);
-    }
-    let mut heights: Vec<f32> = boxes
-        .iter()
-        .filter(|b| (0..3).all(|i| scan[i] < b[i + 3] && scan[i + 3] > b[i]))
-        .flat_map(|b| [b[1], b[4]])
-        .map(|y| (y - base[1]) as f32)
-        .filter(|h| *h >= 0.0 && *h <= 0.6f32 && *h != adjusted[1] as f32)
-        .collect();
-    heights.sort_by(f32::total_cmp);
-    heights.dedup();
-    for height in heights {
-        let mut candidate = collide(base, [motion[0], f64::from(height), motion[2]], boxes);
-        if candidate[0] * candidate[0] + candidate[2] * candidate[2]
-            > adjusted[0] * adjusted[0] + adjusted[2] * adjusted[2]
-        {
-            candidate[1] -= bounds[1] - base[1];
-            return candidate;
-        }
-    }
-    adjusted
+) -> Result<crate::client::survival::model::CollisionGeometry> {
+    crate::client::survival::model::geometry(
+        crate::MinecraftVersion::Java1_21_11,
+        |p| state.block(p),
+        p,
+        motion,
+    )
 }
-
-#[derive(Clone, Debug)]
-struct Model {
-    frame: PredictedMotionFrame,
-    jump_cooldown: u8,
+#[cfg(test)]
+fn acceleration(input: SurvivalInput, yaw: f32, speed: f32) -> [f64; 3] {
+    crate::client::survival::model::acceleration(
+        crate::MinecraftVersion::Java1_21_11,
+        input,
+        yaw,
+        speed,
+    )
 }
+#[cfg(test)]
+use crate::client::survival::model::collide;
 impl Model {
-    fn initial_frame(&self) -> PredictedMotionFrame {
-        PredictedMotionFrame {
-            tick: 0,
-            ..self.frame.clone()
-        }
-    }
     fn from_context(context: &StandingContext) -> Self {
-        let mut model = Self::new(context.position);
+        let mut model = Self::new(crate::MinecraftVersion::Java1_21_11, context.position);
+        model.frame.on_ground = context.on_ground;
+        model.frame.resting = context.on_ground;
         if let StandingPositionBasis::PredictedAndObserved { predicted, .. }
         | StandingPositionBasis::Predicted { predicted, .. } = &context.position_basis
         {
@@ -407,89 +313,55 @@ impl Model {
         }
         model
     }
-    fn new(position: [f64; 3]) -> Self {
-        Self {
-            frame: PredictedMotionFrame {
-                tick: 0,
-                position,
-                velocity: [0.0; 3],
-                on_ground: true,
-                horizontal_collision: false,
-                resting: true,
-            },
-            jump_cooldown: 0,
+}
+impl crate::client::adapter::StandingQueryOps for Operations {
+    async fn target_block(
+        &self,
+        mode: crate::client::GameMode,
+        distance: f64,
+    ) -> Result<crate::client::survival::BlockTargetObservation> {
+        use crate::client::survival::target;
+        target::validate_reach(distance)?;
+        let mut state = self.bot.session.state.lock().await;
+        self.ready(&state)?;
+        if self.common_player_unlocked(&state)?.pending_dispatch {
+            return Err(invalid(
+                "prior dispatch unresolved; inspect retained record",
+            ));
         }
+        self.common_target_unlocked(&mut state, mode, distance)
     }
-    fn intent(&mut self, input: SurvivalInput, yaw: f32) -> [f64; 3] {
-        self.jump_cooldown = self.jump_cooldown.saturating_sub(1);
-        let mut v = self.frame.velocity;
-        if v[0] * v[0] + v[2] * v[2] < 9e-6 {
-            v[0] = 0.0;
-            v[2] = 0.0;
+    async fn preview_path(
+        &self,
+        mode: GameMode,
+        controls: &[SurvivalControl],
+    ) -> Result<crate::client::survival::MotionPreview> {
+        let mut state = self.bot.session.state.lock().await;
+        self.ready(&state)?;
+        if self.common_player_unlocked(&state)?.pending_dispatch {
+            return Err(invalid(
+                "prior dispatch unresolved; inspect retained record",
+            ));
         }
-        if v[1].abs() < 0.003 {
-            v[1] = 0.0;
-        }
-        if input.jump && self.frame.on_ground && self.jump_cooldown == 0 {
-            v[1] = v[1].max(f64::from(0.42f32));
-            self.jump_cooldown = 10;
-        } else if !input.jump {
-            self.jump_cooldown = 0;
-        }
-        // Preserve native float evaluation, even when this material simplifies the ratio.
-        #[allow(clippy::eq_op)]
-        let speed = if self.frame.on_ground {
-            0.1f32 * (0.21600002f32 / (0.6f32 * 0.6f32 * 0.6f32))
-        } else {
-            0.02f32
-        };
-        let a = acceleration(input, yaw, speed);
-        std::array::from_fn(|i| v[i] + a[i])
-    }
-    fn advance(&mut self, input: SurvivalInput, proposed: [f64; 3], boxes: &[[f64; 6]]) {
-        let adjusted = collide_with_step(
-            body(self.frame.position),
-            proposed,
-            boxes,
-            self.frame.on_ground,
-        );
-        let friction = if self.frame.on_ground {
-            0.6f32 * 0.91f32
-        } else {
-            0.91f32
-        };
-        let mut velocity = proposed;
-        for axis in 0..3 {
-            if if axis == 1 {
-                proposed[axis] != adjusted[axis]
-            } else {
-                (proposed[axis] - adjusted[axis]).abs() >= 1e-5
-            } {
-                velocity[axis] = 0.0;
-            }
-        }
-        self.frame.tick += 1;
-        let length2 = adjusted.iter().map(|v| v * v).sum::<f64>();
-        let move_position =
-            length2 > 1e-7 || proposed.iter().map(|v| v * v).sum::<f64>() - length2 < 1e-7;
-        if move_position {
-            self.frame.position = std::array::from_fn(|i| self.frame.position[i] + adjusted[i]);
-        }
-        self.frame.velocity = [
-            velocity[0] * f64::from(friction),
-            (velocity[1] - 0.08) * f64::from(0.98f32),
-            velocity[2] * f64::from(friction),
-        ];
-        self.frame.on_ground = proposed[1] < 0.0 && proposed[1] != adjusted[1];
-        self.frame.horizontal_collision =
-            (proposed[0] - adjusted[0]).abs() >= 1e-5 || (proposed[2] - adjusted[2]).abs() >= 1e-5;
-        self.frame.resting = self.frame.on_ground
-            && (!move_position || adjusted == [0.0; 3])
-            && input.forward == 0
-            && input.strafe == 0
-            && !input.jump;
+        let native = preview_in_mode(
+            &mut state,
+            self.bot.session.id,
+            self.bot.session.started.elapsed().as_millis() as u64 / 50,
+            controls,
+            mode,
+        )?;
+        let initial = self.common_player_unlocked(&state)?;
+        Ok(crate::client::survival::MotionPreview {
+            initial,
+            world_revision: native.initial.world_revision,
+            initial_frame: native.initial_frame,
+            controls: native.controls,
+            frames: native.frames,
+            terminal_clearance: native.terminal_clearance,
+        })
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -543,8 +415,10 @@ mod tests {
     }
     #[test]
     fn jump_lands_and_released_walking_brakes_with_gravity_retained() {
-        let floor = [[-20.0, 0.0, -20.0, 20.0, 1.0, 20.0]];
-        let mut model = Model::new([0.5, 1.0, 0.5]);
+        let floor = crate::client::survival::model::CollisionGeometry::joined(&[[
+            -20.0, 0.0, -20.0, 20.0, 1.0, 20.0,
+        ]]);
+        let mut model = Model::new(crate::MinecraftVersion::Java1_21_11, [0.5, 1.0, 0.5]);
         let mut peak = 1.0f64;
         for tick in 0..35 {
             let input = SurvivalInput {

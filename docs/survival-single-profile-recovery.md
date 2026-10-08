@@ -6,7 +6,7 @@ continuous reuse of a mining connection or observer-free movement. The caller
 exclusively owns the profile. Proxies, plugins and other server implementations
 are outside the audited contract.
 
-`Client::survival().prepare_mining_profile_recovery(intent)` creates an in-process
+`client.java_1_21_11()?.checked_survival().prepare_mining_profile_recovery(intent)` creates an in-process
 coordinator without I/O or edits. Close its original source explicitly, then
 call `reconnect(config, target_condition)` once. Local closure alone never
 produces retirement evidence. A successful same-profile native login supplies

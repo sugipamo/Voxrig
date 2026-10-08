@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "generator": "scripts/ExportStorageOutlines.java",
+  "generator_sha256": "4a955ab691785e74c42cf3e555b1b5e8af65b283bd195546ce023523b3618b65",
+  "authority": "Original state-only shape methods and BlockGetter.clip OUTLINE/NONE on unmodified official server JARs; no server/world simulation, animated shulker geometry excluded.",
+  "runs": [
+    {
+      "version": "1.16.1",
+      "server": {
+        "version": "1.16.1",
+        "metadata_url": "https://piston-meta.mojang.com/v1/packages/54fa3af57d041d2771e66d390197b2c0288e697c/1.16.1.json",
+        "metadata_sha1": "54fa3af57d041d2771e66d390197b2c0288e697c",
+        "server": {
+          "sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+          "size": 37968964,
+          "url": "https://piston-data.mojang.com/v1/objects/a412fd69db1f81db3f511c1463fd304675244077/server.jar"
+        }
+      },
+      "states": 102,
+      "native_clips": 8976,
+      "bytecode_audit_sha256": "2c37646ac3a2054b69bcaf409268dc5cc1701403c91278f5a5417f301063b19c",
+      "files_sha256": {
+        "data/client_api/storage_outlines-1.16.1.json": "e5e93a03c3dac0a318f29eb74a26d0b910b58a8ce3924b7fec77fb321e8e3e9d",
+        "data/client_api/storage_outline_rays-1.16.1.json.gz": "79330dfe1a9a0315eb4532ed5552085077d2a1ba5288da9850ec6b2147be46b4"
+      },
+      "raw_output_sha256": "c3a9d7397eaac959ec450e16aaf6a9f8dbfb9dea8426e987b2725a10615c990e"
+    },
+    {
+      "version": "1.21.11",
+      "server": {
+        "version": "1.21.11",
+        "metadata_url": "https://piston-meta.mojang.com/v1/packages/4f6bd9388f12e9d7adc2ded64acba66212d60521/1.21.11.json",
+        "metadata_sha1": "4f6bd9388f12e9d7adc2ded64acba66212d60521",
+        "server": {
+          "sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+          "size": 56327581,
+          "url": "https://piston-data.mojang.com/v1/objects/64bb6d763bed0a9f1d632ec347938594144943ed/server.jar"
+        }
+      },
+      "states": 102,
+      "native_clips": 8976,
+      "bytecode_audit_sha256": "3e9a2ae5a62ac4fa75f0dbc8755f37ae5134528f40d8cf9393d6931515997560",
+      "files_sha256": {
+        "data/client_api/storage_outlines-1.21.11.json": "8181669f1c98d417b12f0bf95871165a4cae4361a9276649df80245f1b7d0555",
+        "data/client_api/storage_outline_rays-1.21.11.json.gz": "79330dfe1a9a0315eb4532ed5552085077d2a1ba5288da9850ec6b2147be46b4"
+      },
+      "raw_output_sha256": "37ca5d72ffe45dd62937948f72c597bddab696eddf02bb15b100c2abdab0b770"
+    }
+  ]
+}

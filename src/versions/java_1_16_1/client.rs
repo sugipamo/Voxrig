@@ -1,5 +1,25 @@
 //! Connection lifecycle, protocol events, observations, and player operations.
 
+mod common_api;
+mod common_chunks;
+mod common_click;
+mod common_container;
+mod common_control;
+mod common_crafting;
+mod common_entity_motion;
+mod common_flight;
+mod common_inventory;
+mod common_mining;
+mod common_motion;
+mod common_placement;
+mod common_recipe_placement;
+mod common_recording;
+mod common_scene;
+pub(crate) use common_recording::replay_packets;
+pub(crate) use common_scene::LegacyCapturedScene;
+mod common_transfer;
+mod common_vehicle;
+
 use crate::versions::java_1_16_1::Result;
 use crate::versions::java_1_16_1::{
     chat::{ChatMessage, PlayerList, apply_player_info, parse_chat},
@@ -49,7 +69,9 @@ use crate::versions::java_1_16_1::{
     world::{BlockObservation, Fluid, World},
 };
 use anyhow::Context;
+mod reader_diagnostics;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use reader_diagnostics::{Diagnostics as ReaderDiagnostics, Phase as ReaderPhase};
 use std::{
     collections::{HashMap, VecDeque},
     io::Cursor,
@@ -290,6 +312,29 @@ use tokio::{
     time::{Duration, timeout},
 };
 
+async fn read_session_cache<T>(cache: &RwLock<T>) -> tokio::sync::RwLockReadGuard<'_, T> {
+    // Cardinality checks are short and already inside the coherent-state gate.
+    // try_read respects queued writers; contention retains the async fair path.
+    match cache.try_read() {
+        Ok(guard) => guard,
+        Err(_) => cache.read().await,
+    }
+}
+
+async fn write_entity_update<T>(cache: &RwLock<T>) -> tokio::sync::RwLockWriteGuard<'_, T> {
+    match cache.try_write() {
+        Ok(guard) => guard,
+        Err(_) => cache.write().await,
+    }
+}
+
+async fn lock_packet_state<T>(state: &Mutex<T>) -> tokio::sync::MutexGuard<'_, T> {
+    match state.try_lock() {
+        Ok(guard) => guard,
+        Err(_) => state.lock().await,
+    }
+}
+
 macro_rules! bail {
     ($($argument:tt)*) => {
         return Err(crate::versions::java_1_16_1::Error::from(anyhow::anyhow!($($argument)*)).into())
@@ -350,28 +395,7 @@ fn encode_entity_action_packet(entity_id: i32, sneaking: bool) -> (i32, Vec<u8>)
     (0x1c, payload)
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-/// State and protocol data represented by `Server`.
-pub struct Server {
-    /// The `host` value.
-    pub host: String,
-    /// The `port` value.
-    pub port: u16,
-}
-impl Server {
-    /// Performs the `new` operation.
-    pub fn new(host: impl Into<String>, port: u16) -> Self {
-        Self {
-            host: host.into(),
-            port,
-        }
-    }
-}
-impl Default for Server {
-    fn default() -> Self {
-        Self::new("127.0.0.1", 25565)
-    }
-}
+pub use crate::client::Server;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -1019,17 +1043,22 @@ struct ObservationEventQueue {
     omitted: u32,
 }
 
+/// A received own-velocity packet: packet ordinal and value.
+type VelocityReceipt = (u64, [f64; 3]);
+
 /// State and protocol data represented by `Bot`.
 pub struct Bot {
     connection: ConnectionActor,
     reader_abort: Arc<std::sync::OnceLock<tokio::task::AbortHandle>>,
     server: Server,
+    login_profile: Arc<crate::client::login::LoginProfile>,
     writer: Arc<Mutex<PacketWriter>>,
     player: Arc<Mutex<Versioned<Player>>>,
     world: Arc<Mutex<Versioned<World>>>,
     positioned: Arc<Mutex<bool>>,
     ready: Arc<Notify>,
     world_updated: Arc<Notify>,
+    packet_applied: Arc<Notify>,
     events: broadcast::Sender<Event>,
     physics: Arc<Mutex<PhysicsTracker>>,
     stopped: Arc<AtomicBool>,
@@ -1044,6 +1073,33 @@ pub struct Bot {
     protocol_packet_sequence: Arc<AtomicU64>,
     block_geometry_revision: Arc<AtomicU64>,
     inventory: Arc<RwLock<Versioned<InventoryState>>>,
+    common_receipts: Arc<Mutex<crate::client::LegacyReceipts>>,
+    packet_trace: Arc<Mutex<Option<crate::client::recording::TraceCapture>>>,
+    common_scoreboard: Arc<Mutex<crate::client::ui::ScoreboardLedger>>,
+    common_boss_bars: Arc<Mutex<crate::client::ui::boss_bar::BossBarLedger>>,
+    common_chat: Arc<Mutex<crate::client::chat::ChatLedger>>,
+    common_events: Arc<std::sync::Mutex<crate::client::events::EventLedger>>,
+    common_display: Arc<Mutex<crate::client::ui::display::DisplayLedger>>,
+    common_teams: Arc<Mutex<crate::client::ui::teams::TeamLedger>>,
+    common_player_list: Arc<Mutex<crate::client::ui::player_list::PlayerListLedger>>,
+    common_motion: Arc<Mutex<Option<common_motion::NativeMotionRun>>>,
+    common_control: Arc<Mutex<common_control::ContinuousControl>>,
+    /// Latest received own velocity (packet ordinal, value).
+    own_velocity_receipt: Arc<Mutex<Option<VelocityReceipt>>>,
+    common_mining: Arc<Mutex<Option<common_mining::NativeMiningRun>>>,
+    common_placement: Arc<Mutex<Option<common_placement::NativePlacementRun>>>,
+    common_inventory_swap: Arc<Mutex<Option<common_inventory::NativeInventorySwap>>>,
+    common_inventory_click: Arc<Mutex<Option<common_click::NativeInventoryClick>>>,
+    common_crafting_take: Arc<Mutex<Option<common_crafting::NativeCraftingTake>>>,
+    common_recipe_placement: Arc<Mutex<Option<common_recipe_placement::NativeRecipePlacement>>>,
+    common_inventory_transfer: Arc<Mutex<Option<common_transfer::NativeInventoryTransfer>>>,
+    pub(crate) flight_history: crate::client::flight::History,
+    pub(crate) respawn_history: crate::client::respawn::History,
+    retired_common_motion: Arc<Mutex<Option<crate::client::survival::MotionRecord>>>,
+    dismount_history: crate::client::vehicle::dismount::History,
+    vehicle_control_history: crate::client::vehicle::control::History,
+    common_container_close: Arc<Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
+    common_container_open: Arc<Mutex<Option<common_container::NativeContainerOpen>>>,
     exact_window_barriers: Arc<Mutex<HashMap<(i8, i16), ExactWindowBarrier>>>,
     furnace_window_position: Arc<Mutex<Option<(i8, BlockPos)>>>,
     click_lock: Arc<Mutex<()>>,
@@ -1093,6 +1149,7 @@ impl Drop for Bot {
             self.cancel.notify_waiters();
             self.ready.notify_waiters();
             self.world_updated.notify_waiters();
+            self.packet_applied.notify_waiters();
         }
     }
 }
@@ -1116,12 +1173,14 @@ impl Bot {
             connection: self.connection.clone(),
             reader_abort: self.reader_abort.clone(),
             server: self.server.clone(),
+            login_profile: self.login_profile.clone(),
             writer: self.writer.clone(),
             player: self.player.clone(),
             world: self.world.clone(),
             positioned: self.positioned.clone(),
             ready: self.ready.clone(),
             world_updated: self.world_updated.clone(),
+            packet_applied: self.packet_applied.clone(),
             events: self.events.clone(),
             physics: self.physics.clone(),
             stopped: self.stopped.clone(),
@@ -1136,6 +1195,32 @@ impl Bot {
             protocol_packet_sequence: self.protocol_packet_sequence.clone(),
             block_geometry_revision: self.block_geometry_revision.clone(),
             inventory: self.inventory.clone(),
+            common_receipts: self.common_receipts.clone(),
+            packet_trace: self.packet_trace.clone(),
+            common_scoreboard: self.common_scoreboard.clone(),
+            common_boss_bars: self.common_boss_bars.clone(),
+            common_chat: self.common_chat.clone(),
+            common_events: self.common_events.clone(),
+            common_display: self.common_display.clone(),
+            common_teams: self.common_teams.clone(),
+            common_player_list: self.common_player_list.clone(),
+            common_motion: self.common_motion.clone(),
+            common_control: self.common_control.clone(),
+            own_velocity_receipt: self.own_velocity_receipt.clone(),
+            common_mining: self.common_mining.clone(),
+            common_placement: self.common_placement.clone(),
+            common_inventory_swap: self.common_inventory_swap.clone(),
+            common_inventory_click: self.common_inventory_click.clone(),
+            common_crafting_take: self.common_crafting_take.clone(),
+            common_recipe_placement: self.common_recipe_placement.clone(),
+            common_inventory_transfer: self.common_inventory_transfer.clone(),
+            flight_history: self.flight_history.clone(),
+            respawn_history: self.respawn_history.clone(),
+            retired_common_motion: self.retired_common_motion.clone(),
+            dismount_history: self.dismount_history.clone(),
+            vehicle_control_history: self.vehicle_control_history.clone(),
+            common_container_close: self.common_container_close.clone(),
+            common_container_open: self.common_container_open.clone(),
             exact_window_barriers: self.exact_window_barriers.clone(),
             furnace_window_position: self.furnace_window_position.clone(),
             click_lock: self.click_lock.clone(),
@@ -1180,6 +1265,19 @@ impl Bot {
         chunk_storage: Arc<crate::versions::java_1_16_1::SharedChunkStorage>,
         connection_options: ConnectionOptions,
     ) -> Result<Self> {
+        Self::connect_with_packet_trace(server, player, chunk_storage, connection_options, None)
+            .await
+    }
+    pub(crate) async fn connect_with_packet_trace(
+        server: Server,
+        player: Player,
+        chunk_storage: Arc<crate::versions::java_1_16_1::SharedChunkStorage>,
+        connection_options: ConnectionOptions,
+        trace_limit: Option<usize>,
+    ) -> Result<Self> {
+        let trace = trace_limit
+            .map(|limit| crate::client::recording::TraceCapture::new(0, limit))
+            .transpose()?;
         player.validate()?;
         let stream = timeout(
             connection_options.connect_timeout,
@@ -1188,7 +1286,11 @@ impl Bot {
         .await
         .context("connect timed out")?
         .context("connect failed")?;
-        let (mut reader, writer) = stream.into_split();
+        let local_addr = stream.local_addr().ok();
+        let peer_addr = stream.peer_addr().ok();
+        let (reader, writer) = stream.into_split();
+        // Keep the same buffer through login and play so prefetched frames survive.
+        let mut reader = tokio::io::BufReader::new(reader);
         let writer = Arc::new(Mutex::new(PacketWriter {
             inner: writer,
             compression: None,
@@ -1202,7 +1304,7 @@ impl Bot {
         let mut login = Vec::new();
         put_string(&mut login, &player.username);
         write_packet(&mut writer.lock().await.inner, None, 0, &login).await?;
-        loop {
+        let login_profile = loop {
             let compression = writer.lock().await.compression;
             let (id, payload) = timeout(
                 connection_options.login_packet_timeout,
@@ -1216,7 +1318,7 @@ impl Bot {
                     bail!("login rejected: {}", get_string(&mut p).unwrap_or_default());
                 }
                 0x01 => bail!("server requested encryption; only offline-mode is supported"),
-                0x02 => break,
+                0x02 => break crate::client::login::legacy_profile(&payload, &player.username)?,
                 0x03 => {
                     let mut p = payload.as_slice();
                     let threshold = get_varint(&mut p)?;
@@ -1227,7 +1329,7 @@ impl Bot {
                 }
                 _ => {}
             }
-        }
+        };
         let (events, _) = broadcast::channel(connection_options.event_channel_capacity.max(1));
         let connected_at = std::time::Instant::now();
         let control = Arc::new(RwLock::new(Versioned::new(
@@ -1239,6 +1341,11 @@ impl Bot {
             connection_options.protocol_ack_timeout,
             control,
         );
+        crate::lifecycle::emit_protocol_timing(|| {
+            serde_json::json!({"stage":"connection_open","generation":connection.generation().get(),
+                "username":player.username,"local_addr":local_addr.map(|addr|addr.to_string()),
+                "peer_addr":peer_addr.map(|addr|addr.to_string())})
+        });
         let (capture_requests, capture_receiver) = mpsc::channel(16);
         let (traversal_movement_facts_requests, traversal_movement_facts_receiver) =
             mpsc::channel(4);
@@ -1246,6 +1353,7 @@ impl Bot {
             connection,
             reader_abort: Arc::new(std::sync::OnceLock::new()),
             server,
+            login_profile: Arc::new(login_profile),
             writer,
             player: Arc::new(Mutex::new(Versioned::new(player, connected_at))),
             world: Arc::new(Mutex::new(Versioned::new(
@@ -1255,6 +1363,7 @@ impl Bot {
             positioned: Arc::new(Mutex::new(false)),
             ready: Arc::new(Notify::new()),
             world_updated: Arc::new(Notify::new()),
+            packet_applied: Arc::new(Notify::new()),
             events,
             physics: Arc::new(Mutex::new(PhysicsTracker::new())),
             stopped: Arc::new(AtomicBool::new(false)),
@@ -1278,6 +1387,32 @@ impl Bot {
                 InventoryState::default(),
                 connected_at,
             ))),
+            common_receipts: Arc::new(Mutex::new(crate::client::LegacyReceipts::default())),
+            packet_trace: Arc::new(Mutex::new(trace)),
+            common_scoreboard: Arc::new(Mutex::new(Default::default())),
+            common_boss_bars: Arc::new(Mutex::new(Default::default())),
+            common_chat: Arc::new(Mutex::new(Default::default())),
+            common_events: Arc::new(std::sync::Mutex::new(Default::default())),
+            common_display: Arc::new(Mutex::new(Default::default())),
+            common_teams: Arc::new(Mutex::new(Default::default())),
+            common_player_list: Arc::new(Mutex::new(Default::default())),
+            common_motion: Arc::new(Mutex::new(None)),
+            common_control: Arc::default(),
+            own_velocity_receipt: Arc::default(),
+            common_mining: Arc::new(Mutex::new(None)),
+            common_placement: Arc::new(Mutex::new(None)),
+            common_inventory_swap: Arc::new(Mutex::new(None)),
+            common_inventory_click: Arc::new(Mutex::new(None)),
+            common_crafting_take: Arc::new(Mutex::new(None)),
+            common_recipe_placement: Arc::new(Mutex::new(None)),
+            common_inventory_transfer: Arc::new(Mutex::new(None)),
+            flight_history: Arc::default(),
+            respawn_history: Arc::default(),
+            retired_common_motion: Arc::default(),
+            dismount_history: Arc::default(),
+            vehicle_control_history: Arc::default(),
+            common_container_close: Arc::new(Mutex::new(None)),
+            common_container_open: Arc::new(Mutex::new(None)),
             exact_window_barriers: Arc::new(Mutex::new(HashMap::new())),
             furnace_window_position: Arc::new(Mutex::new(None)),
             click_lock: Arc::new(Mutex::new(())),
@@ -1419,6 +1554,7 @@ impl Bot {
             }
             supervisor.physics.lock().await.record_disconnect();
             supervisor.stopped.store(true, Ordering::Release);
+            supervisor.packet_applied.notify_waiters();
         });
         let physics = bot.clone_internal();
         tokio::spawn(async move { physics.control_loop().await });
@@ -1459,6 +1595,7 @@ impl Bot {
             reader.abort();
         }
         self.cancel.notify_waiters();
+        self.packet_applied.notify_waiters();
         self.ready.notify_waiters();
         self.world_updated.notify_waiters();
         receipt
@@ -2038,6 +2175,9 @@ impl Bot {
 
     async fn clear_local_window(&self, window_id: i8) {
         let _coherent_state = self.coherent_state_gate.lock().await;
+        self.clear_local_window_unlocked(window_id).await;
+    }
+    async fn clear_local_window_unlocked(&self, window_id: i8) {
         let mut inventory = self.inventory.write().await;
         if inventory
             .open_window
@@ -4294,6 +4434,9 @@ impl Bot {
         let mut sneaking = false;
         while !self.stopped.load(Ordering::Acquire) {
             let scheduled = ticker.tick().await;
+            if self.common_native_physics_paused().await {
+                continue;
+            }
             let lag = tokio::time::Instant::now().saturating_duration_since(scheduled);
             if self
                 .teleport_barrier_ticks
@@ -4315,6 +4458,12 @@ impl Bot {
                     .await
                     .is_err()
                 {
+                    // A finite owner may acquire actor admission after this
+                    // loop sampled released controls. Keep the loop alive;
+                    // retry posture reconciliation only after the run settles.
+                    if self.common_native_physics_paused().await {
+                        continue;
+                    }
                     break;
                 }
                 sprinting = control.sprint;
@@ -4325,6 +4474,12 @@ impl Bot {
                     .await
                     .is_err()
                 {
+                    // A finite owner may acquire actor admission after this
+                    // loop sampled released controls. Keep the loop alive;
+                    // retry posture reconciliation only after the run settles.
+                    if self.common_native_physics_paused().await {
+                        continue;
+                    }
                     break;
                 }
                 sneaking = control.sneak;
@@ -4359,7 +4514,16 @@ impl Bot {
         movement_fraction: f64,
     ) -> Result<()> {
         let _coherent_state = self.coherent_state_gate.lock().await;
+        if self.common_native_physics_paused().await {
+            return Ok(());
+        }
         let survival = self.survival.read().await;
+        if survival.game_mode == Some(1)
+            && survival.flying_allowed
+            && self.common_receipts.lock().await.requested_flying
+        {
+            return Ok(());
+        }
         let movement_attribute = survival
             .attributes
             .get("minecraft:generic.movement_speed")
@@ -4473,6 +4637,8 @@ impl Bot {
         let collided_x = (requested.x - actual.x).abs() > 1.0e-9;
         let collided_y = (requested.y - actual.y).abs() > 1.0e-9;
         let collided_z = (requested.z - actual.z).abs() > 1.0e-9;
+        self.common_receipts.lock().await.position_source =
+            Some(crate::client::ValueSource::Predicted);
         player.x = (moved.min_x + moved.max_x) * 0.5;
         player.y = moved.min_y;
         player.z = (moved.min_z + moved.max_z) * 0.5;
@@ -4548,77 +4714,179 @@ impl Bot {
         >,
     ) -> Result<()> {
         let mut next_observation_sequence = 1_u64;
+        let mut packets_since_yield = 0_u8;
+        // Keep cancellation registered across packet application and batch yields.
+        let cancelled = self.cancel.notified();
+        tokio::pin!(cancelled);
+        cancelled.as_mut().enable();
+        // Compression negotiation finishes before entering the play reader.
+        let compression = self.writer.lock().await.compression;
+        let diagnostics = ReaderDiagnostics::new(self.connection_generation().get());
+        // Set when cancellation interrupts reading: frames already received may still
+        // carry the server's kick reason (see `drain_disconnect_reason`).
+        let mut cancelled_frame: Option<Option<Frame>> = None;
         while !self.stopped.load(Ordering::Acquire) {
-            let compression = self.writer.lock().await.compression;
+            diagnostics.enter(ReaderPhase::Reading, None);
+            diagnostics.read_started();
             // A capture may interrupt waiting, but must not discard bytes
             // already consumed from this packet. Keep both read progress and
             // its original deadline until the packet completes or we exit.
-            let packet_read = timeout(
-                self.connection_options.play_packet_timeout,
-                read_packet(&mut reader, compression),
-            );
-            tokio::pin!(packet_read);
-            let packet = loop {
-                tokio::select! {
-                    biased;
-                    _ = self.cancel.notified() => return Ok(()),
-                    request = capture_requests.recv() => {
-                        let Some(request) = request else {
-                            return Ok(());
-                        };
-                        let started = std::time::Instant::now();
-                        let result = self
-                            .capture_observation_at_sequence(request.request, next_observation_sequence)
-                            .await;
-                        self.trace_slow_capture("coherent", next_observation_sequence, started.elapsed(), result.is_ok());
-                        if result.is_ok() {
-                            next_observation_sequence = next_observation_sequence
-                                .checked_add(1)
-                                .context("coherent observation sequence exhausted")?;
+            let packet = {
+                let packet_read = timeout(
+                    self.connection_options.play_packet_timeout,
+                    read_packet(&mut reader, compression),
+                );
+                tokio::pin!(packet_read);
+                loop {
+                    tokio::select! {
+                        biased;
+                        _ = &mut cancelled => {
+                            cancelled_frame = Some(if self.fail_closed() {
+                                finish_frame(packet_read.as_mut()).await
+                            } else {
+                                None
+                            });
+                            break None;
                         }
-                        let _ = request.reply.send(result);
-                    }
-                    request = traversal_movement_facts_requests.recv() => {
-                        let Some(request) = request else {
-                            return Ok(());
-                        };
-                        let started = std::time::Instant::now();
-                        let result = self
-                            .capture_traversal_movement_facts_at_sequence(
-                                request.request,
-                                next_observation_sequence,
-                            )
-                            .await;
-                        self.trace_slow_capture("movement", next_observation_sequence, started.elapsed(), result.is_ok());
-                        if result.is_ok() {
-                            next_observation_sequence = next_observation_sequence
-                                .checked_add(1)
-                                .context("coherent observation sequence exhausted")?;
+                        request = capture_requests.recv() => {
+                            let Some(request) = request else {
+                                return Ok(());
+                            };
+                            let started = std::time::Instant::now();
+                            diagnostics.enter(ReaderPhase::Capture, None);
+                            let result = self
+                                .capture_observation_at_sequence(request.request, next_observation_sequence)
+                                .await;
+                            self.trace_slow_capture("coherent", next_observation_sequence, started.elapsed(), result.is_ok());
+                            diagnostics.capture_completed();
+                            diagnostics.enter(ReaderPhase::Reading, None);
+                            if result.is_ok() {
+                                next_observation_sequence = next_observation_sequence
+                                    .checked_add(1)
+                                    .context("coherent observation sequence exhausted")?;
+                            }
+                            let _ = request.reply.send(result);
                         }
-                        let _ = request.reply.send(result);
+                        request = traversal_movement_facts_requests.recv() => {
+                            let Some(request) = request else {
+                                return Ok(());
+                            };
+                            let started = std::time::Instant::now();
+                            diagnostics.enter(ReaderPhase::MovementCapture, None);
+                            let result = self
+                                .capture_traversal_movement_facts_at_sequence(
+                                    request.request,
+                                    next_observation_sequence,
+                                )
+                                .await;
+                            self.trace_slow_capture("movement", next_observation_sequence, started.elapsed(), result.is_ok());
+                            diagnostics.capture_completed();
+                            diagnostics.enter(ReaderPhase::Reading, None);
+                            if result.is_ok() {
+                                next_observation_sequence = next_observation_sequence
+                                    .checked_add(1)
+                                    .context("coherent observation sequence exhausted")?;
+                            }
+                            let _ = request.reply.send(result);
+                        }
+                        packet = std::future::poll_fn(|cx| diagnostics.poll(packet_read.as_mut(), cx)) => break Some(packet.context("play packet timed out")?),
                     }
-                    packet = &mut packet_read => break packet.context("play packet timed out")?,
-                }
-                // Give the same packet read (and its deadline) one poll after
-                // each capture, without letting a packet backlog starve captures.
-                tokio::select! {
-                    biased;
-                    _ = self.cancel.notified() => return Ok(()),
-                    packet = std::future::poll_fn(|cx| {
-                        std::task::Poll::Ready(std::future::Future::poll(packet_read.as_mut(), cx))
-                    }) => {
-                        if let std::task::Poll::Ready(packet) = packet {
-                            break packet.context("play packet timed out")?;
+                    // Give the same packet read (and its deadline) one poll after
+                    // each capture, without letting a packet backlog starve captures.
+                    tokio::select! {
+                        biased;
+                        _ = &mut cancelled => {
+                            cancelled_frame = Some(if self.fail_closed() {
+                                finish_frame(packet_read.as_mut()).await
+                            } else {
+                                None
+                            });
+                            break None;
+                        }
+                        packet = std::future::poll_fn(|cx| {
+                            std::task::Poll::Ready(diagnostics.poll(packet_read.as_mut(), cx))
+                        }) => {
+                            if let std::task::Poll::Ready(packet) = packet {
+                                break Some(packet.context("play packet timed out")?);
+                            }
                         }
                     }
                 }
             };
+            let Some(packet) = packet else {
+                break;
+            };
             let (id, p) = packet?;
-            if !self.apply_packet(id, p).await? {
+            diagnostics.enter(ReaderPhase::ApplyGate, Some(id));
+            let applied = self.apply_packet_diagnosed(id, p, Some(&diagnostics)).await;
+            self.packet_applied.notify_waiters();
+            if applied.is_err() && self.fail_closed() {
+                // A failed reply write (the server already closed after a kick) ends
+                // reading here; the kick itself may be the next frame.
+                self.drain_disconnect_reason(None, &mut reader, compression)
+                    .await;
+            }
+            if !applied? {
                 break;
             }
+            diagnostics.applied();
+            packets_since_yield += 1;
+            if packets_since_yield == 32 {
+                // Yield without cache/gate guards even when all frames and locks are ready.
+                packets_since_yield = 0;
+                diagnostics.enter(ReaderPhase::Yielding, None);
+                tokio::task::yield_now().await;
+            }
+        }
+        // Only a completed in-flight frame keeps the following frames aligned.
+        if let Some(Some(first)) = cancelled_frame {
+            self.drain_disconnect_reason(Some(first), &mut reader, compression)
+                .await;
         }
         Ok(())
+    }
+
+    /// The connection already ended unclassified (a failed write): the only case in
+    /// which remaining frames are read for a kick reason.
+    fn fail_closed(&self) -> bool {
+        self.connection.lifecycle() == ConnectionState::ConnectionStateUnknown
+    }
+
+    /// After a fail-close (for example a write that failed because the server already
+    /// closed the socket), frames the server sent before closing may still be readable.
+    /// Only a kick's reason is recorded from them; nothing else is applied and the
+    /// lifecycle classification is unchanged.
+    async fn drain_disconnect_reason<R: tokio::io::AsyncRead + Unpin>(
+        &self,
+        first: Option<Frame>,
+        reader: &mut R,
+        compression: Option<i32>,
+    ) {
+        let deadline = tokio::time::Instant::now() + Duration::from_millis(200);
+        let mut frame = match first {
+            Some(frame) => Some(frame),
+            None => tokio::time::timeout_at(deadline, read_packet(reader, compression))
+                .await
+                .ok()
+                .map(|r| r.map_err(Into::into)),
+        };
+        for _ in 0..64 {
+            match frame {
+                Some(Ok((0x1a, payload))) => {
+                    if let Ok(reason) = get_string(&mut payload.as_slice()) {
+                        self.common_receipts.lock().await.disconnect_reason =
+                            Some(crate::client::ui::UiText::LegacyJson { json: reason });
+                    }
+                    return;
+                }
+                Some(Ok(_)) => {}
+                _ => return,
+            }
+            frame = tokio::time::timeout_at(deadline, read_packet(reader, compression))
+                .await
+                .ok()
+                .map(|r| r.map_err(Into::into));
+        }
     }
 
     fn trace_slow_capture(&self, kind: &str, sequence: u64, elapsed: Duration, success: bool) {
@@ -4630,7 +4898,17 @@ impl Bot {
         }
     }
 
+    #[cfg(test)]
     async fn apply_packet(&self, id: i32, p: Vec<u8>) -> Result<bool> {
+        self.apply_packet_diagnosed(id, p, None).await
+    }
+
+    async fn apply_packet_diagnosed(
+        &self,
+        id: i32,
+        p: Vec<u8>,
+        diagnostics: Option<&ReaderDiagnostics>,
+    ) -> Result<bool> {
         let keepalive_started = (id == 0x20).then(std::time::Instant::now);
         if keepalive_started.is_some() {
             crate::lifecycle::emit_protocol_timing(|| {
@@ -4639,11 +4917,55 @@ impl Bot {
             });
         }
         let _coherent_state = self.coherent_state_gate.lock().await;
+        if let Some(diagnostics) = diagnostics {
+            diagnostics.enter(ReaderPhase::Applying, Some(id));
+        }
+        if let Some(started) = keepalive_started {
+            crate::lifecycle::emit_protocol_timing(|| {
+                serde_json::json!({"stage":"keepalive_gate_acquired","generation":self.connection_generation().get(),
+                    "keepalive_id":p.as_slice().try_into().ok().map(i64::from_be_bytes),
+                    "elapsed_ms":started.elapsed().as_millis()})
+            });
+        }
         let packet_sequence = self
             .protocol_packet_sequence
             .fetch_add(1, Ordering::AcqRel)
             .checked_add(1)
             .context("protocol packet sequence exhausted")?;
+        if let Some(trace) = lock_packet_state(&self.packet_trace).await.as_mut() {
+            let local_player_basis = if id == 0x35 {
+                let player = self.player.lock().await;
+                Some(crate::client::recording::LocalPlayerBasis {
+                    position: Some([player.x, player.y, player.z]),
+                    rotation: [player.yaw, player.pitch],
+                    velocity: None,
+                })
+            } else {
+                None
+            };
+            trace.record(
+                packet_sequence,
+                self.connected_at.elapsed().as_millis() as u64 / 50,
+                crate::client::recording::PacketPhase::Play,
+                id,
+                &p,
+                local_player_basis,
+            );
+        }
+        if let Some((target, update)) = common_entity_motion::decode(id, &p)? {
+            let player = self.player.lock().await.entity_id;
+            let mut receipts = self.common_receipts.lock().await;
+            let target =
+                target.or_else(|| receipts.vehicles.mounted_entity(player, &receipts.entities));
+            if let Some(target) = target {
+                receipts.entities.receive_motion(
+                    crate::MinecraftVersion::Java1_16_1,
+                    target,
+                    update,
+                    packet_sequence,
+                );
+            }
+        }
         match id {
             0x00 => self.insert_entity(parse_spawn_object(&p)?).await?,
             0x01 => self.insert_entity(parse_spawn_orb(&p)?).await?,
@@ -4694,6 +5016,17 @@ impl Bot {
                         })
                     });
                 }
+                self.common_mining_target_received(
+                    [
+                        acknowledgement.position.x,
+                        acknowledgement.position.y,
+                        acknowledgement.position.z,
+                    ],
+                    acknowledgement.block_state_id,
+                    packet_sequence,
+                    Some((acknowledgement.status, acknowledgement.successful)),
+                )
+                .await?;
                 self.emit(Event::DiggingAcknowledged(acknowledgement));
             }
             0x08 => self.emit(Event::BlockBreakProgress(parse_break_progress(&p)?)),
@@ -4719,9 +5052,18 @@ impl Bot {
                 let (x, y, z, state_id) = self.world.lock().await.apply_block_change(&p)?;
                 self.advance_block_geometry_revision();
                 self.world_updated.notify_waiters();
+                self.common_mining_target_received([x, y, z], state_id, packet_sequence, None)
+                    .await?;
+                self.common_placement_block_received([x, y, z], state_id, packet_sequence)
+                    .await?;
                 self.emit(Event::BlockChanged { x, y, z, state_id });
             }
             0x0c => {
+                self.common_boss_bars.lock().await.receive(
+                    crate::MinecraftVersion::Java1_16_1,
+                    &p,
+                    packet_sequence,
+                )?;
                 self.ui.write().await.apply_boss_bar(&p)?;
                 self.emit(Event::UiStateUpdated(UiUpdateKind::BossBar));
             }
@@ -4733,9 +5075,44 @@ impl Bot {
                 self.survival.write().await.difficulty = Some(difficulty);
                 self.emit(Event::Difficulty(difficulty));
             }
-            0x0e => self.emit(Event::Chat(parse_chat(&p)?)),
+            0x0e => {
+                let chat = parse_chat(&p)?;
+                self.common_chat
+                    .lock()
+                    .await
+                    .receive_legacy(&p, packet_sequence)?;
+                self.emit(Event::Chat(chat));
+            }
             0x0f => {
-                let count = self.world.lock().await.apply_multi_block_change(&p)?;
+                let changes = self
+                    .world
+                    .lock()
+                    .await
+                    .apply_multi_block_change_with_changes(&p)?;
+                let count = changes.len();
+                if let Some(kind) =
+                    crate::client::events::bounds(changes.iter().map(|(p, _)| [p.x, p.y, p.z]))
+                {
+                    self.common_events
+                        .lock()
+                        .expect("event ledger poisoned")
+                        .record(packet_sequence, kind);
+                }
+                for (position, state_id) in changes {
+                    self.common_placement_block_received(
+                        [position.x, position.y, position.z],
+                        state_id,
+                        packet_sequence,
+                    )
+                    .await?;
+                    self.common_mining_target_received(
+                        [position.x, position.y, position.z],
+                        state_id,
+                        packet_sequence,
+                        None,
+                    )
+                    .await?;
+                }
                 self.advance_block_geometry_revision();
                 self.world_updated.notify_waiters();
                 self.emit(Event::MultiBlockChanged { count });
@@ -4820,12 +5197,42 @@ impl Bot {
                     payload.push(1);
                     self.send_protocol(0x07, &payload).await?;
                 }
+                self.common_inventory_reply_received(transaction).await;
+                self.common_click_reply_received(transaction).await;
+                self.common_crafting_reply_received(transaction).await;
+                self.common_transfer_reply_received(transaction).await;
+                self.common_container_return_reply(transaction).await;
                 self.emit(Event::WindowTransaction(transaction));
             }
             0x13 => {
+                if p.len() != 1 {
+                    return Err(crate::Error::new(
+                        crate::ErrorKind::Protocol,
+                        anyhow::anyhow!("invalid close window payload length"),
+                    ));
+                }
                 let window_id = *p.first().context("missing closed window ID")? as i8;
+                self.common_container_close_received(i32::from(window_id), packet_sequence)
+                    .await;
                 let mut inventory = self.inventory.write().await;
-                inventory.open_window = None;
+                if inventory
+                    .open_window
+                    .as_ref()
+                    .is_some_and(|window| window.id == window_id)
+                {
+                    inventory.open_window = None;
+                }
+                {
+                    let mut receipts = self.common_receipts.lock().await;
+                    if receipts
+                        .container
+                        .as_ref()
+                        .is_some_and(|screen| screen.window == i32::from(window_id))
+                    {
+                        receipts.container = None;
+                        receipts.inventory.window_id = Some(0);
+                    }
+                }
                 inventory.last_transaction = None;
                 inventory.merchant_offers = None;
                 inventory.windows.remove(&window_id);
@@ -4844,6 +5251,11 @@ impl Bot {
             0x14 => {
                 let (window_id, slots) = parse_window_items(&p)?;
                 let mut inventory = self.inventory.write().await;
+                self.common_receipts.lock().await.window_items(
+                    window_id,
+                    &slots,
+                    packet_sequence,
+                )?;
                 apply_window_items(&mut inventory, window_id, slots);
                 drop(inventory);
                 self.commit_satisfied_window_barriers().await;
@@ -4870,6 +5282,7 @@ impl Bot {
                 let mut update = parse_set_slot(&p)?;
                 update.packet_sequence = packet_sequence;
                 let mut inventory = self.inventory.write().await;
+                self.common_receipts.lock().await.slot(&update)?;
                 apply_slot(&mut inventory, &update)?;
                 let observed = inventory.map_snapshot(|_| update.clone());
                 drop(inventory);
@@ -4915,6 +5328,10 @@ impl Bot {
                 // A truncated kick is malformed input and must remain
                 // classifiable as unknown by the supervisor.
                 let reason = get_string(&mut s)?;
+                self.common_receipts.lock().await.disconnect_reason =
+                    Some(crate::client::ui::UiText::LegacyJson {
+                        json: reason.clone(),
+                    });
                 self.physics.lock().await.record_disconnect();
                 self.connection
                     .mark_terminal(TerminalClassification::Disconnected)
@@ -4941,11 +5358,15 @@ impl Bot {
                 motion.velocity.y += explosion.player_motion.y;
                 motion.velocity.z += explosion.player_motion.z;
                 drop(motion);
+                self.interrupt_common_motion("native explosion interrupted finite motion")
+                    .await;
                 self.emit(Event::Explosion(explosion));
             }
             0x1d => {
                 let (x, z) = self.world.lock().await.unload_chunk(&p)?;
                 self.advance_block_geometry_revision();
+                self.common_mining_chunk_changed([x, z]).await;
+                self.common_placement_chunk_changed([x, z]).await;
                 self.emit(Event::ChunkUnloaded { x, z });
             }
             0x1e => {
@@ -4964,6 +5385,12 @@ impl Bot {
                     _ => {}
                 }
                 drop(state);
+                if change.reason == 3 {
+                    self.interrupt_common_motion(
+                        "native game mode changed after finite motion started",
+                    )
+                    .await;
+                }
                 self.emit(Event::GameStateChange(change));
             }
             0x1f => {
@@ -4986,6 +5413,17 @@ impl Bot {
                     inventory.window_player_starts.remove(&window.id);
                     inventory.windows.remove(&window.id);
                     inventory.open_window = Some(window.clone());
+                    let mut receipts = self.common_receipts.lock().await;
+                    receipts.inventory.window_id = Some(i32::from(window.id));
+                    receipts.inventory.cursor = None;
+                    receipts.player_starts.remove(&window.id);
+                    receipts.container = Some(crate::client::container::ScreenReceipts::open(
+                        crate::MinecraftVersion::Java1_16_1,
+                        i32::from(window.id),
+                        None,
+                        crate::client::container::ScreenTitle::Unavailable,
+                        packet_sequence,
+                    ));
                 }
                 *self.furnace_window_position.lock().await = None;
                 self.emit(Event::WindowOpened(window));
@@ -5010,6 +5448,8 @@ impl Bot {
                 Ok((x, z)) => {
                     self.advance_block_geometry_revision();
                     self.world_updated.notify_waiters();
+                    self.common_mining_chunk_changed([x, z]).await;
+                    self.common_placement_chunk_changed([x, z]).await;
                     self.emit(Event::ChunkLoaded { x, z });
                 }
                 Err(e) => self.emit(Event::Error {
@@ -5036,6 +5476,20 @@ impl Bot {
             },
             0x25 => {
                 let join = parse_join(&p)?;
+                {
+                    let mut receipts = self.common_receipts.lock().await;
+                    receipts.generation = packet_sequence;
+                    receipts.entities.clear();
+                    receipts.vehicles.clear();
+                    receipts
+                        .registries
+                        .legacy_join(join.registry_codec.clone(), packet_sequence)?;
+                    receipts.recipes = Default::default();
+                    receipts.container = None;
+                    receipts.inventory.window_id = None;
+                    receipts.inventory.cursor = None;
+                    receipts.player_starts.clear();
+                }
                 let mut player = self.player.lock().await;
                 player.entity_id = Some(join.entity_id);
                 player.spawned = true;
@@ -5069,7 +5523,11 @@ impl Bot {
             0x28 | 0x29 => {
                 let mut rest = p.as_slice();
                 let entity_id = get_varint(&mut rest)?;
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                if let Some(entity) = write_entity_update(&self.entities)
+                    .await
+                    .entities
+                    .get_mut(&entity_id)
+                {
                     apply_relative(entity, &p, id == 0x29)?;
                     self.emit(Event::EntityUpdated(entity.clone()));
                 }
@@ -5077,7 +5535,11 @@ impl Bot {
             0x2a => {
                 let mut rest = p.as_slice();
                 let entity_id = get_varint(&mut rest)?;
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                if let Some(entity) = write_entity_update(&self.entities)
+                    .await
+                    .entities
+                    .get_mut(&entity_id)
+                {
                     entity.yaw = f32::from(*rest.first().context("missing entity yaw")? as i8)
                         * 360.0
                         / 256.0;
@@ -5089,12 +5551,11 @@ impl Bot {
                 }
             }
             0x2b => {
+                // Original base MoveEntity contains only the entity ID, no ground flag.
                 let mut rest = p.as_slice();
                 let entity_id = get_varint(&mut rest)?;
-                let on_ground = *rest.first().context("missing entity ground flag")? != 0;
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
-                    entity.on_ground = on_ground;
-                    self.emit(Event::EntityUpdated(entity.clone()));
+                if entity_id < 0 || !rest.is_empty() {
+                    bail!("invalid base entity packet");
                 }
             }
             0x2c => {
@@ -5139,7 +5600,7 @@ impl Bot {
             0x2e => {
                 let mut rest = p.as_slice();
                 let id = get_varint(&mut rest)?;
-                if !(0..=127).contains(&id) {
+                if !(1..=127).contains(&id) {
                     bail!("invalid open window ID {id}");
                 }
                 let window = OpenWindow {
@@ -5154,6 +5615,19 @@ impl Bot {
                     inventory.window_player_starts.remove(&window.id);
                     inventory.windows.remove(&window.id);
                     inventory.open_window = Some(window.clone());
+                    let mut receipts = self.common_receipts.lock().await;
+                    receipts.inventory.window_id = Some(i32::from(window.id));
+                    receipts.inventory.cursor = None;
+                    receipts.player_starts.remove(&window.id);
+                    receipts.container = Some(crate::client::container::ScreenReceipts::open(
+                        crate::MinecraftVersion::Java1_16_1,
+                        i32::from(window.id),
+                        Some(window.window_type),
+                        crate::client::container::ScreenTitle::LegacyJson {
+                            json: window.title_json.clone(),
+                        },
+                        packet_sequence,
+                    ));
                 }
                 let furnace_position = self
                     .connection
@@ -5170,11 +5644,24 @@ impl Bot {
                 });
             }
             0x30 => {
-                let mut rest = p.as_slice();
-                let window = get_varint(&mut rest)?;
-                let window_id =
-                    i8::try_from(window).context("craft response window ID out of range")?;
-                let recipe_id = get_string(&mut rest)?;
+                let (window_id, recipe_id) = common_recipe_placement::decode_ghost(&p)?;
+                let close = self.common_container_close.lock().await.clone();
+                let mut receipts = self.common_receipts.lock().await;
+                let context = crate::client::crafting::ghost::GhostContext {
+                    generation: receipts.generation,
+                    sequence: packet_sequence,
+                    active_window: receipts.inventory.window_id,
+                    screen: receipts.container.clone(),
+                    close,
+                    registries: receipts.registries.clone(),
+                };
+                receipts.recipe_ghost = Some(crate::client::crafting::ghost::GhostReceipts::named(
+                    context,
+                    i32::from(window_id),
+                    recipe_id.clone(),
+                    &receipts.recipes,
+                ));
+                drop(receipts);
                 self.emit(Event::CraftRecipeResponse {
                     window_id,
                     recipe_id,
@@ -5187,14 +5674,49 @@ impl Bot {
                 state.invulnerable = flags & 0x01 != 0;
                 state.flying = flags & 0x02 != 0;
                 state.flying_allowed = flags & 0x04 != 0;
+                let mut receipts = self.common_receipts.lock().await;
+                receipts.may_fly = Some(state.flying_allowed);
+                receipts.abilities = Some(crate::client::received(
+                    flags,
+                    self.protocol_packet_sequence.load(Ordering::Acquire),
+                ));
+                if !state.flying_allowed {
+                    receipts.requested_flying = false;
+                }
+                drop(receipts);
                 state.creative_mode = flags & 0x08 != 0;
                 state.flying_speed = c.read_f32::<BigEndian>()?;
                 state.walking_speed = c.read_f32::<BigEndian>()?;
                 drop(state);
                 self.emit(Event::SurvivalStateUpdated);
             }
-            0x32 => self.emit(Event::Combat(parse_combat_event(&p)?)),
+            0x32 => {
+                let event = parse_combat_event(&p)?;
+                if let crate::versions::java_1_16_1::CombatEvent::Death {
+                    player_id,
+                    message_json,
+                    ..
+                } = &event
+                {
+                    if Some(*player_id) == lock_packet_state(&self.player).await.entity_id {
+                        self.common_receipts.lock().await.death_message =
+                            Some(crate::client::received(
+                                crate::client::ui::UiText::LegacyJson {
+                                    json: message_json.clone(),
+                                },
+                                packet_sequence,
+                            ));
+                    }
+                }
+                self.emit(Event::Combat(event));
+            }
             0x33 => {
+                self.common_player_list.lock().await.receive(
+                    crate::MinecraftVersion::Java1_16_1,
+                    id,
+                    &p,
+                    packet_sequence,
+                )?;
                 let mut players = self.players.write().await;
                 let (action, uuids) = apply_player_info(&mut players, &p)?;
                 drop(players);
@@ -5228,7 +5750,17 @@ impl Bot {
             }
             0x35 => self.handle_position(&p).await?,
             0x36 => {
-                self.recipe_book.write().await.apply(&p)?;
+                let mut book = self.recipe_book.write().await;
+                book.apply(&p)?;
+                let mut header = p.as_slice();
+                let initial = get_varint(&mut header)? == 0;
+                self.common_receipts.lock().await.recipes.legacy_book(
+                    book.unlocked.iter().cloned().collect(),
+                    book.displayed.iter().cloned().collect(),
+                    initial,
+                    packet_sequence,
+                );
+                drop(book);
                 self.emit(Event::RecipeBookUpdated);
             }
             0x37 => {
@@ -5242,6 +5774,9 @@ impl Bot {
                 for _ in 0..count {
                     let entity_id = get_varint(&mut rest)?;
                     entities.entities.remove(&entity_id);
+                    let mut receipts = self.common_receipts.lock().await;
+                    receipts.entities.remove(entity_id);
+                    receipts.vehicles.retire(entity_id);
                     entity_ids.push(entity_id);
                 }
                 drop(entities);
@@ -5252,6 +5787,12 @@ impl Bot {
                 let entity_id = get_varint(&mut rest)?;
                 let effect_id = *rest.first().context("missing removed effect ID")? as i8;
                 if Some(entity_id) == self.player.lock().await.entity_id {
+                    if let Some(name) = crate::client::player_facts::effect_name(
+                        crate::MinecraftVersion::Java1_16_1,
+                        i32::from(effect_id),
+                    ) {
+                        self.common_receipts.lock().await.effects.remove(&name);
+                    }
                     self.survival.write().await.effects.remove(&effect_id);
                     self.emit(Event::SurvivalStateUpdated);
                 }
@@ -5267,6 +5808,30 @@ impl Bot {
             }
             0x3a => {
                 let respawn = parse_respawn(&p)?;
+                {
+                    let mut receipts = self.common_receipts.lock().await;
+                    receipts.generation = packet_sequence;
+                    receipts.entities.clear();
+                    receipts.vehicles.clear();
+                    receipts.pose = None;
+                    receipts.position_source = None;
+                    receipts.health = None;
+                    receipts.using_item = None;
+                    receipts.attributes.clear();
+                    receipts.effects.clear();
+                    receipts.air_supply = None;
+                    receipts.may_fly = None;
+                    receipts.requested_flying = false;
+                    receipts.container = None;
+                    receipts.inventory.window_id = None;
+                    receipts.inventory.cursor = None;
+                    receipts.player_starts.clear();
+                    if !respawn.copy_metadata {
+                        receipts.inventory = Default::default();
+                        receipts.selected_hotbar = None;
+                        receipts.player_starts.clear();
+                    }
+                }
                 if !respawn.copy_metadata {
                     *self.local_pose.lock().await = Some(0);
                 }
@@ -5294,12 +5859,21 @@ impl Bot {
                 } else {
                     self.inventory.write().await.last_transaction = None;
                 }
+                crate::client::respawn::received(
+                    &self.respawn_history,
+                    packet_sequence,
+                    packet_sequence,
+                );
                 self.emit(Event::Respawn(respawn));
             }
             0x3b => {
                 let mut rest = p.as_slice();
                 let entity_id = get_varint(&mut rest)?;
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                if let Some(entity) = write_entity_update(&self.entities)
+                    .await
+                    .entities
+                    .get_mut(&entity_id)
+                {
                     entity.head_yaw =
                         f32::from(*rest.first().context("missing entity head yaw")? as i8) * 360.0
                             / 256.0;
@@ -5318,6 +5892,14 @@ impl Bot {
                 self.emit(Event::AdvancementsUpdated);
             }
             0x3d => {
+                let generation = self.common_receipts.lock().await.generation;
+                self.common_display.lock().await.receive(
+                    crate::MinecraftVersion::Java1_16_1,
+                    id,
+                    &p,
+                    packet_sequence,
+                    generation,
+                )?;
                 self.ui.write().await.apply_border(&p)?;
                 self.emit(Event::UiStateUpdated(UiUpdateKind::WorldBorder));
             }
@@ -5333,6 +5915,8 @@ impl Bot {
                     bail!("invalid held item slot {raw}");
                 }
                 self.inventory.write().await.selected_hotbar = raw;
+                self.common_receipts.lock().await.selected_hotbar =
+                    Some(crate::client::received(raw, packet_sequence));
                 self.emit(Event::HeldItemChanged { slot: raw });
             }
             0x40 => {
@@ -5362,18 +5946,79 @@ impl Bot {
                 self.emit(Event::SpawnPosition(position));
             }
             0x43 => {
+                self.common_scoreboard.lock().await.receive(
+                    crate::MinecraftVersion::Java1_16_1,
+                    id,
+                    &p,
+                    packet_sequence,
+                )?;
                 self.ui.write().await.apply_display(&p)?;
                 self.emit(Event::UiStateUpdated(UiUpdateKind::DisplayObjective));
             }
             0x44 => {
                 let (entity_id, metadata) = parse_metadata(&p)?;
-                if Some(entity_id) == self.player.lock().await.entity_id {
+                let (_, common) = crate::versions::java_1_16_1::entity::common_metadata(&p)?;
+                // The legacy decoder reads a packet to its end or fails it.
+                self.common_receipts.lock().await.entities.receive_metadata(
+                    entity_id,
+                    common,
+                    true,
+                    packet_sequence,
+                );
+                if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
                     if let Some(MetadataValue::VarInt(pose)) = metadata.get(&6) {
                         *self.local_pose.lock().await = Some(*pose);
+                        if *pose != 0 {
+                            self.interrupt_common_motion(
+                                "native posture changed during finite motion",
+                            )
+                            .await;
+                        }
                     }
                     if let Some(MetadataValue::VarInt(air_ticks)) = metadata.get(&1) {
                         *self.oxygen_level.lock().await = oxygen_level_from_air_ticks(*air_ticks);
+                        self.common_receipts.lock().await.air_supply =
+                            Some(crate::client::received(*air_ticks, packet_sequence));
                     }
+                    let flags_index = crate::MinecraftVersion::Java1_16_1
+                        .table()
+                        .entities
+                        .living_flags_metadata_index;
+                    if let Some(MetadataValue::Byte(flags)) = metadata.get(&flags_index) {
+                        self.common_receipts.lock().await.using_item =
+                            Some(crate::client::received(
+                                crate::client::item_use::hand_from_living_flags(*flags as u8),
+                                packet_sequence,
+                            ));
+                    }
+                }
+                let health_index = crate::MinecraftVersion::Java1_16_1
+                    .table()
+                    .entities
+                    .health_metadata_index;
+                let health = match metadata.get(&health_index) {
+                    Some(MetadataValue::Float(health)) => Some(*health),
+                    _ => None,
+                };
+                // Read the kind first so no two locks are held at once.
+                let living = self
+                    .entities
+                    .read()
+                    .await
+                    .entities
+                    .get(&entity_id)
+                    .is_some_and(|entity| {
+                        matches!(
+                            entity.kind,
+                            crate::EntityKind::Living | crate::EntityKind::Player
+                        )
+                    });
+                if let (true, Some(health)) = (living, health) {
+                    self.common_receipts.lock().await.entities.receive_health(
+                        entity_id,
+                        health,
+                        packet_sequence,
+                    );
                 }
                 if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
                     entity.metadata.extend(metadata);
@@ -5402,10 +6047,22 @@ impl Bot {
                     y: f64::from(c.read_i16::<BigEndian>()?) / 8000.0,
                     z: f64::from(c.read_i16::<BigEndian>()?) / 8000.0,
                 };
-                if Some(entity_id) == self.player.lock().await.entity_id {
+                if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
                     self.motion.lock().await.velocity = velocity;
+                    *self.own_velocity_receipt.lock().await = Some((
+                        self.protocol_packet_sequence.load(Ordering::Acquire),
+                        [velocity.x, velocity.y, velocity.z],
+                    ));
+                    self.interrupt_common_motion(
+                        "native own-player velocity interrupted finite motion",
+                    )
+                    .await;
                 }
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                if let Some(entity) = write_entity_update(&self.entities)
+                    .await
+                    .entities
+                    .get_mut(&entity_id)
+                {
                     entity.velocity = velocity;
                     self.emit(Event::EntityUpdated(entity.clone()));
                 }
@@ -5425,6 +6082,22 @@ impl Bot {
                         break;
                     }
                 }
+                {
+                    let mut receipts = self.common_receipts.lock().await;
+                    for (slot, stack) in &equipment {
+                        let Some(slot) = crate::client::EquipmentSlot::from_native(
+                            crate::MinecraftVersion::Java1_16_1,
+                            *slot as u8,
+                        ) else {
+                            continue;
+                        };
+                        let item = crate::client::legacy_slot(stack.as_ref())
+                            .unwrap_or(crate::client::SlotKnowledge::Unavailable);
+                        receipts
+                            .entities
+                            .receive_equipment(entity_id, slot, item, packet_sequence);
+                    }
+                }
                 if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
                     entity.equipment.extend(equipment);
                     self.emit(Event::EntityUpdated(entity.clone()));
@@ -5438,36 +6111,76 @@ impl Bot {
             0x49 => {
                 let vitals = parse_vitals(&p)?;
                 self.survival.write().await.vitals = Some(vitals);
+                self.common_receipts.lock().await.health = Some(crate::client::received(
+                    crate::client::Health {
+                        health: vitals.health,
+                        food: vitals.food,
+                        saturation: vitals.saturation,
+                    },
+                    packet_sequence,
+                ));
                 self.emit(Event::Vitals(vitals));
             }
             0x4a => {
+                self.common_scoreboard.lock().await.receive(
+                    crate::MinecraftVersion::Java1_16_1,
+                    id,
+                    &p,
+                    packet_sequence,
+                )?;
                 self.ui.write().await.apply_objective(&p)?;
                 self.emit(Event::UiStateUpdated(UiUpdateKind::Objective));
             }
             0x4b => {
-                let mut rest = p.as_slice();
-                let vehicle_id = get_varint(&mut rest)?;
-                let count = get_varint(&mut rest)?;
-                if !(0..=1024).contains(&count) {
-                    bail!("invalid passenger count {count}");
+                let update = crate::client::vehicle::NativePassengers::decode(&p)?;
+                let player_id = self.player.lock().await.entity_id;
+                {
+                    let mut receipts = self.common_receipts.lock().await;
+                    let receipts = &mut *receipts;
+                    receipts.vehicles.receive(
+                        &update,
+                        player_id,
+                        &receipts.entities,
+                        packet_sequence,
+                    );
                 }
-                let mut passengers = Vec::with_capacity(count as usize);
-                for _ in 0..count {
-                    passengers.push(get_varint(&mut rest)?);
+                if player_id.is_some_and(|id| update.passengers.contains(&id)) {
+                    self.retire_common_for_mount().await;
+                    self.interrupt_common_motion_operations(
+                        "actual own mount interrupted ground operations",
+                    )
+                    .await;
                 }
-                if let Some(vehicle) = self.entities.write().await.entities.get_mut(&vehicle_id) {
-                    vehicle.passengers = passengers.clone();
+                if let Some(vehicle) = self
+                    .entities
+                    .write()
+                    .await
+                    .entities
+                    .get_mut(&update.vehicle)
+                {
+                    vehicle.passengers = update.passengers.clone();
                 }
                 self.emit(Event::PassengersUpdated {
-                    vehicle_id,
-                    passengers,
+                    vehicle_id: update.vehicle,
+                    passengers: update.passengers,
                 });
             }
             0x4c => {
+                self.common_teams.lock().await.receive(
+                    crate::MinecraftVersion::Java1_16_1,
+                    &p,
+                    packet_sequence,
+                )?;
                 self.ui.write().await.apply_team(&p)?;
                 self.emit(Event::UiStateUpdated(UiUpdateKind::Team));
             }
             0x4d => {
+                self.common_scoreboard.lock().await.receive(
+                    crate::MinecraftVersion::Java1_16_1,
+                    id,
+                    &p,
+                    packet_sequence,
+                )?;
                 self.ui.write().await.apply_score(&p)?;
                 self.emit(Event::UiStateUpdated(UiUpdateKind::Score));
             }
@@ -5477,10 +6190,24 @@ impl Bot {
                 state.world_age = c.read_i64::<BigEndian>()?;
                 state.time_of_day = c.read_i64::<BigEndian>()?;
                 self.world_time_observed.store(true, Ordering::Release);
+                let time = crate::client::WorldTime {
+                    game_time: state.world_age,
+                    day_time: state.time_of_day,
+                };
                 drop(state);
+                self.common_receipts.lock().await.world_time =
+                    Some(crate::client::received(time, packet_sequence));
                 self.emit(Event::SurvivalStateUpdated);
             }
             0x4f => {
+                let generation = self.common_receipts.lock().await.generation;
+                self.common_display.lock().await.receive(
+                    crate::MinecraftVersion::Java1_16_1,
+                    id,
+                    &p,
+                    packet_sequence,
+                    generation,
+                )?;
                 self.ui.write().await.apply_title(&p)?;
                 self.emit(Event::UiStateUpdated(UiUpdateKind::Title));
             }
@@ -5506,6 +6233,14 @@ impl Bot {
                 }));
             }
             0x53 => {
+                let generation = self.common_receipts.lock().await.generation;
+                self.common_display.lock().await.receive(
+                    crate::MinecraftVersion::Java1_16_1,
+                    id,
+                    &p,
+                    packet_sequence,
+                    generation,
+                )?;
                 self.ui.write().await.apply_tab(&p)?;
                 self.emit(Event::UiStateUpdated(UiUpdateKind::TabList));
             }
@@ -5542,7 +6277,11 @@ impl Bot {
                 let mut rest = p.as_slice();
                 let entity_id = get_varint(&mut rest)?;
                 let mut c = Cursor::new(rest);
-                if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
+                if let Some(entity) = write_entity_update(&self.entities)
+                    .await
+                    .entities
+                    .get_mut(&entity_id)
+                {
                     let position = Vec3 {
                         x: c.read_f64::<BigEndian>()?,
                         y: c.read_f64::<BigEndian>()?,
@@ -5562,7 +6301,28 @@ impl Bot {
             }
             0x58 => {
                 let (entity_id, attributes) = parse_attributes(&p)?;
-                if Some(entity_id) == self.player.lock().await.entity_id {
+                if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
+                    {
+                        let mut receipts = self.common_receipts.lock().await;
+                        for attribute in &attributes {
+                            let modifiers = attribute
+                                .modifiers
+                                .iter()
+                                .map(common_control::legacy_modifier)
+                                .collect();
+                            receipts.attributes.insert(
+                                crate::client::player_facts::legacy_attribute_name(&attribute.key),
+                                crate::client::received(
+                                    crate::client::player_facts::attribute(
+                                        crate::MinecraftVersion::Java1_16_1,
+                                        attribute.base,
+                                        modifiers,
+                                    ),
+                                    packet_sequence,
+                                ),
+                            );
+                        }
+                    }
                     let mut state = self.survival.write().await;
                     for attribute in attributes {
                         state.attributes.insert(attribute.key.clone(), attribute);
@@ -5574,6 +6334,24 @@ impl Bot {
             0x59 => {
                 let (entity_id, effect) = parse_effect(&p)?;
                 if Some(entity_id) == self.player.lock().await.entity_id {
+                    self.interrupt_common_motion("native effect interrupted finite motion")
+                        .await;
+                    if let Some(name) = crate::client::player_facts::effect_name(
+                        crate::MinecraftVersion::Java1_16_1,
+                        i32::from(effect.id),
+                    ) {
+                        self.common_receipts.lock().await.effects.insert(
+                            name,
+                            crate::client::received(
+                                crate::client::player_facts::effect(
+                                    i32::from(effect.amplifier),
+                                    effect.duration_ticks,
+                                    effect.flags as u8,
+                                ),
+                                packet_sequence,
+                            ),
+                        );
+                    }
                     self.survival
                         .write()
                         .await
@@ -5583,15 +6361,38 @@ impl Bot {
                 }
             }
             0x5a => {
-                **self.server_recipes.write().await = parse_recipes(&p)?;
+                let recipes = parse_recipes(&p)?;
+                let common = crate::client::crafting::recipes::legacy_entries(&recipes)?;
+                **self.server_recipes.write().await = recipes;
+                self.common_receipts
+                    .lock()
+                    .await
+                    .recipes
+                    .declare_legacy(common, packet_sequence);
                 self.emit(Event::RecipesDeclared);
             }
             0x5b => {
-                **self.tags.write().await = parse_tags(&p)?;
+                let tags = parse_tags(&p)?;
+                self.common_receipts.lock().await.registries.receive_tags(
+                    &p,
+                    packet_sequence,
+                    crate::MinecraftVersion::Java1_16_1,
+                )?;
+                **self.tags.write().await = tags;
                 self.emit(Event::TagsUpdated);
             }
             _ => {}
         }
+        self.common_dismount_context_received().await;
+        self.common_mining_context_received().await?;
+        self.common_placement_context_received().await?;
+        self.common_inventory_context_received().await?;
+        self.common_click_context_received().await?;
+        self.common_crafting_context_received(false).await?;
+        self.common_recipe_placement_context_received().await?;
+        self.common_transfer_context_received().await?;
+        self.common_container_close_context_received().await?;
+        self.common_container_open_context_received().await?;
         self.enforce_session_limits().await?;
         Ok(true)
     }
@@ -5910,6 +6711,48 @@ impl Bot {
         {
             bail!("entity cache limit exceeded");
         }
+        {
+            let mut receipts = self.common_receipts.lock().await;
+            receipts.entities.insert(
+                crate::MinecraftVersion::Java1_16_1,
+                crate::client::entity::NativeSpawn {
+                    id: entity.entity_id,
+                    uuid: entity.uuid,
+                    type_id: entity.type_id,
+                    dedicated_type_name: entity.type_name,
+                    position: [entity.position.x, entity.position.y, entity.position.z],
+                    living: Some(matches!(
+                        entity.kind,
+                        crate::versions::java_1_16_1::entity::EntityKind::Living
+                            | crate::versions::java_1_16_1::entity::EntityKind::Player
+                    )),
+                },
+                self.protocol_packet_sequence.load(Ordering::Acquire),
+                self.connection_options.max_entities,
+            )?;
+            use crate::client::entity::NativeSpawnMotion;
+            use crate::versions::java_1_16_1::entity::EntityKind;
+            receipts.entities.initialize_motion(
+                entity.entity_id,
+                NativeSpawnMotion {
+                    position: (entity.kind != EntityKind::Painting).then_some([
+                        entity.position.x,
+                        entity.position.y,
+                        entity.position.z,
+                    ]),
+                    rotation: matches!(
+                        entity.kind,
+                        EntityKind::Object | EntityKind::Living | EntityKind::Player
+                    )
+                    .then_some([entity.yaw, entity.pitch]),
+                    head_yaw: (entity.kind == EntityKind::Living).then_some(entity.head_yaw),
+                    velocity: matches!(entity.kind, EntityKind::Object | EntityKind::Living)
+                        .then_some([entity.velocity.x, entity.velocity.y, entity.velocity.z]),
+                },
+                self.protocol_packet_sequence.load(Ordering::Acquire),
+            );
+            receipts.vehicles.retire(entity.entity_id);
+        }
         entities.entities.insert(entity.entity_id, entity.clone());
         drop(entities);
         self.emit(Event::EntitySpawned(entity));
@@ -5918,26 +6761,26 @@ impl Bot {
 
     async fn enforce_session_limits(&self) -> Result<()> {
         let limit = self.connection_options.max_cached_records;
-        let players = self.players.read().await.entries.len();
-        let maps = self.maps.read().await.maps.len();
-        let entities = self.entities.read().await.entities.len();
-        let inventory = self.inventory.read().await;
+        let players = read_session_cache(&self.players).await.entries.len();
+        let maps = read_session_cache(&self.maps).await.maps.len();
+        let entities = read_session_cache(&self.entities).await.entities.len();
+        let inventory = read_session_cache(&self.inventory).await;
         let inventory_records = inventory.windows.values().map(Vec::len).sum::<usize>()
             + inventory.properties.len()
             + inventory.pending_clicks.len();
         drop(inventory);
-        let ui = self.ui.read().await;
+        let ui = read_session_cache(&self.ui).await;
         let ui_records = ui.boss_bars.len()
             + ui.objectives.len()
             + ui.display_objectives.len()
             + ui.scores.len()
             + ui.teams.len();
         drop(ui);
-        let progress = self.advancements.read().await;
+        let progress = read_session_cache(&self.advancements).await;
         let progress_records = progress.definitions.len() + progress.progress.len();
         drop(progress);
-        let statistics = self.statistics.read().await.values.len();
-        let recipe_book = self.recipe_book.read().await;
+        let statistics = read_session_cache(&self.statistics).await.values.len();
+        let recipe_book = read_session_cache(&self.recipe_book).await;
         let recipe_records = recipe_book.unlocked.len() + recipe_book.displayed.len();
         let records = players
             .saturating_add(maps)
@@ -5953,29 +6796,11 @@ impl Bot {
         Ok(())
     }
     async fn handle_position(&self, p: &[u8]) -> Result<()> {
-        let mut c = Cursor::new(p);
-        let x = c.read_f64::<BigEndian>()?;
-        let y = c.read_f64::<BigEndian>()?;
-        let z = c.read_f64::<BigEndian>()?;
-        let yaw = c.read_f32::<BigEndian>()?;
-        let pitch = c.read_f32::<BigEndian>()?;
-        let flags = c.read_i8()? as u8;
-        let mut rest = &p[c.position() as usize..];
-        let teleport = get_varint(&mut rest)?;
         let mut s = self.player.lock().await;
-        let next_x = if flags & 1 != 0 { s.x + x } else { x };
-        let next_y = if flags & 2 != 0 { s.y + y } else { y };
-        let next_z = if flags & 4 != 0 { s.z + z } else { z };
-        validate_position(next_x, next_y, next_z)?;
-        let next_yaw = if flags & 8 != 0 { s.yaw + yaw } else { yaw };
-        let next_pitch = if flags & 16 != 0 {
-            s.pitch + pitch
-        } else {
-            pitch
-        };
-        if !next_yaw.is_finite() || !next_pitch.is_finite() {
-            bail!("server position contains a non-finite rotation");
-        }
+        let (position, rotation, teleport) =
+            common_recording::decode_position(p, [s.x, s.y, s.z], [s.yaw, s.pitch])?;
+        let [next_x, next_y, next_z] = position;
+        let [next_yaw, next_pitch] = rotation;
         s.x = next_x;
         s.y = next_y;
         s.z = next_z;
@@ -5983,6 +6808,19 @@ impl Bot {
         s.pitch = next_pitch;
         let snapshot = s.clone();
         drop(s);
+        self.common_receipts.lock().await.position_source =
+            Some(crate::client::ValueSource::Received {
+                sequence: self.protocol_packet_sequence.load(Ordering::Acquire),
+            });
+        self.interrupt_common_motion_operations(
+            "native own-pose correction interrupted finite motion",
+        )
+        .await;
+        self.common_receipts.lock().await.pose = Some(crate::client::ReceivedPose {
+            position: [next_x, next_y, next_z],
+            rotation: [next_yaw, next_pitch],
+            receive_sequence: self.protocol_packet_sequence.load(Ordering::Acquire),
+        });
         let mut positioned = self.positioned.lock().await;
         let was_positioned = *positioned;
         *positioned = true;
@@ -6142,6 +6980,14 @@ impl Bot {
             self.cancel.notify_waiters();
             self.ready.notify_waiters();
             self.world_updated.notify_waiters();
+            self.packet_applied.notify_waiters();
+        }
+        {
+            let sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
+            let mut ledger = self.common_events.lock().expect("event ledger poisoned");
+            for kind in common_event_kinds(&event) {
+                ledger.record(sequence, kind);
+            }
         }
         {
             let mut queued = self
@@ -6157,6 +7003,129 @@ impl Bot {
         let _ = self.events.send(event);
     }
 }
+/// Common change notifications for one native event. Multi-block changes are
+/// recorded with their bounds where the packet is applied.
+/// One decoded play frame: packet ID and payload.
+type Frame = Result<(i32, Vec<u8>)>;
+
+/// Complete an in-flight frame read after cancellation, waiting at most 200 ms.
+async fn finish_frame<F, E>(read: std::pin::Pin<&mut F>) -> Option<Frame>
+where
+    F: std::future::Future<Output = std::result::Result<anyhow::Result<(i32, Vec<u8>)>, E>>,
+{
+    match tokio::time::timeout(Duration::from_millis(200), read).await {
+        Ok(Ok(frame)) => Some(frame.map_err(Into::into)),
+        _ => None,
+    }
+}
+
+fn common_event_kinds(event: &Event) -> Vec<crate::client::EventKind> {
+    use crate::client::EventKind as K;
+    let block = |x, y, z| K::BlocksChanged {
+        min: [x, y, z],
+        max: [x, y, z],
+    };
+    match event {
+        Event::BlockChanged { x, y, z, .. } => vec![block(*x, *y, *z)],
+        Event::BlockEntityUpdated(data) => {
+            vec![block(data.position.x, data.position.y, data.position.z)]
+        }
+        Event::ChunkLoaded { x, z } => vec![K::ChunkLoaded { x: *x, z: *z }],
+        Event::ChunkUnloaded { x, z } => vec![K::ChunkUnloaded { x: *x, z: *z }],
+        Event::InventoryUpdated { .. } | Event::SlotUpdated(_) | Event::HeldItemChanged { .. } => {
+            vec![K::InventoryChanged]
+        }
+        Event::WindowOpened(_)
+        | Event::WindowClosed { .. }
+        | Event::WindowProperty(_)
+        | Event::MerchantOffers(_) => vec![K::ScreenChanged],
+        Event::Position(_)
+        | Event::PositionCorrection(_)
+        | Event::Vitals(_)
+        | Event::Experience(_)
+        | Event::GameStateChange(_)
+        | Event::SurvivalStateUpdated => vec![K::PlayerChanged],
+        Event::Login | Event::Spawn | Event::Respawn(_) => vec![K::WorldChanged],
+        Event::EntitySpawned(entity) => vec![K::EntitySpawned {
+            native_id: entity.entity_id,
+        }],
+        Event::EntitiesDestroyed { entity_ids } => entity_ids
+            .iter()
+            .map(|id| K::EntityRemoved { native_id: *id })
+            .collect(),
+        Event::Chat(_) => vec![K::ChatReceived],
+        Event::UiStateUpdated(_) | Event::PlayerListUpdated { .. } => vec![K::UiChanged],
+        Event::Disconnected { .. }
+        | Event::Error {
+            kind: "connection", ..
+        } => vec![K::Disconnected],
+        Event::EntityUpdated(entity) => vec![K::EntityUpdated {
+            native_id: entity.entity_id,
+        }],
+        Event::EntityStatus { entity_id, status } => {
+            let mut kinds = vec![K::EntityStatus {
+                native_id: *entity_id,
+                status: *status,
+            }];
+            if crate::client::events::LEGACY_HURT_STATUSES.contains(status) {
+                kinds.push(K::EntityDamaged {
+                    native_id: *entity_id,
+                });
+            }
+            kinds
+        }
+        Event::Combat(crate::versions::java_1_16_1::CombatEvent::Death { player_id, .. }) => {
+            vec![K::PlayerKilled {
+                native_id: *player_id,
+            }]
+        }
+        _ => Vec::new(),
+    }
+}
+
+#[cfg(test)]
+mod common_event_kind_tests {
+    use super::*;
+    use crate::client::EventKind as K;
+
+    #[test]
+    fn hurt_statuses_also_report_damage_and_own_death_reports_a_kill() {
+        assert_eq!(
+            common_event_kinds(&Event::EntityStatus {
+                entity_id: 4,
+                status: 2
+            }),
+            vec![
+                K::EntityStatus {
+                    native_id: 4,
+                    status: 2
+                },
+                K::EntityDamaged { native_id: 4 }
+            ]
+        );
+        assert_eq!(
+            common_event_kinds(&Event::EntityStatus {
+                entity_id: 4,
+                status: 9
+            }),
+            vec![K::EntityStatus {
+                native_id: 4,
+                status: 9
+            }]
+        );
+        assert_eq!(
+            common_event_kinds(&Event::Combat(
+                crate::versions::java_1_16_1::CombatEvent::Death {
+                    player_id: 7,
+                    entity_id: -1,
+                    message_json: "{}".into()
+                }
+            )),
+            vec![K::PlayerKilled { native_id: 7 }]
+        );
+    }
+}
+
 fn parse_tab_completion(payload: &[u8]) -> Result<TabCompletion> {
     let mut rest = payload;
     let transaction_id = get_varint(&mut rest)?;
@@ -6375,6 +7344,154 @@ async fn next_operation_event(events: &mut broadcast::Receiver<Event>) -> Result
                 bail!("connection closed while waiting for operation response")
             }
         }
+    }
+}
+
+impl crate::client::adapter::EventOps for Bot {
+    async fn death_message(
+        &self,
+    ) -> Result<Option<crate::client::ObservedValue<crate::client::ui::UiText>>> {
+        Ok(self.common_receipts.lock().await.death_message.clone())
+    }
+    async fn disconnect_reason(&self) -> Result<Option<crate::client::ui::UiText>> {
+        Ok(self.common_receipts.lock().await.disconnect_reason.clone())
+    }
+    async fn events_after(&self, cursor: u64) -> Result<crate::client::EventLog> {
+        // Packet application holds this gate, so the log and sequence agree.
+        let _gate = self.coherent_state_gate.lock().await;
+        let sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
+        self.common_events
+            .lock()
+            .expect("event ledger poisoned")
+            .after(cursor, sequence)
+    }
+}
+
+impl crate::client::adapter::WaitOps for Bot {
+    async fn wait_for_receive(&self, after: u64) -> Result<u64> {
+        loop {
+            let notified = self.packet_applied.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+            if self.is_stopped() {
+                return Err(crate::Error::new(
+                    crate::ErrorKind::Disconnected,
+                    anyhow::anyhow!("connection closed while waiting for a packet"),
+                ));
+            }
+            let current = self.protocol_packet_sequence.load(Ordering::Acquire);
+            if current > after {
+                return Ok(current);
+            }
+            notified.await;
+        }
+    }
+}
+
+impl crate::client::adapter::ChatOps for Bot {
+    async fn send_chat(&self, message: &str) -> Result<()> {
+        Bot::send_chat(self, message).await
+    }
+    async fn send_command(&self, command: &str) -> Result<()> {
+        Bot::send_command(self, command).await
+    }
+    async fn chat_after(&self, cursor: u64) -> Result<crate::client::ChatLog> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::client::inventory::unavailable("connection closed"));
+        }
+        let player = self.common_player_unlocked().await?;
+        self.common_chat
+            .lock()
+            .await
+            .after(cursor, player.session, player.receive_sequence)
+    }
+}
+
+impl crate::client::adapter::UiOps for Bot {
+    async fn scoreboard_state(&self) -> Result<crate::client::ui::ScoreboardObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::client::inventory::unavailable("connection closed"));
+        }
+        let player = self.common_player_unlocked().await?;
+        Ok(self
+            .common_scoreboard
+            .lock()
+            .await
+            .capture(player.session, player.receive_sequence))
+    }
+    async fn boss_bars(&self) -> Result<crate::client::ui::BossBarsObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::client::inventory::unavailable("connection closed"));
+        }
+        let player = self.common_player_unlocked().await?;
+        Ok(self
+            .common_boss_bars
+            .lock()
+            .await
+            .capture(player.session, player.receive_sequence))
+    }
+    async fn teams(&self) -> Result<crate::client::ui::TeamsObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::client::inventory::unavailable("connection closed"));
+        }
+        let player = self.common_player_unlocked().await?;
+        Ok(self
+            .common_teams
+            .lock()
+            .await
+            .capture(player.session, player.receive_sequence))
+    }
+    async fn player_list(&self) -> Result<crate::client::ui::PlayerListObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::client::inventory::unavailable("connection closed"));
+        }
+        let player = self.common_player_unlocked().await?;
+        Ok(self
+            .common_player_list
+            .lock()
+            .await
+            .capture(player.session, player.receive_sequence))
+    }
+    async fn titles(&self) -> Result<crate::client::ui::TitlesObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::client::inventory::unavailable("connection closed"));
+        }
+        let player = self.common_player_unlocked().await?;
+        Ok(self
+            .common_display
+            .lock()
+            .await
+            .titles(player.session, player.receive_sequence))
+    }
+    async fn tab_list(&self) -> Result<crate::client::ui::TabListObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::client::inventory::unavailable("connection closed"));
+        }
+        let player = self.common_player_unlocked().await?;
+        Ok(self
+            .common_display
+            .lock()
+            .await
+            .tab_list(player.session, player.receive_sequence))
+    }
+    async fn world_border(&self) -> Result<crate::client::ui::WorldBorderObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.is_stopped() {
+            return Err(crate::client::inventory::unavailable("connection closed"));
+        }
+        let player = self.common_player_unlocked().await?;
+        Ok(self
+            .common_display
+            .lock()
+            .await
+            .world_border(player.session, player.receive_sequence))
     }
 }
 
@@ -6783,6 +7900,7 @@ mod tests {
 
     include!("client/packet_deadline_tests.rs");
     include!("client/packet_fairness_tests.rs");
+    include!("client/reader_throughput_tests.rs");
     include!("client/storage_tests.rs");
 
     struct CountingRead<R> {
@@ -6810,6 +7928,49 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn login_profile_rejects_malformed_or_different_received_success() {
+        for kind in 0..3 {
+            let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+            let port = listener.local_addr().unwrap().port();
+            let server = tokio::spawn(async move {
+                let (stream, _) = listener.accept().await.unwrap();
+                let (mut reader, mut writer) = stream.into_split();
+                read_packet(&mut reader, None).await.unwrap();
+                let (_, login) = read_packet(&mut reader, None).await.unwrap();
+                let mut payload = crate::client::login::test_legacy_success(&login);
+                match kind {
+                    0 => payload.clear(),
+                    1 => {
+                        payload.truncate(16);
+                        put_string(&mut payload, "Different");
+                    }
+                    _ => payload.push(0),
+                }
+                write_packet(&mut writer, None, 2, &payload).await.unwrap();
+                let mut byte = [0; 1];
+                assert_eq!(
+                    timeout(Duration::from_secs(2), reader.read(&mut byte))
+                        .await
+                        .unwrap()
+                        .unwrap(),
+                    0
+                );
+            });
+            assert!(
+                Bot::connect(
+                    Server::new("127.0.0.1", port),
+                    Player::offline("ProfileProbe"),
+                    Arc::new(crate::SharedChunkStorage::default()),
+                    ConnectionOptions::default()
+                )
+                .await
+                .is_err()
+            );
+            server.await.unwrap();
+        }
+    }
+
     async fn connected_test_bot(
         connection_options: ConnectionOptions,
         play_packets: Vec<(i32, Vec<u8>)>,
@@ -6821,8 +7982,15 @@ mod tests {
             let (stream, _) = listener.accept().await.unwrap();
             let (mut reader, mut writer) = stream.into_split();
             read_packet(&mut reader, None).await.unwrap();
-            read_packet(&mut reader, None).await.unwrap();
-            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            let (_, login) = read_packet(&mut reader, None).await.unwrap();
+            write_packet(
+                &mut writer,
+                None,
+                2,
+                &crate::client::login::test_legacy_success(&login),
+            )
+            .await
+            .unwrap();
             release_rx.await.unwrap();
             for (id, payload) in play_packets {
                 write_packet(&mut writer, None, id, &payload).await.unwrap();
@@ -6841,7 +8009,7 @@ mod tests {
         (bot, server, release_tx)
     }
 
-    async fn ready_test_bot(
+    pub(super) async fn ready_test_bot(
         connection_options: ConnectionOptions,
     ) -> (Bot, tokio::task::JoinHandle<()>, oneshot::Sender<()>) {
         let (bot, server, release) = connected_test_bot(connection_options, Vec::new()).await;
@@ -7494,8 +8662,15 @@ mod tests {
             let (stream, _) = listener.accept().await.unwrap();
             let (mut reader, mut _writer) = stream.into_split();
             read_packet(&mut reader, None).await.unwrap();
-            read_packet(&mut reader, None).await.unwrap();
-            write_packet(&mut _writer, None, 0x02, &[]).await.unwrap();
+            let (_, login) = read_packet(&mut reader, None).await.unwrap();
+            write_packet(
+                &mut _writer,
+                None,
+                2,
+                &crate::client::login::test_legacy_success(&login),
+            )
+            .await
+            .unwrap();
             release_rx.await.unwrap();
         });
         let bot = Bot::connect(
@@ -8318,8 +9493,15 @@ mod tests {
             let (stream, _) = listener.accept().await.unwrap();
             let (mut reader, mut writer) = stream.into_split();
             read_packet(&mut reader, None).await.unwrap();
-            read_packet(&mut reader, None).await.unwrap();
-            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            let (_, login) = read_packet(&mut reader, None).await.unwrap();
+            write_packet(
+                &mut writer,
+                None,
+                2,
+                &crate::client::login::test_legacy_success(&login),
+            )
+            .await
+            .unwrap();
             release_rx.await.unwrap();
         });
         let bot = Bot::connect(
@@ -8373,8 +9555,15 @@ mod tests {
             let (stream, _) = listener.accept().await.unwrap();
             let (mut reader, mut writer) = stream.into_split();
             read_packet(&mut reader, None).await.unwrap();
-            read_packet(&mut reader, None).await.unwrap();
-            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            let (_, login) = read_packet(&mut reader, None).await.unwrap();
+            write_packet(
+                &mut writer,
+                None,
+                2,
+                &crate::client::login::test_legacy_success(&login),
+            )
+            .await
+            .unwrap();
             write_packet(&mut writer, None, 0x1a, &[0]).await.unwrap();
             let mut byte = [0_u8; 1];
             let result =
@@ -8654,7 +9843,7 @@ mod tests {
         join.extend([1, 0]);
         put_varint(&mut join, 1);
         put_string(&mut join, "minecraft:overworld");
-        join.push(0);
+        join.extend([10, 0, 0, 0]); // Complete empty named registry compound.
         put_string(&mut join, "minecraft:overworld");
         put_string(&mut join, "world");
         assert!(bot.apply_packet(0x25, join).await.unwrap());
@@ -8693,7 +9882,7 @@ mod tests {
         join.extend([1, 0]);
         put_varint(&mut join, 1);
         put_string(&mut join, "minecraft:overworld");
-        join.push(0);
+        join.extend([10, 0, 0, 0]); // Complete empty named registry compound.
         put_string(&mut join, "minecraft:overworld");
         put_string(&mut join, "world");
         let request = CoherentObservationRequest {
@@ -9178,7 +10367,7 @@ mod tests {
             attached_to: None,
         }
     }
-    async fn operation_test_bot(
+    pub(super) async fn operation_test_bot(
         outbound_id: i32,
         response_id: i32,
         response: Vec<u8>,
@@ -9196,8 +10385,15 @@ mod tests {
             let (stream, _) = listener.accept().await.unwrap();
             let (mut reader, mut writer) = stream.into_split();
             read_packet(&mut reader, None).await.unwrap();
-            read_packet(&mut reader, None).await.unwrap();
-            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            let (_, login) = read_packet(&mut reader, None).await.unwrap();
+            write_packet(
+                &mut writer,
+                None,
+                2,
+                &crate::client::login::test_legacy_success(&login),
+            )
+            .await
+            .unwrap();
             let mut released = Some(released);
             while let Ok((id, payload)) = read_packet(&mut reader, None).await {
                 packets.send((id, payload.clone())).unwrap();
@@ -9279,6 +10475,60 @@ mod tests {
         normal.await.unwrap().unwrap();
         bot.disconnect().await.unwrap();
         server.abort();
+    }
+
+    #[tokio::test]
+    async fn common_revocation_fences_clones_with_capture_and_writer_locked() {
+        let (bot, mut packets, release, server) = operation_test_bot(0x7fff, 0, vec![]).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let connection_id = client.player_state().await.unwrap().session.connection_id;
+        let capture = bot.coherent_state_gate.lock().await;
+        let writer = bot.writer.lock().await;
+        let mut queued = Vec::new();
+        for _ in 0..32 {
+            let sender = bot.clone();
+            queued.push(tokio::spawn(async move {
+                sender.send_protocol(0x10, &[1]).await
+            }));
+        }
+        tokio::task::yield_now().await;
+        let outside = client.clone();
+        let revoked = std::thread::spawn(move || {
+            crate::client::tests::common_revocation_scenario(
+                &outside,
+                crate::MinecraftVersion::Java1_16_1,
+                connection_id,
+            )
+        })
+        .join()
+        .unwrap();
+        assert_eq!(revoked.connection_id(), bot.connection_generation().get());
+        assert!(bot.is_stopped());
+        assert_eq!(
+            bot.connection_state(),
+            ConnectionState::ConnectionStateUnknown
+        );
+        for sender in queued {
+            assert!(
+                timeout(Duration::from_secs(1), sender)
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .is_err()
+            );
+        }
+        // Both locks remain owned until after all queued sends have failed.
+        drop(capture);
+        drop(writer);
+        assert!(client.survival().select_hotbar(0).await.is_err());
+        drop(release);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+        while let Some((id, _)) = packets.recv().await {
+            assert_ne!(id, 0x10, "revoked queued frame reached the peer");
+        }
     }
 
     #[tokio::test]
@@ -9505,8 +10755,15 @@ mod tests {
             let (stream, _) = listener.accept().await.unwrap();
             let (mut reader, mut writer) = stream.into_split();
             read_packet(&mut reader, None).await.unwrap();
-            read_packet(&mut reader, None).await.unwrap();
-            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            let (_, login) = read_packet(&mut reader, None).await.unwrap();
+            write_packet(
+                &mut writer,
+                None,
+                2,
+                &crate::client::login::test_legacy_success(&login),
+            )
+            .await
+            .unwrap();
             let mut byte = [0_u8; 1];
             tokio::time::timeout(Duration::from_secs(2), reader.read_exact(&mut byte))
                 .await

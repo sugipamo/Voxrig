@@ -16,6 +16,25 @@ include = [
     "/docs/**",
     "/scripts/generate_java_1_21_11.cjs",
     "/scripts/prepare_motion_confirmation.py",
+    "/scripts/run_common_native.py",
+    "/scripts/NativeReconfigurationControl.java",
+    "/scripts/ExportRecipeDisplays.java",
+    "/scripts/ExportCraftingReturns.java",
+    "/scripts/export_crafting_returns.py",
+    "/scripts/ExportRecipeGhosts.java",
+    "/scripts/export_recipe_ghost.py",
+    "/scripts/ExportRecipePlacement.java",
+    "/scripts/export_recipe_placement.py",
+    "/scripts/ExportRecipeGridMatching.java",
+    "/scripts/export_recipe_grid_matching.py",
+    "/scripts/ExportRecipeBookStock.java",
+    "/scripts/ExportRecipeBookMatching.java",
+    "/scripts/export_recipe_book_matching.py",
+    "/scripts/export_recipe_book_stock.py",
+    "/scripts/export_recipe_displays.py",
+    "/scripts/test_native_trace.py",
+    "/scripts/ExportItemComponentSchema.java",
+    "/scripts/export_item_component_schema.py",
     "/scripts/export_outline_shapes.py",
     "/scripts/ExportOutlineShapes.java",
     "/scripts/PrepareOutlineOracle.java",
@@ -25,6 +44,97 @@ include = [
     "/scripts/VerifySurvivalMovement.java",
     "/scripts/VerifyPositionCorrection.java",
     "/scripts/VerifyDryMovement.java",
+    "/scripts/ExportEntityDimensions.java",
+    "/scripts/ExportBlockPhysics.java",
+    "/scripts/generate_version_tables.py",
+    "/scripts/movement_oracle/**",
+    "/scripts/VerifyLegacyDryMovement.java",
+    "/scripts/VerifyLegacyTargeting.java",
+    "/scripts/VerifyLegacyInventorySwap.java",
+    "/scripts/VerifyContainerClose.java",
+    "/scripts/InspectNativeClose.java",
+    "/scripts/ExportCursorReturns.java",
+    "/scripts/export_cursor_returns.py",
+    "/scripts/ExportItemComponents.java",
+    "/scripts/ExportNbtSemantics.java",
+    "/scripts/export_nbt_semantics.py",
+    "/scripts/ExportItemProperties.java",
+    "/scripts/ExportItemSemantics.java",
+    "/scripts/ExportComponentValueRules.java",
+    "/scripts/export_component_value_rules.py",
+    "/scripts/ExportComponentNormalization.java",
+    "/scripts/ExportResourceIdentifiers.java",
+    "/scripts/ExportTextDependencies.java",
+    "/scripts/export_text_dependencies.py",
+    "/scripts/ExportTextCore.java",
+    "/scripts/export_text_core.py",
+    "/scripts/ExportCharacterNames.java",
+    "/scripts/export_character_names.py",
+    "/scripts/ExportSelectors.java",
+    "/scripts/export_selectors.py",
+    "/scripts/ExportUris.java",
+    "/scripts/export_uris.py",
+    "/scripts/ExportEnchantmentConstructors.java",
+    "/scripts/export_enchantment_constructors.py",
+    "/scripts/ExportBookConstructors.java",
+    "/scripts/export_book_constructors.py",
+    "/scripts/ExportFractionConstructors.java",
+    "/scripts/export_fraction_constructors.py",
+    "/scripts/ExportNestedItemConstructors.java",
+    "/scripts/export_nested_item_constructors.py",
+    "/scripts/ExportEffectiveItemComponents.java",
+    "/scripts/export_effective_item_components.py",
+    "/scripts/ExportRegistryCatalog.java",
+    "/scripts/export_registry_catalog.py",
+    "/scripts/ExportHolderComparison.java",
+    "/scripts/export_holder_comparison.py",
+    "/scripts/ExportEntityTooltips.java",
+    "/scripts/export_entity_tooltips.py",
+    "/scripts/ExportClickConstructors.java",
+    "/scripts/export_click_constructors.py",
+    "/scripts/ExportProfiles.java",
+    "/scripts/export_profiles.py",
+    "/scripts/ExportTextConstructors.java",
+    "/scripts/export_text_constructors.py",
+    "/scripts/export_component_normalization.py",
+    "/scripts/RecordingNativeHashOps.java",
+    "/scripts/export_item_semantics.py",
+    "/scripts/export_item_properties.py",
+    "/scripts/export_item_components.py",
+    "/scripts/ExportMenuLayouts.java",
+    "/scripts/ExportStorageOutlines.java",
+    "/scripts/ExportRegularClicks.java",
+    "/scripts/export_regular_clicks.py",
+    "/scripts/ExportInventoryTransfers.java",
+    "/scripts/export_inventory_transfers.py",
+    "/scripts/ExportEquipmentTransfers.java",
+    "/scripts/export_equipment_transfers.py",
+    "/scripts/ExportHeldCursorTransfers.java",
+    "/scripts/export_held_cursor_transfers.py",
+    "/scripts/ExportArmorTransfers.java",
+    "/scripts/export_armor_transfers.py",
+    "/scripts/ExportCraftingMenus.java",
+    "/scripts/export_crafting_menus.py",
+    "/scripts/ExportCraftingOutlines.java",
+    "/scripts/export_crafting_outlines.py",
+    "/scripts/ExportVehicleInput.java",
+    "/scripts/ExportVehicleControl.java",
+    "/scripts/ExportBossBars.java",
+    "/scripts/ExportSocialPackets.java",
+    "/scripts/export_social_packets.py",
+    "/scripts/ExportDisplayPackets.java",
+    "/scripts/export_display_packets.py",
+    "/scripts/export_boss_bars.py",
+    "/scripts/ExportEntityMotion.java",
+    "/scripts/export_entity_motion.py",
+    "/scripts/export_vehicle_control.py",
+    "/scripts/export_vehicle_input.py",
+    "/scripts/ExportDryTerrain.java",
+    "/scripts/ExportRailTerrain.java",
+    "/scripts/export_rail_terrain.py",
+    "/scripts/ExportMiningTools.java",
+    "/scripts/export_mining_tools.py",
+    "/scripts/export_dry_terrain.py",
     "/README.md",
     "/LICENSE",
     "/THIRD_PARTY_NOTICES.md",
@@ -33,6 +143,12 @@ include = [
 [lib]
 name = "voxrig"
 path = "src/lib.rs"
+
+[features]
+# Version-specific APIs outside the common `Client` (`Client::native`,
+# `voxrig::versions::java_1_16_1`, `voxrig::versions::java_1_21_11`).
+# See docs/native-feature.md.
+native = []
 
 [dependencies]
 anyhow = "1"
@@ -46,3 +162,192 @@ tokio = { version = "1", features = ["full"] }
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util"] }
 hex = "0.4"
+
+# Examples that use the version-specific APIs.
+[[example]]
+name = "api_surface_probe"
+required-features = ["native"]
+
+[[example]]
+name = "attack_probe"
+required-features = ["native"]
+
+[[example]]
+name = "bubble_probe"
+required-features = ["native"]
+
+[[example]]
+name = "chat_sound_probe"
+required-features = ["native"]
+
+[[example]]
+name = "circuit_observation_probe"
+required-features = ["native"]
+
+[[example]]
+name = "click_probe"
+required-features = ["native"]
+
+[[example]]
+name = "client_recovery_probe"
+required-features = ["native"]
+
+[[example]]
+name = "climb_probe"
+required-features = ["native"]
+
+[[example]]
+name = "coherent_observation_probe"
+required-features = ["native"]
+
+[[example]]
+name = "common_native_probe"
+required-features = ["native"]
+
+[[example]]
+name = "control_probe"
+required-features = ["native"]
+
+[[example]]
+name = "cooperation_probe"
+required-features = ["native"]
+
+[[example]]
+name = "crafting_probe"
+required-features = ["native"]
+
+[[example]]
+name = "crafting_table_probe"
+required-features = ["native"]
+
+[[example]]
+name = "door_probe"
+required-features = ["native"]
+
+[[example]]
+name = "endurance"
+required-features = ["native"]
+
+[[example]]
+name = "entity_probe"
+required-features = ["native"]
+
+[[example]]
+name = "flat_100_probe"
+required-features = ["native"]
+
+[[example]]
+name = "food_equipment_probe"
+required-features = ["native"]
+
+[[example]]
+name = "furnace_observation_probe"
+required-features = ["native"]
+
+[[example]]
+name = "furnace_probe"
+required-features = ["native"]
+
+[[example]]
+name = "hunger_probe"
+required-features = ["native"]
+
+[[example]]
+name = "inspect_inventory"
+required-features = ["native"]
+
+[[example]]
+name = "interaction_probe"
+required-features = ["native"]
+
+[[example]]
+name = "inventory_probe"
+required-features = ["native"]
+
+[[example]]
+name = "jump_probe"
+required-features = ["native"]
+
+[[example]]
+name = "liquid_probe"
+required-features = ["native"]
+
+[[example]]
+name = "metrics_probe"
+required-features = ["native"]
+
+[[example]]
+name = "modern_operations_probe"
+required-features = ["native"]
+
+[[example]]
+name = "multi_bot"
+required-features = ["native"]
+
+[[example]]
+name = "packet_trace_probe"
+required-features = ["native"]
+
+[[example]]
+name = "phase2_course"
+required-features = ["native"]
+
+[[example]]
+name = "player_observation_probe"
+required-features = ["native"]
+
+[[example]]
+name = "shape_landing_probe"
+required-features = ["native"]
+
+[[example]]
+name = "sneak_probe"
+required-features = ["native"]
+
+[[example]]
+name = "special_block_probe"
+required-features = ["native"]
+
+[[example]]
+name = "sprint_jump_probe"
+required-features = ["native"]
+
+[[example]]
+name = "sprint_probe"
+required-features = ["native"]
+
+[[example]]
+name = "step_probe"
+required-features = ["native"]
+
+[[example]]
+name = "surface_probe"
+required-features = ["native"]
+
+[[example]]
+name = "survival_respawn_probe"
+required-features = ["native"]
+
+[[example]]
+name = "survival_state_probe"
+required-features = ["native"]
+
+[[example]]
+name = "version_control_probe"
+required-features = ["native"]
+
+[[example]]
+name = "version_interaction_probe"
+required-features = ["native"]
+
+[[example]]
+name = "wall_probe"
+required-features = ["native"]
+
+[[example]]
+name = "window_probe"
+required-features = ["native"]
+
+[[test]]
+name = "assumed_survival_scene"
+required-features = ["native"]

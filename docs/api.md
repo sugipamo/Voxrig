@@ -1,17 +1,24 @@
 # 公開API
 
+Client共通化ブランチでは`Client::survival()` / `Client::creative()`を両版の共通入口とします。
+共通型・受信/予測を区別したcapture・版別registryと移行変更は
+[Client共通化](client-unification.md)を参照してください。下記の追加検査契約は
+`client.java_1_21_11()?.checked_survival()`で明示的に選ぶ1.21.11用の拡張です。
+
+
 この文書は、外部controllerが利用する公開面を用途別に示します。正確な引数型と戻り値は`cargo doc --open`で生成されるrustdocを正とします。
 
 ## ゲーム版と操作の入口
 
 `Client` / `ConnectionConfig` / `MinecraftVersion`で接続版を明示します。
-`Client::survival_capabilities()`は静的な対応契約を返し、`Client::survival()`は
-セッションに結び付いた検査付きサバイバル操作を選びます。型は`voxrig::checked_survival`から
-参照でき、[操作・明示的復旧契約](survival-api.md)を共有します。現在は1.21.11のみ対応し、
-1.16.1はI/O前に`Unsupported`を返します。対応情報は現在の操作許可ではありません。
+版共通の操作は`Client`と`client.survival()` / `client.creative()`にあります。
+版固有の機能は`client.native()`、または`client.java_1_16_1()` / `client.java_1_21_11()`から取得します
+（選択中と異なる版を指定すると`Unsupported`）。1.21.11の検査付きサバイバル操作は
+`client.java_1_21_11()?.checked_survival()`で、型は`voxrig::versions::java_1_21_11::checked`にあります。
+静的な対応情報は`checked::SurvivalCapabilities::for_version(version)`で、現在の操作許可ではありません。
 
 以下の`Bot`、inventory、physicsとcoherent observationは1.16.1専用です。
-rootの互換importと`versions::java_1_16_1`は同じ型で、`voxrig::survival::SurvivalState`も維持します。
+型は`voxrig::versions::java_1_16_1`からimportします（crate rootからは再exportしません）。
 1.21.11の版固有操作は[版別操作API](java-1.21.11-operations.md)を参照してください。
 サバイバルでの単純スタック交換は[在庫交換API](survival-inventory.md)の
 `swap_player_hotbar` / `wait_inventory_swap`を使います。
@@ -32,14 +39,14 @@ rootの互換importと`versions::java_1_16_1`は同じ型で、`voxrig::survival
 基本操作ではpreludeを利用できます。
 
 ```rust
-use voxrig::prelude::*;
+use voxrig::versions::java_1_16_1::prelude::*;
 ```
 
 規模の大きな利用側では、用途別moduleから明示的にimportできます。
 
 ```rust
 use voxrig::{
-    client::{Bot, Event},
+    versions::java_1_16_1::client::{Bot, Event},
     entity::EntityState,
     inventory::InventoryState,
     survival::SurvivalState,
@@ -52,7 +59,8 @@ crate rootのre-exportと用途別moduleは同一の型を参照します。
 
 | Module | 主な責務 |
 | --- | --- |
-| `client` | `Bot`、接続先、プレイヤー、イベント、sound event |
+| `client` | 共通Client、設定、版に束縛したregistry、観測、survival/creativeハンドル |
+| `versions::java_1_16_1::client` | 従来のBot、プレイヤー、イベント、sound event |
 | `manager` | 1プロセス内の複数Bot管理と集約イベント |
 | `physics` | 入力、座標、motion、collision、計測値 |
 | `world` | chunk cacheとblock観測 |
@@ -102,7 +110,7 @@ crate rootのre-exportと用途別moduleは同一の型を参照します。
 ## 観測に結び付いた操作
 
 ```rust,no_run
-use voxrig::{Bot, CoherentObservationRequest, Operation, OperationClass};
+use voxrig::versions::java_1_16_1::{Bot, CoherentObservationRequest, Operation, OperationClass};
 
 async fn rotate(bot: &Bot) -> anyhow::Result<()> {
     let observation = bot.capture_coherent_observation(CoherentObservationRequest::default()).await?;
@@ -274,7 +282,7 @@ fallibleな公開操作は`voxrig::Result<T>`を返します。`Error::kind()`�
 ```rust,no_run
 use voxrig::{ErrorKind, Result};
 
-# async fn run(bot: &voxrig::Bot) -> Result<()> {
+# async fn run(bot: &voxrig::versions::java_1_16_1::Bot) -> Result<()> {
 if let Err(error) = bot.wait_until_ready().await {
     match error.kind() {
         ErrorKind::Timeout | ErrorKind::Connection => {

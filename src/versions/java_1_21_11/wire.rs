@@ -9,6 +9,16 @@ impl<'a> Reader<'a> {
     pub fn new(bytes: &'a [u8]) -> Self {
         Self { bytes }
     }
+    /// Remaining original input, for preserving a bounded decoded field exactly.
+    pub fn remaining(&self) -> &'a [u8] {
+        self.bytes
+    }
+    /// Preserve one complete native unnamed NBT field without rendering it.
+    pub fn encoded_nbt(&mut self) -> Result<Vec<u8>> {
+        let before = self.bytes;
+        self.skip_nbt()?;
+        Ok(before[..before.len() - self.bytes.len()].to_vec())
+    }
     pub fn take(&mut self, length: usize) -> Result<&'a [u8]> {
         if length > self.bytes.len() {
             bail!("truncated packet field");
@@ -64,6 +74,20 @@ impl<'a> Reader<'a> {
     }
     pub fn varint(&mut self) -> Result<i32> {
         crate::protocol::get_varint(&mut self.bytes)
+    }
+    pub fn varlong(&mut self) -> Result<i64> {
+        let mut value = 0u64;
+        for i in 0..10 {
+            let byte = self.u8()?;
+            if i == 9 && byte > 1 {
+                bail!("varlong overflow");
+            }
+            value |= u64::from(byte & 0x7f) << (7 * i);
+            if byte & 0x80 == 0 {
+                return Ok(value as i64);
+            }
+        }
+        bail!("varlong too long")
     }
     pub fn count(&mut self, maximum: usize) -> Result<usize> {
         let count = usize::try_from(self.varint()?).context("negative packet count")?;

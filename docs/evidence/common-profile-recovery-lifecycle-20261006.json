@@ -1,0 +1,46 @@
+{
+  "version": "1.16.1",
+  "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+  "metadata_url": "https://piston-meta.mojang.com/v1/packages/54fa3af57d041d2771e66d390197b2c0288e697c/1.16.1.json",
+  "method": "Read-only inspection of original verified jar, javap via jdk.jdeps module, JVM512MiB/CPU1. Original bodies stay local.",
+  "findings": [
+    {
+      "class": "ServerLoginPacketListenerImpl (zx)",
+      "method": "handleAcceptedLogin (c), tick (b)",
+      "fact": "LOGIN_SUCCESS sy is sent before exact UUID lookup/deferred admission. DELAY_ACCEPT waits until PlayerList UUID lookup is null before placeNewPlayer."
+    },
+    {
+      "class": "PlayerList (abp)",
+      "method": "getPlayerForLogin (g), remove (c)",
+      "fact": "Same UUID duplicate is disconnected; fresh ServerPlayer and ServerPlayerGameMode are constructed. Removal calls ServerLevel.removePlayerImmediately before removing matching original UUID map entry."
+    },
+    {
+      "class": "ServerGamePacketListenerImpl (zv)",
+      "method": "onDisconnect (a(mr))",
+      "fact": "Original connection cleanup invokes PlayerList.remove."
+    },
+    {
+      "class": "ServerConnectionListener (zu)",
+      "method": "tick (c)",
+      "fact": "Only connected me.g() connections are ticked; disconnected entries are removed and disconnection is handled, so old listener does not tick its mining manager after retirement."
+    },
+    {
+      "class": "ServerLevel (zd)",
+      "method": "removePlayerImmediately (e(ze)), tick (a(BooleanSupplier))",
+      "fact": "Marks old entity removed and removes it from entity map/chunk. World tick skips removed entities."
+    },
+    {
+      "class": "PacketUtils (nk)",
+      "method": "queued ensureRunningOnSameThread lambda (a(mj,ni))",
+      "fact": "Checks original listener connection me.g() before dispatch; queued packets for disconnected original profile are ignored."
+    },
+    {
+      "class": "ClientboundGameProfilePacket (sy)",
+      "method": "read/write (a/b(mg))",
+      "fact": "UUID is four big-endian i32 words (16 bytes), followed by name. Saved original packet UUID matches independently named playerdata file."
+    }
+  ],
+  "conclusion": "Common legacy recovery must await fresh play JOIN/position plus received site/player/inventory and ground admission. LOGIN_SUCCESS alone is insufficient. No old-session release or history transfer.",
+  "modern_reference": "docs/evidence/survival-single-profile-audit-20261003.json",
+  "legacy_regression": "common_profile_recovery_cancelled_login_keeps_shared_claim: matching LOGIN_SUCCESS without new JOIN/position stays pending; cancelled admission closes fresh socket and retains shared source claim"
+}

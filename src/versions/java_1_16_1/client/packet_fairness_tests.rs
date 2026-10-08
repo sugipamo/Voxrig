@@ -10,8 +10,8 @@ mod protocol_fairness_tests {
             let (stream, _) = listener.accept().await.unwrap();
             let (mut reader, mut writer) = stream.into_split();
             read_packet(&mut reader, None).await.unwrap();
-            read_packet(&mut reader, None).await.unwrap();
-            write_packet(&mut writer, None, 0x02, &[]).await.unwrap();
+            let (_, login) = read_packet(&mut reader, None).await.unwrap();
+            write_packet(&mut writer, None, 2, &crate::client::login::test_legacy_success(&login)).await.unwrap();
             loop {
                 let (id, payload) = read_packet(&mut reader, None).await.unwrap();
                 if id == 0x10 {

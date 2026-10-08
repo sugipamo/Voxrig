@@ -1,0 +1,30 @@
+{
+  "enchantable": {
+    "child": 2,
+    "forward": 468,
+    "minimum": 1
+  },
+  "filterable_string_nodes": [
+    526,
+    530
+  ],
+  "filterable_text_node": 534,
+  "writable_book": {
+    "child": 525,
+    "forward": 524,
+    "maximum_pages": 100
+  },
+  "written_book": {
+    "children": [
+      530,
+      14,
+      2,
+      533,
+      5
+    ],
+    "generation_maximum": 3,
+    "generation_minimum": 0,
+    "sequence": 529
+  },
+  "written_pages_stream_maximum": 2147483647
+}

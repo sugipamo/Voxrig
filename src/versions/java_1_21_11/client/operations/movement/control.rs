@@ -18,28 +18,7 @@ pub enum SurvivalMotionContract {
     Predicted,
 }
 
-/// No phase means server-confirmed stopped motion.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SurvivalMotionStatus {
-    /// The bounded input sequence is being dispatched at native tick spacing.
-    Running,
-    /// Locally settled; awaiting a same-instance position observation.
-    AwaitingObservation,
-    /// Prediction and observation agree, subject to fresh standing geometry checks.
-    Observed,
-    /// Fully dispatched and locally settled under the explicit prediction contract.
-    /// Fresh native standing/geometry checks are still required before interaction.
-    Predicted,
-    /// Failure, correction, changed context or missing observation. Never auto-replay.
-    RequiresInspection,
-}
-impl SurvivalMotionStatus {
-    /// A candidate for fresh standing admission, not authority by itself.
-    pub fn is_continuation_candidate(self) -> bool {
-        matches!(self, Self::Observed | Self::Predicted)
-    }
-}
+pub use crate::client::survival::MotionStatus as SurvivalMotionStatus;
 diagnostic_record! {
     /// Diagnostic control record retained before the first packet; cannot be imported.
     #[derive(Clone, Debug, Serialize)]
@@ -76,16 +55,44 @@ diagnostic_record! {
     }
     native_only {
         #[serde(skip)]
+        common_initial: Option<crate::client::PlayerObservation>,
+        #[serde(skip)]
+        flight_stop: Option<crate::client::ObservedValue<u8>>,
+        #[serde(skip)]
+        dismount_stop: Option<DismountMotionGuard>,
+        #[serde(skip)]
         received_pose_sequence: u64,
         #[serde(skip)]
         observer_session: Option<Weak<Session>>,
     }
     diagnostic_serde {}
 }
+#[derive(Clone, Debug)]
+pub(in super::super) struct DismountMotionGuard {
+    id: crate::client::DismountId,
+    interruption: Option<survival::MotionInterruption>,
+}
 /// Common standing provenance. Packet velocity and model velocity stay distinct.
 #[derive(Clone, Debug, Serialize, serde::Deserialize, PartialEq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum StandingPositionBasis {
+    /// Private landing admission supplies this declared local controller seed.
+    /// It is not a received velocity or server rest acknowledgement.
+    DeclaredCreativeStop {
+        /// Latest fully dispatched owned flight attempt.
+        flight_attempt: u64,
+        /// Last actual own pose before the submitted flight position.
+        received_pose_sequence: u64,
+    },
+    /// Private actual-dismount admission, with a declared local zero seed.
+    DeclaredDismountStop {
+        /// Owning completed dismount attempt, diagnostic only.
+        dismount_attempt: u64,
+        /// Original actual mounted receipt, distinct from a server tick.
+        mounted_sequence: u64,
+        /// Actual own pose after the original dismount request.
+        received_pose_sequence: u64,
+    },
     /// Own native position packet with zero resolved packet velocity.
     Received {
         /// Position packet ordinal; no server-rest acknowledgement is implied.
@@ -118,6 +125,9 @@ impl StandingPositionBasis {
     pub(in super::super::super) fn geometry_reserve(&self) -> [f64; 3] {
         match self {
             Self::Received { .. } => [0.0; 3],
+            Self::DeclaredCreativeStop { .. } | Self::DeclaredDismountStop { .. } => {
+                [TERMINAL_MARGIN, 0.0, TERMINAL_MARGIN]
+            }
             Self::Predicted {
                 planning_reserve, ..
             } => *planning_reserve,
@@ -147,9 +157,13 @@ fn stable_context(state: &State, r: &SurvivalMotionRecord) -> Result<()> {
             .as_ref()
             .map(|p| p.receive_sequence)
             != Some(r.received_pose_sequence)
-        || state.operations.game_mode != Some(GameMode::Survival)
+        || state.operations.game_mode
+            != r.common_initial
+                .as_ref()
+                .map_or(Some(GameMode::Survival), |p| p.game_mode)
         || state.operations.requested_flying
-        || state.operations.abilities.is_some_and(|a| a & 2 != 0)
+        || (state.operations.abilities.is_some_and(|a| a & 2 != 0)
+            && !flight_stop_matches(state, r))
         || now.velocity != before.velocity
         || now.pose != before.pose
         || now.scale != before.scale
@@ -158,7 +172,8 @@ fn stable_context(state: &State, r: &SurvivalMotionRecord) -> Result<()> {
         || now.jump_strength != before.jump_strength
         || now.step_height != before.step_height
         || now.movement_efficiency != before.movement_efficiency
-        || now.motion_interruption.is_some()
+        || (now.motion_interruption.is_some() && !dismount_stop_matches(state, r))
+        || state.vehicles.motion_interrupted()
         || !now.effect_updates.is_empty()
         || now.health.as_ref().is_some_and(|h| h.health <= 0.0)
     {
@@ -169,6 +184,11 @@ fn stable_context(state: &State, r: &SurvivalMotionRecord) -> Result<()> {
     Ok(())
 }
 pub(in super::super::super) fn standing_basis(state: &State) -> Result<StandingPositionBasis> {
+    if state.control.active() {
+        return Err(invalid(
+            "continuous control owns the player's movement; stop it before standing operations",
+        ));
+    }
     if let Some(r) = &state.survival_motion {
         if !r.status.is_continuation_candidate() {
             return Err(invalid(
@@ -307,7 +327,7 @@ impl Operations {
         inputs: &[SurvivalInput],
         observer: &Operations,
     ) -> Result<SurvivalMotionRecord> {
-        self.start_control_path(&fixed_controls(yaw, inputs)?, Some(observer), None)
+        self.start_control_path(&fixed_controls(yaw, inputs)?, Some(observer), None, None)
             .await
     }
     /// Start a caller-selected multi-heading path, revalidating current geometry.
@@ -316,7 +336,7 @@ impl Operations {
         controls: &[SurvivalControl],
         observer: &Operations,
     ) -> Result<SurvivalMotionRecord> {
-        self.start_control_path(controls, Some(observer), None)
+        self.start_control_path(controls, Some(observer), None, None)
             .await
     }
     /// Recompute an earlier preview under the send-intent lock. Changed initial
@@ -327,7 +347,7 @@ impl Operations {
         expected: &SurvivalMovementPreview,
         observer: &Operations,
     ) -> Result<SurvivalMotionRecord> {
-        self.start_control_path(&expected.controls, Some(observer), Some(expected))
+        self.start_control_path(&expected.controls, Some(observer), Some(expected), None)
             .await
     }
     /// Explicit model-based continuation. No observer, receipt or error bound is
@@ -336,14 +356,14 @@ impl Operations {
         &self,
         controls: &[SurvivalControl],
     ) -> Result<SurvivalMotionRecord> {
-        self.start_control_path(controls, None, None).await
+        self.start_control_path(controls, None, None, None).await
     }
     /// Revalidate a preview and dispatch under the prediction-only contract.
     pub async fn start_previewed_predicted_survival_motion(
         &self,
         expected: &SurvivalMovementPreview,
     ) -> Result<SurvivalMotionRecord> {
-        self.start_control_path(&expected.controls, None, Some(expected))
+        self.start_control_path(&expected.controls, None, Some(expected), None)
             .await
     }
     async fn start_control_path(
@@ -351,6 +371,7 @@ impl Operations {
         controls: &[SurvivalControl],
         observer: Option<&Operations>,
         expected: Option<&SurvivalMovementPreview>,
+        common_mode: Option<GameMode>,
     ) -> Result<SurvivalMotionRecord> {
         if observer.is_some_and(|o| self.bot.session.id == o.bot.session.id) {
             return Err(invalid("motion requires an independent observer"));
@@ -399,7 +420,13 @@ impl Operations {
             return Err(invalid("inventory swap unresolved"));
         }
         let tick = self.bot.session.started.elapsed().as_millis() as u64 / 50;
-        let preview = preview(&mut state, self.bot.session.id, tick, controls)?;
+        let preview = preview_in_mode(
+            &mut state,
+            self.bot.session.id,
+            tick,
+            controls,
+            common_mode.unwrap_or(GameMode::Survival),
+        )?;
         if let Some(expected) = expected {
             if expected.generation != preview.generation
                 || expected.initial.connection_id != preview.initial.connection_id
@@ -424,11 +451,18 @@ impl Operations {
             return Err(invalid("motion inputs must end in predicted released rest"));
         }
         terminal_clearance(&*state, preview.frames.last().unwrap())?;
-        let run_id = state
+        let previous_id = state
             .survival_motion
             .as_ref()
-            .map_or(Some(1), |r| r.run_id.checked_add(1))
+            .map(|r| r.run_id)
+            .or(state.retired_common_motion.as_ref().map(|r| r.run_id));
+        let run_id = previous_id
+            .map_or(Some(1), |id| id.checked_add(1))
             .ok_or_else(|| invalid("motion run IDs exhausted"))?;
+        let common_initial = common_mode
+            .is_some()
+            .then(|| self.common_player_unlocked(&state))
+            .transpose()?;
         let record = SurvivalMotionRecord {
             run_id,
             connection_id: self.bot.session.id,
@@ -448,6 +482,15 @@ impl Operations {
             observed: None,
             problem: None,
             recheck: None,
+            common_initial,
+            flight_stop: state
+                .survival_motion
+                .as_ref()
+                .and_then(|r| r.flight_stop.clone()),
+            dismount_stop: state
+                .survival_motion
+                .as_ref()
+                .and_then(|r| r.dismount_stop.clone()),
             observer_session: observer.map(|o| Arc::downgrade(&o.bot.session)),
             received_pose_sequence: state
                 .motion
@@ -456,6 +499,20 @@ impl Operations {
                 .unwrap()
                 .receive_sequence,
         };
+        if common_mode.is_none() {
+            if let Some(previous) = state
+                .survival_motion
+                .as_ref()
+                .filter(|r| r.common_initial.is_some())
+            {
+                let mut retired = common_record(previous.clone())?;
+                retired.status = SurvivalMotionStatus::RequiresInspection;
+                retired.problem.get_or_insert_with(|| {
+                    "common motion superseded by native-only motion owner".to_string()
+                });
+                state.retired_common_motion = Some(retired);
+            }
+        }
         state.survival_motion = Some(record.clone());
         let owner = self.clone();
         let observer = observer.cloned();
@@ -484,19 +541,10 @@ impl Operations {
     /// returned diagnostic record cannot be imported to authorize another client.
     pub async fn survival_motion(&self) -> Option<SurvivalMotionRecord> {
         let mut state = self.bot.session.state.lock().await;
-        let problem = state
-            .survival_motion
-            .as_ref()
-            .filter(|r| r.status.is_continuation_candidate())
-            .and_then(|r| dispatched_rest(&state, r).err());
-        if let Some(problem) = problem {
-            let r = state.survival_motion.as_mut().unwrap();
-            r.status = SurvivalMotionStatus::RequiresInspection;
-            r.problem.get_or_insert_with(|| problem.to_string());
-        }
+        inspect_motion(&mut state);
         state.survival_motion.clone()
     }
-    async fn run_survival_motion(
+    pub(in super::super) async fn run_survival_motion(
         &self,
         run: &SurvivalMotionRecord,
         observer: Option<&Operations>,
@@ -556,6 +604,7 @@ impl Operations {
                 .motion
                 .begin(run.generation, sequence, expected.position, rotation)?;
             state.survival_motion.as_mut().unwrap().attempted_tick = expected.tick;
+            sync_landing_motion(&state);
             self.bot
                 .session
                 .send(ids::play_serverbound::PLAYER_INPUT, &[input_bits(input)])
@@ -569,6 +618,7 @@ impl Operations {
             state.rotation = rotation;
             state.motion.dispatched();
             state.survival_motion.as_mut().unwrap().dispatched_ticks = expected.tick;
+            sync_landing_motion(&state);
         }
         if observer.is_none() {
             let mut state = self.bot.session.state.lock().await;
@@ -579,6 +629,7 @@ impl Operations {
                 survival::context_with_basis(&mut state, self.bot.session.id, tick, basis)?;
             validate_initial(&context)?;
             state.survival_motion.as_mut().unwrap().status = SurvivalMotionStatus::Predicted;
+            sync_landing_motion(&state);
             self.bot.session.changed.notify_waiters();
             return Ok(());
         }
@@ -690,7 +741,8 @@ mod tests {
             );
         }
         for c in fixture["position_packets"].as_array().unwrap() {
-            let mut frame = Model::new([0.5, 64.0, -2.5]).frame;
+            let mut frame =
+                Model::new(crate::MinecraftVersion::Java1_21_11, [0.5, 64.0, -2.5]).frame;
             frame.on_ground = c["ground"].as_bool().unwrap();
             frame.horizontal_collision = c["collision"].as_bool().unwrap();
             assert_eq!(
@@ -815,5 +867,324 @@ impl Operations {
         r.observed = Some((**observed).clone());
         r.status = SurvivalMotionStatus::Observed;
         Ok(context)
+    }
+}
+
+fn common_record(record: SurvivalMotionRecord) -> Result<crate::client::survival::MotionRecord> {
+    let initial = record
+        .common_initial
+        .ok_or_else(|| invalid("native run was not started through common Client"))?;
+    Ok(crate::client::survival::MotionRecord {
+        session: initial.session,
+        run_id: record.run_id,
+        preview: crate::client::survival::MotionPreview {
+            initial,
+            world_revision: record.preview.initial.world_revision,
+            initial_frame: record.preview.initial_frame,
+            controls: record.preview.controls,
+            frames: record.preview.frames,
+            terminal_clearance: record.preview.terminal_clearance,
+        },
+        attempted_tick: record.attempted_tick,
+        dispatched_ticks: record.dispatched_ticks,
+        status: record.status,
+        problem: record.problem,
+    })
+}
+
+fn inspect_motion(state: &mut State) {
+    let problem = state
+        .survival_motion
+        .as_ref()
+        .filter(|r| r.status.is_continuation_candidate())
+        .and_then(|r| dispatched_rest(state, r).err());
+    if let Some(problem) = problem {
+        let r = state.survival_motion.as_mut().unwrap();
+        r.status = SurvivalMotionStatus::RequiresInspection;
+        r.problem.get_or_insert_with(|| problem.to_string());
+    }
+}
+
+// Flight deliberately retires the settled ground endpoint, retaining its diagnostics.
+// A disabled ability flag cannot restore this old standing authority.
+pub(in super::super) fn retire_common_for_flight(state: &mut State) -> Result<()> {
+    if let Some(previous) = state.survival_motion.as_ref() {
+        let mut retired = common_record(previous.clone())?;
+        retired.status = SurvivalMotionStatus::RequiresInspection;
+        retired
+            .problem
+            .get_or_insert_with(|| "ground motion superseded by owned Creative flight".into());
+        state.retired_common_motion = Some(retired);
+        state.survival_motion = None;
+    }
+    Ok(())
+}
+pub(in super::super) fn flight_can_retire(state: &State) -> bool {
+    state
+        .survival_motion
+        .as_ref()
+        .is_none_or(|r| r.common_initial.is_some())
+}
+
+fn flight_stop_matches(state: &State, run: &SurvivalMotionRecord) -> bool {
+    run.flight_stop
+        .as_ref()
+        .is_some_and(|s| Some(s) == state.operations.abilities_receipt().as_ref())
+}
+pub(in super::super) fn submitted_flight_stop(state: &State) -> bool {
+    !state.operations.requested_flying
+        && state
+            .survival_motion
+            .as_ref()
+            .is_some_and(|r| flight_stop_matches(state, r))
+}
+fn sync_landing_motion(state: &State) {
+    if let Some(r) = state
+        .survival_motion
+        .as_ref()
+        .filter(|r| r.common_initial.is_some())
+    {
+        if let Ok(r) = common_record(r.clone()) {
+            crate::client::flight::sync_motion(&state.flight_history, &r);
+            crate::client::vehicle::dismount::sync_motion(&state.dismount_history, &r);
+        }
+    }
+}
+pub(in super::super) fn landing_plan(
+    state: &mut State,
+    connection_id: u64,
+    tick: u64,
+    initial: crate::client::PlayerObservation,
+    flight_attempt: u64,
+) -> Result<SurvivalMotionRecord> {
+    let pose = state
+        .motion
+        .received_pose
+        .as_ref()
+        .ok_or_else(|| invalid("landing requires received pose"))?
+        .receive_sequence;
+    if state.operations.local_player.velocity.map(|v| v.value) != Some([0.; 3]) {
+        return Err(invalid(
+            "landing refuses unresolved received impulse velocity",
+        ));
+    }
+    if state.motion.position_basis != PositionBasis::Submitted
+        || state.motion.last_submission.as_ref().is_none_or(|s| {
+            !s.dispatched
+                || s.superseded_at.is_some()
+                || s.generation != state.loading.generation
+                || Some(s.position) != state.position
+        })
+    {
+        return Err(invalid(
+            "landing requires fully dispatched unsuperseded flight position",
+        ));
+    }
+    let basis = StandingPositionBasis::DeclaredCreativeStop {
+        flight_attempt,
+        received_pose_sequence: pose,
+    };
+    let context = survival::landing_context(state, connection_id, tick, basis)?;
+    stop_plan(
+        state,
+        connection_id,
+        initial,
+        pose,
+        context,
+        state.operations.abilities_receipt(),
+        None,
+    )
+}
+fn stop_plan(
+    state: &State,
+    connection_id: u64,
+    initial: crate::client::PlayerObservation,
+    pose: u64,
+    context: StandingContext,
+    flight_stop: Option<crate::client::ObservedValue<u8>>,
+    dismount_stop: Option<DismountMotionGuard>,
+) -> Result<SurvivalMotionRecord> {
+    validate_initial(&context)?;
+    let controls = vec![
+        SurvivalControl {
+            yaw: initial.rotation[0],
+            input: Default::default()
+        };
+        2
+    ];
+    let mut model = Model::new(crate::MinecraftVersion::Java1_21_11, context.position);
+    let initial_frame = model.initial_frame();
+    let frames = predict(state, &mut model, &controls)?;
+    terminal_clearance(state, frames.last().unwrap())?;
+    if frames.iter().any(|f| f.position != context.position) {
+        return Err(invalid("landing model displaced submitted position"));
+    }
+    let generation = state.loading.generation;
+    let run_id = state
+        .retired_common_motion
+        .as_ref()
+        .map_or(0, |r| r.run_id)
+        .checked_add(1)
+        .ok_or_else(|| invalid("motion run IDs exhausted"))?;
+    let terminal_clearance = clearance(state, frames.last().unwrap());
+    Ok(SurvivalMotionRecord {
+        run_id,
+        connection_id,
+        generation,
+        preview: SurvivalMovementPreview {
+            initial: context,
+            initial_frame,
+            generation,
+            controls,
+            frames,
+            terminal_clearance,
+        },
+        dispatched_ticks: 0,
+        attempted_tick: 0,
+        status: SurvivalMotionStatus::Running,
+        contract: SurvivalMotionContract::Predicted,
+        observer_connection_id: None,
+        initial_watch: None,
+        final_watch: None,
+        observed: None,
+        problem: None,
+        recheck: None,
+        common_initial: Some(initial),
+        flight_stop,
+        dismount_stop,
+        received_pose_sequence: pose,
+        observer_session: None,
+    })
+}
+pub(in super::super) fn dismount_ground_plan(
+    state: &mut State,
+    connection_id: u64,
+    tick: u64,
+    initial: crate::client::PlayerObservation,
+    id: crate::client::DismountId,
+) -> Result<SurvivalMotionRecord> {
+    let pose = state
+        .motion
+        .received_pose
+        .as_ref()
+        .ok_or_else(|| invalid("ground stop requires received pose"))?
+        .receive_sequence;
+    if !state
+        .motion
+        .received_position(state.loading.generation, state.position)
+        || state
+            .operations
+            .local_player
+            .velocity
+            .is_some_and(|v| v.value != [0.; 3])
+    {
+        return Err(invalid(
+            "ground stop requires actual position without a known nonzero impulse",
+        ));
+    }
+    let interruption = state.operations.local_player.motion_interruption.clone();
+    if interruption.as_ref().is_some_and(|i| {
+        !matches!(
+            i.packet_id,
+            ids::play_clientbound::SET_PASSENGERS | ids::play_clientbound::VEHICLE_MOVE
+        ) || i.receive_sequence < id.mount().receive_sequence()
+            || i.receive_sequence > pose
+    }) {
+        return Err(invalid(
+            "ground stop refuses an unbound or newer motion interruption",
+        ));
+    }
+    let basis = StandingPositionBasis::DeclaredDismountStop {
+        dismount_attempt: id.attempt(),
+        mounted_sequence: id.mount().receive_sequence(),
+        received_pose_sequence: pose,
+    };
+    let context = survival::dismount_context(state, connection_id, tick, basis)?;
+    stop_plan(
+        state,
+        connection_id,
+        initial,
+        pose,
+        context,
+        None,
+        Some(DismountMotionGuard { id, interruption }),
+    )
+}
+fn dismount_stop_matches(state: &State, run: &SurvivalMotionRecord) -> bool {
+    let Some(guard) = &run.dismount_stop else {
+        return false;
+    };
+    let vehicle = state.vehicles.capture(
+        guard.id.mount().session(),
+        state.sequence,
+        state.operations.local_player.entity_id,
+        &state.entities,
+    );
+    !state.vehicles.motion_interrupted()
+        && state.operations.local_player.motion_interruption == guard.interruption
+        && state.dismount_history.lock().expect("dismount history").as_ref().is_some_and(|r|
+            r.id == guard.id && r.grounding.as_ref().is_some_and(|g| {
+                // Completed ground control retains the original absence proof
+                // when the already unmounted vehicle later despawns.
+                g.motion.problem.is_none() && (
+                    g.motion.status.is_continuation_candidate()
+                    || vehicle.relation.as_ref().is_some_and(|r| matches!(r.value,
+                        crate::client::VehicleRelation::Unmounted { previous_mount } if previous_mount == guard.id.mount()))
+                )
+            }))
+}
+pub(in super::super) fn submitted_dismount_stop(state: &State) -> bool {
+    state
+        .survival_motion
+        .as_ref()
+        .is_some_and(|r| dismount_stop_matches(state, r))
+}
+pub(in super::super) fn landing_common_record(
+    run: &SurvivalMotionRecord,
+) -> Result<crate::client::survival::MotionRecord> {
+    common_record(run.clone())
+}
+
+pub(in super::super) fn retire_common_for_mount(state: &mut State) -> Result<()> {
+    if state.survival_motion.as_ref().is_some_and(|r| {
+        r.common_initial.is_some()
+            && r.status != SurvivalMotionStatus::Running
+            && !r.preview.frames.is_empty()
+            && usize::from(r.dispatched_ticks) == r.preview.frames.len()
+            && r.attempted_tick == r.dispatched_ticks
+            && r.preview.frames.last().is_some_and(|f| f.resting)
+    }) {
+        let mut run = state.survival_motion.take().unwrap();
+        run.status = SurvivalMotionStatus::RequiresInspection;
+        run.problem
+            .get_or_insert_with(|| "actual mount superseded settled ground motion".into());
+        state.retired_common_motion = Some(common_record(run)?);
+    }
+    Ok(())
+}
+
+impl crate::client::adapter::PathMotionOps for Operations {
+    async fn start_predicted_path(
+        &self,
+        mode: GameMode,
+        controls: &[SurvivalControl],
+    ) -> Result<crate::client::survival::MotionRecord> {
+        common_record(
+            self.start_control_path(controls, None, None, Some(mode))
+                .await?,
+        )
+    }
+    async fn motion_record(&self) -> Result<Option<crate::client::survival::MotionRecord>> {
+        let mut state = self.bot.session.state.lock().await;
+        inspect_motion(&mut state);
+        if let Some(record) = state
+            .survival_motion
+            .as_ref()
+            .filter(|record| record.common_initial.is_some())
+        {
+            common_record(record.clone()).map(Some)
+        } else {
+            Ok(state.retired_common_motion.clone())
+        }
     }
 }

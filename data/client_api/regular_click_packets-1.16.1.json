@@ -1,0 +1,1322 @@
+[
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "000009007fff0000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "000009017fff0000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "030000007fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "030000017fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "7f0000007fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "7f0000017fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:stone"
+    },
+    "payload_hex": "000009007fff0001010100",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:stone"
+    },
+    "payload_hex": "000009017fff0001010100",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:stone"
+    },
+    "payload_hex": "030000007fff0001010100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:stone"
+    },
+    "payload_hex": "030000017fff0001010100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:stone"
+    },
+    "payload_hex": "7f0000007fff0001010100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:stone"
+    },
+    "payload_hex": "7f0000017fff0001010100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:stone"
+    },
+    "payload_hex": "000009007fff0001010300",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:stone"
+    },
+    "payload_hex": "000009017fff0001010300",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:stone"
+    },
+    "payload_hex": "030000007fff0001010300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:stone"
+    },
+    "payload_hex": "030000017fff0001010300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:stone"
+    },
+    "payload_hex": "7f0000007fff0001010300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:stone"
+    },
+    "payload_hex": "7f0000017fff0001010300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:stone"
+    },
+    "payload_hex": "000009007fff0001011000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:stone"
+    },
+    "payload_hex": "000009017fff0001011000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:stone"
+    },
+    "payload_hex": "030000007fff0001011000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:stone"
+    },
+    "payload_hex": "030000017fff0001011000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:stone"
+    },
+    "payload_hex": "7f0000007fff0001011000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:stone"
+    },
+    "payload_hex": "7f0000017fff0001011000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "000009007fff0000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "000009017fff0000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "030000007fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "030000017fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "7f0000007fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "7f0000017fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:dirt"
+    },
+    "payload_hex": "000009007fff0001090100",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:dirt"
+    },
+    "payload_hex": "000009017fff0001090100",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:dirt"
+    },
+    "payload_hex": "030000007fff0001090100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:dirt"
+    },
+    "payload_hex": "030000017fff0001090100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:dirt"
+    },
+    "payload_hex": "7f0000007fff0001090100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:dirt"
+    },
+    "payload_hex": "7f0000017fff0001090100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:dirt"
+    },
+    "payload_hex": "000009007fff0001090300",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:dirt"
+    },
+    "payload_hex": "000009017fff0001090300",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:dirt"
+    },
+    "payload_hex": "030000007fff0001090300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:dirt"
+    },
+    "payload_hex": "030000017fff0001090300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:dirt"
+    },
+    "payload_hex": "7f0000007fff0001090300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:dirt"
+    },
+    "payload_hex": "7f0000017fff0001090300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:dirt"
+    },
+    "payload_hex": "000009007fff0001091000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:dirt"
+    },
+    "payload_hex": "000009017fff0001091000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:dirt"
+    },
+    "payload_hex": "030000007fff0001091000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:dirt"
+    },
+    "payload_hex": "030000017fff0001091000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:dirt"
+    },
+    "payload_hex": "7f0000007fff0001091000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:dirt"
+    },
+    "payload_hex": "7f0000017fff0001091000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "000009007fff0000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "000009017fff0000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "030000007fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "030000017fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "7f0000007fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "7f0000017fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:egg"
+    },
+    "payload_hex": "000009007fff0001aa050100",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:egg"
+    },
+    "payload_hex": "000009017fff0001aa050100",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:egg"
+    },
+    "payload_hex": "030000007fff0001aa050100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:egg"
+    },
+    "payload_hex": "030000017fff0001aa050100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:egg"
+    },
+    "payload_hex": "7f0000007fff0001aa050100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:egg"
+    },
+    "payload_hex": "7f0000017fff0001aa050100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:egg"
+    },
+    "payload_hex": "000009007fff0001aa050300",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:egg"
+    },
+    "payload_hex": "000009017fff0001aa050300",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:egg"
+    },
+    "payload_hex": "030000007fff0001aa050300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:egg"
+    },
+    "payload_hex": "030000017fff0001aa050300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:egg"
+    },
+    "payload_hex": "7f0000007fff0001aa050300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:egg"
+    },
+    "payload_hex": "7f0000017fff0001aa050300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:egg"
+    },
+    "payload_hex": "000009007fff0001aa051000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:egg"
+    },
+    "payload_hex": "000009017fff0001aa051000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:egg"
+    },
+    "payload_hex": "030000007fff0001aa051000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:egg"
+    },
+    "payload_hex": "030000017fff0001aa051000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:egg"
+    },
+    "payload_hex": "7f0000007fff0001aa051000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:egg"
+    },
+    "payload_hex": "7f0000017fff0001aa051000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "000009007fff0000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "000009017fff0000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "030000007fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "030000017fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "7f0000007fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "7f0000017fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:saddle"
+    },
+    "payload_hex": "000009007fff000198050100",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:saddle"
+    },
+    "payload_hex": "000009017fff000198050100",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:saddle"
+    },
+    "payload_hex": "030000007fff000198050100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:saddle"
+    },
+    "payload_hex": "030000017fff000198050100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:saddle"
+    },
+    "payload_hex": "7f0000007fff000198050100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:saddle"
+    },
+    "payload_hex": "7f0000017fff000198050100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:saddle"
+    },
+    "payload_hex": "000009007fff000198050300",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:saddle"
+    },
+    "payload_hex": "000009017fff000198050300",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:saddle"
+    },
+    "payload_hex": "030000007fff000198050300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:saddle"
+    },
+    "payload_hex": "030000017fff000198050300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:saddle"
+    },
+    "payload_hex": "7f0000007fff000198050300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:saddle"
+    },
+    "payload_hex": "7f0000017fff000198050300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:saddle"
+    },
+    "payload_hex": "000009007fff000198051000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:saddle"
+    },
+    "payload_hex": "000009017fff000198051000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:saddle"
+    },
+    "payload_hex": "030000007fff000198051000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:saddle"
+    },
+    "payload_hex": "030000017fff000198051000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:saddle"
+    },
+    "payload_hex": "7f0000007fff000198051000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:saddle"
+    },
+    "payload_hex": "7f0000017fff000198051000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "000009007fff0000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "000009017fff0000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "030000007fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "030000017fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "7f0000007fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 0,
+      "item": null
+    },
+    "payload_hex": "7f0000017fff0000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:white_shulker_box"
+    },
+    "payload_hex": "000009007fff0001b0030100",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:white_shulker_box"
+    },
+    "payload_hex": "000009017fff0001b0030100",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:white_shulker_box"
+    },
+    "payload_hex": "030000007fff0001b0030100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:white_shulker_box"
+    },
+    "payload_hex": "030000017fff0001b0030100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:white_shulker_box"
+    },
+    "payload_hex": "7f0000007fff0001b0030100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 1,
+      "item": "minecraft:white_shulker_box"
+    },
+    "payload_hex": "7f0000017fff0001b0030100",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:white_shulker_box"
+    },
+    "payload_hex": "000009007fff0001b0030300",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:white_shulker_box"
+    },
+    "payload_hex": "000009017fff0001b0030300",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:white_shulker_box"
+    },
+    "payload_hex": "030000007fff0001b0030300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:white_shulker_box"
+    },
+    "payload_hex": "030000017fff0001b0030300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:white_shulker_box"
+    },
+    "payload_hex": "7f0000007fff0001b0030300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 3,
+      "item": "minecraft:white_shulker_box"
+    },
+    "payload_hex": "7f0000017fff0001b0030300",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:white_shulker_box"
+    },
+    "payload_hex": "000009007fff0001b0031000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:white_shulker_box"
+    },
+    "payload_hex": "000009017fff0001b0031000",
+    "revision": 32767,
+    "slot": 9,
+    "window": 0
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:white_shulker_box"
+    },
+    "payload_hex": "030000007fff0001b0031000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:white_shulker_box"
+    },
+    "payload_hex": "030000017fff0001b0031000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 3
+  },
+  {
+    "button": 0,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:white_shulker_box"
+    },
+    "payload_hex": "7f0000007fff0001b0031000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  },
+  {
+    "button": 1,
+    "cursor_comparison": {
+      "count": 16,
+      "item": "minecraft:white_shulker_box"
+    },
+    "payload_hex": "7f0000017fff0001b0031000",
+    "revision": 32767,
+    "slot": 0,
+    "window": 127
+  }
+]

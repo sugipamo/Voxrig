@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, ensure};
 use std::time::Duration;
-use voxrig::{BotManager, Player, Server};
+use voxrig::versions::java_1_16_1::{BotManager, Player, Server};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn wait_for(bot: &voxrig::Bot, on_ground: bool) -> Result<()> {
+async fn wait_for(bot: &voxrig::versions::java_1_16_1::Bot, on_ground: bool) -> Result<()> {
     tokio::time::timeout(Duration::from_secs(3), async {
         while bot.player().await.on_ground != on_ground {
             tokio::time::sleep(Duration::from_millis(10)).await;

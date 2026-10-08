@@ -3,7 +3,8 @@ use std::{
     io::{self, Write},
     time::Duration,
 };
-use voxrig::{BlockFace, Client, ConnectionConfig, MinecraftVersion, Region, Server};
+use voxrig::versions::java_1_16_1::{BlockFace, Server};
+use voxrig::{Client, ConnectionConfig, MinecraftVersion, Region};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -60,6 +61,7 @@ async fn main() -> anyhow::Result<()> {
     );
     client.start_packet_trace(16_777_216).await?;
     client
+        .java_1_21_11()?
         .interact_block([99, 180, 100], BlockFace::East)
         .await?;
     let wait_ms: u64 = std::env::var("INPUT_WAIT_MS")
@@ -69,24 +71,25 @@ async fn main() -> anyhow::Result<()> {
     let mut transient = Vec::new();
     while started.elapsed() < Duration::from_millis(wait_ms) {
         tokio::time::sleep(Duration::from_millis(10)).await;
-        let sample = client.observe_client_region(region).await?;
+        let sample = client.java_1_21_11()?.observe_client_region(region).await?;
         if transient.len() < 200 {
             transient.push(sample);
         }
     }
     let on = client.observe_region(region).await?;
-    let on_client = client.observe_client_region(region).await?;
+    let on_client = client.java_1_21_11()?.observe_client_region(region).await?;
     client
+        .java_1_21_11()?
         .interact_block([99, 180, 100], BlockFace::East)
         .await?;
     let started = tokio::time::Instant::now();
     while started.elapsed() < Duration::from_millis(500) {
         tokio::time::sleep(Duration::from_millis(10)).await;
-        transient.push(client.observe_client_region(region).await?);
+        transient.push(client.java_1_21_11()?.observe_client_region(region).await?);
     }
     tokio::time::sleep(Duration::from_millis(3500)).await;
     let after = client.observe_region(region).await?;
-    let after_client = client.observe_client_region(region).await?;
+    let after_client = client.java_1_21_11()?.observe_client_region(region).await?;
     let trace = client.stop_packet_trace().await?;
     let record = serde_json::json!({"fixture":fixture,"input_wait_ms":wait_ms,"settling_ms":4000,"before":before,"on":on,"after":after,"trace":trace,"on_client":on_client,"after_client":after_client,"transient":transient});
     serde_json::to_writer_pretty(file, &record)?;

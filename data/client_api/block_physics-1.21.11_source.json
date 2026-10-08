@@ -1,0 +1,14 @@
+{
+  "arguments": "1.21.11 w amv mi e jq b eog J K L",
+  "generator": {
+    "scripts/ExportBlockPhysics.java": "cac100014121ae16651fa8a9f69dda0447ef41d980e83f04d769b12e877fadbd"
+  },
+  "mappings": "Mojang official server mappings",
+  "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+  "minecraft": "Java 1.21.11",
+  "outputs": {
+    "data/client_api/block_physics-1.21.11.json": "fd12d95921790ef8181ddce077c2b735d813010c16a929bcaed4bdd6b89a6287"
+  },
+  "server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "transformation": "Bootstraps the unmodified server, iterates the built-in block registry and reads each block's friction, speedFactor and jumpFactor fields."
+}

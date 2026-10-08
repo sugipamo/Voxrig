@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "versions": [
+    {
+      "inputs": [
+        {
+          "payload_hex": "000000000000000002",
+          "shift": true
+        },
+        {
+          "payload_hex": "000000000000000000",
+          "shift": false
+        }
+      ],
+      "passengers": [
+        {
+          "passengers": [
+            42
+          ],
+          "payload_hex": "0a012a",
+          "vehicle": 10
+        },
+        {
+          "passengers": [],
+          "payload_hex": "0a00",
+          "vehicle": 10
+        },
+        {
+          "passengers": [
+            300,
+            42
+          ],
+          "payload_hex": "800102ac022a",
+          "vehicle": 128
+        }
+      ],
+      "version": "1.16.1"
+    },
+    {
+      "inputs": [
+        {
+          "payload_hex": "20",
+          "shift": true
+        },
+        {
+          "payload_hex": "00",
+          "shift": false
+        }
+      ],
+      "passengers": [
+        {
+          "passengers": [
+            42
+          ],
+          "payload_hex": "0a012a",
+          "vehicle": 10
+        },
+        {
+          "passengers": [],
+          "payload_hex": "0a00",
+          "vehicle": 10
+        },
+        {
+          "passengers": [
+            300,
+            42
+          ],
+          "payload_hex": "800102ac022a",
+          "vehicle": 128
+        }
+      ],
+      "version": "1.21.11"
+    }
+  ]
+}

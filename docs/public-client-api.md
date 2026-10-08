@@ -1,5 +1,29 @@
 # Voxrigの公開client API
 
+Client共通化ブランチでは`Client::survival()` / `Client::creative()`を両版の共通入口とします。
+共通型・受信/予測を区別したcapture・版別registryと移行変更は
+[Client共通化](client-unification.md)を参照してください。
+`Client::revoke_connection()`は両版の元transportと全cloneを同期で不可逆に遮断します。
+共通`ConnectionRevocation`は版／connection IDのローカルな遮断事実で、通常のdisconnect完了や
+送信取消成功の証明ではありません。[共通緊急遮断](common-connection-revocation.md)を参照してください。
+共通の`Survival::target_block` / `Creative::target_block`は限定dry standingから最初のstatic outlineとcaptureを読出します。
+両版の7種類・全102storage state（chestのinset等）も公式JARから取得した形状で扱います。
+queryを採掘/設置の実行許可にしません。[狙い判定の範囲・検証](common-survival-targeting.md)を参照してください。
+共通の`Survival::place_cube`と`placement_record`はdefault cubeの一度の設置と、対象・材料の実受信を両版で保持します。
+native ACKの有無と取消後の未解決状態は[共通設置の契約](common-survival-placement.md)を参照してください。
+両modeの`swap_hotbar` / `inventory_swap_record`はdefault player stackの交換を両版に実装しています。
+一般containerとの違い、legacy応答とmodern revisionの扱いは[共通在庫交換](common-inventory-swaps.md)を参照してください。
+共通Clientの両modeで通常Shift転送を使う場合は[転送契約](common-inventory-transfers.md)を参照してください。
+`Client::screen_state()`は開いたcontainerのidentity・実内容・cursor・native layoutを両版で観測します。
+開いたstorageとの`swap_container_hotbar`、opening-boundな`close_container`は両modeで同じrecordを返します。一般open/click列は後続実装です。
+[コンテナ画面観測](common-container-observation.md)と[共通在庫交換](common-inventory-swaps.md)を参照してください。
+closeのcomplete dispatchとactual replyは[共通container close](common-container-close.md)で区別します。
+close後も同じ`swap_hotbar`を使えます。actual received windowと明示的なlocal UIを分ける
+`player_screen` / `player_screen_revision`は[共通プレイヤー画面](common-player-screen.md)を参照してください。
+下記の追加検査契約は
+`client.java_1_21_11()?.checked_survival()`で明示的に選ぶ1.21.11用の拡張です。
+
+
 2026-10-03。deepplanning、minetool、DustRouteの改良をVoxrigへ集約する際の設計正本。
 各プロジェクトのロードマップや過去のcheckpointは実装経緯の記録であり、公開APIの仕様ではない。
 
@@ -19,11 +43,11 @@ package名は`voxrig`、Rust crate名も`voxrig`とする。公開APIを再設�
 - `versions::java_1_16_1`と`versions::java_1_21_11`は版別の型・registry・操作・保証。
   1.21.11は1.16.1の全機能を持つとは扱わない。版依存のIDやinventory形式を共通型へ丸めない。
 - `Bot`/`BotManager`とrootの互換importは1.16.1へ固定する。
-- `Client::survival_capabilities()`と`checked_survival::SurvivalCapabilities::for_version()`は
-  接続前にも確認できる静的な対応契約。`Client::survival()`はセッションに結び付いた検査付き操作を返す。
+- `checked::SurvivalCapabilities::for_version()`は
+  接続前にも確認できる静的な対応契約。`client.java_1_21_11()?.checked_survival()`はセッションに結び付いた検査付き操作を返す。
   現在は1.21.11の`ObservedDryCubeV1`と明示的に選ぶ`PredictedDryCubeV1`で、
   1.16.1はI/O前に`Unsupported`を返す。
-  対応情報は現在の操作許可ではない。`checked_survival`の型は現在のnative 1.21.11表現を共有し、
+  対応情報は現在の操作許可ではない。`java_1_21_11::checked`の型は現在のnative 1.21.11表現を共有し、
   他版で同じ意味を持つとは約束しない。従来の`survival::SurvivalState`は1.16.1用として維持する。
 - 1.16.1の`lifecycle`、`observation`、`operation`は汎用controllerのための公開API。
   同じ名前の型が存在しても、1.21.11の接続に同じ保証があるとは推論しない。
@@ -96,7 +120,7 @@ staleなscreen revisionでもserverはクリックを実行し得るため、自
 `place_survival_cube`は受信した単純スタックと支持block・空きcellを確認して送信する。
 `wait_survival_placement`等は対象block、1個の材料消費、処理sequenceの受信を照合する。
 未解決・競合・timeoutは成功やrollbackへ読み替えず、同じ操作を繰り返さない。
-survivalのraw `use_on_block`は拒否し、この確認付き経路を使う。
+1.21.11版固有のraw `use_on_block`はsurvivalでは拒否し、この確認付き経路を使う（共通APIの送信だけの`Survival::use_on_block`は[common-item-use.md](common-item-use.md)）。
 
 位置誤差を含む照準は、同じfull cubeの同じ面へreach内で到達する条件と、
 視線が連続して通り得るcellを検査する。視線の外側のblockは遮蔽物と扱わず、
@@ -186,3 +210,33 @@ deepplanning・minetool・DustRouteの実環境検証は利用側で引き続き
 未実施・不合格・基準版との差はそのまま記録し、main統合を実採用成功の証明にしない。
 Voxrig側のunit/mock/fixture成功も実環境の検証を代替しない。
 過去の1.16.1同地点2 Bot移動試験の不合格は、上流baseline比較を含めて引き続き確認対象とする。
+
+## 共通の限定採掘
+
+通常のClient handleは`Survival::start_mining` / `finish_mining` / `abort_mining` /
+`mining_record`を両版で提供する。共通側が`MiningId`・record/stage・send・target/protocol・
+inventory interruptionの型を所有する。modernの既存native intent/recovery APIは維持する。
+同じrecordでもlegacy action応答とmodern interaction ACKの意味は区別する。
+受信済み空手のdirt/stoneに限定し、除去観測では元接続の次のmutationを許可しない。
+[共通Survivalの採掘](common-survival-mining.md)に条件と検証を記録する。
+
+両modeの`open_container(target)`は監査済みstorageのempty-hand activationを共通化する。
+`container_open_record()`は送信とactual screen/content/cursor/modern processingの事実を保持する。
+[対応条件と取消](common-container-open.md)を確認し、一般UI/クリック/製作の対応とは区別する。
+
+
+## 通常のレシピブック配置
+
+両handleで`place_recipe(&RecipePlacementPlan)`と`recipe_placement_record()`を公開する。
+coherent contextの実recipe IDからsealed Next／Maximum planを作り、送信直前にも受信基準を再検査する。
+`ObservedPlaced`は実入力と在庫の保存を確認した履歴で、完成品取得の保証ではない。
+待機取消後もClient所有の一回送信を保持し、検査による再送は行わない。
+結果は新しいgridから明示的に取り、通常clickで格納する。
+`can_request()`で安全な材料不足の要求も扱い、実ghostと空盤面・在庫保存を確認すると
+`ObservedGhost`になる。`Client::received_recipe_ghost()`は元UI・registryへ固定した実表示を返す。
+新版応答はrecipe IDを持たず、選択recipeの応答や完成品と断定しない。古いplanは再送できない。
+`take_crafting_result`は空cursorまたは同じitem/dataの実受信cursorへ結果全体を結合する。
+結合先の実効容量を超える結果は送信前に拒否し、部分取得は行わない。`transfer_crafting_result`は一回のnative QUICK_MOVEで在庫へ転送し、
+`ObservedTransferred`に実grid／主在庫と変わらない実cursor、在庫の実増加を保持する。
+server内部の反復回数・製作総数・後続の部分移動やdropは予測しない。
+[共通レシピ](common-recipes.md)に公開契約と制限を記載する。

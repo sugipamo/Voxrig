@@ -1,5 +1,6 @@
 //! Isolated-server probe for the explicitly versioned observation API.
-use voxrig::{Client, ConnectionConfig, MinecraftVersion, Region, Server};
+use voxrig::client::Server;
+use voxrig::{Client, ConnectionConfig, MinecraftVersion, Region};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

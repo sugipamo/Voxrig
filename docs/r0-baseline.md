@@ -58,7 +58,7 @@ The Host started an isolated Minecraft Java Edition 1.16.1 offline-mode flat
 server bound to `127.0.0.1:25566` and ran:
 
 ```text
-MC_PORT=25566 cargo run --release --example api_surface_probe
+MC_PORT=25566 cargo run --release --features native --example api_surface_probe
 ```
 
 Result: pass.

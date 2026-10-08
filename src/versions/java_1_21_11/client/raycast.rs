@@ -221,6 +221,10 @@ fn shapes() -> &'static Shapes {
         .expect("validated generated collision data")
     })
 }
+/// Native collision boxes of a complete Java 1.21.11 state, cell-relative.
+pub(crate) fn collision_boxes(state: &NativeBlockState) -> crate::Result<&'static [[f64; 6]]> {
+    Ok(boxes(state)?)
+}
 fn boxes(state: &NativeBlockState) -> anyhow::Result<&'static [[f64; 6]]> {
     let id = super::super::state_id(state)? as usize;
     let shapes = shapes();

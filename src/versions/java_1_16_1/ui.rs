@@ -53,7 +53,7 @@ pub struct Team {
     /// The `members` value.
     pub members: Vec<String>,
 }
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 /// State and protocol data represented by `TitleState`.
 pub struct TitleState {
     /// The `title_json` value.
@@ -68,6 +68,18 @@ pub struct TitleState {
     pub stay: i32,
     /// The `fade_out` value.
     pub fade_out: i32,
+}
+impl Default for TitleState {
+    fn default() -> Self {
+        Self {
+            title_json: None,
+            subtitle_json: None,
+            action_bar_json: None,
+            fade_in: 10,
+            stay: 70,
+            fade_out: 20,
+        }
+    }
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 /// State and protocol data represented by `WorldBorder`.
@@ -230,7 +242,11 @@ impl UiState {
         let action = get_varint(&mut r)?;
         let objective = get_string(&mut r)?;
         if action == 1 {
-            self.scores.remove(&(item, objective));
+            if objective.is_empty() {
+                self.scores.retain(|(owner, _), _| owner != &item);
+            } else {
+                self.scores.remove(&(item, objective));
+            }
         } else {
             let value = get_varint(&mut r)?;
             self.scores.insert((item, objective), value);
@@ -238,67 +254,76 @@ impl UiState {
         Ok(())
     }
     pub(crate) fn apply_team(&mut self, p: &[u8]) -> Result<()> {
-        let mut r = p;
-        let key = get_string(&mut r)?;
-        let mode = take_i8(&mut r)?;
+        let packet = crate::client::ui::teams::decode(crate::MinecraftVersion::Java1_16_1, p)?;
+        let key = packet.name;
+        let mode = packet.operation;
+        if mode == 0 && self.teams.contains_key(&key) {
+            bail!("duplicate native team declaration");
+        }
         if mode == 1 {
             self.teams.remove(&key);
             return Ok(());
         }
-        if mode == 0 || mode == 2 {
-            let display_json = get_string(&mut r)?;
-            let friendly_flags = take_i8(&mut r)?;
-            let name_tag_visibility = get_string(&mut r)?;
-            let collision_rule = get_string(&mut r)?;
-            let color = get_varint(&mut r)?;
-            let prefix_json = get_string(&mut r)?;
-            let suffix_json = get_string(&mut r)?;
-            let old = self.teams.remove(&key);
-            let members = old.map_or_else(Vec::new, |t| t.members);
+        if mode != 0 && !self.teams.contains_key(&key) {
+            return Ok(());
+        }
+        if mode == 4
+            && packet
+                .members
+                .iter()
+                .any(|p| !self.teams[&key].members.contains(p))
+        {
+            bail!("team leave does not match native membership");
+        }
+        if let Some(params) = packet.parameters {
+            let json = |text: crate::client::ui::UiText| match text {
+                crate::client::ui::UiText::LegacyJson { json } => json,
+                _ => unreachable!("legacy team decoder emitted another text format"),
+            };
+            let members = self
+                .teams
+                .remove(&key)
+                .map_or_else(Vec::new, |team| team.members);
             self.teams.insert(
                 key.clone(),
                 Team {
                     name: key.clone(),
-                    display_json,
-                    friendly_flags,
-                    name_tag_visibility,
-                    collision_rule,
-                    color,
-                    prefix_json,
-                    suffix_json,
+                    display_json: json(params.display),
+                    friendly_flags: params.friendly_flags as i8,
+                    name_tag_visibility: params.visibility.legacy_name().to_owned(),
+                    collision_rule: params.collision.legacy_name().to_owned(),
+                    color: params.color.native_id(),
+                    prefix_json: json(params.prefix),
+                    suffix_json: json(params.suffix),
                     members,
                 },
             );
         }
-        if mode == 0 || mode == 3 || mode == 4 {
-            let count = get_varint(&mut r)?;
-            if !(0..=4096).contains(&count) {
-                bail!("invalid team member count {count}");
-            }
-            let mut players = Vec::with_capacity(count as usize);
-            for _ in 0..count {
-                players.push(get_string(&mut r)?);
-            }
-            if let Some(team) = self.teams.get_mut(&key) {
-                if mode == 4 {
-                    team.members.retain(|p| !players.contains(p));
-                } else {
-                    for player in players {
-                        if !team.members.contains(&player) {
-                            team.members.push(player);
-                        }
+        if mode == 0 || mode == 3 {
+            for member in packet.members {
+                for (name, team) in &mut self.teams {
+                    if name != &key {
+                        team.members.retain(|p| p != &member);
                     }
                 }
+                let team = self.teams.get_mut(&key).unwrap();
+                if !team.members.contains(&member) {
+                    team.members.push(member);
+                }
             }
-        }
-        if !(0..=4).contains(&mode) {
-            bail!("unknown team mode {mode}");
+        } else if mode == 4 {
+            self.teams
+                .get_mut(&key)
+                .unwrap()
+                .members
+                .retain(|p| !packet.members.contains(p));
         }
         Ok(())
     }
     pub(crate) fn apply_title(&mut self, p: &[u8]) -> Result<()> {
         let mut r = p;
-        match get_varint(&mut r)? {
+        let action = get_varint(&mut r)?;
+        match action {
             0 => self.title.title_json = Some(get_string(&mut r)?),
             1 => self.title.subtitle_json = Some(get_string(&mut r)?),
             2 => self.title.action_bar_json = Some(get_string(&mut r)?),
@@ -308,11 +333,14 @@ impl UiState {
                 self.title.stay = c.read_i32::<BigEndian>()?;
                 self.title.fade_out = c.read_i32::<BigEndian>()?;
             }
-            4 => self.title = TitleState::default(),
-            5 => {
+            4 | 5 => {
                 self.title.title_json = None;
                 self.title.subtitle_json = None;
-                self.title.action_bar_json = None;
+                if action == 5 {
+                    self.title.fade_in = 10;
+                    self.title.stay = 70;
+                    self.title.fade_out = 20;
+                }
             }
             a => bail!("unknown title action {a}"),
         }
@@ -344,8 +372,8 @@ impl UiState {
                 self.world_border.diameter = take_f64(&mut r)?;
                 self.world_border.transition_millis = get_varlong(&mut r)?;
                 self.world_border.portal_boundary = get_varint(&mut r)?;
-                self.world_border.warning_time = get_varint(&mut r)?;
                 self.world_border.warning_blocks = get_varint(&mut r)?;
+                self.world_border.warning_time = get_varint(&mut r)?;
             }
             4 => self.world_border.warning_time = get_varint(&mut r)?,
             5 => self.world_border.warning_blocks = get_varint(&mut r)?,

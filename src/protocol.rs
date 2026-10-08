@@ -143,10 +143,14 @@ pub async fn write_packet<W: AsyncWrite + Unpin>(
     if frame.len() > MAX_PACKET_SIZE {
         bail!("packet frame exceeds {MAX_PACKET_SIZE} bytes");
     }
-    let mut prefix = Vec::new();
-    put_varint(&mut prefix, frame.len() as i32);
-    writer.write_all(&prefix).await?;
-    writer.write_all(&frame).await?;
+    // One async write attempt includes both length and body. Small protocol
+    // replies must not yield at an artificial header-only cancellation boundary.
+    // A genuine partial/backpressured write still belongs to the sender's
+    // existing uncertainty guard; this does not make TCP writes atomic.
+    let mut framed = Vec::with_capacity(frame.len() + 5);
+    put_varint(&mut framed, frame.len() as i32);
+    framed.extend(frame);
+    writer.write_all(&framed).await?;
     writer.flush().await?;
     Ok(())
 }
@@ -154,6 +158,60 @@ pub async fn write_packet<W: AsyncWrite + Unpin>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn small_reply_uses_available_write_poll_for_both_header_and_body() {
+        use std::{
+            pin::Pin,
+            task::{Context, Poll},
+        };
+        struct OnceWritable {
+            bytes: Vec<u8>,
+            used: bool,
+        }
+        impl AsyncWrite for OnceWritable {
+            fn poll_write(
+                mut self: Pin<&mut Self>,
+                _: &mut Context<'_>,
+                bytes: &[u8],
+            ) -> Poll<std::io::Result<usize>> {
+                if self.used {
+                    return Poll::Pending;
+                }
+                self.used = true;
+                self.bytes.extend(bytes);
+                Poll::Ready(Ok(bytes.len()))
+            }
+            fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+                Poll::Ready(Ok(()))
+            }
+            fn poll_shutdown(
+                self: Pin<&mut Self>,
+                _: &mut Context<'_>,
+            ) -> Poll<std::io::Result<()>> {
+                Poll::Ready(Ok(()))
+            }
+        }
+        for compression in [None, Some(256)] {
+            let mut writer = OnceWritable {
+                bytes: Vec::new(),
+                used: false,
+            };
+            let mut send = Box::pin(write_packet(&mut writer, compression, 3, &[0, 0, 0, 17]));
+            std::future::poll_fn(|cx| match std::future::Future::poll(send.as_mut(), cx) {
+                Poll::Ready(result) => {
+                    result.unwrap();
+                    Poll::Ready(())
+                }
+                Poll::Pending => panic!("small reply yielded after writing only its header"),
+            })
+            .await;
+            drop(send);
+            let (id, payload) = read_packet(&mut writer.bytes.as_slice(), compression)
+                .await
+                .unwrap();
+            assert_eq!((id, payload), (3, vec![0, 0, 0, 17]));
+        }
+    }
     #[test]
     fn varint_examples() {
         for value in [0, 1, 127, 128, 255, 2_147_483_647, -1] {

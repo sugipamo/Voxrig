@@ -12,7 +12,7 @@ use std::time::Duration;
 use voxrig::{Client, Result};
 
 async fn transfer(client: &Client) -> Result<()> {
-    let operations = client.java_1_21_11_operations()?;
+    let operations = client.java_1_21_11()?.operations();
     let submission = operations.swap_player_hotbar(9, 0).await?;
     let received = operations
         .wait_inventory_swap(&submission, Duration::from_secs(3))
