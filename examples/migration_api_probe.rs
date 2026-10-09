@@ -6,8 +6,29 @@ use voxrig::client::prelude::*;
 async fn execute(
     client: &Client,
     request: &serde_json::Value,
+    history_cursor: &mut Option<EntityHistoryCursor>,
 ) -> anyhow::Result<serde_json::Value> {
     Ok(match request["command"].as_str().unwrap_or_default() {
+        "history" | "history_tail" => {
+            let resume = request["resume"].as_bool().unwrap_or(false);
+            let page = client
+                .entity_history_after(
+                    if resume { *history_cursor } else { None },
+                    request["maximum"].as_u64().unwrap_or(1024).try_into()?,
+                )
+                .await?;
+            *history_cursor = Some(if request["command"] == "history_tail" {
+                page.latest_cursor
+            } else {
+                page.next_cursor
+            });
+            serde_json::to_value(page)?
+        }
+        "entities" => serde_json::to_value(client.entities().await?)?,
+        "revoke" => {
+            let _ = client.revoke_connection();
+            serde_json::json!({"revoked":true})
+        }
         "player" => serde_json::to_value(client.player_state().await?)?,
         "chunks" => serde_json::to_value(client.loaded_chunks().await?)?,
         "prepare" => {
@@ -101,10 +122,11 @@ async fn main() -> anyhow::Result<()> {
     client.wait_until_ready().await?;
     println!("{}", serde_json::json!({"ready":true}));
     std::io::stdout().flush()?;
+    let mut history_cursor = None;
     let mut lines = BufReader::new(tokio::io::stdin()).lines();
     while let Some(line) = lines.next_line().await? {
         let request: serde_json::Value = serde_json::from_str(&line)?;
-        let output = match execute(&client, &request).await {
+        let output = match execute(&client, &request, &mut history_cursor).await {
             Ok(value) => serde_json::json!({"ok":true,"result":value}),
             Err(error) => {
                 serde_json::json!({"ok":false,"kind":error.downcast_ref::<voxrig::Error>().map(|e| format!("{:?}", e.kind())),"error":format!("{error:#}")})

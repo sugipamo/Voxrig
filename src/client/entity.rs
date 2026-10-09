@@ -7,7 +7,12 @@ use super::{
 use crate::{MinecraftVersion, Result};
 use std::collections::BTreeMap;
 mod data;
+mod history;
 mod motion;
+pub use history::{
+    EntityHistory, EntityHistoryCursor, EntityHistoryGap, EntityHistoryKind, EntityHistoryRecord,
+    MAX_ENTITY_HISTORY_READ, MAX_ENTITY_HISTORY_RECORDS,
+};
 mod parts;
 mod state;
 pub use data::{EntityDataField, EntityDataReading, EntityDataSource};
@@ -105,7 +110,7 @@ impl EntityAction {
 }
 
 #[derive(Default)]
-pub(crate) struct SpawnLedger(BTreeMap<i32, Spawn>);
+pub(crate) struct SpawnLedger(BTreeMap<i32, Spawn>, history::HistoryLedger);
 struct Spawn {
     sequence: u64,
     uuid: Option<[u8; 16]>,
@@ -141,6 +146,19 @@ impl SpawnLedger {
         self.0.clear();
     }
     pub(crate) fn remove(&mut self, id: i32) {
+        let entity = self
+            .1
+            .context
+            .map(|(version, world_generation, _)| SessionStamp {
+                version,
+                connection_id: 0,
+                world_generation,
+            })
+            .and_then(|s| self.identity(s, id));
+        self.1.record(EntityHistoryKind::Removed {
+            native_id: id,
+            entity,
+        });
         self.0.remove(&id);
     }
     pub(crate) fn insert(

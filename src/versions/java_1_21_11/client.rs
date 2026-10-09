@@ -183,6 +183,11 @@ impl State {
             bail!("cannot apply packets after a failed receive");
         }
         self.sequence += 1;
+        self.entities.history_context(
+            MinecraftVersion::Java1_21_11,
+            self.loading.generation,
+            self.sequence,
+        );
         if let Some(trace) = &mut self.trace {
             trace.record(
                 self.sequence,
@@ -870,6 +875,11 @@ fn spawn_info(state: &mut State, r: &mut Reader<'_>) -> anyhow::Result<()> {
         .context("unknown dimension registry ID")?;
     state.world.select_dimension(name, dimension);
     state.loading.reset(state.sequence);
+    state.entities.history_context(
+        MinecraftVersion::Java1_21_11,
+        state.loading.generation,
+        state.sequence,
+    );
     state
         .motion
         .invalidate(state.sequence, "world generation changed");
@@ -1021,6 +1031,18 @@ fn apply_play(
                 velocity: state.operations.local_player.velocity.map(|v| v.value),
             });
             state.rotation = rotation;
+            state.entities.history_pose(
+                crate::client::ReceivedPose {
+                    position,
+                    rotation,
+                    receive_sequence: state.sequence,
+                },
+                state
+                    .operations
+                    .local_player
+                    .velocity
+                    .map(|v| crate::client::received(v.value, v.receive_sequence)),
+            );
             state.ready = true;
             let mut confirm = Vec::new();
             put_varint(&mut confirm, teleport);
@@ -1125,6 +1147,11 @@ fn apply_play(
         input::START_CONFIGURATION => {
             r.end()?;
             state.loading.reset(state.sequence);
+            state.entities.history_context(
+                MinecraftVersion::Java1_21_11,
+                state.loading.generation,
+                state.sequence,
+            );
             state
                 .motion
                 .invalidate(state.sequence, "world generation changed");
@@ -1203,6 +1230,24 @@ mod placement_native_trials;
 mod tests;
 
 impl crate::client::adapter::EventOps for operations::Operations {
+    async fn entity_history_after(
+        &self,
+        cursor: Option<crate::client::EntityHistoryCursor>,
+        maximum: usize,
+    ) -> Result<crate::client::EntityHistory> {
+        let state = self.bot.session.state.lock().await;
+        state.entities.history_after(
+            crate::client::SessionStamp {
+                version: MinecraftVersion::Java1_21_11,
+                connection_id: self.bot.session.id,
+                world_generation: state.loading.generation,
+            },
+            state.sequence,
+            cursor,
+            maximum,
+        )
+    }
+
     async fn events_after(&self, cursor: u64) -> Result<crate::client::EventLog> {
         let mut state = self.bot.session.state.lock().await;
         if self.bot.session.stopped.load(Ordering::Acquire) && !state.events.closed() {

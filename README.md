@@ -83,3 +83,5 @@ fixtureの出典・ライセンスは[Third-party notices](THIRD_PARTY_NOTICES.m
 進行中の送信・ack・inventoryへの影響は未確認であり、正常logoutやserverの静止を
 示しません。owner/readerを停止させ、writerのshutdownを別途開始します。
 遮断したBotは再利用せず、保留解除・再接続・再送は利用側が別の証拠で判断します。
+
+- [Entityの受信履歴](docs/common-entity-history.md): 受信時の空間値・status・animation・lifetime、bounded cursorと欠落。

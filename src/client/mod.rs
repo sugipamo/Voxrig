@@ -17,6 +17,10 @@ pub mod control;
 pub mod crafting;
 pub(crate) mod enchantments;
 pub(crate) mod entity;
+pub use entity::{
+    EntityHistory, EntityHistoryCursor, EntityHistoryGap, EntityHistoryKind, EntityHistoryRecord,
+    MAX_ENTITY_HISTORY_READ, MAX_ENTITY_HISTORY_RECORDS,
+};
 pub mod flight;
 pub(crate) mod fraction;
 pub mod furnace;
@@ -180,6 +184,10 @@ pub mod prelude {
         RecipePlacementSend, RecipePlacementStage, RecipeSlotDisplay, RecipeTrimDefinition,
         RecipeTrimPattern, RespawnRecord, RespawnStage, Server, Support, Survival,
         VehicleObservation, VehicleRelation,
+    };
+    pub use super::{
+        EntityHistory, EntityHistoryCursor, EntityHistoryGap, EntityHistoryKind,
+        EntityHistoryRecord, MAX_ENTITY_HISTORY_READ, MAX_ENTITY_HISTORY_RECORDS,
     };
     pub use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Region, Result};
 }

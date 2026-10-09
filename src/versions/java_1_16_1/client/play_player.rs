@@ -32,6 +32,11 @@ impl Bot {
         {
             let mut receipts = self.common_receipts.lock().await;
             receipts.generation = packet_sequence;
+            receipts.entities.history_context(
+                crate::MinecraftVersion::Java1_16_1,
+                packet_sequence,
+                packet_sequence,
+            );
             receipts.ground_source = None;
             receipts.rotation_source = None;
             receipts.entities.clear();
@@ -163,6 +168,11 @@ impl Bot {
         {
             let mut receipts = self.common_receipts.lock().await;
             receipts.generation = packet_sequence;
+            receipts.entities.history_context(
+                crate::MinecraftVersion::Java1_16_1,
+                packet_sequence,
+                packet_sequence,
+            );
             receipts.entities.clear();
             receipts.vehicles.clear();
             receipts.pose = None;

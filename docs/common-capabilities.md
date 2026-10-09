@@ -50,3 +50,5 @@
 | `Scoreboard` | received objectives, displays and scores, bounded to 4096 entries | [common-ui-context.md](common-ui-context.md) | received objective/display/score/reset facts and raw legacy JSON/modern NBT presentation; <=4096 entries; not a complete server catalogue or renderer; other UI remains incomplete |
 | `ClientManagement` | 1..64 named clients; no automatic reconnect | [common-ui-manager.md](common-ui-manager.md) | explicit 1..64 named active/pending Clients; per-connection config/version/cache/registry; cancellation releases reservation; terminal shutdown closes external clones and pending connects; no automatic reconnect or event aggregation |
 | `RecordingAndReconstruction` | raw recording, read-only replay and dry-terrain scenes | [common-recording-scenes.md](common-recording-scenes.md) | bounded raw receive recording and selected read-only decoder replay; live known dry-terrain scene capture/prediction; broader reconstruction/piston/history contracts remain version-specific |
+
+`EntityHistory`: 両版で8192件の受信履歴を保持し、1〜1024件ずつ読む。欠落とlifetimeを明示する。[詳細](common-entity-history.md)。

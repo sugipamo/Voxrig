@@ -1,5 +1,7 @@
 # 共通のentity現在状態
 
+過去の受信値が必要な場合は、独立した[entity受信履歴](common-entity-history.md)を使う。
+
 `Client::entities()`は、受信した全entity（自分以外）の現在の状態を1回の観測で返す。
 1.16.1・1.21.11の両方で使える。値はすべてclientが受信したもので、予測や補間はしない。
 
