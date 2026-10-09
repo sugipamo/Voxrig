@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import struct
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from run_climbing_control import REPO, run
 from run_common_native import NativeSocialReader, until
 
@@ -55,7 +56,7 @@ def verify(version,record,trace):
         if sample['sampled_before_tick']!=index or len(sample['bodies'])>32:raise RuntimeError('collision budget/tick identity differs')
         source=sample['passengers']['source'];packet=peers[source['sequence']-1]
         r=NativeSocialReader(packet,version);vehicle=r.integer();passengers=[r.integer() for _ in range(r.integer())];r.end()
-        if packet['packet_id']!=(0x4b if version=='1.16.1' else 0x66) or vehicle!=record['id']['mount']['vehicle_native_id'] or passengers!=sample['passengers']['value']:
+        if packet['packet_id']!=(0x4b if version=='1.16.1' else 0x69) or vehicle!=record['id']['mount']['vehicle_native_id'] or passengers!=sample['passengers']['value']:
             raise RuntimeError('excluded passengers differ from original native list')
         for body in sample['bodies']:
             entity=body['entity'];spawn=peers[entity['spawn_sequence']-1]
@@ -115,7 +116,11 @@ def check(version,command,request,trace,report,*,sdk):
         frames=record['boat_motion']['frames']
         if not any(f['velocity'][2]==0. and f['paddles']==[True,True] and f['position'][2]<3.4 for f in frames):
             raise RuntimeError('rigid entity did not stop the forward prediction before the rear block wall')
-        final=frames[-1]['position'];position=until(lambda:(p if max(abs(a-b) for a,b in zip((p:=native('CollisionMount')),final))<.4 else None),5)
+        final=frames[-1]['position']
+        def endpoint():
+            p=native('CollisionMount')
+            return p if max(abs(a-b) for a,b in zip(p,final))<.4 else None
+        position=until(endpoint,5)
         report['checks'].append(dict(name=kind+'_native_rigid_collision_and_dispatch',mount=mount,outcome=result,proofs=proofs,writes=writes,native_position=position,native_other=native('CollisionOther')))
         boundary=trace.mark();neutral=request('drive',inputs=[dict(forward=0,strafe=0,jump=False)]*8)
         expected=copy.deepcopy(frames[-1])
@@ -142,12 +147,110 @@ def check(version,command,request,trace,report,*,sdk):
             if again['record']!=failed['record']:raise RuntimeError('unresolved collision was replayed or replaced')
             report['checks'].append(dict(name='unsupported_pose_refusal_and_no_automatic_replay',first=failed,rejected=again))
             command('kill @e[tag=CollisionUnsupported]')
-        dismount=request('dismount')
-        if dismount['stage']!='completed':raise RuntimeError('post-collision received dismount did not complete')
-        report['checks'].append(dict(name=kind+'_post_collision_received_dismount',record=dismount))
+        if kind=='boat':
+            dismount=request('dismount')
+            if dismount['stage']!='completed':raise RuntimeError('post-collision received dismount did not complete')
+            report['checks'].append(dict(name=kind+'_post_collision_received_dismount',record=dismount))
+        else:
+            # The retained unresolved operation deliberately blocks SDK motion
+            # and dismount; never weaken that fence or manufacture a recovery.
+            boundary=trace.mark();command('tp ClimbingProbe 0.5 65 -0.5 0 0')
+            until(lambda:'Test passed' in command('execute unless entity @a[name=ClimbingProbe,nbt={RootVehicle:{}}]'),5)
+            def original_exit():
+                for p in trace.since(boundary):
+                    if p['direction']=='clientbound' and p['phase']=='play' and p['packet_id']==(0x4b if old else 0x69):
+                        r=NativeSocialReader(p,version);target=r.integer();members=[r.integer() for _ in range(r.integer())];r.end()
+                        if target==record['id']['mount']['vehicle_native_id'] and record['vehicle']['player_native_id'] not in members:return p
+                return None
+            exited=until(original_exit,5)
+            retained=request('vehicle_record')
+            if retained!=failed['record']:raise RuntimeError('forced exit rewrote the original refusal record')
+            report['checks'].append(dict(name='actual_forced_exit_retains_unresolved_collision_without_replay',record=retained,original_passengers=exited))
     trace.expect_disconnect();closed=request('vehicle_disconnect')
     if closed['record'] is None:raise RuntimeError('closed connection lost collision history')
     report['checks'].append(dict(name='collision_history_readable_after_close',record=closed))
+
+
+def check_nested_attachment(version, command, request, trace, report, *, sdk):
+    """Original modern /ride can attach then restore a mounted boat externally."""
+    if version != '1.21.11':
+        raise RuntimeError('legacy original server has no /ride command')
+    report['sdk'] = sdk
+    command('fill -8 63 -8 8 72 8 minecraft:air')
+    command('fill -8 63 -8 8 64 8 minecraft:stone')
+    command('tp ClimbingProbe 0.5 65 -0.5 0 0')
+    request('prepare', position=[.5, 65., -.5])
+    command('summon minecraft:oak_boat 0.5 65.25 1.5 {Tags:["CollisionMount"],Invulnerable:1b}')
+    mount = request('mount', type='minecraft:oak_boat')
+    native_mount = mount['relation']['value']['mount']
+    command('summon minecraft:minecart 0.5 65.25 2 {Tags:["CollisionParent"],NoGravity:1b,Invulnerable:1b}')
+    def received_parent():
+        entities = request('entities')['entities']
+        return entities if any(e['motion']['entity']['type_name'] == 'minecraft:minecart'
+                               for e in entities) else None
+    entities = until(received_parent, 5)
+    parent = next(e['motion']['entity']['id']['native_id'] for e in entities
+                  if e['motion']['entity']['type_name'] == 'minecraft:minecart')
+    request('wait', ms=150)
+    boundary = trace.mark()
+
+    def change_attachment():
+        until(lambda: any(p['direction'] == 'serverbound' and p['phase'] == 'play'
+                          and p['packet_id'] == 0x21 for p in trace.since(boundary)), 5)
+        attached = command('ride @e[tag=CollisionMount,limit=1] mount @e[tag=CollisionParent,limit=1]')
+        if 'now riding' not in attached:
+            raise RuntimeError('original /ride did not actually attach the vehicle: ' + attached)
+        restored = command('ride @e[tag=CollisionMount,limit=1] dismount')
+        if 'stopped riding' not in restored:
+            raise RuntimeError('original /ride did not restore the attachment: ' + restored)
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        change = executor.submit(change_attachment)
+        outcome = request('drive_until_interrupted', inputs=[dict(forward=0, strafe=0, jump=False)] * 120)
+        change.result(timeout=10)
+    record = outcome['record']
+    if record['stage'] != 'requires_inspection' or not 0 < record['dispatched_ticks'] < 120:
+        raise RuntimeError('actual nested attachment did not fence a running finite owner')
+
+    def original_attachment():
+        peers = [p for p in trace.since(0) if p['direction'] == 'clientbound'
+                 and p['phase'] in ('configuration', 'play')]
+        changes = []
+        for sequence, packet in enumerate(peers, 1):
+            if packet['phase'] != 'play' or packet['packet_id'] != 0x69:
+                continue
+            reader = NativeSocialReader(packet, version)
+            target = reader.integer()
+            members = [reader.integer() for _ in range(reader.integer())]
+            reader.end()
+            if target == parent:
+                changes.append(dict(sequence=sequence, members=members, original=packet))
+        if any(native_mount['vehicle_native_id'] in c['members'] for c in changes) and any(
+                not c['members'] for c in changes):
+            return changes
+        return None
+
+    original = until(original_attachment, 5)
+    vehicle = request('vehicle')
+    attached = next(c for c in original if native_mount['vehicle_native_id'] in c['members'])
+    if vehicle['attachment_change_sequence'] != attached['sequence']:
+        raise RuntimeError('nested fence source differs from the original received passenger packet')
+    again = request('drive_until_interrupted', inputs=[dict(forward=0, strafe=0, jump=False)])
+    if again['record'] != record:
+        raise RuntimeError('restored attachment automatically replayed or replaced the failed owner')
+    boundary = trace.mark()
+    request('wait', ms=200)
+    if any(p['direction'] == 'serverbound' and p['phase'] == 'play' and p['packet_id'] in (0x21, 0x22)
+           for p in trace.since(boundary)):
+        raise RuntimeError('terminal nested owner dispatched later boat frames')
+    report['checks'].append(dict(name='original_nested_attachment_and_restore_fence_running_owner',
+                                 outcome=outcome, vehicle=vehicle, original=original))
+    report['checks'].append(dict(name='restored_nested_attachment_has_no_automatic_replay', rejected=again))
+    trace.expect_disconnect()
+    closed = request('vehicle_disconnect')
+    if closed['record'] != record:
+        raise RuntimeError('closing the nested owner rewrote its original retained failure')
+    report['checks'].append(dict(name='nested_attachment_history_readable_after_close', record=closed))
 
 
 def main():
@@ -157,11 +260,15 @@ def main():
     p.add_argument('--binary',type=Path,required=True)
     p.add_argument('--jars',type=Path,default=REPO/'.local/climbing/downloads')
     p.add_argument('--compiled-sdk-revision',required=True)
+    p.add_argument('--nested-attachment-only', action='store_true', help='modern original /ride receipt fences a running owner; unavailable on legacy /ride')
     args=p.parse_args();revision=subprocess.check_output(['git','rev-parse','HEAD'],cwd=REPO,text=True).strip()
+    if args.nested_attachment_only and args.version != ['1.21.11']:
+        p.error('--nested-attachment-only requires --version 1.21.11; legacy has no original /ride command')
     compiled=subprocess.check_output(['git','rev-parse',args.compiled_sdk_revision],cwd=REPO,text=True).strip()
     if subprocess.check_output(['git','diff',compiled,'HEAD','--','src','examples','Cargo.toml','Cargo.lock'],cwd=REPO):raise RuntimeError('compiled SDK differs from runtime source')
     files=('Cargo.lock','scripts/run_boat_collisions.py','scripts/run_climbing_control.py','scripts/run_common_native.py','examples/climbing_control_probe.rs','scripts/movement_oracle/run.py','scripts/movement_oracle/boat_collision_scenarios.json','scripts/movement_oracle/java_1_16_1/MovementOracle.java','scripts/movement_oracle/java_1_21_11/MovementOracle.java','data/client_api/boat_collision_oracle.json.gz')
     sdk=dict(source_revision=revision,binary_build_revision=compiled,binary_sha256=hashlib.sha256(args.binary.read_bytes()).hexdigest(),source_diff_sha256=hashlib.sha256(subprocess.check_output(['git','diff','HEAD'],cwd=REPO)).hexdigest(),artifacts={f:hashlib.sha256((REPO/f).read_bytes()).hexdigest() for f in files})
     for version in args.version or ('1.16.1','1.21.11'):
-        run(version,args.binary.resolve(),args.jars.resolve(),check=functools.partial(check,sdk=sdk))
+        selected = check_nested_attachment if args.nested_attachment_only else check
+        run(version,args.binary.resolve(),args.jars.resolve(),check=functools.partial(selected,sdk=sdk))
 if __name__=='__main__':main()

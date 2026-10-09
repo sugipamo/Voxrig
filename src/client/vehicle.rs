@@ -72,7 +72,8 @@ pub struct VehicleObservation {
     /// boundary, not an acknowledged vehicle pose.
     pub motion_correction_sequence: Option<u64>,
     /// Original passenger packet that attached this vehicle under another
-    /// entity. A latched interruption, never a position correction or pose.
+    /// entity or made its own passenger a parent. A latched interruption,
+    /// never a position correction or pose.
     pub attachment_change_sequence: Option<u64>,
     /// Native own player identity actually received in JOIN/LOGIN.
     pub player_native_id: Option<i32>,
@@ -182,7 +183,12 @@ impl PassengerLedger {
     }
     pub(crate) fn retire(&mut self, vehicle: i32) {
         self.collision_parents.retain(|&parent, row| {
-            parent != vehicle && !row.children.iter().any(|&(child, _)| child == vehicle)
+            if parent == vehicle {
+                return false;
+            }
+            // Retiring one spawn must not erase still-live sibling edges.
+            row.children.retain(|&(child, _)| child != vehicle);
+            !row.children.is_empty()
         });
         if self
             .relation
@@ -251,11 +257,17 @@ impl PassengerLedger {
         } else {
             self.collision_parents_unavailable = true;
         }
-        if self.relation.as_ref().is_some_and(|r| {
-            r.value.mounted
-                && update.passengers.contains(&r.value.mount.vehicle)
-                && r.value.mount.spawn_sequence == spawns.spawn_sequence(r.value.mount.vehicle)
-        }) {
+        if !update.passengers.is_empty()
+            && self.relation.as_ref().is_some_and(|r| {
+                r.value.mounted
+                    && r.value.mount.spawn_sequence == spawns.spawn_sequence(r.value.mount.vehicle)
+                    && (update.passengers.contains(&r.value.mount.vehicle)
+                        || self
+                            .passengers
+                            .as_ref()
+                            .is_some_and(|p| p.value.contains(&update.vehicle)))
+            })
+        {
             // Even a transient nested attachment must fence the running owner.
             self.attachment_change_sequence = Some(sequence);
         }

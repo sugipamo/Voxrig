@@ -212,6 +212,7 @@ pub(crate) fn configure_boat(
         .filter(|p| p.stage == VehicleControlStage::Submitted && p.id.mount() == record.id.mount())
         .filter(|p| {
             p.vehicle.motion_correction_sequence == record.vehicle.motion_correction_sequence
+                && p.vehicle.attachment_change_sequence == record.vehicle.attachment_change_sequence
         })
         .and_then(|p| p.boat_motion.as_ref());
     let seed = previous_boat.and_then(|b| b.frames.last()).cloned();

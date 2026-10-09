@@ -881,3 +881,136 @@ fn nested_attachment_latches_a_distinct_receipt_and_retired_spawns_do_not_rebind
         None
     );
 }
+
+#[test]
+fn retiring_one_child_keeps_nested_siblings_and_transient_passenger_parent_is_latched() {
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        let session = SessionStamp {
+            version,
+            connection_id: 4,
+            world_generation: 7,
+        };
+        let mut spawns = SpawnLedger::default();
+        for (id, sequence) in [(10, 1), (100, 2), (43, 3)] {
+            spawns
+                .insert(
+                    version,
+                    NativeSpawn {
+                        id,
+                        uuid: None,
+                        type_id: None,
+                        dedicated_type_name: Some("minecart"),
+                        position: [0.; 3],
+                        living: None,
+                    },
+                    sequence,
+                    4096,
+                )
+                .unwrap();
+        }
+        let mut ledger = PassengerLedger::default();
+        ledger.receive(
+            &NativePassengers::decode(&[10, 1, 42]).unwrap(),
+            Some(42),
+            &spawns,
+            4,
+        );
+        let VehicleRelation::Mounted { mount } = ledger
+            .capture(session, 4, Some(42), &spawns)
+            .relation
+            .unwrap()
+            .value
+        else {
+            panic!()
+        };
+        ledger.receive(
+            &NativePassengers::decode(&[100, 2, 10, 43]).unwrap(),
+            Some(42),
+            &spawns,
+            5,
+        );
+        spawns.remove(43);
+        ledger.retire(43);
+        assert!(ledger.collision_safe(mount, &spawns).is_err());
+        assert_eq!(ledger.collision_parents[&100].children, [(10, Some(1))]);
+        ledger.receive(
+            &NativePassengers::decode(&[100, 0]).unwrap(),
+            Some(42),
+            &spawns,
+            6,
+        );
+        assert!(ledger.collision_safe(mount, &spawns).is_ok());
+        // A current own passenger becoming a parent is also a nested graph.
+        ledger.receive(
+            &NativePassengers::decode(&[42, 1, 100]).unwrap(),
+            Some(42),
+            &spawns,
+            7,
+        );
+        assert!(ledger.collision_safe(mount, &spawns).is_err());
+        ledger.receive(
+            &NativePassengers::decode(&[42, 0]).unwrap(),
+            Some(42),
+            &spawns,
+            8,
+        );
+        assert!(ledger.collision_safe(mount, &spawns).is_ok());
+        let restored = ledger.capture(session, 8, Some(42), &spawns);
+        assert_eq!(restored.attachment_change_sequence, Some(7));
+        assert_eq!(restored.motion_correction_sequence, None);
+        assert_eq!(
+            restored.relation.unwrap().value,
+            VehicleRelation::Mounted { mount }
+        );
+    }
+}
+
+#[test]
+fn nested_receipt_fences_running_input_and_drops_stale_prediction_on_explicit_restart() {
+    use crate::client::received;
+    use crate::prelude::GameMode;
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        let (mut prior, motion) = boat_velocity_fixture(version);
+        control::configure_boat(&mut prior, Some(motion.clone()), None).unwrap();
+        let frame = control::BoatFrame::new([1.5, 65., 2.5], [0.; 2], [0.4, 0.2, 0.1]);
+        prior.boat_motion.as_mut().unwrap().frames.push(frame);
+        let mut player = prior.initial.clone();
+        player.receive_sequence = 13;
+        let mut vehicle = prior.vehicle.clone();
+        vehicle.receive_sequence = 13;
+        vehicle.attachment_change_sequence = Some(13);
+        assert!(control::validate(&prior, &player, &vehicle).is_err());
+        // An explicitly new owner after a fully submitted run may proceed,
+        // but must seed from the fresh receipt rather than the old model.
+        prior.stage = control::VehicleControlStage::Submitted;
+        prior.dispatched_ticks = 3;
+        prior.attempted_tick = 3;
+        let mut live = motion.clone();
+        live.receive_sequence = 13;
+        live.position = Some(received(
+            crate::client::EntityPosition {
+                position: [4.5, 65., 5.5],
+                quantization_error: [0.; 3],
+            },
+            13,
+        ));
+        let mut next = control::prepare(
+            player,
+            vehicle,
+            GameMode::Survival,
+            prior.id.mount(),
+            &[Default::default(); 3],
+            Some(&prior),
+        )
+        .unwrap();
+        control::configure_boat(&mut next, Some(live), Some(&prior)).unwrap();
+        assert_eq!(
+            next.boat_motion.unwrap().initial_frame.position,
+            [4.5, 65., 5.5]
+        );
+        assert_eq!(
+            prior.boat_motion.unwrap().frames[0].position,
+            [1.5, 65., 2.5]
+        );
+    }
+}
