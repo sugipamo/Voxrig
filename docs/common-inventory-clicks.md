@@ -39,7 +39,13 @@ Rightが1個を置く。同一itemはslot/item容量の範囲で結合し、別i
 予測は受信在庫へ適用しない。`send.dispatched`はframe全量の送信だけを表し、サーバー結果ではない。
 両destinationのfreshな実packet受信と、legacyでは元window/actionの実comparison replyを待つ。
 `inventory_click_record()`を読み、`ObservedClicked`を確認してから次の操作へ進む。
-途中の受信、送信取消、opening再利用、mode/world/hand変更、復元された競合は自動再送しない。
+途中の受信、送信取消、opening再利用、mode/world/選択slot変更、復元された競合は自動再送しない。
+PICKUP の結果は対象 slot と cursor の受信で確認し、全在庫の不変を要求しない。
+別の手に通常の拾得などの受信更新が届いても、その値が既知で送信境界より新しく、現在の
+capture 境界以下の受信番号である場合、元のクリックを失効させない。その更新だけでは
+クリックを完了にせず、元の対象 slot/cursor と必要な native reply を引き続き待つ。
+元から既知だった別の手が欠測・Unavailable・予測値になった場合や、異なる値を古い/未来の
+受信番号で持つ場合は、引き続き RequiresInspection として保持する。
 最初の競合は`RequiresInspection`へ保持する。完了recordは後のmode変更や切断でも履歴として保持する。
 legacyの送信はactor所有で、呼出元の取消後も引き受けた一度のwriteを続ける。
 modernは取消時の未完了dispatchを保持し、後から似た値を受信しても完了へ読み替えない。

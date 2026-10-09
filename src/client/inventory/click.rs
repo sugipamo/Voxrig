@@ -516,7 +516,9 @@ pub(crate) fn source_slots<'a>(
             &s.slots
         }
     };
-    // An ordinary PICKUP can change its mapped source hand, but no other hand.
+    // PICKUP receipts establish its source slot and cursor, not an immutable
+    // whole inventory. Unrelated known Received hand updates (such as a late
+    // item pickup) do not invalidate them. Missing/predicted hand context does.
     for index in [
         record
             .initial
@@ -548,12 +550,15 @@ pub(crate) fn source_slots<'a>(
                 .get(index)
                 .and_then(Option::as_ref)
                 .is_some_and(|v| {
-                    matches!(v.source, ValueSource::Received { .. }) && v.value == before.value
+                    let ValueSource::Received { sequence } = v.source else {
+                        return false;
+                    };
+                    sequence <= current.receive_sequence
+                        && !matches!(v.value, SlotKnowledge::Unavailable)
+                        && (v.value == before.value || sequence > record.send.after_sequence)
                 })
             {
-                return Err(unavailable(
-                    "click unaffected hand changed or became unavailable",
-                ));
+                return Err(unavailable("click unaffected hand became unavailable"));
             }
         }
     }
@@ -818,6 +823,72 @@ mod tests {
             assert_eq!(predicted.stage, InventoryClickStage::RequiresInspection);
         }
     }
+    #[test]
+    fn received_other_hand_updates_do_not_replace_required_click_receipts() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let mut record = fixture(version);
+            record.send.dispatched = true;
+            let mut unrelated = record.initial.clone();
+            unrelated.receive_sequence = 11;
+            unrelated.inventory.slots[36] = Some(crate::client::received(
+                record.source_before.value.clone(),
+                11,
+            ));
+            receive(&mut record, &unrelated, None);
+            assert_eq!(record.stage, InventoryClickStage::Pending);
+            assert!(record.source_receipt.is_none() && record.cursor_receipt.is_none());
+            assert!(!record.ready());
+
+            let mut confirmed = after(&record, 12);
+            confirmed.inventory.slots[36] = unrelated.inventory.slots[36].clone();
+            receive(&mut record, &confirmed, None);
+            if version == MinecraftVersion::Java1_16_1 {
+                record.legacy_reply = Some(InventoryTransactionReply {
+                    window_id: 0,
+                    action: 1,
+                    accepted: false,
+                    receive_sequence: 13,
+                });
+                confirmed.receive_sequence = 13;
+                receive(&mut record, &confirmed, None);
+            }
+            assert!(record.ready());
+            assert!(record.source_receipt.is_some() && record.cursor_receipt.is_some());
+            assert!(record.requires_inspection.is_none());
+        }
+    }
+
+    #[test]
+    fn unknown_predicted_or_stale_other_hand_updates_still_latch_inspection() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            for index in [36, 45] {
+                for invalid in 0..5 {
+                    let mut record = fixture(version);
+                    record.send.dispatched = true;
+                    let mut current = after(&record, 12);
+                    let different = record.source_before.value.clone();
+                    current.inventory.slots[index] = match invalid {
+                        0 => None,
+                        1 => Some(ObservedValue {
+                            value: different,
+                            source: ValueSource::Predicted,
+                        }),
+                        2 => Some(crate::client::received(SlotKnowledge::Unavailable, 11)),
+                        3 => Some(crate::client::received(different, 10)),
+                        _ => Some(crate::client::received(different, 13)),
+                    };
+                    receive(&mut record, &current, None);
+                    assert_eq!(record.stage, InventoryClickStage::RequiresInspection);
+                    let original = record.requires_inspection.clone();
+                    let restored = after(&record, 14);
+                    receive(&mut record, &restored, None);
+                    assert_eq!(record.requires_inspection, original);
+                    assert!(!record.ready());
+                }
+            }
+        }
+    }
+
     #[test]
     fn pickup_latches_restoration_world_mode_selection_other_hand_and_ui_conflicts() {
         for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
