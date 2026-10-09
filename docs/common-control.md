@@ -62,6 +62,27 @@ survival.stop_control().await?;                   // ダッシュとしゃがみ
   `release_use_item`を送れる（[アイテム使用](common-item-use.md)）。
 - 時刻はclientの時計で、serverのtickとは同期しない（公式clientと同じ）。
 
+## 停止・再開の検証（2026-10-09）
+
+`run_control_resume.py` が公式 1.16.1・1.21.11 サーバーへ共通 Client で接続し、
+歩行中・落下中の停止と再開、照準を保持した解除入力、着地、停止中に届いた新しい位置補正、
+停止した記録の保持を確認する。再開後の元の movement packet と RCON 座標を保存する。
+[検証記録](evidence/common-control-resume-20261009.json) に実 source・binary/JAR hash、
+両版の計11確認と初回失敗を記録した。914テスト、strict Clippy、Rust 1.85 の全ターゲット確認も通過した。
+
+1.16.1 の着地は10 block、1.21.11 は対応範囲内の4 blockの落下を使う。
+1.21.11 の最初の10 block落下は、既存の `fall-distance reset sweep` 制限で `Paused` になった。
+この試行を着地成功とは扱わず、最終fixtureでは10 block落下が同じ制限で送信を止め、
+記録を保持することを別に確認する。物理の範囲外判定は変更していない。
+
+```sh
+cargo build --locked --features native --example climbing_control_probe
+python3 -B scripts/run_control_resume.py --accept-eula
+```
+
+停止中のモデル進行は版ごとに上記の契約に従う。この確認は単発ジャンプ要求、装備交換、
+消費側の共通移動API移行、保存worldの元事象再現を完了したことを示さない。
+
 ## 実サーバーでの確認（2026-10-07）
 
 公式`server.jar`（1.16.1・1.21.11）をoffline-modeでlocalhostに起動し、`examples/continuous_control_probe.rs`で確認した。
