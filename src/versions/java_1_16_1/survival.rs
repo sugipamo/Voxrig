@@ -195,6 +195,7 @@ pub(crate) struct JoinState {
     pub previous_game_mode: u8,
     pub dimension: String,
     pub world_name: String,
+    pub view_distance: Option<i32>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -243,10 +244,16 @@ pub(crate) fn parse_experience(payload: &[u8]) -> Result<Experience> {
     let mut cursor = Cursor::new(payload);
     let progress = cursor.read_f32::<BigEndian>()?;
     let mut rest = &payload[cursor.position() as usize..];
+    let level = get_varint(&mut rest)?;
+    let total = get_varint(&mut rest)?;
+    anyhow::ensure!(
+        progress.is_finite() && rest.is_empty(),
+        "invalid experience packet"
+    );
     Ok(Experience {
         progress,
-        level: get_varint(&mut rest)?,
-        total: get_varint(&mut rest)?,
+        level,
+        total,
     })
 }
 
@@ -365,6 +372,19 @@ pub(crate) fn parse_join(payload: &[u8]) -> Result<JoinState> {
     rest = &rest[cursor.position() as usize..];
     let dimension = get_string(&mut rest)?;
     let world_name = get_string(&mut rest)?;
+    // Historical native prefix fixtures omit the ignored login suffix. Keep
+    // those explicitly unknown, while actual login packets supply the radius.
+    let view_distance = if rest.is_empty() {
+        None
+    } else {
+        let mut suffix = Cursor::new(rest);
+        suffix.read_i64::<BigEndian>()?;
+        suffix.read_u8()?;
+        rest = &rest[suffix.position() as usize..];
+        let distance = get_varint(&mut rest)?;
+        anyhow::ensure!(distance >= 0, "negative login view distance");
+        Some(distance)
+    };
     Ok(JoinState {
         registry_codec,
         entity_id,
@@ -372,6 +392,7 @@ pub(crate) fn parse_join(payload: &[u8]) -> Result<JoinState> {
         previous_game_mode,
         dimension,
         world_name,
+        view_distance,
     })
 }
 
