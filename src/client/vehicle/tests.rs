@@ -645,7 +645,10 @@ fn boat_velocity_receipts_fold_once_without_rewriting_submitted_frames() {
         assert_eq!(boat.velocity_updates.len(), 1);
         assert_eq!(boat.velocity_updates[0].sampled_before_tick, 1);
         assert_eq!(boat.initial_frame, frame);
-        assert_eq!(prior.boat_motion.as_ref().unwrap().frames, [frame.clone()]);
+        assert_eq!(
+            prior.boat_motion.as_ref().unwrap().frames,
+            std::slice::from_ref(&frame)
+        );
         let air = crate::NativeBlockState {
             name: "minecraft:air".into(),
             properties: Default::default(),

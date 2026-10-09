@@ -254,6 +254,47 @@ async fn main() -> anyhow::Result<()> {
                 .await??;
                 serde_json::to_value(vehicle)?
             }
+            "drive_cancelled_waiter" => {
+                let inputs: Vec<VehicleInput> = serde_json::from_value(request["inputs"].clone())?;
+                let timed = tokio::time::timeout(Duration::from_millis(80), async {
+                    if creative_vehicle {
+                        client
+                            .creative()
+                            .start_vehicle_control(mounted.unwrap(), &inputs)
+                            .await
+                    } else {
+                        survival
+                            .start_vehicle_control(mounted.unwrap(), &inputs)
+                            .await
+                    }
+                })
+                .await;
+                anyhow::ensure!(
+                    timed.is_err(),
+                    "finite waiter did not remain pending for cancellation"
+                );
+                let pending = client.vehicle_control_record().await?.unwrap();
+                anyhow::ensure!(
+                    pending.stage == VehicleControlStage::Running,
+                    "cancelled waiter lost running owner"
+                );
+                let complete = tokio::time::timeout(Duration::from_secs(12), async {
+                    loop {
+                        let record = client.vehicle_control_record().await?.unwrap();
+                        anyhow::ensure!(
+                            record.id == pending.id,
+                            "cancelled finite owner was replaced"
+                        );
+                        if record.stage != VehicleControlStage::Running {
+                            break Ok::<_, anyhow::Error>(record);
+                        }
+                        tokio::time::sleep(Duration::from_millis(20)).await;
+                    }
+                })
+                .await??;
+                serde_json::json!({"cancelled_waiter": true, "pending": pending,
+                    "error": complete.requires_inspection, "record": complete})
+            }
             "drive" | "drive_until_interrupted" => {
                 let inputs: Vec<VehicleInput> = serde_json::from_value(request["inputs"].clone())?;
                 let result = if creative_vehicle {

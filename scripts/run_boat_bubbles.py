@@ -81,7 +81,8 @@ def check(version, command, request, trace, report, *, sdk):
         before = native()
         boundary = trace.mark()
         count = 22 if kind.startswith("submerged") else 115
-        outcome = request("drive_until_interrupted", inputs=[dict(forward=0, strafe=0, jump=False)] * count)
+        action = "drive_cancelled_waiter" if kind == "surface_up" else "drive_until_interrupted"
+        outcome = request(action, inputs=[dict(forward=0, strafe=0, jump=False)] * count)
         record = outcome["record"]
         report["checks"].append(dict(name=kind + "_drive", outcome=outcome, native_before=before,
                                      native_after=native(), native_motion=native("Motion")))
@@ -153,6 +154,8 @@ def check(version, command, request, trace, report, *, sdk):
                 if not any(f["velocity"][1] < -.1 if down else f["velocity"][1] > .1 for f in frames):
                     raise RuntimeError("underwater bubble did not supply native interior impulse")
             else:
+                if not outcome.get("cancelled_waiter") or outcome["pending"]["stage"] != "running":
+                    raise RuntimeError("actual cancelled waiter did not retain its running finite owner")
                 updates = record["boat_motion"]["velocity_updates"]
                 if not any(u["receipt"]["value"][1] > 2.0 for u in updates):
                     raise RuntimeError("surface launch was not folded from an actual fresh velocity receipt")
@@ -179,6 +182,7 @@ def main():
                binary_sha256=hashlib.sha256(args.binary.read_bytes()).hexdigest(),
                artifacts={str(p): hashlib.sha256((REPO / p).read_bytes()).hexdigest() for p in (
                    "Cargo.lock", "scripts/run_boat_bubbles.py", "scripts/run_climbing_control.py",
+                   "examples/climbing_control_probe.rs",
                    "scripts/run_common_native.py", "scripts/movement_oracle/boat_bubble_scenarios.py",
                    "scripts/movement_oracle/java_1_16_1/MovementOracle.java",
                    "scripts/movement_oracle/java_1_21_11/MovementOracle.java",
