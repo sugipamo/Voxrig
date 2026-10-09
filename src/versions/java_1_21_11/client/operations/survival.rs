@@ -338,11 +338,14 @@ impl Operations {
 }
 
 pub(super) fn look_flags(state: &mut State, tick: u64) -> Result<u8> {
-    if state.operations.game_mode == Some(GameMode::Survival) {
+    if matches!(
+        state.operations.game_mode,
+        Some(GameMode::Survival | GameMode::Adventure)
+    ) {
         Ok(u8::from(context(state, 0, tick)?.on_ground))
     } else {
         Ok(0)
-    } // Existing creative flight control has no standing contract.
+    } // Creative/Spectator flight has no stationary standing contract.
 }
 
 fn unavailable(message: impl std::fmt::Display) -> Error {

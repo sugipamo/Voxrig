@@ -55,6 +55,18 @@ pub(crate) enum Action<'a> {
     DigFinish([i32; 3], BlockFace),
 }
 
+pub(crate) fn validate_hotbar_selection(mode: GameMode, slot: u8) -> Result<()> {
+    if slot > 8 {
+        return Err(super::registry::invalid("hotbar slot must be 0..8"));
+    }
+    if mode == GameMode::Spectator {
+        return Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("vanilla spectator mode does not apply held hotbar selection"),
+        ));
+    }
+    Ok(())
+}
 impl Client {
     /// Dispatch a local look in the currently received game mode, including
     /// Adventure and Spectator. The adapter rechecks that exact mode and its
@@ -71,8 +83,8 @@ impl Client {
         self.execute(mode, Action::Look(rotation)).await
     }
 
-    /// Dispatch slot 0..8 in the currently received game mode. All four modes
-    /// can submit the protocol request; Spectator server handling may ignore it.
+    /// Dispatch slot 0..8 in received Survival/Creative/Adventure mode.
+    /// Spectator refuses with Unsupported without sending a held-slot packet.
     /// A local selected slot is Submitted and does not prove server application.
     /// Admission, unresolved operations and revocation are not bypassed.
     pub async fn select_hotbar(&self, slot: u8) -> Result<DispatchReceipt> {

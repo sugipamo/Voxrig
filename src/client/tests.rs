@@ -11,20 +11,31 @@ pub(crate) async fn common_basic_actions_scenario(client: &Client, mode: GameMod
     let receipt = client.look([45.0, -10.0]).await.unwrap();
     assert_eq!(receipt.version, before.session.version);
     assert_eq!(receipt.connection_id, before.session.connection_id);
-    let selected = client.select_hotbar(8).await.unwrap();
-    assert_eq!(selected.connection_id, receipt.connection_id);
+    if mode == GameMode::Spectator {
+        assert_eq!(
+            client.select_hotbar(8).await.unwrap_err().kind(),
+            crate::ErrorKind::Unsupported
+        );
+    } else {
+        let selected = client.select_hotbar(8).await.unwrap();
+        assert_eq!(selected.connection_id, receipt.connection_id);
+    }
     let after = client.player_state().await.unwrap();
     assert_eq!(after.rotation, [45.0, -10.0]);
     assert_eq!(after.rotation_source, Some(ValueSource::Submitted));
     assert_eq!(after.received_pose, before.received_pose);
     assert_eq!(after.position, before.position);
-    assert_eq!(
-        after.selected_hotbar.unwrap(),
-        ObservedValue {
-            value: 8,
-            source: ValueSource::Submitted
-        }
-    );
+    if mode == GameMode::Spectator {
+        assert_eq!(after.selected_hotbar, before.selected_hotbar);
+    } else {
+        assert_eq!(
+            after.selected_hotbar.unwrap(),
+            ObservedValue {
+                value: 8,
+                source: ValueSource::Submitted
+            }
+        );
+    }
     if mode != GameMode::Survival {
         assert!(client.survival().look([0.0, 0.0]).await.is_err());
     }
@@ -64,17 +75,126 @@ pub(crate) async fn common_long_raycast_scenario(client: &Client) {
             .await
             .is_err()
     );
-    assert!(
+    assert_eq!(
         client
             .raycast_blocks([8.5, 66.5, 8.5], [f64::MAX, 0.0, 0.0], 48.0)
             .await
-            .is_err()
+            .unwrap()
+            .result,
+        wall.result
     );
     // The worst bounding-box direction remains within the unchanged region cap.
     client
         .raycast_blocks([8.5, 66.5, 8.5], [1.0; 3], 64.0)
         .await
         .unwrap();
+}
+
+/// The same basic-input contract is exercised through both real TCP adapters.
+pub(crate) async fn common_player_control_scenario(client: &Client, mode: GameMode) {
+    let input = client.player_control(mode);
+    assert_eq!(
+        client.player_state().await.unwrap().game_mode.unwrap(),
+        mode
+    );
+    for pitch in [-12.0, -90.0, 90.0] {
+        let receipt = input.look([37.0, pitch]).await.unwrap();
+        assert_eq!(receipt.version, client.version());
+        assert_eq!(
+            receipt.connection_id,
+            client.player_state().await.unwrap().session.connection_id
+        );
+        assert!(receipt.interaction_sequence.is_none());
+        let looked = client.player_state().await.unwrap();
+        assert_eq!(looked.rotation, [37.0, pitch]);
+        assert_eq!(looked.rotation_source, Some(ValueSource::Submitted));
+        assert_ne!(looked.received_pose.unwrap().rotation, looked.rotation);
+    }
+    for slot in [0, 8] {
+        if mode == GameMode::Spectator {
+            assert_eq!(
+                input.select_hotbar(slot).await.unwrap_err().kind(),
+                crate::ErrorKind::Unsupported
+            );
+        } else {
+            input.select_hotbar(slot).await.unwrap();
+            assert_eq!(
+                client.player_state().await.unwrap().selected_hotbar,
+                Some(ObservedValue {
+                    value: slot,
+                    source: ValueSource::Submitted
+                })
+            );
+        }
+    }
+    for rotation in [
+        [f32::NAN, 0.0],
+        [f32::INFINITY, 0.0],
+        [0.0, f32::NAN],
+        [0.0, 90.1],
+        [0.0, -90.1],
+    ] {
+        assert_eq!(
+            input.look(rotation).await.unwrap_err().kind(),
+            crate::ErrorKind::InvalidInput
+        );
+    }
+    for slot in [9, 255] {
+        assert_eq!(
+            input.select_hotbar(slot).await.unwrap_err().kind(),
+            crate::ErrorKind::InvalidInput
+        );
+    }
+    assert_eq!(client.player_state().await.unwrap().rotation, [37.0, 90.0]);
+}
+
+/// Accept long rays without pretending missing chunk cells are air.
+pub(crate) async fn common_unloaded_long_raycast_scenario(client: &Client) {
+    for (direction, distance) in [
+        ([1.0, 0.0, 0.0], 48.0),
+        ([1e308, 0.0, 0.0], 64.0),
+        ([f64::from_bits(1), 0.0, 0.0], 64.0),
+        ([48.0, 0.0, 1.0], 48.1),
+        ([1.0; 3], 64.0),
+    ] {
+        let observed = client
+            .raycast_blocks([8.5, 66.0, 8.5], direction, distance)
+            .await
+            .unwrap();
+        assert!(matches!(observed.result, BlockRaycast::Unloaded { .. }));
+        assert_eq!(
+            observed.session,
+            client.player_state().await.unwrap().session
+        );
+    }
+    for distance in [0.0, -1.0, 64.001, f64::NAN, f64::INFINITY] {
+        assert_eq!(
+            client
+                .raycast_blocks([8.5, 66.0, 8.5], [1.0, 0.0, 0.0], distance)
+                .await
+                .unwrap_err()
+                .kind(),
+            crate::ErrorKind::InvalidInput
+        );
+    }
+    for direction in [[0.0; 3], [f64::NAN, 0.0, 0.0], [f64::INFINITY, 0.0, 0.0]] {
+        assert_eq!(
+            client
+                .raycast_blocks([8.5, 66.0, 8.5], direction, 48.0)
+                .await
+                .unwrap_err()
+                .kind(),
+            crate::ErrorKind::InvalidInput
+        );
+    }
+    assert_eq!(
+        client
+            .raycast_blocks([1e308, 66.0, 8.5], [1.0, 0.0, 0.0], 48.0)
+            .await
+            .unwrap_err()
+            .kind(),
+        crate::ErrorKind::InvalidInput
+    );
 }
 
 /// Exercise actual controller publication, without assigning synthetic ground.

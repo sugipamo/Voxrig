@@ -10,7 +10,7 @@ pub enum GameMode {
     Survival,
     /// Server-granted creative mode.
     Creative,
-    /// Adventure mode; neither normal mode handle grants its permissions.
+    /// Adventure mode; basic inputs use `Client::player_control` with this mode.
     Adventure,
     /// Spectator mode.
     Spectator,
