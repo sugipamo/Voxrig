@@ -3,8 +3,8 @@ use super::{EntityId, ObservedValue, SessionStamp, entity::SpawnLedger, received
 use crate::protocol::get_varint;
 pub mod control;
 pub use control::{
-    BoatFrame, BoatMotion, MAX_VEHICLE_CONTROL_TICKS, VehicleControlId, VehicleControlRecord,
-    VehicleControlStage, VehicleInput,
+    BoatFrame, BoatMotion, BoatVelocityUpdate, MAX_VEHICLE_CONTROL_TICKS, VehicleControlId,
+    VehicleControlRecord, VehicleControlStage, VehicleInput,
 };
 pub mod dismount;
 pub use dismount::{DismountGrounding, DismountId, DismountRecord, DismountStage};

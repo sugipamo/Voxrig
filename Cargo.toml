@@ -18,6 +18,7 @@ include = [
     "/scripts/prepare_motion_confirmation.py",
     "/scripts/run_common_native.py",
     "/scripts/run_climbing_control.py",
+    "/scripts/run_boat_bubbles.py",
     "/scripts/run_native_event_capacity.py",
     "/scripts/run_entity_parts_dispatch.py",
     "/scripts/run_connection_stability.py",
