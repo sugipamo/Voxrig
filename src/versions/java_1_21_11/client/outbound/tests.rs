@@ -141,6 +141,63 @@ async fn long_raycast_rejects_world_switch_between_height_and_capture() {
 }
 
 #[tokio::test]
+async fn one_shot_queued_request_is_discarded_on_received_mode_or_world_reset() {
+    use crate::client::control::{ControlStatus, GroundJumpDiscardReason, GroundJumpStatus};
+    for world_reset in [false, true] {
+        let (session, api, _peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        let survival = client.survival();
+        let start = survival.start_control().await.unwrap();
+        let queued = survival
+            .request_ground_jump(start.session_id)
+            .await
+            .unwrap();
+        assert_eq!(queued.status, GroundJumpStatus::Queued);
+        {
+            let mut state = session.state.lock().await;
+            if world_reset {
+                let generation = state.loading.generation + 1;
+                state.loading.reset(generation);
+                let sequence = state.sequence;
+                state.motion.invalidate(sequence, "world reset fixture");
+            } else {
+                let mut packet = vec![3];
+                packet.extend(1f32.to_be_bytes());
+                state
+                    .receive(ids::play_clientbound::GAME_STATE_CHANGE, &packet, 256)
+                    .unwrap();
+            }
+        }
+        assert_eq!(
+            survival
+                .request_ground_jump(start.session_id)
+                .await
+                .unwrap_err()
+                .kind(),
+            ErrorKind::State
+        );
+        timeout(Duration::from_secs(2), async {
+            loop {
+                let record = survival.control_record().await.unwrap().unwrap();
+                if matches!(record.status, ControlStatus::Stopped { .. }) {
+                    assert_eq!(
+                        record.ground_jump.unwrap().status,
+                        GroundJumpStatus::Discarded {
+                            reason: GroundJumpDiscardReason::SessionStopped
+                        }
+                    );
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(2)).await;
+            }
+        })
+        .await
+        .unwrap();
+        session.stop();
+    }
+}
+
+#[tokio::test]
 async fn one_shot_ground_jump_checks_session_lifetime_and_cancelled_admission() {
     let (session, api, _peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
     let client = crate::Client::from_java_1_21_11(api.bot.clone());

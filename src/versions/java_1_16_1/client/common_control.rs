@@ -466,6 +466,70 @@ mod tests {
     use tokio::time::timeout;
 
     #[tokio::test]
+    async fn one_shot_queued_request_is_discarded_on_received_mode_or_world_reset() {
+        use crate::client::control::{GroundJumpDiscardReason, GroundJumpStatus};
+        for world_reset in [false, true] {
+            let (bot, _packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            super::super::common_motion::tests::seed_motion(&bot).await;
+            bot.player.lock().await.entity_id = Some(42);
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            let survival = client.survival();
+            let start = survival.start_control().await.unwrap();
+            let queued = survival
+                .request_ground_jump(start.session_id)
+                .await
+                .unwrap();
+            assert_eq!(queued.status, GroundJumpStatus::Queued);
+            if world_reset {
+                let mut packet = Vec::new();
+                crate::protocol::put_string(&mut packet, "minecraft:overworld");
+                crate::protocol::put_string(&mut packet, "world");
+                packet.extend([0; 8]);
+                packet.extend([0, 255, 0, 0, 1]);
+                bot.apply_packet(0x3a, packet).await.unwrap();
+            } else {
+                let mut packet = vec![3];
+                packet.extend(1f32.to_be_bytes());
+                bot.apply_packet(0x1e, packet).await.unwrap();
+            }
+            assert_eq!(
+                survival
+                    .request_ground_jump(start.session_id)
+                    .await
+                    .unwrap_err()
+                    .kind(),
+                ErrorKind::State
+            );
+            timeout(Duration::from_secs(2), async {
+                loop {
+                    let record = survival.control_record().await.unwrap().unwrap();
+                    if matches!(record.status, ControlStatus::Stopped { .. }) {
+                        assert_eq!(
+                            record.ground_jump.unwrap().status,
+                            GroundJumpStatus::Discarded {
+                                reason: GroundJumpDiscardReason::SessionStopped
+                            }
+                        );
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(2)).await;
+                }
+            })
+            .await
+            .unwrap();
+            let _ = client.revoke_connection();
+            drop(release);
+            drop(client);
+            drop(bot);
+            timeout(Duration::from_secs(2), server)
+                .await
+                .unwrap()
+                .unwrap();
+        }
+    }
+
+    #[tokio::test]
     async fn one_shot_ground_jump_checks_session_lifetime_and_cancelled_admission() {
         let (bot, _packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;

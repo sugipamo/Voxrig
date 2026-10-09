@@ -255,7 +255,10 @@ pub(crate) async fn common_control_capture_scenario(client: &crate::Client) {
 pub(crate) async fn common_ground_jump_admission_scenario(client: &crate::Client) {
     use crate::client::control::{Controls, GroundJumpStatus};
     let survival = client.survival();
-    assert!(survival.request_ground_jump(1).await.is_err());
+    assert_eq!(
+        survival.request_ground_jump(1).await.unwrap_err().kind(),
+        crate::ErrorKind::State
+    );
     let initial = survival.start_control().await.unwrap();
     let held = Controls {
         forward: 1,
@@ -276,11 +279,13 @@ pub(crate) async fn common_ground_jump_admission_scenario(client: &crate::Client
     })
     .await
     .unwrap();
-    assert!(
+    assert_eq!(
         survival
             .request_ground_jump(initial.session_id + 1)
             .await
-            .is_err()
+            .unwrap_err()
+            .kind(),
+        crate::ErrorKind::State
     );
     assert!(
         survival

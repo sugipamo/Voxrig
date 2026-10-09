@@ -14,6 +14,10 @@ fn attribute(name: &str) -> Option<i32> {
         .copied()
 }
 
+fn control_state_error(message: &str) -> Error {
+    Error::new(ErrorKind::State, anyhow::anyhow!("{message}"))
+}
+
 /// The connection's continuous control session and its task identity.
 #[derive(Default)]
 pub(in crate::versions::java_1_21_11::client) struct ContinuousControl {
@@ -489,23 +493,30 @@ impl crate::client::adapter::ControlOps for Operations {
         session_id: u64,
     ) -> Result<crate::client::control::GroundJumpRequestRecord> {
         let mut state = self.bot.session.state.lock().await;
-        self.ready(&state)?;
+        self.ready(&state)
+            .map_err(|error| Error::new(ErrorKind::State, error))?;
         if mode != GameMode::Survival || state.operations.game_mode != Some(mode) {
-            return Err(invalid("ground jump requires received survival mode"));
+            return Err(control_state_error(
+                "ground jump requires received survival mode",
+            ));
         }
         let generation = state.loading.generation;
         if let Some(reason) = stop_reason(&state, generation, mode) {
-            return Err(invalid(reason));
+            return Err(control_state_error(reason));
         }
         if state.control.generation != Some(generation) {
-            return Err(invalid("ground jump control belongs to a different world"));
+            return Err(control_state_error(
+                "ground jump control belongs to a different world",
+            ));
         }
         let session = state
             .control
             .session
             .as_mut()
             .filter(|s| s.id == session_id && s.status == ControlStatus::Running)
-            .ok_or_else(|| invalid("ground jump requires the current running, unpaused session"))?;
+            .ok_or_else(|| {
+                control_state_error("ground jump requires the current running, unpaused session")
+            })?;
         session.request_ground_jump()
     }
 
