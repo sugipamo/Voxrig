@@ -29,6 +29,55 @@ pub enum ControlStatus {
     },
 }
 
+/// Result of evaluating a single ground request in the native client model.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GroundJumpOutcome {
+    /// A ground impulse was predicted; this is not server acceptance.
+    Applied,
+    /// The model's ground flag was false, including an unsettled initial model.
+    Airborne,
+    /// Deep water or lava requires held swimming input instead.
+    InFluid,
+    /// Native jump power was too small to apply an impulse (modern attribute).
+    NoJumpPower,
+    /// The caller already holds jump; the request adds no second impulse.
+    AlreadyHeld,
+}
+
+/// Local queue, model evaluation and dispatch are separate boundaries.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum GroundJumpStatus {
+    /// Owned by the connection, to be consumed at the next physics tick.
+    Queued,
+    /// Consumed once, including when the model could not jump.
+    Evaluated {
+        /// Control tick that evaluated it.
+        tick: u64,
+        /// Client-model outcome, never proof of a server jump.
+        outcome: GroundJumpOutcome,
+        /// That tick's movement was completely written.
+        dispatched: bool,
+    },
+    /// No predictable next tick, or the session ended before evaluation.
+    Cancelled {
+        /// Why the queued request was discarded without a later retry.
+        reason: String,
+    },
+}
+
+/// Latest once-only ground request. IDs are local to this connection/session.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct GroundJumpRequest {
+    /// Session selected by the caller, fencing stale requests after replacement.
+    pub session_id: u64,
+    /// Monotonic request ID within that session; pending requests coalesce.
+    pub request_id: u64,
+    /// Queue, model and packet boundaries.
+    pub status: GroundJumpStatus,
+}
+
 /// Engine state after one tick: a prediction, not a received position.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct ControlFrame {
@@ -75,6 +124,8 @@ pub struct ControlRecord {
     pub corrections: u64,
     /// Received own-velocity updates applied to the session.
     pub velocity_updates: u64,
+    /// Latest ground request, retained until another request or session replaces it.
+    pub ground_jump: Option<GroundJumpRequest>,
 }
 
 /// One received attribute: base value and modifiers in arrival order.
@@ -130,6 +181,8 @@ pub(crate) struct ControlSession {
     sent_input: Option<u8>,
     /// Receive sequence of the item-use flags current when use was released locally.
     released_use: Option<u64>,
+    ground_jump: Option<GroundJumpRequest>,
+    next_ground_jump: u64,
 }
 
 impl ControlSession {
@@ -186,6 +239,8 @@ impl ControlSession {
             sent_sprint: false,
             sent_input: None,
             released_use: None,
+            ground_jump: None,
+            next_ground_jump: 0,
         }
     }
 
@@ -221,7 +276,60 @@ impl ControlSession {
         self.released_use = received.using_item.as_ref().map(|u| u.0);
     }
 
+    pub(crate) fn request_ground_jump(&mut self, session_id: u64) -> Result<GroundJumpRequest> {
+        if self.id != session_id || self.status != ControlStatus::Running {
+            return Err(crate::client::registry::invalid(
+                "ground jump requires the same running control session",
+            ));
+        }
+        if let Some(request) = &self.ground_jump {
+            if request.status == GroundJumpStatus::Queued {
+                return Ok(request.clone());
+            }
+        }
+        self.next_ground_jump = self
+            .next_ground_jump
+            .checked_add(1)
+            .ok_or_else(|| crate::client::registry::invalid("ground jump request IDs exhausted"))?;
+        let request = GroundJumpRequest {
+            session_id,
+            request_id: self.next_ground_jump,
+            status: GroundJumpStatus::Queued,
+        };
+        self.ground_jump = Some(request.clone());
+        Ok(request)
+    }
+
+    fn cancel_ground_jump(&mut self, reason: &str) {
+        if let Some(request) = self
+            .ground_jump
+            .as_mut()
+            .filter(|r| r.status == GroundJumpStatus::Queued)
+        {
+            request.status = GroundJumpStatus::Cancelled {
+                reason: reason.into(),
+            };
+        }
+    }
+
     pub(crate) fn record(&self) -> ControlRecord {
+        let mut ground_jump = self.ground_jump.clone();
+        if let Some(request) = ground_jump
+            .as_mut()
+            .filter(|r| r.status == GroundJumpStatus::Queued)
+        {
+            let reason = match &self.status {
+                ControlStatus::Running => None,
+                ControlStatus::Paused { reason } | ControlStatus::Stopped { reason } => {
+                    Some(reason)
+                }
+            };
+            if let Some(reason) = reason {
+                request.status = GroundJumpStatus::Cancelled {
+                    reason: reason.clone(),
+                };
+            }
+        }
         ControlRecord {
             session_id: self.id,
             status: self.status.clone(),
@@ -230,6 +338,7 @@ impl ControlSession {
             frame: self.frame.clone(),
             corrections: self.corrections,
             velocity_updates: self.velocity_updates,
+            ground_jump,
         }
     }
 
@@ -284,6 +393,16 @@ impl ControlSession {
         if !self.running() {
             return Ok(None);
         }
+        // Adapter reconstruction may pause outside step(). A queued request
+        // must never survive that gap and trigger after terrain becomes usable.
+        if matches!(self.status, ControlStatus::Paused { .. }) {
+            self.cancel_ground_jump("control was paused before the next physics tick");
+        }
+        let ground_requested = self
+            .ground_jump
+            .as_ref()
+            .is_some_and(|r| r.status == GroundJumpStatus::Queued);
+        self.cancel_ground_jump("next physics tick could not be predicted");
         self.apply_received(received);
         let mut environment = received.environment.clone();
         environment.using_item = match &received.using_item {
@@ -299,14 +418,18 @@ impl ControlSession {
         };
         self.tick += 1;
         let controls = self.controls;
-        match physics::tick(
+        let ground_outcome = match physics::tick_with_ground_jump(
             self.version,
             &mut self.body,
             &environment,
             controls,
+            ground_requested,
             block_at,
         ) {
-            Ok(()) => self.status = ControlStatus::Running,
+            Ok(outcome) => {
+                self.status = ControlStatus::Running;
+                outcome
+            }
             // Unsupported terrain, unloaded cells: hold position and retry.
             Err(error) => {
                 self.status = ControlStatus::Paused {
@@ -314,6 +437,13 @@ impl ControlSession {
                 };
                 return Ok(None);
             }
+        };
+        if let Some(outcome) = ground_outcome {
+            self.ground_jump.as_mut().unwrap().status = GroundJumpStatus::Evaluated {
+                tick: self.tick,
+                outcome,
+                dispatched: false,
+            };
         }
         let b = &self.body;
         self.frame = Some(ControlFrame {
@@ -331,7 +461,14 @@ impl ControlSession {
             using_item: environment.using_item,
         });
         let modern = self.version == MinecraftVersion::Java1_21_11;
-        let input = modern.then(|| input_bits(controls));
+        let input = modern.then(|| {
+            input_bits(controls)
+                | if ground_outcome == Some(GroundJumpOutcome::Applied) {
+                    1 << 4
+                } else {
+                    0
+                }
+        });
         let output = Output {
             sneak: (controls.sneak != self.sent_sneak).then_some(controls.sneak),
             sprint: (b.sprinting != self.sent_sprint).then_some(b.sprinting),
@@ -356,6 +493,16 @@ impl ControlSession {
             self.sent_input = Some(bits);
         }
         self.dispatched_ticks = self.tick;
+        if let Some(request) = self.ground_jump.as_mut() {
+            if let GroundJumpStatus::Evaluated {
+                tick, dispatched, ..
+            } = &mut request.status
+            {
+                if *tick == self.tick {
+                    *dispatched = true;
+                }
+            }
+        }
     }
 
     /// Packets that release held sprint/sneak when the session stops.
@@ -418,6 +565,224 @@ mod tests {
                 properties: Default::default(),
             })
         }
+    }
+
+    #[test]
+    fn ground_request_preserves_keys_coalesces_and_matches_one_native_ground_jump() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let start = received(Some((5, [0.5, 64., 0.5], Some([0.; 3]))), None);
+            let mut session = ControlSession::new(version, 8, [0.5, 64., 0.5], &start);
+            session.controls = Controls {
+                forward: 1,
+                sneak: true,
+                yaw: 37.,
+                pitch: -12.,
+                ..Default::default()
+            };
+            for _ in 0..2 {
+                let settled = session.step(&start, &mut world(false)).unwrap().unwrap();
+                session.dispatched(&settled);
+            }
+            let held = session.controls;
+            let mut reference = session.body.clone();
+            let queued = session.request_ground_jump(8).unwrap();
+            assert_eq!(queued.status, GroundJumpStatus::Queued);
+            assert_eq!(session.request_ground_jump(8).unwrap(), queued);
+            assert!(session.request_ground_jump(7).is_err());
+            assert_eq!(session.controls, held);
+            let mut peaks = 0;
+            let mut rising = false;
+            for tick in 0..32 {
+                let mut controls = held;
+                controls.jump = tick == 0;
+                physics::tick(
+                    version,
+                    &mut reference,
+                    &start.environment,
+                    controls,
+                    &mut world(false),
+                )
+                .unwrap();
+                let output = session.step(&start, &mut world(false)).unwrap().unwrap();
+                assert_eq!(session.body.position, reference.position);
+                assert_eq!(session.body.velocity, reference.velocity);
+                assert_eq!(session.controls, held);
+                if tick == 0 {
+                    assert!(matches!(
+                        session.record().ground_jump.unwrap().status,
+                        GroundJumpStatus::Evaluated {
+                            outcome: GroundJumpOutcome::Applied,
+                            dispatched: false,
+                            ..
+                        }
+                    ));
+                    assert_eq!(
+                        output.input,
+                        (version == MinecraftVersion::Java1_21_11).then_some(0x31)
+                    );
+                } else if tick == 1 {
+                    assert_eq!(
+                        output.input,
+                        (version == MinecraftVersion::Java1_21_11).then_some(0x21)
+                    );
+                }
+                let next_rising = session.body.velocity[1] > 0.;
+                if next_rising && !rising {
+                    peaks += 1;
+                }
+                rising = next_rising;
+                session.dispatched(&output);
+            }
+            assert_eq!(peaks, 1);
+            assert!(session.body.on_ground);
+            assert!(matches!(
+                session.record().ground_jump.unwrap().status,
+                GroundJumpStatus::Evaluated {
+                    tick: 3,
+                    outcome: GroundJumpOutcome::Applied,
+                    dispatched: true
+                }
+            ));
+        }
+    }
+
+    #[test]
+    fn airborne_ground_request_is_consumed_before_landing() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let start = received(Some((5, [0.5, 68., 0.5], Some([0.; 3]))), None);
+            let mut session = ControlSession::new(version, 1, [0.5, 68., 0.5], &start);
+            session.request_ground_jump(1).unwrap();
+            for _ in 0..24 {
+                let output = session.step(&start, &mut world(false)).unwrap().unwrap();
+                assert!(session.body.velocity[1] <= 0.);
+                session.dispatched(&output);
+            }
+            assert!(session.body.on_ground);
+            assert!(matches!(
+                session.record().ground_jump.unwrap().status,
+                GroundJumpStatus::Evaluated {
+                    tick: 1,
+                    outcome: GroundJumpOutcome::Airborne,
+                    dispatched: true
+                }
+            ));
+            assert_eq!(session.request_ground_jump(1).unwrap().request_id, 2);
+            session.step(&start, &mut world(false)).unwrap();
+            assert!(session.body.velocity[1] > 0.);
+        }
+    }
+
+    #[test]
+    fn ground_request_does_not_change_held_swimming_or_climbing() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            for water in [false, true] {
+                let start = received(Some((5, [0.5, 64., 0.5], Some([0.; 3]))), None);
+                let mut session = ControlSession::new(version, 1, [0.5, 64., 0.5], &start);
+                session.controls = Controls {
+                    jump: true,
+                    yaw: 37.,
+                    pitch: -12.,
+                    ..Default::default()
+                };
+                let mut dry = world(!water);
+                let mut blocks = |p: [i32; 3]| {
+                    if water && (64..=70).contains(&p[1]) {
+                        Ok(NativeBlockState {
+                            name: "minecraft:water".into(),
+                            properties: [("level".into(), "0".into())].into_iter().collect(),
+                        })
+                    } else {
+                        dry(p)
+                    }
+                };
+                let output = session.step(&start, &mut blocks).unwrap().unwrap();
+                session.dispatched(&output);
+                let mut reference = session.body.clone();
+                session.request_ground_jump(1).unwrap();
+                physics::tick(
+                    version,
+                    &mut reference,
+                    &start.environment,
+                    session.controls,
+                    &mut blocks,
+                )
+                .unwrap();
+                let output = session.step(&start, &mut blocks).unwrap().unwrap();
+                assert_eq!(session.body, reference);
+                assert!(session.controls.jump);
+                assert!(matches!(
+                    session.record().ground_jump.unwrap().status,
+                    GroundJumpStatus::Evaluated {
+                        outcome: GroundJumpOutcome::AlreadyHeld,
+                        ..
+                    }
+                ));
+                assert_eq!(output.input, None);
+            }
+        }
+    }
+
+    #[test]
+    fn ground_request_reports_received_zero_jump_power_without_inventing_an_impulse() {
+        let version = MinecraftVersion::Java1_21_11;
+        let mut start = received(Some((5, [0.5, 64., 0.5], Some([0.; 3]))), None);
+        start.environment.jump_strength = 0.;
+        let mut session = ControlSession::new(version, 1, [0.5, 64., 0.5], &start);
+        for _ in 0..2 {
+            let output = session.step(&start, &mut world(false)).unwrap().unwrap();
+            session.dispatched(&output);
+        }
+        session.request_ground_jump(1).unwrap();
+        let output = session.step(&start, &mut world(false)).unwrap().unwrap();
+        assert_eq!(session.body.position[1], 64.);
+        assert!(session.body.on_ground);
+        assert_eq!(output.input, None);
+        assert!(matches!(
+            session.record().ground_jump.unwrap().status,
+            GroundJumpStatus::Evaluated {
+                outcome: GroundJumpOutcome::NoJumpPower,
+                dispatched: false,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn ground_request_is_discarded_on_pause_stop_or_replacement() {
+        let start = received(Some((5, [0.5, 64., 0.5], Some([0.; 3]))), None);
+        let mut session =
+            ControlSession::new(MinecraftVersion::Java1_16_1, 1, [0.5, 64., 0.5], &start);
+        session.request_ground_jump(1).unwrap();
+        let mut unavailable = |_| Err(crate::client::registry::invalid("unloaded"));
+        assert!(session.step(&start, &mut unavailable).unwrap().is_none());
+        assert!(session.request_ground_jump(1).is_err());
+        assert!(matches!(
+            session.record().ground_jump.unwrap().status,
+            GroundJumpStatus::Cancelled { .. }
+        ));
+        for _ in 0..3 {
+            session.step(&start, &mut world(false)).unwrap();
+        }
+        assert!(session.body.velocity[1] <= 0.);
+        session.request_ground_jump(1).unwrap();
+        session.status = ControlStatus::Stopped {
+            reason: "world changed".into(),
+        };
+        assert!(matches!(
+            session.record().ground_jump.unwrap().status,
+            GroundJumpStatus::Cancelled { .. }
+        ));
+        assert!(session.request_ground_jump(1).is_err());
+        let mut replacement = session.resume(2, [37., -12.], &start);
+        assert!(replacement.record().ground_jump.is_none());
+        assert!(replacement.request_ground_jump(1).is_err());
+        assert!(
+            replacement
+                .step(&start, &mut world(false))
+                .unwrap()
+                .is_some()
+        );
+        assert!(replacement.body.velocity[1] <= 0.);
     }
 
     #[test]

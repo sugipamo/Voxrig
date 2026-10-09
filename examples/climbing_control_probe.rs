@@ -134,7 +134,42 @@ async fn main() -> anyhow::Result<()> {
                 std::io::stdout().flush()?;
                 return Ok(());
             }
+            "revoke_control" => {
+                let revoked = client.revoke_connection();
+                let rejected = survival
+                    .request_ground_jump(request["session_id"].as_u64().unwrap())
+                    .await
+                    .is_err();
+                let record = tokio::time::timeout(Duration::from_secs(5), async {
+                    loop {
+                        let record = survival.control_record().await?.unwrap();
+                        if matches!(
+                            record.status,
+                            voxrig::client::control::ControlStatus::Stopped { .. }
+                        ) {
+                            break Ok::<_, anyhow::Error>(record);
+                        }
+                        tokio::time::sleep(Duration::from_millis(5)).await;
+                    }
+                })
+                .await??;
+                println!(
+                    "{}",
+                    serde_json::json!({"revoked": revoked, "jump_rejected": rejected, "record": record})
+                );
+                std::io::stdout().flush()?;
+                return Ok(());
+            }
             "start" => serde_json::to_value(survival.start_control().await?)?,
+            "jump" => {
+                match survival
+                    .request_ground_jump(request["session_id"].as_u64().unwrap())
+                    .await
+                {
+                    Ok(record) => serde_json::json!({"request": record}),
+                    Err(error) => serde_json::json!({"error": error.to_string()}),
+                }
+            }
             "restart" => {
                 let stopped = survival.stop_control().await?;
                 let started = survival.start_control().await?;

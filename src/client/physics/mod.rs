@@ -451,6 +451,7 @@ fn trig(version: MinecraftVersion, degrees: f32, cosine: bool) -> f32 {
 }
 
 /// Advance the player by one native client tick. On error nothing is changed.
+#[cfg(test)]
 pub(crate) fn tick(
     version: MinecraftVersion,
     body: &mut Body,
@@ -458,6 +459,18 @@ pub(crate) fn tick(
     controls: Controls,
     block_at: &mut impl FnMut([i32; 3]) -> Result<NativeBlockState>,
 ) -> Result<()> {
+    tick_with_ground_jump(version, body, env, controls, false, block_at).map(|_| ())
+}
+
+/// An owned ground impulse does not change held swimming/climbing input.
+pub(crate) fn tick_with_ground_jump(
+    version: MinecraftVersion,
+    body: &mut Body,
+    env: &Environment,
+    controls: Controls,
+    ground_requested: bool,
+    block_at: &mut impl FnMut([i32; 3]) -> Result<NativeBlockState>,
+) -> Result<Option<crate::client::control::GroundJumpOutcome>> {
     if !controls.yaw.is_finite()
         || !(-90.0..=90.0).contains(&controls.pitch)
         || !(-1..=1).contains(&controls.forward)
@@ -475,7 +488,7 @@ pub(crate) fn tick(
         states: HashMap::new(),
     };
     let mut next = body.clone();
-    Tick {
+    let outcome = Tick {
         version,
         rules: &version.table().physics_rules,
         env,
@@ -483,9 +496,9 @@ pub(crate) fn tick(
         level: &mut level,
         movement_order: [1, 0, 2],
     }
-    .run(controls)?;
+    .run(controls, ground_requested)?;
     *body = next;
-    Ok(())
+    Ok(outcome)
 }
 
 struct Tick<'a, 'w, F> {
@@ -502,7 +515,11 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         self.rules.generation == PhysicsGeneration::Legacy
     }
 
-    fn run(&mut self, controls: Controls) -> Result<()> {
+    fn run(
+        &mut self,
+        controls: Controls,
+        ground_requested: bool,
+    ) -> Result<Option<crate::client::control::GroundJumpOutcome>> {
         self.body.yaw = controls.yaw;
         self.body.pitch = controls.pitch;
         // Player.tick: updateIsUnderwater, then Entity.baseTick.
@@ -568,6 +585,24 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         } else {
             self.body.no_jump_delay = 0;
         }
+        let ground_outcome = if ground_requested {
+            use crate::client::control::GroundJumpOutcome as O;
+            Some(if jumping {
+                O::AlreadyHeld
+            } else if !self.body.on_ground {
+                O::Airborne
+            } else if self.body.in_water && self.body.water_height > self.jump_threshold()
+                || self.in_lava() && self.body.lava_height > self.jump_threshold()
+            {
+                O::InFluid
+            } else {
+                let applied = self.jump_from_ground()?;
+                self.body.no_jump_delay = 10;
+                if applied { O::Applied } else { O::NoJumpPower }
+            })
+        } else {
+            None
+        };
         if self.legacy() {
             xxa *= 0.98;
             zza *= 0.98;
@@ -585,7 +620,8 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             };
         }
         // Player.tick tail.
-        self.update_pose()
+        self.update_pose()?;
+        Ok(ground_outcome)
     }
 
     /// LivingEntity.onClimbable: only the feet cell, including aligned open trapdoors.
@@ -1257,7 +1293,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         self.below_affecting_movement()
     }
 
-    fn jump_from_ground(&mut self) -> Result<()> {
+    fn jump_from_ground(&mut self) -> Result<bool> {
         let feet = self.block_position();
         let below = self.jump_factor_position();
         let feet_factor = self.level.block(feet)?.jump_factor;
@@ -1286,7 +1322,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         } else {
             let power = self.env.jump_strength as f32 * 1.0 * factor + boost;
             if power <= 1.0e-5 {
-                return Ok(());
+                return Ok(false);
             }
             self.body.velocity[1] = f64::from(power).max(self.body.velocity[1]);
             if self.body.sprinting {
@@ -1294,7 +1330,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 self.body.velocity[2] += f64::from(c) * 0.2;
             }
         }
-        Ok(())
+        Ok(true)
     }
 
     /// Block whose friction/speed/jump factor applies below the player.

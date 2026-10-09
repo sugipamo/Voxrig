@@ -332,6 +332,11 @@ impl crate::client::adapter::ControlOps for Bot {
         if self.control().await != super::ControlState::default() {
             return Err(invalid("native controls are held; clear them first"));
         }
+        if self.jump_requested.load(Ordering::Acquire) {
+            return Err(invalid(
+                "a native ground jump is pending; wait for its physics tick",
+            ));
+        }
         let generation = self.common_receipts.lock().await.generation;
         if let Some(reason) = self.control_stop_reason(generation).await {
             return Err(invalid(reason));
@@ -415,6 +420,36 @@ impl crate::client::adapter::ControlOps for Bot {
         tokio::spawn(async move { owner.stop_control_owned(id).await })
             .await
             .map_err(|error| invalid(&format!("control stop task failed: {error}")))?
+    }
+
+    async fn request_ground_jump(
+        &self,
+        mode: GameMode,
+        session_id: u64,
+    ) -> Result<crate::client::control::GroundJumpRequest> {
+        self.wait_until_ready().await?;
+        let _gate = self.coherent_state_gate.lock().await;
+        if mode != GameMode::Survival || self.survival.read().await.game_mode != Some(0) {
+            return Err(invalid("ground jump requires received survival mode"));
+        }
+        let generation = self.common_receipts.lock().await.generation;
+        if let Some(reason) = self.control_stop_reason(generation).await {
+            return Err(invalid(reason));
+        }
+        let mut control = self.common_control.lock().await;
+        if self.stopped.load(Ordering::Acquire)
+            || self.connection_state() != crate::ConnectionState::Ready
+        {
+            return Err(invalid("ground jump connection is no longer ready"));
+        }
+        if control.generation != Some(generation) {
+            return Err(invalid("ground jump control belongs to a previous world"));
+        }
+        control
+            .session
+            .as_mut()
+            .ok_or_else(|| invalid("no running control session"))?
+            .request_ground_jump(session_id)
     }
 
     async fn control_record(&self) -> Result<Option<ControlRecord>> {
@@ -511,6 +546,159 @@ mod tests {
         let _ = client.revoke_connection();
         drop(client);
         drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn native_ground_queue_cannot_cross_common_control_ownership() {
+        let (bot, _packets, _release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.jump().await.unwrap();
+        assert!(bot.jump_requested.load(Ordering::Acquire));
+        assert!(bot.start_control(GameMode::Survival).await.is_err());
+        assert!(bot.jump_requested.load(Ordering::Acquire));
+        // The fixture holds the passive producer at its teleport barrier.
+        // Retire that pending native tick to exercise the reverse owner boundary.
+        bot.jump_requested.store(false, Ordering::Release);
+        bot.start_control(GameMode::Survival).await.unwrap();
+        assert!(bot.jump().await.is_err());
+        assert!(!bot.jump_requested.load(Ordering::Acquire));
+        bot.stop_control().await.unwrap();
+        bot.disconnect().await.unwrap();
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn ground_request_admission_rechecks_tcp_mode_and_revocation_after_waiting() {
+        let mut creative = vec![3];
+        creative.extend(1f32.to_be_bytes());
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x03, 0x1e, creative).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let survival = client.survival();
+        assert!(survival.request_ground_jump(1).await.is_err());
+        let started = survival.start_control().await.unwrap();
+        assert!(
+            survival
+                .request_ground_jump(started.session_id + 1)
+                .await
+                .is_err()
+        );
+        timeout(Duration::from_secs(2), async {
+            while survival
+                .control_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .dispatched_ticks
+                < 3
+            {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        })
+        .await
+        .unwrap();
+        let queued = survival
+            .request_ground_jump(started.session_id)
+            .await
+            .unwrap();
+        timeout(Duration::from_secs(2), async {
+            loop {
+                let record = survival.control_record().await.unwrap().unwrap();
+                if matches!(
+                    record.ground_jump.unwrap().status,
+                    crate::client::control::GroundJumpStatus::Evaluated {
+                        dispatched: true,
+                        ..
+                    }
+                ) {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        })
+        .await
+        .unwrap();
+        // Cancellation before admission leaves the previous diagnostic intact.
+        let gate = bot.coherent_state_gate.lock().await;
+        let mut cancelled = Box::pin(survival.request_ground_jump(started.session_id));
+        assert!(
+            timeout(Duration::from_millis(10), cancelled.as_mut())
+                .await
+                .is_err()
+        );
+        drop(cancelled);
+        drop(gate);
+        assert_eq!(
+            survival
+                .control_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .ground_jump
+                .unwrap()
+                .request_id,
+            queued.request_id
+        );
+        release.send(()).unwrap();
+        bot.send_chat("ground request mode fixture").await.unwrap();
+        timeout(Duration::from_secs(2), async {
+            while bot.survival.read().await.game_mode != Some(1) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert!(
+            survival
+                .request_ground_jump(started.session_id)
+                .await
+                .is_err()
+        );
+        timeout(Duration::from_secs(2), async {
+            while !matches!(
+                survival.control_record().await.unwrap().unwrap().status,
+                ControlStatus::Stopped { .. }
+            ) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        let mut survival_mode = vec![3];
+        survival_mode.extend(0f32.to_be_bytes());
+        bot.apply_packet(0x1e, survival_mode).await.unwrap();
+        let replacement = survival.start_control().await.unwrap();
+        assert!(
+            survival
+                .request_ground_jump(started.session_id)
+                .await
+                .is_err()
+        );
+        let gate = bot.coherent_state_gate.lock().await;
+        let mut waiting = Box::pin(survival.request_ground_jump(replacement.session_id));
+        assert!(
+            timeout(Duration::from_millis(10), waiting.as_mut())
+                .await
+                .is_err()
+        );
+        let _ = client.revoke_connection();
+        drop(gate);
+        assert!(waiting.await.is_err());
+        assert!(
+            survival
+                .control_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .ground_jump
+                .is_none()
+        );
         timeout(Duration::from_secs(2), server)
             .await
             .unwrap()

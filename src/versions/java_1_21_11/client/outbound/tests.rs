@@ -1723,6 +1723,130 @@ async fn restart_does_not_replay_modern_received_tcp_velocity_or_reset_rotation(
 }
 
 #[tokio::test]
+async fn ground_request_admission_rechecks_modern_tcp_mode_and_revocation_after_waiting() {
+    let (session, api, mut peer, reader) =
+        common_ground_transport(crate::client::GameMode::Survival).await;
+    let receiving = session.clone();
+    let receiver = tokio::spawn(async move { receiving.run_receiver(reader).await });
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let survival = client.survival();
+    assert!(survival.request_ground_jump(1).await.is_err());
+    let started = survival.start_control().await.unwrap();
+    assert!(
+        survival
+            .request_ground_jump(started.session_id + 1)
+            .await
+            .is_err()
+    );
+    let queued = survival
+        .request_ground_jump(started.session_id)
+        .await
+        .unwrap();
+    let guard = session.state.lock().await;
+    let mut cancelled = Box::pin(survival.request_ground_jump(started.session_id));
+    assert!(
+        timeout(Duration::from_millis(10), cancelled.as_mut())
+            .await
+            .is_err()
+    );
+    drop(cancelled);
+    drop(guard);
+    assert_eq!(
+        survival
+            .control_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .ground_jump
+            .unwrap()
+            .request_id,
+        queued.request_id
+    );
+    for mode in [1f32, 0.] {
+        let sequence = session.state.lock().await.sequence;
+        let mut packet = vec![3];
+        packet.extend(mode.to_be_bytes());
+        write_packet(
+            &mut peer,
+            None,
+            ids::play_clientbound::GAME_STATE_CHANGE,
+            &packet,
+        )
+        .await
+        .unwrap();
+        timeout(Duration::from_secs(2), async {
+            while session.state.lock().await.sequence == sequence {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        if mode == 1. {
+            assert!(
+                survival
+                    .request_ground_jump(started.session_id)
+                    .await
+                    .is_err()
+            );
+            timeout(Duration::from_secs(2), async {
+                while !matches!(
+                    survival.control_record().await.unwrap().unwrap().status,
+                    crate::client::control::ControlStatus::Stopped { .. }
+                ) {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .unwrap();
+            assert!(
+                survival
+                    .request_ground_jump(started.session_id)
+                    .await
+                    .is_err()
+            );
+            assert!(
+                survival
+                    .control_record()
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .ground_jump
+                    .unwrap()
+                    .status
+                    != crate::client::control::GroundJumpStatus::Queued
+            );
+        }
+    }
+    let replacement = survival.start_control().await.unwrap();
+    assert!(
+        survival
+            .request_ground_jump(started.session_id)
+            .await
+            .is_err()
+    );
+    let guard = session.state.lock().await;
+    let mut waiting = Box::pin(survival.request_ground_jump(replacement.session_id));
+    assert!(
+        timeout(Duration::from_millis(10), waiting.as_mut())
+            .await
+            .is_err()
+    );
+    let _ = client.revoke_connection();
+    drop(guard);
+    assert!(waiting.await.is_err());
+    assert!(
+        survival
+            .control_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .ground_jump
+            .is_none()
+    );
+    receiver.await.unwrap();
+}
+
+#[tokio::test]
 async fn cancelling_control_stop_wait_still_releases_keys_and_retains_record() {
     use crate::client::adapter::ControlOps;
     use crate::client::control::{ControlSession, ControlStatus, Output, Received};
