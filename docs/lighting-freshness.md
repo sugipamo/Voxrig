@@ -33,3 +33,13 @@ missing light into zero. Re-observation can use server chunk unload/redelivery,
 or an explicit controlled reconnect. Changing a client's interest region alone
 is not proof that the server unloaded a chunk. This cache policy does not prove
 nighttime safety, parcel coverage, enemy absence, or server quiescence.
+
+The isolated official-server check is `scripts/run_light_cache.py`, using the
+common `ChunkObservation` API through `climbing_control_probe`. It records 13
+received cells across 20 samples, original Light Update masks and immutable old
+snapshots. Vanilla may send a sparse update for an opaque replacement: the check
+identifies sampled sections that were not redelivered instead of assuming zero
+packets. Genuine source changes must leave unreceived channels unknown; observed
+unload followed by new chunk/light receipts restores current values. Captures of
+different columns are sequential, not one atomic world snapshot. Other heights
+without received light remain unknown and are recorded separately.

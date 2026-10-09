@@ -5,6 +5,28 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use voxrig::client::control::Controls;
 use voxrig::client::prelude::*;
 
+fn lighting_samples(
+    chunks: &[voxrig::client::ChunkObservation],
+    positions: &[[i32; 3]],
+) -> serde_json::Value {
+    serde_json::json!(
+        positions
+            .iter()
+            .map(|&position| {
+                let chunk = chunks.iter().find(|c| {
+                    c.position == [position[0].div_euclid(16), position[2].div_euclid(16)]
+                });
+                serde_json::json!({"position":position,
+            "state":chunk.and_then(|c|c.block(position)),
+            "sky_light":chunk.and_then(|c|c.sky_light(position)),
+            "block_light":chunk.and_then(|c|c.block_light(position)),
+            "receive_sequence":chunk.map(|c|c.receive_sequence),
+            "session":chunk.map(|c|c.session)})
+            })
+            .collect::<Vec<_>>()
+    )
+}
+
 fn face(request: &serde_json::Value) -> anyhow::Result<voxrig::client::BlockFace> {
     use voxrig::client::BlockFace;
     Ok(match request["face"].as_str() {
@@ -31,6 +53,7 @@ async fn main() -> anyhow::Result<()> {
     std::io::stdout().flush()?;
     let survival = client.survival();
     let mut mounted = None;
+    let mut saved_lighting = Vec::new();
     let creative_vehicle = std::env::var("VOXRIG_VEHICLE_MODE").as_deref() == Ok("creative");
     let mut lines = BufReader::new(tokio::io::stdin()).lines();
     while let Some(line) = lines.next_line().await? {
@@ -68,6 +91,29 @@ async fn main() -> anyhow::Result<()> {
             }
             "respawn" => serde_json::to_value(client.respawn().await?)?,
             "player" => serde_json::to_value(client.player_state().await?)?,
+            "lighting" => {
+                let positions: Vec<[i32; 3]> =
+                    serde_json::from_value(request["positions"].clone())?;
+                let columns: std::collections::BTreeSet<_> = positions
+                    .iter()
+                    .map(|p| [p[0].div_euclid(16), p[2].div_euclid(16)])
+                    .collect();
+                let mut chunks = Vec::new();
+                for column in columns {
+                    if let Some(chunk) = client.chunk(column).await? {
+                        chunks.push(chunk);
+                    }
+                }
+                let value = lighting_samples(&chunks, &positions);
+                if request["save"] == true {
+                    saved_lighting = chunks;
+                }
+                value
+            }
+            "saved_lighting" => lighting_samples(
+                &saved_lighting,
+                &serde_json::from_value::<Vec<[i32; 3]>>(request["positions"].clone())?,
+            ),
             "placement_check" => serde_json::to_value(
                 survival
                     .placement_check(
