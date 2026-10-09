@@ -1,0 +1,1637 @@
+{
+  "issues": [
+    28,
+    29
+  ],
+  "recorded_on": "2026-10-09",
+  "scope": "Common-only functional validation on unmodified vanilla servers; no Golemkit changes or #5 endurance claim. Later server reads are separate from capture and dispatch receipts.",
+  "sdk_commit": "0238233db5d066292b023f54c56a1081befd9bb6",
+  "sdk_src_tree": "66d267c15b0f77a10276e73710f591fefdc79344",
+  "probe_sha256": "abd76db993447d072c69f9e20faef7b5444a2ba27f2550db906ee97647be0388",
+  "probe_source_sha256": "2af335bda865e7f1da68dbbb1f5de71e939f355d786a556d03daccfbf8124506",
+  "runner_sha256": "fb84117093139cef8bc10be587997fb4df64cb8a7634611ee08231e7551d899b",
+  "fixture_correction": {
+    "excluded_run": "1.16.1-20261009-032333",
+    "reason": "The fixture evaluated the 64-block stage before receiving removal of the preceding 48-block obstruction. It now waits for the intended hit cell before each assertion."
+  },
+  "runs": [
+    {
+      "version": "1.16.1",
+      "run": "1.16.1-20261009-032445",
+      "official_server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "checks_passed": 21,
+      "trace_errors": [],
+      "report_sha256": "ca4ceb8dfbbdc77b89d2a82234952cc5226992fc3d61c8dfea2cfc6be68e41f9",
+      "trace_sha256": "eb278dd1965fa1fab95a5fec3ac45e024757c2a4dc5b65b86ceac2371bf33ae4",
+      "checks": [
+        {
+          "name": "obstruction_beyond_32",
+          "raycast": {
+            "receive_sequence": 242,
+            "result": {
+              "Hit": {
+                "distance": 39.5,
+                "face": "West",
+                "point": [
+                  40.0,
+                  66.75,
+                  0.5
+                ],
+                "position": [
+                  40,
+                  66,
+                  0
+                ],
+                "state": {
+                  "name": "minecraft:stone",
+                  "properties": {}
+                }
+              }
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            }
+          }
+        },
+        {
+          "name": "transparent_path_over_partial_shape",
+          "raycast": {
+            "receive_sequence": 244,
+            "result": "Miss",
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            }
+          }
+        },
+        {
+          "name": "partial_shape_beyond_32",
+          "raycast": {
+            "receive_sequence": 244,
+            "result": {
+              "Hit": {
+                "distance": 45.5,
+                "face": "West",
+                "point": [
+                  46.0,
+                  66.25,
+                  0.5
+                ],
+                "position": [
+                  46,
+                  66,
+                  0
+                ],
+                "state": {
+                  "name": "minecraft:oak_slab",
+                  "properties": {
+                    "type": "bottom",
+                    "waterlogged": "false"
+                  }
+                }
+              }
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            }
+          }
+        },
+        {
+          "name": "48_plus_target_offset",
+          "raycast": {
+            "receive_sequence": 247,
+            "result": {
+              "Hit": {
+                "distance": 47.50064425561353,
+                "face": "West",
+                "point": [
+                  48.0,
+                  66.75,
+                  0.7473958333333334
+                ],
+                "position": [
+                  48,
+                  66,
+                  0
+                ],
+                "state": {
+                  "name": "minecraft:stone",
+                  "properties": {}
+                }
+              }
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            }
+          }
+        },
+        {
+          "name": "maximum_64",
+          "raycast": {
+            "receive_sequence": 251,
+            "result": {
+              "Hit": {
+                "distance": 63.5,
+                "face": "West",
+                "point": [
+                  64.0,
+                  66.75,
+                  0.5
+                ],
+                "position": [
+                  64,
+                  66,
+                  0
+                ],
+                "state": {
+                  "name": "minecraft:stone",
+                  "properties": {}
+                }
+              }
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            }
+          }
+        },
+        {
+          "name": "distance_bound_refused",
+          "result": {
+            "error": "raycast distance must be in (0, 64]: raycast distance must be in (0, 64]",
+            "kind": "InvalidInput",
+            "ok": false
+          }
+        },
+        {
+          "name": "unloaded_boundary_beyond_32",
+          "raycast": {
+            "receive_sequence": 251,
+            "result": {
+              "Unloaded": {
+                "position": [
+                  80,
+                  70,
+                  0
+                ]
+              }
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            }
+          }
+        },
+        {
+          "name": "survival_look",
+          "result": {
+            "player": {
+              "game_mode": "survival",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 142
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "on_ground": null,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 252
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 266,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 252,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                37.0,
+                -12.0
+              ],
+              "rotation_source": {
+                "kind": "submitted"
+              },
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 5
+                },
+                "value": 0
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              }
+            },
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_16_1"
+            }
+          },
+          "original": {
+            "ordinal": 323,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 19,
+            "body_length": 33,
+            "wire_sha256": "d8a9930acf5819720aacc164a591864e4b33e816245ffe536fdf2074f9ec42f0",
+            "body_sha256": "8c609dc77c4aea7b52f33013b9db08e49378f01a4bf268461f9acc5f32f74203",
+            "body_hex": "3fe000000000000040504000000000003fe000000000000042140000c140000000"
+          },
+          "later_server_rotation": [
+            37.0,
+            -12.0
+          ]
+        },
+        {
+          "name": "survival_hotbar",
+          "result": {
+            "player": {
+              "game_mode": "survival",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 142
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "on_ground": null,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 252
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 266,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 252,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                37.0,
+                -12.0
+              ],
+              "rotation_source": {
+                "kind": "submitted"
+              },
+              "selected_hotbar": {
+                "source": {
+                  "kind": "submitted"
+                },
+                "value": 8
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              }
+            },
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_16_1"
+            }
+          },
+          "originals": [
+            {
+              "ordinal": 330,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 36,
+              "body_length": 2,
+              "wire_sha256": "aa5b59bd50da065dbf20cbb65505ecbcb4fda66225a1dccb1b293ff1e63de7cd",
+              "body_sha256": "b4c43b50bf245bd727623e3c775a8fcfb8d823d00b57dd65f7f79dd33f126315",
+              "body_hex": "0008"
+            }
+          ]
+        },
+        {
+          "name": "survival_invalid_inputs_refused"
+        },
+        {
+          "name": "creative_look",
+          "result": {
+            "player": {
+              "game_mode": "creative",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 142
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "on_ground": null,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 290
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 298,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 290,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                37.0,
+                -12.0
+              ],
+              "rotation_source": {
+                "kind": "submitted"
+              },
+              "selected_hotbar": {
+                "source": {
+                  "kind": "submitted"
+                },
+                "value": 8
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              }
+            },
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_16_1"
+            }
+          },
+          "original": {
+            "ordinal": 359,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 19,
+            "body_length": 33,
+            "wire_sha256": "d8a9930acf5819720aacc164a591864e4b33e816245ffe536fdf2074f9ec42f0",
+            "body_sha256": "8c609dc77c4aea7b52f33013b9db08e49378f01a4bf268461f9acc5f32f74203",
+            "body_hex": "3fe000000000000040504000000000003fe000000000000042140000c140000000"
+          },
+          "later_server_rotation": [
+            37.0,
+            -12.0
+          ]
+        },
+        {
+          "name": "creative_hotbar",
+          "result": {
+            "player": {
+              "game_mode": "creative",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 142
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "on_ground": null,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 290
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 298,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 290,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                37.0,
+                -12.0
+              ],
+              "rotation_source": {
+                "kind": "submitted"
+              },
+              "selected_hotbar": {
+                "source": {
+                  "kind": "submitted"
+                },
+                "value": 8
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              }
+            },
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_16_1"
+            }
+          },
+          "originals": [
+            {
+              "ordinal": 366,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 36,
+              "body_length": 2,
+              "wire_sha256": "aa5b59bd50da065dbf20cbb65505ecbcb4fda66225a1dccb1b293ff1e63de7cd",
+              "body_sha256": "b4c43b50bf245bd727623e3c775a8fcfb8d823d00b57dd65f7f79dd33f126315",
+              "body_hex": "0008"
+            }
+          ]
+        },
+        {
+          "name": "creative_invalid_inputs_refused"
+        },
+        {
+          "name": "adventure_look",
+          "result": {
+            "player": {
+              "game_mode": "adventure",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 142
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "on_ground": null,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 312
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 329,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 312,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                37.0,
+                -12.0
+              ],
+              "rotation_source": {
+                "kind": "submitted"
+              },
+              "selected_hotbar": {
+                "source": {
+                  "kind": "submitted"
+                },
+                "value": 8
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              }
+            },
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_16_1"
+            }
+          },
+          "original": {
+            "ordinal": 394,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 19,
+            "body_length": 33,
+            "wire_sha256": "d8a9930acf5819720aacc164a591864e4b33e816245ffe536fdf2074f9ec42f0",
+            "body_sha256": "8c609dc77c4aea7b52f33013b9db08e49378f01a4bf268461f9acc5f32f74203",
+            "body_hex": "3fe000000000000040504000000000003fe000000000000042140000c140000000"
+          },
+          "later_server_rotation": [
+            37.0,
+            -12.0
+          ]
+        },
+        {
+          "name": "adventure_hotbar",
+          "result": {
+            "player": {
+              "game_mode": "adventure",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 142
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "on_ground": null,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 312
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 329,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 312,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                37.0,
+                -12.0
+              ],
+              "rotation_source": {
+                "kind": "submitted"
+              },
+              "selected_hotbar": {
+                "source": {
+                  "kind": "submitted"
+                },
+                "value": 8
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              }
+            },
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_16_1"
+            }
+          },
+          "originals": [
+            {
+              "ordinal": 396,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 36,
+              "body_length": 2,
+              "wire_sha256": "aa5b59bd50da065dbf20cbb65505ecbcb4fda66225a1dccb1b293ff1e63de7cd",
+              "body_sha256": "b4c43b50bf245bd727623e3c775a8fcfb8d823d00b57dd65f7f79dd33f126315",
+              "body_hex": "0008"
+            }
+          ]
+        },
+        {
+          "name": "adventure_invalid_inputs_refused"
+        },
+        {
+          "name": "spectator_look",
+          "result": {
+            "player": {
+              "game_mode": "spectator",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 142
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "on_ground": null,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 353
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 360,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 353,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                37.0,
+                -12.0
+              ],
+              "rotation_source": {
+                "kind": "submitted"
+              },
+              "selected_hotbar": {
+                "source": {
+                  "kind": "submitted"
+                },
+                "value": 8
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              }
+            },
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_16_1"
+            }
+          },
+          "original": {
+            "ordinal": 429,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 19,
+            "body_length": 33,
+            "wire_sha256": "d8a9930acf5819720aacc164a591864e4b33e816245ffe536fdf2074f9ec42f0",
+            "body_sha256": "8c609dc77c4aea7b52f33013b9db08e49378f01a4bf268461f9acc5f32f74203",
+            "body_hex": "3fe000000000000040504000000000003fe000000000000042140000c140000000"
+          },
+          "later_server_rotation": [
+            37.0,
+            -12.0
+          ]
+        },
+        {
+          "name": "spectator_hotbar",
+          "result": {
+            "error": "vanilla spectator mode does not apply held hotbar selection: vanilla spectator mode does not apply held hotbar selection",
+            "kind": "Unsupported",
+            "ok": false
+          },
+          "originals": []
+        },
+        {
+          "name": "spectator_invalid_inputs_refused"
+        },
+        {
+          "name": "received_mode_change_refused",
+          "look": {
+            "error": "operation requires matching received game mode: operation requires matching received game mode",
+            "kind": "State",
+            "ok": false
+          },
+          "hotbar": {
+            "error": "operation requires matching received game mode: operation requires matching received game mode",
+            "kind": "State",
+            "ok": false
+          }
+        },
+        {
+          "name": "raycast_respawn_world_boundary",
+          "before": {
+            "receive_sequence": 367,
+            "result": "Miss",
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            }
+          },
+          "after": {
+            "receive_sequence": 851,
+            "result": "Miss",
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 381
+            }
+          }
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "run": "1.21.11-20261009-032509",
+      "official_server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "checks_passed": 21,
+      "trace_errors": [],
+      "report_sha256": "74bdf0ec4f0a28b720b363f2caf50f19da4c14f448ec67ac1512fa9aaff71724",
+      "trace_sha256": "8dcaae197f23ec8eba8d13d13ca4a18756dc82922440a10608f0701d16b65cf7",
+      "checks": [
+        {
+          "name": "obstruction_beyond_32",
+          "raycast": {
+            "receive_sequence": 160,
+            "result": {
+              "Hit": {
+                "distance": 39.5,
+                "face": "West",
+                "point": [
+                  40.0,
+                  66.75,
+                  0.5
+                ],
+                "position": [
+                  40,
+                  66,
+                  0
+                ],
+                "state": {
+                  "name": "minecraft:stone",
+                  "properties": {}
+                }
+              }
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          }
+        },
+        {
+          "name": "transparent_path_over_partial_shape",
+          "raycast": {
+            "receive_sequence": 169,
+            "result": "Miss",
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          }
+        },
+        {
+          "name": "partial_shape_beyond_32",
+          "raycast": {
+            "receive_sequence": 169,
+            "result": {
+              "Hit": {
+                "distance": 45.5,
+                "face": "West",
+                "point": [
+                  46.0,
+                  66.25,
+                  0.5
+                ],
+                "position": [
+                  46,
+                  66,
+                  0
+                ],
+                "state": {
+                  "name": "minecraft:oak_slab",
+                  "properties": {
+                    "type": "bottom",
+                    "waterlogged": "false"
+                  }
+                }
+              }
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          }
+        },
+        {
+          "name": "48_plus_target_offset",
+          "raycast": {
+            "receive_sequence": 200,
+            "result": {
+              "Hit": {
+                "distance": 47.50064425561353,
+                "face": "West",
+                "point": [
+                  48.0,
+                  66.75,
+                  0.7473958333333334
+                ],
+                "position": [
+                  48,
+                  66,
+                  0
+                ],
+                "state": {
+                  "name": "minecraft:stone",
+                  "properties": {}
+                }
+              }
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          }
+        },
+        {
+          "name": "maximum_64",
+          "raycast": {
+            "receive_sequence": 230,
+            "result": {
+              "Hit": {
+                "distance": 63.5,
+                "face": "West",
+                "point": [
+                  64.0,
+                  66.75,
+                  0.5
+                ],
+                "position": [
+                  64,
+                  66,
+                  0
+                ],
+                "state": {
+                  "name": "minecraft:stone",
+                  "properties": {}
+                }
+              }
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          }
+        },
+        {
+          "name": "distance_bound_refused",
+          "result": {
+            "error": "raycast distance must be in (0, 64]: raycast distance must be in (0, 64]",
+            "kind": "InvalidInput",
+            "ok": false
+          }
+        },
+        {
+          "name": "unloaded_boundary_beyond_32",
+          "raycast": {
+            "receive_sequence": 230,
+            "result": {
+              "Unloaded": {
+                "position": [
+                  96,
+                  70,
+                  0
+                ]
+              }
+            },
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          }
+        },
+        {
+          "name": "survival_look",
+          "result": {
+            "player": {
+              "game_mode": "survival",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 53
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "on_ground": null,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 231
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 231,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 231,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                37.0,
+                -12.0
+              ],
+              "rotation_source": {
+                "kind": "submitted"
+              },
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 32
+                },
+                "value": 0
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              }
+            },
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_21_11"
+            }
+          },
+          "original": {
+            "ordinal": 262,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 31,
+            "body_length": 9,
+            "wire_sha256": "00a3065971894fe30cdcd509291485f666218cb97a86939ce0715a36b85dc78e",
+            "body_sha256": "5029a4894c6d8ab183177ef683c48ce3389611dc598c095b1549210aa82a0c18",
+            "body_hex": "42140000c140000001"
+          },
+          "later_server_rotation": [
+            37.0,
+            -12.0
+          ]
+        },
+        {
+          "name": "survival_hotbar",
+          "result": {
+            "player": {
+              "game_mode": "survival",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 53
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "on_ground": null,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 231
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 231,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 231,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                37.0,
+                -12.0
+              ],
+              "rotation_source": {
+                "kind": "submitted"
+              },
+              "selected_hotbar": {
+                "source": {
+                  "kind": "submitted"
+                },
+                "value": 8
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              }
+            },
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_21_11"
+            }
+          },
+          "originals": [
+            {
+              "ordinal": 263,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 52,
+              "body_length": 2,
+              "wire_sha256": "69545a3c6a7a3cf82925d2aac8f7f328c2b7f5eb10c448598ae4d808dca892f2",
+              "body_sha256": "b4c43b50bf245bd727623e3c775a8fcfb8d823d00b57dd65f7f79dd33f126315",
+              "body_hex": "0008"
+            }
+          ]
+        },
+        {
+          "name": "survival_invalid_inputs_refused"
+        },
+        {
+          "name": "creative_look",
+          "result": {
+            "player": {
+              "game_mode": "creative",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 53
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "on_ground": null,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 238
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 239,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 238,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                37.0,
+                -12.0
+              ],
+              "rotation_source": {
+                "kind": "submitted"
+              },
+              "selected_hotbar": {
+                "source": {
+                  "kind": "submitted"
+                },
+                "value": 8
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              }
+            },
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_21_11"
+            }
+          },
+          "original": {
+            "ordinal": 274,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 31,
+            "body_length": 9,
+            "wire_sha256": "bfae45bf53f96195954b1afc3785b9dc133c0126099a4442704a58623cb8b6cd",
+            "body_sha256": "c588aa65cdeccd02d6a9a033b6ddefd6cd9e3ce7c038f83786197598ffcd4099",
+            "body_hex": "42140000c140000000"
+          },
+          "later_server_rotation": [
+            37.0,
+            -12.0
+          ]
+        },
+        {
+          "name": "creative_hotbar",
+          "result": {
+            "player": {
+              "game_mode": "creative",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 53
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "on_ground": null,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 238
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 239,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 238,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                37.0,
+                -12.0
+              ],
+              "rotation_source": {
+                "kind": "submitted"
+              },
+              "selected_hotbar": {
+                "source": {
+                  "kind": "submitted"
+                },
+                "value": 8
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              }
+            },
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_21_11"
+            }
+          },
+          "originals": [
+            {
+              "ordinal": 275,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 52,
+              "body_length": 2,
+              "wire_sha256": "69545a3c6a7a3cf82925d2aac8f7f328c2b7f5eb10c448598ae4d808dca892f2",
+              "body_sha256": "b4c43b50bf245bd727623e3c775a8fcfb8d823d00b57dd65f7f79dd33f126315",
+              "body_hex": "0008"
+            }
+          ]
+        },
+        {
+          "name": "creative_invalid_inputs_refused"
+        },
+        {
+          "name": "adventure_look",
+          "result": {
+            "player": {
+              "game_mode": "adventure",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 53
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "on_ground": null,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 246
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 246,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 246,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                37.0,
+                -12.0
+              ],
+              "rotation_source": {
+                "kind": "submitted"
+              },
+              "selected_hotbar": {
+                "source": {
+                  "kind": "submitted"
+                },
+                "value": 8
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              }
+            },
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_21_11"
+            }
+          },
+          "original": {
+            "ordinal": 285,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 31,
+            "body_length": 9,
+            "wire_sha256": "00a3065971894fe30cdcd509291485f666218cb97a86939ce0715a36b85dc78e",
+            "body_sha256": "5029a4894c6d8ab183177ef683c48ce3389611dc598c095b1549210aa82a0c18",
+            "body_hex": "42140000c140000001"
+          },
+          "later_server_rotation": [
+            37.0,
+            -12.0
+          ]
+        },
+        {
+          "name": "adventure_hotbar",
+          "result": {
+            "player": {
+              "game_mode": "adventure",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 53
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "on_ground": null,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 246
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 247,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 246,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                37.0,
+                -12.0
+              ],
+              "rotation_source": {
+                "kind": "submitted"
+              },
+              "selected_hotbar": {
+                "source": {
+                  "kind": "submitted"
+                },
+                "value": 8
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              }
+            },
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_21_11"
+            }
+          },
+          "originals": [
+            {
+              "ordinal": 287,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 52,
+              "body_length": 2,
+              "wire_sha256": "69545a3c6a7a3cf82925d2aac8f7f328c2b7f5eb10c448598ae4d808dca892f2",
+              "body_sha256": "b4c43b50bf245bd727623e3c775a8fcfb8d823d00b57dd65f7f79dd33f126315",
+              "body_hex": "0008"
+            }
+          ]
+        },
+        {
+          "name": "adventure_invalid_inputs_refused"
+        },
+        {
+          "name": "spectator_look",
+          "result": {
+            "player": {
+              "game_mode": "spectator",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 53
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 5.0
+                }
+              },
+              "on_ground": null,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 253
+                },
+                "value": [
+                  0.5,
+                  65.0,
+                  0.5
+                ]
+              },
+              "receive_sequence": 254,
+              "received_pose": {
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "receive_sequence": 253,
+                "rotation": [
+                  0.0,
+                  0.0
+                ]
+              },
+              "rotation": [
+                37.0,
+                -12.0
+              ],
+              "rotation_source": {
+                "kind": "submitted"
+              },
+              "selected_hotbar": {
+                "source": {
+                  "kind": "submitted"
+                },
+                "value": 8
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              }
+            },
+            "receipt": {
+              "connection_id": 1,
+              "interaction_sequence": null,
+              "version": "Java1_21_11"
+            }
+          },
+          "original": {
+            "ordinal": 297,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 31,
+            "body_length": 9,
+            "wire_sha256": "bfae45bf53f96195954b1afc3785b9dc133c0126099a4442704a58623cb8b6cd",
+            "body_sha256": "c588aa65cdeccd02d6a9a033b6ddefd6cd9e3ce7c038f83786197598ffcd4099",
+            "body_hex": "42140000c140000000"
+          },
+          "later_server_rotation": [
+            37.0,
+            -12.0
+          ]
+        },
+        {
+          "name": "spectator_hotbar",
+          "result": {
+            "error": "vanilla spectator mode does not apply held hotbar selection: vanilla spectator mode does not apply held hotbar selection",
+            "kind": "Unsupported",
+            "ok": false
+          },
+          "originals": []
+        },
+        {
+          "name": "spectator_invalid_inputs_refused"
+        },
+        {
+          "name": "received_mode_change_refused",
+          "look": {
+            "error": "operation requires matching received game mode: operation requires matching received game mode",
+            "kind": "State",
+            "ok": false
+          },
+          "hotbar": {
+            "error": "operation requires matching received game mode: operation requires matching received game mode",
+            "kind": "State",
+            "ok": false
+          }
+        },
+        {
+          "name": "raycast_respawn_world_boundary",
+          "before": {
+            "receive_sequence": 261,
+            "result": "Miss",
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          "after": {
+            "receive_sequence": 350,
+            "result": "Miss",
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 270
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
