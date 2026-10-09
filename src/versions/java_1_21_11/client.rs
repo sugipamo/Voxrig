@@ -930,6 +930,7 @@ fn apply_play(
         return Ok(responses);
     }
     match id {
+        input::MAP => state.context.maps.receive(payload, true, state.sequence)?,
         input::LOGIN => {
             let entity_id = r.i32()?;
             if entity_id < 0 {

@@ -39,6 +39,8 @@ pub enum Feature {
     PlayerContext,
     /// Received biome volumes, packed heightmaps and block-entity NBT.
     ChunkContext,
+    /// Received map item fields, icons and partial pixel coverage.
+    Maps,
     /// Mode-checked look and hotbar selection.
     BasicControls,
     /// Same static outline query on survival and creative handles.
@@ -138,6 +140,7 @@ impl Feature {
         Feature::PlayerObservation,
         Feature::PlayerContext,
         Feature::ChunkContext,
+        Feature::Maps,
         Feature::BasicControls,
         Feature::BlockTargeting,
         Feature::SurvivalTargeting,
@@ -201,6 +204,10 @@ impl Capabilities {
             Support::Restricted(Restriction { summary, doc })
         }
         match feature {
+            Feature::Maps => restricted(
+                "bounded world-scoped map receipts; partial pixels and optional icons retain original sources",
+                "docs/common-maps.md",
+            ),
             Feature::ChunkContext => restricted(
                 "bounded received biome/heightmap/NBT fields, original column incarnations and version-specific kinds",
                 "docs/common-chunk-context.md",

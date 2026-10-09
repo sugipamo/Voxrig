@@ -5167,11 +5167,21 @@ impl Bot {
             0x24 => self.receive_light_update(&p).await?,
             0x25 => self.receive_join_game(&p, packet_sequence).await?,
             0x26 => {
+                // Validate the whole common packet/budget before changing either
+                // cache. The common cache has explicit missing pixel coverage.
+                let mut received_maps = self.common_receipts.lock().await.context.maps.clone();
+                received_maps.receive_with_limit(
+                    &p,
+                    false,
+                    packet_sequence,
+                    self.connection_options.max_maps,
+                )?;
                 let update = parse_map_update(&p)?;
                 self.maps
                     .write()
                     .await
                     .apply(&update, self.connection_options.max_maps)?;
+                self.common_receipts.lock().await.context.maps = received_maps;
                 self.emit(Event::MapUpdated(update));
             }
             0x27 => {
