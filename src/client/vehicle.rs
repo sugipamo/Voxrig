@@ -149,6 +149,30 @@ impl PassengerLedger {
                 "boat passenger graph budget unavailable",
             ));
         }
+        // SET_PASSENGERS names reusable numeric IDs. Only a spawn already
+        // known at that receipt may be excluded from the collision model.
+        // Keep the original list unchanged; refuse rather than rebinding it.
+        if let Some(passengers) = &self.passengers {
+            for &passenger in &passengers.value {
+                if passenger == mount.player_native_id {
+                    continue;
+                }
+                if let Some(sequence) = spawns.spawn_sequence(passenger) {
+                    let owned = self
+                        .collision_parents
+                        .get(&mount.native_vehicle_id())
+                        .is_some_and(|r| {
+                            r.parent_spawn == mount.vehicle().map(|v| v.spawn_sequence())
+                                && r.children.contains(&(passenger, Some(sequence)))
+                        });
+                    if !owned {
+                        return Err(super::inventory::unavailable(
+                            "boat collision passenger spawn differs from original receipt",
+                        ));
+                    }
+                }
+            }
+        }
         for (&parent, relation) in &self.collision_parents {
             if relation.parent_spawn.is_some()
                 && relation.parent_spawn != spawns.spawn_sequence(parent)

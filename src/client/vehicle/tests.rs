@@ -1014,3 +1014,68 @@ fn nested_receipt_fences_running_input_and_drops_stale_prediction_on_explicit_re
         );
     }
 }
+
+#[test]
+fn saved_passenger_ids_do_not_exclude_later_spawns_without_a_new_actual_list() {
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        let session = SessionStamp {
+            version,
+            connection_id: 4,
+            world_generation: 7,
+        };
+        let mut spawns = SpawnLedger::default();
+        let spawn = |id| NativeSpawn {
+            id,
+            uuid: None,
+            type_id: None,
+            dedicated_type_name: Some("minecart"),
+            position: [0.; 3],
+            living: None,
+        };
+        spawns.insert(version, spawn(10), 1, 4096).unwrap();
+        spawns.insert(version, spawn(43), 2, 4096).unwrap();
+        let mut ledger = PassengerLedger::default();
+        ledger.receive(
+            &NativePassengers::decode(&[10, 3, 42, 43, 44]).unwrap(),
+            Some(42),
+            &spawns,
+            3,
+        );
+        let saved = ledger.capture(session, 3, Some(42), &spawns);
+        let VehicleRelation::Mounted { mount } = saved.relation.unwrap().value else {
+            panic!()
+        };
+        assert!(ledger.collision_safe(mount, &spawns).is_ok());
+        spawns.remove(43);
+        ledger.retire(43);
+        spawns.insert(version, spawn(43), 4, 4096).unwrap();
+        assert!(ledger.collision_safe(mount, &spawns).is_err());
+        // A later actual list can establish this replacement's attachment.
+        ledger.receive(
+            &NativePassengers::decode(&[10, 3, 42, 43, 44]).unwrap(),
+            Some(42),
+            &spawns,
+            5,
+        );
+        assert!(ledger.collision_safe(mount, &spawns).is_ok());
+        // An originally unknown passenger is not bound by its later spawn.
+        spawns.insert(version, spawn(44), 6, 4096).unwrap();
+        assert!(ledger.collision_safe(mount, &spawns).is_err());
+        ledger.receive(
+            &NativePassengers::decode(&[10, 2, 42, 43]).unwrap(),
+            Some(42),
+            &spawns,
+            7,
+        );
+        assert!(ledger.collision_safe(mount, &spawns).is_ok());
+        assert_eq!(saved.passengers.unwrap().value, [42, 43, 44]);
+        assert_eq!(
+            ledger
+                .capture(session, 7, Some(42), &spawns)
+                .passengers
+                .unwrap()
+                .source,
+            ValueSource::Received { sequence: 7 }
+        );
+    }
+}
