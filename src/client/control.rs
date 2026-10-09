@@ -29,6 +29,33 @@ pub enum ControlStatus {
     },
 }
 
+/// Converted equipment inputs sampled for this local movement model.
+/// These are diagnostic model parameters, not original receipts or action permissions.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct MovementEquipment {
+    /// Legacy Depth Strider level; the water calculation caps its effect at three.
+    pub depth_strider: u8,
+    /// Legacy Soul Speed target block names from the received tag; empty stays empty.
+    pub soul_speed_blocks: Option<Vec<String>>,
+    /// Modern effective received water-movement-efficiency attribute.
+    pub water_movement_efficiency: f64,
+    /// Modern effective received ground-movement-efficiency attribute.
+    pub movement_efficiency: f64,
+    /// False when a supplied equipment value/tag could not be interpreted.
+    pub available: bool,
+}
+impl From<&Environment> for MovementEquipment {
+    fn from(env: &Environment) -> Self {
+        Self {
+            depth_strider: env.depth_strider,
+            soul_speed_blocks: env.legacy_soul_speed_blocks.clone(),
+            water_movement_efficiency: env.water_movement_efficiency,
+            movement_efficiency: env.movement_efficiency,
+            available: !env.equipment_unavailable,
+        }
+    }
+}
+
 /// Result of evaluating a single ground request in the native client model.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -110,6 +137,9 @@ pub struct ControlFrame {
 /// Observable record of the connection's control session.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct ControlRecord {
+    /// Latest converted equipment parameters sampled by this local model.
+    /// Retained after stopping; never current equipment or a server acknowledgement.
+    pub movement_equipment: MovementEquipment,
     /// Process-local session identity.
     pub session_id: u64,
     /// Running, paused or stopped.
@@ -164,6 +194,7 @@ pub(crate) struct Output {
 }
 
 pub(crate) struct ControlSession {
+    movement_equipment: MovementEquipment,
     pub version: MinecraftVersion,
     pub id: u64,
     pub status: ControlStatus,
@@ -219,6 +250,7 @@ impl ControlSession {
         received: &Received,
     ) -> Self {
         Self {
+            movement_equipment: MovementEquipment::from(&received.environment),
             version,
             id,
             status: ControlStatus::Running,
@@ -331,6 +363,7 @@ impl ControlSession {
             }
         }
         ControlRecord {
+            movement_equipment: self.movement_equipment.clone(),
             session_id: self.id,
             status: self.status.clone(),
             controls: self.controls,
@@ -405,6 +438,7 @@ impl ControlSession {
         self.cancel_ground_jump("next physics tick could not be predicted");
         self.apply_received(received);
         let mut environment = received.environment.clone();
+        self.movement_equipment = MovementEquipment::from(&environment);
         environment.using_item = match &received.using_item {
             Some((sequence, _)) if self.released_use == Some(*sequence) => None,
             Some((_, Ok(using))) => *using,

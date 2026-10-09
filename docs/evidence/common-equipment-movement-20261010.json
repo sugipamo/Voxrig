@@ -1,0 +1,178 @@
+{
+  "scope": "Voxrig received equipment movement; public results and hashes only; original wire/NBT reports stay local",
+  "qualification": {
+    "source_revision": "f05fff1a93ed9e5b4a6e2a8f4bb3d13fa712990a",
+    "binary_build_revision": "f05fff1a93ed9e5b4a6e2a8f4bb3d13fa712990a",
+    "binary_sha256": "917f433f7cc82735aa51792503bdbc59ca987ecddd6f769b0b287c7a5f622b5f",
+    "source_diff_sha256": "01761de463b047b311638a497d57545b90815946dbea4ae23866f963d08ef6e6",
+    "artifacts": {
+      "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+      "scripts/run_equipment_movement.py": "c06742854af1988027629437217cdfcc9f1649416d87473af7ef5ef4d275d6cd",
+      "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+      "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+      "examples/climbing_control_probe.rs": "e1b2971af7e2bfe8e6d3a7dad1fb99561816851dd77477fa896234fbda49593b",
+      "scripts/movement_oracle/run.py": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+      "scripts/movement_oracle/equipment_scenarios.json": "fe77806c654a73aec777f633c9a53f829aacc59c4311572d99fd59148cc61692",
+      "scripts/movement_oracle/java_1_16_1/MovementOracle.java": "23d4ba554f09d1d86e58646cba8f796c183bcc4a7077ad6afcf37cece6a89594",
+      "scripts/movement_oracle/java_1_21_11/MovementOracle.java": "66d99e8b73174da22f424207486728a994dd11208a826160f70f3a7126e6e7be",
+      "data/client_api/equipment_movement_oracle.json.gz": "9f0fca58717701b42a0be0f678bfe9b8832a59340b2fc88e7b5fdae46cd57952"
+    },
+    "source_difference": "Only Python validation drivers; compiled SDK runtime/source unchanged"
+  },
+  "native_oracle": {
+    "fixture": "data/client_api/equipment_movement_oracle.json.gz",
+    "fixture_sha256": "9f0fca58717701b42a0be0f678bfe9b8832a59340b2fc88e7b5fdae46cd57952",
+    "runs": 11,
+    "exact_ticks": 330,
+    "inputs": [
+      {
+        "version": "1.16.1",
+        "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+        "harness_sha256": "23d4ba554f09d1d86e58646cba8f796c183bcc4a7077ad6afcf37cece6a89594"
+      },
+      {
+        "version": "1.21.11",
+        "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+        "harness_sha256": "66d99e8b73174da22f424207486728a994dd11208a826160f70f3a7126e6e7be"
+      }
+    ],
+    "initial_soul_speed_attribute": "Original server tryAddSoulSpeed establishes the native attribute before the initial snapshot; the SDK consumes its received modifier and does not synthesize the server boost."
+  },
+  "runs": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "check_count": 6,
+      "checks": [
+        {
+          "name": "equipped_water_control",
+          "passed": true
+        },
+        {
+          "name": "equipment_removed_during_same_owned_control",
+          "passed": true
+        },
+        {
+          "name": "stopped_equipment_diagnostic_retained",
+          "passed": true
+        },
+        {
+          "name": "original_server_owned_soul_speed_modifier",
+          "passed": true
+        },
+        {
+          "name": "received_soul_speed_tag_reaches_model",
+          "passed": true
+        },
+        {
+          "name": "equipment_control_explicit_restart",
+          "passed": true
+        }
+      ],
+      "report_sha256": "07177ea22e8fdc3ddf618ec30c9c134b9129e3edc709da066830718d7d200445",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "unexpected_corrections": 0
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "check_count": 7,
+      "checks": [
+        {
+          "name": "original_depth_strider_attribute",
+          "passed": true
+        },
+        {
+          "name": "equipped_water_control",
+          "passed": true
+        },
+        {
+          "name": "equipment_removed_during_same_owned_control",
+          "passed": true
+        },
+        {
+          "name": "stopped_equipment_diagnostic_retained",
+          "passed": true
+        },
+        {
+          "name": "original_three_operation_water_attribute",
+          "passed": true
+        },
+        {
+          "name": "three_operation_water_attribute_reaches_model",
+          "passed": true
+        },
+        {
+          "name": "equipment_control_explicit_restart",
+          "passed": true
+        }
+      ],
+      "report_sha256": "3056959c723dc82587a7a257969524ce89fd56d3886514a60414c6e216e41b98",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "unexpected_corrections": 0
+    }
+  ],
+  "first_failure": {
+    "version": "1.16.1",
+    "report_sha256": "1f3cf6a4913c5153417e7e78a9cf88247ea65e1a07cad1578a1b7471b55067fc",
+    "reason": "Driver waited for Soul Speed attribute while idle. Original server emits the modifier on moving to a new supporting block; driver now moves first and verifies the received update."
+  },
+  "limits": [
+    "Converted control parameters remain model diagnostics, never current receipts or execution authority.",
+    "Flying/elytra and other mounts are separate controls; these equipment runs cover survival movement.",
+    "Public evidence contains no raw packet/NBT/item payloads.",
+    "Creative flight uses existing explicit player controls and bounded landing; no continuous flight/elytra physics is claimed."
+  ],
+  "existing_creative_landing_requalification": [
+    {
+      "version": "1.16.1",
+      "scenario": "creative-landing",
+      "passed": true,
+      "checks": [
+        "same_Client_flight_enable",
+        "three_owned_airborne_steps",
+        "once_disable_and_neutral",
+        "bounded_native_landing",
+        "ground_continuation",
+        "actual_storage_open_close",
+        "original_wire_fields_and_independent_RCON_endpoints"
+      ],
+      "report_sha256": "3c006b163a2c3d0b2ad8fb848e166009812cc053e489b1d0a56022672cb94a49",
+      "baseline_commit": "f05fff1a93ed9e5b4a6e2a8f4bb3d13fa712990a",
+      "binary_sha256": "1256281c807ae160073000396a5ffff9a06109eac19c65a35761195ddd19bea3",
+      "input_manifest_sha256": "2e4d517a424e9fb9e0a355735d4bfb605f57101be5cbe0157cf682786a871224",
+      "source_sha256": {
+        "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+        "examples/common_native_probe.rs": "512ce5cadfe6421fe5c52d49ef2b543b7fd6bb34a6cd78f7354b5b3791263156",
+        "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf"
+      },
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077"
+    },
+    {
+      "version": "1.21.11",
+      "scenario": "creative-landing",
+      "passed": true,
+      "checks": [
+        "same_Client_flight_enable",
+        "three_owned_airborne_steps",
+        "once_disable_and_neutral",
+        "bounded_native_landing",
+        "ground_continuation",
+        "actual_storage_open_close",
+        "original_wire_fields_and_independent_RCON_endpoints"
+      ],
+      "report_sha256": "57b3bb3d08fec6f89df3db20892b274c890c2090fd94c32504497d65070167d5",
+      "baseline_commit": "f05fff1a93ed9e5b4a6e2a8f4bb3d13fa712990a",
+      "binary_sha256": "1256281c807ae160073000396a5ffff9a06109eac19c65a35761195ddd19bea3",
+      "input_manifest_sha256": "2e4d517a424e9fb9e0a355735d4bfb605f57101be5cbe0157cf682786a871224",
+      "source_sha256": {
+        "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+        "examples/common_native_probe.rs": "512ce5cadfe6421fe5c52d49ef2b543b7fd6bb34a6cd78f7354b5b3791263156",
+        "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf"
+      },
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed"
+    }
+  ]
+}

@@ -111,10 +111,37 @@ let latest = survival.control_record().await?.unwrap().ground_jump;
   泡の柱の上昇・下降、水面からの出入りにも対応する。飛行・乗車は扱わない。
   泡の柱は両版の公式サーバーへ実接続し、上下・水面脱出・停止を
   [元の通信とRCON座標](evidence/common-fluid-control-20261009.json)で確認した。
-- 1.16.1の深海探索者・ソウルスピードの靴は、まだ環境に反映していない。
+- 1.16.1は受信したプレイヤースロット8の靴から深海探索者・ソウルスピードを環境へ反映する。
+  エンチャントは元の`Enchantments`の最初の一致を使い、保存用`StoredEnchantments`は適用しない。
+  深海探索者のレベルは公式と同じ0..255で読み、物理への効果は3で上限にする。
+  ソウルスピードの対象ブロックは受信した`minecraft:soul_speed_blocks`タグを使う。
+  タグが欠けている・解釈できない場合、または装備が`Unavailable`の場合、そのtickは送信前に`Paused`になる。
+  タグの明示的な空集合を標準ブロックで補わない。サーバー側の速度補正は受信属性として取り込み、独自に加算しない。
+- 1.21.11の水中移動効率は受信属性の加算・ベース乗算・総乗算を公式の順序で計算し、0..1に制限する。
+  `ControlRecord::movement_equipment`は最後にモデルへ渡した変換済み入力を示す。
+  停止後にも読める診断値であり、現在の装備・受信事実・操作権限・サーバー受理を表さない。
 - アイテムの使用中（盾・弓・食事）の減速は、受信した`using_item`に従って再現する。sessionの間も`use_item`・
   `release_use_item`を送れる（[アイテム使用](common-item-use.md)）。
 - 時刻はclientの時計で、serverのtickとは同期しない（公式clientと同じ）。
+
+## 装備の移動効果の検証（2026-10-10）
+
+公式の物理処理による11場面・330 tickで、深海探索者のレベル・最初の一致・保存用エンチャント、
+ソウルスピード、modernの水中移動属性の全操作と上限を厳密比較した。
+ソウルスピードの速度属性は公式`tryAddSoulSpeed`で初期入力に確立し、SDKが加算を作る比較にはしていない。
+改変していない両版の公式サーバーへ共通Clientで接続し、計13項目が通過した。
+装備更新中も同じ操作所有者を使い、元の属性・位置パケットとRCON位置を照合した。予期しない補正は0回。
+[検証記録](evidence/common-equipment-movement-20261010.json)は結果と入力・SDK・binary・公式JARのhashを公開する。
+元の通信・NBT記録はローカルに保持する。
+既存のCreative明示飛行も同じSDKで両版の公式サーバーへ接続し、有効化・3回の空中移動・
+一度の飛行解除とneutral・有限の着地・地上移動・収納操作への継続を再確認した。
+これは継続操作エンジンの飛行・エリトラ対応を意味しない。
+
+```sh
+cargo build --locked --features native --example climbing_control_probe
+python3 -B scripts/run_equipment_movement.py --accept-eula \
+  --binary target/debug/examples/climbing_control_probe --compiled-sdk-revision HEAD
+```
 
 ## 単発接地ジャンプの実接続検証（2026-10-09）
 

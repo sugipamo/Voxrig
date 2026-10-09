@@ -226,6 +226,14 @@ pub(crate) struct ReceivedRegistries {
     legacy_codec: Option<ObservedValue<Arc<Vec<u8>>>>,
 }
 impl ReceivedRegistries {
+    pub(crate) fn tag_members(&self, registry: &str, name: &str) -> Option<&[i32]> {
+        self.tags
+            .as_ref()?
+            .value
+            .get(registry)?
+            .get(name)
+            .map(Vec::as_slice)
+    }
     pub fn reset(&mut self, generation: u64) {
         *self = Self {
             generation,

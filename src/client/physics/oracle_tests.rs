@@ -71,6 +71,17 @@ pub(super) fn world(scenario: &Value, result: &Value) -> BTreeMap<[i32; 3], Nati
 
 fn environment(version: MinecraftVersion, scenario: &Value, initial: &Value) -> Environment {
     let mut env = Environment::defaults(version);
+    if let Some(level) = initial["depth_strider"].as_u64() {
+        env.depth_strider = level as u8;
+    }
+    if let Some(blocks) = initial["legacy_soul_speed_blocks"].as_array() {
+        env.legacy_soul_speed_blocks = Some(
+            blocks
+                .iter()
+                .map(|b| b.as_str().unwrap().to_owned())
+                .collect(),
+        );
+    }
     env.movement_speed_base = exact(&initial["movement_speed_base"]);
     env.movement_speed_modifiers = initial["movement_speed_modifiers"]
         .as_array()
@@ -304,4 +315,36 @@ fn climbing_reproduces_every_official_tick_without_refusals() {
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
     assert_eq!(compared, 88);
+}
+
+#[test]
+fn received_equipment_inputs_match_original_native_player_movement() {
+    let oracle: Value = serde_json::from_reader(flate2::read::GzDecoder::new(
+        &include_bytes!("../../../data/client_api/equipment_movement_oracle.json.gz")[..],
+    ))
+    .unwrap();
+    let mut runs = 0;
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        let name = if version == MinecraftVersion::Java1_16_1 {
+            "1.16.1"
+        } else {
+            "1.21.11"
+        };
+        for result in oracle["results"][name].as_array().unwrap() {
+            let scenario = oracle["scenarios"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|s| s["name"] == result["name"])
+                .unwrap();
+            assert_eq!(
+                compare(version, scenario, result).unwrap(),
+                None,
+                "{}",
+                result["name"]
+            );
+            runs += 1;
+        }
+    }
+    assert_eq!(runs, 11);
 }

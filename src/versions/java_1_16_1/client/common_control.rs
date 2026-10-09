@@ -98,6 +98,11 @@ impl Bot {
         environment.fast_lava = survival.dimension.as_deref() == Some("minecraft:the_nether");
         drop(survival);
         let receipts = self.common_receipts.lock().await;
+        crate::client::physics::equipment::legacy_boots(
+            receipts.inventory.slots.get(8).and_then(Option::as_ref),
+            &receipts.registries,
+            &mut environment,
+        );
         let pose = receipts
             .pose
             .as_ref()
@@ -127,7 +132,7 @@ impl Bot {
         }
         drop(receipts);
         let survival = self.survival.read().await;
-        if survival.game_mode != Some(0) {
+        if survival.game_mode.map(|id| id & 7) != Some(0) {
             Some("game mode changed")
         } else if survival.flying {
             Some("flying")
@@ -324,7 +329,9 @@ impl crate::client::adapter::ControlOps for Bot {
     async fn start_control(&self, mode: GameMode) -> Result<ControlRecord> {
         self.wait_until_ready().await?;
         let _gate = self.coherent_state_gate.lock().await;
-        if mode != GameMode::Survival || self.survival.read().await.game_mode != Some(0) {
+        if mode != GameMode::Survival
+            || self.survival.read().await.game_mode.map(|id| id & 7) != Some(0)
+        {
             return Err(invalid(
                 "continuous control requires received survival mode",
             ));
