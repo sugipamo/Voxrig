@@ -1,0 +1,2283 @@
+{
+  "date": "2026-10-09",
+  "issue": "https://github.com/sugipamo/Voxrig/issues/49",
+  "qualified_code_revision": "14e2367f460aa6b463b0bdb4947ee32584877815",
+  "limits": [
+    "Queue admission and model prediction are not movement delivery or server acknowledgement. Only the latest request is retained.",
+    "Isolated synthetic fixtures; not saved-world historical reproductions. Golemkit continuous-control migration and normal acquisition/Pillar traversal are not qualified by this SDK fixture.",
+    "Official modern shallow-water comparison stops at the rising frame and polls a fixed checkpoint for at most two seconds, retaining every RCON query and the original 0.4-block tolerance. Legacy continues its normal passive physics after stop, so its existing running-frame comparison is retained."
+  ],
+  "local_checks": {
+    "native_all_targets": {
+      "passed": 924,
+      "failed": 0,
+      "ignored": 8
+    },
+    "strict_native_all_target_clippy": "passed",
+    "rust185_native_all_target_check": "passed",
+    "rustfmt": "passed"
+  },
+  "live": [
+    {
+      "report_sha256": "ab65f62997e49a52f7a026b3a761914384e2dbabd1a1078744c51380085644de",
+      "report": {
+        "version": "1.16.1",
+        "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "checks": [
+          {
+            "name": "single_ground_jump_preserves_forward_sneak",
+            "queued": {
+              "request_id": 1,
+              "session_id": 1,
+              "status": {
+                "status": "queued"
+              }
+            },
+            "record": {
+              "controls": {
+                "forward": 1,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": true,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 29,
+              "frame": {
+                "crouching": true,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": true,
+                "pose": "Crouching",
+                "position": [
+                  -0.4661629661143095,
+                  65.0,
+                  1.7823063388964422
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 29,
+                "using_item": null,
+                "velocity": [
+                  -0.021278840073601625,
+                  -0.0784000015258789,
+                  0.028241603609048618
+                ]
+              },
+              "ground_jump": {
+                "request_id": 1,
+                "session_id": 1,
+                "status": {
+                  "outcome": "applied",
+                  "status": "predicted",
+                  "tick": 4
+                }
+              },
+              "session_id": 1,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 0
+            },
+            "native_position": [
+              -0.4661629661143095,
+              65.0,
+              1.7823063388964422
+            ],
+            "original_frames": [
+              {
+                "ordinal": 86,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "f048f26f8f9ba18a5c4b473ca6f55f0fbd9ca6d28d0b9b49675b11547728671e",
+                "body_sha256": "2a95ff95b0797afdacce7817dc62686f5719b503d46a0aedb71aad00077c9309",
+                "body_hex": "3fda29fb359edb3640505ae147a000003fe3df713a8f200b42140000c140000000"
+              },
+              {
+                "ordinal": 87,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "8181d6b64323cfb2b0506bdc994dadb56aca89ee480953a1bfe783c3492a1fc3",
+                "body_sha256": "5edd9e5b62e1bb33c9d83d97ecb56e40ebbec1aff7d3c435a06509dbba2afcdd",
+                "body_hex": "3fd8bbe56fa63e4c405070346db0ebee3fe4d2611038873242140000c140000000"
+              },
+              {
+                "ordinal": 88,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 36,
+                "body_length": 4107,
+                "wire_sha256": "a3813c9a9ad012488f1459e26c9c00e68a58d0c214680da7500e629f42d8219f",
+                "body_sha256": "eb39cd02c1d703ff17a8be66ac5ba67e6a7d1b8d227093dc50057645c65aa2b0"
+              },
+              {
+                "ordinal": 89,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 33,
+                "body_length": 6806,
+                "wire_sha256": "dbb9f73070dd1cd8a263e5093bbef1fdfaccacc26f34dd44ea281bfbc5fd558a",
+                "body_sha256": "7ac8baea4f14dbbf17859bbbd280d970ea64f9fef43f37d73cffef048bfb94a0"
+              },
+              {
+                "ordinal": 90,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "548996d55365a16c1d8b13324de1f538926ef313dddf89b8b2bf6cafc3bcd284",
+                "body_sha256": "8947920181cafd3f6680d73ef9113d27163a42a7638fd5c073366e0adbdaa8d0",
+                "body_hex": "3fd734c9353762bb40508015e380a6113fe5d5ec454ce3d442140000c140000000"
+              },
+              {
+                "ordinal": 91,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 36,
+                "body_length": 10261,
+                "wire_sha256": "dc77582fc30b6282e661d59b3cb3c74a77920a906058b7c1aed428e9fa5cebca",
+                "body_sha256": "ed80526c316e5a122ac0e24450e5a9150de8a3324379c59348da053058a32d3c"
+              },
+              {
+                "ordinal": 92,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 33,
+                "body_length": 6806,
+                "wire_sha256": "b9f1c7745deb978d822f8a1c7041dbd5091c67f70dec36bb4bd72d40ae577bed",
+                "body_sha256": "a0cc0735a368a76036527f05313fde7c45a9456a0b231b763c049da3ecb3869d"
+              },
+              {
+                "ordinal": 93,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "cf8ecf6fedae8720647859e7eb642fa0be5afafa00c5de937a28cf14d7c40fbd",
+                "body_sha256": "e32d82630336d1f8363a2d514a58806bf116d47473e9e02f8a0007c5a220bf9f",
+                "body_hex": "3fd596e71afffe8240508aa188bcd2b63fe6e8943a32d9fb42140000c140000000"
+              },
+              {
+                "ordinal": 94,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "f09d756eb057d04882d295c67ed5ff2e55d6053c1ce973cad0424f04e527edd5",
+                "body_sha256": "aa54f76a2de5820ccf871f73fd858ceddb0a1d5d415ddfd142aa25b3be53458b",
+                "body_hex": "3fd3e44bd142fa1140508ff2ae5c72d43fe808fcbef53cf642140000c140000000"
+              },
+              {
+                "ordinal": 95,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 36,
+                "body_length": 10265,
+                "wire_sha256": "721f492918821bdf321c3b713fe9f31fb4c1baf6e636fb48c6069606b98e4afe",
+                "body_sha256": "0d7f6c30c053382d685a21714eeab24a7cdca0ea1e0623a126ec43adc4d5aa54"
+              },
+              {
+                "ordinal": 96,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 33,
+                "body_length": 6806,
+                "wire_sha256": "89a5439079b4b5b6516f91cf13e6dc2e6c6539286bd92815a41c4ff154e0548a",
+                "body_sha256": "ab3440d4873b380948c2892373947f25e43dd607e660da70502148a40e60c23d"
+              },
+              {
+                "ordinal": 97,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "c0a0ac0759f59a8cc7e434ce393267bd16970967db0bba09ae45d9763ad1a352",
+                "body_sha256": "52cadbd904d3672214f948e4734e00c4f68b02502ac42ea3e52e7bb2fd98e7a1",
+                "body_hex": "3fd21ed4cf71525740509024197a953b3fe935e8f9dabe1a42140000c140000000"
+              },
+              {
+                "ordinal": 98,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 36,
+                "body_length": 10261,
+                "wire_sha256": "72e3b703418cd756e87319f54273387af48758492f275edd39c2c30494873a1f",
+                "body_sha256": "e94db631bee3d9b50150aa69302f0b097706036f022ab7cb954c98580c1cccfd"
+              },
+              {
+                "ordinal": 99,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 33,
+                "body_length": 6806,
+                "wire_sha256": "8757a2950d6c4e3b4038133075c47965c861cbe4bc02191819bfaded4d25a086",
+                "body_sha256": "754b3f942babe7aa272969b411d23250b31b9818db5aed51712ae7742345146e"
+              },
+              {
+                "ordinal": 100,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "40b01f19b580f3e3340be4193675f05dae8587cdac74cd0b804cf069a852b0b7",
+                "body_sha256": "7d50dea26b99be4e25b22c80a4398c5ce4ded57047da3c19fb445219e405489a",
+                "body_hex": "3fd0483494286dad40508b5006226a993fea6e389565b5ec42140000c140000000"
+              },
+              {
+                "ordinal": 101,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "8a009f76d33d178afac40b7129696aaef3c8003e1eb884fc23f7e5ec5968757d",
+                "body_sha256": "09f18aaa12c3a3815cf105e3b5c86f5a0afab2fe75d817c6d0d383966fdbd142",
+                "body_hex": "3fccc3ed068a27c8405081902a0d07323febb0e52f4ed24442140000c140000000"
+              },
+              {
+                "ordinal": 102,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 36,
+                "body_length": 10265,
+                "wire_sha256": "4c2810c334a83deb4795dfc9350c9f1252073b7020b32558db2c76a222542edf",
+                "body_sha256": "28f76269c7830b1fffb40b286125c5b06753fb6e4a6605934804dd7bd187524c"
+              },
+              {
+                "ordinal": 103,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 33,
+                "body_length": 6806,
+                "wire_sha256": "61e1033b70eade2c99f86cbee200d176f197a8521cde2a246f85547dafb314c4",
+                "body_sha256": "7e9d752dce4aa634ac04640af70004d004e31b01902834f20032b6aca08f8e01"
+              },
+              {
+                "ordinal": 104,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "1206ad84c3e47294addfeb8de5de7dbeb655663b8389569f05cbbb9386dea9f3",
+                "body_sha256": "26f495dd6ef7be69cdb829448c4c1349f490fa46bc0d634f1de81bee4d071dd5",
+                "body_hex": "3fc8db04d5b632e3405072fdb7511b963fecfd0002a1859042140000c140000000"
+              },
+              {
+                "ordinal": 105,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "fbc786004911ac8db9bee5c2f6256b81b383d270efd1c8cf7920f9e6a531c053",
+                "body_sha256": "b8f20eaa0181cd4ab786b37007bb981485a6c4ce541f0a0431e66fbe9b3fda87",
+                "body_hex": "3fc4d83f6e2d83a340505fb15f04ec393fee51afc7a7d17442140000c140000000"
+              },
+              {
+                "ordinal": 106,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 36,
+                "body_length": 10265,
+                "wire_sha256": "6dc864808915401e2e80f3873a64909a7a96f4555b98b8b8c422f82453fa3f0c",
+                "body_sha256": "b6d0e24f1a7b193c4706952941d3fdc8b6469ef93ee2c7ad261b88c4caa92819"
+              },
+              {
+                "ordinal": 107,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 33,
+                "body_length": 6806,
+                "wire_sha256": "7d17b1b77f12b0c206e70e2ae0ac7d7291781cf13e4fc5d90703354e95135be5",
+                "body_sha256": "c4ffc0196fe8b35799df6a18589148ab30d87ae03ddaf0f0e58c4559ce7b6861"
+              },
+              {
+                "ordinal": 108,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "f88c71ed61ed25adb347d77283f0b28e22587b5f9077bb65070fc12641c49054",
+                "body_sha256": "fb94d11932b512e23871297da134f65613379ecc4d607f0443b91eb5cda32d1b",
+                "body_hex": "3fc0bdf0b8a82fdf405047c353d2ce563fefae2ec4cda49c42140000c140000000"
+              },
+              {
+                "ordinal": 109,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "53299e6ed38642d94409e29344f9dece4c67bcf2996a74210ba2e47fa8ca3277",
+                "body_sha256": "b27e51c1e2fb6a0807fa9f653d8a10d1faf14159ffff7380f7449508534557a0",
+                "body_hex": "3fb91c6df8415ba340504000000000003ff088e48609cc2442140000c140000001"
+              },
+              {
+                "ordinal": 110,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 36,
+                "body_length": 10261,
+                "wire_sha256": "175b1cd9b8c4b22358d491f98d0ac6786c0b772e07d936df1bb40308f8b995c8",
+                "body_sha256": "8226552b946e3fc88babae9f57c1f34ba467aa5b6123504ee3ee2bcce9e8b24e"
+              },
+              {
+                "ordinal": 111,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 33,
+                "body_length": 6806,
+                "wire_sha256": "e9e19efa6b8f18173d32712d47bcc7c6f6d9bc899af18268d11406bfb1c01459",
+                "body_sha256": "d4dd4bc710d1cc125601b35288cb6ed844ef977cd4f9d83037592203a115ff21"
+              },
+              {
+                "ordinal": 112,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "0b88a0c1d34b4f1291482735081779adc6fd0374069d2ac1165f46c7baecc46c",
+                "body_sha256": "5ca5fc7b7311d5744493697fd36c7155ffa35d82ca4c7fc2ac286899e6248ec4",
+                "body_hex": "3fa9ecdd15ca72f440504000000000003ff18adeb680a6de42140000c140000001"
+              },
+              {
+                "ordinal": 113,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 36,
+                "body_length": 4107,
+                "wire_sha256": "d613142ef88647409321a9cb6b14fc6f069500e4d971b9083e2574943d7ad392",
+                "body_sha256": "5f2775588396258df440799058c25087efaa96474dc9d63a3738e1fd543effe4"
+              },
+              {
+                "ordinal": 114,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 33,
+                "body_length": 6806,
+                "wire_sha256": "ad954c089c4c853327034f71c2112e1c6e2dcb795c2b130aa5a54e8897e7e8d0",
+                "body_sha256": "a3744d7cad898d1e91d1e8aa680ede7984a8b0b92714b560c4573bf94904208b"
+              },
+              {
+                "ordinal": 115,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "3619983843a33364aaadd87c7c091ff8dcb3b06954b58eb085c15872eb79d672",
+                "body_sha256": "ebd2e66b4c74ee0fd3ce6a231e13af97698338cccc75a3db6732e0ec46d8f122",
+                "body_hex": "3f7ccea6471489c040504000000000003ff277e75809a0c042140000c140000001"
+              },
+              {
+                "ordinal": 116,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 36,
+                "body_length": 4107,
+                "wire_sha256": "827999cee467a4cbbe8533bd8046fbb7453d40f0336180ab670cd4791eb2e1af",
+                "body_sha256": "34453806a28408f5d61f23c671c54338de5d11f4f7f78a277267ee5c03ffedbf"
+              },
+              {
+                "ordinal": 117,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 33,
+                "body_length": 6806,
+                "wire_sha256": "ec12bd8f01b03c7bfd1eb71765e0eec496390f40abbdac96aed27c5cc54181fa",
+                "body_sha256": "1b63a34e049f8eb027f12580747a4d64871962bd87ab7756cbbadc632d763893"
+              },
+              {
+                "ordinal": 118,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "04aed93baf193ad955a24cc23f20da35bd9240d927cd915abc6d902657cc9a0e",
+                "body_sha256": "036968236a2ebaebaf6365fc966ed83d4fa0f363b18744ceb8cf10046ad62b73",
+                "body_hex": "bfa1a57dc8f8b83040504000000000003ff35980904f6e3542140000c140000001"
+              },
+              {
+                "ordinal": 119,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 64,
+                "body_length": 6,
+                "wire_sha256": "7d534db2855a338387834f3afff125c9fb94f64b2ccbb768ad5dd2774c1837d9",
+                "body_sha256": "e771da8c51055a118a98f2043c593a982883adf8c041101b3b2756317372d6d3",
+                "body_hex": "ffffffff0f00"
+              },
+              {
+                "ordinal": 120,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 36,
+                "body_length": 4111,
+                "wire_sha256": "b4440409779992ec60ff980a4ba3dda00d3bfe5e26cc5cb39e81e4a037723776",
+                "body_sha256": "e4519bb7509fd8244a81a41c6f224e1fdb6cbc48ba9d85f3d33ba62f9f2e94d9"
+              },
+              {
+                "ordinal": 121,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 33,
+                "body_length": 6806,
+                "wire_sha256": "5420055461129de16ccfe565943c2a49ba2b40c10673cacaa7d033dbfd0920fe",
+                "body_sha256": "4d84b7813cb384cd724cc37c1e69e7390e542cf2cc7406038b6e580784b02726"
+              },
+              {
+                "ordinal": 122,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 29,
+                "body_length": 8,
+                "wire_sha256": "de08a32a1a1383bb2e01047dbc6dc65eedfb56e6ade7a0e5915ab0ff3f7b22e0",
+                "body_sha256": "637781ecc9606f4e9ed44ad3f0dc63baac63faee65a91adcaa17089c1b6da117",
+                "body_hex": "00000003fffffffd"
+              },
+              {
+                "ordinal": 123,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 29,
+                "body_length": 8,
+                "wire_sha256": "478cbf2d404d4cf1540ae2c8b09eff8682943af65eb705a398997d8970307724",
+                "body_sha256": "e5cfbcaf8a26571215ea2922d48f3d50e662be22ab603ba39f71c59f70024d11",
+                "body_hex": "00000003fffffffe"
+              },
+              {
+                "ordinal": 124,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 29,
+                "body_length": 8,
+                "wire_sha256": "b6a6e7c938d667abd57e61ebe78479466e14b3a4da9045d9907ccabf2baf1d27",
+                "body_sha256": "a7a433f4573f250a0d70abad78d3f73a0d41431750c77c5583c0966151f65ef4",
+                "body_hex": "00000003ffffffff"
+              },
+              {
+                "ordinal": 125,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 29,
+                "body_length": 8,
+                "wire_sha256": "691edee7cdf2b60e66f0d021b33b58388f401b951c6c08d440e6bc17a10ea4c0",
+                "body_sha256": "0e337b799779e966201b7e95a326e564267fa4d6573062e3de6f7835d0623d17",
+                "body_hex": "0000000300000000"
+              },
+              {
+                "ordinal": 126,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 29,
+                "body_length": 8,
+                "wire_sha256": "04b13faeec41daeb646b30aba586eb69f08098651b991a575b4c474f4fe8a385",
+                "body_sha256": "8f88362ee8034de8dfd2d681d099066cada58b40ee0bbbc2321309d0b4f4d43f",
+                "body_hex": "0000000300000001"
+              },
+              {
+                "ordinal": 127,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 29,
+                "body_length": 8,
+                "wire_sha256": "655a5c4e0fca88f51458dd684d39e6ebe35af3e580976facabfd6eb90e8b4d25",
+                "body_sha256": "6e84f9a5bc0587b940f5ee0dcae0b2e952a871537ed8e36a1360f9de4805b2b2",
+                "body_hex": "0000000300000002"
+              },
+              {
+                "ordinal": 128,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 29,
+                "body_length": 8,
+                "wire_sha256": "90d1ae6602704a5b8e0b0b5f27902384cb6eec529f73a6e4437bad12d762d6cb",
+                "body_sha256": "4e01dbd20f0d807f0ad16d9d694590fe9f3775dfef33d2e11b76b79498c2326e",
+                "body_hex": "0000000300000003"
+              },
+              {
+                "ordinal": 129,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 78,
+                "body_length": 16,
+                "wire_sha256": "eaf9488e503ea0940d01a0d0bdd1c7534fe75249f8efde6a607aced1ddbc0805",
+                "body_sha256": "3584ead23a3654e283960b410258acadb6712780b42370e974b1998bb1ee7f5d",
+                "body_hex": "000000000000003bfffffffffffffffb"
+              },
+              {
+                "ordinal": 130,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "ffaba9b9841640b81f03b152fda8410e82ffeb62336b9fe2df20e08ffe90dfaf",
+                "body_sha256": "9298e3ccaab55a1bdab8d7d9d91eed9bd1921866a351de8ca3ce0d9ab5c988bb",
+                "body_hex": "bfb327235cd9435440504000000000003ff434db6ab5cc1942140000c140000001"
+              },
+              {
+                "ordinal": 131,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 36,
+                "body_length": 10261,
+                "wire_sha256": "e3d6c570436df080e9358ed8bc7beecacf52d0c89ccb8d7754cf7260969ab35e",
+                "body_sha256": "21ece05645101c62eef5ffdc4c5ff2b9fa5a542b619c796201344c9ca3bdc4c2"
+              },
+              {
+                "ordinal": 132,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 33,
+                "body_length": 6806,
+                "wire_sha256": "68ffe042faa6837500b50cc320a1038a061202f5a7ee407f14793ba176ef1190",
+                "body_sha256": "2c7ed83b0130e895739afe97d8dba10ce264802a4634f9a37e4724c06cb36b42"
+              },
+              {
+                "ordinal": 133,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "111acc8f53fe24597bca1b9b26276b039d608168c128ead0c6fb5ed9d8ef6875",
+                "body_sha256": "5a800e209e533defe961feaf45be8f1b91b31d7f72a8c4178150f3735e203f0d",
+                "body_hex": "bfbd526f0f0dd61040504000000000003ff50ccd8fc811a142140000c140000001"
+              },
+              {
+                "ordinal": 134,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "fdf3e9edf23b701ec7ae54ad2a49b15a89d621b17e7f5553180ce354276ca3b8",
+                "body_sha256": "88381283f36371f09e74a19bf2e946cd52836ce7aad7112b8ac82d0e05adea37",
+                "body_hex": "bfc3b3a534aff27440504000000000003ff5e2e335294f2f42140000c140000001"
+              },
+              {
+                "ordinal": 135,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 36,
+                "body_length": 4107,
+                "wire_sha256": "d76449eaada84dfbdd3f418cc8e1ab31ccf01ef3f3ce55b19f1e9e640ddaf86e",
+                "body_sha256": "8eac021d8a47c08831f2b1e77e7c7cda57bdc7ca28627cb15fa63aa8653ae6e0"
+              },
+              {
+                "ordinal": 136,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 33,
+                "body_length": 6806,
+                "wire_sha256": "baa1ff7632af770f0af58670047073c81f25bbd8b41adf9f61c2e0511c6a1000",
+                "body_sha256": "8e72216e900527c1dc0919f66acc68e80c539073975887fd596413ebeff99805"
+              },
+              {
+                "ordinal": 137,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "8d3197fa84142d0416afc04a6bc8c407859206fe47e241a2cd2b20535bb455b3",
+                "body_sha256": "7bc2695e58917d33e5170e84ba936b046c650960d170d22f0e1b029e66fcd99e",
+                "body_hex": "bfc8b7f2ad22e97540504000000000003ff6b7f4af701a3142140000c140000001"
+              },
+              {
+                "ordinal": 138,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 36,
+                "body_length": 4111,
+                "wire_sha256": "7ec209040fcde027561cce05c57193177ec9bb9f6faaff7377706b659e65a2a1",
+                "body_sha256": "2d12b8e0fa8f24173ea77934fad0414b76980db7fbada8a26163d58d6514b977"
+              },
+              {
+                "ordinal": 139,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 33,
+                "body_length": 6806,
+                "wire_sha256": "387cee6a6173c35a897721ee57114467aebe7b6511ed4f279d3e05ef0227b11b",
+                "body_sha256": "984f05d0533779ed8189e031f3d95ce0a4f68004415790dfda9f5cfc98bde82e"
+              },
+              {
+                "ordinal": 140,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "7490830b99632e12e18a5fd3d4be57aa61d126d0c7aced4aaf282c441db164d6",
+                "body_sha256": "43e83b6733d283cd65c09e924c9898415c498bedf958cc0c2ac436627d09e3fc",
+                "body_hex": "bfcdb8e7e802fdf140504000000000003ff78c781c6a721742140000c140000001"
+              },
+              {
+                "ordinal": 141,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 36,
+                "body_length": 4111,
+                "wire_sha256": "fa762252b43ccd4352b240d8d749cb04f8075120c3d9475aa2617c012d77aedf",
+                "body_sha256": "4316e274cc5ee3b8433fdc0391e4b38b524e9419b7c6724e7a8c40a18b801912"
+              },
+              {
+                "ordinal": 142,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 33,
+                "body_length": 6806,
+                "wire_sha256": "e53c1f9ea50d5cf654a526ebd1a8ffcd9eb2bfd3c131910c416050d117478d40",
+                "body_sha256": "31346a72a4196faec568610db823733f217ca38f260a0f67951cb45e6aaa557d"
+              },
+              {
+                "ordinal": 143,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "239427fcf4493991ff3e7e111f9ac3f465045ba6ab3e63444f0d1fa67d9e9e66",
+                "body_sha256": "04714f5d45192123a22914eb7ee2492225e8adf5b61cc9ce5fbe272d9147be50",
+                "body_hex": "bfd15c04d07fb89640504000000000003ff860adf9f0379542140000c140000001"
+              },
+              {
+                "ordinal": 144,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "acaed33f247507b13cc100564557f876dcd5a8055719d8c9a8e426aa70d6cbad",
+                "body_sha256": "e08f13001d69cea18c9109f78307097ee35924678ed11a8ed4b66cdfc1a3f0d8",
+                "body_hex": "bfd3db160bd51a8640504000000000003ff934b97e6189b742140000c140000001"
+              },
+              {
+                "ordinal": 145,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "cffc50c9abe3f02ff700c138e66811129b0dc7fb8f1a1012f5368a971000872a",
+                "body_sha256": "946a3467b986a3de1eb668b7ffd3e3d8e8a7d794ad4d0a4835b63a62b1723945",
+                "body_hex": "bfd659e1979e686040504000000000003ffa08ade397e69642140000c140000001"
+              },
+              {
+                "ordinal": 146,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "114c1d8de4abf8eaefa9c0f51e358acec55940f82b5d2fc62e4c4e6e7037aa2f",
+                "body_sha256": "8af0b11ec2ec5c4a9f24ec6401b1c7fa17732d1a95ac1673d264abd51479b821",
+                "body_hex": "bfd8d8871702e01640504000000000003ffadc95a8e7d51342140000c140000001"
+              },
+              {
+                "ordinal": 147,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "a5cc21fb5226d9cf5e4b231b4c39754e49edc7678bd5f0d3381fa8c435135b51",
+                "body_sha256": "0c57c5462fef3f9c05df0d1dfc822dfd2d6013e5fec29af23f64f45e50d80a2c",
+                "body_hex": "bfdb5717d025e35c40504000000000003ffbb0768999a3d842140000c140000001"
+              },
+              {
+                "ordinal": 148,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 36,
+                "body_length": 4111,
+                "wire_sha256": "3a01ecd3e254fec08f91e261666281d7d0a1d07c0f8b2932feac124abd192cc2",
+                "body_sha256": "32a25d270520e3676e57b3cfc1fa6b92245a57719f96153c1c92f918017f02dd"
+              },
+              {
+                "ordinal": 149,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 33,
+                "body_length": 6806,
+                "wire_sha256": "8a6a6ea298362c9ee139f0856dfddb077b9d0824253cfc8b04367e5dc30c872b",
+                "body_sha256": "8960d52115438d1951c1e3a2063a151fa70c3b85b95b034e91a0558cac9e1a8c"
+              },
+              {
+                "ordinal": 150,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "dd4b2945df4f856a51c32b48baf08d154a3cb7914872ec573f59d9547db5d464",
+                "body_sha256": "13b3c17575f22b923ba83d4d3fc6aa8e6dcc0690aca3938d68faae3e33d85c94",
+                "body_hex": "bfddd59d31844ee640504000000000003ffc8453a6d0382a42140000c140000001"
+              }
+            ],
+            "launches": 1,
+            "stale_rejection": {
+              "kind": "State",
+              "message": "ground jump requires the current running, unpaused session",
+              "rejected": true
+            }
+          },
+          {
+            "name": "stopped_request_rejected",
+            "record": {
+              "controls": {
+                "forward": 1,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": true,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 29,
+              "frame": {
+                "crouching": true,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": true,
+                "pose": "Crouching",
+                "position": [
+                  -0.4661629661143095,
+                  65.0,
+                  1.7823063388964422
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 29,
+                "using_item": null,
+                "velocity": [
+                  -0.021278840073601625,
+                  -0.0784000015258789,
+                  0.028241603609048618
+                ]
+              },
+              "ground_jump": {
+                "request_id": 1,
+                "session_id": 1,
+                "status": {
+                  "outcome": "applied",
+                  "status": "predicted",
+                  "tick": 4
+                }
+              },
+              "session_id": 1,
+              "status": {
+                "reason": "stopped by request",
+                "status": "stopped"
+              },
+              "velocity_updates": 0
+            },
+            "rejection": {
+              "kind": "State",
+              "message": "ground jump requires the current running, unpaused session",
+              "rejected": true
+            }
+          },
+          {
+            "name": "airborne_request_never_retries_on_landing",
+            "queued": {
+              "request_id": 1,
+              "session_id": 2,
+              "status": {
+                "status": "queued"
+              }
+            },
+            "record": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 33,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": true,
+                "pose": "Standing",
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 33,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  -0.0784000015258789,
+                  0.0
+                ]
+              },
+              "ground_jump": {
+                "request_id": 1,
+                "session_id": 2,
+                "status": {
+                  "outcome": "not_on_ground",
+                  "status": "predicted",
+                  "tick": 4
+                }
+              },
+              "session_id": 2,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 1
+            },
+            "native_position": [
+              0.5,
+              65.0,
+              0.5
+            ]
+          },
+          {
+            "name": "grounded_water_request_without_held_swim",
+            "queued": {
+              "request_id": 1,
+              "session_id": 3,
+              "status": {
+                "status": "queued"
+              }
+            },
+            "record": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 8,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": true,
+                "on_ground": false,
+                "pose": "Standing",
+                "position": [
+                  0.5,
+                  65.75099998140335,
+                  0.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 8,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  0.2597999995589254,
+                  0.0
+                ]
+              },
+              "ground_jump": {
+                "request_id": 1,
+                "session_id": 3,
+                "status": {
+                  "outcome": "applied",
+                  "status": "predicted",
+                  "tick": 7
+                }
+              },
+              "session_id": 3,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 0
+            },
+            "checkpoint": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 8,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": true,
+                "on_ground": false,
+                "pose": "Standing",
+                "position": [
+                  0.5,
+                  65.75099998140335,
+                  0.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 8,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  0.2597999995589254,
+                  0.0
+                ]
+              },
+              "ground_jump": {
+                "request_id": 1,
+                "session_id": 3,
+                "status": {
+                  "outcome": "applied",
+                  "status": "predicted",
+                  "tick": 7
+                }
+              },
+              "session_id": 3,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 0
+            },
+            "native_position": [
+              0.5,
+              65.75099998140335,
+              0.5
+            ]
+          },
+          {
+            "name": "held_water_input_preserved",
+            "queued": {
+              "request_id": 1,
+              "session_id": 4,
+              "status": {
+                "status": "queued"
+              }
+            },
+            "record": {
+              "controls": {
+                "forward": 1,
+                "jump": true,
+                "pitch": -12.0,
+                "sneak": true,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 9,
+              "frame": {
+                "crouching": true,
+                "eye_in_water": true,
+                "horizontal_collision": false,
+                "in_water": true,
+                "on_ground": true,
+                "pose": "Crouching",
+                "position": [
+                  0.36630169292801285,
+                  65.0,
+                  0.6774464481366267
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 9,
+                "using_item": null,
+                "velocity": [
+                  -0.013362008089587088,
+                  -0.005,
+                  0.01773426251533209
+                ]
+              },
+              "ground_jump": {
+                "request_id": 1,
+                "session_id": 4,
+                "status": {
+                  "outcome": "jump_input_already_held",
+                  "status": "predicted",
+                  "tick": 4
+                }
+              },
+              "session_id": 4,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 0
+            },
+            "native_position": [
+              0.36630169292801285,
+              65.0,
+              0.6774464481366267
+            ]
+          },
+          {
+            "name": "received_other_mode_rejected",
+            "rejection": {
+              "kind": "State",
+              "message": "ground jump requires received survival mode",
+              "rejected": true
+            }
+          }
+        ],
+        "commands": [
+          {
+            "command": "forceload add -8 -8 8 8",
+            "response": "Marked 4 chunks in minecraft:overworld from [-1, -1] to [0, 0] to be force loaded"
+          },
+          {
+            "command": "setblock 0 64 0 minecraft:stone",
+            "response": "Changed the block at 0, 64, 0"
+          },
+          {
+            "command": "execute if block 0 64 0 minecraft:stone",
+            "response": "Test passed"
+          },
+          {
+            "command": "fill -8 64 -8 8 64 8 minecraft:stone",
+            "response": "Successfully filled 288 blocks"
+          },
+          {
+            "command": "fill -4 65 -4 4 84 4 minecraft:air",
+            "response": "No blocks were filled"
+          },
+          {
+            "command": "setworldspawn 0 65 0",
+            "response": "Set the world spawn point to 0, 65, 0"
+          },
+          {
+            "command": "difficulty peaceful",
+            "response": "The difficulty has been set to Peaceful"
+          },
+          {
+            "command": "gamerule spawnRadius 0",
+            "response": "Gamerule spawnRadius is now set to: 0"
+          },
+          {
+            "command": "gamerule doMobSpawning false",
+            "response": "Gamerule doMobSpawning is now set to: false"
+          },
+          {
+            "command": "gamerule doDaylightCycle false",
+            "response": "Gamerule doDaylightCycle is now set to: false"
+          },
+          {
+            "command": "tp ClimbingProbe 0.5 65 0.5 37 -12",
+            "response": "Teleported ClimbingProbe to 0.5, 65.0, 0.5"
+          },
+          {
+            "command": "data get entity ClimbingProbe Pos",
+            "response": "ClimbingProbe has the following entity data: [-0.4661629661143095d, 65.0d, 1.7823063388964422d]"
+          },
+          {
+            "command": "tp ClimbingProbe 0.5 69 0.5 37 -12",
+            "response": "Teleported ClimbingProbe to 0.5, 69.0, 0.5"
+          },
+          {
+            "command": "data get entity ClimbingProbe Pos",
+            "response": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+          },
+          {
+            "command": "fill -4 65 -4 4 65 4 minecraft:water[level=0]",
+            "response": "Successfully filled 81 blocks"
+          },
+          {
+            "command": "tp ClimbingProbe 0.5 65 0.5 37 -12",
+            "response": "Teleported ClimbingProbe to 0.5, 65.0, 0.5"
+          },
+          {
+            "command": "data get entity ClimbingProbe Pos",
+            "response": "ClimbingProbe has the following entity data: [0.5d, 65.75099998140335d, 0.5d]"
+          },
+          {
+            "command": "fill -4 65 -4 4 67 4 minecraft:water[level=0]",
+            "response": "Successfully filled 162 blocks"
+          },
+          {
+            "command": "tp ClimbingProbe 0.5 65 0.5 37 -12",
+            "response": "Teleported ClimbingProbe to 0.5, 65.0, 0.5"
+          },
+          {
+            "command": "data get entity ClimbingProbe Pos",
+            "response": "ClimbingProbe has the following entity data: [0.36630169292801285d, 65.0d, 0.6774464481366267d]"
+          },
+          {
+            "command": "gamemode creative ClimbingProbe",
+            "response": "Set ClimbingProbe's game mode to Creative Mode"
+          }
+        ],
+        "passed": true,
+        "source_revision": "14e2367f460aa6b463b0bdb4947ee32584877815",
+        "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "binary_sha256": "e243ec1eb3e20f01408a723847e1102e579a10cb70dc736da3569edf1415aa3c",
+        "cargo_lock_sha256": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+        "synthetic_fixture_not_historical_reproduction": true,
+        "trace_errors": []
+      }
+    },
+    {
+      "report_sha256": "aa0619450805f907023d0c5b88419f3c00fc70b5ffcbd4ab31e8180a735b9074",
+      "report": {
+        "version": "1.21.11",
+        "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "checks": [
+          {
+            "name": "single_ground_jump_preserves_forward_sneak",
+            "queued": {
+              "request_id": 1,
+              "session_id": 1,
+              "status": {
+                "status": "queued"
+              }
+            },
+            "record": {
+              "controls": {
+                "forward": 1,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": true,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 29,
+              "frame": {
+                "crouching": true,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": true,
+                "pose": "Crouching",
+                "position": [
+                  -0.46616296611430935,
+                  65.0,
+                  1.7823063388964426
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 29,
+                "using_item": null,
+                "velocity": [
+                  -0.021278840073601625,
+                  -0.0784000015258789,
+                  0.028241603609048618
+                ]
+              },
+              "ground_jump": {
+                "request_id": 1,
+                "session_id": 1,
+                "status": {
+                  "outcome": "applied",
+                  "status": "predicted",
+                  "tick": 4
+                }
+              },
+              "session_id": 1,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 0
+            },
+            "native_position": [
+              -0.4271907360740009,
+              65.0,
+              1.7305817961698635
+            ],
+            "original_frames": [
+              {
+                "ordinal": 143,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 42,
+                "body_length": 1,
+                "wire_sha256": "dcded2448de233fee88fd291abd4dc917a56898e1d1a602ffd7d5f7f4489c522",
+                "body_sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+                "body_hex": "31"
+              },
+              {
+                "ordinal": 144,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "f7a5a645792618c6275e5815c634cf7b59c640b54ece9836ea3e329e58bb099d",
+                "body_sha256": "3b2db2973a46e134ce8798d7c738e6f62858cef523d1cd29dab213aa0f96484e",
+                "body_hex": "3fda29fb359edb3740505ae147a000003fe3df713a8f200b42140000c140000000"
+              },
+              {
+                "ordinal": 145,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 42,
+                "body_length": 1,
+                "wire_sha256": "3c26bf6b41a05043be77adb0650bcc9b135f9a0d6ed90fd1753f484f01dfd205",
+                "body_sha256": "bb7208bc9b5d7c04f1236a82a0093a5e33f40423d5ba8d4266f7092c3ba43b62",
+                "body_hex": "21"
+              },
+              {
+                "ordinal": 146,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "17482b684bc6dd5813f7dbfc17942afc44e96fe427bb18d1f6ba723bf10388f5",
+                "body_sha256": "dba22e701066c684df59fdf662dbc8f56ae9aeb0a453ca6736119280f140de72",
+                "body_hex": "3fd8bbe56fa63e4d405070346db0ebee3fe4d2611038873242140000c140000000"
+              },
+              {
+                "ordinal": 147,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 111,
+                "body_length": 17,
+                "wire_sha256": "39e8cdaf450b0cef666228033781f83f17ce5de3506f37c91487544bfd89b28d",
+                "body_sha256": "4c3bd2807d38952e09990bf33cf5cd92aad557692533342dc08456f511660a9d",
+                "body_hex": "0000000000000027000000000000000300"
+              },
+              {
+                "ordinal": 148,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "393c45d7a75d96b5de6caf6212ad48142dfd88747b9ffe9bf40cda51c8553e1c",
+                "body_sha256": "3115491def806ef73daeb6ca0d2fc304d679458acfb79db9a16ae9a025c10eda",
+                "body_hex": "3fd734c9353762bc40508015e380a6113fe5d5ec454ce3d542140000c140000000"
+              },
+              {
+                "ordinal": 149,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "623dd15a92d2ea1174b2e742ed1288521382e3318630ffe3c9e27ef7b690c0b8",
+                "body_sha256": "07a1f87ffed3d55e47cc9e088090da4852ea57622c8372d56b3ce8ff64edeae4",
+                "body_hex": "3fd596e71afffe8340508aa188bcd2b63fe6e8943a32d9fc42140000c140000000"
+              },
+              {
+                "ordinal": 150,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "ce910ecd74ff7bc86472b696b02b4c061448202070dffb66b82109b30a1e8487",
+                "body_sha256": "4ac6c3f05d0d7fd376303cf05fd928f9fd7c1cc3b0df236a3052df4658fcbd34",
+                "body_hex": "3fd3e44bd142fa1240508ff2ae5c72d43fe808fcbef53cf742140000c140000000"
+              },
+              {
+                "ordinal": 151,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "5f3ef10293bb8763153b737ad9b41333d0d5bb0e6ea66399778387f0dd83c768",
+                "body_sha256": "842a18a58fef84bacc8f72795a0d8dc7ddf23a524c52d52b30740b716cc99943",
+                "body_hex": "3fd21ed4cf71525940509024197a953b3fe935e8f9dabe1b42140000c140000000"
+              },
+              {
+                "ordinal": 152,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "5810be5b4709aa0f35e0b318f15a90cc0f62c346eb71614e89d94f83c8c6ef73",
+                "body_sha256": "33c53f9b275224b42e1849e72f2fc63bbbc91eb75a4e093786abf25b0b6eadfe",
+                "body_hex": "3fd0483494286dae40508b5006226a993fea6e389565b5ed42140000c140000000"
+              },
+              {
+                "ordinal": 153,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "592c70d0ba4ba7538838fc730e56ad9f3336140e86d1bb43c732c21072de31a3",
+                "body_sha256": "3ff39feec7bf86d3efb9bae018ebb7b09d329d1a5922a423dba9f632678c2850",
+                "body_hex": "3fccc3ed068a27ca405081902a0d07323febb0e52f4ed24542140000c140000000"
+              },
+              {
+                "ordinal": 154,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "a1207ed06bb65dddee85c3ad2ae3d6c4347abc413a104997345cf65a666bb229",
+                "body_sha256": "6fa3cab10f91a18e3418759a81f0f5d72ab064964abc643ffbc576cadbe70bcb",
+                "body_hex": "3fc8db04d5b632e4405072fdb7511b963fecfd0002a1859242140000c140000000"
+              },
+              {
+                "ordinal": 155,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "44318653758b89dd9e674b5ff3540faed6361e85695781bf2df46d7bf8057976",
+                "body_sha256": "3a14558a665e9b24250b3d4991eb58d1f05366867ae5b059aac9b2b333519dae",
+                "body_hex": "3fc4d83f6e2d83a440505fb15f04ec393fee51afc7a7d17542140000c140000000"
+              },
+              {
+                "ordinal": 156,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "4e2b01fb892a461264bcddcf21854716d02e86e8ae3990550f36ca8521ef79c0",
+                "body_sha256": "5d29580d225a4a96e90e3f061017ef2bcbffd9a390ea00be0c347f53bcea6368",
+                "body_hex": "3fc0bdf0b8a82fe0405047c353d2ce563fefae2ec4cda49d42140000c140000000"
+              },
+              {
+                "ordinal": 157,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "63df096bb1f33bbe179d5c698be0f287950da4ddfe91cc7b684295f0b7a6533d",
+                "body_sha256": "a76420896ef695eb022a9f370cc27ae893dd976d3f305e4bf54eb03de4102314",
+                "body_hex": "3fb91c6df8415ba640504000000000003ff088e48609cc2442140000c140000001"
+              },
+              {
+                "ordinal": 158,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "78d699a6ab0cbc979c41463bb55e55738d281b407e7d220a711118e60eb48959",
+                "body_sha256": "d79fa1d4429cd9266116e4d3d424a2c9313f611be95a58bf608b74fd8d83d79e",
+                "body_hex": "3fa9ecdd15ca72f840504000000000003ff18adeb680a6df42140000c140000001"
+              },
+              {
+                "ordinal": 159,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "b2ec0e94a3501ad04e6d98618a4b72445177bf753fd17d12ecdd8eb30f80b09e",
+                "body_sha256": "db02f78ae4d0fb0dc79b7769d30c629ef3fb3f4a531dbc9e2b13d6e95b8d74e4",
+                "body_hex": "3f7ccea6471489e040504000000000003ff277e75809a0c142140000c140000001"
+              },
+              {
+                "ordinal": 160,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "00d858740bf01ce87652babf65174d35ac0b96ca3913460001447ef7d7e13465",
+                "body_sha256": "3994b3b264545b9829ab789a51e34a7dada33d1157cb7048e754b71254aa9417",
+                "body_hex": "bfa1a57dc8f8b82c40504000000000003ff35980904f6e3642140000c140000001"
+              },
+              {
+                "ordinal": 161,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 92,
+                "body_length": 6,
+                "wire_sha256": "248dfce3af12f3889d92916c0fb60a22e1dc1602b84323516d4881e498b3f464",
+                "body_sha256": "e771da8c51055a118a98f2043c593a982883adf8c041101b3b2756317372d6d3",
+                "body_hex": "ffffffff0f00"
+              },
+              {
+                "ordinal": 162,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 37,
+                "body_length": 8,
+                "wire_sha256": "f1371b7d11fca0f38b6354ffd9e491532f9b560f9ef330f92a3ba07997cbe024",
+                "body_sha256": "114b605562450c3a49c14d6927731ea5c36d8bbf62af3b18cefbf045c875b2a2",
+                "body_hex": "fffffffd00000003"
+              },
+              {
+                "ordinal": 163,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 37,
+                "body_length": 8,
+                "wire_sha256": "ff906a34d9ded5011f469459a064e74578616da1173555de2debefd711be8d93",
+                "body_sha256": "4e7e4e29bfde0574619144a2de0cfc73b0d46207433937b8e152fb8c3f29ea89",
+                "body_hex": "fffffffe00000003"
+              },
+              {
+                "ordinal": 164,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 37,
+                "body_length": 8,
+                "wire_sha256": "be1fccd204deb273d4ce92a3c8ac2696379c9dfd634cda9916979c0471354224",
+                "body_sha256": "d7a9150e2247a263f3891df895f77a4d4fb59ac84bd81a3bae600a236db24306",
+                "body_hex": "ffffffff00000003"
+              },
+              {
+                "ordinal": 165,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 37,
+                "body_length": 8,
+                "wire_sha256": "209c3774f144de7fd927906f354d3e47000b4923dc51a703b3661d934d57712d",
+                "body_sha256": "d5688a52d55a02ec4aea5ec1eadfffe1c9e0ee6a4ddbe2377f98326d42dfc975",
+                "body_hex": "0000000000000003"
+              },
+              {
+                "ordinal": 166,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 37,
+                "body_length": 8,
+                "wire_sha256": "20a37f59423e080569b4f272b806af19225920d4d64b31435aba98f062eb94bd",
+                "body_sha256": "b1807ed471e3f842e70faec75041f7e0ca7f254d66a2bb10215c8279abafad10",
+                "body_hex": "0000000100000003"
+              },
+              {
+                "ordinal": 167,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 37,
+                "body_length": 8,
+                "wire_sha256": "4da2116f19a497a585a0937584c34bff78133150cf26ae18fd71eed79d3511fd",
+                "body_sha256": "b51f34d123eb604fed1894df4caf94e649233ee1c618a46ffa55d66e5d9aceff",
+                "body_hex": "0000000200000003"
+              },
+              {
+                "ordinal": 168,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 37,
+                "body_length": 8,
+                "wire_sha256": "858182996d73d37ccc093ffdea877c512054d5f26313459ab79d1d18a27a3a7b",
+                "body_sha256": "4e01dbd20f0d807f0ad16d9d694590fe9f3775dfef33d2e11b76b79498c2326e",
+                "body_hex": "0000000300000003"
+              },
+              {
+                "ordinal": 169,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "947df8ce6718220e8b55787e2f79b61699adb077d0b5c76790b9e1574a0e4038",
+                "body_sha256": "661069b49e464220b11c2b1372999e734601ce39650d264a8c18368c92d746c0",
+                "body_hex": "bfb327235cd9435340504000000000003ff434db6ab5cc1a42140000c140000001"
+              },
+              {
+                "ordinal": 170,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "5ba8797e5d0671c65c76d19aeca8884bf0c62bd04105c5a2498e789de3349661",
+                "body_sha256": "607b930f5be0620a9b547be42373406aa37ee0ed24d6a54198663c1606d55d59",
+                "body_hex": "bfbd526f0f0dd60e40504000000000003ff50ccd8fc811a242140000c140000001"
+              },
+              {
+                "ordinal": 171,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 12,
+                "body_length": 0,
+                "wire_sha256": "74fb0c4ef0253c19ef3dc5ab4921848375337cda7130e714afff8d954e0d4f0d",
+                "body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "body_hex": ""
+              },
+              {
+                "ordinal": 172,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 44,
+                "body_length": 7232,
+                "wire_sha256": "39fa21d353f7ed2d37db6c1d201d3901eb375318c76d4c4eb72a77876a2e8f19",
+                "body_sha256": "38fda19a3532ef76221a5c489bafb04ec9875e83799ed4e069ed97bd44ad6dac"
+              },
+              {
+                "ordinal": 173,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 44,
+                "body_length": 7232,
+                "wire_sha256": "0b555387e0df98655bfe04ea518a939d7140907f0c25407caeda9149e18c6305",
+                "body_sha256": "bc59a6f6c0faedd8aa98e6e84ceaeee1837d493836cb14cbaa0424b20b7084d3"
+              },
+              {
+                "ordinal": 174,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 44,
+                "body_length": 7232,
+                "wire_sha256": "05289761348322b6056eaf6d22ecf4f389d117b866a509e27881962afd80fea1",
+                "body_sha256": "d86a0ffb7bedda6155272793c3e4640a9eaeaa9593fab52edc5ab8c8228c7e38"
+              },
+              {
+                "ordinal": 175,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 44,
+                "body_length": 7232,
+                "wire_sha256": "22d035bc608faeebc86df61754a48875c929ea95b2758b55d25bef3ef07b6308",
+                "body_sha256": "6e367687416638ffc094805bb4263861ea5abda18db3bb008cc9513a5434676c"
+              },
+              {
+                "ordinal": 176,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 44,
+                "body_length": 7232,
+                "wire_sha256": "f97aeb063728e4a2fd808d3a2e430ef9beb74a06ee9e148e28e32a9e0253befb",
+                "body_sha256": "20e9df21f2c41d0900534c3e9572761ba7155ae5fa016c5d4ac93161543d4528"
+              },
+              {
+                "ordinal": 177,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 44,
+                "body_length": 7232,
+                "wire_sha256": "59f7c1312c51b20c64705bda905b656a7d9c8a633b4d72a3ae9f018473d0c128",
+                "body_sha256": "1d4acb3214c562a513b3d11092f7d11df4f70c10a5027af252ecf1b0a67c0bf5"
+              },
+              {
+                "ordinal": 178,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 44,
+                "body_length": 7232,
+                "wire_sha256": "bd8871e071e8eec47bb52d8735c49e398bfa164af2f770594154e90addeda540",
+                "body_sha256": "69dbfbc31008f610f611a8ca1237a4145231126f88015f0a7dba8ec30fc19405"
+              },
+              {
+                "ordinal": 179,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 11,
+                "body_length": 1,
+                "wire_sha256": "da65edf8021bfaa07ff47f3c81278ae7ff9d5cb4bc5ddb851987e25a9d8e7bd5",
+                "body_sha256": "ca358758f6d27e6cf45272937977a748fd88391db679ceda7dc7bf1f005ee879",
+                "body_hex": "07"
+              },
+              {
+                "ordinal": 180,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 10,
+                "body_length": 4,
+                "wire_sha256": "7d7b539fdbc317df35eeead64d6624588b2189dd15c7c4d45c680bfe699eea63",
+                "body_sha256": "daaf62de76f04e09a55d751f98b97c440bd2dba3f4d9d55a6e93ce8446266f92",
+                "body_hex": "41000000"
+              },
+              {
+                "ordinal": 181,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "a80daced8b4d012137ae21a8d74cacf369ea74b7e22c2a84deb65ee09ba43f84",
+                "body_sha256": "104363d393d9b6bb1cae8218b2252164aba87b4f24de0e891ebacbfa869917b1",
+                "body_hex": "bfc3b3a534aff27240504000000000003ff5e2e335294f3042140000c140000001"
+              },
+              {
+                "ordinal": 182,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "efabab8213e8553d0c3189e6fb04fe8cc6b3194b67b15b12ac378b3fc3d09c22",
+                "body_sha256": "a89434586b5e02d2f8b2aa251d4e41a3296cb48bd7385bcf83c5c6210f64da51",
+                "body_hex": "bfc8b7f2ad22e97440504000000000003ff6b7f4af701a3242140000c140000001"
+              },
+              {
+                "ordinal": 183,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "2aff5c647f4a817aaf06af43c1d41a8c2d9989957be2036db837edace5201682",
+                "body_sha256": "211a96fe6dc4af506db48145ba48520fd2903d1c40ab95439a31ee218e7371ab",
+                "body_hex": "bfcdb8e7e802fdef40504000000000003ff78c781c6a721842140000c140000001"
+              },
+              {
+                "ordinal": 184,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "15d5de200bd5243864084551d7a492ac1b15c0170b60a89a2d2528c402ba8feb",
+                "body_sha256": "16e5f094a09d167a7a30a4655b4eef3bf39a4b44909ad8f7575136c729ef315f",
+                "body_hex": "bfd15c04d07fb89540504000000000003ff860adf9f0379642140000c140000001"
+              },
+              {
+                "ordinal": 185,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "bfe426a3c0594cead9b317aff279453ee0acba84e64bfba6464f4811921dd094",
+                "body_sha256": "63eb58d3eb320a90ef54711c8fded9c9640d4784af207bf5b3b8c0f94708e2cf",
+                "body_hex": "bfd3db160bd51a8540504000000000003ff934b97e6189b842140000c140000001"
+              },
+              {
+                "ordinal": 186,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 111,
+                "body_length": 17,
+                "wire_sha256": "5fd6c0ec2c0f9d6a231f969ec700c3c20485f3f07fe32a3f21e85b42d0465f08",
+                "body_sha256": "3d530473539abccdfd2bd4ad5237b8ce4082b625a24fbf14ede8190aebd02acf",
+                "body_hex": "000000000000003b000000000000000300"
+              },
+              {
+                "ordinal": 187,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "931e6b7701d5e236f4de47ab7997a2120202bc8258f022338ff3abca6f3005ad",
+                "body_sha256": "1a884992431c9418ddf617750843a888f39e69c2dd232f8ec70051dd7f38617a",
+                "body_hex": "bfd659e1979e685e40504000000000003ffa08ade397e69742140000c140000001"
+              },
+              {
+                "ordinal": 188,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "1b58f4d7faecbf11bdf4ee04ee2348c6f8f15ee50652a29b20ada50e1ea9c63f",
+                "body_sha256": "511d3b18b2cc23cfda23aefde513d9c9fbfa7a77c7217d6239eb26d296bfe1f8",
+                "body_hex": "bfd8d8871702e01440504000000000003ffadc95a8e7d51442140000c140000001"
+              },
+              {
+                "ordinal": 189,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "c2d2987af3b2138acb2afac81ec581f820018356f9a4394b32b505d36d48ef9d",
+                "body_sha256": "8f685c22b19c4012d4c84b1d8e5facf1f223ec8c1b4ca5705208ae91e6b1c408",
+                "body_hex": "bfdb5717d025e35940504000000000003ffbb0768999a3d942140000c140000001"
+              },
+              {
+                "ordinal": 190,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "34aed3abf31f7e576924d6c5784889d1533e526e8de6d85157a08d2140136e39",
+                "body_sha256": "738b534a282c5a8ac0ff6b593623b2048fbcc2b6f4439f3508c10bd4c9db518c",
+                "body_hex": "bfddd59d31844ee340504000000000003ffc8453a6d0382c42140000c140000001"
+              }
+            ],
+            "launches": 1,
+            "stale_rejection": {
+              "kind": "State",
+              "message": "ground jump requires the current running, unpaused session",
+              "rejected": true
+            }
+          },
+          {
+            "name": "stopped_request_rejected",
+            "record": {
+              "controls": {
+                "forward": 1,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": true,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 29,
+              "frame": {
+                "crouching": true,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": true,
+                "pose": "Crouching",
+                "position": [
+                  -0.46616296611430935,
+                  65.0,
+                  1.7823063388964426
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 29,
+                "using_item": null,
+                "velocity": [
+                  -0.021278840073601625,
+                  -0.0784000015258789,
+                  0.028241603609048618
+                ]
+              },
+              "ground_jump": {
+                "request_id": 1,
+                "session_id": 1,
+                "status": {
+                  "outcome": "applied",
+                  "status": "predicted",
+                  "tick": 4
+                }
+              },
+              "session_id": 1,
+              "status": {
+                "reason": "stopped by request",
+                "status": "stopped"
+              },
+              "velocity_updates": 0
+            },
+            "rejection": {
+              "kind": "State",
+              "message": "ground jump requires the current running, unpaused session",
+              "rejected": true
+            }
+          },
+          {
+            "name": "airborne_request_never_retries_on_landing",
+            "queued": {
+              "request_id": 1,
+              "session_id": 2,
+              "status": {
+                "status": "queued"
+              }
+            },
+            "record": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 33,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": true,
+                "pose": "Standing",
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 33,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  -0.0784000015258789,
+                  0.0
+                ]
+              },
+              "ground_jump": {
+                "request_id": 1,
+                "session_id": 2,
+                "status": {
+                  "outcome": "not_on_ground",
+                  "status": "predicted",
+                  "tick": 4
+                }
+              },
+              "session_id": 2,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 1
+            },
+            "native_position": [
+              0.5,
+              65.0,
+              0.5
+            ]
+          },
+          {
+            "name": "grounded_water_request_without_held_swim",
+            "queued": {
+              "request_id": 1,
+              "session_id": 3,
+              "status": {
+                "status": "queued"
+              }
+            },
+            "record": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 8,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": true,
+                "on_ground": false,
+                "pose": "Standing",
+                "position": [
+                  0.5,
+                  65.75099998140335,
+                  0.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 8,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  0.2597999995589254,
+                  0.0
+                ]
+              },
+              "ground_jump": {
+                "request_id": 1,
+                "session_id": 3,
+                "status": {
+                  "outcome": "applied",
+                  "status": "predicted",
+                  "tick": 7
+                }
+              },
+              "session_id": 3,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 0
+            },
+            "checkpoint": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 8,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": true,
+                "on_ground": false,
+                "pose": "Standing",
+                "position": [
+                  0.5,
+                  65.75099998140335,
+                  0.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 8,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  0.2597999995589254,
+                  0.0
+                ]
+              },
+              "ground_jump": {
+                "request_id": 1,
+                "session_id": 3,
+                "status": {
+                  "outcome": "applied",
+                  "status": "predicted",
+                  "tick": 7
+                }
+              },
+              "session_id": 3,
+              "status": {
+                "reason": "stopped by request",
+                "status": "stopped"
+              },
+              "velocity_updates": 0
+            },
+            "native_position": [
+              0.5,
+              65.75099998140335,
+              0.5
+            ]
+          },
+          {
+            "name": "held_water_input_preserved",
+            "queued": {
+              "request_id": 1,
+              "session_id": 4,
+              "status": {
+                "status": "queued"
+              }
+            },
+            "record": {
+              "controls": {
+                "forward": 1,
+                "jump": true,
+                "pitch": -12.0,
+                "sneak": true,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 10,
+              "frame": {
+                "crouching": true,
+                "eye_in_water": true,
+                "horizontal_collision": false,
+                "in_water": true,
+                "on_ground": true,
+                "pose": "Crouching",
+                "position": [
+                  0.3494013022913677,
+                  65.0,
+                  0.6998769063546163
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 10,
+                "using_item": null,
+                "velocity": [
+                  -0.013520312710784424,
+                  -0.005,
+                  0.01794436684178371
+                ]
+              },
+              "ground_jump": {
+                "request_id": 1,
+                "session_id": 4,
+                "status": {
+                  "outcome": "jump_input_already_held",
+                  "status": "predicted",
+                  "tick": 5
+                }
+              },
+              "session_id": 4,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 0
+            },
+            "native_position": [
+              0.3663016929280128,
+              65.0,
+              0.6774464481366266
+            ]
+          },
+          {
+            "name": "received_other_mode_rejected",
+            "rejection": {
+              "kind": "State",
+              "message": "ground jump requires received survival mode",
+              "rejected": true
+            }
+          }
+        ],
+        "commands": [
+          {
+            "command": "forceload add -8 -8 8 8",
+            "response": "Marked 4 chunks in minecraft:overworld from [-1, -1] to [0, 0] to be force loaded"
+          },
+          {
+            "command": "setblock 0 64 0 minecraft:stone",
+            "response": "Changed the block at 0, 64, 0"
+          },
+          {
+            "command": "execute if block 0 64 0 minecraft:stone",
+            "response": "Test passed"
+          },
+          {
+            "command": "fill -8 64 -8 8 64 8 minecraft:stone",
+            "response": "Successfully filled 288 block(s)"
+          },
+          {
+            "command": "fill -4 65 -4 4 84 4 minecraft:air",
+            "response": "No blocks were filled"
+          },
+          {
+            "command": "setworldspawn 0 65 0",
+            "response": "Set the world spawn point to 0, 65, 0 [0.0, 0.0] in minecraft:overworld"
+          },
+          {
+            "command": "difficulty peaceful",
+            "response": "The difficulty has been set to Peaceful"
+          },
+          {
+            "command": "gamerule minecraft:respawn_radius 0",
+            "response": "Gamerule respawn_radius is now set to: 0"
+          },
+          {
+            "command": "gamerule minecraft:spawn_mobs false",
+            "response": "Gamerule spawn_mobs is now set to: false"
+          },
+          {
+            "command": "gamerule minecraft:advance_time false",
+            "response": "Gamerule advance_time is now set to: false"
+          },
+          {
+            "command": "tp ClimbingProbe 0.5 65 0.5 37 -12",
+            "response": "Teleported ClimbingProbe to 0.500000, 65.000000, 0.500000"
+          },
+          {
+            "command": "data get entity ClimbingProbe Pos",
+            "response": "ClimbingProbe has the following entity data: [-0.4271907360740009d, 65.0d, 1.7305817961698635d]"
+          },
+          {
+            "command": "tp ClimbingProbe 0.5 69 0.5 37 -12",
+            "response": "Teleported ClimbingProbe to 0.500000, 69.000000, 0.500000"
+          },
+          {
+            "command": "data get entity ClimbingProbe Pos",
+            "response": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+          },
+          {
+            "command": "fill -4 65 -4 4 65 4 minecraft:water[level=0]",
+            "response": "Successfully filled 81 block(s)"
+          },
+          {
+            "command": "tp ClimbingProbe 0.5 65 0.5 37 -12",
+            "response": "Teleported ClimbingProbe to 0.500000, 65.000000, 0.500000"
+          },
+          {
+            "command": "data get entity ClimbingProbe Pos",
+            "response": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+          },
+          {
+            "command": "data get entity ClimbingProbe Pos",
+            "response": "ClimbingProbe has the following entity data: [0.5d, 65.75099998140335d, 0.5d]"
+          },
+          {
+            "command": "fill -4 65 -4 4 67 4 minecraft:water[level=0]",
+            "response": "Successfully filled 162 block(s)"
+          },
+          {
+            "command": "tp ClimbingProbe 0.5 65 0.5 37 -12",
+            "response": "Teleported ClimbingProbe to 0.500000, 65.000000, 0.500000"
+          },
+          {
+            "command": "data get entity ClimbingProbe Pos",
+            "response": "ClimbingProbe has the following entity data: [0.3663016929280128d, 65.0d, 0.6774464481366266d]"
+          },
+          {
+            "command": "gamemode creative ClimbingProbe",
+            "response": "Set ClimbingProbe's game mode to Creative Mode"
+          }
+        ],
+        "passed": true,
+        "source_revision": "14e2367f460aa6b463b0bdb4947ee32584877815",
+        "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "binary_sha256": "e243ec1eb3e20f01408a723847e1102e579a10cb70dc736da3569edf1415aa3c",
+        "cargo_lock_sha256": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+        "synthetic_fixture_not_historical_reproduction": true,
+        "trace_errors": []
+      }
+    }
+  ],
+  "initial_failed_trials": [
+    {
+      "report_sha256": "e4c53b726a9f181a4f5481c07c537217a50c0cbaf616f48d0b708fc036decde1",
+      "version": "1.21.11",
+      "source_revision": "84ee7f6ee1572b1a03d66680a90f4800201e9c8c",
+      "error": "stale session did not reject without input mutation",
+      "passed_checks": [],
+      "last_commands": [
+        {
+          "command": "fill -8 64 -8 8 64 8 minecraft:stone",
+          "response": "Successfully filled 288 block(s)"
+        },
+        {
+          "command": "fill -4 65 -4 4 84 4 minecraft:air",
+          "response": "No blocks were filled"
+        },
+        {
+          "command": "setworldspawn 0 65 0",
+          "response": "Set the world spawn point to 0, 65, 0 [0.0, 0.0] in minecraft:overworld"
+        },
+        {
+          "command": "difficulty peaceful",
+          "response": "The difficulty has been set to Peaceful"
+        },
+        {
+          "command": "gamerule minecraft:respawn_radius 0",
+          "response": "Gamerule respawn_radius is now set to: 0"
+        },
+        {
+          "command": "gamerule minecraft:spawn_mobs false",
+          "response": "Gamerule spawn_mobs is now set to: false"
+        },
+        {
+          "command": "gamerule minecraft:advance_time false",
+          "response": "Gamerule advance_time is now set to: false"
+        },
+        {
+          "command": "tp ClimbingProbe 0.5 65 0.5 37 -12",
+          "response": "Teleported ClimbingProbe to 0.500000, 65.000000, 0.500000"
+        }
+      ]
+    },
+    {
+      "report_sha256": "b6328fe8aa025486083ba858d2e010709ed1709f0a8501adedb9a9a9b2c816f2",
+      "version": "1.21.11",
+      "source_revision": "19895697f6bf3b57e74bf9bd969109efe895c84e",
+      "error": "native/model position differs",
+      "passed_checks": [
+        "single_ground_jump_preserves_forward_sneak",
+        "stopped_request_rejected",
+        "airborne_request_never_retries_on_landing"
+      ],
+      "last_commands": [
+        {
+          "command": "gamerule minecraft:advance_time false",
+          "response": "Gamerule advance_time is now set to: false"
+        },
+        {
+          "command": "tp ClimbingProbe 0.5 65 0.5 37 -12",
+          "response": "Teleported ClimbingProbe to 0.500000, 65.000000, 0.500000"
+        },
+        {
+          "command": "data get entity ClimbingProbe Pos",
+          "response": "ClimbingProbe has the following entity data: [-0.4271907360740009d, 65.0d, 1.7305817961698635d]"
+        },
+        {
+          "command": "tp ClimbingProbe 0.5 69 0.5 37 -12",
+          "response": "Teleported ClimbingProbe to 0.500000, 69.000000, 0.500000"
+        },
+        {
+          "command": "data get entity ClimbingProbe Pos",
+          "response": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        },
+        {
+          "command": "fill -4 65 -4 4 65 4 minecraft:water[level=0]",
+          "response": "Successfully filled 81 block(s)"
+        },
+        {
+          "command": "tp ClimbingProbe 0.5 65 0.5 37 -12",
+          "response": "Teleported ClimbingProbe to 0.500000, 65.000000, 0.500000"
+        },
+        {
+          "command": "data get entity ClimbingProbe Pos",
+          "response": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        }
+      ]
+    }
+  ]
+}

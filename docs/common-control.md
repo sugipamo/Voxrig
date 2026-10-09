@@ -1,6 +1,6 @@
 # 共通の継続操作（P7）
 
-`Client::survival()`の`start_control`・`set_controls`・`stop_control`・`control_record`は、
+`Client::survival()`の`start_control`・`set_controls`・`request_ground_jump`・`stop_control`・`control_record`は、
 キーを押し続ける操作を1.16.1と1.21.11で同じ型で扱う（`voxrig::client::control`）。
 
 ```rust,no_run
@@ -55,6 +55,44 @@ survival.stop_control().await?;                   // ダッシュとしゃがみ
   1.21.11では停止した共通sessionのモデルを引き継ぐ。停止後に別の有限移動・位置送信を行った場合、
   新しい位置受信がない限り、そのsessionの古いモデルを使った再開は拒否する。
   同じ座標に戻っていても、別の移動送信を現在のモデル速度の証拠として扱わない。
+
+## 単発の接地ジャンプ
+
+`request_ground_jump(session_id)` は、その `start_control` が返した現在の session に
+1回の要求を預ける。次のモデル tick で接地していれば、版ごとの既存の接地ジャンプ処理を使う。
+`set_controls` の前進・しゃがみ・yaw/pitch を含む押下状態は変えない。
+同じ要求がまだ `Queued` の間の再要求は同じ request ID にまとまる。
+
+```rust,no_run
+# use voxrig::client::prelude::*;
+# async fn jump(client: &Client) -> Result<()> {
+let survival = client.survival();
+let session = survival.start_control().await?;
+let queued = survival.request_ground_jump(session.session_id).await?;
+// 次の tick の結果は control_record().ground_jump で調べる。
+# let _ = queued;
+# survival.stop_control().await?;
+# Ok(())
+# }
+```
+
+空中の要求は `NotOnGround` として1回で消費し、着地後に再試行しない。
+接地した水中でも接地ジャンプだけを使い、水泳・梯子登りの押下入力を合成しない。
+ジャンプキーがすでに押されている場合は `JumpInputAlreadyHeld` とし、通常の押下動作を続ける。
+1.21.11 の入力ジャンプ bit は、要求が適用された1 tickだけ追加し、次の tickで元の入力へ戻す。
+
+古い session ID、停止・予測停止中の session、異なる mode/world は状態エラーで拒否する。
+保留中に予測不能になれば `PredictionPaused`、所有 session が終了すれば `SessionStopped` で破棄し、
+再開した sessionへ要求を引き継がない。受付前の待機取消は要求を作らず、受付後はSDKの task が扱う。
+`Queued` はローカル受付、`Predicted` はモデルへの適用であり、送信完了やサーバーのジャンプ承認ではない。
+保持するのは最新の要求記録で、ジャンプ全履歴ではない。
+
+公式 1.16.1・1.21.11 の両版で、接地1回・着地後の非再試行・水中押下の保持・停止と mode変更後の拒否を
+`scripts/run_ground_jump.py --accept-eula` で確認する。
+[検証記録](evidence/common-ground-jump-20261009.json)に元の通信、独立したRCON座標、初回失敗を保存する。
+移動とRCONの処理順は同期しないため、1.21.11 の水中上昇の照合は停止した固定フレームを使う。
+座標の許容差は0.4 blockのまま、2秒以内に一致しなければ失敗する。
+これは消費側の共通移動への移行や、通常の資源取得・PillarをこのAPIで検証したことを示さない。
 
 ## 範囲と制限
 

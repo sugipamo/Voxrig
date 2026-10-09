@@ -22,7 +22,7 @@ pub enum GroundJumpStatus {
     Predicted {
         /// Session tick which consumed the request.
         tick: u64,
-        /// Local outcome, including refusal to jump in air/fluid.
+        /// Local outcome, including refusal to jump while airborne.
         outcome: GroundJumpOutcome,
     },
     /// Discarded rather than retried when prediction pauses or ownership ends.
