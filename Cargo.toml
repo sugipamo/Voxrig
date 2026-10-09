@@ -23,6 +23,7 @@ include = [
     "/scripts/run_connection_stability.py",
     "/scripts/run_player_ground_capture.py",
     "/scripts/run_migration_api.py",
+    "/scripts/run_entity_history.py",
     "/scripts/run_reader_multiclient.py",
     "/scripts/NativeReaderStressControl.java",
     "/scripts/NativeReconfigurationControl.java",

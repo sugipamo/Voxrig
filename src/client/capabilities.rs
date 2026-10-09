@@ -71,6 +71,8 @@ pub enum Feature {
     EntityObservation,
     /// Latest received entity spatial fields, independent from spawn history.
     EntityMotion,
+    /// Bounded historical spatial/status/lifetime samples, independent of notifications.
+    EntityHistory,
     /// Common general-entity interaction.
     EntityInteraction,
     /// Actual own-player passenger relationships and original mounted receipts.
@@ -148,6 +150,7 @@ impl Feature {
         Feature::Crafting,
         Feature::EntityObservation,
         Feature::EntityMotion,
+        Feature::EntityHistory,
         Feature::EntityInteraction,
         Feature::VehicleObservation,
         Feature::VehicleDismount,
@@ -262,6 +265,10 @@ impl Capabilities {
             Feature::EntityMotion => restricted(
                 "latest received position, rotation and velocity samples",
                 "docs/common-entity-motion.md",
+            ),
+            Feature::EntityHistory => restricted(
+                "8192 applied samples; 1..1024 per read; explicit gaps and lifetime boundaries",
+                "docs/common-entity-history.md",
             ),
             Feature::EntityInteraction => restricted(
                 "one INTERACT or ATTACK on a received entity; no outcome ACK",

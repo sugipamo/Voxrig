@@ -43,6 +43,20 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             );
             state.vehicles.retire(entity_id);
         }
+        ids::play_clientbound::ENTITY_STATUS => {
+            let native_id = r.i32()?;
+            let status = r.u8()? as i8;
+            r.end()?;
+            state.entities.history_signal(native_id, Some(status), None);
+        }
+        ids::play_clientbound::ANIMATION => {
+            let native_id = r.varint()?;
+            let animation = r.u8()?;
+            r.end()?;
+            state
+                .entities
+                .history_signal(native_id, None, Some(animation));
+        }
         ids::play_clientbound::ENTITY_DESTROY => {
             let mut removed = Vec::new();
             for _ in 0..r.count(65536)? {

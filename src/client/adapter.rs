@@ -100,6 +100,11 @@ pub(crate) trait ChunkOps {
 
 /// Change notifications.
 pub(crate) trait EventOps {
+    async fn entity_history_after(
+        &self,
+        cursor: Option<super::EntityHistoryCursor>,
+        maximum: usize,
+    ) -> Result<super::EntityHistory>;
     /// Events after `cursor`, with the receive sequence read under the same
     /// boundary. Readable after the connection closes.
     async fn events_after(&self, cursor: u64) -> Result<super::events::EventLog>;

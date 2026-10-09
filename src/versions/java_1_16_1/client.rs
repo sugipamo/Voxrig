@@ -4992,6 +4992,15 @@ impl Bot {
                 local_player_basis,
             );
         }
+        {
+            let mut receipts = self.common_receipts.lock().await;
+            let generation = receipts.generation;
+            receipts.entities.history_context(
+                crate::MinecraftVersion::Java1_16_1,
+                generation,
+                packet_sequence,
+            );
+        }
         if let Some((target, update)) = common_entity_motion::decode(id, &p)? {
             let player = self.player.lock().await.entity_id;
             let mut receipts = self.common_receipts.lock().await;
@@ -5014,9 +5023,16 @@ impl Bot {
             0x04 => self.insert_entity(parse_spawn_player(&p)?).await?,
             0x05 => {
                 let mut rest = p.as_slice();
+                let entity_id = get_varint(&mut rest)?;
+                let animation = *rest.first().context("missing animation")?;
+                self.common_receipts.lock().await.entities.history_signal(
+                    entity_id,
+                    None,
+                    Some(animation),
+                );
                 self.emit(Event::EntityAnimation {
-                    entity_id: get_varint(&mut rest)?,
-                    animation: *rest.first().context("missing animation")?,
+                    entity_id,
+                    animation,
                 });
             }
             0x06 => {
@@ -5109,6 +5125,11 @@ impl Bot {
                 let mut c = Cursor::new(&p);
                 let entity_id = c.read_i32::<BigEndian>()?;
                 let status = c.read_i8()?;
+                self.common_receipts.lock().await.entities.history_signal(
+                    entity_id,
+                    Some(status),
+                    None,
+                );
                 self.emit(Event::EntityStatus { entity_id, status });
             }
             0x1c => self.receive_explosion(&p).await?,
@@ -5767,6 +5788,12 @@ impl Bot {
             rotation: [next_yaw, next_pitch],
             receive_sequence: self.protocol_packet_sequence.load(Ordering::Acquire),
         });
+        {
+            let mut receipts = self.common_receipts.lock().await;
+            if let Some(pose) = receipts.pose.clone() {
+                receipts.entities.history_pose(pose, None);
+            }
+        }
         let mut positioned = self.positioned.lock().await;
         let was_positioned = *positioned;
         *positioned = true;
@@ -6294,6 +6321,25 @@ async fn next_operation_event(events: &mut broadcast::Receiver<Event>) -> Result
 }
 
 impl crate::client::adapter::EventOps for Bot {
+    async fn entity_history_after(
+        &self,
+        cursor: Option<crate::client::EntityHistoryCursor>,
+        maximum: usize,
+    ) -> Result<crate::client::EntityHistory> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let receipts = self.common_receipts.lock().await;
+        receipts.entities.history_after(
+            crate::client::SessionStamp {
+                version: crate::MinecraftVersion::Java1_16_1,
+                connection_id: crate::client::adapter::SessionOps::connection_id(self),
+                world_generation: receipts.generation,
+            },
+            self.protocol_packet_sequence.load(Ordering::Acquire),
+            cursor,
+            maximum,
+        )
+    }
+
     async fn death_message(
         &self,
     ) -> Result<Option<crate::client::ObservedValue<crate::client::ui::UiText>>> {

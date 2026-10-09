@@ -81,3 +81,9 @@ cursor = log.receive_sequence;
 1. eventの中身: 通知のみ（推奨）か、payloadも持たせるか。
 2. 配信方式: カーソルで読み出す方式（推奨）か、push型の`Stream`を最初から用意するか。
 3. 最初に対応する種類: 上の12種類で足りるか。追加・削除したいものはあるか。
+
+## Entityの過去サンプル (#30)
+
+通知だけでは過去の位置・速度・角度を再構成できない。通知APIは維持し、
+[boundedなentity受信履歴](common-entity-history.md)を別APIとして追加する。
+SDKのpacket適用時に値を凍結し、cursor・保持欠落・時刻の意味・lifetimeを明示する。

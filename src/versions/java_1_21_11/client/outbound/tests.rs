@@ -3471,3 +3471,220 @@ async fn common_respawn_settling_requires_owned_world_and_only_released_inputs()
         assert!(api.preview_path(mode, &controls).await.is_err());
     }
 }
+
+#[tokio::test]
+async fn common_entity_history_freezes_native_packets_and_reports_retention() {
+    use crate::client::{
+        EntityHistoryKind as K, MAX_ENTITY_HISTORY_READ, MAX_ENTITY_HISTORY_RECORDS,
+    };
+    let (session, api, _peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    macro_rules! receive {
+        ($id:expr,$body:expr) => {
+            session
+                .state
+                .lock()
+                .await
+                .receive($id, &$body, 256)
+                .unwrap()
+        };
+    }
+    let baseline = client
+        .entity_history_after(None, 1)
+        .await
+        .unwrap()
+        .latest_cursor;
+    let make_spawn = |id: u8, name: &str, living: bool| {
+        let mut p = vec![id];
+        p.extend([id; 16]);
+        put_varint(
+            &mut p,
+            client
+                .registry()
+                .builtin_id("minecraft:entity_type", name)
+                .unwrap()
+                .value(),
+        );
+        for v in [2f64, 65., 0.5] {
+            p.extend(v.to_be_bytes());
+        }
+        let _ = living;
+        p.extend([0; 5]);
+        p
+    };
+    let sheep = make_spawn(42, "minecraft:sheep", true);
+    let fireball = make_spawn(43, "minecraft:fireball", false);
+    receive!(ids::play_clientbound::SPAWN_ENTITY, sheep.clone());
+    receive!(ids::play_clientbound::SPAWN_ENTITY, fireball.clone());
+    let mut move_look = vec![42];
+    for d in [4096i16, 0, 0] {
+        move_look.extend(d.to_be_bytes());
+    }
+    move_look.extend([32, 16, 1]);
+    receive!(ids::play_clientbound::ENTITY_MOVE_LOOK, move_look);
+    let mut velocity = vec![43];
+    let packed = 1u64 | (32766u64 << 3) | (32766u64 << 18) | (32766u64 << 33);
+    velocity.extend([packed as u8, (packed >> 8) as u8]);
+    velocity.extend(((packed >> 16) as u32).to_be_bytes());
+    receive!(ids::play_clientbound::ENTITY_VELOCITY, velocity);
+    let zero_velocity = vec![43, 0];
+    receive!(
+        ids::play_clientbound::ENTITY_VELOCITY,
+        zero_velocity.clone()
+    );
+    let mut status = 42i32.to_be_bytes().to_vec();
+    status.push(2);
+    receive!(ids::play_clientbound::ENTITY_STATUS, status);
+    receive!(ids::play_clientbound::ANIMATION, vec![42, 1]);
+    receive!(ids::play_clientbound::ENTITY_DESTROY, vec![2, 42, 43]);
+    let page = client
+        .entity_history_after(Some(baseline), 1024)
+        .await
+        .unwrap();
+    assert!(page.gap.is_none());
+    assert!(!page.has_more);
+    assert_eq!(page.records.len(), 9);
+    assert!(page.records.windows(2).all(|r| r[0].ordinal < r[1].ordinal
+        && r[0].receive_sequence <= r[1].receive_sequence
+        && r[0].applied_after <= r[1].applied_after));
+    let K::Spawn(sheep_sample) = &page.records[0].kind else {
+        panic!()
+    };
+    let K::Spawn(projectile) = &page.records[1].kind else {
+        panic!()
+    };
+    assert_eq!(
+        sheep_sample.entity.type_name.as_deref(),
+        Some("minecraft:sheep")
+    );
+    assert_eq!(
+        projectile.entity.type_name.as_deref(),
+        Some("minecraft:fireball")
+    );
+    let K::Motion(moved) = &page.records[2].kind else {
+        panic!()
+    };
+    assert_eq!(
+        moved.position.as_ref().unwrap().value.position,
+        [3., 65., 0.5]
+    );
+    assert_eq!(moved.rotation.as_ref().unwrap().value, [45., 22.5]);
+    assert_eq!(
+        sheep_sample.position.as_ref().unwrap().value.position,
+        [2., 65., 0.5]
+    );
+    let K::Motion(first_velocity) = &page.records[3].kind else {
+        panic!()
+    };
+    let K::Motion(last_velocity) = &page.records[4].kind else {
+        panic!()
+    };
+    assert_eq!(first_velocity.velocity.as_ref().unwrap().value, [1.; 3]);
+    assert_eq!(last_velocity.velocity.as_ref().unwrap().value, [0.; 3]);
+    assert_ne!(
+        first_velocity.velocity.as_ref().unwrap().source,
+        last_velocity.velocity.as_ref().unwrap().source
+    );
+    assert!(matches!(page.records[5].kind, K::Status { status: 2, .. }));
+    assert!(matches!(
+        page.records[6].kind,
+        K::Animation { animation: 1, .. }
+    ));
+    assert!(matches!(
+        page.records[7].kind,
+        K::Removed { native_id: 42, .. }
+    ));
+    assert!(matches!(
+        page.records[8].kind,
+        K::Removed { native_id: 43, .. }
+    ));
+    assert_eq!(
+        page.records[7].receive_sequence,
+        page.records[8].receive_sequence
+    );
+    let original = projectile.entity.id;
+    receive!(ids::play_clientbound::SPAWN_ENTITY, fireball.clone());
+    let reused = client.entity_spawns().await.unwrap().entities[0].id;
+    assert_ne!(original, reused);
+    let mut respawn = vec![0];
+    put_string(&mut respawn, "minecraft:overworld");
+    respawn.extend([0; 8]);
+    respawn.extend([0, 255, 0, 1, 0, 0, 63, 0]);
+    session.state.lock().await.dimensions = vec![Dimension::new(-64, 384).unwrap()];
+    receive!(ids::play_clientbound::RESPAWN, respawn);
+    receive!(ids::play_clientbound::SPAWN_ENTITY, fireball);
+    let fresh = client.entity_spawns().await.unwrap().entities[0].id;
+    assert_ne!(
+        reused.session().world_generation,
+        fresh.session().world_generation
+    );
+    let worlds = client
+        .entity_history_after(Some(page.next_cursor), 1024)
+        .await
+        .unwrap();
+    assert!(
+        worlds
+            .records
+            .iter()
+            .any(|r| matches!(r.kind, K::WorldChanged { .. }))
+    );
+    assert!(
+        worlds
+            .records
+            .iter()
+            .any(|r| r.session.world_generation == reused.session().world_generation)
+    );
+    assert!(
+        worlds
+            .records
+            .iter()
+            .any(|r| r.session.world_generation == fresh.session().world_generation)
+    );
+    assert!(client.entity_history_after(None, 0).await.is_err());
+    assert!(
+        client
+            .entity_history_after(None, MAX_ENTITY_HISTORY_READ + 1)
+            .await
+            .is_err()
+    );
+    for _ in 0..MAX_ENTITY_HISTORY_RECORDS + 100 {
+        receive!(
+            ids::play_clientbound::ENTITY_VELOCITY,
+            zero_velocity.clone()
+        );
+    }
+    let mut page = client
+        .entity_history_after(Some(baseline), MAX_ENTITY_HISTORY_READ)
+        .await
+        .unwrap();
+    assert!(page.gap.is_some());
+    assert!(page.has_more);
+    assert_eq!(page.records.len(), 1024);
+    let dropped = page.gap.unwrap().dropped_through;
+    assert_eq!(page.records[0].ordinal, dropped + 1);
+    let mut count = page.records.len();
+    while page.has_more {
+        page = client
+            .entity_history_after(Some(page.next_cursor), MAX_ENTITY_HISTORY_READ)
+            .await
+            .unwrap();
+        assert!(page.gap.is_none());
+        count += page.records.len();
+    }
+    assert_eq!(count, MAX_ENTITY_HISTORY_RECORDS);
+    let tail = page.next_cursor;
+    let _ = client.revoke_connection();
+    let closed = client
+        .entity_history_after(None, MAX_ENTITY_HISTORY_READ)
+        .await
+        .unwrap();
+    assert!(closed.gap.is_some());
+    assert!(
+        client
+            .entity_history_after(Some(tail), 1)
+            .await
+            .unwrap()
+            .records
+            .is_empty()
+    );
+}

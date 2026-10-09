@@ -196,6 +196,7 @@ impl SpawnLedger {
     pub(crate) fn initialize_motion(&mut self, id: i32, native: NativeSpawnMotion, sequence: u64) {
         if let Some(spawn) = self.0.get_mut(&id).filter(|s| s.sequence == sequence) {
             spawn.motion.initialize(native, sequence);
+            self.history_motion(id, true);
         }
     }
     pub(crate) fn receive_motion(
@@ -207,6 +208,7 @@ impl SpawnLedger {
     ) {
         if let Some(spawn) = self.0.get_mut(&id) {
             spawn.motion.receive(version, update, sequence);
+            self.history_motion(id, false);
         }
     }
     pub(crate) fn capture_motion(
