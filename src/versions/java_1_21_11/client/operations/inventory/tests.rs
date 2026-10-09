@@ -1,4 +1,85 @@
 use super::*;
+#[tokio::test]
+async fn exact_equipment_pickup_both_modes_requires_fresh_slot_and_cursor() {
+    use crate::client::{
+        GameMode as Mode,
+        inventory::{
+            InventoryClickButton as Button, InventoryClickSource as Source,
+            InventoryClickStage as Stage,
+        },
+    };
+    let mut f = CommonFixture::new().await;
+    let client = f.client();
+    for mode in [Mode::Survival, Mode::Creative] {
+        let mut p = vec![3];
+        p.extend((if mode == Mode::Creative { 1f32 } else { 0f32 }).to_be_bytes());
+        f.receive(ids::play_clientbound::GAME_STATE_CHANGE, &p)
+            .await;
+        for (index, name) in [
+            (5, "iron_helmet"),
+            (6, "iron_chestplate"),
+            (7, "iron_leggings"),
+            (8, "iron_boots"),
+            (45, "shield"),
+        ] {
+            let definition = crate::client::registry::Registry::for_version(
+                crate::MinecraftVersion::Java1_21_11,
+            )
+            .item(&format!("minecraft:{name}"))
+            .unwrap();
+            let original = InventorySlot::Item {
+                item: PlainItem {
+                    name: definition.name,
+                    item_id: definition.id.value(),
+                    count: 1,
+                },
+            };
+            f.slot(index, original.clone()).await;
+            for _ in 0..2 {
+                let record = crate::client::tests::common_pickup_start_scenario(
+                    &client,
+                    mode,
+                    Source::Player,
+                    index,
+                    Button::Left,
+                )
+                .await;
+                let (id, payload) = read_packet(&mut f.peer, None).await.unwrap();
+                assert_eq!(id, ids::play_serverbound::WINDOW_CLICK);
+                assert_eq!(payload, super::click::payload(&record).unwrap());
+                let native = |value: &crate::client::SlotKnowledge| match value {
+                    crate::client::SlotKnowledge::Empty => InventorySlot::Empty,
+                    crate::client::SlotKnowledge::Item { item } => InventorySlot::Item {
+                        item: PlainItem {
+                            name: item.name.clone(),
+                            item_id: item.id.value(),
+                            count: item.count as i32,
+                        },
+                    },
+                    _ => panic!("fixture requires known slot"),
+                };
+                f.slot(index, native(&record.prediction.source.value)).await;
+                assert_eq!(
+                    client
+                        .survival()
+                        .inventory_click_record()
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .stage,
+                    Stage::Pending
+                );
+                let mut cursor = Vec::new();
+                put_slot(&mut cursor, &native(&record.prediction.cursor.value));
+                f.receive(ids::play_clientbound::SET_CURSOR_ITEM, &cursor)
+                    .await;
+                crate::client::tests::common_pickup_complete_scenario(&client, record.id).await;
+            }
+        }
+    }
+    f.stop().await;
+}
+
 #[test]
 fn pickup_cursor_comparison_encoding_matches_original_native_codec() {
     let cases: serde_json::Value = serde_json::from_str(include_str!(
