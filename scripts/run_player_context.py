@@ -231,10 +231,21 @@ def check(version, command, request, trace, report, *, sdk):
     command("execute in minecraft:the_nether run tp ClimbingProbe 0.5 80 0.5 0 0")
     until(lambda: (value if (value := request("player_context"))["session"]["world_generation"] != old_generation else None), 10)
     snapshot("new_world_sources_and_absence")
+    before = request("player_context")
     command("experience add ClimbingProbe 1 points")
-    until(lambda: (value if (value := request("player_context"))["experience"] is not None else None), 5)
+    native = native_xp()
+    def fresh_world_xp():
+        value = request("player_context")
+        receipt = value["experience"]
+        if receipt is None or receipt["source"]["sequence"] <= before["receive_sequence"]:
+            return None
+        actual = receipt["value"]
+        same = actual["level"] == native["level"] and actual["total"] == native["total"]
+        same &= struct.pack(">f", actual["progress"]) == struct.pack(">f", native["progress"])
+        return value if same else None
+    until(fresh_world_xp, 5)
     context = snapshot("new_world_fresh_experience")
-    report["checks"][-1]["native"] = native_xp()
+    report["checks"][-1]["native"] = native
     trace.expect_disconnect()
     closed = request("context_disconnect")
     if closed["session"] != context["session"] or closed["experience"] != context["experience"]:
