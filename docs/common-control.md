@@ -42,6 +42,9 @@ survival.stop_control().await?;                   // ダッシュとしゃがみ
   互換モデルがまだ進んでいなければ共通エンジンの状態全体を引き継ぎ、進んだ後は古い水中・姿勢状態を再利用しない。
 - 1.21.11は同じworldの自分の位置受信が必要。位置送信が未解決、速度の受信基準が不明、
   または他の操作による位置送信の後に新しい位置受信がない場合は開始を拒否する。
+  最初の再開パケット、繰り返し再開、落下と着地、停止後の位置受信を両版の公式serverで追加検証し、
+  元のbytes・SDK revision・binary/JAR hashを[レビュー検証記録](evidence/common-control-restart-review-20261009.json)に保存した。
+  `scripts/run_control_restart.py --accept-eula`で再実行できる。
 - 次の場合は`Stopped`になる: `stop_control`、切断、world（死亡からの復帰・次元）の変化、game modeの変化、飛行、乗車、
   爆発などエンジンの外の動き、死亡、送信の失敗。止まったsessionは再開しない（`start_control`で新しく始める）。
 - 同じworldで接続が使える場合、自動停止でもダッシュ・しゃがみ（1.21.11では全入力）を解除する。
