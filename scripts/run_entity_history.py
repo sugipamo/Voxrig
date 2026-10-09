@@ -75,6 +75,8 @@ def check(version, command, request, trace, report):
     closed = ask("history")
     assert closed["records"] and closed["session"]["connection_id"] == before["connection_id"]
     report["checks"].append(dict(name="history_after_revocation", page=closed))
+    # End the JSON driver after diagnostics; legacy disconnect may refuse an already revoked transport.
+    request("disconnect")
 
 
 def main():
