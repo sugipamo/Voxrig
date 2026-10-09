@@ -13,7 +13,15 @@
 
 ## `raycast_blocks(origin, direction, max_distance)`
 
-`origin`から`direction`方向へ最大32ブロック、blockの**衝突形状**に対して光線を飛ばす。
+`origin`から`direction`方向へ最大64ブロック、blockの**衝突形状**に対して光線を飛ばす。
+`direction`は内部で正規化する。距離は渡された始点からの実距離であり、目や対象の
+offsetを含む。48ブロックの観測半径とoffsetの合計が64を超える場合は明示的に拒否する。
+操作のreachやサーバー上のvisibilityを拡張するものではない。
+
+1回の呼び出しで1個の領域をcaptureし、接続・world generation・受信sequenceを返す。
+領域は262,144セルまでで、64ブロックの対角線もこの範囲内。途中でworldが変われば
+結果を拒否し、別worldの高さやセルを混ぜない。過去の結果のsessionを保持し、
+後の結果が同じ接続・worldに属するかを確認できる。
 
 | 結果 | 意味 |
 | --- | --- |
@@ -39,3 +47,6 @@
 
 1.16.1は`wait_until_ready`の直後には周囲の地形がまだ届いておらず、検索・raycastが
 未ロードを返した。地形を使う前に`wait_for_loaded`で待つ。
+
+64ブロックへの拡張、offset・未ロード境界・world切替の実接続検証は
+[共通移行APIの検証](common-migration-api-validation.md)を参照。

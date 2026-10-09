@@ -6,6 +6,9 @@
 
 両版（1.16.1・1.21.11）で同じ値を返す。`PlayerObservation`の属性・効果・空気・entity IDは[自分の状態](common-player-facts.md)を参照。`ConnectionRevocation`、`Registry`、`WorldObservation`、`PlayerObservation`、`BasicControls`、`Waits`（[待機API](common-waits.md)）、`Events`（[change通知](common-events.md)）は`Available`。
 
+`BasicControls`のmode別の対応とnative admissionは[基本操作](common-player-control.md)を参照。
+`player_control(mode)`は4モードのlookと、Spectatorを除くhotbar選択を提供する。
+
 | Feature | 要約 | 文書 | 制約の詳細 |
 | --- | --- | --- | --- |
 | `Respawn` | one owned request per world after received death; fresh state must be re-read | [common-respawn.md](common-respawn.md) | actual received nonpositive health in current world; one owned request per world; retained dispatch/cancellation and actual RESPawn separately; fresh readiness/pose/health/inventory still required |
@@ -35,7 +38,7 @@
 | `Teams` | received team declarations and membership, bounded to 4096 entries | [common-teams-player-list.md](common-teams-player-list.md) | received ADD/CHANGE/JOIN/LEAVE/REMOVE, complete native parameters and per-holder origins; one team per holder, 4096 total declarations/members and 16 MiB retained encodings; native duplicate/leave rules, no rendering/collision or online roster inference |
 | `PlayerList` | received profiles and per-field updates, bounded to 4096 profiles | [common-teams-player-list.md](common-teams-player-list.md) | received ADD profiles/properties/signatures and per-field updates/removals; legacy registration and NOT_SET distinguished from modern listed/chat/order/hat flags; 4096 profiles, 1024 properties/profile, 16 MiB retained encodings; no authentication, RTT measurement, entity presence or complete account catalogue |
 | `DisplayObservation` | received titles, tab header/footer and world border fields | [common-ui-display.md](common-ui-display.md) | received title/subtitle/action-bar/timing/clear/reset, atomic tab header/footer, world-bound border center/size/transition/limits/warnings; per-field original ordinals and JSON/NBT; no invented defaults, render expiration, current interpolation or collision/damage inference |
-| `BlockQueries` | name search and collision-shape raycasts up to 32 blocks; unloaded cells reported | [common-blocks.md](common-blocks.md) | （新設。詳細は文書を参照） |
+| `BlockQueries` | name search and collision-shape raycasts up to 64 blocks; unloaded cells reported | [common-blocks.md](common-blocks.md) | （新設。詳細は文書を参照） |
 | `EntityState` | received health and equipment; boxes use default type dimensions only | [common-entities.md](common-entities.md) | （新設。詳細は文書を参照） |
 | `ContinuousControl` | held survival keys on terrain, fluids, ladders, vines and scaffolding; no flying or riding | [common-control.md](common-control.md) | （新設。詳細は文書を参照） |
 | `Digging` | any breakable block with the held item; default item speeds, received effects/attributes | [common-dig.md](common-dig.md) | （新設。詳細は文書を参照） |

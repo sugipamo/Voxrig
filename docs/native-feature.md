@@ -29,7 +29,7 @@ voxrig = { git = "https://github.com/sugipamo/Voxrig", branch = "main", features
 | `loaded_chunks()` / `chunk_snapshot()` / `is_chunk_loaded()` | `client.loaded_chunks()`、`client.chunk([x, z])` |
 | `raycast_blocks()` | `client.raycast_blocks(..)` |
 | `set_control()` / `clear_control()` / `jump()` | `survival().start_control()` / `set_controls(..)` / `stop_control()` |
-| `look()` / `select_hotbar()` | `survival().look(..)` / `select_hotbar(..)` |
+| `look()` / `select_hotbar()` | `player_control(received_mode).look(..)` / `select_hotbar(..)`; [mode別の対応](common-player-control.md) |
 | `use_item()` / `release_item()` / `swing_arm()` | `survival().use_item(hand)` / `release_use_item()` / `swing_arm(hand)` |
 | `attack()` | `survival().attack_entity(..)` |
 | 採掘（`start_digging` など） | `survival().dig(target, face)`、`dig_estimate(target)` |

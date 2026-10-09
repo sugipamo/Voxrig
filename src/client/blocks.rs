@@ -6,8 +6,9 @@ use super::adapter::CoreOps;
 use super::{BlockFace, SessionStamp};
 use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, ObservedBlock, Region, Result};
 
-/// Longest supported raycast, in blocks; keeps the captured box bounded.
-pub const MAX_RAYCAST_DISTANCE: f64 = 32.0;
+/// Longest supported raycast, in blocks measured from the supplied origin.
+/// Includes eye/target offsets and keeps the single captured box bounded.
+pub const MAX_RAYCAST_DISTANCE: f64 = 64.0;
 
 /// Blocks matching a name filter inside one capture.
 #[derive(Clone, Debug, serde::Serialize)]
@@ -216,29 +217,36 @@ impl super::Client {
     }
 
     /// Cast a ray against received block collision shapes, from `origin` along
-    /// `direction` for at most `max_distance` (up to 32) blocks. Computed from
-    /// one capture; this is client geometry, not server line of sight.
+    /// `direction` for at most `max_distance` (up to 64) blocks. Direction is
+    /// normalized; distance includes any eye/target offsets from the supplied
+    /// origin. Computed from one capture; this is client geometry, not server
+    /// line of sight or interaction reach.
     pub async fn raycast_blocks(
         &self,
         origin: [f64; 3],
         direction: [f64; 3],
         max_distance: f64,
     ) -> Result<BlockRaycastObservation> {
-        let length = direction.iter().map(|v| v * v).sum::<f64>().sqrt();
-        if origin.iter().chain(&direction).any(|v| !v.is_finite()) || length == 0.0 {
+        let scale = direction.iter().map(|v| v.abs()).fold(0.0, f64::max);
+        if origin.iter().chain(&direction).any(|v| !v.is_finite()) || scale == 0.0 {
             return Err(invalid(
                 "raycast origin and direction must be finite and non-zero",
             ));
         }
         if !(max_distance > 0.0 && max_distance <= MAX_RAYCAST_DISTANCE) {
-            return Err(invalid("raycast distance must be in (0, 32]"));
+            return Err(invalid("raycast distance must be in (0, 64]"));
         }
+        // Scale before taking the norm: finite non-zero directions can otherwise
+        // overflow or underflow and silently turn a long ray into a zero ray.
+        let direction = direction.map(|v| v / scale);
+        let length = direction.iter().map(|v| v * v).sum::<f64>().sqrt();
         let direction = direction.map(|v| v / length);
         let end = [0, 1, 2].map(|a| origin[a] + direction[a] * max_distance);
         let mut region = Region {
             min: [0, 1, 2].map(|a| origin[a].min(end[a]).floor() as i32),
             max: [0, 1, 2].map(|a| origin[a].max(end[a]).floor() as i32),
         };
+        region.volume()?;
         // Cells above or below the world contain nothing; only capture inside it.
         let player = super::dispatch!(&self.adapter, a => CoreOps::player_state(a).await)?;
         let dimension = player.dimension.ok_or_else(|| {
@@ -377,6 +385,88 @@ mod tests {
         )
         .unwrap();
         assert_eq!(miss, BlockRaycast::Miss);
+    }
+
+    #[test]
+    fn long_rays_preserve_first_hit_partial_shapes_and_unloaded_boundaries() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let origin = [0.5, 0.75, 0.5];
+            let hit = raycast(
+                version,
+                origin,
+                [1.0, 0.0, 0.0],
+                48.0,
+                world([40, 0, 0], None),
+            )
+            .unwrap();
+            assert!(matches!(
+                hit,
+                BlockRaycast::Hit {
+                    position: [40, 0, 0],
+                    face: BlockFace::West,
+                    distance: 39.5,
+                    ..
+                }
+            ));
+            let unloaded = raycast(
+                version,
+                origin,
+                [1.0, 0.0, 0.0],
+                64.0,
+                world([40, 0, 0], Some([33, 0, 0])),
+            )
+            .unwrap();
+            assert_eq!(
+                unloaded,
+                BlockRaycast::Unloaded {
+                    position: [33, 0, 0]
+                }
+            );
+            let mut slab = state("minecraft:oak_slab");
+            slab.properties.insert("type".into(), "bottom".into());
+            slab.properties.insert("waterlogged".into(), "false".into());
+            let cells = |p| {
+                Some(Some(if p == [46, 0, 0] {
+                    slab.clone()
+                } else {
+                    state("minecraft:air")
+                }))
+            };
+            assert_eq!(
+                raycast(version, origin, [1.0, 0.0, 0.0], 48.0, cells).unwrap(),
+                BlockRaycast::Miss
+            );
+            assert!(matches!(
+                raycast(version, [0.5, 0.25, 0.5], [1.0, 0.0, 0.0], 48.0, cells).unwrap(),
+                BlockRaycast::Hit {
+                    position: [46, 0, 0],
+                    distance: 45.5,
+                    ..
+                }
+            ));
+            assert!(matches!(
+                raycast(
+                    version,
+                    origin,
+                    [1.0, 0.0, 0.0],
+                    64.0,
+                    world([64, 0, 0], None)
+                )
+                .unwrap(),
+                BlockRaycast::Hit { distance: 63.5, .. }
+            ));
+            assert_eq!(
+                raycast(
+                    version,
+                    origin,
+                    [1.0, 0.0, 0.0],
+                    63.0,
+                    world([64, 0, 0], None)
+                )
+                .unwrap(),
+                BlockRaycast::Miss
+            );
+        }
     }
 
     #[test]

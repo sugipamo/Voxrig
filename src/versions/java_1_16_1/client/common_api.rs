@@ -168,15 +168,16 @@ impl Bot {
 
             Action::Look(rotation) => {
                 api::operations::validate_rotation(rotation)?;
+                if !*self.positioned.lock().await {
+                    return Err(common_state("position unavailable"));
+                }
                 let player = self.player.lock().await;
                 let mut payload = pose_payload([player.x, player.y, player.z], rotation);
                 payload.push(u8::from(player.on_ground));
                 (0x13, payload)
             }
             Action::SelectHotbar(slot) => {
-                if slot > 8 {
-                    return Err(api::registry::invalid("hotbar slot must be 0..8"));
-                }
+                api::operations::validate_hotbar_selection(mode, slot)?;
                 (0x24, i16::from(slot).to_be_bytes().to_vec())
             }
             Action::SetFlying(flying) => {
@@ -692,7 +693,211 @@ impl crate::client::adapter::CoreOps for Bot {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ErrorKind;
     use crate::client::adapter::CoreOps;
+
+    #[tokio::test]
+    async fn long_raycast_rejects_world_switch_between_height_and_capture() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.survival.write().await.dimension = Some("minecraft:overworld".into());
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let gate = bot.coherent_state_gate.lock().await;
+        let mut ray = Box::pin(client.raycast_blocks([8.5, 66.0, 8.5], [1.0, 0.0, 0.0], 48.0));
+        assert!(
+            timeout(Duration::from_millis(20), ray.as_mut())
+                .await
+                .is_err()
+        );
+        // The fair gate queues reset behind the metadata read, before capture.
+        let reset_bot = bot.clone();
+        let mut reset = tokio::spawn(async move {
+            let mut respawn = Vec::new();
+            put_string(&mut respawn, "minecraft:overworld");
+            put_string(&mut respawn, "world");
+            respawn.extend([0; 8]);
+            respawn.extend([0, 255, 0, 0, 1]);
+            reset_bot.apply_packet(0x3a, respawn).await.unwrap();
+        });
+        assert!(
+            timeout(Duration::from_millis(20), &mut reset)
+                .await
+                .is_err()
+        );
+        drop(gate);
+        let error = timeout(Duration::from_secs(2), ray)
+            .await
+            .unwrap()
+            .unwrap_err();
+        assert_eq!(error.kind(), ErrorKind::State);
+        assert!(error.to_string().contains("world changed during raycast"));
+        reset.await.unwrap();
+        assert!(
+            timeout(Duration::from_millis(30), packets.recv())
+                .await
+                .is_err()
+        );
+        let _ = client.revoke_connection();
+        drop(release);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn basic_input_waiting_for_state_rechecks_received_mode_and_missing_pose() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let input = client.player_control(api::GameMode::Survival);
+        let gate = bot.coherent_state_gate.lock().await;
+        let mut look = Box::pin(input.look([17., 20.]));
+        assert!(
+            timeout(Duration::from_millis(20), look.as_mut())
+                .await
+                .is_err()
+        );
+        let mut change = vec![3];
+        change.extend(2f32.to_be_bytes());
+        bot.receive_game_state_change(&change).await.unwrap();
+        drop(gate);
+        assert_eq!(look.await.unwrap_err().kind(), ErrorKind::State);
+        let input = client.player_control(api::GameMode::Adventure);
+        *bot.positioned.lock().await = false;
+        assert_eq!(
+            input.look([17., 20.]).await.unwrap_err().kind(),
+            ErrorKind::State
+        );
+        assert_eq!(client.player_state().await.unwrap().rotation, [0.; 2]);
+        bot.survival.write().await.game_mode = None;
+        assert_eq!(
+            input.look([17., 20.]).await.unwrap_err().kind(),
+            ErrorKind::State
+        );
+        assert_eq!(
+            input.select_hotbar(4).await.unwrap_err().kind(),
+            ErrorKind::State
+        );
+        assert!(
+            timeout(Duration::from_millis(30), packets.recv())
+                .await
+                .is_err()
+        );
+        let _ = client.revoke_connection();
+        drop(release);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn common_player_control_checks_all_received_modes_and_pending_dispatch() {
+        for (mode, id) in [
+            (api::GameMode::Survival, 0f32),
+            (api::GameMode::Creative, 1.),
+            (api::GameMode::Adventure, 2.),
+            (api::GameMode::Spectator, 3.),
+        ] {
+            let (bot, mut packets, release, server) =
+                super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+            super::super::common_motion::tests::seed_motion(&bot).await;
+            let mut change = vec![3];
+            change.extend(id.to_be_bytes());
+            bot.apply_packet(0x1e, change).await.unwrap();
+            let client = crate::Client::from_java_1_16_1(bot.clone());
+            let input = client.player_control(mode);
+            crate::client::tests::common_player_control_scenario(&client, mode).await;
+            for pitch in [-12.0f32, -90.0, 90.0] {
+                let (id, payload) = packets.recv().await.unwrap();
+                assert_eq!(id, 0x13);
+                assert_eq!(
+                    &payload[24..32],
+                    [37.0f32.to_be_bytes(), pitch.to_be_bytes()].concat()
+                );
+            }
+            if mode != api::GameMode::Spectator {
+                for slot in [0i16, 8] {
+                    assert_eq!(
+                        packets.recv().await.unwrap(),
+                        (0x24, slot.to_be_bytes().to_vec())
+                    );
+                }
+            }
+            // Retain the handle across an actual native mode receipt; neither
+            // look nor held-slot selection may bypass matching-mode admission.
+            let other = if id == 0. { 1f32 } else { 0f32 };
+            let mut change = vec![3];
+            change.extend(other.to_be_bytes());
+            bot.apply_packet(0x1e, change).await.unwrap();
+            assert_eq!(
+                input.look([0.; 2]).await.unwrap_err().kind(),
+                ErrorKind::State
+            );
+            assert_eq!(
+                input.select_hotbar(1).await.unwrap_err().kind(),
+                ErrorKind::State
+            );
+            bot.common_receipts.lock().await.pending_dispatch = true;
+            let other = if other == 0. {
+                api::GameMode::Survival
+            } else {
+                api::GameMode::Creative
+            };
+            let input = client.player_control(other);
+            assert_eq!(
+                input.look([0.; 2]).await.unwrap_err().kind(),
+                ErrorKind::State
+            );
+            assert_eq!(
+                input.select_hotbar(1).await.unwrap_err().kind(),
+                ErrorKind::State
+            );
+            assert!(
+                timeout(Duration::from_millis(30), packets.recv())
+                    .await
+                    .is_err()
+            );
+            let _ = client.revoke_connection();
+            drop(release);
+            server.await.unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn common_long_raycast_preserves_missing_cells_and_world_identity() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.survival.write().await.dimension = Some("minecraft:overworld".into());
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        crate::client::tests::common_long_raycast_scenario(&client).await;
+        let before = client
+            .raycast_blocks([8.5, 66.0, 8.5], [1.0, 0.0, 0.0], 48.0)
+            .await
+            .unwrap();
+        let mut respawn = Vec::new();
+        put_string(&mut respawn, "minecraft:overworld");
+        put_string(&mut respawn, "world");
+        respawn.extend([0; 8]);
+        respawn.extend([0, 255, 0, 0, 1]);
+        bot.apply_packet(0x3a, respawn).await.unwrap();
+        let after = client
+            .raycast_blocks([8.5, 66.0, 8.5], [1.0, 0.0, 0.0], 48.0)
+            .await
+            .unwrap();
+        assert_ne!(
+            before.session.world_generation,
+            after.session.world_generation
+        );
+        assert_eq!(before.session.connection_id, after.session.connection_id);
+        assert!(matches!(after.result, api::BlockRaycast::Unloaded { .. }));
+        assert!(
+            timeout(Duration::from_millis(30), packets.recv())
+                .await
+                .is_err()
+        );
+        let _ = client.revoke_connection();
+        drop(release);
+        server.await.unwrap();
+    }
 
     #[tokio::test]
     async fn respawn_chunks_before_own_pose_cannot_publish_ground_or_send_old_movement() {

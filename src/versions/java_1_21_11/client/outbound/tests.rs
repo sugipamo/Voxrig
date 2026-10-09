@@ -9,6 +9,248 @@ use std::{
 use tokio::io::{AsyncReadExt, AsyncWrite};
 
 #[tokio::test]
+async fn long_raycast_rejects_world_switch_between_height_and_capture() {
+    let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let guard = session.state.lock().await;
+    let mut ray = Box::pin(client.raycast_blocks([8.5, 66.0, 8.5], [1.0, 0.0, 0.0], 48.0));
+    assert!(
+        timeout(Duration::from_millis(20), ray.as_mut())
+            .await
+            .is_err()
+    );
+    let reset_session = session.clone();
+    let mut reset = tokio::spawn(async move {
+        let mut state = reset_session.state.lock().await;
+        state.loading.reset(12);
+        state.motion.invalidate(12, "world reset");
+        state.world.reset();
+        state.world.select_dimension(
+            "minecraft:the_nether".into(),
+            Dimension::new(0, 256).unwrap(),
+        );
+    });
+    assert!(
+        timeout(Duration::from_millis(20), &mut reset)
+            .await
+            .is_err()
+    );
+    drop(guard);
+    let error = timeout(Duration::from_secs(2), ray)
+        .await
+        .unwrap()
+        .unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::State);
+    assert!(error.to_string().contains("world changed during raycast"));
+    reset.await.unwrap();
+    assert!(
+        timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+    session.stop();
+}
+
+#[tokio::test]
+async fn common_player_control_checks_all_received_modes_and_pending_dispatch() {
+    use crate::client::GameMode;
+    for mode in [
+        GameMode::Survival,
+        GameMode::Creative,
+        GameMode::Adventure,
+        GameMode::Spectator,
+    ] {
+        let (session, api, mut peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(api.bot.clone());
+        let input = client.player_control(mode);
+        crate::client::tests::common_player_control_scenario(&client, mode).await;
+        for pitch in [-12.0f32, -90.0, 90.0] {
+            let mut expected = [37.0f32.to_be_bytes(), pitch.to_be_bytes()].concat();
+            expected.push(u8::from(matches!(
+                mode,
+                GameMode::Survival | GameMode::Adventure
+            )));
+            assert_eq!(
+                read_packet(&mut peer, None).await.unwrap(),
+                (ids::play_serverbound::LOOK, expected)
+            );
+        }
+        if mode != GameMode::Spectator {
+            for slot in [0i16, 8] {
+                assert_eq!(
+                    read_packet(&mut peer, None).await.unwrap(),
+                    (
+                        ids::play_serverbound::HELD_ITEM_SLOT,
+                        slot.to_be_bytes().to_vec()
+                    )
+                );
+            }
+        }
+        let other = if mode == GameMode::Survival {
+            1f32
+        } else {
+            0f32
+        };
+        let mut change = vec![3];
+        change.extend(other.to_be_bytes());
+        session
+            .state
+            .lock()
+            .await
+            .receive(ids::play_clientbound::GAME_STATE_CHANGE, &change, 256)
+            .unwrap();
+        assert_eq!(
+            input.look([0.; 2]).await.unwrap_err().kind(),
+            ErrorKind::State
+        );
+        assert_eq!(
+            input.select_hotbar(1).await.unwrap_err().kind(),
+            ErrorKind::State
+        );
+        session.state.lock().await.motion.position_basis =
+            operations::PositionBasis::PendingSubmission;
+        let input = client.player_control(if other == 0. {
+            GameMode::Survival
+        } else {
+            GameMode::Creative
+        });
+        assert_eq!(
+            input.look([0.; 2]).await.unwrap_err().kind(),
+            ErrorKind::State
+        );
+        assert_eq!(
+            input.select_hotbar(1).await.unwrap_err().kind(),
+            ErrorKind::State
+        );
+        assert!(
+            timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+                .await
+                .is_err()
+        );
+        session.stop();
+    }
+}
+
+#[tokio::test]
+async fn cancelled_basic_hotbar_selection_blocks_later_basic_inputs_without_replay() {
+    let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Adventure).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let input = client.player_control(crate::client::GameMode::Adventure);
+    let writer = session.writer.lock().await;
+    let mut selection = Box::pin(input.select_hotbar(4));
+    assert!(
+        timeout(Duration::from_millis(20), selection.as_mut())
+            .await
+            .is_err()
+    );
+    drop(selection);
+    drop(writer);
+    assert!(client.player_state().await.unwrap().pending_dispatch);
+    assert!(
+        client
+            .player_state()
+            .await
+            .unwrap()
+            .selected_hotbar
+            .is_none()
+    );
+    assert_eq!(
+        input.look([10., 0.]).await.unwrap_err().kind(),
+        ErrorKind::State
+    );
+    assert_eq!(
+        input.select_hotbar(1).await.unwrap_err().kind(),
+        ErrorKind::State
+    );
+    assert!(
+        timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+    session.stop();
+}
+
+#[tokio::test]
+async fn basic_input_waiting_for_state_rechecks_received_mode_and_missing_geometry() {
+    let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Adventure).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let input = client.player_control(crate::client::GameMode::Adventure);
+    let mut state = session.state.lock().await;
+    let mut look = Box::pin(input.look([17., 20.]));
+    assert!(
+        timeout(Duration::from_millis(20), look.as_mut())
+            .await
+            .is_err()
+    );
+    let mut change = vec![3];
+    change.extend(0f32.to_be_bytes());
+    state
+        .receive(ids::play_clientbound::GAME_STATE_CHANGE, &change, 256)
+        .unwrap();
+    drop(state);
+    assert_eq!(look.await.unwrap_err().kind(), ErrorKind::State);
+    let input = client.player_control(crate::client::GameMode::Survival);
+    session.state.lock().await.operations.local_player.velocity = None;
+    assert!(input.look([17., 20.]).await.is_err());
+    assert_eq!(client.player_state().await.unwrap().rotation, [0.; 2]);
+    session.state.lock().await.operations = Default::default();
+    assert_eq!(
+        input.look([17., 20.]).await.unwrap_err().kind(),
+        ErrorKind::State
+    );
+    assert_eq!(
+        input.select_hotbar(4).await.unwrap_err().kind(),
+        ErrorKind::State
+    );
+    assert!(
+        timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+    session.stop();
+}
+
+#[tokio::test]
+async fn common_long_raycast_preserves_missing_cells_and_world_identity() {
+    let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    crate::client::tests::common_long_raycast_scenario(&client).await;
+    let before = client
+        .raycast_blocks([8.5, 66.0, 8.5], [1.0, 0.0, 0.0], 48.0)
+        .await
+        .unwrap();
+    {
+        let mut state = session.state.lock().await;
+        state.loading.reset(12);
+        state.motion.invalidate(12, "world reset");
+        state.world.reset();
+        state.world.select_dimension(
+            "minecraft:overworld".into(),
+            Dimension::new(-64, 384).unwrap(),
+        );
+    }
+    let after = client
+        .raycast_blocks([8.5, 66.0, 8.5], [1.0, 0.0, 0.0], 48.0)
+        .await
+        .unwrap();
+    assert_ne!(
+        before.session.world_generation,
+        after.session.world_generation
+    );
+    assert_eq!(before.session.connection_id, after.session.connection_id);
+    assert!(matches!(
+        after.result,
+        crate::client::BlockRaycast::Unloaded { .. }
+    ));
+    assert!(
+        timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+    session.stop();
+}
+
+#[tokio::test]
 async fn player_capture_ground_and_rotation_keep_independent_origins_and_reset() {
     use crate::client::{GameMode, ValueSource};
     let (session, ops, _peer) = common_ground_fixture(GameMode::Survival).await;
@@ -1098,10 +1340,11 @@ async fn common_ground_fixture(
         state.operations.reset_world(0).unwrap();
         let mut packet = vec![3];
         packet.extend(
-            (if mode == crate::client::GameMode::Creative {
-                1f32
-            } else {
-                0f32
+            (match mode {
+                crate::client::GameMode::Survival => 0f32,
+                crate::client::GameMode::Creative => 1f32,
+                crate::client::GameMode::Adventure => 2f32,
+                crate::client::GameMode::Spectator => 3f32,
             })
             .to_be_bytes(),
         );

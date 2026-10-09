@@ -638,6 +638,9 @@ impl Operations {
         let mut state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
         self.require_mode(&state, mode)?;
+        if let Some(mode) = mode {
+            crate::client::operations::validate_hotbar_selection(mode, slot)?;
+        }
         if state.operations.inventory.pending_swap.is_some() {
             return Err(Error::new(
                 ErrorKind::State,
@@ -826,6 +829,16 @@ impl Operations {
         ground_owner: Option<crate::client::DismountId>,
     ) -> Result<()> {
         self.ready(state)?;
+        if state
+            .operations
+            .selected_hotbar
+            .as_ref()
+            .is_some_and(|selection| !selection.dispatched)
+        {
+            return Err(crate::client::inventory::unavailable(
+                "held slot dispatch unresolved; inspect and reconnect without replay",
+            ));
+        }
         if crate::client::vehicle::control::unresolved(&state.vehicle_control_history) {
             return Err(crate::client::inventory::unavailable(
                 "vehicle control unresolved; inspect without replay",
@@ -1338,6 +1351,11 @@ pub(super) fn common_player_in_state(
                 .common_inventory_transfer
                 .as_ref()
                 .is_some_and(|s| s.unresolved())
+            || state
+                .operations
+                .selected_hotbar
+                .as_ref()
+                .is_some_and(|selection| !selection.dispatched)
             || !inventory.pending_creative.is_empty()
             || inventory.pending_swap.is_some()
             || state.motion.position_basis == PositionBasis::PendingSubmission
@@ -1387,6 +1405,7 @@ pub(super) fn common_player_in_state(
         selected_hotbar: native
             .selected_hotbar
             .as_ref()
+            .filter(|selection| selection.dispatched)
             .map(|selection| api::ObservedValue {
                 value: selection.slot,
                 source: if selection.from_server {

@@ -54,6 +54,19 @@ pub(crate) enum Action<'a> {
     /// Survival STOP_DESTROY_BLOCK.
     DigFinish([i32; 3], BlockFace),
 }
+
+pub(crate) fn validate_hotbar_selection(mode: GameMode, slot: u8) -> Result<()> {
+    if slot > 8 {
+        return Err(super::registry::invalid("hotbar slot must be 0..8"));
+    }
+    if mode == GameMode::Spectator {
+        return Err(crate::Error::new(
+            crate::ErrorKind::Unsupported,
+            anyhow::anyhow!("vanilla spectator mode does not apply held hotbar selection"),
+        ));
+    }
+    Ok(())
+}
 impl Survival {
     /// Dispatch one interaction with an original received entity lifetime.
     /// Rechecks connection/world/spawn and received mode before I/O. No target

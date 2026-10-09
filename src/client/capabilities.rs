@@ -308,7 +308,7 @@ impl Capabilities {
                 "docs/common-ui-display.md",
             ),
             Feature::BlockQueries => restricted(
-                "name search and collision-shape raycasts up to 32 blocks; unloaded cells reported",
+                "name search and collision-shape raycasts up to 64 blocks; unloaded cells reported",
                 "docs/common-blocks.md",
             ),
             Feature::ContinuousControl => restricted(
