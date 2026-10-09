@@ -21,6 +21,10 @@ def velocity_packet(version, frame):
     raw = bytes.fromhex(frame["body_hex"])
     target, used = PacketTraceProxy.varint(raw)
     body = raw[used:]
+    if version == "1.21.11" and frame["packet_id"] == 0x23:
+        if len(body) != 57:
+            raise RuntimeError("invalid original entity synchronization length")
+        return target, list(struct.unpack(">ddd", body[24:48]))
     if version == "1.16.1":
         if len(body) != 6:
             raise RuntimeError("invalid original legacy velocity length")
@@ -106,7 +110,8 @@ def check(version, command, request, trace, report, *, sdk):
         for update in record["boat_motion"]["velocity_updates"]:
             source = update["receipt"]["source"]
             original = incoming[source["sequence"] - 1]
-            if source["kind"] != "received" or original["phase"] != "play" or original["packet_id"] != velocity_id:
+            allowed = (velocity_id,) if version == "1.16.1" else (velocity_id, 0x23)
+            if source["kind"] != "received" or original["phase"] != "play" or original["packet_id"] not in allowed:
                 raise RuntimeError("boat velocity source points to another original packet")
             decoded_target, velocity = velocity_packet(version, original)
             if decoded_target != target or velocity != update["receipt"]["value"]:
