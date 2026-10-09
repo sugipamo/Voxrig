@@ -23,15 +23,22 @@ def check(version, command, request, trace, report):
         return dict(forward=1, strafe=0, jump=jump, sneak=True,
                     sprint=False, yaw=37.0, pitch=-12.0)
 
-    def native(record):
-        text = command("data get entity ClimbingProbe Pos")
-        match = re.search(r"\[([^]]+)\]", text)
-        if not match:
-            raise RuntimeError("missing independent native position")
-        position = [float(v.strip().rstrip("df")) for v in match[1].split(",")]
-        if max(abs(a-b) for a,b in zip(position, record["frame"]["position"])) > 0.4:
-            raise RuntimeError("native/model position differs")
-        return position
+    def native(record, stopped=False):
+        # RCON and movement arrive through independent server queues. Only wait
+        # for a fixed, stopped modern frame, never for a moving trajectory to
+        # happen to cross an old checkpoint. Every observation remains logged.
+        deadline = time.monotonic() + (2 if stopped else 0)
+        while True:
+            text = command("data get entity ClimbingProbe Pos")
+            match = re.search(r"\[([^]]+)\]", text)
+            if not match:
+                raise RuntimeError("missing independent native position")
+            position = [float(v.strip().rstrip("df")) for v in match[1].split(",")]
+            if max(abs(a-b) for a,b in zip(position, record["frame"]["position"])) <= 0.4:
+                return position
+            if time.monotonic() >= deadline:
+                raise RuntimeError("native/model position differs")
+            time.sleep(0.05)
 
     start = prepare()
     controls = held()
@@ -102,10 +109,13 @@ def check(version, command, request, trace, report):
         raise RuntimeError("grounded water did not use one ground request")
     if wet["frame"]["position"][1] <= 65.1:
         raise RuntimeError("grounded water request did not rise")
+    checkpoint = request("stop") if version == "1.21.11" else wet
     report["checks"].append(dict(name="grounded_water_request_without_held_swim", queued=queued,
-        record=wet,native_position=native(wet)))
-    request("ticks",count=30)
-    request("stop")
+        record=wet, checkpoint=checkpoint,
+        native_position=native(checkpoint, stopped=version == "1.21.11")))
+    if version == "1.16.1":
+        request("ticks",count=30)
+        request("stop")
 
     command("fill -4 65 -4 4 67 4 minecraft:water[level=0]")
     start = prepare()
