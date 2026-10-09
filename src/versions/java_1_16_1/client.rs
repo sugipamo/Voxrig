@@ -8149,6 +8149,7 @@ mod tests {
         assert!(bot.apply_packet(0x24, light_update_packet()).await.unwrap());
         let mut block_entity = position.packed().to_be_bytes().to_vec();
         block_entity.push(0);
+        block_entity.push(0); // Explicit optional-NBT EndTag after the action.
         assert!(bot.apply_packet(0x09, block_entity).await.unwrap());
         assert_eq!(bot.block_geometry_revision.load(Ordering::Acquire), 1);
 
