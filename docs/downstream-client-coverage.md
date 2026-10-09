@@ -16,7 +16,7 @@ native整数ID、保存したJSON、別接続のcursorから現在の操作対�
 `Capabilities::for_version(version)`／`client.capabilities()`は静的な実装情報で、
 準備完了・現在のgame mode・権限・chunkの存在を保証しない。操作ごとの検査が必要。
 
-接続せずに全49機能群の現在の宣言をJSONとして取得できる。
+接続せずに全52機能群の現在の宣言をJSONとして取得できる。
 
 ```sh
 cargo run --locked --example client_capabilities > /tmp/voxrig-capabilities.json
@@ -47,7 +47,7 @@ cargo run --locked --example client_capabilities > /tmp/voxrig-capabilities.json
 接続設定・利用側で確認する順序は[公開API](public-client-api.md)、
 [移行手順](client-api-migration.md)、[利用側検証](client-api-consumer-validation.md)を参照する。
 
-## 現在の共通機能: 全49群
+## 現在の共通機能: 全52群
 
 下の各Featureは`Feature::ALL`に対応する。両版で共通入口があり、厳密な制約は
 [能力表](common-capabilities.md)と各機能文書で確認する。
@@ -58,6 +58,9 @@ nativeの機能数やpacket分岐数を共通機能の数へ加算しない。
 | 接続の遮断・復帰 | `ConnectionRevocation`, `Respawn` | `revoke_connection`、死亡受信後のowned `respawn`。自動再接続なし |
 | 名前・ID・受信registry | `Registry` | `registry`、`server_registry_state`。版／接続／configurationの所有情報を保持 |
 | 自分と周囲の一括観測 | `WorldObservation`, `PlayerObservation` | `capture`、`observe_region`、`player_state`。受信とlocal model、欠測を区別 |
+| playerの受信文脈 | `PlayerContext` | `player_context`。能力・飛行／歩行速度・難易度・経験値・天候・default spawn・view。元source、world所有、欠測と既知のゼロ／falseを保持 |
+| chunkの受信文脈 | `ChunkContext` | `chunk_context`。biome volume・heightmap・block entity NBT。元sourceと列のincarnationを保持し、地形から補完しない |
+| 地図の受信 | `Maps` | `map_observation`。header・optional icons・部分pixelと各source。世界ごとのID、欠測pixel、bounded cacheとimmutable capture |
 | 視点・hotbar | `BasicControls` | `look`、`select_hotbar`、`player_control(mode)`。Spectatorのhotbarは拒否 |
 | block検索・ray・照準 | `BlockQueries`, `BlockTargeting`, `SurvivalTargeting` | `find_blocks`、64block collision ray、handleのstatic outline targeting。形状・姿勢の制約は別 |
 | 読取専用予測 | `SurvivalPreview` | `preview_path`。1〜120tick、限定したdry地形・状態 |
