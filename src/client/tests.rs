@@ -1,6 +1,34 @@
 use super::*;
 use crate::MinecraftVersion;
 
+pub(crate) async fn history_quiet_read_clock_scenario(client: &Client) {
+    let first = client.entity_history_after(None, 1024).await.unwrap();
+    let sample = first.records.last().expect("decoded history sample");
+    let first_age = first
+        .captured_after
+        .checked_sub(sample.applied_after)
+        .unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    let second = client.entity_history_after(None, 1024).await.unwrap();
+    assert_eq!(second.next_cursor, first.next_cursor);
+    assert_eq!(second.receive_sequence, first.receive_sequence);
+    assert_eq!(
+        second.records.last().unwrap().applied_after,
+        sample.applied_after
+    );
+    let second_age = second
+        .captured_after
+        .checked_sub(sample.applied_after)
+        .unwrap();
+    assert!(second_age >= first_age + std::time::Duration::from_millis(20));
+    let empty = client
+        .entity_history_after(Some(second.next_cursor), 1)
+        .await
+        .unwrap();
+    assert!(empty.records.is_empty());
+    assert!(empty.captured_after >= second.captured_after);
+}
+
 pub(crate) async fn common_basic_actions_scenario(client: &Client, mode: GameMode) {
     let before = client.player_state().await.unwrap();
     assert_eq!(before.game_mode, Some(mode));

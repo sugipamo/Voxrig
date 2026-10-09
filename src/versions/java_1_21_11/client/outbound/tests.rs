@@ -3544,6 +3544,7 @@ async fn common_entity_history_freezes_native_packets_and_reports_retention() {
     assert!(page.gap.is_none());
     assert!(!page.has_more);
     assert_eq!(page.records.len(), 9);
+    crate::client::tests::history_quiet_read_clock_scenario(&client).await;
     assert!(page.records.windows(2).all(|r| r[0].ordinal < r[1].ordinal
         && r[0].receive_sequence <= r[1].receive_sequence
         && r[0].applied_after <= r[1].applied_after));
