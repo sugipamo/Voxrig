@@ -1,5 +1,8 @@
 # モードに応じた共通の基本操作 (#29)
 
+`client.look`・`client.select_hotbar`は現在の受信modeをSDK内で選び、送信直前に再検査する。
+[received-mode API](common-basic-actions.md)として、利用側にmode別の分岐を要求しない。
+
 `client.player_control(expected_mode)`は、視線とheld hotbar選択だけを持つ
 `PlayerControl`を返す。ハンドルを作る操作はゲームモードを変えず、権限を与えない。
 `player_state().game_mode`の受信値を渡し、各dispatch時にadapterの状態境界内で再検査する。

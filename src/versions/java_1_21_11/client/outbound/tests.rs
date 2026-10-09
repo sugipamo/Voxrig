@@ -9,6 +9,95 @@ use std::{
 use tokio::io::{AsyncReadExt, AsyncWrite};
 
 #[tokio::test]
+async fn basic_client_actions_cover_received_modes_and_keep_admission_checks() {
+    use crate::client::GameMode;
+    for mode in [
+        GameMode::Survival,
+        GameMode::Creative,
+        GameMode::Adventure,
+        GameMode::Spectator,
+    ] {
+        let (session, ops, mut peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(ops.bot.clone());
+        crate::client::tests::common_basic_actions_scenario(&client, mode).await;
+        assert_eq!(
+            read_packet(&mut peer, None).await.unwrap().0,
+            ids::play_serverbound::LOOK
+        );
+        if mode != GameMode::Spectator {
+            assert_eq!(
+                read_packet(&mut peer, None).await.unwrap(),
+                (
+                    ids::play_serverbound::HELD_ITEM_SLOT,
+                    8_i16.to_be_bytes().to_vec()
+                )
+            );
+        }
+        session.state.lock().await.motion.position_basis =
+            super::super::motion::PositionBasis::PendingSubmission;
+        assert!(client.look([0.0, 0.0]).await.is_err());
+        assert!(client.select_hotbar(0).await.is_err());
+        {
+            let mut state = session.state.lock().await;
+            state.motion.position_basis = super::super::motion::PositionBasis::Received;
+            let mut changed = vec![3];
+            changed.extend(
+                (if mode == GameMode::Survival {
+                    1f32
+                } else {
+                    0f32
+                })
+                .to_be_bytes(),
+            );
+            operations::receive(
+                &mut state,
+                ids::play_clientbound::GAME_STATE_CHANGE,
+                &changed,
+            )
+            .unwrap();
+        }
+        assert!(
+            client
+                .execute(mode, crate::client::operations::Action::Look([0.0, 0.0]))
+                .await
+                .is_err()
+        );
+        session
+            .state
+            .lock()
+            .await
+            .operations
+            .reset_configuration(10);
+        assert!(client.look([0.0, 0.0]).await.is_err());
+        assert!(client.select_hotbar(0).await.is_err());
+        assert!(
+            timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+                .await
+                .is_err()
+        );
+        let _ = client.revoke_connection();
+        assert!(client.look([0.0, 0.0]).await.is_err());
+        assert!(client.select_hotbar(0).await.is_err());
+    }
+}
+
+#[tokio::test]
+async fn common_long_raycast_retains_shapes_unloaded_and_bounds() {
+    let (session, ops, _peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    {
+        let mut state = session.state.lock().await;
+        for x in 8..64 {
+            for z in 8..10 {
+                state.world.seed_replay_cell([x, 66, z], 0);
+            }
+        }
+        state.world.seed_replay_cell([48, 66, 8], 1);
+    }
+    let client = crate::Client::from_java_1_21_11(ops.bot.clone());
+    crate::client::tests::common_long_raycast_scenario(&client).await;
+}
+
+#[tokio::test]
 async fn long_raycast_rejects_world_switch_between_height_and_capture() {
     let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
     let client = crate::Client::from_java_1_21_11(api.bot.clone());
@@ -214,7 +303,7 @@ async fn basic_input_waiting_for_state_rechecks_received_mode_and_missing_geomet
 async fn common_long_raycast_preserves_missing_cells_and_world_identity() {
     let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
     let client = crate::Client::from_java_1_21_11(api.bot.clone());
-    crate::client::tests::common_long_raycast_scenario(&client).await;
+    crate::client::tests::common_unloaded_long_raycast_scenario(&client).await;
     let before = client
         .raycast_blocks([8.5, 66.0, 8.5], [1.0, 0.0, 0.0], 48.0)
         .await

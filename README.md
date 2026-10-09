@@ -35,7 +35,7 @@ async fn main() -> Result<()> {
 player の接地・回転の由来と同じ捕捉境界の扱いは [player capture の契約](docs/player-capture-ground.md) を参照してください。
 
 64ブロックまでの[block raycast](docs/common-blocks.md)と、Adventure/Spectatorを含む
-`player_control(mode)`の[基本操作](docs/common-player-control.md)を提供しています。
+`look`・`select_hotbar`・`player_control(mode)`の[基本操作](docs/common-player-control.md)を提供しています。
 操作時に受信mode・権限・未解決状態を確認します。対応範囲と残作業は
 [Client共通化の実装・検証計画](docs/client-unification.md)を参照してください。
 両版の限定的な素手dirt/stone採掘は[共通Survivalの採掘](docs/common-survival-mining.md)を参照してください。

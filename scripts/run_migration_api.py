@@ -115,8 +115,8 @@ def check(version, command, request, trace, report):
     # Change the actual received mode, then retain the previously expected mode.
     modes("adventure")
     boundary = trace.mark()
-    look = refused("look", "State", mode="spectator", rotation=[87.0, 12.0])
-    slot = refused("hotbar", "State", mode="spectator", slot=4)
+    look = refused("look", "State", expected_mode="spectator", rotation=[87.0, 12.0])
+    slot = refused("hotbar", "State", expected_mode="spectator", slot=4)
     assert not originals(boundary, slot_id)
     assert not any(bytes.fromhex(f["body_hex"])[-9:-1] == struct.pack(">ff", 87, 12) for f in originals(boundary, look_id))
     report["checks"].append(dict(name="received_mode_change_refused", look=look, hotbar=slot))

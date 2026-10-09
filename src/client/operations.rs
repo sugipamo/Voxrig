@@ -67,6 +67,39 @@ pub(crate) fn validate_hotbar_selection(mode: GameMode, slot: u8) -> Result<()> 
     }
     Ok(())
 }
+impl Client {
+    /// Dispatch a local look in the currently received game mode, including
+    /// Adventure and Spectator. The adapter rechecks that exact mode and its
+    /// ordinary admission/lifecycle conditions before writing the packet.
+    /// This is dispatch evidence, not a server pose acknowledgement.
+    pub async fn look(&self, rotation: [f32; 2]) -> Result<DispatchReceipt> {
+        validate_rotation(rotation)?;
+        let mode = self.player_state().await?.game_mode.ok_or_else(|| {
+            crate::Error::new(
+                crate::ErrorKind::State,
+                anyhow::anyhow!("received game mode is unknown"),
+            )
+        })?;
+        self.execute(mode, Action::Look(rotation)).await
+    }
+
+    /// Dispatch slot 0..8 in received Survival/Creative/Adventure mode.
+    /// Spectator refuses with Unsupported without sending a held-slot packet.
+    /// A local selected slot is Submitted and does not prove server application.
+    /// Admission, unresolved operations and revocation are not bypassed.
+    pub async fn select_hotbar(&self, slot: u8) -> Result<DispatchReceipt> {
+        if slot > 8 {
+            return Err(super::registry::invalid("hotbar slot must be 0..8"));
+        }
+        let mode = self.player_state().await?.game_mode.ok_or_else(|| {
+            crate::Error::new(
+                crate::ErrorKind::State,
+                anyhow::anyhow!("received game mode is unknown"),
+            )
+        })?;
+        self.execute(mode, Action::SelectHotbar(slot)).await
+    }
+}
 impl Survival {
     /// Dispatch one interaction with an original received entity lifetime.
     /// Rechecks connection/world/spawn and received mode before I/O. No target

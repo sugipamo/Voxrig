@@ -60,14 +60,23 @@ async fn execute(
                 .await?,
         )?,
         "look" | "hotbar" => {
-            let mode: GameMode = serde_json::from_value(request["mode"].clone())?;
-            let input = client.player_control(mode);
-            let receipt = if request["command"] == "look" {
-                input
+            let receipt = if let Some(mode) = request.get("expected_mode") {
+                let input = client.player_control(serde_json::from_value(mode.clone())?);
+                if request["command"] == "look" {
+                    input
+                        .look(serde_json::from_value(request["rotation"].clone())?)
+                        .await?
+                } else {
+                    input
+                        .select_hotbar(serde_json::from_value(request["slot"].clone())?)
+                        .await?
+                }
+            } else if request["command"] == "look" {
+                client
                     .look(serde_json::from_value(request["rotation"].clone())?)
                     .await?
             } else {
-                input
+                client
                     .select_hotbar(serde_json::from_value(request["slot"].clone())?)
                     .await?
             };
