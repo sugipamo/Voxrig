@@ -1171,11 +1171,19 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             if flags & !15 != 0 {
                 bail!("invalid ability flags");
             }
-            r.f32()?;
-            r.f32()?;
+            let flying_speed = r.f32()?;
+            let walking_speed = r.f32()?;
             r.end()?;
             next.abilities = Some(flags);
             next.abilities_sequence = Some(state.sequence);
+            state.context.abilities = Some(crate::client::received(
+                crate::client::PlayerAbilities {
+                    flags,
+                    flying_speed,
+                    walking_speed,
+                },
+                state.sequence,
+            ));
             if flags & 4 == 0 {
                 next.requested_flying = false;
             }

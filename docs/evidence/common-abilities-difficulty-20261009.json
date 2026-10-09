@@ -1,0 +1,110 @@
+{
+  "schema": 1,
+  "scope": "Original full abilities flags and flying/walking speeds, original difficulty ID/lock, atomic decode, world-scoped absence versus known zero/false, immutable captures and latest actually applied receipts readable after closure. No execution authority, effective speed or complete protocol parity is inferred.",
+  "publication": "Results and hashes only. Original packets and native player NBT remain local.",
+  "sdk_build_revision": "fdd0432acee304e05ddf187b1b27134635bf18a0",
+  "qualification_source_revision": "a9b2ad0a2477541cad0af7120b17ab61f6a67545",
+  "source_relationship": "Full native baseline ran at 5fed2f3a9b4d453da635f65bd1ce657ca06f8f9a (boat integration). Final builder incorporates CI-qualified inventory PR 67 and affected inventory/context/boat/capability tests. Qualification changes only Python latest-applied receipt verification; Rust/Cargo source equals the final builder.",
+  "validation": {
+    "baseline_native_library_passed": 949,
+    "baseline_native_integration_passed": 4,
+    "baseline_native_ignored": 8,
+    "doctests_passed": 34,
+    "doctests_ignored": 1,
+    "integrated_inventory_tests_passed": 5,
+    "integrated_context_tests_passed": 2,
+    "integrated_boat_tests_passed": 5,
+    "integrated_capability_tests_passed": 1,
+    "strict_clippy": true,
+    "strict_rustdoc": true,
+    "logs_sha256": {
+      "/tmp/voxrig-41-abilities-final-all-tests.log": "baa8ab73d605b088b20ad02ccb5a334f5f557bf06e56acd7658b9f07fb62abb3",
+      "/tmp/voxrig-41-abilities-final-doc-tests.log": "cdefbf41798d81cfd877e418ce7a4b9b867e9526c36d4647f9d464cd9cc94e8b",
+      "/tmp/voxrig-41-abilities-final-clippy.log": "34ec94141076430061b95d7ce7819757c94275bac94feadb464b388ba9c3ce2a",
+      "/tmp/voxrig-41-abilities-final-rustdoc.log": "9b32244c4081027eb1ba2d0eeb2bd6d413ea50b6515aa101a3f2d71711bb8594",
+      "/tmp/voxrig-41-abilities-integrated-inventory-tests.log": "b4df32e18e26d80de04cc9a43393e0688dff6c2ecabe0e4d6a1445108c9e73de",
+      "/tmp/voxrig-41-abilities-integrated-context-tests.log": "9ff701919371ba9f30e97d73ac9318803802db0180e4a9bf1128c90790d87fcf",
+      "/tmp/voxrig-41-abilities-integrated-boat-tests.log": "c04f09f622900f2c5a8406129325381bc17bcf00b5c3041ad50b5aeb69783b72",
+      "/tmp/voxrig-41-abilities-integrated-capability-tests.log": "363c0e94648ab644dd9cd52082e6039a8986ab0eab47256af0e8bedf650e1b3b",
+      "/tmp/voxrig-41-abilities-integrated-probe.log": "d7846070324ca59bc3991c10f1c2a58a6c1283c024e8beb39f825392e3081b9d",
+      "/tmp/voxrig-41-abilities-integrated-clippy.log": "815911d3845a2f4fb511b326f1bb8b28c6d302dd52e004d8b0c4d7ae740be003",
+      "/tmp/voxrig-41-abilities-integrated-rustdoc.log": "15d2807b73cecd203064ebd1a86e107ee3b95b1d95d0a2dcc38e96e1aadec605",
+      "/tmp/voxrig-41-abilities-qualified-integrated-live.log": "51041bfa3f1f647e5fc443f60440fb63da67c7fd5bdb0da758ae546a18c31469"
+    }
+  },
+  "diagnostics": [
+    "Modern malformed input terminates the receiver; parser atomicity tests do not reuse a failed transport.",
+    "Capability summary exceeded its existing 100-byte limit and was shortened; no assertion was disabled.",
+    "Native fixture starts peaceful, so qualifying fresh difficulty notifications starts with hard.",
+    "Additional original abilities notifications can apply between the preceding capture and close. Every capture now requires the latest actually applied original same-world packet, including duplicate values."
+  ],
+  "local_original_evidence_sha256": "b82971ed09192a57597a94ec28686a9445456084272838af9f8337c552dcb00e",
+  "runs": [
+    {
+      "version": "1.16.1",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "sdk": {
+        "source_revision": "a9b2ad0a2477541cad0af7120b17ab61f6a67545",
+        "binary_build_revision": "fdd0432acee304e05ddf187b1b27134635bf18a0",
+        "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "binary_sha256": "467a513754d668f7b156ef035fafb994b633aa60d258a82f5b180f6ad8204ca3",
+        "artifacts": {
+          "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+          "scripts/run_abilities_context.py": "b40a1c33e0b7e8c4c59cf0689c139a8ff2bf65961247232b903ab5c52339636d",
+          "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+          "scripts/run_common_native.py": "d2a067b6201f7ef8f569e93374a62fdaa6e52411bff719116ff085309a700f15",
+          "examples/climbing_control_probe.rs": "6caa7722c3179786feb9061da2b95677d453f1fc52e5265b54fb43751c1e0296"
+        }
+      },
+      "passed": true,
+      "check_names": [
+        "initial_received_abilities_and_difficulty",
+        "received_creative_abilities",
+        "received_spectator_abilities",
+        "received_survival_abilities",
+        "received_hard_difficulty",
+        "received_peaceful_difficulty",
+        "received_easy_difficulty",
+        "received_normal_difficulty",
+        "unrelated_receipt_keeps_ability_and_difficulty_sources",
+        "new_world_actual_receipts_or_absence",
+        "new_world_fresh_abilities",
+        "received_context_readable_after_close"
+      ],
+      "report_sha256": "a2da23279201399023db846e5db08066387bcad22ebd417fc16d4245320feea9"
+    },
+    {
+      "version": "1.21.11",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "sdk": {
+        "source_revision": "a9b2ad0a2477541cad0af7120b17ab61f6a67545",
+        "binary_build_revision": "fdd0432acee304e05ddf187b1b27134635bf18a0",
+        "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "binary_sha256": "467a513754d668f7b156ef035fafb994b633aa60d258a82f5b180f6ad8204ca3",
+        "artifacts": {
+          "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+          "scripts/run_abilities_context.py": "b40a1c33e0b7e8c4c59cf0689c139a8ff2bf65961247232b903ab5c52339636d",
+          "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+          "scripts/run_common_native.py": "d2a067b6201f7ef8f569e93374a62fdaa6e52411bff719116ff085309a700f15",
+          "examples/climbing_control_probe.rs": "6caa7722c3179786feb9061da2b95677d453f1fc52e5265b54fb43751c1e0296"
+        }
+      },
+      "passed": true,
+      "check_names": [
+        "initial_received_abilities_and_difficulty",
+        "received_creative_abilities",
+        "received_spectator_abilities",
+        "received_survival_abilities",
+        "received_hard_difficulty",
+        "received_peaceful_difficulty",
+        "received_easy_difficulty",
+        "received_normal_difficulty",
+        "unrelated_receipt_keeps_ability_and_difficulty_sources",
+        "new_world_actual_receipts_or_absence",
+        "new_world_fresh_abilities",
+        "received_context_readable_after_close"
+      ],
+      "report_sha256": "c17520315b4698fb7b4a68bd038376706bfb11c3a147c2f9f08bab6014a38410"
+    }
+  ]
+}

@@ -5078,14 +5078,7 @@ impl Bot {
             }
             0x0b => self.receive_block_change(&p, packet_sequence).await?,
             0x0c => self.receive_boss_bar(&p, packet_sequence).await?,
-            0x0d => {
-                let difficulty = Difficulty {
-                    id: *p.first().context("missing difficulty")?,
-                    locked: *p.get(1).context("missing difficulty lock")? != 0,
-                };
-                self.survival.write().await.difficulty = Some(difficulty);
-                self.emit(Event::Difficulty(difficulty));
-            }
+            0x0d => self.receive_difficulty(&p, packet_sequence).await?,
             0x0e => {
                 let chat = parse_chat(&p)?;
                 self.common_chat
@@ -5217,7 +5210,7 @@ impl Bot {
                 });
             }
             0x30 => self.receive_recipe_ghost(&p, packet_sequence).await?,
-            0x31 => self.receive_player_abilities(&p).await?,
+            0x31 => self.receive_player_abilities(&p, packet_sequence).await?,
             0x32 => self.receive_combat_event(&p, packet_sequence).await?,
             0x33 => self.receive_player_info(&p, id, packet_sequence).await?,
             0x34 => self.receive_face_player(&p).await?,

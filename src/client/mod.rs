@@ -16,8 +16,8 @@ pub mod container;
 pub mod context;
 pub mod control;
 pub use context::{
-    DefaultSpawnPosition, Experience, PlayerContextObservation, WeatherObservation,
-    WorldViewObservation,
+    DefaultSpawnPosition, Experience, PlayerAbilities, PlayerContextObservation,
+    WeatherObservation, WorldDifficulty, WorldViewObservation,
 };
 pub mod crafting;
 pub(crate) mod enchantments;
@@ -136,8 +136,8 @@ pub mod prelude {
         ScreenId, ScreenObservation,
     };
     pub use super::context::{
-        DefaultSpawnPosition, Experience, PlayerContextObservation, WeatherObservation,
-        WorldViewObservation,
+        DefaultSpawnPosition, Experience, PlayerAbilities, PlayerContextObservation,
+        WeatherObservation, WorldDifficulty, WorldViewObservation,
     };
     pub use super::entity::{
         EntitiesObservation, EntityObservation, EntityPartEvidence, EntityPartId, EntityPartKind,
