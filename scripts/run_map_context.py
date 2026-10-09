@@ -105,7 +105,7 @@ def check(version, command, request, trace, report, *, sdk):
     report['checks'].append(dict(name='unreceived_map_is_missing',native_id=0))
     command('give ClimbingProbe minecraft:map 1')
     def held(kind):
-        value=request('state')['inventory']['slots'][36]
+        value=request('player')['inventory']['slots'][36]
         return value is not None and value['value']['kind']==kind
     until(lambda: held('item'),10)
     request('use_item')
@@ -166,7 +166,7 @@ def check(version, command, request, trace, report, *, sdk):
     generation=moved['context']['map']['session']['world_generation']
     command('clear ClimbingProbe minecraft:filled_map')
     command('execute in minecraft:the_nether run tp ClimbingProbe 0.5 80 0.5 0 0')
-    until(lambda: request('state')['session']['world_generation']!=generation,20)
+    until(lambda: request('player')['session']['world_generation']!=generation,20)
     if request('map_context',id=identifier)['context'] is not None:
         raise RuntimeError('map cache crossed world boundary without a new receipt')
     if request('saved_map_context')!=saved:
