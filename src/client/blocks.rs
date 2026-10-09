@@ -7,7 +7,7 @@ use super::{BlockFace, SessionStamp};
 use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, ObservedBlock, Region, Result};
 
 /// Longest supported raycast, in blocks; keeps the captured box bounded.
-pub const MAX_RAYCAST_DISTANCE: f64 = 32.0;
+pub const MAX_RAYCAST_DISTANCE: f64 = 64.0;
 
 /// Blocks matching a name filter inside one capture.
 #[derive(Clone, Debug, serde::Serialize)]
@@ -216,7 +216,7 @@ impl super::Client {
     }
 
     /// Cast a ray against received block collision shapes, from `origin` along
-    /// `direction` for at most `max_distance` (up to 32) blocks. Computed from
+    /// `direction` for at most `max_distance` (up to 64) blocks. Computed from
     /// one capture; this is client geometry, not server line of sight.
     pub async fn raycast_blocks(
         &self,
@@ -225,13 +225,16 @@ impl super::Client {
         max_distance: f64,
     ) -> Result<BlockRaycastObservation> {
         let length = direction.iter().map(|v| v * v).sum::<f64>().sqrt();
-        if origin.iter().chain(&direction).any(|v| !v.is_finite()) || length == 0.0 {
+        if origin.iter().chain(&direction).any(|v| !v.is_finite())
+            || !length.is_finite()
+            || length == 0.0
+        {
             return Err(invalid(
                 "raycast origin and direction must be finite and non-zero",
             ));
         }
         if !(max_distance > 0.0 && max_distance <= MAX_RAYCAST_DISTANCE) {
-            return Err(invalid("raycast distance must be in (0, 32]"));
+            return Err(invalid("raycast distance must be in (0, 64]"));
         }
         let direction = direction.map(|v| v / length);
         let end = [0, 1, 2].map(|a| origin[a] + direction[a] * max_distance);

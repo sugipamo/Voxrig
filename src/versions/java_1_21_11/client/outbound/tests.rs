@@ -9,6 +9,93 @@ use std::{
 use tokio::io::{AsyncReadExt, AsyncWrite};
 
 #[tokio::test]
+async fn basic_client_actions_cover_received_modes_and_keep_admission_checks() {
+    use crate::client::GameMode;
+    for mode in [
+        GameMode::Survival,
+        GameMode::Creative,
+        GameMode::Adventure,
+        GameMode::Spectator,
+    ] {
+        let (session, ops, mut peer) = common_ground_fixture(mode).await;
+        let client = crate::Client::from_java_1_21_11(ops.bot.clone());
+        crate::client::tests::common_basic_actions_scenario(&client, mode).await;
+        assert_eq!(
+            read_packet(&mut peer, None).await.unwrap().0,
+            ids::play_serverbound::LOOK
+        );
+        assert_eq!(
+            read_packet(&mut peer, None).await.unwrap(),
+            (
+                ids::play_serverbound::HELD_ITEM_SLOT,
+                8_i16.to_be_bytes().to_vec()
+            )
+        );
+        session.state.lock().await.motion.position_basis =
+            super::super::motion::PositionBasis::PendingSubmission;
+        assert!(client.look([0.0, 0.0]).await.is_err());
+        assert!(client.select_hotbar(0).await.is_err());
+        {
+            let mut state = session.state.lock().await;
+            state.motion.position_basis = super::super::motion::PositionBasis::Received;
+            let mut changed = vec![3];
+            changed.extend(
+                (if mode == GameMode::Survival {
+                    1f32
+                } else {
+                    0f32
+                })
+                .to_be_bytes(),
+            );
+            operations::receive(
+                &mut state,
+                ids::play_clientbound::GAME_STATE_CHANGE,
+                &changed,
+            )
+            .unwrap();
+        }
+        assert!(
+            client
+                .execute(mode, crate::client::operations::Action::Look([0.0, 0.0]))
+                .await
+                .is_err()
+        );
+        session
+            .state
+            .lock()
+            .await
+            .operations
+            .reset_configuration(10);
+        assert!(client.look([0.0, 0.0]).await.is_err());
+        assert!(client.select_hotbar(0).await.is_err());
+        assert!(
+            timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+                .await
+                .is_err()
+        );
+        let _ = client.revoke_connection();
+        assert!(client.look([0.0, 0.0]).await.is_err());
+        assert!(client.select_hotbar(0).await.is_err());
+    }
+}
+
+#[tokio::test]
+async fn common_long_raycast_retains_shapes_unloaded_and_bounds() {
+    let (session, ops, _peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    {
+        let mut state = session.state.lock().await;
+        for x in 8..64 {
+            for z in 8..10 {
+                state.world.seed_replay_cell([x, 66, z], 0);
+            }
+        }
+        state.world.seed_replay_cell([48, 66, 8], 1);
+    }
+    let client = crate::Client::from_java_1_21_11(ops.bot.clone());
+    crate::client::tests::common_long_raycast_scenario(&client).await;
+}
+
+#[tokio::test]
 async fn player_capture_ground_and_rotation_keep_independent_origins_and_reset() {
     use crate::client::{GameMode, ValueSource};
     let (session, ops, _peer) = common_ground_fixture(GameMode::Survival).await;
@@ -1098,10 +1185,11 @@ async fn common_ground_fixture(
         state.operations.reset_world(0).unwrap();
         let mut packet = vec![3];
         packet.extend(
-            (if mode == crate::client::GameMode::Creative {
-                1f32
-            } else {
-                0f32
+            (match mode {
+                crate::client::GameMode::Survival => 0f32,
+                crate::client::GameMode::Creative => 1f32,
+                crate::client::GameMode::Adventure => 2f32,
+                crate::client::GameMode::Spectator => 3f32,
             })
             .to_be_bytes(),
         );
