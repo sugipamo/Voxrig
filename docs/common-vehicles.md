@@ -149,8 +149,7 @@ frame数で、サーバーからの確認ではない。`Submitted`も移動・�
 同じ連続乗車の完全送信済みrunからは、最後の予測を引き継ぐ。
 `attempted_frame`は3パケットのI/O前に残す。3つすべての送信後だけ`frames`へ追加する。
 
-未読込の地形、溶岩、スライム・蜂蜜・クモの巣などの未実装hookは、
-そのtickの送信前に拒否する。他entityとの衝突や乗り物固有の効果全般は再現していない。
+未読込の地形、溶岩、未監査のblock hookは、そのtickの送信前に拒否する。他entityとの衝突や乗り物固有の効果全般は再現していない。
 検証済みの範囲は単独の通常ボートと水面・水没・流水・空中・通常の陸上地形。
 操作中にサーバーから車両位置補正や爆発を受けた場合、同じ乗車が続いていても
 `RequiresInspection`へ移し、後続tickを送らない。乗員順序が変わり操縦席から外れた場合も中断する。
@@ -184,7 +183,7 @@ python3 -B scripts/run_fluid_control.py --accept-eula \
 ```
 
 同じ実接続検証でplayerの泡の柱の上下・水面脱出・継続操作の停止も確認する。
-ボートへの泡の柱の効果は引き続き範囲外である。
+ボートへの泡の柱の効果は下記の追加対応を参照する。
 両版の公式サーバーで17項目ずつ通過し、予期しないplayerの位置補正とトレースエラーは0件だった。
 RCON座標、実際に受信した乗員関係、送信パケット数と入力解除、SDK・公式JAR・元の記録のhashは
 [実接続の証拠](evidence/common-fluid-control-20261009.json)に保存した。
@@ -225,7 +224,7 @@ block効果を適用する。水面の泡では、クライアントのボート
 泡による実際のpassenger除外も通常の乗車guardで後続frameを止める。
 強制下車へneutralを追送せず、不確かなrunを自動再送しない。
 速度通知は停止ACKではなく、有限runの最終neutralも物理の継続・着地を保証しない。
-ボートのentity衝突、特殊block hook全般、他の乗り物は#44の継続対象。
+ボートのentity衝突、未監査の特殊block hook、他の乗り物は#44の継続対象。
 
 元の処理と32実行・1,080tickを完全一致で比較する。
 水面・水没の上下の泡、混在するdrag、長い移動、受信速度を模した入力、
@@ -237,3 +236,39 @@ block効果を適用する。水面の泡では、クライアントのボート
 受信ordinal、予測どおりの元送信frame、独立RCONの最終位置、取消後も同じ有限ownerが
 完全送信すること、泡の実除外で後続frameが止まることを確認した。
 [証拠と実行ソース](evidence/common-boat-bubbles-20261009.json)を参照。
+
+
+## ボートの特殊な地形（2026-10-09）
+
+単独の通常ボートについて、スライム・ベッドへの着地、スライムの接地時減速、蜂蜜の
+速度係数と側面の滑り、クモの巣の遅延した移動倍率を追加した。反発は元の非LivingEntity用
+係数を使う。1.21.11の蜂蜜は重力とdragを戻した速度で判定し、結果を再び変換する。
+クモの巣の倍率は次のtickの移動へ適用し、そのtickの保持速度を0にする。新しい受信速度が
+あっても、直前のblock callbackから残った倍率は消さない。sweet berry bushの速度変更は
+LivingEntityに限るため、ボートへplayer用の減速を適用しない。
+
+`BoatFrame::stuck`、`supporting_block`、`on_ground_no_blocks`も予測履歴であり、受信した
+block情報やサーバーの確認ではない。1.21.11の元のsupport判定と2回のblock効果、
+1.16.1の着地・接地・内部効果・速度係数の順序を版ごとに保持する。他entityとの衝突、
+溶岩、未監査のhookはこの対応に含めない。乗員・補正・不確かな送信のguardは継続する。
+
+14場面×2版の1,470tickを元の公式処理と完全一致で比較する。再生成手順は
+[特殊地形の比較](movement-oracle.md#ボートの特殊地形の比較2026-10-09)。
+公式サーバーへの実接続は次を使う。原packetとNBTを含む結果は`.local`内へ保存する。
+
+```bash
+cargo build --locked --example climbing_control_probe
+python3 -B scripts/run_boat_hooks.py --accept-eula \
+  --binary target/debug/examples/climbing_control_probe \
+  --jars /absolute/path/to/downloads --compiled-sdk-revision <build-commit>
+```
+
+両版の変更していない公式サーバーで4地形×5項目、合計40項目を確認した。
+各tickの車両位置・paddleと保持frame、提供された速度通知とその受信ordinal、独立RCONの最終座標、
+有限ownerの待機取消後の継続、実際の下車を照合する。これはサーバーによる各frameのACKや
+他entityとの衝突の再現を意味しない。公開する証拠は検証結果とhashに限定する。
+
+この地形fixtureでは1.16.1のrun中の速度更新は0件、1.21.11は3件だった。未提供の通知を
+補完しない。両版で実際の速度通知を受ける場面は上記の泡の実接続検証で扱う。
+
+[結果と実行ソースのhash](evidence/common-boat-hooks-20261009.json)に検証範囲と通知件数を保持する。

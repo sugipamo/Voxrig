@@ -1,6 +1,7 @@
 //! Mounted boat motion using the pinned Boat/AbstractBoat movement rules.
-//! Surface/submerged/flowing water, bubble interiors, air and audited block
-//! collision. Surface bubble launch/ejection belongs to the server.
+//! Surface/submerged/flowing water, bubble interiors, air, audited block
+//! collision and nonliving terrain callbacks. Surface bubble launch/ejection
+//! belongs to the server; entity collisions are separate scope.
 use super::*;
 use crate::client::vehicle::VehicleInput;
 
@@ -27,6 +28,9 @@ pub struct BoatFrame {
     pub(crate) status: Option<Status>,
     pub(crate) bounds: [f64; 6],
     pub(crate) last_vertical_movement: f64,
+    pub(crate) stuck: [f64; 3],
+    pub(crate) supporting_block: Option<[i32; 3]>,
+    pub(crate) on_ground_no_blocks: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize)]
@@ -52,6 +56,9 @@ impl BoatFrame {
             status: None,
             bounds: Self::box_at(position),
             last_vertical_movement: 0.0,
+            stuck: [0.0; 3],
+            supporting_block: None,
+            on_ground_no_blocks: false,
         }
     }
     fn bounds(&self) -> [f64; 6] {
@@ -267,16 +274,25 @@ pub(crate) fn tick(
             "boat step exceeds bounded movement".into(),
         ));
     }
+    let mut motion = next.velocity;
+    // Entity.move consumes the previous interior callback's multiplier once.
+    // It scales the requested displacement and clears retained velocity before
+    // collision/landing hooks. A new receipt does not erase that callback state.
+    if next.stuck.iter().map(|v| v * v).sum::<f64>() > 1e-7 {
+        motion = std::array::from_fn(|axis| motion[axis] * next.stuck[axis]);
+        next.stuck = [0.0; 3];
+        next.velocity = [0.0; 3];
+    }
     let b = next.bounds();
     let region = std::array::from_fn(|i| {
         b[i] + if i < 3 {
-            next.velocity[i].min(0.0)
+            motion[i].min(0.0)
         } else {
-            next.velocity[i - 3].max(0.0)
+            motion[i - 3].max(0.0)
         }
     });
-    // Boat.move also invokes block movement hooks. Refuse hooks that have only
-    // been reproduced for a walking player, before retaining or sending a step.
+    // Boat.move invokes Entity/block callbacks. Only audited nonliving hooks
+    // are admitted; unknown hooks refuse before retaining or sending a step.
     for x in floor(region[0])..region[3].ceil() as i32 {
         for y in floor(region[1] - 0.01)..region[4].ceil() as i32 {
             for z in floor(region[2])..region[5].ceil() as i32 {
@@ -285,10 +301,19 @@ pub(crate) fn tick(
                     && block.inside == blocks::Effect::Liquid
                     || block.name == "minecraft:bubble_column"
                         && block.inside == blocks::Effect::BubbleColumn;
-                if (block.inside != blocks::Effect::None && !ordinary_water)
-                    || block.step_on != blocks::Effect::None
-                    || block.after_fall_on != blocks::Effect::None
-                    || block.speed_factor != 1.0
+                let inside = matches!(block.inside, blocks::Effect::None | blocks::Effect::Honey)
+                    || ordinary_water
+                    || block.inside == blocks::Effect::Stuck
+                        && matches!(
+                            block.name.as_str(),
+                            "minecraft:cobweb" | "minecraft:sweet_berry_bush"
+                        );
+                if !inside
+                    || !matches!(block.step_on, blocks::Effect::None | blocks::Effect::Slime)
+                    || !matches!(
+                        block.after_fall_on,
+                        blocks::Effect::None | blocks::Effect::Slime | blocks::Effect::Bed
+                    )
                 {
                     return Err(blocks::unsupported(format!(
                         "boat movement hook on {}",
@@ -306,10 +331,10 @@ pub(crate) fn tick(
         },
     )?;
     let velocity = next.velocity;
-    let moved = collision::collide(version, b, velocity, &geometry, frame.on_ground, 0.0);
-    next.on_ground = moved[1] != next.velocity[1] && next.velocity[1] < 0.0;
+    let moved = collision::collide(version, b, motion, &geometry, frame.on_ground, 0.0);
+    next.on_ground = moved[1] != motion[1] && motion[1] < 0.0;
     let moved2 = moved.iter().map(|v| v * v).sum::<f64>();
-    let motion2 = velocity.iter().map(|v| v * v).sum::<f64>();
+    let motion2 = motion.iter().map(|v| v * v).sum::<f64>();
     if moved2 > 1e-7 || (version == MinecraftVersion::Java1_21_11 && motion2 - moved2 < 1e-7) {
         if version == MinecraftVersion::Java1_16_1 {
             next.bounds = std::array::from_fn(|i| b[i] + moved[i % 3]);
@@ -325,9 +350,9 @@ pub(crate) fn tick(
     }
     let hit = |i: usize| {
         if version == MinecraftVersion::Java1_16_1 {
-            moved[i] != velocity[i]
+            moved[i] != motion[i]
         } else {
-            (moved[i] - velocity[i]).abs() >= f64::from(1e-5f32)
+            (moved[i] - motion[i]).abs() >= f64::from(1e-5f32)
         }
     };
     if hit(0) {
@@ -339,21 +364,28 @@ pub(crate) fn tick(
             next.velocity[0] = velocity[0];
         }
     }
-    if moved[1] != velocity[1] {
-        next.velocity[1] = 0.0;
-    }
+    terrain_effect(
+        &mut level,
+        &mut next,
+        TerrainPhase::Collision {
+            movement: moved,
+            vertical_hit: moved[1] != motion[1],
+        },
+    )?;
     next.last_vertical_movement = moved[1];
     if version == MinecraftVersion::Java1_16_1 {
         let bounds = next.bounds();
         for x in floor(bounds[0] + 0.001)..=floor(bounds[3] - 0.001) {
             for y in floor(bounds[1] + 0.001)..=floor(bounds[4] - 0.001) {
                 for z in floor(bounds[2] + 0.001)..=floor(bounds[5] - 0.001) {
-                    bubble_effect(&mut level, &mut next, [x, y, z], true)?;
+                    interior_effect(&mut level, &mut next, [x, y, z], true)?;
                 }
             }
         }
+        terrain_effect(&mut level, &mut next, TerrainPhase::Speed)?;
     } else {
-        let order = if velocity[0].abs() < velocity[2].abs() {
+        terrain_effect(&mut level, &mut next, TerrainPhase::Speed)?;
+        let order = if motion[0].abs() < motion[2].abs() {
             [1, 2, 0]
         } else {
             [1, 0, 2]
@@ -361,10 +393,11 @@ pub(crate) fn tick(
         // AbstractBoat.tick applies block effects twice. The first consumes the
         // self-movement steps; the second visits the stationary destination.
         for from in [frame.position, next.position] {
+            terrain_effect(&mut level, &mut next, TerrainPhase::Step)?;
             for (cell, certain) in bubbles::visits(from, next.position, order, |p| {
                 deflate(BoatFrame::box_at(p), f64::from(1.0e-5f32))
             })? {
-                bubble_effect(&mut level, &mut next, cell, certain)?;
+                interior_effect(&mut level, &mut next, cell, certain)?;
             }
         }
     }
@@ -374,6 +407,146 @@ pub(crate) fn tick(
         Status::Water | Status::UnderWater | Status::UnderFlowingWater
     );
     Ok(next)
+}
+
+enum TerrainPhase {
+    Collision {
+        movement: [f64; 3],
+        vertical_hit: bool,
+    },
+    Step,
+    Speed,
+}
+
+fn terrain_effect<F: FnMut([i32; 3]) -> Result<NativeBlockState>>(
+    level: &mut Level<'_, F>,
+    frame: &mut BoatFrame,
+    phase: TerrainPhase,
+) -> Result<()> {
+    let version = level.version;
+    let mut body = Body::new(frame.position);
+    body.bounds = frame.bounds();
+    body.velocity = frame.velocity;
+    body.on_ground = frame.on_ground;
+    body.supporting_block = frame.supporting_block;
+    body.on_ground_no_blocks = frame.on_ground_no_blocks;
+    let environment = Environment::defaults(version);
+    let mut tick = Tick {
+        version,
+        rules: &version.table().physics_rules,
+        env: &environment,
+        body: &mut body,
+        level,
+        movement_order: [1, 0, 2],
+    };
+    match phase {
+        TerrainPhase::Collision {
+            movement,
+            vertical_hit,
+        } => {
+            if version == MinecraftVersion::Java1_21_11 {
+                // Same Entity support search and tie breaking, using the boat
+                // bounds; no standing-player dimensions are substituted.
+                tick.check_supporting_block(movement)?;
+            }
+            let position = tick.landing_position()?;
+            let block = tick.level.block(position)?;
+            if vertical_hit {
+                let y = &mut tick.body.velocity[1];
+                match block.after_fall_on {
+                    blocks::Effect::None => *y = 0.0,
+                    blocks::Effect::Slime if *y < 0.0 => *y = -*y * 0.8,
+                    blocks::Effect::Bed if *y < 0.0 => *y = -*y * f64::from(0.66f32) * 0.8,
+                    blocks::Effect::Slime | blocks::Effect::Bed => {}
+                    other => return Err(blocks::unsupported(format!("boat landing: {other:?}"))),
+                }
+            }
+            if version == MinecraftVersion::Java1_16_1 && tick.body.on_ground {
+                tick.step_on(block)?;
+            }
+        }
+        TerrainPhase::Step => {
+            if tick.body.on_ground {
+                let position = tick.landing_position()?;
+                let block = tick.level.block(position)?;
+                tick.step_on(block)?;
+            }
+        }
+        TerrainPhase::Speed => {
+            let feet = tick.level.block(tick.block_position())?;
+            let own = feet.speed_factor;
+            let factor = if matches!(
+                feet.name.as_str(),
+                "minecraft:water" | "minecraft:bubble_column"
+            ) || own != 1.0
+            {
+                own
+            } else {
+                let below = if version == MinecraftVersion::Java1_16_1 {
+                    [
+                        floor(frame.position[0]),
+                        floor(frame.bounds()[1] - 0.5000001),
+                        floor(frame.position[2]),
+                    ]
+                } else {
+                    tick.on_pos(0.500001f32)?
+                };
+                tick.level.block(below)?.speed_factor
+            };
+            tick.body.velocity[0] *= f64::from(factor);
+            tick.body.velocity[2] *= f64::from(factor);
+        }
+    }
+    frame.velocity = tick.body.velocity;
+    frame.supporting_block = tick.body.supporting_block;
+    frame.on_ground_no_blocks = tick.body.on_ground_no_blocks;
+    Ok(())
+}
+
+fn interior_effect<F: FnMut([i32; 3]) -> Result<NativeBlockState>>(
+    level: &mut Level<'_, F>,
+    frame: &mut BoatFrame,
+    cell: [i32; 3],
+    certain: bool,
+) -> Result<()> {
+    match level.block(cell)?.inside {
+        blocks::Effect::BubbleColumn => bubble_effect(level, frame, cell, certain)?,
+        blocks::Effect::Stuck if level.block(cell)?.name == "minecraft:cobweb" => {
+            // Native WebBlock applies to every Entity; Weaving is LivingEntity
+            // only. Its modern callback ignores the intersection boolean.
+            frame.stuck = [0.25, f64::from(0.05f32), 0.25];
+        }
+        blocks::Effect::Honey => {
+            let position = frame.position;
+            let old_y = if level.version == MinecraftVersion::Java1_16_1 {
+                frame.velocity[1]
+            } else {
+                frame.velocity[1] / f64::from(0.98f32) + 0.08
+            };
+            let edge = 0.4375 + WIDTH / 2.0;
+            if !frame.on_ground
+                && position[1] <= f64::from(cell[1]) + 0.9375 - 1e-7
+                && old_y < -0.08
+                && ((f64::from(cell[0]) + 0.5 - position[0]).abs() + 1e-7 > edge
+                    || (f64::from(cell[2]) + 0.5 - position[2]).abs() + 1e-7 > edge)
+            {
+                if old_y < -0.13 {
+                    let ratio = -0.05 / old_y;
+                    frame.velocity[0] *= ratio;
+                    frame.velocity[2] *= ratio;
+                }
+                frame.velocity[1] = if level.version == MinecraftVersion::Java1_16_1 {
+                    -0.05
+                } else {
+                    (-0.05 - 0.08) * f64::from(0.98f32)
+                };
+            }
+        }
+        // SweetBerryBushBlock's slowdown is LivingEntity-only. Ordinary water
+        // and server-owned damage/fire callbacks add no boat interior velocity.
+        _ => {}
+    }
+    Ok(())
 }
 
 fn bubble_effect<F: FnMut([i32; 3]) -> Result<NativeBlockState>>(
@@ -426,11 +599,7 @@ mod tests {
     #[test]
     fn unimplemented_boat_hooks_refuse_without_mutating_seed() {
         for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
-            for name in [
-                "minecraft:slime_block",
-                "minecraft:honey_block",
-                "minecraft:cobweb",
-            ] {
+            for name in ["minecraft:lava", "minecraft:moving_piston"] {
                 let initial = BoatFrame::new([0.5, 65.0, 0.5], [0.0; 2], [0.0; 3]);
                 let saved = initial.clone();
                 let hazard = super::super::oracle_tests::state(name);
@@ -474,6 +643,15 @@ mod tests {
         ))
         .unwrap();
         compare_boat_ticks(&oracle, 16);
+    }
+
+    #[test]
+    fn special_block_hooks_match_original_nonliving_boat_callbacks() {
+        let oracle: Value = serde_json::from_reader(flate2::read::GzDecoder::new(
+            &include_bytes!("../../../data/client_api/boat_hooks_oracle.json.gz")[..],
+        ))
+        .unwrap();
+        compare_boat_ticks(&oracle, 14);
     }
 
     fn compare_boat_ticks(oracle: &Value, count: usize) {
