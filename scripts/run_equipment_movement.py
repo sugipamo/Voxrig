@@ -62,7 +62,11 @@ def check(version, command, request, trace, report, *, sdk):
         position=[float(v.strip().rstrip('df')) for v in match[1].split(',')]
         if max(abs(a-b) for a,b in zip(position,record['frame']['position']))>.4:
             raise RuntimeError('native equipment endpoint differs')
-        report['checks'].append(dict(name=name,record=record,player=request('player'),native_position=position))
+        flags=int(record['frame']['on_ground'])
+        if not old:flags|=int(record['frame']['horizontal_collision'])<<1
+        payload=struct.pack('>dddff',*record['frame']['position'],record['controls']['yaw'],record['controls']['pitch'])+bytes([flags])
+        wire=until(lambda:[p for p in trace.since(0) if p['direction']=='serverbound' and p['phase']=='play' and p['packet_id']==(0x13 if old else 0x1e) and p['body_hex']==payload.hex()],5)
+        report['checks'].append(dict(name=name,record=record,player=request('player'),native_position=position,original_movement=wire[-1]))
     command('effect give ClimbingProbe minecraft:water_breathing 600 0 true')
     command('fill -8 63 -8 8 68 8 minecraft:air')
     command('fill -8 64 -8 8 64 8 minecraft:stone')
@@ -103,9 +107,11 @@ def check(version, command, request, trace, report, *, sdk):
         request('prepare',position=[.5,64.875,.5])
         before=request('player')['receive_sequence'];replace('diamond_boots{Enchantments:[{id:"minecraft:soul_speed",lvl:1s}]} 1')
         until(lambda:received_boots(before),5)
+        # Native onChangedBlock adds the server-owned speed modifier only
+        # after moving onto a new supporting block, not while waiting idle.
+        request('start');keys(forward=1)
         player=until(lambda:(p if (p:=request('player'))['attributes']['minecraft:movement_speed']['value']['value']>.13 else None),5)
         report['checks'].append(dict(name='original_server_owned_soul_speed_modifier',**original_attribute(version,player,'minecraft:movement_speed',trace)))
-        request('start');keys(forward=1)
         record=request('ticks',count=12)
         capture('received_soul_speed_tag_reaches_model',record,{'soul_speed_blocks':['minecraft:soul_sand','minecraft:soul_soil']})
         keys();request('stop')

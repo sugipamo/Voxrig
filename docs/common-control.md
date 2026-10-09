@@ -124,6 +124,22 @@ let latest = survival.control_record().await?.unwrap().ground_jump;
   `release_use_item`を送れる（[アイテム使用](common-item-use.md)）。
 - 時刻はclientの時計で、serverのtickとは同期しない（公式clientと同じ）。
 
+## 装備の移動効果の検証（2026-10-10）
+
+公式の物理処理による11場面・330 tickで、深海探索者のレベル・最初の一致・保存用エンチャント、
+ソウルスピード、modernの水中移動属性の全操作と上限を厳密比較した。
+ソウルスピードの速度属性は公式`tryAddSoulSpeed`で初期入力に確立し、SDKが加算を作る比較にはしていない。
+改変していない両版の公式サーバーへ共通Clientで接続し、計13項目が通過した。
+装備更新中も同じ操作所有者を使い、元の属性・位置パケットとRCON位置を照合した。予期しない補正は0回。
+[検証記録](evidence/common-equipment-movement-20261010.json)は結果と入力・SDK・binary・公式JARのhashを公開する。
+元の通信・NBT記録はローカルに保持する。
+
+```sh
+cargo build --locked --features native --example climbing_control_probe
+python3 -B scripts/run_equipment_movement.py --accept-eula \
+  --binary target/debug/examples/climbing_control_probe --compiled-sdk-revision HEAD
+```
+
 ## 単発接地ジャンプの実接続検証（2026-10-09）
 
 公式1.16.1・1.21.11サーバーで共通APIだけを使い、計21項目が通過した。

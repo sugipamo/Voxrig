@@ -30,6 +30,12 @@ DOWNLOADS = ROOT / "downloads"
 VERSIONS = ("1.16.1", "1.21.11")
 
 
+def native_probe_binary():
+    target = Path(os.environ.get("CARGO_TARGET_DIR", "target"))
+    if not target.is_absolute(): target = REPO / target
+    return target / "debug/examples/common_native_probe"
+
+
 def download(version):
     DOWNLOADS.mkdir(parents=True, exist_ok=True)
     source = DOWNLOADS / (version + "-source.json")
@@ -526,7 +532,7 @@ def run_dry_terrain(version, env, rcon, trace, report, probe_log, stderr_log, fl
             result['fixture'][command] = response
             if any(text in response for text in ('Incorrect argument', 'Unknown or incomplete', 'not loaded')):
                 raise RuntimeError('dry terrain fixture rejected: '+response)
-        probe = subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')], cwd=REPO,
+        probe = subprocess.Popen([str(native_probe_binary())], cwd=REPO,
             env=dict(env, VOXRIG_NATIVE_SCENARIO='dry-terrain', VOXRIG_NATIVE_MODE=mode),
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
         messages = queue.Queue()
@@ -765,7 +771,7 @@ def run_vehicle(version, env, rcon, trace, report, probe_log, stderr_log, contro
         if controlling:
             for command in ['fill 0 64 2 0 64 14 minecraft:stone','fill 0 65 2 0 65 14 minecraft:rail[shape=north_south]','setblock 3 65 3 minecraft:chest[facing=north,type=single,waterlogged=false]']:
                 result['fixture'][command]=rcon.command(command)
-        probe = subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')], cwd=REPO,
+        probe = subprocess.Popen([str(native_probe_binary())], cwd=REPO,
             env=dict(env, VOXRIG_NATIVE_SCENARIO='vehicle-control' if controlling else 'vehicle', VOXRIG_NATIVE_MODE=mode),
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
         messages = queue.Queue()
@@ -966,7 +972,7 @@ def run_furnace(version, env, rcon, trace, report, probe_log, stderr_log):
         result=results[mode]={'fixture':{},'records':[]}
         for command in ['setblock 0 65 1 minecraft:air','setblock 0 65 2 minecraft:air','setblock 0 65 2 minecraft:furnace[facing=north,lit=false]']:
             result['fixture'][command]=rcon.command(command)
-        probe=subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')],cwd=REPO,
+        probe=subprocess.Popen([str(native_probe_binary())],cwd=REPO,
             env=dict(env,VOXRIG_NATIVE_SCENARIO='furnace',VOXRIG_NATIVE_MODE=mode),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
         messages=queue.Queue();reader=threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True);reader.start()
         try:
@@ -1035,7 +1041,7 @@ def run_basic_workflow(version, env, rcon, trace, report, probe_log, stderr_log)
         for command in ['setblock 0 65 1 minecraft:air', 'setblock 0 65 2 minecraft:chest[facing=north,type=single,waterlogged=false]',
                         'data merge block 0 65 2 {Items:[]}', 'setblock 2 65 0 minecraft:air']:
             result['fixture'][command] = rcon.command(command)
-        probe = subprocess.Popen([str(REPO / 'target/debug/examples/common_native_probe')], cwd=REPO,
+        probe = subprocess.Popen([str(native_probe_binary())], cwd=REPO,
             env=dict(env, VOXRIG_NATIVE_SCENARIO='basic-workflow'), stdin=subprocess.PIPE,
             stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
         messages = queue.Queue()
@@ -1114,7 +1120,7 @@ def run_equipment_entity(version, env, rcon, trace, report, probe_log, stderr_lo
                         'summon minecraft:sheep 2.5 65 0.5 {NoAI:1b,Tags:["VoxrigA2Target"]}',
                         'summon minecraft:villager 0.5 65 2.5 {NoAI:1b,Tags:["VoxrigA2Merchant"],VillagerData:{type:"minecraft:plains",profession:"minecraft:farmer",level:1}}']:
             result['fixture'][command] = rcon.command(command)
-        probe = subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')],cwd=REPO,
+        probe = subprocess.Popen([str(native_probe_binary())],cwd=REPO,
             env=dict(env,VOXRIG_NATIVE_SCENARIO='equipment-entity'),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
         messages = queue.Queue()
         reader = threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True)
@@ -1189,7 +1195,7 @@ def run_recipe_placement(version, env, rcon, trace, report, probe_log, stderr_lo
         result=results[mode+'-'+ui+'-'+amount]={'fixture':{},'records':[]}
         for command in ['setblock 0 65 1 minecraft:air', 'setblock 0 65 2 minecraft:crafting_table' if ui=='table' else 'setblock 0 65 2 minecraft:air']:
             result['fixture'][command]=rcon.command(command)
-        probe=subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')],cwd=REPO,
+        probe=subprocess.Popen([str(native_probe_binary())],cwd=REPO,
             env=dict(env,VOXRIG_NATIVE_SCENARIO='recipe-placement',VOXRIG_NATIVE_RECIPE_MODE=mode,VOXRIG_NATIVE_RECIPE_UI=ui,VOXRIG_NATIVE_RECIPE_AMOUNT=amount),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
         messages=queue.Queue();reader=threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True);reader.start()
         try:
@@ -1238,7 +1244,7 @@ def run_recipe_result_merge(version, env, rcon, trace, report, probe_log, stderr
         result=results[mode+'-'+ui+'-'+amount]={'fixture':{},'records':[]}
         for command in ['setblock 0 65 1 minecraft:air', 'setblock 0 65 2 minecraft:crafting_table' if ui=='table' else 'setblock 0 65 2 minecraft:air']:
             result['fixture'][command]=rcon.command(command)
-        probe=subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')],cwd=REPO,
+        probe=subprocess.Popen([str(native_probe_binary())],cwd=REPO,
             env=dict(env,VOXRIG_NATIVE_SCENARIO='recipe-result-merge',VOXRIG_NATIVE_RECIPE_MODE=mode,VOXRIG_NATIVE_RECIPE_UI=ui,VOXRIG_NATIVE_RECIPE_AMOUNT=amount),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
         messages=queue.Queue();reader=threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True);reader.start()
         try:
@@ -1294,7 +1300,7 @@ def run_recipe_result_transfer(version, env, rcon, trace, report, probe_log, std
         result=results[mode+'-'+ui+'-'+amount]={'fixture':{},'records':[]}
         for command in ['setblock 0 65 1 minecraft:air', 'setblock 0 65 2 minecraft:crafting_table' if ui=='table' else 'setblock 0 65 2 minecraft:air']:
             result['fixture'][command]=rcon.command(command)
-        probe=subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')],cwd=REPO,
+        probe=subprocess.Popen([str(native_probe_binary())],cwd=REPO,
             env=dict(env,VOXRIG_NATIVE_SCENARIO='recipe-result-transfer',VOXRIG_NATIVE_RECIPE_MODE=mode,VOXRIG_NATIVE_RECIPE_UI=ui,VOXRIG_NATIVE_RECIPE_AMOUNT=amount),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
         messages=queue.Queue();reader=threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True);reader.start()
         try:
@@ -1360,7 +1366,7 @@ def run_recipe_ghost(version, env, rcon, trace, report, probe_log, stderr_log):
         result=results[mode+'-'+ui+'-'+amount]={'fixture':{},'records':[]}
         for command in ['setblock 0 65 1 minecraft:air', 'setblock 0 65 2 minecraft:crafting_table' if ui=='table' else 'setblock 0 65 2 minecraft:air']:
             result['fixture'][command]=rcon.command(command)
-        probe=subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')],cwd=REPO,
+        probe=subprocess.Popen([str(native_probe_binary())],cwd=REPO,
             env=dict(env,VOXRIG_NATIVE_SCENARIO='recipe-ghost',VOXRIG_NATIVE_RECIPE_MODE=mode,VOXRIG_NATIVE_RECIPE_UI=ui,VOXRIG_NATIVE_RECIPE_AMOUNT=amount),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
         messages=queue.Queue();reader=threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True);reader.start()
         try:
@@ -1407,7 +1413,7 @@ def run_recipe_ghost(version, env, rcon, trace, report, probe_log, stderr_log):
 def run_connection_revocation(version, env, rcon, trace, report, probe_log, stderr_log):
     """Observe local revocation and actual peer closure while both clones live."""
     result = report['native_results']['connection_revocation'] = {'records':[]}
-    probe = subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')], cwd=REPO,
+    probe = subprocess.Popen([str(native_probe_binary())], cwd=REPO,
         env=dict(env, VOXRIG_NATIVE_SCENARIO='connection-revocation'), stdin=subprocess.PIPE,
         stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
     messages = queue.Queue()
@@ -1453,7 +1459,7 @@ def run_mining_recovery(version, env, rcon, trace, report, probe_log, stderr_log
     tool_env = {'VOXRIG_NATIVE_MINING_TOOL':tool, 'VOXRIG_NATIVE_MINING_BLOCK':block.split('[')[0]} if tool else {}
     for command in ['setblock 0 65 1 minecraft:air', 'setblock 0 65 3 '+block, 'setblock 2 65 0 minecraft:air']:
         result['fixture'][command] = rcon.command(command)
-    probe = subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')], cwd=REPO,
+    probe = subprocess.Popen([str(native_probe_binary())], cwd=REPO,
         env=dict(env, VOXRIG_NATIVE_SCENARIO='mining-recovery', VOXRIG_NATIVE_RECOVERY_CASE=case, **tool_env), stdin=subprocess.PIPE,
         stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
     messages = queue.Queue()
@@ -1554,7 +1560,7 @@ def run_recording_scene(version, env, rcon, trace, report, probe_log, stderr_log
     """Actual original receive bytes, detached forecast, offline replay; one JVM."""
     result=report['native_results']['recording_scene']={'fixture':{},'records':[]}
     path=folder / 'common-packet-recording.json'
-    probe=subprocess.Popen([str(REPO / 'target/debug/examples/common_native_probe')],cwd=REPO,
+    probe=subprocess.Popen([str(native_probe_binary())],cwd=REPO,
         env=dict(env,VOXRIG_NATIVE_SCENARIO='recording-scene',VOXRIG_NATIVE_RECORDING_PATH=str(path)),
         stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
     messages=queue.Queue()
@@ -1987,7 +1993,7 @@ def run_social_stages(version,probe,messages,records,identities,trace,peers,rcon
 
 def run_manager_ui(version,env,rcon,trace,report,probe_log,stderr_log):
     result=report['native_results']['manager_ui']={'fixture':{},'records':[]}
-    probe=subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')],cwd=REPO,env=dict(env,VOXRIG_NATIVE_SCENARIO='manager-ui'),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
+    probe=subprocess.Popen([str(native_probe_binary())],cwd=REPO,env=dict(env,VOXRIG_NATIVE_SCENARIO='manager-ui'),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
     messages=queue.Queue();reader=threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True);reader.start()
     try:
         ready=stage(probe,messages,'a5_ui_ready',result['records'])['value'];result['managed']=ready
@@ -2052,7 +2058,7 @@ def run_manager_ui(version,env,rcon,trace,report,probe_log,stderr_log):
 
 def run_respawn(version, env, rcon, trace, report, probe_log, stderr_log):
     result=report['native_results']['respawn']={'records':[],'rounds':[],'fixture':{},'original_fields':[]}
-    probe=subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')],cwd=REPO,env=dict(env,VOXRIG_NATIVE_SCENARIO='respawn'),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
+    probe=subprocess.Popen([str(native_probe_binary())],cwd=REPO,env=dict(env,VOXRIG_NATIVE_SCENARIO='respawn'),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
     messages=queue.Queue();reader=threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True);reader.start()
     def capture(name):return stage(probe,messages,name,result['records'])['value']
     def command(value):
@@ -2170,7 +2176,7 @@ def run_reconfiguration(version, env, rcon, trace, report, probe_log, stderr_log
         answer = rcon.command(value);result['fixture'][value]=answer
         if any(x in answer for x in ('Incorrect argument','Unknown or incomplete','not loaded')): raise RuntimeError('context fixture rejected: '+value+': '+answer)
         return answer
-    probe = subprocess.Popen([str(REPO/'target/debug/examples/common_native_probe')],cwd=REPO,
+    probe = subprocess.Popen([str(native_probe_binary())],cwd=REPO,
         env=dict(env,VOXRIG_NATIVE_SCENARIO='reconfiguration'),stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=stderr_log,text=True,bufsize=1)
     messages = queue.Queue();reader=threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True);reader.start()
     def capture(name):return stage(probe,messages,name,result['records'])['value']
@@ -2453,7 +2459,7 @@ network-compression-threshold=256
             run_basic_workflow(version, env, rcon, trace, report, probe_log, stderr_log)
             report["scenario_result"] = "passed"
             return retained
-        probe = subprocess.Popen([str(REPO / "target/debug/examples/common_native_probe")], cwd=REPO, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+        probe = subprocess.Popen([str(native_probe_binary())], cwd=REPO, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
         messages = queue.Queue()
         thread = threading.Thread(target=pump, args=(probe.stdout, messages, probe_log), daemon=True)
         thread.start()
@@ -2544,7 +2550,7 @@ network-compression-threshold=256
         report["mining_fixture"] = mining_fixture
         report["mining_records"] = []
         mining_env = dict(env, VOXRIG_NATIVE_SCENARIO="mining")
-        probe = subprocess.Popen([str(REPO / "target/debug/examples/common_native_probe")], cwd=REPO, env=mining_env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+        probe = subprocess.Popen([str(native_probe_binary())], cwd=REPO, env=mining_env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
         messages = queue.Queue()
         thread = threading.Thread(target=pump, args=(probe.stdout, messages, probe_log), daemon=True)
         thread.start()
@@ -2578,7 +2584,7 @@ network-compression-threshold=256
         for position, block in [("2 65 0", "stone"), ("1 65 0", "air")]:
             until(lambda: matched(rcon.command(f"execute if block {position} minecraft:{block}"), "Test passed"))
         report["placement_records"] = []
-        probe = subprocess.Popen([str(REPO / "target/debug/examples/common_native_probe")], cwd=REPO, env=dict(env, VOXRIG_NATIVE_SCENARIO="placement"), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+        probe = subprocess.Popen([str(native_probe_binary())], cwd=REPO, env=dict(env, VOXRIG_NATIVE_SCENARIO="placement"), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
         messages = queue.Queue()
         thread = threading.Thread(target=pump, args=(probe.stdout, messages, probe_log), daemon=True)
         thread.start()
@@ -2604,7 +2610,7 @@ network-compression-threshold=256
             raise RuntimeError("placement probe failed after disconnect")
         until(lambda: matched(rcon.command("execute unless entity @a[name=UnifiedProbe]"), "Test passed"))
         report["inventory_records"] = []
-        probe = subprocess.Popen([str(REPO / "target/debug/examples/common_native_probe")], cwd=REPO, env=dict(env, VOXRIG_NATIVE_SCENARIO="inventory"), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+        probe = subprocess.Popen([str(native_probe_binary())], cwd=REPO, env=dict(env, VOXRIG_NATIVE_SCENARIO="inventory"), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
         messages = queue.Queue()
         thread = threading.Thread(target=pump, args=(probe.stdout, messages, probe_log), daemon=True)
         thread.start()
@@ -2668,7 +2674,7 @@ network-compression-threshold=256
             return response if 'id: "minecraft:stone"' in response and "Slot: 0b" in response and re.search(rf"(?:Count|count): {count}(?:b)?(?:,|\s|}})", response) else None
         report["container_fixture_native"] = until(lambda: chest_matches(3))
         report["container_records"] = []
-        probe = subprocess.Popen([str(REPO / "target/debug/examples/common_native_probe")], cwd=REPO, env=dict(env, VOXRIG_NATIVE_SCENARIO="container"), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+        probe = subprocess.Popen([str(native_probe_binary())], cwd=REPO, env=dict(env, VOXRIG_NATIVE_SCENARIO="container"), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
         messages = queue.Queue()
         thread = threading.Thread(target=pump, args=(probe.stdout, messages, probe_log), daemon=True)
         thread.start()
@@ -3132,7 +3138,7 @@ network-compression-threshold=256
         for mode in ("survival", "creative"):
             for item, count, with_data in return_items:
                 until(lambda:matched(rcon.command("execute unless entity @a[name=UnifiedProbe]"),"Test passed"))
-                probe = subprocess.Popen([str(REPO / "target/debug/examples/common_native_probe")], cwd=REPO, env=dict(env, VOXRIG_NATIVE_SCENARIO="container"), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+                probe = subprocess.Popen([str(native_probe_binary())], cwd=REPO, env=dict(env, VOXRIG_NATIVE_SCENARIO="container"), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
                 messages = queue.Queue()
                 thread = threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True)
                 thread.start()
@@ -3206,7 +3212,7 @@ network-compression-threshold=256
             # received empty cursor/player UI. Use a fresh real connection,
             # not a guessed cursor or a bypass of the common open guard.
             until(lambda:matched(rcon.command("execute unless entity @a[name=UnifiedProbe]"),"Test passed"))
-            probe = subprocess.Popen([str(REPO / "target/debug/examples/common_native_probe")], cwd=REPO, env=dict(env, VOXRIG_NATIVE_SCENARIO="container"), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+            probe = subprocess.Popen([str(native_probe_binary())], cwd=REPO, env=dict(env, VOXRIG_NATIVE_SCENARIO="container"), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
             messages = queue.Queue()
             thread = threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True)
             thread.start()
@@ -3260,7 +3266,7 @@ network-compression-threshold=256
             until(lambda:matched(rcon.command("execute unless entity @a[name=UnifiedProbe]"),"Test passed"))
             rcon.command("setblock 0 65 2 minecraft:crafting_table")
             rcon.command("kill @e[type=minecraft:item]")
-            probe = subprocess.Popen([str(REPO / "target/debug/examples/common_native_probe")], cwd=REPO, env=dict(env, VOXRIG_NATIVE_SCENARIO="container"), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
+            probe = subprocess.Popen([str(native_probe_binary())], cwd=REPO, env=dict(env, VOXRIG_NATIVE_SCENARIO="container"), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_log, text=True, bufsize=1)
             messages = queue.Queue()
             threading.Thread(target=pump,args=(probe.stdout,messages,probe_log),daemon=True).start()
             stage(probe,messages,"container_ready",report["container_records"])
@@ -3514,7 +3520,7 @@ def main():
            for path, digest in runtime_inputs["source_sha256"].items()):
         raise RuntimeError("native inputs changed during build")
     runtime_inputs["consumer_binary_sha256"] = hashlib.sha256(
-        (REPO / "target/debug/examples/common_native_probe").read_bytes()).hexdigest()
+        (native_probe_binary()).read_bytes()).hexdigest()
     for version in VERSIONS if args.all else [args.version]:
         folder = run(version, args.accept_eula,
             args.runtime_dir.resolve() if args.runtime_dir else None, runtime_inputs, args.scenario)
