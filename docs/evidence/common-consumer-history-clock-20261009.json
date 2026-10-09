@@ -1,0 +1,449 @@
+{
+  "sdk_commit": "6881a71b374741731cfb8a21f385ee0b57cdf271",
+  "sdk_src_tree": "fafa5330851d9444a682eac475725558c42a560d",
+  "probe_sha256": "5d77efaf36661a39cdb5a04c1596fa07bb4164542c14f5b2129234bff9c02e1e",
+  "driver_sha256": "0cc28ac309f541fe1e02bacab6271676ee44880f29aed303f532c1a949b35150",
+  "scope": "Official loopback servers: common entity history read clock, frozen samples, empty pages, world change and revocation; no new game feature.",
+  "driver_source": "import argparse\nimport hashlib\nimport json\nimport pathlib\nimport subprocess\nimport sys\nimport time\n\nrepo = pathlib.Path('/workspace/Voxrig')\nsys.path.insert(0, str(repo / 'scripts'))\nimport run_climbing_control as live\nimport run_entity_history as history\n\n\ndef ns(duration):\n    return duration['secs'] * 1_000_000_000 + duration['nanos']\n\n\ndef check(version, command, request, trace, report):\n    def ask(action, **arguments):\n        result = request(action, **arguments)\n        assert result['ok'], result\n        return result['result']\n\n    first = ask('history')\n    assert first['records']\n    sample = first['records'][0]\n    time.sleep(0.15)\n    second = ask('history')\n    retained = next(r for r in second['records'] if r['ordinal'] == sample['ordinal'])\n    assert retained == sample\n    first_age = ns(first['captured_after']) - ns(sample['applied_after'])\n    second_age = ns(second['captured_after']) - ns(sample['applied_after'])\n    assert first_age >= 0 and second_age >= first_age + 100_000_000\n    report['checks'].append(dict(name='quiet_read_advances_age_without_retiming_sample',\n                                sample=sample, first_clock=first['captured_after'],\n                                second_clock=second['captured_after'],\n                                first_age_ns=first_age, second_age_ns=second_age))\n    ask('history_tail', maximum=1)\n    empty = ask('history', resume=True, maximum=1)\n    assert not empty['records'] and not empty['has_more']\n    assert ns(empty['captured_after']) >= ns(second['captured_after'])\n    report['checks'].append(dict(name='empty_page_retains_read_clock', page=empty))\n\n    history.check(version, command, request, trace, report)\n    pages = [entry['page'] for entry in report['checks'] if 'page' in entry]\n    clocks = [ns(page['captured_after']) for page in pages]\n    assert clocks == sorted(clocks)\n    assert all(ns(page['captured_after']) >= ns(record['applied_after'])\n               for page in pages for record in page['records'])\n    report['checks'].append(dict(name='world_change_and_revocation_preserve_same_clock',\n                                page_clocks_ns=clocks))\n\n\nparser = argparse.ArgumentParser()\nparser.add_argument('--accept-eula', action='store_true', required=True)\nparser.parse_args()\nbinary = pathlib.Path('/workspace/.voxrig-env/climbing-target/debug/examples/migration_api_probe')\njars = repo / '.local/climbing/downloads'\nsdk_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repo, text=True).strip()\nsdk_src_tree = subprocess.check_output(['git', 'rev-parse', 'HEAD:src'], cwd=repo, text=True).strip()\nruns = []\nfor version in ['1.16.1', '1.21.11']:\n    before = set(live.ROOT.iterdir())\n    live.run(version, binary, jars, check=check, server_properties={'view-distance': 6})\n    folders = set(live.ROOT.iterdir()) - before\n    assert len(folders) == 1\n    folder = folders.pop()\n    report = json.loads((folder / 'report.json').read_text())\n    assert report['passed'] and not report['trace_errors']\n    runs.append(dict(version=version, folder=str(folder), report=report,\n                     report_sha256=hashlib.sha256((folder / 'report.json').read_bytes()).hexdigest(),\n                     packets_sha256=hashlib.sha256((folder / 'packets.jsonl').read_bytes()).hexdigest(),\n                     official_jar_sha1=hashlib.sha1((jars / (version+'-server.jar')).read_bytes()).hexdigest()))\nproof = dict(sdk_commit=sdk_commit, sdk_src_tree=sdk_src_tree,\n             probe_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),\n             driver_sha256=hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest(),\n             runs=runs)\npath = pathlib.Path('/tmp/voxrig-consumer-history-clock-20261009.json')\npath.write_text(json.dumps(proof, indent=2)+'\\n')\nprint(json.dumps(dict(proof=str(path), checks=[len(r['report']['checks']) for r in runs])))\n",
+  "imported_driver_sha256": {
+    "scripts/run_entity_history.py": "1bfc160219e8115240d6d723db8b9f0e3c9fcd8473a29a236d7d2a5d14be6e22",
+    "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+    "scripts/run_common_native.py": "a585067fcfd4fd4c8cc9ca82185258ebf1abbc4a7982a435bbbef6c4ecd9a198"
+  },
+  "runs": [
+    {
+      "version": "1.16.1",
+      "folder": "/workspace/Voxrig/.local/climbing/live/1.16.1-20261009-075311",
+      "report_sha256": "c29e233062ed54da9b6c7326e0727bc89db7cd764e0a869cd33427455657fb22",
+      "packets_sha256": "eece6d07c1d7f89c3b095c3bd704a3bfdd549044e02c7b6115fdafef9f9aa570",
+      "official_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "passed": true,
+      "trace_errors": [],
+      "checks": [
+        {
+          "name": "quiet_read_advances_age_without_retiming_sample",
+          "sample": {
+            "applied_after": {
+              "nanos": 38970457,
+              "secs": 0
+            },
+            "kind": {
+              "WorldChanged": {
+                "previous_generation": 0
+              }
+            },
+            "ordinal": 1,
+            "receive_sequence": 1,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            }
+          },
+          "first_clock": {
+            "nanos": 408787078,
+            "secs": 0
+          },
+          "second_clock": {
+            "nanos": 559791521,
+            "secs": 0
+          },
+          "first_age_ns": 369816621,
+          "second_age_ns": 520821064,
+          "validated": true
+        },
+        {
+          "name": "empty_page_retains_read_clock",
+          "page": {
+            "captured_after": {
+              "nanos": 561285484,
+              "secs": 0
+            },
+            "gap": null,
+            "has_more": false,
+            "latest_cursor": {
+              "connection_id": 1,
+              "ordinal": 3,
+              "version": "Java1_16_1"
+            },
+            "next_cursor": {
+              "connection_id": 1,
+              "ordinal": 3,
+              "version": "Java1_16_1"
+            },
+            "receive_sequence": 149,
+            "records": [],
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            }
+          },
+          "validated": true
+        },
+        {
+          "name": "historical_living_projectile_motion_status_removal",
+          "validated": true,
+          "page_boundary": {
+            "captured_after": {
+              "nanos": 753650767,
+              "secs": 2
+            },
+            "gap": null,
+            "has_more": false,
+            "latest_cursor": {
+              "connection_id": 1,
+              "ordinal": 25,
+              "version": "Java1_16_1"
+            },
+            "next_cursor": {
+              "connection_id": 1,
+              "ordinal": 25,
+              "version": "Java1_16_1"
+            },
+            "receive_sequence": 220,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "records_count": 22,
+            "record_ordinal_range": [
+              4,
+              25
+            ],
+            "applied_after_range": [
+              {
+                "nanos": 50001256,
+                "secs": 1
+              },
+              {
+                "nanos": 697419862,
+                "secs": 2
+              }
+            ]
+          }
+        },
+        {
+          "name": "frozen_samples_after_removal",
+          "records_count": 22,
+          "same_records": true,
+          "validated": true
+        },
+        {
+          "name": "actual_respawn_and_own_corrections",
+          "validated": true,
+          "page_boundary": {
+            "captured_after": {
+              "nanos": 361033525,
+              "secs": 3
+            },
+            "gap": null,
+            "has_more": false,
+            "latest_cursor": {
+              "connection_id": 1,
+              "ordinal": 40,
+              "version": "Java1_16_1"
+            },
+            "next_cursor": {
+              "connection_id": 1,
+              "ordinal": 40,
+              "version": "Java1_16_1"
+            },
+            "receive_sequence": 467,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 236
+            },
+            "records_count": 15,
+            "record_ordinal_range": [
+              26,
+              40
+            ],
+            "applied_after_range": [
+              {
+                "nanos": 765380402,
+                "secs": 2
+              },
+              {
+                "nanos": 138500867,
+                "secs": 3
+              }
+            ]
+          }
+        },
+        {
+          "name": "history_after_revocation",
+          "validated": true,
+          "page_boundary": {
+            "captured_after": {
+              "nanos": 363199803,
+              "secs": 3
+            },
+            "gap": null,
+            "has_more": false,
+            "latest_cursor": {
+              "connection_id": 1,
+              "ordinal": 40,
+              "version": "Java1_16_1"
+            },
+            "next_cursor": {
+              "connection_id": 1,
+              "ordinal": 40,
+              "version": "Java1_16_1"
+            },
+            "receive_sequence": 467,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 236
+            },
+            "records_count": 40,
+            "record_ordinal_range": [
+              1,
+              40
+            ],
+            "applied_after_range": [
+              {
+                "nanos": 38970457,
+                "secs": 0
+              },
+              {
+                "nanos": 138500867,
+                "secs": 3
+              }
+            ]
+          }
+        },
+        {
+          "name": "world_change_and_revocation_preserve_same_clock",
+          "page_clocks_ns": [
+            561285484,
+            2753650767,
+            3361033525,
+            3363199803
+          ],
+          "validated": true
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "folder": "/workspace/Voxrig/.local/climbing/live/1.21.11-20261009-075336",
+      "report_sha256": "18a40e90f86e074633abce0e5e9bc5b938d9bc062114ffe82db1a4624ef1419f",
+      "packets_sha256": "aaad12cbf82438fe7734d1ef1319aa026c6598eb6ef44e645f0d5e14ee3c46ef",
+      "official_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "passed": true,
+      "trace_errors": [],
+      "checks": [
+        {
+          "name": "quiet_read_advances_age_without_retiming_sample",
+          "sample": {
+            "applied_after": {
+              "nanos": 557741728,
+              "secs": 0
+            },
+            "kind": {
+              "WorldChanged": {
+                "previous_generation": 0
+              }
+            },
+            "ordinal": 1,
+            "receive_sequence": 29,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          "first_clock": {
+            "nanos": 657816773,
+            "secs": 0
+          },
+          "second_clock": {
+            "nanos": 817636777,
+            "secs": 0
+          },
+          "first_age_ns": 100075045,
+          "second_age_ns": 259895049,
+          "validated": true
+        },
+        {
+          "name": "empty_page_retains_read_clock",
+          "page": {
+            "captured_after": {
+              "nanos": 818300858,
+              "secs": 0
+            },
+            "gap": null,
+            "has_more": false,
+            "latest_cursor": {
+              "connection_id": 1,
+              "ordinal": 3,
+              "version": "Java1_21_11"
+            },
+            "next_cursor": {
+              "connection_id": 1,
+              "ordinal": 3,
+              "version": "Java1_21_11"
+            },
+            "receive_sequence": 85,
+            "records": [],
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          },
+          "validated": true
+        },
+        {
+          "name": "historical_living_projectile_motion_status_removal",
+          "validated": true,
+          "page_boundary": {
+            "captured_after": {
+              "nanos": 959994912,
+              "secs": 2
+            },
+            "gap": null,
+            "has_more": false,
+            "latest_cursor": {
+              "connection_id": 1,
+              "ordinal": 21,
+              "version": "Java1_21_11"
+            },
+            "next_cursor": {
+              "connection_id": 1,
+              "ordinal": 21,
+              "version": "Java1_21_11"
+            },
+            "receive_sequence": 251,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "records_count": 18,
+            "record_ordinal_range": [
+              4,
+              21
+            ],
+            "applied_after_range": [
+              {
+                "nanos": 848388262,
+                "secs": 0
+              },
+              {
+                "nanos": 939750098,
+                "secs": 2
+              }
+            ]
+          }
+        },
+        {
+          "name": "frozen_samples_after_removal",
+          "records_count": 18,
+          "same_records": true,
+          "validated": true
+        },
+        {
+          "name": "actual_respawn_and_own_corrections",
+          "validated": true,
+          "page_boundary": {
+            "captured_after": {
+              "nanos": 420648688,
+              "secs": 3
+            },
+            "gap": null,
+            "has_more": false,
+            "latest_cursor": {
+              "connection_id": 1,
+              "ordinal": 35,
+              "version": "Java1_21_11"
+            },
+            "next_cursor": {
+              "connection_id": 1,
+              "ordinal": 35,
+              "version": "Java1_21_11"
+            },
+            "receive_sequence": 359,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 271
+            },
+            "records_count": 14,
+            "record_ordinal_range": [
+              22,
+              35
+            ],
+            "applied_after_range": [
+              {
+                "nanos": 973172455,
+                "secs": 2
+              },
+              {
+                "nanos": 382527393,
+                "secs": 3
+              }
+            ]
+          }
+        },
+        {
+          "name": "history_after_revocation",
+          "validated": true,
+          "page_boundary": {
+            "captured_after": {
+              "nanos": 422053481,
+              "secs": 3
+            },
+            "gap": null,
+            "has_more": false,
+            "latest_cursor": {
+              "connection_id": 1,
+              "ordinal": 35,
+              "version": "Java1_21_11"
+            },
+            "next_cursor": {
+              "connection_id": 1,
+              "ordinal": 35,
+              "version": "Java1_21_11"
+            },
+            "receive_sequence": 359,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 271
+            },
+            "records_count": 35,
+            "record_ordinal_range": [
+              1,
+              35
+            ],
+            "applied_after_range": [
+              {
+                "nanos": 557741728,
+                "secs": 0
+              },
+              {
+                "nanos": 382527393,
+                "secs": 3
+              }
+            ]
+          }
+        },
+        {
+          "name": "world_change_and_revocation_preserve_same_clock",
+          "page_clocks_ns": [
+            818300858,
+            2959994912,
+            3420648688,
+            3422053481
+          ],
+          "validated": true
+        }
+      ]
+    }
+  ]
+}

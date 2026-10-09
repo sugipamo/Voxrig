@@ -1,5 +1,8 @@
 # Headless client API拡張ロードマップ
 
+この文書は旧Java 1.16.1 native APIの拡張記録です。現在の両版共通`Client`の完了表は
+[利用クライアント向け網羅表](downstream-client-coverage.md)と[能力表](common-capabilities.md)を参照してください。
+
 MineflayerやAzaleaとの比較から、pathfinding・計画・意味判断を除外し、protocol-facingな身体・sensorとして必要な公開面を整理します。
 
 ## 完了
@@ -38,7 +41,9 @@ MineflayerやAzaleaとの比較から、pathfinding・計画・意味判断を�
 repository版の`reports/api-expansion-smoke.md`と
 `reports/api-expansion-10bot-60s.md`に保存しています。
 
-vehicleの自動物理は責務外です。vehicle input/poseと特殊containerのprotocol面は公開API、parser unit test、全packet分岐で検査し、個別のゲーム内scenarioは利用するserver構成に応じてprobeを追加します。
+当時はvehicle input/poseのprotocol面を対象としていました。現在は共通APIでボートの有限入力・物理予測と
+server駆動のトロッコを提供しています。[乗り物の現在の制約と検証](common-vehicles.md)を参照してください。
+特殊containerのnative parser検査は、共通APIや個別場面の実server検証とは区別します。
 
 ## 引き続き責務外
 

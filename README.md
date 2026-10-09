@@ -1,5 +1,8 @@
 # Voxrig
 
+利用アプリ向けの[共通API網羅表と残件](docs/downstream-client-coverage.md)を公開しています。
+全機能群の静的な対応状況は`cargo run --locked --example client_capabilities`でJSONとして取得できます。
+
 Minecraft Java Edition 向けのRust製headless clientライブラリです。
 1.16.1（protocol 736）と1.21.11（protocol 774）を、接続時に版を選ぶ共通の `Client` API で扱います。どちらもoffline-modeです。
 
