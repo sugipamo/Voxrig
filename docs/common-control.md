@@ -1,6 +1,6 @@
 # 共通の継続操作（P7）
 
-`Client::survival()`の`start_control`・`set_controls`・`request_ground_jump`・`stop_control`・`control_record`は、
+`Client::survival()`の`start_control`・`set_controls_for`・`request_ground_jump`・`stop_control_for`・`control_record`は、
 キーを押し続ける操作を1.16.1と1.21.11で同じ型で扱う（`voxrig::client::control`）。
 
 ```rust,no_run
@@ -8,17 +8,23 @@ use voxrig::client::control::Controls;
 use voxrig::client::prelude::*;
 # async fn run(client: &Client) -> Result<()> {
 let survival = client.survival();
-survival.start_control().await?;                  // 現在のSDKモデルと向きで、キーを離した状態で開始
-survival.set_controls(Controls { forward: 1, sprint: true, ..Default::default() }).await?;
+let session = survival.start_control().await?;   // 現在のSDKモデルと向きで、キーを離した状態で開始
+survival.set_controls_for(session.session_id, Controls { forward: 1, sprint: true, ..Default::default() }).await?;
 tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 let record = survival.control_record().await?;   // 予測した位置・状態、補正の回数
-survival.stop_control().await?;                   // ダッシュとしゃがみを離して終了
+survival.stop_control_for(session.session_id).await?; // 対象sessionのダッシュとしゃがみを離して終了
 # let _ = record;
 # Ok(())
 # }
 ```
 
 ## 動き
+
+- sessionを記録する呼び手は、`set_controls_for(id, controls)`と`stop_control_for(id)`で対象を指定する。
+  SDKが状態ロック内でIDとworldを照合するため、観測後に別sessionへ入れ替わっていてもその入力を変更・解除しない。
+  IDは接続内の識別子であり、権限を与えるtokenではない。
+  `set_controls`と`stop_control`も残るが、その時点のsessionを選ぶ操作である。
+  前worldのsessionを停止するときは、停止記録だけを返し、新worldへ解除パケットを送らない。
 
 - clientが50 msごと（clientの時計）に[共有物理エンジン](physics-engine.md)を1 tick進め、
   そのtickにclientが送るものを送る。押したキーは`set_controls`で置き換えるまで有効で、次のtickから効く。
@@ -67,12 +73,12 @@ use voxrig::client::prelude::*;
 # async fn jump(client: &Client) -> Result<()> {
 let survival = client.survival();
 let session = survival.start_control().await?;
-survival.set_controls(Controls { forward: 1, sneak: true, yaw: 37.0, ..Default::default() }).await?;
+survival.set_controls_for(session.session_id, Controls { forward: 1, sneak: true, yaw: 37.0, ..Default::default() }).await?;
 // 呼出側で接地したframeを観測してから、そのsessionに一度要求する。
 let queued = survival.request_ground_jump(session.session_id).await?;
 let latest = survival.control_record().await?.unwrap().ground_jump;
 # let _ = (queued, latest);
-# survival.stop_control().await?;
+# survival.stop_control_for(session.session_id).await?;
 # Ok(())
 # }
 ```

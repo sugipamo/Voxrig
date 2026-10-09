@@ -272,6 +272,17 @@ async fn main() -> anyhow::Result<()> {
                 let controls: Controls = serde_json::from_value(request["controls"].clone())?;
                 serde_json::to_value(survival.set_controls(controls).await?)?
             }
+            "keys_for" => {
+                let controls = serde_json::from_value(request["controls"].clone())?;
+                let result = survival
+                    .set_controls_for(request["session_id"].as_u64().unwrap(), controls)
+                    .await;
+                match result {
+                    Ok(record) => serde_json::json!({"admitted":true, "record":record}),
+                    Err(error) => serde_json::json!({"admitted":false, "error":error.to_string(),
+                        "record":survival.control_record().await?}),
+                }
+            }
             "ticks" => {
                 let initial = survival.control_record().await?.unwrap().dispatched_ticks;
                 let count = request["count"].as_u64().unwrap();
@@ -437,6 +448,16 @@ async fn main() -> anyhow::Result<()> {
                 serde_json::to_value(complete)?
             }
             "stop" => serde_json::to_value(survival.stop_control().await?)?,
+            "stop_for" => {
+                let result = survival
+                    .stop_control_for(request["session_id"].as_u64().unwrap())
+                    .await;
+                match result {
+                    Ok(record) => serde_json::json!({"admitted":true, "record":record}),
+                    Err(error) => serde_json::json!({"admitted":false, "error":error.to_string(),
+                        "record":survival.control_record().await?}),
+                }
+            }
             "wait" => {
                 tokio::time::sleep(Duration::from_millis(request["ms"].as_u64().unwrap())).await;
                 serde_json::to_value(survival.control_record().await?)?

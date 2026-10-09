@@ -1847,6 +1847,75 @@ async fn ground_request_admission_rechecks_modern_tcp_mode_and_revocation_after_
 }
 
 #[tokio::test]
+async fn selected_control_rejects_replacement_and_old_world_without_writes() {
+    use crate::client::control::{ControlSession, ControlStatus, Controls, Output, Received};
+    let (session, api, mut peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    let received = Received {
+        environment: crate::client::physics::Environment::defaults(
+            crate::MinecraftVersion::Java1_21_11,
+        ),
+        pose: Some((10, [8.5, 65.0, 8.5], Some([0.0; 3]))),
+        velocity: None,
+        using_item: None,
+    };
+    let mut control = ControlSession::new(
+        crate::MinecraftVersion::Java1_21_11,
+        2,
+        [8.5, 65.0, 8.5],
+        &received,
+    );
+    control.dispatched(&Output {
+        sneak: Some(true),
+        sprint: Some(true),
+        input: Some(32),
+        position: [8.5, 65.0, 8.5],
+        rotation: [0.0; 2],
+        on_ground: true,
+        horizontal_collision: false,
+    });
+    {
+        let mut state = session.state.lock().await;
+        let generation = state.loading.generation;
+        state.control.seed_session(control, generation);
+    }
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let survival = client.survival();
+    let keys = Controls {
+        forward: 1,
+        ..Default::default()
+    };
+    assert!(survival.set_controls_for(1, keys).await.is_err());
+    assert!(survival.stop_control_for(1).await.is_err());
+    let replacement = survival.control_record().await.unwrap().unwrap();
+    assert_eq!(replacement.session_id, 2);
+    assert_eq!(replacement.status, ControlStatus::Running);
+    assert_eq!(replacement.controls, Controls::default());
+    assert_eq!(
+        survival.set_controls_for(2, keys).await.unwrap().controls,
+        keys
+    );
+    session.state.lock().await.loading.generation += 1;
+    assert!(
+        survival
+            .set_controls_for(2, Controls::default())
+            .await
+            .is_err()
+    );
+    let stopped = survival.stop_control_for(2).await.unwrap();
+    assert_eq!(stopped.controls, keys);
+    assert!(
+        matches!(stopped.status, ControlStatus::Stopped { ref reason } if reason.contains("world changed"))
+    );
+    assert_eq!(survival.stop_control_for(2).await.unwrap(), stopped);
+    assert!(
+        timeout(Duration::from_millis(30), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+    session.stop();
+}
+
+#[tokio::test]
 async fn cancelling_control_stop_wait_still_releases_keys_and_retains_record() {
     use crate::client::adapter::ControlOps;
     use crate::client::control::{ControlSession, ControlStatus, Output, Received};
@@ -1874,9 +1943,13 @@ async fn cancelling_control_stop_wait_still_releases_keys_and_retains_record() {
         on_ground: true,
         horizontal_collision: false,
     });
-    session.state.lock().await.control.session = Some(control);
+    {
+        let mut state = session.state.lock().await;
+        let generation = state.loading.generation;
+        state.control.seed_session(control, generation);
+    }
     let writer = session.writer.lock().await;
-    let mut wait = Box::pin(api.stop_control());
+    let mut wait = Box::pin(api.stop_control_for(1));
     assert!(
         timeout(Duration::from_millis(30), wait.as_mut())
             .await
@@ -1901,7 +1974,7 @@ async fn cancelling_control_stop_wait_still_releases_keys_and_retains_record() {
     let record = api.control_record().await.unwrap().unwrap();
     assert_eq!(record.session_id, 1);
     assert!(matches!(record.status, ControlStatus::Stopped { .. }));
-    assert_eq!(api.stop_control().await.unwrap(), Some(record));
+    assert_eq!(api.stop_control_for(1).await.unwrap(), record);
     assert!(
         timeout(Duration::from_millis(30), read_packet(&mut peer, None))
             .await
