@@ -2279,5 +2279,117 @@
         }
       ]
     }
-  ]
+  ],
+  "consumer_qualification": {
+    "sdk_revision": "2c8ad2f924769170489aea94e18e3e2ea88e25f5",
+    "golemkit_revision": "d233f46103d568aa859a6516cb884d9a749eaccf",
+    "adapter_tests": {
+      "passed": 85,
+      "failed": 0,
+      "ignored": 2
+    },
+    "selection": "Temporary Cargo local-path patch; original production Cargo.lock restored.",
+    "limits": "Existing common entity-history and player-capture/Look/hotbar/raycast/Closed workflows. The consumer still uses its existing movement implementation; this does not qualify its one-shot adoption or normal acquisition/Pillar.",
+    "official_native": [
+      {
+        "manifest": {
+          "synthetic_fixture_not_historical_reproduction": true,
+          "golemkit_revision": "d233f46103d568aa859a6516cb884d9a749eaccf",
+          "sdk_revision": "2c8ad2f924769170489aea94e18e3e2ea88e25f5",
+          "sdk_source": "/workspace/Voxrig",
+          "binary_sha256": "13eb10c84f88496dcf097ca970daa6753d331e2c968a56b6f3fa694a6fefb003",
+          "lock_sha256": "5e6f33a4fd3976db426f8543b1fa2baf29b7aef3bc5e4bbd1b379b6ffd5978a8",
+          "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+          "setup_commands_before_login": [
+            "gamerule doMobSpawning false",
+            "gamerule spawnRadius 0",
+            "gamerule doDaylightCycle false",
+            "time set day",
+            "fill -16 4 -16 16 10 16 minecraft:air",
+            "setworldspawn 0 4 0"
+          ],
+          "command": [
+            "/workspace/construction-build-target/debug/deps/golemkit_voxrig-055160bcfa0e1ea6",
+            "isolated_common_entity_history",
+            "--ignored",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "staged_commands_after_login": [
+            [
+              "ready",
+              [
+                "summon sheep 3 4 0.5 {Tags:[\"HistorySheep\"],NoAI:1b,Rotation:[90.0f,0.0f]}",
+                "summon minecraft:fireball 4 7 0.5 {Tags:[\"HistoryBall\"],NoGravity:1b,Motion:[0.0d,0.0d,0.0d]}"
+              ]
+            ],
+            [
+              "observed",
+              [
+                "execute as @e[tag=HistorySheep] at @s run tp @s ~0.5 ~ ~ 45 0"
+              ]
+            ],
+            [
+              "rotated",
+              [
+                "kill @e[tag=HistorySheep]",
+                "kill @e[tag=HistoryBall]"
+              ]
+            ]
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 18.419011615998897
+        },
+        "artifacts_sha256": {
+          "usercache.json": "96d0210854f5c67040044d0fe5536fb33489d1ce73cf9b4a658dfa8e8a05c278",
+          "server.log": "512cd1567d0e01bccfedb23b1cb7ba4b8471aa712ac21ff8cf7da037a16ee37c",
+          "whitelist.json": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "client.log": "b136984f7ffcb9506806ec6c41b81f77a0e476f8b8dc3048c845321e83a4b2fa",
+          "history.json": "05f883dac312ff491ce677fb840f288d7c9347e2ab3e405829b56b75f1a31e82",
+          "manifest.json": "17a6d76d0114ffd32cd78fe26ab67350c213e178165bc36e1c756373ac274df5",
+          "ops.json": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "banned-ips.json": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "banned-players.json": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      },
+      {
+        "manifest": {
+          "synthetic_fixture_not_historical_reproduction": true,
+          "golemkit_revision": "d233f46103d568aa859a6516cb884d9a749eaccf",
+          "sdk_revision": "2c8ad2f924769170489aea94e18e3e2ea88e25f5",
+          "sdk_source": "/workspace/Voxrig",
+          "binary_sha256": "13eb10c84f88496dcf097ca970daa6753d331e2c968a56b6f3fa694a6fefb003",
+          "lock_sha256": "5e6f33a4fd3976db426f8543b1fa2baf29b7aef3bc5e4bbd1b379b6ffd5978a8",
+          "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+          "setup_commands_before_login": [
+            "gamerule spawnRadius 0",
+            "gamerule doDaylightCycle false",
+            "time set day",
+            "fill -16 4 -16 16 10 16 minecraft:air",
+            "setworldspawn 0 4 0"
+          ],
+          "command": [
+            "/workspace/construction-build-target/debug/deps/golemkit_voxrig-055160bcfa0e1ea6",
+            "isolated_sdk_player_capture",
+            "--ignored",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 16.72309660099927
+        },
+        "artifacts_sha256": {
+          "usercache.json": "770b216830cc2718c12b8f41339466d415f115c3c4da6a8a01976e8e8511d69d",
+          "server.log": "c4583663a22cb6f7b84505dcbcac09cbab6901a9bc70de94ceacec5ed58a0e30",
+          "whitelist.json": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "client.log": "d65b7f552e56938a724c104a79999eed7e145060729a11c20a80c22ff621c89e",
+          "player-capture.json": "937be0de7945f7205705b6f31b26286b45dd0e6ddc10efe2dcbed77dbdf5a093",
+          "manifest.json": "cffc7c9b3164c0fe659b00d81c90a1a331ce66321adf4ba520664fb5ea1e9367",
+          "ops.json": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "banned-ips.json": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+          "banned-players.json": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        }
+      }
+    ]
+  }
 }
