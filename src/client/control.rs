@@ -494,8 +494,8 @@ mod tests {
         let mut unsupported = |p| {
             if p == [0, 64, 0] {
                 Ok(NativeBlockState {
-                    name: "minecraft:bubble_column".into(),
-                    properties: [("drag".into(), "false".into())].into_iter().collect(),
+                    name: "minecraft:nether_portal".into(),
+                    properties: [("axis".into(), "x".into())].into_iter().collect(),
                 })
             } else {
                 ordinary(p)
@@ -505,6 +505,35 @@ mod tests {
         assert!(matches!(session.status, ControlStatus::Paused { .. }));
         assert!(session.step(&start, &mut world(false)).unwrap().is_some());
         assert_eq!(session.status, ControlStatus::Running);
+    }
+
+    #[test]
+    fn bubble_columns_keep_control_running_in_both_directions() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            for down in [false, true] {
+                let start = received(Some((5, [0.5, 68.0, 0.5], None)), None);
+                let mut session = ControlSession::new(version, 1, [0.5, 68.0, 0.5], &start);
+                let mut ordinary = world(false);
+                let mut column = |p: [i32; 3]| {
+                    if p[0] == 0 && p[2] == 0 && (64..80).contains(&p[1]) {
+                        Ok(NativeBlockState {
+                            name: "minecraft:bubble_column".into(),
+                            properties: [("drag".into(), down.to_string())].into_iter().collect(),
+                        })
+                    } else {
+                        ordinary(p)
+                    }
+                };
+                for _ in 0..4 {
+                    let output = session.step(&start, &mut column).unwrap().unwrap();
+                    session.dispatched(&output);
+                    assert_eq!(session.status, ControlStatus::Running);
+                }
+                let y = session.frame.as_ref().unwrap().position[1];
+                assert!(if down { y < 68.0 } else { y > 68.0 });
+                assert_eq!(session.dispatched_ticks, 4);
+            }
+        }
     }
 
     #[test]
