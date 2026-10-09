@@ -448,6 +448,10 @@ public final class MovementOracle {
             JsonArray frames = new JsonArray();
             for (JsonElement e : scenario.getAsJsonArray("ticks")) {
                 JsonObject t = e.getAsJsonObject();
+                if (t.has("received_boat_velocity")) {
+                    JsonArray v = t.getAsJsonArray("received_boat_velocity");
+                    boat.setDeltaMovement(new Vec3(v.get(0).getAsDouble(), v.get(1).getAsDouble(), v.get(2).getAsDouble()));
+                }
                 int forward = t.has("forward") ? t.get("forward").getAsInt() : 0;
                 int strafe = t.has("strafe") ? t.get("strafe").getAsInt() : 0;
                 old.set(boat, status.get(boat));
@@ -457,6 +461,15 @@ public final class MovementOracle {
                 floating.invoke(boat);
                 control.invoke(boat);
                 boat.move(net.minecraft.world.entity.MoverType.SELF, boat.getDeltaMovement());
+                if (scenario.has("boat_bubbles")) {
+                    // AbstractBoat.tick invokes the unchanged Entity collector
+                    // twice. Surface launch/ejection is server-owned and is
+                    // qualified by real packets, not called as client physics.
+                    Method effects = net.minecraft.world.entity.Entity.class.getDeclaredMethod("aW");
+                    effects.setAccessible(true);
+                    effects.invoke(boat);
+                    effects.invoke(boat);
+                }
                 Vec3 v = boat.getDeltaMovement();
                 JsonObject f = new JsonObject();
                 f.add("position", vec(boat.getX()-origin.getX(), boat.getY()-origin.getY(), boat.getZ()-origin.getZ()));

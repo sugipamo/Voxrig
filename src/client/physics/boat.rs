@@ -1,6 +1,6 @@
 //! Mounted boat motion using the pinned Boat/AbstractBoat movement rules.
-//! Surface/submerged/flowing water, air and audited block collision. Bubble
-//! columns and entity collisions require separate received handling.
+//! Surface/submerged/flowing water, bubble interiors, air and audited block
+//! collision. Surface bubble launch/ejection belongs to the server.
 use super::*;
 use crate::client::vehicle::VehicleInput;
 
@@ -96,9 +96,6 @@ pub(crate) fn tick(
         for z in floor(b[2])..b[5].ceil() as i32 {
             for y in floor(b[1])..(b[4] + 0.001).ceil() as i32 {
                 let p = [x, y, z];
-                if level.block(p)?.name == "minecraft:bubble_column" {
-                    return Err(blocks::unsupported("boat bubble columns".into()));
-                }
                 if let Some(fluid) = level.fluid(p)? {
                     if fluid.lava {
                         return Err(blocks::unsupported("boat lava".into()));
@@ -261,10 +258,10 @@ pub(crate) fn tick(
     next.velocity[0] += f64::from(trig(version, -next.rotation[0], false) * acceleration);
     next.velocity[2] += f64::from(trig(version, next.rotation[0], true) * acceleration);
     next.paddles = [right && !left || forward, left && !right || forward];
-    if next
-        .velocity
-        .iter()
-        .any(|v| !v.is_finite() || v.abs() > 1.0)
+    if next.velocity.iter().any(|v| !v.is_finite())
+        || next.velocity[0].abs() > 1.0
+        || next.velocity[2].abs() > 1.0
+        || next.velocity[1].abs() > 3.0
     {
         return Err(blocks::unsupported(
             "boat step exceeds bounded movement".into(),
@@ -284,8 +281,10 @@ pub(crate) fn tick(
         for y in floor(region[1] - 0.01)..region[4].ceil() as i32 {
             for z in floor(region[2])..region[5].ceil() as i32 {
                 let block = level.block([x, y, z])?;
-                let ordinary_water =
-                    block.name == "minecraft:water" && block.inside == blocks::Effect::Liquid;
+                let ordinary_water = block.name == "minecraft:water"
+                    && block.inside == blocks::Effect::Liquid
+                    || block.name == "minecraft:bubble_column"
+                        && block.inside == blocks::Effect::BubbleColumn;
                 if (block.inside != blocks::Effect::None && !ordinary_water)
                     || block.step_on != blocks::Effect::None
                     || block.after_fall_on != blocks::Effect::None
@@ -344,12 +343,79 @@ pub(crate) fn tick(
         next.velocity[1] = 0.0;
     }
     next.last_vertical_movement = moved[1];
+    if version == MinecraftVersion::Java1_16_1 {
+        let bounds = next.bounds();
+        for x in floor(bounds[0] + 0.001)..=floor(bounds[3] - 0.001) {
+            for y in floor(bounds[1] + 0.001)..=floor(bounds[4] - 0.001) {
+                for z in floor(bounds[2] + 0.001)..=floor(bounds[5] - 0.001) {
+                    bubble_effect(&mut level, &mut next, [x, y, z], true)?;
+                }
+            }
+        }
+    } else {
+        let order = if velocity[0].abs() < velocity[2].abs() {
+            [1, 2, 0]
+        } else {
+            [1, 0, 2]
+        };
+        // AbstractBoat.tick applies block effects twice. The first consumes the
+        // self-movement steps; the second visits the stationary destination.
+        for from in [frame.position, next.position] {
+            for (cell, certain) in bubbles::visits(from, next.position, order, |p| {
+                deflate(BoatFrame::box_at(p), f64::from(1.0e-5f32))
+            })? {
+                bubble_effect(&mut level, &mut next, cell, certain)?;
+            }
+        }
+    }
     next.status = Some(status);
     next.in_water = matches!(
         status,
         Status::Water | Status::UnderWater | Status::UnderFlowingWater
     );
     Ok(next)
+}
+
+fn bubble_effect<F: FnMut([i32; 3]) -> Result<NativeBlockState>>(
+    level: &mut Level<'_, F>,
+    frame: &mut BoatFrame,
+    cell: [i32; 3],
+    certain: bool,
+) -> Result<()> {
+    if !certain || level.block(cell)?.inside != blocks::Effect::BubbleColumn {
+        return Ok(());
+    }
+    let above = [cell[0], cell[1] + 1, cell[2]];
+    let surface = if level.version == MinecraftVersion::Java1_16_1 {
+        level.is_air(above)?
+    } else {
+        level.fluid(above)?.is_none()
+            && level
+                .shape(
+                    above,
+                    CollisionContext {
+                        bottom: f64::INFINITY,
+                        descending: false,
+                    },
+                )?
+                .is_empty()
+    };
+    // Boat overrides the surface hook: the server owns its timer,
+    // launch and ejection. The client surface hook adds no impulse.
+    if !surface {
+        let down = level
+            .state(cell)?
+            .properties
+            .get("drag")
+            .map(String::as_str)
+            == Some("true");
+        frame.velocity[1] = if down {
+            (-0.3f64).max(frame.velocity[1] - 0.03)
+        } else {
+            0.7f64.min(frame.velocity[1] + 0.06)
+        };
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -364,7 +430,6 @@ mod tests {
                 "minecraft:slime_block",
                 "minecraft:honey_block",
                 "minecraft:cobweb",
-                "minecraft:bubble_column",
             ] {
                 let initial = BoatFrame::new([0.5, 65.0, 0.5], [0.0; 2], [0.0; 3]);
                 let saved = initial.clone();
@@ -400,6 +465,15 @@ mod tests {
     #[test]
     fn submerged_and_flowing_boats_match_unchanged_official_methods() {
         compare_boat_ticks(&super::super::oracle_tests::fluid_control_oracle(), 33);
+    }
+
+    #[test]
+    fn bubbles_and_velocity_changes_match_original_boat_movement() {
+        let oracle: Value = serde_json::from_reader(flate2::read::GzDecoder::new(
+            &include_bytes!("../../../data/client_api/boat_bubble_oracle.json.gz")[..],
+        ))
+        .unwrap();
+        compare_boat_ticks(&oracle, 16);
     }
 
     fn compare_boat_ticks(oracle: &Value, count: usize) {
@@ -439,6 +513,9 @@ mod tests {
                 let frames = result["frames"].as_array().unwrap();
                 assert_eq!(controls.len(), frames.len());
                 for (index, (input, expected)) in controls.iter().zip(frames).enumerate() {
+                    if let Some(value) = input["received_boat_velocity"].as_array() {
+                        frame.velocity = std::array::from_fn(|axis| value[axis].as_f64().unwrap());
+                    }
                     let input = VehicleInput {
                         forward: input["forward"].as_i64().unwrap_or(0) as i8,
                         strafe: input["strafe"].as_i64().unwrap_or(0) as i8,

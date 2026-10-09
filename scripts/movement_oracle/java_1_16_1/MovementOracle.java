@@ -449,6 +449,10 @@ public final class MovementOracle {
             JsonArray frames = new JsonArray();
             for (JsonElement e : scenario.getAsJsonArray("ticks")) {
                 JsonObject t = e.getAsJsonObject();
+                if (t.has("received_boat_velocity")) {
+                    JsonArray v = t.getAsJsonArray("received_boat_velocity");
+                    boat.setDeltaMovement(new Vec3(v.get(0).getAsDouble(), v.get(1).getAsDouble(), v.get(2).getAsDouble()));
+                }
                 int forward = t.has("forward") ? t.get("forward").getAsInt() : 0;
                 int strafe = t.has("strafe") ? t.get("strafe").getAsInt() : 0;
                 old.set(boat, status.get(boat));

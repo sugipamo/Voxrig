@@ -137,3 +137,27 @@ python3 scripts/movement_oracle/run.py \
 cargo test --locked --lib bubble_columns_reproduce_every_official_tick_without_refusals
 cargo test --locked --lib submerged_and_flowing_boats_match_unchanged_official_methods
 ```
+
+
+## ボートの泡の比較（2026-10-09）
+
+`boat_bubble_scenarios.py`の16場面を両版の元のボート移動で実行する。
+1.21.11では`AbstractBoat.tick`の順序に従い、`Entity.move`の後に元の
+`Entity.applyEffectsFromBlocks`を2回呼ぶ。タイマーやサーバー側のlaunchを移植しない。
+`received_boat_velocity`は元の移動への計測用入力であり、packet受信の証拠ではない。
+実際の速度通知・強制下車は別の公式サーバー接続で検証する。
+
+```bash
+python3 -B scripts/movement_oracle/boat_bubble_scenarios.py .local/boat-bubbles.json
+python3 -B scripts/movement_oracle/run.py \
+  --downloads /absolute/path/to/downloads --work "$PWD/.local/boat-bubble-oracle" \
+  --scenarios "$PWD/.local/boat-bubbles.json" \
+  --output "$PWD/data/client_api/boat_bubble_oracle.json.gz" \
+  --blocks-output "$PWD/.local/boat-bubble-blocks"
+cargo test --locked --lib bubbles_and_velocity_changes_match_original_boat_movement
+python3 -B scripts/run_boat_bubbles.py --accept-eula \
+  --jars /absolute/path/to/downloads --binary target/debug/examples/climbing_control_probe
+```
+
+混在する泡、移動途中の接触、水浸しの上面を含む32実行の全tickについて、位置・速度・
+回転・角速度・接地・水接触・パドルを比較する。モデルをpacketの現在位置やACKとは扱わない。
