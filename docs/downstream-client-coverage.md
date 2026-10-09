@@ -118,7 +118,7 @@ history読取時計／cursor ordinalはOBS-ENTITYの未実装分へ重複登録�
 | 水中・梯子・つる・足場の継続操作 | `scripts/run_climbing_control.py`、[common-control](common-control.md) |
 | player泡の柱、ボートの水源／水没／流水・解除・強制下車 | `scripts/run_fluid_control.py`、[公式34checkの証拠](evidence/common-fluid-control-20261009.json)、[3346tickのoracle](movement-oracle.md) |
 | 64block ray、mode別look／hotbar | `scripts/run_migration_api.py`、[両版42checkの証拠](evidence/common-migration-api-20261009.json) |
-| entity寿命／受信履歴 | `scripts/run_migration_api.py`、[両版8checkの証拠](evidence/common-entity-history-20261009.json) |
+| entity寿命／受信履歴 | `scripts/run_entity_history.py`、[両版8checkの証拠](evidence/common-entity-history-20261009.json) |
 | entity health／equipment／named dataと使用中状態 | `examples/entity_block_probe.rs`、`entity_data_probe.rs`、`item_use_probe.rs`。各common文書の検証節 |
 | native元イベント容量（1.16.1） | `scripts/run_native_event_capacity.py`、[common-events](common-events.md)。modern明示指定は接続前拒否 |
 
