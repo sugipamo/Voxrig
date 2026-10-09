@@ -17,6 +17,13 @@ pub struct EntityHistoryCursor {
     connection_id: u64,
     ordinal: u64,
 }
+impl EntityHistoryCursor {
+    /// Read-only record ordinal for bounding a paged drain at a captured tail.
+    /// It is not a packet sequence and cannot construct another cursor/target.
+    pub fn ordinal(self) -> u64 {
+        self.ordinal
+    }
+}
 /// Explicit loss before the retained window. Reading resumes at its oldest record.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct EntityHistoryGap {
@@ -92,6 +99,10 @@ pub struct EntityHistory {
     pub session: SessionStamp,
     /// Adapter receive boundary at read time, separate from historical samples.
     pub receive_sequence: u64,
+    /// Read-time clock sample from the same ledger origin as `applied_after`.
+    /// Advances on quiet reads too; subtract record time to measure its age.
+    /// Not packet arrival time, a server tick, or a freshness acknowledgement.
+    pub captured_after: Duration,
     /// Oldest-first records, limited by the requested read bound.
     pub records: Vec<EntityHistoryRecord>,
     /// Resume after the last returned record (or the requested cursor if empty).
@@ -203,6 +214,7 @@ impl HistoryLedger {
         Ok(EntityHistory {
             session,
             receive_sequence: sequence,
+            captured_after: self.started.elapsed(),
             records,
             next_cursor: mk(next),
             latest_cursor: mk(self.next),

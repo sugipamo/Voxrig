@@ -34,6 +34,9 @@ loop {
 - カーソルはversion・connection ID・**record ordinal**を持つ読み取り専用の型。
   packetのreceive sequenceとは別の順序であり、複数entityの削除など1 packetから複数recordを作れる。
   別接続・別版・未来のカーソルは`State`。不正な読取件数は`InvalidInput`。
+  `ordinal()`で読取境界を比較できる。初回pageの`latest_cursor`を上限にして、次のread件数を
+  残るordinal数以下にすると、連続した受信の途中でも有限の履歴範囲を処理できる。
+  途中で保持窓がその上限を越えた場合も`gap`を処理し、元の上限cursorまでの欠落を明示する。
 - 各recordは適用時のversion、connection、world generation、packet receive sequence、record ordinalを持つ。
   remote entityのidentityは元のspawn sequenceを含む。IDが再利用されても同じlifetimeに結合しない。
 - respawn・dimension変更・再設定は`WorldChanged`で古いlifetimeを無効にする。
@@ -58,6 +61,13 @@ legacyのown補正にはvelocityがないため`None`である。
 **socketへの到着時刻、relayの受信時刻、server tick、UTC時刻、利用側のpoll時刻ではない。**
 同じpacket内でもrecord ordinalで順序を確定し、別接続の経過時間を直接比較しない。
 readの`receive_sequence`は読取時の境界であり、recordの過去のsequenceと区別する。
+pageの`captured_after`は同じ履歴ledgerの時計を読み取った時刻で、更新packetが来ない間も進む。
+`captured_after - record.applied_after`でSDK内の経過時間を求められる。最新recordの時刻や
+利用側のpoll時刻を新しいサンプルの時刻に置き換えない。
+利用側の別の時計へ結合する場合、呼出開始時刻からこの経過時間を引けば、SDK読取までの
+待機時間も含めた安全側の古さになる。時計の原点やsocket到着時刻が一致するとは主張しない。
+順序を保つため最初のreadで対応する二つの時計の基準を固定し、後のrecordにも同じ対応を使う。
+利用側の時計の原点より前になる場合は、変換不能として扱いゼロへ丸めない。
 
 保持対象は、既存decoderが対応する受信spawn、既知lifetimeのmotion、status、animation、
 removal、world変更、own補正。metadata、装備、未対応のpacket payload全体は保存しない。
