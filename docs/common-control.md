@@ -133,6 +133,9 @@ let latest = survival.control_record().await?.unwrap().ground_jump;
 装備更新中も同じ操作所有者を使い、元の属性・位置パケットとRCON位置を照合した。予期しない補正は0回。
 [検証記録](evidence/common-equipment-movement-20261010.json)は結果と入力・SDK・binary・公式JARのhashを公開する。
 元の通信・NBT記録はローカルに保持する。
+既存のCreative明示飛行も同じSDKで両版の公式サーバーへ接続し、有効化・3回の空中移動・
+一度の飛行解除とneutral・有限の着地・地上移動・収納操作への継続を再確認した。
+これは継続操作エンジンの飛行・エリトラ対応を意味しない。
 
 ```sh
 cargo build --locked --features native --example climbing_control_probe

@@ -122,6 +122,57 @@
   "limits": [
     "Converted control parameters remain model diagnostics, never current receipts or execution authority.",
     "Flying/elytra and other mounts are separate controls; these equipment runs cover survival movement.",
-    "Public evidence contains no raw packet/NBT/item payloads."
+    "Public evidence contains no raw packet/NBT/item payloads.",
+    "Creative flight uses existing explicit player controls and bounded landing; no continuous flight/elytra physics is claimed."
+  ],
+  "existing_creative_landing_requalification": [
+    {
+      "version": "1.16.1",
+      "scenario": "creative-landing",
+      "passed": true,
+      "checks": [
+        "same_Client_flight_enable",
+        "three_owned_airborne_steps",
+        "once_disable_and_neutral",
+        "bounded_native_landing",
+        "ground_continuation",
+        "actual_storage_open_close",
+        "original_wire_fields_and_independent_RCON_endpoints"
+      ],
+      "report_sha256": "3c006b163a2c3d0b2ad8fb848e166009812cc053e489b1d0a56022672cb94a49",
+      "baseline_commit": "f05fff1a93ed9e5b4a6e2a8f4bb3d13fa712990a",
+      "binary_sha256": "1256281c807ae160073000396a5ffff9a06109eac19c65a35761195ddd19bea3",
+      "input_manifest_sha256": "2e4d517a424e9fb9e0a355735d4bfb605f57101be5cbe0157cf682786a871224",
+      "source_sha256": {
+        "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+        "examples/common_native_probe.rs": "512ce5cadfe6421fe5c52d49ef2b543b7fd6bb34a6cd78f7354b5b3791263156",
+        "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf"
+      },
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077"
+    },
+    {
+      "version": "1.21.11",
+      "scenario": "creative-landing",
+      "passed": true,
+      "checks": [
+        "same_Client_flight_enable",
+        "three_owned_airborne_steps",
+        "once_disable_and_neutral",
+        "bounded_native_landing",
+        "ground_continuation",
+        "actual_storage_open_close",
+        "original_wire_fields_and_independent_RCON_endpoints"
+      ],
+      "report_sha256": "57b3bb3d08fec6f89df3db20892b274c890c2090fd94c32504497d65070167d5",
+      "baseline_commit": "f05fff1a93ed9e5b4a6e2a8f4bb3d13fa712990a",
+      "binary_sha256": "1256281c807ae160073000396a5ffff9a06109eac19c65a35761195ddd19bea3",
+      "input_manifest_sha256": "2e4d517a424e9fb9e0a355735d4bfb605f57101be5cbe0157cf682786a871224",
+      "source_sha256": {
+        "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+        "examples/common_native_probe.rs": "512ce5cadfe6421fe5c52d49ef2b543b7fd6bb34a6cd78f7354b5b3791263156",
+        "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf"
+      },
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed"
+    }
   ]
 }
