@@ -306,3 +306,28 @@ python3 -B scripts/run_boat_hooks.py --accept-eula \
 フィクスチャは実際の公式車両をworldへ登録する。1.16.1の場面間の除去は公式`despawn`を使い、
 1.21.11は公式のentity-ticking chunkになるまで待つ。元のworld検索で車両が見えることも確認する。
 ゲーム本体のクラス・衝突predicate・形状を差し替えない。
+
+変更していない公式サーバーへの実接続は次を使う。
+
+```bash
+cargo build --locked --example climbing_control_probe
+python3 -B scripts/run_boat_collisions.py --accept-eula \
+  --binary target/debug/examples/climbing_control_probe \
+  --jars /absolute/path/to/downloads --compiled-sdk-revision <build-commit>
+python3 -B scripts/run_boat_collisions.py --accept-eula --version 1.21.11 \
+  --nested-attachment-only --binary target/debug/examples/climbing_control_probe \
+  --jars /absolute/path/to/downloads --compiled-sdk-revision <build-commit>
+```
+
+両版各9項目、計18項目で、ボート対ボート／トロッコの衝突、元の受信target・乗員list、
+各tickの送信frame、独立RCONの最終座標、取消後の所有run継続、neutral、despawn、
+未監査entityへの送信前拒否、強制除外後の再送禁止、切断後の履歴を確認した。
+1.21.11の元の`/ride`でも、実際の入れ子通知と関係復帰後の停止・再送禁止・履歴保持を
+別の3項目で検証した。通知が送られる前に同じserver tickで関係を戻す場面は検証項目に数えない。
+1.16.1には元の`/ride`がないため、この実接続項目を対応済みと扱わない。
+
+既存のトロッコ自身のserver physicsによる乗車・前進・neutral・下車も、両版各4項目、計8項目を
+同じSDKバイナリで再検証した。全965 unit・4 integration・34 doctestとstrict Clippy／rustdocが成功。
+原packet・NBTを含むreportは`.local`に保存し、公開するのは
+[結果と実行ソースのhash](evidence/common-boat-collisions-20261010.json)である。
+一般のentityの姿勢・scale・補間／押し合い、連続飛行／elytra、追加の乗り物は#44の残件である。
