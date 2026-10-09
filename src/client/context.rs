@@ -1,6 +1,43 @@
 //! Bounded received own-player and world context, separate from model state.
 use super::{ObservedValue, SessionStamp, received};
 
+/// One original abilities packet; these are receipts, not execution authority.
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize)]
+pub struct PlayerAbilities {
+    /// Original flags: invulnerable, flying, may fly and instant build.
+    pub flags: u8,
+    /// Original flying speed, without deriving an effective movement speed.
+    pub flying_speed: f32,
+    /// Original walking speed, independent of received movement attributes.
+    pub walking_speed: f32,
+}
+impl PlayerAbilities {
+    /// Received invulnerability flag.
+    pub const fn invulnerable(self) -> bool {
+        self.flags & 1 != 0
+    }
+    /// Received flying flag, independent of locally requested flight.
+    pub const fn flying(self) -> bool {
+        self.flags & 2 != 0
+    }
+    /// Received flight permission; a saved receipt does not authorize an action.
+    pub const fn may_fly(self) -> bool {
+        self.flags & 4 != 0
+    }
+    /// Received instant-build flag; not a synthesized game mode.
+    pub const fn instant_build(self) -> bool {
+        self.flags & 8 != 0
+    }
+}
+/// Original world difficulty notification, without inferring server rules.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct WorldDifficulty {
+    /// Original byte identifier: normally 0 peaceful, 1 easy, 2 normal, 3 hard.
+    pub id: u8,
+    /// Original difficulty-lock boolean; known false is distinct from absence.
+    pub locked: bool,
+}
+
 /// One original experience packet. No inferred progress or locally earned XP.
 #[derive(Clone, Copy, Debug, PartialEq, serde::Serialize)]
 pub struct Experience {
@@ -51,6 +88,10 @@ pub struct PlayerContextObservation {
     pub session: SessionStamp,
     /// Capture boundary, independent from every field's receipt ordinal.
     pub receive_sequence: u64,
+    /// Original abilities packet, if received in this world generation.
+    pub abilities: Option<ObservedValue<PlayerAbilities>>,
+    /// Original difficulty notification, if received in this generation.
+    pub difficulty: Option<ObservedValue<WorldDifficulty>>,
     /// Original own-player experience packet, if received in this generation.
     pub experience: Option<ObservedValue<Experience>>,
     /// Independent actual weather fields.
@@ -61,7 +102,7 @@ pub struct PlayerContextObservation {
     pub world_view: WorldViewObservation,
 }
 impl crate::Client {
-    /// Capture bounded received experience, weather, default spawn and view
+    /// Capture bounded received abilities, difficulty, experience, weather, spawn and view
     /// packets. Missing values stay absent; no present-time interpolation,
     /// permission or server outcome is inferred. Readable after closure.
     pub async fn player_context(&self) -> crate::Result<PlayerContextObservation> {
@@ -72,6 +113,8 @@ impl crate::Client {
 #[derive(Default)]
 pub(crate) struct ContextLedger {
     pub maps: super::maps::MapLedger,
+    pub abilities: Option<ObservedValue<PlayerAbilities>>,
+    pub difficulty: Option<ObservedValue<WorldDifficulty>>,
     pub experience: Option<ObservedValue<Experience>>,
     pub weather: WeatherObservation,
     pub default_spawn: Option<ObservedValue<DefaultSpawnPosition>>,
@@ -86,6 +129,8 @@ impl ContextLedger {
         PlayerContextObservation {
             session,
             receive_sequence,
+            abilities: self.abilities.clone(),
+            difficulty: self.difficulty.clone(),
             experience: self.experience.clone(),
             weather: self.weather.clone(),
             default_spawn: self.default_spawn.clone(),
