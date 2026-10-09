@@ -465,12 +465,12 @@ pub(crate) fn tick(
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum GroundJumpOutcome {
-    /// The model applied its version-specific dry-ground jump once.
+    /// The model applied its version-specific ground jump once.
     Applied,
     /// Held jump input already owns this tick's jump/swim/climb behavior.
     JumpInputAlreadyHeld,
-    /// This model tick was airborne or touching water/lava; no retry is queued.
-    NotOnDryGround,
+    /// This model tick was not on ground; no retry is queued.
+    NotOnGround,
 }
 
 pub(crate) fn tick_with_ground_jump(
@@ -599,8 +599,8 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         } else {
             self.body.no_jump_delay = 0;
             if self.ground_jump_requested {
-                self.ground_jump_outcome = Some(GroundJumpOutcome::NotOnDryGround);
-                if self.body.on_ground && !self.body.in_water && !self.in_lava() {
+                self.ground_jump_outcome = Some(GroundJumpOutcome::NotOnGround);
+                if self.body.on_ground {
                     self.jump_from_ground()?;
                     self.body.no_jump_delay = 10;
                     self.ground_jump_outcome = Some(GroundJumpOutcome::Applied);

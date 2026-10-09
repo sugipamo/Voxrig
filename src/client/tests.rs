@@ -305,7 +305,7 @@ pub(crate) async fn common_ground_jump_admission_scenario(client: &crate::Client
             let record = survival.control_record().await.unwrap().unwrap();
             if matches!(
                 record.ground_jump.as_ref().unwrap().status,
-                GroundJumpStatus::Modelled { .. }
+                GroundJumpStatus::Predicted { .. }
             ) {
                 assert_eq!(record.controls, held);
                 assert!(!record.frame.unwrap().on_ground);

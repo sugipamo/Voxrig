@@ -82,6 +82,19 @@ async fn main() -> anyhow::Result<()> {
                 return Ok(());
             }
             "start" => serde_json::to_value(survival.start_control().await?)?,
+            "ground_jump" => {
+                let id = request["session_id"].as_u64().unwrap();
+                match survival.request_ground_jump(id).await {
+                    Ok(record) => {
+                        anyhow::ensure!(request["expect_rejected"] != true, "unexpected admission");
+                        serde_json::to_value(record)?
+                    }
+                    Err(error) if request["expect_rejected"] == true => {
+                        serde_json::json!({"rejected":true,"kind":format!("{:?}",error.kind()),"message":error.to_string()})
+                    }
+                    Err(error) => return Err(error.into()),
+                }
+            }
             "restart" => {
                 let stopped = survival.stop_control().await?;
                 let started = survival.start_control().await?;

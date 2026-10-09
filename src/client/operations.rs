@@ -391,8 +391,8 @@ impl Survival {
     ) -> Result<super::control::ControlRecord> {
         crate::client::dispatch!(&self.client.adapter, a => ControlOps::set_controls(a, GameMode::Survival, controls).await)
     }
-    /// Queue one dry-ground jump on the next model tick of this exact session.
-    /// Held controls/rotation are preserved; queued repeats coalesce. Air/fluid
+    /// Queue one ground jump on the next model tick of this exact session.
+    /// Held controls/rotation are preserved; queued repeats coalesce. Airborne motion
     /// consumes it without a jump, with no later landing retry. Paused/stopped
     /// sessions are rejected; if the next tick pauses, the request is discarded.
     /// The receipt is local queue admission, never movement completion or ACK.

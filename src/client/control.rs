@@ -19,7 +19,7 @@ pub enum GroundJumpStatus {
     /// Accepted locally, awaiting the next model tick.
     Queued,
     /// Consumed exactly once by the model, before any movement write.
-    Modelled {
+    Predicted {
         /// Session tick which consumed the request.
         tick: u64,
         /// Local outcome, including refusal to jump in air/fluid.
@@ -294,8 +294,9 @@ impl ControlSession {
 
     pub(crate) fn request_ground_jump(&mut self) -> Result<GroundJumpRequestRecord> {
         if self.status != ControlStatus::Running {
-            return Err(crate::client::registry::invalid(
-                "ground jump requires a running, unpaused control session",
+            return Err(crate::Error::new(
+                crate::ErrorKind::State,
+                anyhow::anyhow!("ground jump requires a running, unpaused control session"),
             ));
         }
         if let Some(request) = &self.ground_jump {
@@ -307,7 +308,12 @@ impl ControlSession {
             .ground_jump
             .as_ref()
             .map_or(Some(1), |r| r.request_id.checked_add(1))
-            .ok_or_else(|| crate::client::registry::invalid("ground jump request IDs exhausted"))?;
+            .ok_or_else(|| {
+                crate::Error::new(
+                    crate::ErrorKind::State,
+                    anyhow::anyhow!("ground jump request IDs exhausted"),
+                )
+            })?;
         let request = GroundJumpRequestRecord {
             session_id: self.id,
             request_id,
@@ -432,7 +438,7 @@ impl ControlSession {
             }
         };
         if let Some(outcome) = outcome {
-            self.ground_jump.as_mut().unwrap().status = GroundJumpStatus::Modelled {
+            self.ground_jump.as_mut().unwrap().status = GroundJumpStatus::Predicted {
                 tick: self.tick,
                 outcome,
             };
@@ -548,6 +554,51 @@ mod tests {
     }
 
     #[test]
+    fn one_shot_grounded_water_uses_ground_jump_without_holding_swimming_input() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let start = received(Some((5, [0.5, 64.0, 0.5], None)), None);
+            let mut session = ControlSession::from_model(
+                version,
+                1,
+                Body::new([0.5, 64.0, 0.5]),
+                [37.0, -12.0],
+                &start,
+            );
+            let mut baseline = session.resume(2, [37.0, -12.0], &start);
+            let make_world = || {
+                move |p: [i32; 3]| {
+                    if p[1] == 64 {
+                        Ok(NativeBlockState {
+                            name: "minecraft:water".into(),
+                            properties: [("level".into(), "0".into())].into_iter().collect(),
+                        })
+                    } else {
+                        world(false)(p)
+                    }
+                }
+            };
+            session.request_ground_jump().unwrap();
+            session.step(&start, &mut make_world()).unwrap();
+            baseline.step(&start, &mut make_world()).unwrap();
+            assert!(session.body.in_water);
+            assert!(session.body.position[1] > baseline.body.position[1]);
+            assert!(!session.controls.jump);
+            assert_eq!(
+                session.record().ground_jump.unwrap().status,
+                GroundJumpStatus::Predicted {
+                    tick: 1,
+                    outcome: GroundJumpOutcome::Applied
+                }
+            );
+            for _ in 0..45 {
+                session.step(&start, &mut make_world()).unwrap();
+            }
+            assert!(session.body.on_ground);
+            assert!(!session.controls.jump);
+        }
+    }
+
+    #[test]
     fn one_shot_request_preserves_held_fluid_and_climbing_model() {
         for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
             for fluid in [false, true] {
@@ -584,7 +635,7 @@ mod tests {
                 }
                 assert_eq!(
                     session.record().ground_jump.unwrap().status,
-                    GroundJumpStatus::Modelled {
+                    GroundJumpStatus::Predicted {
                         tick: 1,
                         outcome: GroundJumpOutcome::JumpInputAlreadyHeld
                     }
@@ -616,7 +667,7 @@ mod tests {
             assert_eq!(session.controls, held);
             assert_eq!(
                 session.record().ground_jump.unwrap().status,
-                GroundJumpStatus::Modelled {
+                GroundJumpStatus::Predicted {
                     tick: 1,
                     outcome: GroundJumpOutcome::Applied
                 }
@@ -660,9 +711,9 @@ mod tests {
             session.step(&start, &mut world(false)).unwrap();
             assert_eq!(
                 session.record().ground_jump.unwrap().status,
-                GroundJumpStatus::Modelled {
+                GroundJumpStatus::Predicted {
                     tick: 1,
-                    outcome: GroundJumpOutcome::NotOnDryGround
+                    outcome: GroundJumpOutcome::NotOnGround
                 }
             );
             for _ in 0..40 {
