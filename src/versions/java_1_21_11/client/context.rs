@@ -6,6 +6,21 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
     use ids::play_clientbound as p;
     let mut r = Reader::new(payload);
     match id {
+        p::SET_COOLDOWN => {
+            let group = r.string()?;
+            anyhow::ensure!(
+                group.len() <= 32_767,
+                "cooldown group exceeds native resource-key limit"
+            );
+            crate::client::identifier::parts(&group)?;
+            let ticks = r.varint()?;
+            r.end()?;
+            state.context.cooldown(
+                crate::client::CooldownKey::Group(group),
+                ticks,
+                state.sequence,
+            )?;
+        }
         p::DIFFICULTY => {
             let value = crate::client::WorldDifficulty {
                 id: r.u8()?,
@@ -78,6 +93,163 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
 mod tests {
     use super::*;
     use crate::client::{SessionStamp, ValueSource};
+    #[test]
+    fn world_entry_is_atomic_including_login_and_respawn_suffixes() {
+        let mut state = State {
+            phase: super::super::Phase::Play,
+            ..Default::default()
+        };
+        state
+            .dimensions
+            .push(super::super::Dimension::new(-64, 384).unwrap());
+        let mut spawn = vec![0];
+        crate::protocol::put_string(&mut spawn, "minecraft:overworld");
+        spawn.extend(123i64.to_be_bytes());
+        spawn.extend([1, 255, 0, 1, 1]);
+        crate::protocol::put_string(&mut spawn, "minecraft:the_nether");
+        spawn.extend(0u64.to_be_bytes());
+        spawn.extend([7, 63]);
+        let mut login = 77i32.to_be_bytes().to_vec();
+        login.extend([1, 0, 5, 3, 2, 1, 0, 1]);
+        login.extend(&spawn);
+        login.push(1);
+        super::super::apply_play(&mut state, ids::play_clientbound::LOGIN, &login, 64).unwrap();
+        let saved = state.context.world_entry.clone();
+        assert_eq!(saved.as_ref().unwrap().value.previous_game_mode, -1);
+        assert_eq!(
+            saved
+                .as_ref()
+                .unwrap()
+                .value
+                .last_death
+                .as_ref()
+                .unwrap()
+                .dimension,
+            "minecraft:the_nether"
+        );
+        assert_eq!(
+            state
+                .context
+                .login_conditions
+                .as_ref()
+                .unwrap()
+                .value
+                .max_players,
+            5
+        );
+        let generation = state.loading.generation;
+        let conditions = state.context.login_conditions.clone();
+        for id in [ids::play_clientbound::LOGIN, ids::play_clientbound::RESPAWN] {
+            let mut whole = if id == ids::play_clientbound::LOGIN {
+                login.clone()
+            } else {
+                let mut p = spawn.clone();
+                p.push(3);
+                p
+            };
+            for end in 0..whole.len() {
+                assert!(super::super::apply_play(&mut state, id, &whole[..end], 64).is_err());
+                assert_eq!(state.context.world_entry, saved);
+                assert_eq!(state.context.login_conditions, conditions);
+                assert_eq!(state.loading.generation, generation);
+                assert_eq!(
+                    super::super::operations::common_player_in_state(&state, 0, false)
+                        .unwrap()
+                        .game_mode,
+                    Some(crate::client::GameMode::Creative)
+                );
+            }
+            whole.push(0);
+            assert!(super::super::apply_play(&mut state, id, &whole, 64).is_err());
+            assert_eq!(state.context.world_entry, saved);
+        }
+        state.sequence = 10;
+        spawn.push(3);
+        super::super::apply_play(&mut state, ids::play_clientbound::RESPAWN, &spawn, 64).unwrap();
+        assert_eq!(
+            state.context.world_entry.as_ref().unwrap().source,
+            ValueSource::Received { sequence: 10 }
+        );
+        assert_eq!(
+            state
+                .context
+                .world_entry
+                .as_ref()
+                .unwrap()
+                .value
+                .respawn_keep_data,
+            Some(3)
+        );
+        assert!(state.context.login_conditions.is_none());
+        assert_eq!(saved.unwrap().value.respawn_keep_data, None);
+    }
+    #[test]
+    fn cooldown_group_notifications_are_bounded_atomic_and_keep_zero() {
+        let mut state = State {
+            phase: super::super::Phase::Play,
+            ..Default::default()
+        };
+        let mut packet = Vec::new();
+        crate::protocol::put_string(&mut packet, "minecraft:ender_pearl");
+        packet.push(20);
+        state.sequence = 3;
+        receive(&mut state, ids::play_clientbound::SET_COOLDOWN, &packet).unwrap();
+        let saved = state.context.item_cooldowns.clone();
+        for n in 0..packet.len() {
+            assert!(
+                receive(
+                    &mut state,
+                    ids::play_clientbound::SET_COOLDOWN,
+                    &packet[..n]
+                )
+                .is_err()
+            );
+            assert_eq!(state.context.item_cooldowns, saved);
+        }
+        let mut trailing = packet.clone();
+        trailing.push(0);
+        assert!(receive(&mut state, ids::play_clientbound::SET_COOLDOWN, &trailing).is_err());
+        state.sequence = 4;
+        *packet.last_mut().unwrap() = 0;
+        receive(&mut state, ids::play_clientbound::SET_COOLDOWN, &packet).unwrap();
+        assert_eq!(
+            state.context.item_cooldowns.values().next().unwrap().value,
+            0
+        );
+        assert_eq!(saved.values().next().unwrap().value, 20);
+        state
+            .receive(ids::play_clientbound::START_CONFIGURATION, &[], 64)
+            .unwrap();
+        assert!(state.context.item_cooldowns.is_empty());
+        let mut ledger = crate::client::context::ContextLedger::default();
+        for id in 0..1024 {
+            ledger
+                .cooldown(crate::client::CooldownKey::LegacyItem(id), 0, 1)
+                .unwrap();
+        }
+        assert!(
+            ledger
+                .cooldown(crate::client::CooldownKey::LegacyItem(1024), 1, 2)
+                .is_err()
+        );
+        ledger
+            .cooldown(crate::client::CooldownKey::LegacyItem(0), 3, 2)
+            .unwrap();
+        assert!(
+            ledger
+                .cooldown(crate::client::CooldownKey::LegacyItem(0), -1, 3)
+                .is_err()
+        );
+        assert_eq!(ledger.item_cooldowns.len(), 1024);
+        assert_eq!(
+            ledger
+                .item_cooldowns
+                .get(&crate::client::CooldownKey::LegacyItem(0))
+                .unwrap()
+                .value,
+            3
+        );
+    }
     #[test]
     fn abilities_and_difficulty_modern_are_atomic_received_world_context() {
         let mut state = State {

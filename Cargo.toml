@@ -22,6 +22,7 @@ include = [
     "/scripts/run_boat_hooks.py",
     "/scripts/run_player_context.py",
     "/scripts/run_abilities_context.py",
+    "/scripts/run_world_entry_context.py",
     "/scripts/run_chunk_context.py",
     "/scripts/run_map_context.py",
     "/scripts/VerifyReceivedHeightmap.java",

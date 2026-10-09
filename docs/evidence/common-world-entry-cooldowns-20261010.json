@@ -1,0 +1,123 @@
+{
+  "scope": "Voxrig common world/player sensors; raw original packet/NBT reports remain ignored locally",
+  "qualification": {
+    "binary_build_revision": "f22c0b9d3b8342ec0a50c6ffc0619d7389ffd621",
+    "source_revision": "f22c0b9d3b8342ec0a50c6ffc0619d7389ffd621",
+    "source_diff_sha256": "3715d469b68ca8d1d05f426a45d804760960490768cf0e30d60c7189c81c1807",
+    "source_difference": "Only verification-driver loading wait and documentation; SDK runtime source unchanged",
+    "binary_sha256": "2447630acd47fa7e0a517f932aecc063071db408cf052efd71f06cac9a0890b9",
+    "artifacts": {
+      "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+      "scripts/run_world_entry_context.py": "8712d4f537fef6b2188adc0089bdbd60ae0abc3e3e76c06cf5b9f8730ff46cd7",
+      "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+      "scripts/run_common_native.py": "d2a067b6201f7ef8f569e93374a62fdaa6e52411bff719116ff085309a700f15",
+      "scripts/run_player_context.py": "d01326f3d9c107005d86e61f4b2de3c73c12ea68ce55d7874b1a3917f9682441",
+      "examples/climbing_control_probe.rs": "e1b2971af7e2bfe8e6d3a7dad1fb99561816851dd77477fa896234fbda49593b"
+    }
+  },
+  "runs": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "check_count": 9,
+      "checks": [
+        {
+          "name": "original_login_conditions_and_previous_mode",
+          "passed": true
+        },
+        {
+          "name": "received_positive_cooldown_native_identity",
+          "passed": true
+        },
+        {
+          "name": "received_zero_cooldown_retained",
+          "passed": true
+        },
+        {
+          "name": "unrelated_receive_keeps_cooldown_source",
+          "passed": true
+        },
+        {
+          "name": "difficulty_context_notification",
+          "passed": true
+        },
+        {
+          "name": "dimension_respawn_previous_mode_and_cooldown_retirement",
+          "passed": true
+        },
+        {
+          "name": "return_dimension_entry_ownership",
+          "passed": true
+        },
+        {
+          "name": "same_dimension_death_respawn_keep_data_and_last_death",
+          "passed": true
+        },
+        {
+          "name": "world_entry_and_cooldowns_readable_after_close",
+          "passed": true
+        }
+      ],
+      "report_sha256": "53d213f9cdebe9ba4c21eb5563757be4af31fee6cde22b223fdee92cfb9f14ed"
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "check_count": 11,
+      "checks": [
+        {
+          "name": "original_login_conditions_and_previous_mode",
+          "passed": true
+        },
+        {
+          "name": "received_positive_cooldown_native_identity",
+          "passed": true
+        },
+        {
+          "name": "received_zero_cooldown_retained",
+          "passed": true
+        },
+        {
+          "name": "modern_custom_group_is_not_an_item_registry_id",
+          "passed": true
+        },
+        {
+          "name": "modern_custom_group_zero_clear",
+          "passed": true
+        },
+        {
+          "name": "unrelated_receive_keeps_cooldown_source",
+          "passed": true
+        },
+        {
+          "name": "difficulty_context_notification",
+          "passed": true
+        },
+        {
+          "name": "dimension_respawn_previous_mode_and_cooldown_retirement",
+          "passed": true
+        },
+        {
+          "name": "return_dimension_entry_ownership",
+          "passed": true
+        },
+        {
+          "name": "same_dimension_death_respawn_keep_data_and_last_death",
+          "passed": true
+        },
+        {
+          "name": "world_entry_and_cooldowns_readable_after_close",
+          "passed": true
+        }
+      ],
+      "report_sha256": "fa0fff521344444bc824b311d43bb8507d0d4448a0b3c29267cb3d351127dc5a"
+    }
+  ],
+  "raw_aggregate_sha256": "aec4a1ca104cdce64d0a33b057c3d89c4655b93cf4f396f2e7137820427ac353",
+  "limits": [
+    "Cooldowns are received durations, without countdown or execution authority",
+    "Legacy item ID and modern resource-key group remain distinct",
+    "Entry receipt is world-scoped; LOGIN-only fields retire on RESPAWN",
+    "This audit covers world/own-player sensors, not every protocol packet"
+  ]
+}

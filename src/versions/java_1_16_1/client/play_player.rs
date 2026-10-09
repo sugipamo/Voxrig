@@ -46,8 +46,32 @@ impl Bot {
         let join = parse_join(p)?;
         {
             let mut receipts = self.common_receipts.lock().await;
+            let mut registries = receipts.registries.clone();
+            registries.legacy_join(join.registry_codec.clone(), packet_sequence)?;
             receipts.generation = packet_sequence;
             receipts.context = Default::default();
+            receipts.context.world_entry = Some(crate::client::received(
+                crate::client::WorldEntryContext {
+                    world_name: join.world_name.clone(),
+                    dimension_type_name: Some(join.dimension.clone()),
+                    dimension_type_id: None,
+                    game_mode: join.game_mode,
+                    previous_game_mode: join.previous_game_mode as i8,
+                    hashed_seed: join.hashed_seed,
+                    debug: join.debug,
+                    flat: join.flat,
+                    last_death: None,
+                    portal_cooldown: None,
+                    sea_level: None,
+                    respawn_keep_data: None,
+                },
+                packet_sequence,
+            ));
+            receipts.context.login_conditions = join
+                .login_conditions
+                .clone()
+                .map(|v| crate::client::received(v, packet_sequence));
+
             receipts.abilities = None;
             receipts.may_fly = None;
             receipts.requested_flying = false;
@@ -63,9 +87,7 @@ impl Bot {
             receipts.rotation_source = None;
             receipts.entities.clear();
             receipts.vehicles.clear();
-            receipts
-                .registries
-                .legacy_join(join.registry_codec.clone(), packet_sequence)?;
+            receipts.registries = registries;
             receipts.recipes = Default::default();
             receipts.container = None;
             receipts.inventory.window_id = None;
@@ -81,6 +103,7 @@ impl Bot {
         let mut survival = self.survival.write().await;
         survival.game_mode = Some(join.game_mode);
         survival.previous_game_mode = Some(join.previous_game_mode);
+        survival.item_cooldowns.clear();
         survival.dimension = Some(join.dimension);
         survival.world_name = Some(join.world_name);
         drop(survival);
@@ -126,6 +149,7 @@ impl Bot {
         state.walking_speed = walking_speed;
         drop(state);
         self.emit(Event::SurvivalStateUpdated);
+        self.emit(Event::PlayerContextUpdated);
         Ok(())
     }
 
@@ -224,6 +248,24 @@ impl Bot {
             let mut receipts = self.common_receipts.lock().await;
             receipts.generation = packet_sequence;
             receipts.context = Default::default();
+            receipts.context.world_entry = Some(crate::client::received(
+                crate::client::WorldEntryContext {
+                    world_name: respawn.world_name.clone(),
+                    dimension_type_name: Some(respawn.dimension.clone()),
+                    dimension_type_id: None,
+                    game_mode: respawn.game_mode,
+                    previous_game_mode: respawn.previous_game_mode as i8,
+                    hashed_seed: Some(respawn.hashed_seed),
+                    debug: Some(respawn.debug),
+                    flat: Some(respawn.flat),
+                    last_death: None,
+                    portal_cooldown: None,
+                    sea_level: None,
+                    respawn_keep_data: Some(u8::from(respawn.copy_metadata)),
+                },
+                packet_sequence,
+            ));
+
             receipts.entities.history_context(
                 crate::MinecraftVersion::Java1_16_1,
                 packet_sequence,
@@ -261,6 +303,7 @@ impl Bot {
         state.world_name = Some(respawn.world_name.clone());
         state.game_mode = Some(respawn.game_mode);
         state.previous_game_mode = Some(respawn.previous_game_mode);
+        state.item_cooldowns.clear();
         self.world_time_observed.store(false, Ordering::Release);
         let mut oxygen_level = self.oxygen_level.lock().await;
         *oxygen_level = oxygen_level_after_respawn(*oxygen_level, respawn.copy_metadata);
@@ -471,6 +514,95 @@ mod context_tests {
         assert_eq!(original.abilities.unwrap().value.flags, 15);
         let _ = client.revoke_connection();
         assert!(client.player_context().await.unwrap().abilities.is_none());
+        drop(release);
+        server.await.unwrap();
+    }
+    #[tokio::test]
+    async fn cooldown_and_world_entry_legacy_preserve_sources_and_reject_partial_packets() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        assert!(
+            client
+                .player_context()
+                .await
+                .unwrap()
+                .item_cooldowns
+                .is_empty()
+        );
+        bot.apply_packet(0x17, vec![7, 20]).await.unwrap();
+        let saved = client.player_context().await.unwrap();
+        assert_eq!(
+            saved.item_cooldowns[0].key,
+            crate::client::CooldownKey::LegacyItem(7)
+        );
+        assert_eq!(saved.item_cooldowns[0].ticks.value, 20);
+        for bad in [
+            vec![],
+            vec![7],
+            vec![7, 20, 0],
+            vec![7, 255, 255, 255, 255, 15],
+        ] {
+            assert!(bot.apply_packet(0x17, bad).await.is_err());
+            assert_eq!(
+                client.player_context().await.unwrap().item_cooldowns,
+                saved.item_cooldowns
+            );
+            assert_eq!(bot.survival.read().await.item_cooldowns.get(&7), Some(&20));
+        }
+        bot.apply_packet(0x17, vec![7, 0]).await.unwrap();
+        let zero = client.player_context().await.unwrap();
+        assert_eq!(zero.item_cooldowns[0].ticks.value, 0);
+        assert_ne!(
+            zero.item_cooldowns[0].ticks.source,
+            saved.item_cooldowns[0].ticks.source
+        );
+        assert!(bot.survival.read().await.item_cooldowns.is_empty());
+        let mut respawn = Vec::new();
+        put_string(&mut respawn, "minecraft:overworld");
+        put_string(&mut respawn, "world");
+        respawn.extend(123i64.to_be_bytes());
+        respawn.extend([0, 255, 0, 1, 1]);
+        let generation = zero.session;
+        for end in 0..respawn.len() {
+            assert!(
+                bot.apply_packet(0x3a, respawn[..end].to_vec())
+                    .await
+                    .is_err()
+            );
+            let current = client.player_context().await.unwrap();
+            assert_eq!(current.session, generation);
+            assert_eq!(current.item_cooldowns, zero.item_cooldowns);
+        }
+        let mut trailing = respawn.clone();
+        trailing.push(0);
+        assert!(bot.apply_packet(0x3a, trailing).await.is_err());
+        bot.apply_packet(0x3a, respawn).await.unwrap();
+        let next = client.player_context().await.unwrap();
+        assert_ne!(next.session, generation);
+        assert!(next.item_cooldowns.is_empty() && next.login_conditions.is_none());
+        assert_eq!(
+            next.world_entry.as_ref().unwrap().value.previous_game_mode,
+            -1
+        );
+        assert_eq!(
+            next.world_entry.as_ref().unwrap().value.respawn_keep_data,
+            Some(1)
+        );
+        let events = client.events_after(0).await.unwrap();
+        for receipt in [
+            &saved.item_cooldowns[0].ticks,
+            &zero.item_cooldowns[0].ticks,
+        ] {
+            assert!(events.events.iter().any(|event| event.kind
+                == crate::client::EventKind::ContextChanged
+                && event.receive_sequence
+                    == match receipt.source {
+                        crate::client::ValueSource::Received { sequence } => sequence,
+                        _ => panic!(),
+                    }));
+        }
+        let _ = client.revoke_connection();
         drop(release);
         server.await.unwrap();
     }
