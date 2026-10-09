@@ -28,6 +28,16 @@ impl ContinuousControl {
     pub(in crate::versions::java_1_21_11::client) fn active(&self) -> bool {
         self.session.as_ref().is_some_and(ControlSession::running)
     }
+
+    #[cfg(test)]
+    pub(in crate::versions::java_1_21_11::client) fn seed_session(
+        &mut self,
+        session: ControlSession,
+        generation: u64,
+    ) {
+        self.session = Some(session);
+        self.generation = Some(generation);
+    }
 }
 
 /// A release was sent: the running session stops applying the item-use slowdown.
@@ -203,7 +213,8 @@ impl Operations {
             state.control.session = Some(session);
             return Ok(None);
         }
-        let release = if session.running() && self.ready(&state).is_ok() {
+        let old_world = state.control.generation != Some(state.loading.generation);
+        let release = if !old_world && session.running() && self.ready(&state).is_ok() {
             self.write_release(&session, entity).await
         } else {
             Ok(())
@@ -211,6 +222,7 @@ impl Operations {
         if session.running() {
             session.status = ControlStatus::Stopped {
                 reason: match &release {
+                    Ok(()) if old_world => "world changed (respawn or dimension)".into(),
                     Ok(()) => "stopped by request".into(),
                     Err(e) => format!("stopped; release write failed: {e}"),
                 },
@@ -463,7 +475,12 @@ impl crate::client::adapter::ControlOps for Operations {
         Ok(record)
     }
 
-    async fn set_controls(&self, mode: GameMode, controls: Controls) -> Result<ControlRecord> {
+    async fn set_controls(
+        &self,
+        mode: GameMode,
+        session_id: Option<u64>,
+        controls: Controls,
+    ) -> Result<ControlRecord> {
         crate::client::operations::validate_rotation([controls.yaw, controls.pitch])?;
         if !(-1..=1).contains(&controls.forward) || !(-1..=1).contains(&controls.strafe) {
             return Err(invalid("controls out of range"));
@@ -473,8 +490,14 @@ impl crate::client::adapter::ControlOps for Operations {
         if state.operations.game_mode != Some(mode) {
             return Err(invalid("controls require matching received mode"));
         }
+        if state.control.generation != Some(state.loading.generation) {
+            return Err(invalid("control belongs to a previous world"));
+        }
         match state.control.session.as_mut() {
             Some(session) if session.running() => {
+                if session_id.is_some_and(|id| session.id != id) {
+                    return Err(invalid("selected control session was replaced"));
+                }
                 session.controls = controls;
                 Ok(session.record())
             }
@@ -493,6 +516,14 @@ impl crate::client::adapter::ControlOps for Operations {
         tokio::spawn(async move { owner.stop_control_owned(id).await })
             .await
             .map_err(|error| invalid(&format!("control stop task failed: {error}")))?
+    }
+
+    async fn stop_control_for(&self, session_id: u64) -> Result<ControlRecord> {
+        let owner = self.clone();
+        tokio::spawn(async move { owner.stop_control_owned(session_id).await })
+            .await
+            .map_err(|error| invalid(&format!("control stop task failed: {error}")))??
+            .ok_or_else(|| invalid("selected control session is missing or was replaced"))
     }
 
     async fn request_ground_jump(

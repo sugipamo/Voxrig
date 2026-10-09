@@ -254,9 +254,11 @@ pub(crate) trait ControlOps {
     async fn set_controls(
         &self,
         mode: GameMode,
+        session_id: Option<u64>,
         controls: super::control::Controls,
     ) -> Result<super::control::ControlRecord>;
     async fn stop_control(&self) -> Result<Option<super::control::ControlRecord>>;
+    async fn stop_control_for(&self, session_id: u64) -> Result<super::control::ControlRecord>;
     async fn request_ground_jump(
         &self,
         mode: GameMode,

@@ -166,16 +166,22 @@ impl Bot {
     // The connection owns release writes even if the caller stops awaiting them.
     async fn stop_control_owned(&self, id: u64) -> Result<Option<ControlRecord>> {
         let _gate = self.coherent_state_gate.lock().await;
+        let generation = self.common_receipts.lock().await.generation;
         let mut control = self.common_control.lock().await;
+        let old_world = control.generation != Some(generation);
         let Some(session) = control.session.as_mut().filter(|s| s.id == id) else {
             return Ok(None);
         };
         let mut release = Ok(());
         if session.running() {
             session.status = ControlStatus::Stopped {
-                reason: "stopped by request".into(),
+                reason: if old_world {
+                    "world changed (respawn or dimension)".into()
+                } else {
+                    "stopped by request".into()
+                },
             };
-            if !self.stopped.load(Ordering::Acquire) {
+            if !old_world && !self.stopped.load(Ordering::Acquire) {
                 release = self.release_control(session).await;
             }
             if let Err(error) = &release {
@@ -391,17 +397,31 @@ impl crate::client::adapter::ControlOps for Bot {
         Ok(record)
     }
 
-    async fn set_controls(&self, mode: GameMode, controls: Controls) -> Result<ControlRecord> {
+    async fn set_controls(
+        &self,
+        mode: GameMode,
+        session_id: Option<u64>,
+        controls: Controls,
+    ) -> Result<ControlRecord> {
         crate::client::operations::validate_rotation([controls.yaw, controls.pitch])?;
         if !(-1..=1).contains(&controls.forward) || !(-1..=1).contains(&controls.strafe) {
             return Err(invalid("controls out of range"));
         }
+        self.wait_until_ready().await?;
+        let _gate = self.coherent_state_gate.lock().await;
         if mode != GameMode::Survival || self.survival.read().await.game_mode != Some(0) {
             return Err(invalid("controls require matching received mode"));
         }
+        let generation = self.common_receipts.lock().await.generation;
         let mut control = self.common_control.lock().await;
+        if control.generation != Some(generation) {
+            return Err(invalid("control belongs to a previous world"));
+        }
         match control.session.as_mut() {
             Some(session) if session.running() => {
+                if session_id.is_some_and(|id| session.id != id) {
+                    return Err(invalid("selected control session was replaced"));
+                }
                 session.controls = controls;
                 Ok(session.record())
             }
@@ -420,6 +440,14 @@ impl crate::client::adapter::ControlOps for Bot {
         tokio::spawn(async move { owner.stop_control_owned(id).await })
             .await
             .map_err(|error| invalid(&format!("control stop task failed: {error}")))?
+    }
+
+    async fn stop_control_for(&self, session_id: u64) -> Result<ControlRecord> {
+        let owner = self.clone_internal();
+        tokio::spawn(async move { owner.stop_control_owned(session_id).await })
+            .await
+            .map_err(|error| invalid(&format!("control stop task failed: {error}")))??
+            .ok_or_else(|| invalid("selected control session is missing or was replaced"))
     }
 
     async fn request_ground_jump(
@@ -469,6 +497,68 @@ mod tests {
     use crate::client::adapter::ControlOps;
     use crate::client::control::Output;
     use tokio::time::timeout;
+
+    #[tokio::test]
+    async fn selected_control_rejects_replacement_and_old_world_without_writes() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.player.lock().await.entity_id = Some(42);
+        let received = bot.control_received().await;
+        let mut session =
+            ControlSession::new(MinecraftVersion::Java1_16_1, 2, [8.5, 65.0, 8.5], &received);
+        session.dispatched(&Output {
+            sneak: Some(true),
+            sprint: Some(true),
+            input: None,
+            position: [8.5, 65.0, 8.5],
+            rotation: [0.0; 2],
+            on_ground: true,
+            horizontal_collision: false,
+        });
+        let generation = bot.common_receipts.lock().await.generation;
+        {
+            let mut control = bot.common_control.lock().await;
+            control.session = Some(session);
+            control.generation = Some(generation);
+        }
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let api = client.survival();
+        let keys = Controls {
+            forward: 1,
+            ..Default::default()
+        };
+        assert!(api.set_controls_for(1, keys).await.is_err());
+        assert!(api.stop_control_for(1).await.is_err());
+        let replacement = api.control_record().await.unwrap().unwrap();
+        assert_eq!(replacement.session_id, 2);
+        assert_eq!(replacement.status, ControlStatus::Running);
+        assert_eq!(replacement.controls, Controls::default());
+        assert_eq!(api.set_controls_for(2, keys).await.unwrap().controls, keys);
+        // Reproduce a respawn generation before the worker handles it. Even
+        // previously submitted sprint/sneak cannot release in the new world.
+        bot.common_receipts.lock().await.generation += 1;
+        assert!(api.set_controls_for(2, Controls::default()).await.is_err());
+        let stopped = api.stop_control_for(2).await.unwrap();
+        assert_eq!(stopped.controls, keys);
+        assert!(
+            matches!(stopped.status, ControlStatus::Stopped { ref reason } if reason.contains("world changed"))
+        );
+        assert_eq!(api.stop_control_for(2).await.unwrap(), stopped);
+        assert!(
+            timeout(Duration::from_millis(30), packets.recv())
+                .await
+                .is_err()
+        );
+        drop(api);
+        drop(client);
+        drop(release);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
 
     #[tokio::test]
     async fn control_restart_keeps_current_momentum_and_aim_after_decoded_velocity() {
@@ -784,9 +874,14 @@ mod tests {
             on_ground: true,
             horizontal_collision: false,
         });
-        bot.common_control.lock().await.session = Some(session);
+        let generation = bot.common_receipts.lock().await.generation;
+        {
+            let mut control = bot.common_control.lock().await;
+            control.session = Some(session);
+            control.generation = Some(generation);
+        }
         let writer = bot.writer.lock().await;
-        let mut wait = Box::pin(bot.stop_control());
+        let mut wait = Box::pin(bot.stop_control_for(1));
         assert!(
             timeout(Duration::from_millis(30), wait.as_mut())
                 .await
@@ -806,7 +901,7 @@ mod tests {
         let record = bot.control_record().await.unwrap().unwrap();
         assert_eq!(record.session_id, 1);
         assert!(matches!(record.status, ControlStatus::Stopped { .. }));
-        assert_eq!(bot.stop_control().await.unwrap(), Some(record));
+        assert_eq!(bot.stop_control_for(1).await.unwrap(), record);
         assert!(
             timeout(Duration::from_millis(30), packets.recv())
                 .await
