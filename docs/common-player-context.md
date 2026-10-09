@@ -48,3 +48,14 @@ legacy nativeの降雨開始・終了は公式のevent 1＝開始、2＝終了�
 実接続は`scripts/run_player_context.py`で再生成する。元のpacket ordinalとpayload、
 独立RCONの経験値、公式サーバーが保存した`level.dat`の天候、world変更、切断後の読取を
 比較する。biome・heightmap・block entity NBT・mapは#41の継続対象。
+
+2026-10-09の公式実接続では両版14項目ずつ、計28項目を確認した。
+LOGINのmax players＝5、view distance＝3、modern simulation distance＝2を
+別の値にし、受信したview fieldを他のLOGIN fieldと取り違えていないことを照合した。
+経験値のゼロ・ポイント追加・level変更、clear／rain／thunder／clear、2地点への
+world spawn変更、view center移動、world generation変更、切断後の読取を含む。
+新worldの初期XPとコマンド後のXPは、元packetのsourceと独立RCONの全3fieldで
+待ち分ける。天候の未受信booleanをclearに補完せず、公式保存データと比較する。
+原packet、元SDKビルド・公式JAR・検証スクリプトのhashと境界は
+[`evidence/common-player-context-20261009.json`](evidence/common-player-context-20261009.json)
+に保持する。
