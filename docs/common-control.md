@@ -88,6 +88,8 @@ let latest = survival.control_record().await?.unwrap().ground_jump;
   latest requestは`control_record().ground_jump`から読み、送信失敗後も結果とsessionの停止理由を参照できる。
   `dispatched=false`でも、一部のpacketが送られた可能性はある。停止理由と合わせて観測し直す。
 - 存在しない・古い・停止したsession、Survival以外の受信mode、別world、飛行・乗車・死亡・遮断した接続では受付を拒否し、入力を変更しない。
+  1.16.1のnative `Bot::jump()`も共通の移動所有者の間は拒否し、nativeの未処理予約がある間は共通sessionの開始を拒否する。
+  互換APIの予約を停止後のジャンプとして持ち越さない。
 - `Paused`中の新規要求は拒否する。予約後に次のtickを予測できなくなった場合も`Cancelled`とし、terrainの回復後へ持ち越さない。
   SDKの再構築による一時停止も同じ。停止・world/mode変更・切断・revocationまでに未評価なら停止記録は`Cancelled`を保持する。
 - 受付lockを待つ間の呼出側キャンセルは予約を作らない。受付済みの予約はClientのtaskが処理するので、呼出側が戻り値を使わなくても消えない。

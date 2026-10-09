@@ -3448,6 +3448,13 @@ impl Bot {
     /// `ControlState::jump` through [`Bot::set_control`].
     pub async fn jump(&self) -> Result<()> {
         self.wait_until_ready().await?;
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.stopped.load(Ordering::Acquire) {
+            bail!("connection closed before ground jump admission");
+        }
+        if self.common_native_physics_paused().await {
+            bail!("another operation owns movement; use its ground-jump API");
+        }
         self.jump_requested.store(true, Ordering::Release);
         Ok(())
     }

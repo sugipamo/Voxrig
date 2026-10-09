@@ -332,6 +332,11 @@ impl crate::client::adapter::ControlOps for Bot {
         if self.control().await != super::ControlState::default() {
             return Err(invalid("native controls are held; clear them first"));
         }
+        if self.jump_requested.load(Ordering::Acquire) {
+            return Err(invalid(
+                "a native ground jump is pending; wait for its physics tick",
+            ));
+        }
         let generation = self.common_receipts.lock().await.generation;
         if let Some(reason) = self.control_stop_reason(generation).await {
             return Err(invalid(reason));
@@ -545,6 +550,26 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
+    }
+
+    #[tokio::test]
+    async fn native_ground_queue_cannot_cross_common_control_ownership() {
+        let (bot, _packets, _release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.jump().await.unwrap();
+        assert!(bot.jump_requested.load(Ordering::Acquire));
+        assert!(bot.start_control(GameMode::Survival).await.is_err());
+        assert!(bot.jump_requested.load(Ordering::Acquire));
+        // The fixture holds the passive producer at its teleport barrier.
+        // Retire that pending native tick to exercise the reverse owner boundary.
+        bot.jump_requested.store(false, Ordering::Release);
+        bot.start_control(GameMode::Survival).await.unwrap();
+        assert!(bot.jump().await.is_err());
+        assert!(!bot.jump_requested.load(Ordering::Acquire));
+        bot.stop_control().await.unwrap();
+        bot.disconnect().await.unwrap();
+        server.await.unwrap();
     }
 
     #[tokio::test]
