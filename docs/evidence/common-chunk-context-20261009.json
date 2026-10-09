@@ -1,0 +1,114 @@
+{
+  "schema": 1,
+  "scope": "Received quart biome IDs, packed heightmaps and block entity NBT; bounded column ownership, dedicated updates, terrain invalidation, unload/reload, world replacement, saved captures and reads after close.",
+  "publication": "Results and hashes only. Original packet/NBT bodies remain in local qualification reports; the tracked scripts reproduce all exact-value/source assertions against isolated unchanged official servers.",
+  "sdk_build_revision": "81c07fc18edc823810b8d69eaf6a4fd10fd4f76e",
+  "qualification_source_revision": "bb3208a2d2d245314042159c9a2e1f3057e9a6f8",
+  "source_relationship": "Qualification revision changes documentation only; built revision integrates latest main. Metadata invalidation remains independent of certified light equivalence.",
+  "validation": {
+    "native_library_passed": 943,
+    "native_integration_passed": 4,
+    "native_ignored": 8,
+    "doctests_passed": 34,
+    "doctests_ignored": 1,
+    "python_transport_passed": 6,
+    "strict_clippy": true,
+    "strict_rustdoc": true,
+    "logs_sha256": {
+      "/tmp/voxrig-41-chunk-merged-tests.log": "470c48118dadbf008700187f58ce17ec5c05812f501ad52a29a4ad85032703f9",
+      "/tmp/voxrig-41-chunk-merged-doc.log": "cdf762284a3ea02cd0bb76bba983b048184be1a218cd477315ead12720480bd3",
+      "/tmp/voxrig-41-chunk-merged-clippy.log": "144558ba4f6075fa36789e782d44b742b826543580ebf1547d015b2a832232d2",
+      "/tmp/voxrig-41-chunk-merged-rustdoc.log": "4fbfab6864f89fd922cc05206da3cd8ab7145d8b9828ddc8a17f3585a428e1f7",
+      "/tmp/voxrig-41-chunk-merged-probe.log": "df9d404e244ab99de8bb8f49d2e3940171ab4365fec6bc2773a31d5f3fccad59",
+      "/tmp/voxrig-41-chunk-integrated-live.log": "d4beb30c402e87a7b8f809b01e3f039a561be80d7a38872d3af5cb9e11b38a1e",
+      "/tmp/voxrig-41-chunk-trace-tests.log": "24546cf40cae8b82f1a63558efa5712fec4a30cd4b6826218a67515da1e129bc"
+    }
+  },
+  "diagnostics": [
+    "Ready did not imply loaded terrain; driver now waits actual column receipt.",
+    "Existing fake block-entity packet corrected to contain the original optional-NBT EndTag. Integrated full suite passes with strict decoding retained.",
+    "Opt-in bounded payload retention preserves every frame/ordinal and unchanged forwarding bytes; six transport tests pass.",
+    "Independent noise-based biome condition samples inside edited volume; exact received quart equality remains asserted."
+  ],
+  "local_original_evidence_sha256": "435238c60f61f8c7616f07079fa2c3ee1ad95b234adb79ee5954b2fd16c6e90a",
+  "runs": [
+    {
+      "version": "1.16.1",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "sdk": {
+        "source_revision": "bb3208a2d2d245314042159c9a2e1f3057e9a6f8",
+        "binary_build_revision": "81c07fc18edc823810b8d69eaf6a4fd10fd4f76e",
+        "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "binary_sha256": "9aa99686622cb3f57531dd9c26485446c62ed4fb03d2fe2cb0ca134582a6e1b0",
+        "artifacts": {
+          "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+          "scripts/run_chunk_context.py": "4184ce5d8f242b6c1d97d8efd4a242b24e8861d88bb6a1bce9dcc99b1ff10df0",
+          "scripts/VerifyReceivedHeightmap.java": "3e0e16878d6c64db9858704cf08275f091ed2bb0f1249e914bf25e5b51472ec8",
+          "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+          "scripts/run_common_native.py": "d285b1997fe10efaf2221ef54818b1aa25770487479e80a50390fdaa0e2e6d00",
+          "examples/climbing_control_probe.rs": "ae3766c5240d8b082fe01a414e64f3424b2c5cd66215fc4dc312bbce37e00013"
+        },
+        "native_heightmap_oracle": {
+          "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+          "mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+          "special_source_sha256": "e2cab24b1c12400ad73b15972bb21e4273a0dc7081c8b3c136ddfdd824c78518",
+          "named_jar_sha256": "53c78a6b114fc0cb40543f5904b490d72a28d0c6e573856dca784582c71dc913",
+          "harness_sha256": "3e0e16878d6c64db9858704cf08275f091ed2bb0f1249e914bf25e5b51472ec8",
+          "scope": "original mapped BitStorage constructor/get; unchanged official game server"
+        }
+      },
+      "passed": true,
+      "check_names": [
+        "initial_received_column",
+        "full_column_sign_and_heightmaps",
+        "legacy_dedicated_biome_update_unavailable",
+        "dedicated_entity_update",
+        "terrain_invalidates_heightmap_and_entity",
+        "saved_capture_keeps_original_incarnation",
+        "unload_reload_new_incarnation",
+        "new_world_owned_column",
+        "read_after_close"
+      ],
+      "report_sha256": "0b39045b3393b4581a83d82ec49935d1f1894cd478a29b71f4b2eaa06d7ba5bd"
+    },
+    {
+      "version": "1.21.11",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "sdk": {
+        "source_revision": "bb3208a2d2d245314042159c9a2e1f3057e9a6f8",
+        "binary_build_revision": "81c07fc18edc823810b8d69eaf6a4fd10fd4f76e",
+        "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "binary_sha256": "9aa99686622cb3f57531dd9c26485446c62ed4fb03d2fe2cb0ca134582a6e1b0",
+        "artifacts": {
+          "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+          "scripts/run_chunk_context.py": "4184ce5d8f242b6c1d97d8efd4a242b24e8861d88bb6a1bce9dcc99b1ff10df0",
+          "scripts/VerifyReceivedHeightmap.java": "3e0e16878d6c64db9858704cf08275f091ed2bb0f1249e914bf25e5b51472ec8",
+          "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+          "scripts/run_common_native.py": "d285b1997fe10efaf2221ef54818b1aa25770487479e80a50390fdaa0e2e6d00",
+          "examples/climbing_control_probe.rs": "ae3766c5240d8b082fe01a414e64f3424b2c5cd66215fc4dc312bbce37e00013"
+        },
+        "native_heightmap_oracle": {
+          "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+          "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+          "special_source_sha256": "e2cab24b1c12400ad73b15972bb21e4273a0dc7081c8b3c136ddfdd824c78518",
+          "named_jar_sha256": "34cbd59b117350dace0574d9d35df4d22597d77f8cee5ea9c98a349c2a9c29a4",
+          "harness_sha256": "3e0e16878d6c64db9858704cf08275f091ed2bb0f1249e914bf25e5b51472ec8",
+          "scope": "original mapped BitStorage constructor/get; unchanged official game server"
+        }
+      },
+      "passed": true,
+      "check_names": [
+        "initial_received_column",
+        "full_column_sign_and_heightmaps",
+        "dedicated_biome_update",
+        "dedicated_entity_update",
+        "terrain_invalidates_heightmap_and_entity",
+        "saved_capture_keeps_original_incarnation",
+        "unload_reload_new_incarnation",
+        "new_world_owned_column",
+        "read_after_close"
+      ],
+      "report_sha256": "311fe792e6316217aff87053d4b0e87c308c559a5f9ec80ab568a752e95852a6"
+    }
+  ]
+}

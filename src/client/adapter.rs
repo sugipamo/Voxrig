@@ -95,6 +95,10 @@ pub(crate) trait DigOps {
 
 /// Whole loaded chunk columns.
 pub(crate) trait ChunkOps {
+    async fn chunk_context(
+        &self,
+        position: [i32; 2],
+    ) -> Result<Option<super::ChunkContextObservation>>;
     async fn loaded_chunks(&self) -> Result<super::LoadedChunks>;
     async fn chunk(&self, position: [i32; 2]) -> Result<Option<super::ChunkObservation>>;
 }

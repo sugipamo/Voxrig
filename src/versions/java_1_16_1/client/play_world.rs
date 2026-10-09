@@ -140,14 +140,18 @@ impl Bot {
         Ok(())
     }
 
-    pub(super) async fn receive_chunk_data(&self, p: &[u8]) -> Result<()> {
-        match self
+    pub(super) async fn receive_chunk_data(&self, p: &[u8], packet_sequence: u64) -> Result<()> {
+        let decoded = self
             .world
             .lock()
             .await
-            .apply_chunk(p, self.connection_options.max_chunks)
-        {
+            .apply_chunk(p, self.connection_options.max_chunks);
+        match decoded {
             Ok((x, z)) => {
+                self.world
+                    .lock()
+                    .await
+                    .stamp_context([x, z], packet_sequence);
                 self.advance_block_geometry_revision();
                 self.world_updated.notify_waiters();
                 self.common_mining_chunk_changed([x, z]).await;

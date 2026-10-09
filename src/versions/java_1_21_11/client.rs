@@ -1078,6 +1078,7 @@ fn apply_play(
         input::MAP_CHUNK => {
             let chunk = [r.i32()?, r.i32()?];
             let pistons = state.world.load(payload, max_chunks)?;
+            state.world.stamp_context(chunk, state.sequence);
             operations::mining_chunk_changed(state, chunk);
             operations::placement_chunk_changed(state, chunk);
             if let Some(capture) = &mut state.recording {
@@ -1086,6 +1087,14 @@ fn apply_play(
             state
                 .reconstruction
                 .chunk_loaded(chunk, pistons, state.sequence);
+        }
+        input::TILE_ENTITY_DATA => {
+            state.world.update_entity(payload, state.sequence)?;
+        }
+        input::CHUNK_BIOMES => {
+            state
+                .world
+                .update_biomes(payload, max_chunks, state.sequence)?;
         }
         input::BLOCK_CHANGE => {
             let changes = state.world.block_change(payload)?;

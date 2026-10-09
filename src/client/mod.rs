@@ -30,6 +30,7 @@ pub mod flight;
 pub(crate) mod fraction;
 pub mod furnace;
 pub use flight::{FlightCommand, FlightLanding, FlightRecord, FlightStage};
+pub(crate) mod chunk_context;
 pub(crate) mod chunks;
 mod dig;
 pub use dig::{DigEstimate, DigRecord};
@@ -47,6 +48,10 @@ pub(crate) mod item_use;
 mod placement_check;
 mod player_control;
 pub(crate) mod player_facts;
+pub use chunk_context::{
+    BiomeVolume, BlockEntityKind, ChunkContextObservation, ChunkIdentity, HeightmapKind,
+    ReceivedBlockEntity, ReceivedHeightmap,
+};
 pub use chunks::{ChunkObservation, LoadedChunks};
 pub use placement_check::PlacementCheck;
 pub use player_control::PlayerControl;
@@ -118,6 +123,10 @@ pub use vehicle::{
 pub mod prelude {
     pub use super::blocks::{BlockRaycast, BlockRaycastObservation, BlockSearch};
     pub use super::chat::{ChatKind, ChatLog, ChatText, ReceivedChat};
+    pub use super::chunk_context::{
+        BiomeVolume, BlockEntityKind, ChunkContextObservation, ChunkIdentity, HeightmapKind,
+        ReceivedBlockEntity, ReceivedHeightmap,
+    };
     pub use super::container::{
         ContainerCloseId, ContainerCloseRecord, ContainerCloseStage, ContainerOpenId,
         ContainerOpenProcessing, ContainerOpenRecord, ContainerOpenSend, ContainerOpenStage,

@@ -5053,6 +5053,13 @@ impl Bot {
             0x08 => self.emit(Event::BlockBreakProgress(parse_break_progress(&p)?)),
             0x09 => {
                 let update = self.world.lock().await.apply_block_entity(&p)?;
+                self.world.lock().await.stamp_context(
+                    [
+                        update.position.x.div_euclid(16),
+                        update.position.z.div_euclid(16),
+                    ],
+                    packet_sequence,
+                );
                 self.world_updated.notify_waiters();
                 self.emit(Event::BlockEntityUpdated(update));
             }
@@ -5154,7 +5161,7 @@ impl Bot {
                 });
                 result?;
             }
-            0x21 => self.receive_chunk_data(&p).await?,
+            0x21 => self.receive_chunk_data(&p, packet_sequence).await?,
             0x22 => self.emit(Event::WorldEvent(parse_world_event(&p)?)),
             0x23 => self.emit(Event::Particle(parse_particle(&p)?)),
             0x24 => self.receive_light_update(&p).await?,
@@ -8142,6 +8149,7 @@ mod tests {
         assert!(bot.apply_packet(0x24, light_update_packet()).await.unwrap());
         let mut block_entity = position.packed().to_be_bytes().to_vec();
         block_entity.push(0);
+        block_entity.push(0); // Explicit optional-NBT EndTag after the action.
         assert!(bot.apply_packet(0x09, block_entity).await.unwrap());
         assert_eq!(bot.block_geometry_revision.load(Ordering::Acquire), 1);
 
