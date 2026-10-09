@@ -53,3 +53,14 @@ metadataは読み込まれた列だけで保持し、既存の`max_chunks`と同
 `VerifyReceivedHeightmap.java`はoriginal nativeのBitStorage constructor/getを実行する
 独立oracleであり、ゲームサーバーは変更していない公式JARを使う。
 map pixels/iconsは別の受信データで、このAPIのscopeには入らない。
+
+## 検証
+
+公式1.16.1／1.21.11への同じcommon consumerで、full chunk、専用NBT更新、modern専用
+biome更新、block変更による失効、unload/reload、world変更、切断後の読取、保存済みcaptureを
+照合する。元packetの全biome ID、heightmapのlong値、block entityの元NBT bytesとfield sourceを
+比較し、heightmapはoriginal nativeのstorageで全256cellを独立に読む。
+`fillbiome`の端ではnativeのnoiseが隣接範囲を参照するため、サーバーのbiome判定は変更範囲の
+内側で行う。受信quart cellにその判定を代入しない。
+検証のSDK／official JAR hashと結果は
+[保存した証拠](evidence/common-chunk-context-20261009.json)に記録する。
