@@ -1,4 +1,5 @@
-//! Original QUICK_MOVE routes; the model never modifies received slots.
+//! Original QUICK_MOVE routes and shared equipment slot policy.
+//! The model never modifies received slots.
 use super::{SlotKnowledge, unavailable};
 use crate::client::{ItemData, ItemStack, registry::Registry};
 use crate::{MinecraftVersion, Result};
@@ -109,7 +110,7 @@ pub(crate) fn legacy_comparison_supported(stack: &crate::versions::java_1_16_1::
             .as_ref()
             .is_none_or(|nbt| crate::client::nbt::decode(nbt, MinecraftVersion::Java1_16_1).is_ok())
 }
-fn capacity(
+pub(super) fn capacity(
     version: MinecraftVersion,
     menu: &str,
     index: usize,
@@ -129,7 +130,7 @@ fn capacity(
     };
     Ok(base.min(max))
 }
-fn may_place(
+pub(super) fn may_place(
     version: MinecraftVersion,
     menu: &str,
     index: usize,
@@ -157,6 +158,35 @@ fn may_place(
 }
 fn same(a: &ItemStack, b: &ItemStack) -> bool {
     a.id == b.id && a.name == b.name && a.data == b.data
+}
+
+/// Native take admission shared by QUICK_MOVE and exact equipment PICKUP.
+pub(super) fn equipment_may_pickup(
+    version: MinecraftVersion,
+    index: usize,
+    source: &SlotKnowledge,
+    mode: crate::client::GameMode,
+    context: Option<&super::data::ItemContext>,
+) -> Result<bool> {
+    let policy = profiles(version)
+        .equipment_slots
+        .iter()
+        .find(|s| s.slot == index)
+        .ok_or_else(|| unavailable("equipment take policy unavailable"))?;
+    if !policy.may_pickup {
+        return Ok(false);
+    }
+    if (5..=8).contains(&index) {
+        if let SlotKnowledge::Item { item } = source {
+            if let Some(context) = context {
+                return context.armor_may_pickup(item, mode);
+            }
+            if !default_data(version, item) {
+                return Err(unavailable("received armor item context required"));
+            }
+        }
+    }
+    Ok(true)
 }
 fn counted(item: &ItemStack, count: u32) -> SlotKnowledge {
     if count == 0 {
@@ -250,20 +280,16 @@ fn calculate_inner(
         .iter()
         .find(|r| r.native_id == original.id.value() && r.name == original.name)
         .ok_or_else(|| unavailable("native default transfer route unavailable; update Voxrig"))?;
-    if storage.is_none() && (5..=8).contains(&source) {
-        if let Some(context) = context {
-            if !context.armor_may_pickup(original, mode)? {
-                return Ok(result);
-            }
-        }
-    }
     let may_pickup = if storage.is_none() && matches!(source, 5..=8 | 45) {
-        profiles(version)
-            .equipment_slots
-            .iter()
-            .find(|s| s.slot == source)
-            .ok_or_else(|| unavailable("equipment take policy unavailable"))?
-            .may_pickup
+        equipment_may_pickup(
+            version,
+            source,
+            &SlotKnowledge::Item {
+                item: original.clone(),
+            },
+            mode,
+            context,
+        )?
     } else {
         super::slot_policy::regular_slot(version, menu, source)?.may_pickup
     };

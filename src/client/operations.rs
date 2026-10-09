@@ -184,8 +184,9 @@ impl Survival {
     ) -> Result<Option<super::container::ContainerCloseRecord>> {
         crate::client::dispatch!(&self.client.adapter, a => ContainerOps::container_close_record(a).await)
     }
-    /// One ordinary left/right click of player input slots 1..4, inventory slots
-    /// 9..44, or ordinary slots in the same audited storage/crafting opening.
+    /// One ordinary left/right click of player input slots 1..4, armor slots 5..8,
+    /// inventory slots 9..44, offhand 45, or ordinary slots in the same audited opening.
+    /// Equipment obeys native item/capacity and actual-mode armor take restrictions.
     /// Requires received predecessors with resolved native data; retains separate prediction before I/O.
     pub async fn click_inventory(
         &self,
@@ -530,8 +531,9 @@ impl Creative {
     ) -> Result<Option<super::container::ContainerCloseRecord>> {
         crate::client::dispatch!(&self.client.adapter, a => ContainerOps::container_close_record(a).await)
     }
-    /// One ordinary left/right click of player input slots 1..4, inventory slots
-    /// 9..44, or ordinary slots in the same audited storage/crafting opening.
+    /// One ordinary left/right click of player input slots 1..4, armor slots 5..8,
+    /// inventory slots 9..44, offhand 45, or ordinary slots in the same audited opening.
+    /// Equipment obeys native item/capacity and actual-mode armor take restrictions.
     /// Requires received predecessors with resolved native data; retains separate prediction before I/O.
     pub async fn click_inventory(
         &self,

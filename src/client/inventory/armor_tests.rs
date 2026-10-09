@@ -242,6 +242,50 @@ pub(crate) fn fixture(version: MinecraftVersion, binding: bool) -> SlotKnowledge
 }
 
 #[test]
+fn exact_pickup_reuses_native_armor_take_predicate_without_changing_received_data() {
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        let context = context(version, None);
+        let facts = facts(version);
+        for case in facts["cases"].as_array().unwrap() {
+            let source = case["request"]["slot"].as_u64().unwrap() as usize;
+            if !matches!(source, 5..=8 | 45) {
+                continue;
+            }
+            let original = slot(version, case["before"][source].as_str().unwrap());
+            let mode = if case["request"]["mode"] == "creative" {
+                GameMode::Creative
+            } else {
+                GameMode::Survival
+            };
+            let (after, cursor) = slot_policy::pickup_equipment(
+                version,
+                source,
+                InventoryClickButton::Left,
+                (&original, &SlotKnowledge::Empty),
+                mode,
+                Some(&context),
+            )
+            .unwrap();
+            let (expected_source, expected_cursor) = if case["may_pickup"] == true {
+                (SlotKnowledge::Empty, original.clone())
+            } else {
+                (original.clone(), SlotKnowledge::Empty)
+            };
+            assert_eq!(
+                preserved(version, &after),
+                preserved(version, &expected_source),
+                "{version:?} {case}"
+            );
+            assert_eq!(
+                preserved(version, &cursor),
+                preserved(version, &expected_cursor),
+                "{version:?} {case}"
+            );
+        }
+    }
+}
+
+#[test]
 fn armor_transfer_matches_original_pickup_and_all_slots_in_both_versions_modes() {
     for (version, count) in [
         (MinecraftVersion::Java1_16_1, 276),

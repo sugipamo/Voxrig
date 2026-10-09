@@ -83,6 +83,7 @@ pub(crate) fn pickup(
         button,
         (source, cursor),
         None,
+        None,
     )
 }
 pub(crate) fn pickup_with_data(
@@ -100,6 +101,47 @@ pub(crate) fn pickup_with_data(
         button,
         values,
         Some(context),
+        None,
+    )
+}
+
+/// Exact player equipment slot; the actual mode controls armor take permission.
+pub(crate) fn pickup_equipment(
+    version: MinecraftVersion,
+    source_slot: usize,
+    button: super::InventoryClickButton,
+    values: (&SlotKnowledge, &SlotKnowledge),
+    mode: crate::client::GameMode,
+    context: Option<&super::data::ItemContext>,
+) -> Result<(SlotKnowledge, SlotKnowledge)> {
+    if !matches!(source_slot, 5..=8 | 45) {
+        return Err(unavailable(
+            "exact equipment PICKUP requires armor/offhand slot",
+        ));
+    }
+    if let SlotKnowledge::Item { item } = values.0 {
+        if item.count
+            > super::transfer_policy::capacity(
+                version,
+                "minecraft:player",
+                source_slot,
+                item,
+                context,
+            )?
+        {
+            return Err(crate::client::registry::invalid(
+                "equipment predecessor exceeds native slot capacity; no packet submitted",
+            ));
+        }
+    }
+    pickup_inner(
+        version,
+        "minecraft:player",
+        source_slot,
+        button,
+        values,
+        context,
+        Some(mode),
     )
 }
 fn pickup_inner(
@@ -109,11 +151,28 @@ fn pickup_inner(
     button: super::InventoryClickButton,
     values: (&SlotKnowledge, &SlotKnowledge),
     context: Option<&super::data::ItemContext>,
+    mode: Option<crate::client::GameMode>,
 ) -> Result<(SlotKnowledge, SlotKnowledge)> {
     let (source, cursor) = values;
     use crate::client::{ItemData, registry::Registry};
     let profiles = profiles(version);
-    let slot = regular_slot(version, menu_name, source_slot)?;
+    let equipment = menu_name == "minecraft:player" && matches!(source_slot, 5..=8 | 45);
+    let slot = if equipment {
+        None
+    } else {
+        Some(regular_slot(version, menu_name, source_slot)?)
+    };
+    let may_pickup = if equipment {
+        super::transfer_policy::equipment_may_pickup(
+            version,
+            source_slot,
+            source,
+            mode.ok_or_else(|| unavailable("equipment PICKUP requires actual mode"))?,
+            context,
+        )?
+    } else {
+        slot.unwrap().may_pickup
+    };
     let ordinary = |value: &SlotKnowledge| match value {
         SlotKnowledge::Empty => true,
         SlotKnowledge::Item { item } => profiles
@@ -186,7 +245,7 @@ fn pickup_inner(
     let right = button == super::InventoryClickButton::Right;
     let (result_source, result_cursor) = match (source, cursor) {
         (SlotKnowledge::Empty, SlotKnowledge::Empty) => (source.clone(), cursor.clone()),
-        (SlotKnowledge::Item { item }, SlotKnowledge::Empty) if slot.may_pickup => {
+        (SlotKnowledge::Item { item }, SlotKnowledge::Empty) if may_pickup => {
             let take = if right {
                 item.count.div_ceil(2)
             } else {
@@ -195,11 +254,33 @@ fn pickup_inner(
             (counted(source, item.count - take), counted(source, take))
         }
         (_, SlotKnowledge::Item { item: incoming }) => {
-            let may_place = !slot.rejected_default_items.contains(&incoming.name);
-            let capacity =
+            let may_place = if equipment {
+                super::transfer_policy::may_place(
+                    version,
+                    menu_name,
+                    source_slot,
+                    incoming,
+                    context,
+                )?
+            } else {
+                !slot
+                    .unwrap()
+                    .rejected_default_items
+                    .contains(&incoming.name)
+            };
+            let capacity = if equipment {
+                super::transfer_policy::capacity(
+                    version,
+                    menu_name,
+                    source_slot,
+                    incoming,
+                    context,
+                )?
+            } else {
                 crate::client::furnace::capacity(version, menu_name, source_slot, &incoming.name)
-                    .unwrap_or(slot.base_capacity)
-                    .min(cursor_max.expect("validated item"));
+                    .unwrap_or(slot.unwrap().base_capacity)
+                    .min(cursor_max.expect("validated item"))
+            };
             match source {
                 SlotKnowledge::Empty if may_place => {
                     let take = incoming.count.min(if right { 1 } else { capacity });
@@ -226,11 +307,11 @@ fn pickup_inner(
                             counted(source, existing.count + take),
                             counted(cursor, incoming.count - take),
                         )
-                    } else if !same && may_place && slot.may_pickup && incoming.count <= capacity {
+                    } else if !same && may_place && may_pickup && incoming.count <= capacity {
                         (cursor.clone(), source.clone())
                     } else if same
                         && !may_place
-                        && slot.may_pickup
+                        && may_pickup
                         && existing.count
                             <= source_max
                                 .expect("validated item")
@@ -291,6 +372,84 @@ mod tests {
     use super::*;
     use crate::client::{ItemData, ItemStack, registry::Registry};
     use std::io::Read;
+    #[test]
+    fn exact_equipment_pickup_matches_original_native_menu_primitives() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let bytes: &[u8] = match version {
+                MinecraftVersion::Java1_16_1 => {
+                    include_bytes!("../../../data/client_api/equipment_pickup_cases-1.16.1.json.gz")
+                }
+                MinecraftVersion::Java1_21_11 => include_bytes!(
+                    "../../../data/client_api/equipment_pickup_cases-1.21.11.json.gz"
+                ),
+            };
+            let mut decoded = String::new();
+            flate2::read::GzDecoder::new(bytes)
+                .read_to_string(&mut decoded)
+                .unwrap();
+            let facts: serde_json::Value = serde_json::from_str(&decoded).unwrap();
+            let cases = facts["cases"].as_array().unwrap();
+            assert_eq!(cases.len(), 7290);
+            for case in cases {
+                let before = value(version, &case["source_before"]);
+                let cursor = value(version, &case["cursor_before"]);
+                let result = pickup_equipment(
+                    version,
+                    case["slot"].as_u64().unwrap() as usize,
+                    if case["button"] == 0 {
+                        super::super::InventoryClickButton::Left
+                    } else {
+                        super::super::InventoryClickButton::Right
+                    },
+                    (&before, &cursor),
+                    crate::client::GameMode::Survival,
+                    None,
+                );
+                if case["valid_counts"] == false
+                    || case["slot"] != 45 && case["source_before"]["count"].as_u64().unwrap() > 1
+                {
+                    assert!(result.is_err(), "{version:?} {case}");
+                    continue;
+                }
+                assert_eq!(
+                    result.unwrap(),
+                    (
+                        value(version, &case["source_after"]),
+                        value(version, &case["cursor_after"])
+                    ),
+                    "{version:?} {case}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn equipment_oracle_is_bound_to_owned_tools_and_actual_outputs() {
+        use sha2::{Digest, Sha256};
+        let source: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../data/client_api/equipment_pickup_source.json"
+        ))
+        .unwrap();
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+        for group in std::iter::once(&source["generators_sha256"]).chain(
+            source["runs"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|r| &r["files_sha256"]),
+        ) {
+            for (path, hash) in group.as_object().unwrap() {
+                assert_eq!(
+                    format!(
+                        "{:x}",
+                        Sha256::digest(std::fs::read(root.join(path)).unwrap())
+                    ),
+                    hash.as_str().unwrap(),
+                    "{path}"
+                );
+            }
+        }
+    }
     #[test]
     fn frozen_native_evidence_is_bound_to_original_tools_and_outputs() {
         use sha2::{Digest, Sha256};

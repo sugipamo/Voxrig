@@ -785,6 +785,113 @@ mod tests {
         server.await.unwrap();
     }
     #[tokio::test]
+    async fn exact_equipment_pickup_both_modes_requires_fresh_cursor_slot_and_reply() {
+        use api::inventory::{
+            InventoryClickButton as Button, InventoryClickSource as Source,
+            InventoryClickStage as Stage,
+        };
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        for mode in [api::GameMode::Survival, api::GameMode::Creative] {
+            let mut p = vec![3];
+            p.extend(
+                (if mode == api::GameMode::Creative {
+                    1f32
+                } else {
+                    0f32
+                })
+                .to_be_bytes(),
+            );
+            bot.apply_packet(0x1e, p).await.unwrap();
+            for (index, name) in [
+                (5, "iron_helmet"),
+                (6, "iron_chestplate"),
+                (7, "iron_leggings"),
+                (8, "iron_boots"),
+                (45, "shield"),
+            ] {
+                let definition =
+                    api::registry::Registry::for_version(crate::MinecraftVersion::Java1_16_1)
+                        .item(&format!("minecraft:{name}"))
+                        .unwrap();
+                let original = api::SlotKnowledge::Item {
+                    item: api::ItemStack {
+                        id: definition.id,
+                        name: definition.name,
+                        count: 1,
+                        data: api::ItemData::Default,
+                    },
+                };
+                slot(&bot, index, &original, false).await;
+                for _ in 0..2 {
+                    let record = api::tests::common_pickup_start_scenario(
+                        &client,
+                        mode,
+                        Source::Player,
+                        index as u16,
+                        Button::Left,
+                    )
+                    .await;
+                    let packet = packets.recv().await.unwrap();
+                    assert_eq!(packet.0, 0x09);
+                    assert_eq!(&packet.1[1..3], &index.to_be_bytes());
+                    slot(&bot, index, &record.prediction.source.value, false).await;
+                    assert_eq!(
+                        client
+                            .survival()
+                            .inventory_click_record()
+                            .await
+                            .unwrap()
+                            .unwrap()
+                            .stage,
+                        Stage::Pending
+                    );
+                    // Cursor uses its native -1 window, not the player window.
+                    let mut cursor = vec![255, 255, 255];
+                    let stack = match &record.prediction.cursor.value {
+                        api::SlotKnowledge::Item { item } => Some(ItemStack {
+                            item_id: item.id.value(),
+                            count: item.count as i8,
+                            nbt: None,
+                        }),
+                        _ => None,
+                    };
+                    write_slot(&mut cursor, stack.as_ref());
+                    bot.apply_packet(0x16, cursor).await.unwrap();
+                    assert_eq!(
+                        client
+                            .survival()
+                            .inventory_click_record()
+                            .await
+                            .unwrap()
+                            .unwrap()
+                            .stage,
+                        Stage::Pending
+                    );
+                    ack(&bot, record.send.legacy_action.unwrap(), false).await;
+                    assert_eq!(packets.recv().await.unwrap().0, 0x07);
+                    let complete =
+                        api::tests::common_pickup_complete_scenario(&client, record.id).await;
+                    assert!(!complete.legacy_reply.unwrap().accepted);
+                }
+                assert_eq!(
+                    client.player_state().await.unwrap().inventory.slots[index as usize]
+                        .as_ref()
+                        .unwrap()
+                        .value,
+                    original
+                );
+            }
+        }
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn ordinary_pickup_both_modes_player_storage_and_appended_player_require_cursor_and_reply()
      {
         use contract::{

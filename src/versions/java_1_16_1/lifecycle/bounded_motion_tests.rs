@@ -252,11 +252,11 @@ async fn ordinary_pickup_actor_has_distinct_owner_shared_actions_and_exact_relea
     assert_eq!(read_packet(&mut peer,None).await.unwrap(),(0x09,vec![3,0,54,0,0,1,0,1,1,3,0]));actor.finish_inventory_click(3).await.unwrap();
 }
 #[tokio::test]
-async fn crafting_input_actor_admits_inputs_but_refuses_result_and_equipment_before_write() {
+async fn ordinary_player_pickup_actor_refuses_result_and_out_of_range_slots_before_write() {
     let(actor,mut peer)=actor_fixture().await;actor.mark_ready().await;
     let revision=actor.motion_admission_revision().await.unwrap();
     assert_eq!(actor.begin_window_click(1,revision,0).await.unwrap(),1);
-    for slot in [0,5,45] {assert!(actor.bounded_inventory_click(1,slot,0,None).await.is_err());no_packet(&mut peer).await;}
+    for slot in [0,46,4096] {assert!(actor.bounded_inventory_click(1,slot,0,None).await.is_err());no_packet(&mut peer).await;}
     actor.bounded_inventory_click(1,1,1,None).await.unwrap();
     assert_eq!(read_packet(&mut peer,None).await.unwrap(),(0x09,vec![0,0,1,1,0,1,0,0]));
     actor.finish_inventory_click(1).await.unwrap();

@@ -255,9 +255,9 @@ fn prepare_inner(
     }
     let (slots, menu, revision) = match source {
         InventoryClickSource::Player => {
-            if !(1..=4).contains(&source_slot) && !(9..=44).contains(&source_slot) {
+            if !(1..=45).contains(&source_slot) {
                 return Err(crate::client::registry::invalid(
-                    "ordinary player click requires input slot 1..4 or inventory slot 9..44",
+                    "ordinary player click requires input/equipment/inventory slot 1..45",
                 ));
             }
             match initial.inventory.player_screen {
@@ -364,25 +364,35 @@ fn prepare_inner(
     } else {
         None
     };
-    let (expected_source, expected_cursor) = if let Some(context) = &item_context {
-        super::slot_policy::pickup_with_data(
-            initial.session.version,
-            menu,
-            usize::from(source_slot),
-            button,
-            (&source_before.value, &cursor_before.value),
-            context,
-        )?
-    } else {
-        super::slot_policy::pickup(
-            initial.session.version,
-            menu,
-            usize::from(source_slot),
-            button,
-            &source_before.value,
-            &cursor_before.value,
-        )?
-    };
+    let (expected_source, expected_cursor) =
+        if matches!(source, InventoryClickSource::Player) && matches!(source_slot, 5..=8 | 45) {
+            super::slot_policy::pickup_equipment(
+                initial.session.version,
+                usize::from(source_slot),
+                button,
+                (&source_before.value, &cursor_before.value),
+                mode,
+                item_context.as_deref(),
+            )?
+        } else if let Some(context) = &item_context {
+            super::slot_policy::pickup_with_data(
+                initial.session.version,
+                menu,
+                usize::from(source_slot),
+                button,
+                (&source_before.value, &cursor_before.value),
+                context,
+            )?
+        } else {
+            super::slot_policy::pickup(
+                initial.session.version,
+                menu,
+                usize::from(source_slot),
+                button,
+                &source_before.value,
+                &cursor_before.value,
+            )?
+        };
     if expected_source == source_before.value && expected_cursor == cursor_before.value {
         return Err(crate::client::registry::invalid(
             "ordinary click would have no effect; no packet submitted",

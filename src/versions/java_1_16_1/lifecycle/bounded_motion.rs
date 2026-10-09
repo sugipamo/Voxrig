@@ -1007,7 +1007,7 @@ impl MotionGate {
                         || if result_take.is_some() {
                             slot != 0 || button != 0
                         } else {
-                            *window == 0 && !(1..=4).contains(&slot) && !(9..=44).contains(&slot)
+                            *window == 0 && !(1..=45).contains(&slot)
                         }
                         || slot >= 4096
                         || button > 1

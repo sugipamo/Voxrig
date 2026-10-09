@@ -55,6 +55,59 @@ async fn main() -> anyhow::Result<()> {
             }
             "respawn" => serde_json::to_value(client.respawn().await?)?,
             "player" => serde_json::to_value(client.player_state().await?)?,
+            "inventory_record" => serde_json::to_value(survival.inventory_click_record().await?)?,
+            "inventory_click" => {
+                use voxrig::client::inventory::{
+                    InventoryClickButton as Button, InventoryClickStage, InventorySource,
+                };
+                let slot = request["slot"].as_u64().unwrap().try_into()?;
+                let button = if request["button"] == "right" {
+                    Button::Right
+                } else {
+                    Button::Left
+                };
+                let mode = client.player_state().await?.game_mode;
+                let result = if mode == Some(GameMode::Creative) {
+                    client
+                        .creative()
+                        .click_inventory(InventorySource::Player, slot, button)
+                        .await
+                } else {
+                    survival
+                        .click_inventory(InventorySource::Player, slot, button)
+                        .await
+                };
+                if request["expect_rejected"] == true {
+                    let error =
+                        result.expect_err("invalid equipment fixture unexpectedly admitted");
+                    serde_json::json!({"rejected":true, "kind":format!("{:?}",error.kind()),
+                        "message":error.to_string()})
+                } else {
+                    let pending = result?;
+                    let complete = tokio::time::timeout(Duration::from_secs(5), async {
+                        loop {
+                            let current = survival.inventory_click_record().await?.unwrap();
+                            anyhow::ensure!(
+                                current.id == pending.id,
+                                "another click replaced original attempt"
+                            );
+                            match current.stage {
+                                InventoryClickStage::ObservedClicked => {
+                                    break Ok::<_, anyhow::Error>(current);
+                                }
+                                InventoryClickStage::RequiresInspection => {
+                                    anyhow::bail!("click requires inspection: {current:?}")
+                                }
+                                InventoryClickStage::Pending => {}
+                                _ => anyhow::bail!("unreviewed click stage"),
+                            }
+                            tokio::time::sleep(Duration::from_millis(10)).await;
+                        }
+                    })
+                    .await??;
+                    serde_json::to_value(complete)?
+                }
+            }
             "vehicle" => serde_json::to_value(client.vehicle_state().await?)?,
             "vehicle_record" => serde_json::to_value(client.vehicle_control_record().await?)?,
             "capture" => serde_json::to_value(
