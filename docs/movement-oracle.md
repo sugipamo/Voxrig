@@ -111,3 +111,29 @@ cargo test --locked --lib every_supported_boat_tick_matches_unchanged_official_m
 
 これはボート自身のclient計算の比較で、サーバーとの同期や一般entity衝突の再現を意味しない。
 サーバー補正を受けた有限操作は中断する。実接続は[共通乗り物](common-vehicles.md)の手順を使う。
+
+## 泡の柱とボートの液体操作（2026-10-09）
+
+`fluid_control_scenarios.py`が泡の柱21場面、ボート33場面（従来の17場面を含む）を生成する。
+泡の柱は上下、内部と水面、上の空気・水・トーチ・屋根、落下進入、横からの出入り、
+ジャンプ・しゃがみ・泳ぎ、複数の柱と上下の柱が混在する接触を比較する。
+ボートは水源・流水・落下中の水への水没、操縦とneutral、横方向と下方向の水流、
+流水への落下、屋根の下での水面への移行を含む。
+両版の公式処理を計108回実行し、拒否を許さず、全tickの位置と速度をbit単位で比較する。
+playerは落下距離と移動状態、ボートは回転・角速度・接地・水の状態・パドルも比較する。
+
+ボートのharnessは状態判定の後、公式`Entity.baseTick`を呼んで水流の押しを適用し、
+浮力・操縦・移動を呼ぶ。非player entityでは平均した水流を正規化してから押す。
+サーバー側だけの強制下車はこのclient計算へ混ぜず、別の実接続で確認する。
+指定したblock stateを保つoracleと、実際に液体の更新が進む実接続は別の検証である。
+
+```bash
+python3 -B scripts/movement_oracle/fluid_control_scenarios.py .local/climbing/fluid-scenarios.json
+python3 scripts/movement_oracle/run.py \
+  --downloads /absolute/path/to/downloads --work "$PWD/.local/climbing/fluid-control-oracle" \
+  --scenarios "$PWD/.local/climbing/fluid-scenarios.json" \
+  --output "$PWD/data/client_api/fluid_control_oracle.json.gz" \
+  --blocks-output "$PWD/.local/climbing/fluid-control-facts"
+cargo test --locked --lib bubble_columns_reproduce_every_official_tick_without_refusals
+cargo test --locked --lib submerged_and_flowing_boats_match_unchanged_official_methods
+```

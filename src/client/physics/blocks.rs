@@ -21,6 +21,8 @@ pub(crate) enum Effect {
     Honey,
     /// Legacy liquid block: marks the player as touching lava.
     Liquid,
+    /// Bubble column: vertical acceleration and fall-distance reset.
+    BubbleColumn,
     /// Scaffolding: collision depends on the player's height and sneak key.
     Scaffolding,
     /// Not reproduced by this engine; movement near it is refused.
@@ -240,6 +242,7 @@ fn inside_effect(class: &str) -> Effect {
         "WebBlock" | "SweetBerryBushBlock" => Effect::Stuck,
         "HoneyBlock" => Effect::Honey,
         "LiquidBlock" => Effect::Liquid,
+        "BubbleColumnBlock" => Effect::BubbleColumn,
         _ => Effect::Unsupported("block interior effect"),
     }
 }

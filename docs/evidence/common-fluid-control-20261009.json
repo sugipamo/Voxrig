@@ -1,0 +1,1062 @@
+{
+  "schema": 1,
+  "date": "2026-10-09",
+  "scope": "Common Client player bubble-column control and boat source/flowing/submerged water control; Golemkit unchanged.",
+  "authority": "Unchanged SHA-1 verified official offline vanilla servers on loopback; independent RCON positions and passenger relationships; proxy forwards and captures original game packet bytes.",
+  "tested_sdk_commit": "107e3d07473d0e0b48c10836d91098169b217ddc",
+  "tested_sdk_src_tree": "2079b3141cfb4d175befd70077c3714fd03548ff",
+  "probe_sha256": "50fe4141c879d17126d9f738f88f09aef0fc855a5cbb8402ad212289bbb4af0c",
+  "probe_source_sha256": "0bb23934d77625df7b0495019f4d0f7ee412322fccd72b5ab621a33eb5f91d3e",
+  "driver_sha256": "fc1c8b5dd8d31dc0d68be6203ec87bac72d6f71585f3fdc31fea5da5cb3ccc0d",
+  "oracle": {
+    "path": "data/client_api/fluid_control_oracle.json.gz",
+    "sha256": "ce10e0154bab7046e5675cdad648aee4aa60a592ad717e5910924e8c40e5979f",
+    "scenario_runs": 108,
+    "player_ticks": 846,
+    "boat_ticks": 2500,
+    "runs": [
+      {
+        "version": "1.16.1",
+        "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+        "harness_sha256": "d713915668d8899d0638de3d7c56b4a96ec070f81543f78031e7c5bd7b9a1e83"
+      },
+      {
+        "version": "1.21.11",
+        "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+        "harness_sha256": "9b538d7829ee7ad45d455ac07d2b08d639c92a2eb79109075d7904cf624782c3"
+      }
+    ]
+  },
+  "versions": [
+    {
+      "version": "1.16.1",
+      "official_server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "report_path": ".local/climbing/live/1.16.1-20261009-070131/report.json",
+      "report_sha256": "008a66b118360f3825d976fca601760e333282db0ba3dcd334cf404001af9842",
+      "original_trace_path": ".local/climbing/live/1.16.1-20261009-070131/packets.jsonl",
+      "original_trace_sha256": "146cd14ba29cf19b9da1f4ff1b249c79cd9e8b5c77c8d4802cba353d97295b7c",
+      "passed": true,
+      "unexpected_player_corrections": 0,
+      "trace_errors": [],
+      "checks": [
+        {
+          "name": "bubble_up_interior",
+          "status": {
+            "status": "running"
+          },
+          "dispatched_ticks": 18,
+          "corrections": 0,
+          "predicted_position": [
+            0.5,
+            75.81125464108766,
+            0.5
+          ],
+          "native_position": [
+            0.5,
+            75.81125464108766,
+            0.5
+          ]
+        },
+        {
+          "name": "bubble_up_surface_exit",
+          "status": {
+            "status": "running"
+          },
+          "dispatched_ticks": 30,
+          "corrections": 0,
+          "predicted_position": [
+            0.5,
+            81.65915214920751,
+            0.5
+          ],
+          "native_position": [
+            0.5,
+            81.65915214920751,
+            0.5
+          ]
+        },
+        {
+          "name": "bubble_up_stop",
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 30,
+          "corrections": 0,
+          "predicted_position": [
+            0.5,
+            81.65915214920751,
+            0.5
+          ]
+        },
+        {
+          "name": "bubble_down_interior",
+          "status": {
+            "status": "running"
+          },
+          "dispatched_ticks": 18,
+          "corrections": 0,
+          "predicted_position": [
+            0.5,
+            73.25506393961476,
+            0.5
+          ],
+          "native_position": [
+            0.5,
+            73.50006394319104,
+            0.5
+          ]
+        },
+        {
+          "name": "bubble_down_stop",
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 18,
+          "corrections": 0,
+          "predicted_position": [
+            0.5,
+            73.25506393961476,
+            0.5
+          ]
+        },
+        {
+          "name": "boat_source_mount",
+          "native_mount": "ClimbingProbe has the following entity data: [I; -153970453, -928362691, -1797317662, 1491307435]",
+          "received_relation": {
+            "source": {
+              "kind": "received",
+              "sequence": 223
+            },
+            "value": {
+              "kind": "mounted",
+              "mount": {
+                "player_native_id": 36,
+                "receive_sequence": 223,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                },
+                "vehicle": {
+                  "native_id": 37,
+                  "session": {
+                    "connection_id": 1,
+                    "version": "Java1_16_1",
+                    "world_generation": 1
+                  },
+                  "spawn_sequence": 176
+                },
+                "vehicle_native_id": 37
+              }
+            }
+          }
+        },
+        {
+          "name": "boat_source_drive",
+          "stage": "submitted",
+          "dispatched_ticks": 20,
+          "requires_inspection": null,
+          "initial_position": [
+            0.5,
+            64.5576171875,
+            1.5
+          ],
+          "last_predicted_frame": {
+            "angular_velocity": -0.003057084046304226,
+            "bounds": [
+              -0.030571094841429745,
+              63.0,
+              1.6654037322130466,
+              1.3444289051585703,
+              63.5625,
+              3.0404037322130466
+            ],
+            "in_water": true,
+            "last_vertical_movement": 0.0,
+            "on_ground": true,
+            "paddles": [
+              false,
+              false
+            ],
+            "position": [
+              0.6569289051585703,
+              63.0,
+              2.3529037322130466
+            ],
+            "rotation": [
+              -21.81568145751953,
+              0.0
+            ],
+            "status": "under_water",
+            "velocity": [
+              3.947053458862544e-05,
+              0.0,
+              0.0001156384368252612
+            ]
+          },
+          "water_statuses": [
+            "under_water"
+          ],
+          "verified_move_packets": 20,
+          "verified_paddle_packets": 20,
+          "native_before": [
+            0.5,
+            64.55764421603516,
+            1.5
+          ],
+          "native_after": [
+            0.6569289051585703,
+            63.0,
+            2.3529037322130466
+          ]
+        },
+        {
+          "name": "boat_source_dismount",
+          "stage": "completed",
+          "requires_inspection": null
+        },
+        {
+          "name": "boat_flowing_mount",
+          "native_mount": "ClimbingProbe has the following entity data: [I; 1076846294, -96122583, -1307004235, 1141850593]",
+          "received_relation": {
+            "source": {
+              "kind": "received",
+              "sequence": 343
+            },
+            "value": {
+              "kind": "mounted",
+              "mount": {
+                "player_native_id": 36,
+                "receive_sequence": 343,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                },
+                "vehicle": {
+                  "native_id": 38,
+                  "session": {
+                    "connection_id": 1,
+                    "version": "Java1_16_1",
+                    "world_generation": 1
+                  },
+                  "spawn_sequence": 302
+                },
+                "vehicle_native_id": 38
+              }
+            }
+          }
+        },
+        {
+          "name": "boat_flowing_drive",
+          "stage": "submitted",
+          "dispatched_ticks": 20,
+          "requires_inspection": null,
+          "initial_position": [
+            0.5,
+            64.5576171875,
+            1.5
+          ],
+          "last_predicted_frame": {
+            "angular_velocity": -0.0030618777964264154,
+            "bounds": [
+              0.026984169303531595,
+              63.0,
+              1.8353687207691165,
+              1.4019841693035315,
+              63.5625,
+              3.210368720769115
+            ],
+            "in_water": true,
+            "last_vertical_movement": 0.0,
+            "on_ground": true,
+            "paddles": [
+              false,
+              false
+            ],
+            "position": [
+              0.7144841693035315,
+              63.0,
+              2.522868720769116
+            ],
+            "rotation": [
+              -26.405675888061523,
+              0.0
+            ],
+            "status": "under_water",
+            "velocity": [
+              4.857596852227103e-05,
+              0.0,
+              0.00011230880056527469
+            ]
+          },
+          "water_statuses": [
+            "under_flowing_water",
+            "under_water"
+          ],
+          "verified_move_packets": 20,
+          "verified_paddle_packets": 20,
+          "native_before": [
+            0.5,
+            64.55764421603516,
+            1.5
+          ],
+          "native_after": [
+            0.7144841693035315,
+            63.0,
+            2.522868720769116
+          ]
+        },
+        {
+          "name": "boat_flowing_dismount",
+          "stage": "completed",
+          "requires_inspection": null
+        },
+        {
+          "name": "boat_current_mount",
+          "native_mount": "ClimbingProbe has the following entity data: [I; 1535675500, 453199735, -1501198751, -1948554373]",
+          "received_relation": {
+            "source": {
+              "kind": "received",
+              "sequence": 466
+            },
+            "value": {
+              "kind": "mounted",
+              "mount": {
+                "player_native_id": 36,
+                "receive_sequence": 466,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                },
+                "vehicle": {
+                  "native_id": 39,
+                  "session": {
+                    "connection_id": 1,
+                    "version": "Java1_16_1",
+                    "world_generation": 1
+                  },
+                  "spawn_sequence": 429
+                },
+                "vehicle_native_id": 39
+              }
+            }
+          }
+        },
+        {
+          "name": "boat_current_drive",
+          "stage": "submitted",
+          "dispatched_ticks": 20,
+          "requires_inspection": null,
+          "initial_position": [
+            0.5,
+            64.5576171875,
+            1.5
+          ],
+          "last_predicted_frame": {
+            "angular_velocity": 0.0,
+            "bounds": [
+              -0.1875,
+              64.38510372661146,
+              2.256457041353847,
+              1.1875,
+              64.94760372661146,
+              3.6314570413538476
+            ],
+            "in_water": true,
+            "last_vertical_movement": -0.03951346088854166,
+            "on_ground": false,
+            "paddles": [
+              false,
+              false
+            ],
+            "position": [
+              0.5,
+              64.38510372661146,
+              2.9439570413538476
+            ],
+            "rotation": [
+              0.0,
+              0.0
+            ],
+            "status": "under_water",
+            "velocity": [
+              0.0,
+              -0.03951346088854166,
+              0.04337066050623613
+            ]
+          },
+          "water_statuses": [
+            "under_flowing_water",
+            "under_water"
+          ],
+          "verified_move_packets": 20,
+          "verified_paddle_packets": 20,
+          "native_before": [
+            0.5,
+            64.55764421603516,
+            1.5
+          ],
+          "native_after": [
+            0.5,
+            64.38510372661146,
+            2.9439570413538476
+          ]
+        },
+        {
+          "name": "boat_current_dismount",
+          "stage": "completed",
+          "requires_inspection": null
+        },
+        {
+          "name": "boat_forced_exit_mount",
+          "native_mount": "ClimbingProbe has the following entity data: [I; 732284557, -1744027222, -1141445495, -1456995710]",
+          "received_relation": {
+            "source": {
+              "kind": "received",
+              "sequence": 581
+            },
+            "value": {
+              "kind": "mounted",
+              "mount": {
+                "player_native_id": 36,
+                "receive_sequence": 581,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                },
+                "vehicle": {
+                  "native_id": 40,
+                  "session": {
+                    "connection_id": 1,
+                    "version": "Java1_16_1",
+                    "world_generation": 1
+                  },
+                  "spawn_sequence": 542
+                },
+                "vehicle_native_id": 40
+              }
+            }
+          }
+        },
+        {
+          "name": "boat_forced_exit_drive",
+          "stage": "requires_inspection",
+          "dispatched_ticks": 55,
+          "requires_inspection": "boat controlling passenger changed",
+          "initial_position": [
+            0.5,
+            64.578857421875,
+            1.5
+          ],
+          "last_predicted_frame": {
+            "angular_velocity": 0.0,
+            "bounds": [
+              -0.1875,
+              63.0,
+              4.752995697149745,
+              1.1875,
+              63.5625,
+              6.127995697149743
+            ],
+            "in_water": true,
+            "last_vertical_movement": 0.0,
+            "on_ground": true,
+            "paddles": [
+              true,
+              true
+            ],
+            "position": [
+              0.5,
+              63.0,
+              5.4404956971497445
+            ],
+            "rotation": [
+              0.0,
+              0.0
+            ],
+            "status": "under_water",
+            "velocity": [
+              0.0,
+              0.0,
+              0.0727272695253704
+            ]
+          },
+          "water_statuses": [
+            "under_water"
+          ],
+          "verified_move_packets": 55,
+          "verified_paddle_packets": 55,
+          "native_before": [
+            0.5,
+            64.57888652997983,
+            1.5
+          ],
+          "native_after": [
+            0.5,
+            63.0,
+            5.367768427624373
+          ]
+        },
+        {
+          "name": "boat_forced_exit_received",
+          "received_relation": {
+            "source": {
+              "kind": "received",
+              "sequence": 702
+            },
+            "value": {
+              "kind": "unmounted",
+              "previous_mount": {
+                "player_native_id": 36,
+                "receive_sequence": 581,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                },
+                "vehicle": {
+                  "native_id": 40,
+                  "session": {
+                    "connection_id": 1,
+                    "version": "Java1_16_1",
+                    "world_generation": 1
+                  },
+                  "spawn_sequence": 542
+                },
+                "vehicle_native_id": 40
+              }
+            }
+          },
+          "retained_stage": "requires_inspection",
+          "retained_failure": "boat controlling passenger changed"
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "official_server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "report_path": ".local/climbing/live/1.21.11-20261009-070206/report.json",
+      "report_sha256": "6242e17ba1a333bc031330f21b2107b9ca8cc4d37e2a6064a9a37e7b204af96c",
+      "original_trace_path": ".local/climbing/live/1.21.11-20261009-070206/packets.jsonl",
+      "original_trace_sha256": "1a290a9dce1e9bed436312db79c706fd546af771a3bb1902082cda852066d02f",
+      "passed": true,
+      "unexpected_player_corrections": 0,
+      "trace_errors": [],
+      "checks": [
+        {
+          "name": "bubble_up_interior",
+          "status": {
+            "status": "running"
+          },
+          "dispatched_ticks": 18,
+          "corrections": 0,
+          "predicted_position": [
+            0.5,
+            77.53726313156908,
+            0.5
+          ],
+          "native_position": [
+            0.5,
+            76.83726313156907,
+            0.5
+          ]
+        },
+        {
+          "name": "bubble_up_surface_exit",
+          "status": {
+            "status": "running"
+          },
+          "dispatched_ticks": 30,
+          "corrections": 0,
+          "predicted_position": [
+            0.5,
+            82.30404444600183,
+            0.5
+          ],
+          "native_position": [
+            0.5,
+            82.36210115068468,
+            0.5
+          ]
+        },
+        {
+          "name": "bubble_up_stop",
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 30,
+          "corrections": 0,
+          "predicted_position": [
+            0.5,
+            82.30404444600183,
+            0.5
+          ]
+        },
+        {
+          "name": "bubble_down_interior",
+          "status": {
+            "status": "running"
+          },
+          "dispatched_ticks": 18,
+          "corrections": 0,
+          "predicted_position": [
+            0.5,
+            72.4103199924207,
+            0.5
+          ],
+          "native_position": [
+            0.5,
+            72.7103199924207,
+            0.5
+          ]
+        },
+        {
+          "name": "bubble_down_stop",
+          "status": {
+            "reason": "stopped by request",
+            "status": "stopped"
+          },
+          "dispatched_ticks": 18,
+          "corrections": 0,
+          "predicted_position": [
+            0.5,
+            72.4103199924207,
+            0.5
+          ]
+        },
+        {
+          "name": "boat_source_mount",
+          "native_mount": "ClimbingProbe has the following entity data: [I; -1263149986, 1108167847, -1989055012, 110896616]",
+          "received_relation": {
+            "source": {
+              "kind": "received",
+              "sequence": 244
+            },
+            "value": {
+              "kind": "mounted",
+              "mount": {
+                "player_native_id": 1,
+                "receive_sequence": 244,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                },
+                "vehicle": {
+                  "native_id": 2,
+                  "session": {
+                    "connection_id": 1,
+                    "version": "Java1_21_11",
+                    "world_generation": 29
+                  },
+                  "spawn_sequence": 208
+                },
+                "vehicle_native_id": 2
+              }
+            }
+          }
+        },
+        {
+          "name": "boat_source_drive",
+          "stage": "submitted",
+          "dispatched_ticks": 20,
+          "requires_inspection": null,
+          "initial_position": [
+            0.5,
+            64.578857421875,
+            1.5
+          ],
+          "last_predicted_frame": {
+            "angular_velocity": -0.003057084046304226,
+            "bounds": [
+              -0.030571094841429725,
+              63.0,
+              1.665403732213047,
+              1.3444289051585703,
+              63.5625,
+              3.040403732213047
+            ],
+            "in_water": true,
+            "last_vertical_movement": 0.0,
+            "on_ground": true,
+            "paddles": [
+              false,
+              false
+            ],
+            "position": [
+              0.6569289051585703,
+              63.0,
+              2.352903732213047
+            ],
+            "rotation": [
+              -21.81568145751953,
+              0.0
+            ],
+            "status": "under_water",
+            "velocity": [
+              3.947053458862544e-05,
+              0.0,
+              0.0001156384368252612
+            ]
+          },
+          "water_statuses": [
+            "under_water"
+          ],
+          "verified_move_packets": 20,
+          "verified_paddle_packets": 20,
+          "native_before": [
+            0.5,
+            64.5788865286036,
+            1.5
+          ],
+          "native_after": [
+            0.6569289051585703,
+            63.0,
+            2.352903732213047
+          ]
+        },
+        {
+          "name": "boat_source_dismount",
+          "stage": "completed",
+          "requires_inspection": null
+        },
+        {
+          "name": "boat_flowing_mount",
+          "native_mount": "ClimbingProbe has the following entity data: [I; -1982946560, 500515035, -1220910623, -1180115097]",
+          "received_relation": {
+            "source": {
+              "kind": "received",
+              "sequence": 363
+            },
+            "value": {
+              "kind": "mounted",
+              "mount": {
+                "player_native_id": 1,
+                "receive_sequence": 363,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                },
+                "vehicle": {
+                  "native_id": 3,
+                  "session": {
+                    "connection_id": 1,
+                    "version": "Java1_21_11",
+                    "world_generation": 29
+                  },
+                  "spawn_sequence": 331
+                },
+                "vehicle_native_id": 3
+              }
+            }
+          }
+        },
+        {
+          "name": "boat_flowing_drive",
+          "stage": "submitted",
+          "dispatched_ticks": 20,
+          "requires_inspection": null,
+          "initial_position": [
+            0.5,
+            64.5576171875,
+            1.5
+          ],
+          "last_predicted_frame": {
+            "angular_velocity": -0.0030618777964264154,
+            "bounds": [
+              0.026984169303531536,
+              63.0,
+              1.8353687207691154,
+              1.4019841693035315,
+              63.5625,
+              3.2103687207691154
+            ],
+            "in_water": true,
+            "last_vertical_movement": 0.0,
+            "on_ground": true,
+            "paddles": [
+              false,
+              false
+            ],
+            "position": [
+              0.7144841693035315,
+              63.0,
+              2.5228687207691154
+            ],
+            "rotation": [
+              -26.405675888061523,
+              0.0
+            ],
+            "status": "under_water",
+            "velocity": [
+              4.857596852227103e-05,
+              0.0,
+              0.00011230880056527469
+            ]
+          },
+          "water_statuses": [
+            "under_flowing_water",
+            "under_water"
+          ],
+          "verified_move_packets": 20,
+          "verified_paddle_packets": 20,
+          "native_before": [
+            0.5,
+            64.55764421439497,
+            1.5
+          ],
+          "native_after": [
+            0.7144841693035315,
+            63.0,
+            2.5228687207691154
+          ]
+        },
+        {
+          "name": "boat_flowing_dismount",
+          "stage": "completed",
+          "requires_inspection": null
+        },
+        {
+          "name": "boat_current_mount",
+          "native_mount": "ClimbingProbe has the following entity data: [I; 1522051725, 1859142827, -2078297669, 864387780]",
+          "received_relation": {
+            "source": {
+              "kind": "received",
+              "sequence": 481
+            },
+            "value": {
+              "kind": "mounted",
+              "mount": {
+                "player_native_id": 1,
+                "receive_sequence": 481,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                },
+                "vehicle": {
+                  "native_id": 4,
+                  "session": {
+                    "connection_id": 1,
+                    "version": "Java1_21_11",
+                    "world_generation": 29
+                  },
+                  "spawn_sequence": 446
+                },
+                "vehicle_native_id": 4
+              }
+            }
+          }
+        },
+        {
+          "name": "boat_current_drive",
+          "stage": "submitted",
+          "dispatched_ticks": 20,
+          "requires_inspection": null,
+          "initial_position": [
+            0.5,
+            64.5576171875,
+            1.5
+          ],
+          "last_predicted_frame": {
+            "angular_velocity": 0.0,
+            "bounds": [
+              -0.1875,
+              64.38510372595123,
+              2.256457054100915,
+              1.1875,
+              64.94760372595123,
+              3.631457054100915
+            ],
+            "in_water": true,
+            "last_vertical_movement": -0.039513461548777724,
+            "on_ground": false,
+            "paddles": [
+              false,
+              false
+            ],
+            "position": [
+              0.5,
+              64.38510372595123,
+              2.943957054100915
+            ],
+            "rotation": [
+              0.0,
+              0.0
+            ],
+            "status": "under_water",
+            "velocity": [
+              0.0,
+              -0.039513461548777724,
+              0.04337066062588339
+            ]
+          },
+          "water_statuses": [
+            "under_flowing_water",
+            "under_water"
+          ],
+          "verified_move_packets": 20,
+          "verified_paddle_packets": 20,
+          "native_before": [
+            0.5,
+            64.55764421439497,
+            1.5
+          ],
+          "native_after": [
+            0.5,
+            64.38510372595123,
+            2.943957054100915
+          ]
+        },
+        {
+          "name": "boat_current_dismount",
+          "stage": "completed",
+          "requires_inspection": null
+        },
+        {
+          "name": "boat_forced_exit_mount",
+          "native_mount": "ClimbingProbe has the following entity data: [I; -974882449, 65422287, -1530213019, -93873694]",
+          "received_relation": {
+            "source": {
+              "kind": "received",
+              "sequence": 618
+            },
+            "value": {
+              "kind": "mounted",
+              "mount": {
+                "player_native_id": 1,
+                "receive_sequence": 618,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                },
+                "vehicle": {
+                  "native_id": 5,
+                  "session": {
+                    "connection_id": 1,
+                    "version": "Java1_21_11",
+                    "world_generation": 29
+                  },
+                  "spawn_sequence": 582
+                },
+                "vehicle_native_id": 5
+              }
+            }
+          }
+        },
+        {
+          "name": "boat_forced_exit_drive",
+          "stage": "requires_inspection",
+          "dispatched_ticks": 54,
+          "requires_inspection": "boat controlling passenger changed",
+          "initial_position": [
+            0.5,
+            64.578857421875,
+            1.5
+          ],
+          "last_predicted_frame": {
+            "angular_velocity": 0.0,
+            "bounds": [
+              -0.1875,
+              63.0,
+              4.680268427624374,
+              1.1875,
+              63.5625,
+              6.055268427624374
+            ],
+            "in_water": true,
+            "last_vertical_movement": 0.0,
+            "on_ground": true,
+            "paddles": [
+              true,
+              true
+            ],
+            "position": [
+              0.5,
+              63.0,
+              5.367768427624374
+            ],
+            "rotation": [
+              0.0,
+              0.0
+            ],
+            "status": "under_water",
+            "velocity": [
+              0.0,
+              0.0,
+              0.0727272695253704
+            ]
+          },
+          "water_statuses": [
+            "under_water"
+          ],
+          "verified_move_packets": 54,
+          "verified_paddle_packets": 54,
+          "native_before": [
+            0.5,
+            64.5788865286036,
+            1.5
+          ],
+          "native_after": [
+            0.5,
+            63.0,
+            5.2950411580990036
+          ]
+        },
+        {
+          "name": "boat_forced_exit_received",
+          "received_relation": {
+            "source": {
+              "kind": "received",
+              "sequence": 733
+            },
+            "value": {
+              "kind": "unmounted",
+              "previous_mount": {
+                "player_native_id": 1,
+                "receive_sequence": 618,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                },
+                "vehicle": {
+                  "native_id": 5,
+                  "session": {
+                    "connection_id": 1,
+                    "version": "Java1_21_11",
+                    "world_generation": 29
+                  },
+                  "spawn_sequence": 582
+                },
+                "vehicle_native_id": 5
+              }
+            }
+          },
+          "retained_stage": "requires_inspection",
+          "retained_failure": "boat controlling passenger changed"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Boat bubble-column effects and general entity collisions remain unsupported.",
+    "Dispatched prediction is not a received server control acknowledgment; real received passenger exit interrupts remaining inputs.",
+    "Issue #5 remains deferred."
+  ],
+  "excluded_fixture_attempts": [
+    "Earlier upward-surface sampling occurred after the player had already re-entered water; observation moved to the launch interval.",
+    "The probe initially propagated the expected forced-exit conflict before exposing its retained record; the final driver asserts the error and then inspects the real received exit.",
+    "The modern fixture initially used the legacy gamerule spelling; the final driver uses the pinned modern namespaced rule."
+  ]
+}

@@ -1,6 +1,6 @@
 //! Mounted boat motion using the pinned Boat/AbstractBoat movement rules.
-//! Ordinary surface water, air and audited block collision only. Submersion,
-//! bubble columns and entity collisions require separate received handling.
+//! Surface/submerged/flowing water, air and audited block collision. Bubble
+//! columns and entity collisions require separate received handling.
 use super::*;
 use crate::client::vehicle::VehicleInput;
 
@@ -20,7 +20,7 @@ pub struct BoatFrame {
     pub angular_velocity: f32,
     /// Downward block collision this tick.
     pub on_ground: bool,
-    /// Predicted surface-water contact.
+    /// Predicted surface-water or submerged-water contact.
     pub in_water: bool,
     /// Paddle states produced by the held keys.
     pub paddles: [bool; 2],
@@ -33,6 +33,8 @@ pub struct BoatFrame {
 #[serde(rename_all = "snake_case")]
 pub(crate) enum Status {
     Water,
+    UnderWater,
+    UnderFlowingWater,
     Air,
     Land,
 }
@@ -89,6 +91,7 @@ pub(crate) fn tick(
     };
     let mut water_level = f64::NEG_INFINITY;
     let mut water = false;
+    let mut submerged = None;
     for x in floor(b[0])..b[3].ceil() as i32 {
         for z in floor(b[2])..b[5].ceil() as i32 {
             for y in floor(b[1])..(b[4] + 0.001).ceil() as i32 {
@@ -102,7 +105,11 @@ pub(crate) fn tick(
                     }
                     let surface = f64::from(y as f32 + level.fluid_height(p, fluid)?);
                     if y >= floor(b[4]) && surface > b[4] + 0.001 {
-                        return Err(blocks::unsupported("submerged boat".into()));
+                        if fluid.amount != 8 || fluid.falling {
+                            submerged = Some(Status::UnderFlowingWater);
+                        } else if submerged.is_none() {
+                            submerged = Some(Status::UnderWater);
+                        }
                     }
                     if y < (b[1] + 0.001).ceil() as i32 {
                         water_level = water_level.max(surface);
@@ -132,25 +139,46 @@ pub(crate) fn tick(
             }
         }
     }
-    let status = if water {
+    let mut status = if let Some(status) = submerged {
+        status
+    } else if water {
         Status::Water
     } else if count > 0 {
         Status::Land
     } else {
         Status::Air
     };
-    let gravity = if version == MinecraftVersion::Java1_16_1 {
+    // Entity.baseTick runs before floatBoat. Reuse its audited fluid math with
+    // the boat's box and the native non-player normalization of the current.
+    let mut fluid_body = Body::new(next.position);
+    fluid_body.bounds = b;
+    fluid_body.velocity = next.velocity;
+    Tick {
+        version,
+        rules: &version.table().physics_rules,
+        env: &Environment::defaults(version),
+        body: &mut fluid_body,
+        level: &mut level,
+        movement_order: [1, 0, 2],
+    }
+    .fluid_push(false, 0.014, false)?;
+    next.velocity = fluid_body.velocity;
+    let gravity = if status == Status::UnderFlowingWater {
+        0.0007
+    } else if version == MinecraftVersion::Java1_16_1 {
         f64::from(0.04f32)
     } else {
         0.04
     };
-    let drag = if status == Status::Land {
+    let drag = if status == Status::UnderWater {
+        0.45f32
+    } else if status == Status::Land {
         friction / count as f32
     } else {
         0.9f32
     };
     // Boat.floatBoat/AbstractBoat.floatBoat: air-to-water snaps onto the surface.
-    if frame.status == Some(Status::Air) && status == Status::Water {
+    if frame.status == Some(Status::Air) && !matches!(status, Status::Air | Status::Land) {
         let end = (b[4] - frame.last_vertical_movement).ceil() as i32;
         let mut above = (end + 1) as f32;
         for y in floor(b[4])..end {
@@ -170,18 +198,32 @@ pub(crate) fn tick(
                 break;
             }
         }
-        next.position[1] = f64::from(above - HEIGHT as f32) + 0.101;
-        next.bounds = BoatFrame::box_at(next.position);
-        next.velocity[1] = 0.0;
+        let position = [
+            next.position[0],
+            f64::from(above - HEIGHT as f32) + 0.101,
+            next.position[2],
+        ];
+        let target = BoatFrame::box_at(position);
+        let no_collision = version == MinecraftVersion::Java1_16_1
+            || !level
+                .geometry(target, context)?
+                .iter()
+                .any(|s| intersects(*s, target));
+        if no_collision {
+            next.position = position;
+            next.bounds = target;
+            next.velocity[1] = 0.0;
+        }
+        status = Status::Water;
     } else {
         next.velocity[0] *= f64::from(drag);
         next.velocity[2] *= f64::from(drag);
         next.angular_velocity *= drag;
         next.velocity[1] -= gravity;
-        let buoyancy = if status == Status::Water {
-            (water_level - frame.position[1]) / HEIGHT
-        } else {
-            0.0
+        let buoyancy = match status {
+            Status::Water => (water_level - frame.position[1]) / HEIGHT,
+            Status::UnderWater => f64::from(0.01f32),
+            _ => 0.0,
         };
         if buoyancy > 0.0 {
             let lift = if version == MinecraftVersion::Java1_16_1 {
@@ -303,7 +345,10 @@ pub(crate) fn tick(
     }
     next.last_vertical_movement = moved[1];
     next.status = Some(status);
-    next.in_water = status == Status::Water;
+    next.in_water = matches!(
+        status,
+        Status::Water | Status::UnderWater | Status::UnderFlowingWater
+    );
     Ok(next)
 }
 
@@ -349,6 +394,15 @@ mod tests {
             &include_bytes!("../../../data/client_api/boat_oracle.json.gz")[..],
         ))
         .unwrap();
+        compare_boat_ticks(&oracle, 17);
+    }
+
+    #[test]
+    fn submerged_and_flowing_boats_match_unchanged_official_methods() {
+        compare_boat_ticks(&super::super::oracle_tests::fluid_control_oracle(), 33);
+    }
+
+    fn compare_boat_ticks(oracle: &Value, count: usize) {
         let origin = [1024, 100, 1024];
         let exact = |v: &Value| v.as_str().unwrap().parse::<f64>().unwrap();
         let mut differences = Vec::new();
@@ -357,9 +411,14 @@ mod tests {
             ("1.21.11", MinecraftVersion::Java1_21_11),
         ] {
             let results = oracle["results"][key].as_array().unwrap();
-            assert_eq!(results.len(), 17);
+            assert_eq!(results.len(), oracle["scenarios"].as_array().unwrap().len());
+            let mut compared = 0;
             for (scenario, result) in oracle["scenarios"].as_array().unwrap().iter().zip(results) {
                 assert_eq!(scenario["name"], result["name"]);
+                if scenario["boat"].as_bool() != Some(true) {
+                    continue;
+                }
+                compared += 1;
                 let cells = super::super::oracle_tests::world(scenario, result);
                 let air = super::super::oracle_tests::state("minecraft:air");
                 let position = std::array::from_fn(|i| {
@@ -414,12 +473,23 @@ mod tests {
                     );
                     assert_eq!(frame.on_ground, expected["on_ground"].as_bool().unwrap());
                     assert_eq!(frame.in_water, expected["in_water"].as_bool().unwrap());
+                    if let Some(status) = expected["water_status"].as_str() {
+                        let actual = match frame.status.unwrap() {
+                            Status::Water => "IN_WATER",
+                            Status::UnderWater => "UNDER_WATER",
+                            Status::UnderFlowingWater => "UNDER_FLOWING_WATER",
+                            Status::Air => "IN_AIR",
+                            Status::Land => "ON_LAND",
+                        };
+                        assert_eq!(actual, status, "{key} {} tick {index}", scenario["name"]);
+                    }
                     assert_eq!(
                         frame.paddles,
                         std::array::from_fn(|i| expected["paddles"][i].as_bool().unwrap())
                     );
                 }
             }
+            assert_eq!(compared, count);
         }
         assert!(differences.is_empty(), "{}", differences.join("\n"));
     }
