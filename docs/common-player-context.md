@@ -32,13 +32,14 @@ world変更、再login、modernのconfiguration変更では全fieldを退役さ�
 | `weather.raining` | 元の開始・終了event。強度からbooleanを作らない |
 | `weather.rain_level` / `thunder_level` | 元のfloat。render時のblendやthundering booleanを作らない |
 | `default_spawn` | worldのデフォルトspawn。個人のベッド・復活先・到達可否とは別 |
-| `world_view.center` / `distance` | 専用のview packet。loaded chunkやcache budgetを代用しない |
-| `world_view.simulation_distance` | modernの専用packet。1.16.1は常に未提供 |
+| `world_view.center` / `distance` | 元のLOGIN内のdistanceと専用のview packet。loaded chunkやcache budgetを代用しない |
+| `world_view.simulation_distance` | modernのLOGINと専用packet。1.16.1は常に未提供 |
 
 1.16.1のspawn packetはblock座標だけ。`dimension`・`yaw`・`pitch`はNoneのまま。
 1.21.11は元のglobal positionのdimension文字列・block座標・yaw・pitchを保持する。
-そのdimensionが今のplayer worldと同じだとは推測しない。view distanceについて、
-LOGIN内の値はこのAPIへ輸入せず、専用packetが来ない場合はNoneとする。
+そのdimensionが今のplayer worldと同じだとは推測しない。view distanceはLOGIN内で
+実際に供給された場合も元のLOGINのsourceを保持する。旧nativeのsuffixを省いた
+prefix fixtureでは未提供のままで、値を補完しない。
 
 受信デコーダはfield全体を読んでから更新し、切れた入力・余分な末尾・非有限floatなどを
 既存の値へ部分適用しない。負のview distanceは拒否する。

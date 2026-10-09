@@ -48,6 +48,9 @@ impl Bot {
             let mut receipts = self.common_receipts.lock().await;
             receipts.generation = packet_sequence;
             receipts.context = Default::default();
+            receipts.context.world_view.distance = join
+                .view_distance
+                .map(|distance| crate::client::received(distance, packet_sequence));
             receipts.entities.history_context(
                 crate::MinecraftVersion::Java1_16_1,
                 packet_sequence,

@@ -940,14 +940,22 @@ fn apply_play(
                 r.string()?;
             }
             r.varint()?;
-            r.varint()?;
-            r.varint()?;
+            let view_distance = r.varint()?;
+            let simulation_distance = r.varint()?;
+            anyhow::ensure!(
+                view_distance >= 0 && simulation_distance >= 0,
+                "negative login world-view distance"
+            );
             r.bool()?;
             r.bool()?;
             r.bool()?;
             spawn_info(state, &mut r)?;
             r.bool()?;
             r.end()?;
+            state.context.world_view.distance =
+                Some(crate::client::received(view_distance, state.sequence));
+            state.context.world_view.simulation_distance =
+                Some(crate::client::received(simulation_distance, state.sequence));
             state.operations.local_player = operations::LocalPlayerState::spawned(entity_id);
         }
         input::RESPAWN => {

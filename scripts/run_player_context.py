@@ -87,10 +87,36 @@ def verify_sources(version, context, trace):
                        "raining": 0x1e if old else 0x26, "rain_level": 0x1e if old else 0x26,
                        "thunder_level": 0x1e if old else 0x26, "center": 0x40 if old else 0x5c,
                        "distance": 0x41 if old else 0x5d, "simulation_distance": 0x6d}[name]
-        if packet["phase"] != "play" or packet["packet_id"] != expected_id:
+        login_view = name in ("distance", "simulation_distance") and packet["packet_id"] == (0x25 if old else 0x30)
+        if packet["phase"] != "play" or (packet["packet_id"] != expected_id and not login_view):
             raise RuntimeError("context source points to another original packet")
         actual = receipt["value"]
-        if name == "experience":
+        if login_view:
+            r.take(4)
+            if old:
+                r.take(2)
+            else:
+                r.boolean()
+            for _ in range(r.integer()):
+                r.string()
+            if old:
+                tag = r.take(1)[0]
+                r.take(int.from_bytes(r.take(2), "big"))
+                r.nbt(tag)
+                r.string()
+                r.string()
+                r.take(9)
+                decoded = r.integer()
+            else:
+                r.integer()
+                distance, simulation = r.integer(), r.integer()
+                decoded = distance if name == "distance" else simulation
+            if actual != decoded:
+                raise RuntimeError("world-view value differs from original login field")
+            # Only the audited view prefix is needed here; the adapter owns the
+            # remaining spawn-info decoding. Preserve the entire original frame.
+            r.take(len(r.raw) - r.cursor)
+        elif name == "experience":
             fraction = r.take(4)
             decoded = dict(level=r.integer(), total=r.integer())
             if fraction != struct.pack(">f", actual["progress"]) or decoded != {k: actual[k] for k in decoded}:
@@ -141,8 +167,13 @@ def check(version, command, request, trace, report, *, sdk):
         return result
 
     initial = snapshot("initial_version_fields")
+    if initial["world_view"]["distance"] is None or initial["world_view"]["distance"]["value"] != 3:
+        raise RuntimeError("original login view distance was missing or confused with another login field")
     if version == "1.16.1" and initial["world_view"]["simulation_distance"] is not None:
         raise RuntimeError("legacy simulation distance was invented")
+    if version == "1.21.11" and (initial["world_view"]["simulation_distance"] is None
+                                 or initial["world_view"]["simulation_distance"]["value"] != 2):
+        raise RuntimeError("original modern login simulation distance was missing")
     for name, commands in (("zero", ("experience set ClimbingProbe 0 levels", "experience set ClimbingProbe 0 points")),
                            ("points", ("experience add ClimbingProbe 5 points",)),
                            ("level", ("experience set ClimbingProbe 7 levels",))):
@@ -184,7 +215,9 @@ def check(version, command, request, trace, report, *, sdk):
             raise RuntimeError("unrelated weather packets refreshed or changed XP")
     for pos in ([3, 65, -2], [-7, 65, 9]):
         before = request("player_context")
-        command("setworldspawn " + " ".join(map(str, pos)) + (" 37" if version == "1.21.11" else ""))
+        response = command("setworldspawn " + " ".join(map(str, pos)) + (" 37 -12" if version == "1.21.11" else ""))
+        if "Set the world spawn point" not in response:
+            raise RuntimeError("native setworldspawn command failed: " + response)
         until(lambda: (value if (value := request("player_context"))["default_spawn"] is not None
                        and value["default_spawn"]["value"]["position"] == pos
                        and value["default_spawn"]["source"]["sequence"] > before["receive_sequence"] else None), 5)
@@ -216,6 +249,7 @@ def main():
     parser.add_argument("--version", choices=("1.16.1", "1.21.11"), action="append")
     parser.add_argument("--binary", type=Path, default=REPO / "target/debug/examples/climbing_control_probe")
     parser.add_argument("--jars", type=Path)
+    parser.add_argument("--compiled-sdk-revision", help="Explicit build revision when diagnosing an older binary")
     args = parser.parse_args()
     sdk = dict(source_revision=subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPO, text=True).strip(),
                source_diff_sha256=hashlib.sha256(subprocess.check_output(["git", "diff", "HEAD"], cwd=REPO)).hexdigest(),
@@ -223,9 +257,11 @@ def main():
                artifacts={p: hashlib.sha256((REPO / p).read_bytes()).hexdigest() for p in (
                    "Cargo.lock", "scripts/run_player_context.py", "scripts/run_climbing_control.py",
                    "scripts/run_common_native.py", "examples/climbing_control_probe.rs")})
+    sdk["binary_build_revision"] = args.compiled_sdk_revision or sdk["source_revision"]
     for version in args.version or ("1.16.1", "1.21.11"):
         run(version, args.binary.resolve(), args.jars.resolve() if args.jars else None,
-            check=functools.partial(check, sdk=sdk))
+            check=functools.partial(check, sdk=sdk),
+            server_properties={"view-distance": 3, "simulation-distance": 2, "max-players": 5})
 
 
 if __name__ == "__main__":
