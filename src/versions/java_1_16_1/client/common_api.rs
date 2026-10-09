@@ -237,7 +237,7 @@ impl Bot {
             }
             Action::Dig(position, face) => {
                 require_creative(mode)?;
-                self.common_reach(position).await?;
+                self.common_reach(position, [0.5; 3]).await?;
                 let mut payload = Vec::new();
                 put_varint(&mut payload, 0);
                 payload.extend(
@@ -254,7 +254,7 @@ impl Bot {
             }
             Action::UseOnBlock(position, face, cursor, hand) => {
                 api::item_use::validate_cursor(cursor)?;
-                self.common_reach(position).await?;
+                self.common_reach(position, cursor).await?;
                 let mut payload = Vec::new();
                 put_varint(&mut payload, hand as i32);
                 payload.extend(
@@ -279,7 +279,7 @@ impl Bot {
                 (0x2e, payload)
             }
             Action::DigStart(position, face) | Action::DigFinish(position, face) => {
-                self.common_reach(position).await?;
+                self.common_reach(position, [0.5; 3]).await?;
                 let status = if matches!(action, Action::DigStart(..)) {
                     0
                 } else {
@@ -364,7 +364,7 @@ impl Bot {
         self.common_receipts.lock().await.pending_dispatch = false;
         Ok(None)
     }
-    async fn common_reach(&self, position: [i32; 3]) -> Result<()> {
+    async fn common_reach(&self, position: [i32; 3], cursor: [f32; 3]) -> Result<()> {
         if !(0..=255).contains(&position[1])
             || position[0].abs_diff(0) > 30_000_000
             || position[2].abs_diff(0) > 30_000_000
@@ -386,7 +386,7 @@ impl Bot {
         }
         let eye = [player.x, player.y + 1.62, player.z];
         if (0..3)
-            .map(|i| (eye[i] - f64::from(position[i]) - 0.5).powi(2))
+            .map(|i| (eye[i] - f64::from(position[i]) - f64::from(cursor[i])).powi(2))
             .sum::<f64>()
             > 4.5f64.powi(2)
         {
@@ -707,6 +707,78 @@ mod tests {
     use super::*;
     use crate::ErrorKind;
     use crate::client::adapter::CoreOps;
+
+    #[tokio::test]
+    async fn block_hit_reach_uses_the_original_cursor_before_write() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.teleport_barrier_ticks.store(u8::MAX, Ordering::Release);
+        bot.world.lock().await.apply_chunk(&[0; 14], 256).unwrap();
+        bot.world
+            .lock()
+            .await
+            .set_block_for_test(BlockPos { x: 2, y: 66, z: 4 }, 1);
+        {
+            let mut player = bot.player.lock().await;
+            player.x = 0.19061256589492;
+            player.y = 65.0;
+            player.z = 0.499862279722396;
+        }
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let support = [2, 66, 4];
+        assert!(
+            client
+                .survival()
+                .placement_check(support, api::BlockFace::West)
+                .await
+                .unwrap()
+                .reachable
+        );
+        assert!(bot.common_reach(support, [0.5; 3]).await.is_err());
+        client
+            .survival()
+            .use_on_block(
+                support,
+                api::BlockFace::West,
+                [0., 0.5, 0.5],
+                api::Hand::Main,
+            )
+            .await
+            .unwrap();
+        let (id, payload) = packets.recv().await.unwrap();
+        assert_eq!(id, 0x2d);
+        assert_eq!(
+            &payload[10..22],
+            &[0., 0.5, 0.5]
+                .into_iter()
+                .flat_map(f32::to_be_bytes)
+                .collect::<Vec<_>>()
+        );
+        assert!(
+            client
+                .survival()
+                .use_on_block(
+                    support,
+                    api::BlockFace::East,
+                    [1., 0.5, 0.5],
+                    api::Hand::Main
+                )
+                .await
+                .unwrap_err()
+                .to_string()
+                .contains("out of reach")
+        );
+        assert!(
+            timeout(Duration::from_millis(30), packets.recv())
+                .await
+                .is_err()
+        );
+        release.send(()).unwrap();
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
 
     #[tokio::test]
     async fn basic_client_actions_cover_received_modes_and_keep_admission_checks() {
