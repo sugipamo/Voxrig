@@ -185,6 +185,9 @@ python3 -B scripts/run_fluid_control.py --accept-eula \
 
 同じ実接続検証でplayerの泡の柱の上下・水面脱出・継続操作の停止も確認する。
 ボートへの泡の柱の効果は引き続き範囲外である。
+両版の公式サーバーで17項目ずつ通過し、予期しないplayerの位置補正とトレースエラーは0件だった。
+RCON座標、実際に受信した乗員関係、送信パケット数と入力解除、SDK・公式JAR・元の記録のhashは
+[実接続の証拠](evidence/common-fluid-control-20261009.json)に保存した。
 
 実接続の再検証には次を使う（JDK 21、ビルド済みprobe、公式JARが必要）。
 
