@@ -704,7 +704,8 @@ impl Creative {
 impl Creative {
     /// Use the item in `hand` on a loaded block face within 4.5 blocks of the eye
     /// (place, open, press, light...). `cursor` is the hit point inside the target cell,
-    /// each axis within 0..1. Dispatch only: the server's result arrives as received block,
+    /// each axis within 0..1. Reach is measured to that exact hit point, not the block center.
+    /// Dispatch only: the server's result arrives as received block,
     /// inventory and screen updates. See `docs/common-item-use.md`.
     pub async fn use_on_block(
         &self,
@@ -745,7 +746,8 @@ impl Creative {
 impl Survival {
     /// Use the item in `hand` on a loaded block face within 4.5 blocks of the eye
     /// (place, open, press, light...). `cursor` is the hit point inside the target cell,
-    /// each axis within 0..1. Dispatch only: the server's result arrives as received block,
+    /// each axis within 0..1. Reach is measured to that exact hit point, not the block center.
+    /// Dispatch only: the server's result arrives as received block,
     /// inventory and screen updates. See `docs/common-item-use.md`.
     pub async fn use_on_block(
         &self,

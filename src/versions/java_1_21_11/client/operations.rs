@@ -719,7 +719,7 @@ impl Operations {
                 "survival placement requires place_survival_cube and received material accounting",
             ));
         }
-        check_reach(&state, position)?;
+        check_hit_reach(&state, position, cursor)?;
         let seq = self.next_sequence()?;
         let mut payload = Vec::new();
         put_varint(&mut payload, hand as i32);
@@ -1022,13 +1022,16 @@ fn pack_position(p: [i32; 3]) -> i64 {
         | (i64::from(p[1]) & 0xfff)
 }
 fn check_reach(state: &State, p: [i32; 3]) -> Result<()> {
+    check_hit_reach(state, p, [0.5; 3])
+}
+fn check_hit_reach(state: &State, p: [i32; 3], cursor: [f32; 3]) -> Result<()> {
     if state.world.block(p).is_none() {
         return Err(invalid("interaction target is not loaded"));
     }
     let player = state.position.context("player position unavailable")?;
     let eye = [player[0], player[1] + 1.62, player[2]];
     if (0..3)
-        .map(|i| (eye[i] - f64::from(p[i]) - 0.5).powi(2))
+        .map(|i| (eye[i] - f64::from(p[i]) - f64::from(cursor[i])).powi(2))
         .sum::<f64>()
         > 4.5f64.powi(2)
     {
