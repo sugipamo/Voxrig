@@ -6,8 +6,8 @@
 //! block state, block friction/speed/jump factors, slime and bed bounces, cobwebs
 //! and berry bushes, sneaking (including edge back-off), sprinting, movement
 //! attributes and effects, water and lava (currents, swimming, surfacing,
-//! jumping out onto ledges), ladders, vines and scaffolding. Outside it the tick
-//! returns `ErrorKind::Unsupported` before changing state: bubble columns,
+//! jumping out onto ledges), bubble columns, ladders, vines and scaffolding.
+//! Outside it the tick returns `ErrorKind::Unsupported` before changing state:
 //! flying, riding, levitation,
 //! honey wall sliding and anything not reviewed in `blocks`.
 pub(crate) mod blocks;
@@ -481,6 +481,7 @@ pub(crate) fn tick(
         env,
         body: &mut next,
         level: &mut level,
+        movement_order: [1, 0, 2],
     }
     .run(controls)?;
     *body = next;
@@ -493,6 +494,7 @@ struct Tick<'a, 'w, F> {
     env: &'a Environment,
     body: &'a mut Body,
     level: &'a mut Level<'w, F>,
+    movement_order: [usize; 3],
 }
 
 impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
@@ -718,7 +720,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
     }
 
     /// Entity.updateFluidHeightAndDoFluidPushing; returns whether touching.
-    fn fluid_push(&mut self, lava: bool, strength: f64) -> Result<bool> {
+    fn fluid_push(&mut self, lava: bool, strength: f64, player: bool) -> Result<bool> {
         let b = deflate(self.body.bounds, 0.001);
         let mut height = 0.0f64;
         let mut touching = false;
@@ -749,6 +751,10 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             if count > 0 {
                 push = push.map(|c| c * (1.0 / f64::from(count)));
             }
+            // Entity normalizes the averaged current for non-player entities.
+            if !player {
+                push = self.normalize(push);
+            }
             push = push.map(|c| c * strength);
             let v = self.body.velocity;
             if v[0].abs() < 0.003 && v[2].abs() < 0.003 && self.length(push) < 0.0045000000000000005
@@ -767,7 +773,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
 
     /// Entity.updateInWaterStateAndDoWaterCurrentPushing.
     fn update_water(&mut self) -> Result<()> {
-        if self.fluid_push(false, 0.014)? {
+        if self.fluid_push(false, 0.014, true)? {
             self.body.fall_distance = 0.0;
             self.body.in_water = true;
         } else {
@@ -787,7 +793,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             } else {
                 0.0023333333333333335
             };
-            self.fluid_push(true, current)?;
+            self.fluid_push(true, current, true)?;
         }
         // updateFluidOnEyes.
         self.body.was_eye_in_water = self.body.eye_in_water;
@@ -1443,6 +1449,11 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             self.body.velocity = [0.0; 3];
         }
         motion = self.back_off_from_edge(motion)?;
+        self.movement_order = if motion[0].abs() < motion[2].abs() {
+            [1, 2, 0]
+        } else {
+            [1, 0, 2]
+        };
         let region = {
             let b = self.body.bounds;
             let step = f64::from(self.step_height());
@@ -1609,6 +1620,45 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         let block = self.level.block(cell)?;
         match block.inside {
             Effect::None => Ok(()),
+            Effect::BubbleColumn if !certain => Ok(()),
+            Effect::BubbleColumn => {
+                let down = self
+                    .level
+                    .state(cell)?
+                    .properties
+                    .get("drag")
+                    .map(String::as_str)
+                    == Some("true");
+                let above = [cell[0], cell[1] + 1, cell[2]];
+                let surface = if self.legacy() {
+                    self.level.is_air(above)?
+                } else if self.level.fluid(above)?.is_some() {
+                    false
+                } else {
+                    // BubbleColumnBlock uses the empty collision context here,
+                    // rather than the player's current height/sneak context.
+                    self.level
+                        .shape(
+                            above,
+                            CollisionContext {
+                                bottom: f64::INFINITY,
+                                descending: false,
+                            },
+                        )?
+                        .is_empty()
+                };
+                let y = self.body.velocity[1];
+                self.body.velocity[1] = match (surface, down) {
+                    (true, true) => (-0.9f64).max(y - 0.03),
+                    (true, false) => 1.8f64.min(y + 0.1),
+                    (false, true) => (-0.3f64).max(y - 0.03),
+                    (false, false) => 0.7f64.min(y + 0.06),
+                };
+                if !surface {
+                    self.body.fall_distance = 0.0;
+                }
+                Ok(())
+            }
             Effect::Stuck if !certain => {
                 Err(unsupported(format!("possible contact with {}", block.name)))
             }
@@ -1738,19 +1788,115 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             maybe.extend(cells(b).filter(|c| !sure.contains(c)));
         }
         let mut stuck_kinds = std::collections::BTreeSet::new();
+        let mut has_bubbles = false;
         for cell in sure.iter().chain(maybe.iter()) {
-            if self.level.block(*cell)?.inside == Effect::Stuck {
+            let block = self.level.block(*cell)?;
+            has_bubbles |= block.inside == Effect::BubbleColumn;
+            if block.inside == Effect::Stuck {
                 stuck_kinds.insert(self.level.block(*cell)?.name.as_str());
             }
         }
         if stuck_kinds.len() > 1 {
             return Err(unsupported("mixed cobweb and berry bush".into()));
         }
+        if has_bubbles {
+            self.bubble_effects_modern(old_position)?;
+        }
         for cell in sure {
-            self.inside_effect(cell, true)?;
+            if self.level.block(cell)?.inside != Effect::BubbleColumn {
+                self.inside_effect(cell, true)?;
+            }
         }
         for cell in maybe {
-            self.inside_effect(cell, false)?;
+            if self.level.block(cell)?.inside != Effect::BubbleColumn {
+                self.inside_effect(cell, false)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Modern bubble effects run immediately, in native visitation order. The
+    /// callback's boolean means contact at this axis step's destination (or a
+    /// step longer than 1-epsilon), not contact with either endpoint. A cell
+    /// visited without that contact is still deduplicated for subsequent axes.
+    fn bubble_effects_modern(&mut self, from: [f64; 3]) -> Result<()> {
+        let to = self.body.position;
+        let delta: [f64; 3] = std::array::from_fn(|i| to[i] - from[i]);
+        let mut at = from;
+        let mut visited = std::collections::HashSet::new();
+        let mut steps = Vec::new();
+        for axis in self.movement_order {
+            if delta[axis] != 0.0 {
+                let start = at;
+                at[axis] += delta[axis];
+                steps.push((start, at, axis));
+            }
+        }
+        if steps.is_empty() {
+            steps.push((to, to, 1));
+        }
+        for (start, end, axis) in steps {
+            let distance = end[axis] - start[axis];
+            let dest = deflate(make_box(end, self.body.pose), f64::from(1.0e-5f32));
+            let source = shifted(dest, std::array::from_fn(|i| start[i] - end[i]));
+            let stationary = distance * distance < f64::from(1.0e-5f32 * 1.0e-5f32);
+            let long = distance.abs() > 1.0 - f64::from(1.0e-5f32);
+            let mut boxes = Vec::new();
+            if !stationary {
+                boxes.push(source);
+                // Axis-aligned traversal adds each newly crossed leading face,
+                // then the remaining destination cells, just as BlockGetter.
+                let face = if distance > 0.0 { axis + 3 } else { axis };
+                let a = floor(source[face]);
+                let b = floor(dest[face]);
+                if (b - a).abs() > 14 {
+                    return Err(unsupported("bubble intersection step budget".into()));
+                }
+                let sign = if distance > 0.0 { 1 } else { -1 };
+                let mut cell = a;
+                while cell != b {
+                    cell += sign;
+                    let mut face_box = dest;
+                    face_box[axis] = f64::from(cell);
+                    face_box[axis + 3] = f64::from(cell);
+                    boxes.push(face_box);
+                }
+            }
+            boxes.push(dest);
+            let order = if stationary {
+                [2, 1, 0] // BlockPos.betweenClosed: X is fastest.
+            } else if axis == 2 {
+                [1, 2, 0]
+            } else {
+                [1, 0, 2]
+            };
+            for b in boxes {
+                let axes: [Vec<i32>; 3] = std::array::from_fn(|i| {
+                    let mut cells: Vec<_> = (floor(b[i])..=floor(b[i + 3])).collect();
+                    if i == axis && distance < 0.0 && !stationary {
+                        cells.reverse();
+                    }
+                    cells
+                });
+                for &a in &axes[order[0]] {
+                    for &b in &axes[order[1]] {
+                        for &c in &axes[order[2]] {
+                            let mut cell = [0; 3];
+                            cell[order[0]] = a;
+                            cell[order[1]] = b;
+                            cell[order[2]] = c;
+                            if self.level.block(cell)?.inside == Effect::BubbleColumn
+                                && visited.insert(cell)
+                            {
+                                let cube = std::array::from_fn(|i| {
+                                    f64::from(cell[i % 3]) + if i < 3 { 0.0 } else { 1.0 }
+                                });
+                                self.inside_effect(cell, long || intersects(dest, cube))?;
+                            }
+                        }
+                    }
+                }
+            }
         }
         Ok(())
     }

@@ -452,6 +452,7 @@ public final class MovementOracle {
                 int strafe = t.has("strafe") ? t.get("strafe").getAsInt() : 0;
                 old.set(boat, status.get(boat));
                 status.set(boat, get.invoke(boat));
+                boat.baseTick();
                 boat.setInput(strafe > 0, strafe < 0, forward > 0, forward < 0);
                 floating.invoke(boat);
                 control.invoke(boat);
@@ -463,7 +464,9 @@ public final class MovementOracle {
                 f.add("rotation", vec(boat.getYRot(), boat.getXRot()));
                 f.addProperty("angular_velocity", Float.toString(angular.getFloat(boat)));
                 f.addProperty("on_ground", boat.onGround());
-                f.addProperty("in_water", status.get(boat).toString().equals("IN_WATER"));
+                String waterStatus = status.get(boat).toString();
+                f.addProperty("water_status", waterStatus);
+                f.addProperty("in_water", waterStatus.equals("IN_WATER") || waterStatus.equals("UNDER_WATER") || waterStatus.equals("UNDER_FLOWING_WATER"));
                 JsonArray paddles = new JsonArray();
                 paddles.add(boat.getPaddleState(0)); paddles.add(boat.getPaddleState(1));
                 f.add("paddles", paddles);

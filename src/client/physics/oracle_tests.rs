@@ -14,6 +14,13 @@ pub(super) fn oracle() -> Value {
     .unwrap()
 }
 
+pub(super) fn fluid_control_oracle() -> Value {
+    serde_json::from_reader(flate2::read::GzDecoder::new(
+        &include_bytes!("../../../data/client_api/fluid_control_oracle.json.gz")[..],
+    ))
+    .unwrap()
+}
+
 /// Oracle numbers are exact decimal strings.
 fn exact(value: &Value) -> f64 {
     value.as_str().unwrap().parse().unwrap()
@@ -232,6 +239,33 @@ fn engine_reproduces_official_trajectories() {
     }
     println!("{}", report.join("\n"));
     assert!(!failed, "{}", report.join("\n"));
+}
+
+#[test]
+fn bubble_columns_reproduce_every_official_tick_without_refusals() {
+    let data = fluid_control_oracle();
+    let mut failures = Vec::new();
+    let mut compared = 0;
+    for (version, key) in [
+        (MinecraftVersion::Java1_16_1, "1.16.1"),
+        (MinecraftVersion::Java1_21_11, "1.21.11"),
+    ] {
+        let scenarios = data["scenarios"].as_array().unwrap();
+        let results = data["results"][key].as_array().unwrap();
+        assert_eq!(scenarios.len(), results.len());
+        for (scenario, result) in scenarios.iter().zip(results) {
+            assert_eq!(scenario["name"], result["name"]);
+            if scenario["boat"].as_bool() == Some(true) {
+                continue;
+            }
+            match compare(version, scenario, result) {
+                Ok(None) => compared += 1,
+                other => failures.push(format!("{key} {}: {other:?}", scenario["name"])),
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+    assert_eq!(compared, 42);
 }
 
 #[test]

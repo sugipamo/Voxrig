@@ -55,6 +55,8 @@ async fn main() -> anyhow::Result<()> {
             }
             "respawn" => serde_json::to_value(client.respawn().await?)?,
             "player" => serde_json::to_value(client.player_state().await?)?,
+            "vehicle" => serde_json::to_value(client.vehicle_state().await?)?,
+            "vehicle_record" => serde_json::to_value(client.vehicle_control_record().await?)?,
             "capture" => serde_json::to_value(
                 client
                     .capture(Region {
@@ -142,18 +144,26 @@ async fn main() -> anyhow::Result<()> {
                 .await??;
                 serde_json::to_value(vehicle)?
             }
-            "drive" => {
+            "drive" | "drive_until_interrupted" => {
                 let inputs: Vec<VehicleInput> = serde_json::from_value(request["inputs"].clone())?;
-                serde_json::to_value(if creative_vehicle {
+                let result = if creative_vehicle {
                     client
                         .creative()
                         .start_vehicle_control(mounted.unwrap(), &inputs)
-                        .await?
+                        .await
                 } else {
                     survival
                         .start_vehicle_control(mounted.unwrap(), &inputs)
-                        .await?
-                })?
+                        .await
+                };
+                if request["command"] == "drive_until_interrupted" {
+                    serde_json::json!({
+                        "error": result.err().map(|e| e.to_string()),
+                        "record": client.vehicle_control_record().await?,
+                    })
+                } else {
+                    serde_json::to_value(result?)?
+                }
             }
             "dismount" => {
                 let record = if creative_vehicle {
