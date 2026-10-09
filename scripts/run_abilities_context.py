@@ -13,15 +13,22 @@ from run_common_native import until
 
 def verify(version,context,trace):
     peers=[p for p in trace.since(0) if p['direction']=='clientbound' and p['phase'] in ('configuration','play')]
+    resets={0x25,0x3a} if version=='1.16.1' else {0x30,0x50}
+    world_boundary=max((i for i,p in enumerate(peers,1) if i<=context['receive_sequence'] and p['phase']=='play' and p['packet_id'] in resets),default=0)
     originals=[]
     for name in ('abilities','difficulty'):
         receipt=context[name]
-        if receipt is None:continue
+        expected={'abilities':0x31 if version=='1.16.1' else 0x3e,'difficulty':0x0d if version=='1.16.1' else 0x0a}[name]
+        candidates=[i for i,p in enumerate(peers,1) if world_boundary<i<=context['receive_sequence'] and p['phase']=='play' and p['packet_id']==expected]
+        if receipt is None:
+            if candidates:raise RuntimeError('applied original context packet became missing')
+            continue
         source=receipt['source']
+        if not candidates or source['sequence']!=candidates[-1]:
+            raise RuntimeError('context is not the latest applied original same-world receipt')
         if source['kind']!='received' or not 0<source['sequence']<=context['receive_sequence']:
             raise RuntimeError('invalid original context source')
         packet=peers[source['sequence']-1]
-        expected={'abilities':0x31 if version=='1.16.1' else 0x3e,'difficulty':0x0d if version=='1.16.1' else 0x0a}[name]
         if packet['phase']!='play' or packet['packet_id']!=expected:
             raise RuntimeError('context source points to another original packet')
         raw=bytes.fromhex(packet['body_hex']);actual=receipt['value']
@@ -88,8 +95,11 @@ def check(version,command,request,trace,report,*,sdk):
     until(lambda:(c if (c:=request('player_context'))['abilities'] is not None and matches(c['abilities']['value'],native) else None),5)
     current=capture('new_world_fresh_abilities')
     trace.expect_disconnect();closed=request('context_disconnect')
-    if closed['session']!=current['session'] or any(closed[k]!=current[k] for k in ('abilities','difficulty')):
-        raise RuntimeError('closed context lost retained original receipts')
+    if closed['session']!=current['session'] or closed['receive_sequence']<current['receive_sequence']:
+        raise RuntimeError('closed context lost its original world/capture boundary')
+    # Original notifications can arrive between the preceding capture and close.
+    # verify() requires the latest actually applied same-world packet, including
+    # duplicate values; a fresh source is not mistaken for lost retained data.
     report['checks'].append(dict(name='received_context_readable_after_close',context=closed,originals=verify(version,closed,trace)))
 
 
