@@ -270,6 +270,7 @@ def check(version, command, request, trace, report, *, sdk):
         if "Modified block data" not in reply:
             raise RuntimeError("native sign update failed: "+reply)
         return command("data get block 1 65 1")
+    until(lambda: request("chunk_context",position=[0,0])["context"] is not None,20)
     initial = capture("initial_received_column")
     command("setblock 1 65 1 minecraft:oak_sign[rotation=0]")
     sign("column-first")
