@@ -262,3 +262,8 @@ python3 -B scripts/run_boat_hooks.py --accept-eula \
   --binary target/debug/examples/climbing_control_probe \
   --jars /absolute/path/to/downloads --compiled-sdk-revision <build-commit>
 ```
+
+両版の変更していない公式サーバーで4地形×5項目、合計40項目を確認した。
+各tickの車両位置・paddleと保持frame、元の速度通知とその受信ordinal、独立RCONの最終座標、
+有限ownerの待機取消後の継続、実際の下車を照合する。これはサーバーによる各frameのACKや
+他entityとの衝突の再現を意味しない。公開する証拠は検証結果とhashに限定する。

@@ -96,7 +96,10 @@ def check(version, command, request, trace, report, *, sdk):
                 raise RuntimeError('terrain velocity receipt differs from original native fields')
             sources.append(dict(update=update,original=original))
         report['checks'].append(dict(name=kind+'_velocity_sources',verified=sources))
-        position=until(lambda: (p if max(abs(a-b) for a,b in zip((p:=native()),frames[-1]['position']))<0.4 else None),5)
+        def endpoint():
+            position=native()
+            return position if max(abs(a-b) for a,b in zip(position,frames[-1]['position']))<0.4 else None
+        position=until(endpoint,5)
         report['checks'].append(dict(name=kind+'_native_endpoint',position=position,predicted=frames[-1]['position'],motion=native('Motion')))
         dismount=request('dismount')
         if dismount['stage']!='completed':raise RuntimeError('post-hook dismount did not complete')
