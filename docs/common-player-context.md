@@ -93,3 +93,7 @@ block entity NBTはchunk文脈、mapは地図観測へ分類する。旧版のpr
 item cooldown、追加のLOGIN／RESPAWN条件は共通の受信fieldとしては残件。statistics／
 advancements／camera／resource packなどのprotocol面は別のPROTOCOL項目で追跡する。
 modernの全packet分岐のparityは、この場面の検証だけでは宣言しない。
+
+能力の通知には既存の`PlayerChanged`がある。難易度専用のchange通知は現時点では未提供なので、
+`wait_for_receive`で受信境界が進むのを待ってから`player_context`を再読取する。
+各fieldのsourceを比較し、無関係なpacketで値が変わったとは扱わない。
