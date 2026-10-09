@@ -175,6 +175,18 @@ def check(version, command, request, trace, report, *, sdk):
     # The same native ID can be held in another world. New context must start
     # with new receipt identity/coverage, without resurrecting old pixel sources.
     give_map()
+    if version!='1.16.1':
+        # The modern official server does not necessarily supply an overworld
+        # map while held in the Nether. Keep that missing receipt distinct and
+        # return to the actual map's dimension for the ID-reuse qualification.
+        until(lambda: held('item'),10)
+        request('wait',ms=350)
+        other=request('map_context',id=identifier)
+        report['checks'].append(dict(name='modern_other_dimension_map_receipt',
+            provided=other['context'] is not None,native_item=command('data get entity ClimbingProbe Inventory'),
+            observation=None if other['context'] is None else verify(version,other,trace)))
+        command('execute in minecraft:overworld run tp ClimbingProbe 0.5 65 0.5 0 0')
+        until(lambda: request('player')['session']['world_generation']!=generation,20)
     renewed=until(lambda: (value if (value:=request('map_context',id=identifier))['context'] is not None else None),20)
     if renewed['context']['map']==first['context']['map']:
         raise RuntimeError('native map ID reuse resurrected old observation identity')
