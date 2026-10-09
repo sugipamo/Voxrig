@@ -200,6 +200,21 @@ def check_nested_attachment(version, command, request, trace, report, *, sdk):
         attached = command('ride @e[tag=CollisionMount,limit=1] mount @e[tag=CollisionParent,limit=1]')
         if 'started riding' not in attached:
             raise RuntimeError('original /ride did not actually attach the vehicle: ' + attached)
+        # Two commands in one original server tick can coalesce before its
+        # entity tracker sends SET_PASSENGERS. Test actual receipt, not an
+        # unobservable intermediate server state or the command response.
+        def original_attached_list():
+            for packet in trace.since(boundary):
+                if packet['direction'] != 'clientbound' or packet['phase'] != 'play' or packet['packet_id'] != 0x69:
+                    continue
+                reader = NativeSocialReader(packet, version)
+                target = reader.integer()
+                members = [reader.integer() for _ in range(reader.integer())]
+                reader.end()
+                if target == parent and native_mount['vehicle_native_id'] in members:
+                    return packet
+            return None
+        until(original_attached_list, 5)
         restored = command('ride @e[tag=CollisionMount,limit=1] dismount')
         if 'stopped riding' not in restored:
             raise RuntimeError('original /ride did not restore the attachment: ' + restored)
