@@ -19,6 +19,7 @@ type ChunkResourceIndex = HashMap<i32, BTreeSet<(i32, i32, i32)>>;
 
 pub(crate) struct World {
     chunks: HashMap<(i32, i32), Chunk>,
+    contexts: HashMap<(i32, i32), crate::client::chunk_context::ChunkData>,
     resource_index: HashMap<(i32, i32), ChunkResourceIndex>,
     resource_index_entries: usize,
     resource_index_incomplete_chunks: BTreeSet<(i32, i32)>,
@@ -300,9 +301,25 @@ pub(crate) struct ContactEffects {
 }
 
 impl World {
+    pub(crate) fn stamp_context(&mut self, position: [i32; 2], sequence: u64) {
+        if let Some(context) = self.contexts.get_mut(&(position[0], position[1])) {
+            context.stamp(sequence);
+        }
+    }
+    pub(crate) fn context(
+        &self,
+        position: [i32; 2],
+        session: crate::client::SessionStamp,
+        sequence: u64,
+    ) -> Option<crate::client::ChunkContextObservation> {
+        self.contexts
+            .get(&(position[0], position[1]))?
+            .capture(session, position, sequence)
+    }
     pub(crate) fn with_storage(storage: Arc<SharedChunkStorage>) -> Self {
         Self {
             chunks: HashMap::new(),
+            contexts: HashMap::new(),
             resource_index: HashMap::new(),
             resource_index_entries: 0,
             resource_index_incomplete_chunks: BTreeSet::new(),
@@ -312,6 +329,7 @@ impl World {
 
     pub(crate) fn clear(&mut self) {
         self.chunks.clear();
+        self.contexts.clear();
         self.resource_index.clear();
         self.resource_index_entries = 0;
         self.resource_index_incomplete_chunks.clear();
@@ -1204,6 +1222,18 @@ impl World {
             let end = c.position() as usize;
             block_entities_nbt.push(Arc::from(payload[start..end].to_vec()));
         }
+        if c.position() as usize != payload.len() {
+            bail!("trailing chunk data");
+        }
+        let context = crate::client::chunk_context::ChunkData::legacy(
+            self.contexts.get(&(x, z)).cloned(),
+            [x, z],
+            ground_up,
+            bitmap,
+            biomes.clone(),
+            &heightmaps_nbt,
+            &block_entities_nbt,
+        )?;
         let previous = self.chunks.remove(&(x, z)).unwrap_or_default();
         if !ground_up {
             for (section, states) in &previous.sections {
@@ -1228,6 +1258,7 @@ impl World {
             self.invalidate_light_neighborhood(x, z);
         }
         self.rebuild_resource_index_chunk(x, z);
+        self.contexts.insert((x, z), context);
         Ok((x, z))
     }
 
@@ -1260,7 +1291,27 @@ impl World {
         let mut cursor = Cursor::new(payload);
         let position = BlockPos::unpack(cursor.read_u64::<BigEndian>()?);
         let action = cursor.read_u8()?;
-        let nbt = Arc::from(payload[cursor.position() as usize..].to_vec());
+        if !(0..256).contains(&position.y) {
+            bail!("block entity outside legacy dimension");
+        }
+        let nbt: Arc<[u8]> = Arc::from(payload[cursor.position() as usize..].to_vec());
+        let cell = [position.x, position.y, position.z];
+        let received = crate::client::ReceivedBlockEntity::decode(
+            cell,
+            crate::client::BlockEntityKind::LegacyUpdateAction(action),
+            nbt.clone(),
+            crate::MinecraftVersion::Java1_16_1,
+        )?;
+        let key = (position.x.div_euclid(16), position.z.div_euclid(16));
+        let context = self
+            .contexts
+            .get(&key)
+            .cloned()
+            .map(|mut context| {
+                context.insert(received)?;
+                Ok::<_, anyhow::Error>(context)
+            })
+            .transpose()?;
         let update = BlockEntityData {
             position,
             action,
@@ -1272,6 +1323,9 @@ impl World {
         {
             chunk.block_entities.insert(position, update.clone());
         }
+        if let Some(context) = context {
+            self.contexts.insert(key, context);
+        }
         Ok(update)
     }
 
@@ -1279,7 +1333,11 @@ impl World {
         let mut c = Cursor::new(payload);
         let x = c.read_i32::<BigEndian>()?;
         let z = c.read_i32::<BigEndian>()?;
+        if c.position() as usize != payload.len() {
+            bail!("trailing unload data");
+        }
         self.chunks.remove(&(x, z));
+        self.contexts.remove(&(x, z));
         self.remove_resource_index_chunk((x, z));
         Ok((x, z))
     }
@@ -1288,6 +1346,9 @@ impl World {
         let mut c = Cursor::new(payload);
         let (x, y, z) = unpack_position(c.read_u64::<BigEndian>()?);
         let state_id = read_vi(&mut c)?;
+        if c.position() as usize != payload.len() {
+            bail!("trailing block change data");
+        }
         self.set_block(x, y, z, state_id);
         Ok((x, y, z, state_id))
     }
@@ -1332,6 +1393,9 @@ impl World {
                 .context("multi block change z overflow")?;
             changes.push((BlockPos { x, y, z }, state_id));
         }
+        if c.position() as usize != payload.len() {
+            bail!("trailing multi-block change data");
+        }
         for (p, state_id) in &changes {
             self.set_block(p.x, p.y, p.z, *state_id);
         }
@@ -1351,6 +1415,9 @@ impl World {
         let old_state_id = Arc::make_mut(section)[i];
         Arc::make_mut(section)[i] = state_id;
         if old_state_id != state_id {
+            if let Some(context) = self.contexts.get_mut(&(x.div_euclid(16), z.div_euclid(16))) {
+                context.invalidate_cell([x, y, z]);
+            }
             self.invalidate_light_neighborhood(x.div_euclid(16), z.div_euclid(16));
         }
         self.update_resource_index_block(position, old_state_id, state_id);
@@ -1735,6 +1802,74 @@ mod tests {
         packet.extend(section);
         crate::protocol::put_varint(&mut packet, 0); // Block entities.
         packet
+    }
+
+    #[test]
+    fn chunk_context_legacy_preserves_sources_and_atomic_replacement_and_retires_incarnations() {
+        let mut world = World::default();
+        let session = crate::client::SessionStamp {
+            version: crate::MinecraftVersion::Java1_16_1,
+            connection_id: 7,
+            world_generation: 1,
+        };
+        let packet = uniform_chunk_packet(-1, -1, 1);
+        world.apply_chunk(&packet, 256).unwrap();
+        assert!(world.context([-1, -1], session, 10).is_none());
+        world.stamp_context([-1, -1], 10);
+        let saved = world.context([-1, -1], session, 10).unwrap();
+        assert_eq!(
+            saved.biomes.as_ref().unwrap().value.native_id(15, 255, 15),
+            Some(0)
+        );
+        assert_eq!(
+            saved.biomes.as_ref().unwrap().value.native_id(16, 0, 0),
+            None
+        );
+        let old = serde_json::to_value(&saved).unwrap();
+        for cut in [0, 11, packet.len() - 2, packet.len() - 1] {
+            assert!(world.apply_chunk(&packet[..cut], 256).is_err());
+            assert_eq!(
+                serde_json::to_value(world.context([-1, -1], session, 10)).unwrap(),
+                old
+            );
+        }
+        let mut trailing = packet.clone();
+        trailing.push(0);
+        assert!(world.apply_chunk(&trailing, 256).is_err());
+        // A valid partial packet supplies no biomes and does not own section 0.
+        let mut partial = Vec::new();
+        partial.extend((-1i32).to_be_bytes());
+        partial.extend((-1i32).to_be_bytes());
+        partial.extend([0, 0, 0, 0, 0, 0]);
+        world.apply_chunk(&partial, 256).unwrap();
+        world.stamp_context([-1, -1], 11);
+        let partial = world.context([-1, -1], session, 11).unwrap();
+        assert_eq!(partial.chunk, saved.chunk);
+        assert_eq!(
+            partial.biomes.as_ref().unwrap().source,
+            saved.biomes.as_ref().unwrap().source
+        );
+        assert!(!partial.block_entities_complete);
+        world.set_block(-15, 1, -15, 2);
+        assert!(
+            world
+                .context([-1, -1], session, 12)
+                .unwrap()
+                .heightmaps
+                .is_none()
+        );
+        assert!(saved.heightmaps.is_some());
+        world.unload_chunk(&unload_chunk_packet(-1, -1)).unwrap();
+        assert!(world.context([-1, -1], session, 13).is_none());
+        world.apply_chunk(&packet, 256).unwrap();
+        world.stamp_context([-1, -1], 14);
+        assert_ne!(
+            world.context([-1, -1], session, 14).unwrap().chunk,
+            saved.chunk
+        );
+        world.clear();
+        assert!(world.context([-1, -1], session, 15).is_none());
+        assert_eq!(serde_json::to_value(&saved).unwrap(), old);
     }
 
     fn block_change_packet(position: BlockPos, state_id: i32) -> Vec<u8> {

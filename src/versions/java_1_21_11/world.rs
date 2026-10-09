@@ -33,11 +33,100 @@ pub(crate) struct ColumnLight {
 pub(crate) struct World {
     pub dimension: Option<(String, Dimension)>,
     chunks: HashMap<(i32, i32), Vec<Arc<[i32; 4096]>>>,
+    contexts: HashMap<(i32, i32), crate::client::chunk_context::ChunkData>,
     light: HashMap<(i32, i32), ColumnLight>,
     pub revision: u64,
 }
 
 impl World {
+    pub(crate) fn stamp_context(&mut self, position: [i32; 2], sequence: u64) {
+        if let Some(context) = self.contexts.get_mut(&(position[0], position[1])) {
+            context.stamp(sequence);
+        }
+    }
+    pub(crate) fn context(
+        &self,
+        position: [i32; 2],
+        session: crate::client::SessionStamp,
+        sequence: u64,
+    ) -> Option<crate::client::ChunkContextObservation> {
+        self.contexts
+            .get(&(position[0], position[1]))?
+            .capture(session, position, sequence)
+    }
+    pub(crate) fn update_entity(&mut self, payload: &[u8], sequence: u64) -> Result<()> {
+        let mut r = Reader::new(payload);
+        let p = unpack_position(r.u64()?);
+        let kind = r.varint()?;
+        if kind < 0 {
+            bail!("negative block entity type");
+        }
+        let before = r.remaining();
+        r.skip_optional_nbt()?;
+        let encoded = Arc::from(&before[..before.len() - r.remaining().len()]);
+        let value = crate::client::ReceivedBlockEntity::decode(
+            p,
+            crate::client::BlockEntityKind::ModernType(kind),
+            encoded,
+            crate::MinecraftVersion::Java1_21_11,
+        )?;
+        r.end()?;
+        let dimension = self
+            .dimension
+            .as_ref()
+            .context("entity before dimension")?
+            .1;
+        if p[1] < dimension.min_y || p[1] >= dimension.min_y + dimension.height {
+            bail!("entity outside dimension");
+        }
+        let key = (p[0].div_euclid(16), p[2].div_euclid(16));
+        if let Some(mut context) = self.contexts.get(&key).cloned() {
+            context.insert(value)?;
+            context.stamp(sequence);
+            self.contexts.insert(key, context);
+        }
+        Ok(())
+    }
+    pub(crate) fn update_biomes(
+        &mut self,
+        payload: &[u8],
+        maximum: usize,
+        sequence: u64,
+    ) -> Result<()> {
+        let dimension = self
+            .dimension
+            .as_ref()
+            .context("biomes before dimension")?
+            .1;
+        let mut r = Reader::new(payload);
+        let mut updates = Vec::new();
+        for _ in 0..r.count(maximum.min(65_536))? {
+            let packed = r.u64()?;
+            let key = (packed as i32, (packed >> 32) as i32);
+            let mut data = Reader::new(r.byte_array(2_097_152)?);
+            let mut ids = Vec::new();
+            for _ in 0..dimension.height / 16 {
+                ids.extend(palette(&mut data, 64, 1, 3, 8)?);
+            }
+            data.end()?;
+            updates.push((
+                key,
+                crate::client::BiomeVolume {
+                    min_y: dimension.min_y,
+                    height: dimension.height,
+                    ids: Arc::from(ids),
+                },
+            ));
+        }
+        r.end()?;
+        for (key, value) in updates {
+            if let Some(context) = self.contexts.get_mut(&key) {
+                context.biomes = Some(crate::client::chunk_context::Stored::pending(value));
+                context.stamp(sequence);
+            }
+        }
+        Ok(())
+    }
     #[cfg(test)]
     pub(super) fn seed_replay_cell(&mut self, p: [i32; 3], id: i32) {
         let dimension = self.dimension.as_ref().unwrap().1;
@@ -52,12 +141,14 @@ impl World {
     pub fn select_dimension(&mut self, name: String, dimension: Dimension) {
         self.dimension = Some((name, dimension));
         self.chunks.clear();
+        self.contexts.clear();
         self.light.clear();
         self.revision += 1;
     }
     pub fn reset(&mut self) {
         self.dimension = None;
         self.chunks.clear();
+        self.contexts.clear();
         self.light.clear();
         self.revision += 1;
     }
@@ -141,6 +232,12 @@ impl World {
                 as usize;
             if section[cell] != id {
                 Arc::make_mut(section)[cell] = id;
+                if let Some(context) = self
+                    .contexts
+                    .get_mut(&(p[0].div_euclid(16), p[2].div_euclid(16)))
+                {
+                    context.invalidate_cell(p);
+                }
                 self.invalidate_light(p[0].div_euclid(16), p[2].div_euclid(16));
             }
             self.revision += 1;
@@ -202,6 +299,7 @@ impl World {
         let x = r.i32()?;
         r.end()?;
         self.chunks.remove(&(x, z));
+        self.contexts.remove(&(x, z));
         self.light.remove(&(x, z));
         self.revision += 1;
         Ok(())
@@ -224,13 +322,33 @@ impl World {
             bail!("chunk cache limit exceeded");
         }
         let dimension = self.dimension.as_ref().context("chunk before dimension")?.1;
+        let mut maps = std::collections::BTreeMap::new();
         for _ in 0..r.count(16)? {
-            r.varint()?;
+            let kind = crate::client::chunk_context::HeightmapKind::from_id(r.varint()?)?;
             let count = r.count(1024)?;
-            r.take(count * 8)?;
+            let words = (0..count)
+                .map(|_| r.u64().map(|v| v as i64))
+                .collect::<Result<Vec<_>>>()?;
+            maps.insert(
+                kind,
+                crate::client::ReceivedHeightmap {
+                    kind,
+                    min_y: dimension.min_y,
+                    height: dimension.height,
+                    words: Arc::from(words),
+                },
+            );
         }
+        let mut context = crate::client::chunk_context::ChunkData {
+            complete: true,
+            heightmaps: Some(crate::client::chunk_context::Stored::pending(
+                maps.into_values().collect(),
+            )),
+            ..Default::default()
+        };
         let mut data = Reader::new(r.byte_array(2_097_152)?);
         let mut sections: Vec<Arc<[i32; 4096]>> = Vec::new();
+        let mut biomes = Vec::new();
         for _ in 0..dimension.height / 16 {
             let non_air = data.u16()?;
             if non_air > 4096 {
@@ -245,8 +363,15 @@ impl World {
                     .try_into()
                     .map_err(|_| anyhow::anyhow!("invalid section volume"))?,
             ));
-            palette(&mut data, 64, 1, 3, 8)?;
+            biomes.extend(palette(&mut data, 64, 1, 3, 8)?);
         }
+        context.biomes = Some(crate::client::chunk_context::Stored::pending(
+            crate::client::BiomeVolume {
+                min_y: dimension.min_y,
+                height: dimension.height,
+                ids: Arc::from(biomes),
+            },
+        ));
         data.end()?;
         let mut pistons = Vec::new();
         let mut seen = std::collections::BTreeSet::new();
@@ -261,6 +386,7 @@ impl World {
             if kind < 0 {
                 bail!("negative block entity type");
             }
+            let nbt_before = r.remaining();
             if kind == super::piston_nbt::PISTON_TYPE {
                 let id = sections[((y - dimension.min_y) / 16) as usize][(y.rem_euclid(16) * 256
                     + p[2].rem_euclid(16) * 16
@@ -284,6 +410,13 @@ impl World {
             } else {
                 r.skip_optional_nbt()?;
             }
+            let encoded = Arc::from(&nbt_before[..nbt_before.len() - r.remaining().len()]);
+            context.insert(crate::client::ReceivedBlockEntity::decode(
+                p,
+                crate::client::BlockEntityKind::ModernType(kind),
+                encoded,
+                crate::MinecraftVersion::Java1_21_11,
+            )?)?;
         }
         // Same terrain keeps the previous light under the packet's own arrays; changed
         // or new terrain starts unknown.
@@ -299,6 +432,7 @@ impl World {
         read_light(&mut r, &mut light, count)?;
         r.end()?;
         self.chunks.insert((x, z), sections);
+        self.contexts.insert((x, z), context);
         self.light.insert((x, z), light);
         self.revision += 1;
         Ok(pistons)
@@ -410,6 +544,158 @@ fn palette(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn context_chunk() -> Vec<u8> {
+        let mut packet = vec![0; 8];
+        crate::protocol::put_varint(&mut packet, 1);
+        crate::protocol::put_varint(&mut packet, 4);
+        crate::protocol::put_varint(&mut packet, 37);
+        for _ in 0..37 {
+            packet.extend(0u64.to_be_bytes());
+        }
+        let sections = [0, 0, 0, 0, 0, 7].repeat(24);
+        crate::protocol::put_varint(&mut packet, sections.len() as i32);
+        packet.extend(sections);
+        packet.push(1);
+        packet.push(0x12);
+        packet.extend(65u16.to_be_bytes());
+        packet.extend([0, 10, 0]);
+        // Four light masks, then the sky and block array counts.
+        packet.extend([0; 6]);
+        packet
+    }
+    #[test]
+    fn chunk_context_aggregate_budget_refuses_update_without_publishing_other_receipts() {
+        let mut world = World::default();
+        world.select_dimension(
+            "minecraft:overworld".into(),
+            Dimension::new(-64, 384).unwrap(),
+        );
+        world.load(&context_chunk(), 128).unwrap();
+        world.stamp_context([0, 0], 1);
+        let mut nbt = vec![10, 7, 0, 1, b'v'];
+        nbt.extend(700_000i32.to_be_bytes());
+        nbt.extend(vec![0; 700_000]);
+        nbt.push(0);
+        for x in [2u64, 3] {
+            let mut packet = ((x << 38) | (2 << 12) | 65).to_be_bytes().to_vec();
+            packet.push(0);
+            packet.extend(&nbt);
+            world.update_entity(&packet, x).unwrap();
+        }
+        let mut packet = ((4u64 << 38) | (2 << 12) | 65).to_be_bytes().to_vec();
+        packet.push(0);
+        packet.extend(&nbt);
+        assert!(world.update_entity(&packet, 4).is_err());
+        let context = world.contexts.get(&(0, 0)).unwrap();
+        assert_eq!(context.entities.len(), 3);
+        assert!(!context.entities.contains_key(&[4, 65, 2]));
+        let session = crate::client::SessionStamp {
+            version: crate::MinecraftVersion::Java1_21_11,
+            connection_id: 1,
+            world_generation: 1,
+        };
+        let saved = context.capture(session, [0, 0], 4).unwrap();
+        assert_eq!(
+            saved.biomes.unwrap().source,
+            crate::client::ValueSource::Received { sequence: 1 }
+        );
+        assert_eq!(
+            saved.block_entities[1].source,
+            crate::client::ValueSource::Received { sequence: 2 }
+        );
+    }
+    #[test]
+    fn chunk_context_modern_updates_are_atomic_bounded_and_do_not_resurrect_unloaded_columns() {
+        let mut world = World::default();
+        world.select_dimension(
+            "minecraft:overworld".into(),
+            Dimension::new(-64, 384).unwrap(),
+        );
+        let session = crate::client::SessionStamp {
+            version: crate::MinecraftVersion::Java1_21_11,
+            connection_id: 9,
+            world_generation: 1,
+        };
+        let packet = context_chunk();
+        world.load(&packet, 128).unwrap();
+        world.stamp_context([0, 0], 10);
+        let saved = world.context([0, 0], session, 10).unwrap();
+        assert_eq!(
+            saved.biomes.as_ref().unwrap().value.native_id(15, -64, 15),
+            Some(7)
+        );
+        assert_eq!(
+            saved.biomes.as_ref().unwrap().value.native_id(15, 319, 15),
+            Some(7)
+        );
+        assert_eq!(
+            saved.biomes.as_ref().unwrap().value.native_id(15, 320, 15),
+            None
+        );
+        assert_eq!(
+            saved.heightmaps.as_ref().unwrap().value[0].first_available_y(1, 1),
+            Some(-64)
+        );
+        assert_eq!(saved.block_entities[0].value.position, [1, 65, 2]);
+        let old = serde_json::to_value(&saved).unwrap();
+        for cut in [0, 12, packet.len() - 4, packet.len() - 1] {
+            assert!(world.load(&packet[..cut], 128).is_err());
+            assert_eq!(
+                serde_json::to_value(world.context([0, 0], session, 10)).unwrap(),
+                old
+            );
+        }
+        let mut biomes = vec![1];
+        biomes.extend(0u64.to_be_bytes());
+        let data = [0, 42].repeat(24);
+        crate::protocol::put_varint(&mut biomes, data.len() as i32);
+        biomes.extend(data);
+        for cut in [0, 8, biomes.len() - 1] {
+            assert!(world.update_biomes(&biomes[..cut], 128, 11).is_err());
+        }
+        assert!(world.update_biomes(&biomes, 0, 11).is_err());
+        world.update_biomes(&biomes, 128, 11).unwrap();
+        let next = world.context([0, 0], session, 11).unwrap();
+        assert_eq!(next.chunk, saved.chunk);
+        assert_eq!(
+            next.biomes.as_ref().unwrap().value.native_id(1, 65, 2),
+            Some(42)
+        );
+        assert_eq!(
+            next.heightmaps.as_ref().unwrap().source,
+            saved.heightmaps.as_ref().unwrap().source
+        );
+        let mut entity = ((1u64 << 38) | (2u64 << 12) | 65).to_be_bytes().to_vec();
+        entity.extend([0, 0]);
+        world.update_entity(&entity, 12).unwrap();
+        let next = world.context([0, 0], session, 12).unwrap();
+        assert!(next.block_entities[0].value.data.is_none());
+        assert!(saved.block_entities[0].value.data.is_some());
+        let mut trailing = entity.clone();
+        trailing.push(0);
+        assert!(world.update_entity(&trailing, 13).is_err());
+        world.set_block([1, 65, 2], 1).unwrap();
+        let next = world.context([0, 0], session, 13).unwrap();
+        assert!(
+            next.heightmaps.is_none()
+                && next.block_entities.is_empty()
+                && !next.block_entities_complete
+        );
+        world.unload(&[0; 8]).unwrap();
+        world.update_entity(&entity, 14).unwrap();
+        world.update_biomes(&biomes, 128, 14).unwrap();
+        assert!(world.context([0, 0], session, 14).is_none());
+        world.load(&packet, 128).unwrap();
+        world.stamp_context([0, 0], 15);
+        assert_ne!(
+            world.context([0, 0], session, 15).unwrap().chunk,
+            saved.chunk
+        );
+        world.reset();
+        assert!(world.context([0, 0], session, 16).is_none());
+        assert_eq!(serde_json::to_value(saved).unwrap(), old);
+    }
     #[test]
     fn palette_uses_no_length_prefix_and_rejects_bad_indices() {
         assert_eq!(

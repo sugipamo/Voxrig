@@ -5053,6 +5053,13 @@ impl Bot {
             0x08 => self.emit(Event::BlockBreakProgress(parse_break_progress(&p)?)),
             0x09 => {
                 let update = self.world.lock().await.apply_block_entity(&p)?;
+                self.world.lock().await.stamp_context(
+                    [
+                        update.position.x.div_euclid(16),
+                        update.position.z.div_euclid(16),
+                    ],
+                    packet_sequence,
+                );
                 self.world_updated.notify_waiters();
                 self.emit(Event::BlockEntityUpdated(update));
             }
@@ -5154,7 +5161,7 @@ impl Bot {
                 });
                 result?;
             }
-            0x21 => self.receive_chunk_data(&p).await?,
+            0x21 => self.receive_chunk_data(&p, packet_sequence).await?,
             0x22 => self.emit(Event::WorldEvent(parse_world_event(&p)?)),
             0x23 => self.emit(Event::Particle(parse_particle(&p)?)),
             0x24 => self.receive_light_update(&p).await?,

@@ -1896,6 +1896,18 @@ impl crate::client::adapter::CoreOps for Operations {
 }
 
 impl crate::client::adapter::ChunkOps for Operations {
+    async fn chunk_context(
+        &self,
+        position: [i32; 2],
+    ) -> Result<Option<crate::client::ChunkContextObservation>> {
+        let state = self.bot.session.state.lock().await;
+        let session = crate::client::SessionStamp {
+            version: crate::MinecraftVersion::Java1_21_11,
+            connection_id: self.bot.session.id,
+            world_generation: state.loading.generation,
+        };
+        Ok(state.world.context(position, session, state.sequence))
+    }
     async fn loaded_chunks(&self) -> Result<crate::client::LoadedChunks> {
         let state = self.bot.session.state.lock().await;
         let player = self.common_player_unlocked(&state)?;

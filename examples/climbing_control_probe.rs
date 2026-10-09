@@ -31,6 +31,7 @@ async fn main() -> anyhow::Result<()> {
     std::io::stdout().flush()?;
     let survival = client.survival();
     let mut mounted = None;
+    let mut saved_chunk = None;
     let creative_vehicle = std::env::var("VOXRIG_VEHICLE_MODE").as_deref() == Ok("creative");
     let mut lines = BufReader::new(tokio::io::stdin()).lines();
     while let Some(line) = lines.next_line().await? {
@@ -147,6 +148,31 @@ async fn main() -> anyhow::Result<()> {
             }
             "vehicle" => serde_json::to_value(client.vehicle_state().await?)?,
             "player_context" => serde_json::to_value(client.player_context().await?)?,
+            "chunk_context" => {
+                let position = serde_json::from_value(request["position"].clone())?;
+                let context = client.chunk_context(position).await?;
+                if request["save"] == true {
+                    saved_chunk = context.clone();
+                }
+                let samples = context.as_ref().and_then(|context| context.heightmaps.as_ref()).map(|maps| {
+                    maps.value.iter().map(|map| {
+                        let values = (0..16).flat_map(|z| (0..16).map(move |x| map.first_available_y(x,z))).collect::<Vec<_>>();
+                        serde_json::json!({"kind":map.kind,"first_available_y":map.first_available_y(1,1),"values":values})
+                    }).collect::<Vec<_>>()
+                });
+                serde_json::json!({"context":context,"heightmap_samples":samples})
+            }
+            "saved_chunk_context" => serde_json::to_value(&saved_chunk)?,
+            "chunk_context_disconnect" => {
+                client.disconnect().await?;
+                tokio::time::sleep(Duration::from_millis(150)).await;
+                println!(
+                    "{}",
+                    serde_json::json!({"context":client.chunk_context(serde_json::from_value(request["position"].clone())?).await?,"saved":saved_chunk})
+                );
+                std::io::stdout().flush()?;
+                return Ok(());
+            }
             "vehicle_record" => serde_json::to_value(client.vehicle_control_record().await?)?,
             "capture" => serde_json::to_value(
                 client

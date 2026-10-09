@@ -3,6 +3,19 @@ use super::*;
 use crate::client as api;
 
 impl crate::client::adapter::ChunkOps for Bot {
+    async fn chunk_context(
+        &self,
+        position: [i32; 2],
+    ) -> Result<Option<api::ChunkContextObservation>> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let session = api::SessionStamp {
+            version: crate::MinecraftVersion::Java1_16_1,
+            connection_id: self.connection_id(),
+            world_generation: self.common_receipts.lock().await.generation,
+        };
+        let sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
+        Ok(self.world.lock().await.context(position, session, sequence))
+    }
     async fn loaded_chunks(&self) -> Result<api::LoadedChunks> {
         let _gate = self.coherent_state_gate.lock().await;
         let (session, receive_sequence) = self.chunk_session().await?;
