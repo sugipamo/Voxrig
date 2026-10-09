@@ -98,7 +98,14 @@ async fn main() -> anyhow::Result<()> {
                         tokio::time::sleep(Duration::from_millis(5)).await;
                     }
                 })
-                .await??;
+                .await;
+                let record = match record {
+                    Ok(record) => record?,
+                    Err(error) => anyhow::bail!(
+                        "control tick wait failed: {error}; retained record: {:?}",
+                        survival.control_record().await?
+                    ),
+                };
                 serde_json::to_value(record)?
             }
             "record" => serde_json::to_value(survival.control_record().await?)?,

@@ -75,7 +75,10 @@ def check(version, command, request, trace, report):
         raise RuntimeError("ground restart did not retain decaying model momentum")
     request("stop")
 
-    prepare([0.5, 75.0, 0.5], [37.0, -12.0])
+    # The modern shared engine deliberately refuses fall-reset sweeps at >=1
+    # block/tick. Qualify landing inside that supported range; below we also
+    # assert the existing refusal on a larger drop instead of weakening it.
+    prepare([0.5, 75.0 if version == "1.16.1" else 69.0, 0.5], [37.0, -12.0])
     request("start")
     request("ticks", count=3)
     stopped = request("stop")
@@ -110,6 +113,19 @@ def check(version, command, request, trace, report):
     if request("wait", ms=200) != stopped:
         raise RuntimeError("stopped control record changed after release")
     report["checks"].append(dict(name="retained_stopped_record", record=stopped))
+    if version == "1.21.11":
+        prepare([0.5, 75.0, 0.5], [37.0, -12.0])
+        request("start")
+        request("ticks", count=3)
+        stopped = request("stop")
+        request("start")
+        paused = request("wait", ms=1200)
+        if paused["status"] != dict(status="paused", reason="fall-distance reset sweep"):
+            raise RuntimeError("out-of-scope fall reset sweep did not retain its refusal")
+        if request("wait", ms=200) != paused:
+            raise RuntimeError("unsupported fall sweep kept submitting movement")
+        report["checks"].append(dict(name="unsupported_high_fall_remains_paused", record=paused, stopped=stopped))
+        request("stop")
     trace.expect_disconnect()
     request("disconnect")
 
