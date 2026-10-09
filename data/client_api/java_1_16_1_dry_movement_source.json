@@ -1,0 +1,20 @@
+{
+  "version": "1.16.1",
+  "metadata_url": "https://piston-meta.mojang.com/v1/packages/54fa3af57d041d2771e66d390197b2c0288e697c/1.16.1.json",
+  "metadata_sha1": "54fa3af57d041d2771e66d390197b2c0288e697c",
+  "server": {
+    "sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+    "size": 37968964,
+    "url": "https://piston-data.mojang.com/v1/objects/a412fd69db1f81db3f511c1463fd304675244077/server.jar"
+  },
+  "server_mappings": {
+    "sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+    "url": "https://piston-data.mojang.com/v1/objects/11120c39da4df293c4bd020896391fb9ddd6c2ba/server.txt"
+  },
+  "verifier": "scripts/VerifyLegacyDryMovement.java",
+  "verifier_sha256": "6c075e8ebc5ff734357a4134bb640efffa6b07615e6db6a6ec325653967769b4",
+  "fixture_sha256": "235cf33deacb7fd9fd64a3806fe581984361508ab1ce5cbb480a50236d3ab885",
+  "input_cases": 108,
+  "collision_cases": 72,
+  "scope": "Native Entity.getInputVector and collideBoundingBoxLegacy; native standing dimensions, registry identity, passive material multipliers and default collision shapes. Does not independently prove integrated travel, jump or step-path execution."
+}

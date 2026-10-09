@@ -492,6 +492,34 @@ pub(crate) fn parse_metadata(payload: &[u8]) -> Result<(i32, HashMap<u8, Metadat
     Ok((entity_id, values))
 }
 
+/// Entity data in the common form, keeping the native serializer of each entry.
+pub(crate) fn common_metadata(
+    payload: &[u8],
+) -> Result<(i32, Vec<(u8, crate::client::EntityDataValue)>)> {
+    use crate::client::EntityDataValue as V;
+    let mut rest = payload;
+    let entity_id = get_varint(&mut rest)?;
+    let mut values = Vec::new();
+    loop {
+        let key = *rest.first().context("truncated metadata")?;
+        rest = &rest[1..];
+        if key == 0xff {
+            break;
+        }
+        let kind = get_varint(&mut rest)?;
+        let value = match (kind, read_metadata_value(kind, &mut rest)?) {
+            (0, MetadataValue::Byte(v)) => V::Byte(v),
+            (1, MetadataValue::VarInt(v)) => V::Int(v),
+            (2, MetadataValue::Float(v)) => V::Float(v),
+            (3, MetadataValue::String(v)) => V::String(v),
+            (7, MetadataValue::Bool(v)) => V::Bool(v),
+            _ => V::Other(kind),
+        };
+        values.push((key, value));
+    }
+    Ok((entity_id, values))
+}
+
 fn read_metadata_value(kind: i32, rest: &mut &[u8]) -> Result<MetadataValue> {
     Ok(match kind {
         0 => MetadataValue::Byte(take_i8(rest)?),
@@ -576,6 +604,29 @@ fn take_u64(rest: &mut &[u8]) -> Result<u64> {
     let value = c.read_u64::<BigEndian>()?;
     *rest = &rest[c.position() as usize..];
     Ok(value)
+}
+
+#[cfg(test)]
+mod common_metadata_tests {
+    use super::*;
+    use crate::client::EntityDataValue as V;
+
+    #[test]
+    fn serializers_are_kept_and_only_plain_values_decoded() {
+        // entity 5: index 0 byte 0x20, 15 varint 3, 6 pose (VarInt serializer 18), 2 string.
+        let payload = [5, 0, 0, 0x20, 15, 1, 3, 6, 18, 1, 2, 3, 1, b'x', 0xff];
+        let (entity, values) = common_metadata(&payload).unwrap();
+        assert_eq!(entity, 5);
+        assert_eq!(
+            values,
+            vec![
+                (0, V::Byte(0x20)),
+                (15, V::Int(3)),
+                (6, V::Other(18)),
+                (2, V::String("x".into()))
+            ]
+        );
+    }
 }
 
 #[cfg(test)]

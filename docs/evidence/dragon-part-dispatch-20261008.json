@@ -1,0 +1,138 @@
+{
+  "schema": 1,
+  "validated_at_utc": "2026-10-08T15:52:50.939078+00:00",
+  "sdk_main_base": "fa62bf20b0671dbecb241ea2d3f767280143e66f",
+  "source_sha256": {
+    "src/client/entity/parts.rs": "0e93fb75376bfa667b92a850fb342da164da1081950f4c210d70486b9c3a6b1a",
+    "src/versions/java_1_16_1/client/common_entity_parts.rs": "5dbd9c9a4fc21a7b59a87d5408ff7d014d95b432725af0cf9a8402ac2cc1595c",
+    "src/versions/java_1_16_1/client/common_api.rs": "9a497280552ef525ef9cc52ade9f8ac67a32326279d050b96bbbb3c95e4a6728",
+    "src/client/operations.rs": "9370e27f3dd97507b93a60fdbed78e148f38bd74008abc301752021e8b9074e1",
+    "examples/entity_parts_dispatch_probe.rs": "73b4b134921fcf39af04976902a34dd2ef8b125ce5f32d110c2fbd1fa0697a30",
+    "scripts/run_entity_parts_dispatch.py": "7218fc923de6f6620e747d7bde8e91a358fdc9ea2b7cfe51b6f83dfb5308206d"
+  },
+  "runs": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "local_report": ".local/climbing/live/1.16.1-20261008-154958/report.json",
+      "report_sha256": "e109b0a3b037f373e0f7cbdd6ad5ddfe0b50bc6ad72b1f33c07867a3ad4df101",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "checks": [
+        {
+          "name": "original_parent_and_derived_parts"
+        },
+        {
+          "name": "survival_wrong_handle",
+          "dispatch_accepted": false,
+          "original_attack_count": 0,
+          "original_attack_payloads": []
+        },
+        {
+          "name": "survival_head_dispatch",
+          "dispatch_accepted": true,
+          "original_attack_count": 1,
+          "original_attack_payloads": [
+            "260100"
+          ]
+        },
+        {
+          "name": "survival_wing_dispatch",
+          "dispatch_accepted": true,
+          "original_attack_count": 1,
+          "original_attack_payloads": [
+            "2c0101"
+          ]
+        },
+        {
+          "name": "creative_wrong_handle",
+          "dispatch_accepted": false,
+          "original_attack_count": 0,
+          "original_attack_payloads": []
+        },
+        {
+          "name": "creative_head_dispatch",
+          "dispatch_accepted": true,
+          "original_attack_count": 1,
+          "original_attack_payloads": [
+            "260100"
+          ]
+        },
+        {
+          "name": "creative_wing_dispatch",
+          "dispatch_accepted": true,
+          "original_attack_count": 1,
+          "original_attack_payloads": [
+            "2c0101"
+          ]
+        },
+        {
+          "name": "received_takeoff"
+        },
+        {
+          "name": "takeoff_rejects_old_head",
+          "dispatch_accepted": false,
+          "original_attack_count": 0,
+          "original_attack_payloads": []
+        },
+        {
+          "name": "flying_wing_dispatch",
+          "dispatch_accepted": true,
+          "original_attack_count": 1,
+          "original_attack_payloads": [
+            "2c0100"
+          ]
+        },
+        {
+          "name": "received_death"
+        },
+        {
+          "name": "death_rejects_old_wing",
+          "dispatch_accepted": false,
+          "original_attack_count": 0,
+          "original_attack_payloads": []
+        },
+        {
+          "name": "removal_rejects_old_head",
+          "dispatch_accepted": false,
+          "original_attack_count": 0,
+          "original_attack_payloads": []
+        },
+        {
+          "name": "replacement_keeps_old_head_retired",
+          "dispatch_accepted": false,
+          "original_attack_count": 0,
+          "original_attack_payloads": []
+        },
+        {
+          "name": "fresh_replacement_head_dispatch",
+          "dispatch_accepted": true,
+          "original_attack_count": 1,
+          "original_attack_payloads": [
+            "2f0100"
+          ]
+        },
+        {
+          "name": "world_change_rejects_old_head",
+          "dispatch_accepted": false,
+          "original_attack_count": 0,
+          "original_attack_payloads": []
+        }
+      ],
+      "authority_limits": "Actual common Client with original spawn/metadata/remove/respawn receipts and transparent original attack packets; no packet injection or target fabrication. Dispatch is verified separately from damage: this isolated NoAI fixture does not prove native hitbox equality, reach, damage, End battle or Golemkit migration. Modern model stays unsupported."
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "local_report": ".local/climbing/live/1.21.11-20261008-155018/report.json",
+      "report_sha256": "2bf3dc2fad5fc7fe92572729813095e0511a2e697bcf84cf51307afb232c0c20",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "checks": [
+        {
+          "name": "modern_model_unsupported"
+        }
+      ],
+      "authority_limits": "Actual common Client with original spawn/metadata/remove/respawn receipts and transparent original attack packets; no packet injection or target fabrication. Dispatch is verified separately from damage: this isolated NoAI fixture does not prove native hitbox equality, reach, damage, End battle or Golemkit migration. Modern model stays unsupported."
+    }
+  ],
+  "scope": "Original common Client and official loopback servers. Attacks and lifetime refusals are checked at the actual packet boundary. NoAI geometry, server damage, End battle or Golemkit migration are not established by this dispatch fixture."
+}

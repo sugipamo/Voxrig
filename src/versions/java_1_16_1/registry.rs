@@ -404,7 +404,19 @@ fn registry() -> &'static Registry {
         items: serde_json::from_str::<Vec<ItemData>>(include_str!("../../../data/items.json"))
             .expect("embedded 1.16.1 items registry must be valid")
             .into_iter()
-            .map(|item| (item.id, item))
+            .map(|mut item| {
+                // Preserve the source-pinned minecraft-data input used by harvest
+                // audits; effective capacities come from the original native item
+                // oracle. This corrects warped_fungus_on_a_stick (64 -> 1) too.
+                item.stack_size = crate::client::inventory::slot_policy::default_item_capacity(
+                    crate::MinecraftVersion::Java1_16_1,
+                    item.id,
+                    &format!("minecraft:{}", item.name),
+                )
+                .and_then(|n| i8::try_from(n).ok())
+                .expect("native item capacity must match pinned ID/name");
+                (item.id, item)
+            })
             .collect(),
         materials: serde_json::from_str(include_str!("../../../data/materials.json"))
             .expect("embedded 1.16.1 materials registry must be valid"),
@@ -904,9 +916,15 @@ mod tests {
     }
     #[test]
     fn item_capacity_resolves_registry_values_without_unknown_defaults() {
-        for (name, capacity) in [("stone", 64), ("snowball", 16), ("wooden_pickaxe", 1)] {
+        for (name, capacity) in [
+            ("stone", 64),
+            ("snowball", 16),
+            ("wooden_pickaxe", 1),
+            ("warped_fungus_on_a_stick", 1),
+        ] {
             let id = item_id(name).expect("fixture item exists in pinned registry");
             assert_eq!(item_max_stack_size(id), Some(capacity));
+            assert_eq!(item_stack_size(id), capacity as i8);
         }
         assert_eq!(item_max_stack_size(-1), None);
         assert_eq!(item_max_stack_size(i32::MAX), None);

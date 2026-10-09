@@ -7,61 +7,7 @@ use std::io::Cursor;
 
 use crate::versions::java_1_16_1::physics::Vec3;
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-/// State and protocol data represented by `BlockPos`.
-pub struct BlockPos {
-    /// The `x` value.
-    pub x: i32,
-    /// The `y` value.
-    pub y: i32,
-    /// The `z` value.
-    pub z: i32,
-}
-
-impl BlockPos {
-    /// Performs the `packed` operation.
-    pub fn packed(self) -> u64 {
-        ((self.x as u64 & 0x3ff_ffff) << 38)
-            | ((self.z as u64 & 0x3ff_ffff) << 12)
-            | (self.y as u64 & 0xfff)
-    }
-
-    /// Performs the `unpack` operation.
-    pub fn unpack(value: u64) -> Self {
-        let x = ((value as i64) >> 38) as i32;
-        let y = ((value & 0xfff) as i32) << 20 >> 20;
-        let z = (((value >> 12) & 0x3ff_ffff) as i32) << 6 >> 6;
-        Self { x, y, z }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[repr(i32)]
-/// Possible values represented by `Hand`.
-pub enum Hand {
-    /// Documentation for this public variant.
-    Main = 0,
-    /// Documentation for this public variant.
-    Off = 1,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[repr(i8)]
-/// Possible values represented by `BlockFace`.
-pub enum BlockFace {
-    /// Documentation for this public variant.
-    Down = 0,
-    /// Documentation for this public variant.
-    Up = 1,
-    /// Documentation for this public variant.
-    North = 2,
-    /// Documentation for this public variant.
-    South = 3,
-    /// Documentation for this public variant.
-    West = 4,
-    /// Documentation for this public variant.
-    East = 5,
-}
+pub use crate::client::{BlockFace, BlockPos, Hand};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(i32)]

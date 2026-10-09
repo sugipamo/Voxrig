@@ -1,0 +1,514 @@
+{
+  "1.16.1": [
+    {
+      "case": "stone-plain-1",
+      "item": "minecraft:stone",
+      "count": 1,
+      "nbt_hex": "00"
+    },
+    {
+      "case": "stone-plain-96",
+      "item": "minecraft:stone",
+      "count": 96,
+      "nbt_hex": "00"
+    },
+    {
+      "case": "iron_pickaxe-plain-1",
+      "item": "minecraft:iron_pickaxe",
+      "count": 1,
+      "nbt_hex": "00"
+    },
+    {
+      "case": "iron_pickaxe-plain-96",
+      "item": "minecraft:iron_pickaxe",
+      "count": 96,
+      "nbt_hex": "00"
+    },
+    {
+      "case": "enchanted_book-plain-1",
+      "item": "minecraft:enchanted_book",
+      "count": 1,
+      "nbt_hex": "00"
+    },
+    {
+      "case": "enchanted_book-plain-96",
+      "item": "minecraft:enchanted_book",
+      "count": 96,
+      "nbt_hex": "00"
+    },
+    {
+      "case": "enchanted_golden_apple-plain-1",
+      "item": "minecraft:enchanted_golden_apple",
+      "count": 1,
+      "nbt_hex": "00"
+    },
+    {
+      "case": "enchanted_golden_apple-plain-96",
+      "item": "minecraft:enchanted_golden_apple",
+      "count": 96,
+      "nbt_hex": "00"
+    },
+    {
+      "case": "name-empty",
+      "item": "minecraft:stone",
+      "count": 96,
+      "nbt_hex": "0a00000a0007646973706c61790800044e616d6500000000"
+    },
+    {
+      "case": "name-invalid-json",
+      "item": "minecraft:stone",
+      "count": 96,
+      "nbt_hex": "0a00000a0007646973706c61790800044e616d6500086261642d6a736f6e0000"
+    },
+    {
+      "case": "name-integer",
+      "item": "minecraft:stone",
+      "count": 96,
+      "nbt_hex": "0a00000a0007646973706c61790300044e616d65000000010000"
+    },
+    {
+      "case": "display-string",
+      "item": "minecraft:stone",
+      "count": 96,
+      "nbt_hex": "0a0000080007646973706c6179000362616400"
+    },
+    {
+      "case": "ench-empty",
+      "item": "minecraft:stone",
+      "count": 96,
+      "nbt_hex": "0a000009000c456e6368616e746d656e74730a0000000000"
+    },
+    {
+      "case": "ench-blank",
+      "item": "minecraft:stone",
+      "count": 96,
+      "nbt_hex": "0a000009000c456e6368616e746d656e74730a000000010000"
+    },
+    {
+      "case": "ench-zero",
+      "item": "minecraft:stone",
+      "count": 96,
+      "nbt_hex": "0a000009000c456e6368616e746d656e74730a00000001080002696400146d696e6563726166743a756e627265616b696e670200036c766c00000000"
+    },
+    {
+      "case": "ench-wrong-list",
+      "item": "minecraft:stone",
+      "count": 96,
+      "nbt_hex": "0a000009000c456e6368616e746d656e747301000000010100"
+    },
+    {
+      "case": "stored-ench",
+      "item": "minecraft:stone",
+      "count": 96,
+      "nbt_hex": "0a000009001253746f726564456e6368616e746d656e74730a000000010000"
+    },
+    {
+      "case": "custom-other",
+      "item": "minecraft:stone",
+      "count": 96,
+      "nbt_hex": "0a00000300064d61726b65720000000700"
+    },
+    {
+      "case": "stone-damage-1-unbreakableFalse",
+      "item": "minecraft:stone",
+      "count": 3,
+      "nbt_hex": "0a000003000644616d616765ffffffff00"
+    },
+    {
+      "case": "stone-damage-1-unbreakableTrue",
+      "item": "minecraft:stone",
+      "count": 3,
+      "nbt_hex": "0a000003000644616d616765ffffffff01000b556e627265616b61626c650100"
+    },
+    {
+      "case": "stone-damage0-unbreakableFalse",
+      "item": "minecraft:stone",
+      "count": 3,
+      "nbt_hex": "0a000003000644616d6167650000000000"
+    },
+    {
+      "case": "stone-damage0-unbreakableTrue",
+      "item": "minecraft:stone",
+      "count": 3,
+      "nbt_hex": "0a000003000644616d6167650000000001000b556e627265616b61626c650100"
+    },
+    {
+      "case": "stone-damage1-unbreakableFalse",
+      "item": "minecraft:stone",
+      "count": 3,
+      "nbt_hex": "0a000003000644616d6167650000000100"
+    },
+    {
+      "case": "stone-damage1-unbreakableTrue",
+      "item": "minecraft:stone",
+      "count": 3,
+      "nbt_hex": "0a000003000644616d6167650000000101000b556e627265616b61626c650100"
+    },
+    {
+      "case": "stone-damage999-unbreakableFalse",
+      "item": "minecraft:stone",
+      "count": 3,
+      "nbt_hex": "0a000003000644616d616765000003e700"
+    },
+    {
+      "case": "stone-damage999-unbreakableTrue",
+      "item": "minecraft:stone",
+      "count": 3,
+      "nbt_hex": "0a000003000644616d616765000003e701000b556e627265616b61626c650100"
+    },
+    {
+      "case": "iron_pickaxe-damage-1-unbreakableFalse",
+      "item": "minecraft:iron_pickaxe",
+      "count": 3,
+      "nbt_hex": "0a000003000644616d616765ffffffff00"
+    },
+    {
+      "case": "iron_pickaxe-damage-1-unbreakableTrue",
+      "item": "minecraft:iron_pickaxe",
+      "count": 3,
+      "nbt_hex": "0a000003000644616d616765ffffffff01000b556e627265616b61626c650100"
+    },
+    {
+      "case": "iron_pickaxe-damage0-unbreakableFalse",
+      "item": "minecraft:iron_pickaxe",
+      "count": 3,
+      "nbt_hex": "0a000003000644616d6167650000000000"
+    },
+    {
+      "case": "iron_pickaxe-damage0-unbreakableTrue",
+      "item": "minecraft:iron_pickaxe",
+      "count": 3,
+      "nbt_hex": "0a000003000644616d6167650000000001000b556e627265616b61626c650100"
+    },
+    {
+      "case": "iron_pickaxe-damage1-unbreakableFalse",
+      "item": "minecraft:iron_pickaxe",
+      "count": 3,
+      "nbt_hex": "0a000003000644616d6167650000000100"
+    },
+    {
+      "case": "iron_pickaxe-damage1-unbreakableTrue",
+      "item": "minecraft:iron_pickaxe",
+      "count": 3,
+      "nbt_hex": "0a000003000644616d6167650000000101000b556e627265616b61626c650100"
+    },
+    {
+      "case": "iron_pickaxe-damage999-unbreakableFalse",
+      "item": "minecraft:iron_pickaxe",
+      "count": 3,
+      "nbt_hex": "0a000003000644616d616765000003e700"
+    },
+    {
+      "case": "iron_pickaxe-damage999-unbreakableTrue",
+      "item": "minecraft:iron_pickaxe",
+      "count": 3,
+      "nbt_hex": "0a000003000644616d616765000003e701000b556e627265616b61626c650100"
+    }
+  ],
+  "1.21.11": [
+    {
+      "case": "stone-plain-1",
+      "item": "minecraft:stone",
+      "count": 1
+    },
+    {
+      "case": "stone-plain-96",
+      "item": "minecraft:stone",
+      "count": 96
+    },
+    {
+      "case": "iron_pickaxe-plain-1",
+      "item": "minecraft:iron_pickaxe",
+      "count": 1
+    },
+    {
+      "case": "iron_pickaxe-plain-96",
+      "item": "minecraft:iron_pickaxe",
+      "count": 96
+    },
+    {
+      "case": "enchanted_book-plain-1",
+      "item": "minecraft:enchanted_book",
+      "count": 1
+    },
+    {
+      "case": "enchanted_book-plain-96",
+      "item": "minecraft:enchanted_book",
+      "count": 96
+    },
+    {
+      "case": "enchanted_golden_apple-plain-1",
+      "item": "minecraft:enchanted_golden_apple",
+      "count": 1
+    },
+    {
+      "case": "enchanted_golden_apple-plain-96",
+      "item": "minecraft:enchanted_golden_apple",
+      "count": 96
+    },
+    {
+      "case": "name-empty",
+      "item": "minecraft:stone",
+      "count": 96,
+      "components": {
+        "minecraft:custom_name": ""
+      },
+      "removed": []
+    },
+    {
+      "case": "named",
+      "item": "minecraft:stone",
+      "count": 96,
+      "components": {
+        "minecraft:custom_name": {
+          "text": "Book material"
+        }
+      },
+      "removed": []
+    },
+    {
+      "case": "name-removed",
+      "item": "minecraft:stone",
+      "count": 96,
+      "components": {
+        "minecraft:custom_name": "Demo"
+      },
+      "removed": [
+        "minecraft:custom_name"
+      ]
+    },
+    {
+      "case": "ench-empty",
+      "item": "minecraft:stone",
+      "count": 96,
+      "components": {
+        "minecraft:enchantments": {}
+      },
+      "removed": []
+    },
+    {
+      "case": "ench-zero",
+      "item": "minecraft:stone",
+      "count": 96,
+      "removed": [],
+      "patch_hex": "01000d010000"
+    },
+    {
+      "case": "ench-one",
+      "item": "minecraft:stone",
+      "count": 96,
+      "components": {
+        "minecraft:enchantments": {
+          "minecraft:unbreaking": 1
+        }
+      },
+      "removed": []
+    },
+    {
+      "case": "ench-removed",
+      "item": "minecraft:stone",
+      "count": 96,
+      "components": {
+        "minecraft:enchantments": {
+          "minecraft:unbreaking": 1
+        }
+      },
+      "removed": [
+        "minecraft:enchantments"
+      ]
+    },
+    {
+      "case": "stored-ench",
+      "item": "minecraft:stone",
+      "count": 96,
+      "components": {
+        "minecraft:stored_enchantments": {
+          "minecraft:unbreaking": 1
+        }
+      },
+      "removed": []
+    },
+    {
+      "case": "glint-only",
+      "item": "minecraft:stone",
+      "count": 96,
+      "components": {
+        "minecraft:enchantment_glint_override": true
+      },
+      "removed": []
+    },
+    {
+      "case": "custom-other",
+      "item": "minecraft:stone",
+      "count": 96,
+      "components": {
+        "minecraft:custom_data": {
+          "Marker": 7
+        }
+      },
+      "removed": []
+    },
+    {
+      "case": "stone-damage0-unbreakableFalse",
+      "item": "minecraft:stone",
+      "count": 3,
+      "components": {
+        "minecraft:damage": 0
+      }
+    },
+    {
+      "case": "stone-damage0-unbreakableTrue",
+      "item": "minecraft:stone",
+      "count": 3,
+      "components": {
+        "minecraft:damage": 0,
+        "minecraft:unbreakable": {}
+      }
+    },
+    {
+      "case": "stone-damage1-unbreakableFalse",
+      "item": "minecraft:stone",
+      "count": 3,
+      "components": {
+        "minecraft:damage": 1
+      }
+    },
+    {
+      "case": "stone-damage1-unbreakableTrue",
+      "item": "minecraft:stone",
+      "count": 3,
+      "components": {
+        "minecraft:damage": 1,
+        "minecraft:unbreakable": {}
+      }
+    },
+    {
+      "case": "stone-damage999-unbreakableFalse",
+      "item": "minecraft:stone",
+      "count": 3,
+      "components": {
+        "minecraft:damage": 999
+      }
+    },
+    {
+      "case": "stone-damage999-unbreakableTrue",
+      "item": "minecraft:stone",
+      "count": 3,
+      "components": {
+        "minecraft:damage": 999,
+        "minecraft:unbreakable": {}
+      }
+    },
+    {
+      "case": "iron_pickaxe-damage0-unbreakableFalse",
+      "item": "minecraft:iron_pickaxe",
+      "count": 3,
+      "components": {
+        "minecraft:damage": 0
+      }
+    },
+    {
+      "case": "iron_pickaxe-damage0-unbreakableTrue",
+      "item": "minecraft:iron_pickaxe",
+      "count": 3,
+      "components": {
+        "minecraft:damage": 0,
+        "minecraft:unbreakable": {}
+      }
+    },
+    {
+      "case": "iron_pickaxe-damage1-unbreakableFalse",
+      "item": "minecraft:iron_pickaxe",
+      "count": 3,
+      "components": {
+        "minecraft:damage": 1
+      }
+    },
+    {
+      "case": "iron_pickaxe-damage1-unbreakableTrue",
+      "item": "minecraft:iron_pickaxe",
+      "count": 3,
+      "components": {
+        "minecraft:damage": 1,
+        "minecraft:unbreakable": {}
+      }
+    },
+    {
+      "case": "iron_pickaxe-damage999-unbreakableFalse",
+      "item": "minecraft:iron_pickaxe",
+      "count": 3,
+      "components": {
+        "minecraft:damage": 999
+      }
+    },
+    {
+      "case": "iron_pickaxe-damage999-unbreakableTrue",
+      "item": "minecraft:iron_pickaxe",
+      "count": 3,
+      "components": {
+        "minecraft:damage": 999,
+        "minecraft:unbreakable": {}
+      }
+    },
+    {
+      "case": "capacity-1",
+      "item": "minecraft:stone",
+      "count": 96,
+      "components": {
+        "minecraft:max_stack_size": 1
+      }
+    },
+    {
+      "case": "capacity-2",
+      "item": "minecraft:stone",
+      "count": 96,
+      "components": {
+        "minecraft:max_stack_size": 2
+      }
+    },
+    {
+      "case": "capacity-16",
+      "item": "minecraft:stone",
+      "count": 96,
+      "components": {
+        "minecraft:max_stack_size": 16
+      }
+    },
+    {
+      "case": "capacity-64",
+      "item": "minecraft:stone",
+      "count": 96,
+      "components": {
+        "minecraft:max_stack_size": 64
+      }
+    },
+    {
+      "case": "capacity-99",
+      "item": "minecraft:stone",
+      "count": 96,
+      "components": {
+        "minecraft:max_stack_size": 99
+      }
+    },
+    {
+      "case": "stream-capacity--5",
+      "item": "minecraft:stone",
+      "count": 96,
+      "patch_hex": "010001fbffffff0f"
+    },
+    {
+      "case": "stream-capacity-0",
+      "item": "minecraft:stone",
+      "count": 96,
+      "patch_hex": "01000100"
+    },
+    {
+      "case": "item-name-only",
+      "item": "minecraft:stone",
+      "count": 96,
+      "components": {
+        "minecraft:item_name": "Recipe material"
+      }
+    }
+  ]
+}

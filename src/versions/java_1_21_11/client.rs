@@ -2,14 +2,18 @@
 mod correction;
 #[cfg(test)]
 mod edge_native_trials;
+mod entity;
+mod event_kinds;
 mod loading;
 mod motion;
 mod observations;
 /// Explicit Java 1.21.11 operation API and received player state.
 pub mod operations;
 mod outbound;
+mod packet_replay;
 pub mod players;
 pub mod raycast;
+mod recipes;
 pub mod recording;
 use super::{
     ids,
@@ -23,6 +27,7 @@ use crate::{
     Result,
 };
 use anyhow::{Context, bail};
+pub(crate) use packet_replay::replay_packets;
 use std::{
     sync::{
         Arc, Weak,
@@ -46,86 +51,63 @@ enum Phase {
     Play,
 }
 
-/// One decompressed server packet in exact receive order.
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct PacketRecord {
-    /// Connection-local receive ordinal.
-    pub sequence: u64,
-    /// Local frame at application, for replaying moving blocks; not a server tick.
-    pub client_tick: u64,
-    /// Protocol state in which the packet was received.
-    pub phase: &'static str,
-    /// Native packet identifier.
-    pub packet_id: i32,
-    /// Payload before parsing or state application.
-    pub payload: Vec<u8>,
-}
-
-/// Bounded diagnostic evidence; overflow is explicit.
-#[derive(Clone, Debug, serde::Serialize)]
-pub struct PacketTrace {
-    /// Native version.
-    pub minecraft_version: &'static str,
-    /// Identity within this client process.
-    pub connection_id: u64,
-    /// Sequence at the start of capture.
-    pub after_sequence: u64,
-    /// Sequence at the end of capture.
-    pub through_sequence: u64,
-    /// False if the configured byte/record bound was reached.
-    pub complete: bool,
-    /// Exact payloads, including packets unrelated to blocks.
-    pub records: Vec<PacketRecord>,
-}
-
-struct TraceCapture {
-    start: u64,
-    bytes: usize,
-    limit: usize,
-    complete: bool,
-    records: Vec<PacketRecord>,
-}
-
-impl TraceCapture {
-    fn record(&mut self, sequence: u64, client_tick: u64, phase: Phase, id: i32, payload: &[u8]) {
-        if !self.complete {
-            return;
-        }
-        if self.bytes.saturating_add(payload.len()) > self.limit || self.records.len() >= 65_536 {
-            self.complete = false;
-            return;
-        }
-        self.bytes += payload.len();
-        self.records.push(PacketRecord {
-            sequence,
-            client_tick,
-            phase: match phase {
-                Phase::Configuration => "configuration",
-                Phase::Play => "play",
-            },
-            packet_id: id,
-            payload: payload.to_vec(),
-        });
-    }
-}
+use crate::client::recording::{LocalPlayerBasis, PacketPhase, TraceCapture};
+pub use crate::client::recording::{PacketRecord, PacketTrace};
 
 struct State {
+    /// Last received own death message (DEATH_COMBAT_EVENT).
+    death_message: Option<crate::client::ObservedValue<crate::client::ui::UiText>>,
+    /// Text of the last received KICK_DISCONNECT.
+    disconnect_reason: Option<crate::client::ui::UiText>,
     loading: loading::InteractionLoading,
     motion: motion::OwnMotion,
     identity: Option<LoginIdentity>,
     retirement: Option<operations::MiningRetirementRecord>,
     mining: Option<operations::MiningRecord>,
+    common_mining: Option<operations::mining::CommonMiningCapture>,
     placement: Option<operations::PlacementRecord>,
+    common_placement: Option<operations::placement::CommonPlacementCapture>,
+    retired_common_placement: Option<crate::client::survival::PlacementRecord>,
+    common_inventory_swap: Option<operations::inventory::common::CommonSwap>,
+    common_inventory_click: Option<crate::client::inventory::InventoryClickRecord>,
+    common_crafting_take: Option<crate::client::crafting::CraftingTakeRecord>,
+    common_recipe_placement: Option<crate::client::crafting::RecipePlacementRecord>,
+    common_inventory_transfer: Option<crate::client::inventory::InventoryTransferRecord>,
+    common_container_close: Option<crate::client::container::ContainerCloseRecord>,
+    pub(crate) flight_history: crate::client::flight::History,
+    pub(crate) respawn_history: crate::client::respawn::History,
+    dismount_history: crate::client::vehicle::dismount::History,
+    vehicle_control_history: crate::client::vehicle::control::History,
+    close_history: Arc<std::sync::Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
+    recipe_placement_history:
+        Arc<std::sync::Mutex<Option<crate::client::crafting::RecipePlacementRecord>>>,
+    crafting_take_history:
+        Arc<std::sync::Mutex<Option<crate::client::crafting::CraftingTakeRecord>>>,
+    common_container_open: Option<crate::client::container::ContainerOpenRecord>,
     survival_motion: Option<operations::SurvivalMotionRecord>,
+    control: operations::continuous::ContinuousControl,
+    retired_common_motion: Option<crate::client::survival::MotionRecord>,
     recording: Option<recording::Capture>,
     recording_ordinal: u64,
     operations: operations::OperationState,
     players: players::PlayerTracker,
+    entities: crate::client::entity::SpawnLedger,
+    vehicles: crate::client::vehicle::PassengerLedger,
+    scoreboard: crate::client::ui::ScoreboardLedger,
+    boss_bars: crate::client::ui::boss_bar::BossBarLedger,
+    chat: crate::client::chat::ChatLedger,
+    events: crate::client::events::EventLedger,
+    display: crate::client::ui::display::DisplayLedger,
+    teams: crate::client::ui::teams::TeamLedger,
+    player_list: crate::client::ui::player_list::PlayerListLedger,
     phase: Phase,
     world: World,
     reconstruction: Reconstruction,
     observations: observations::RegionCache,
     dimensions: Vec<Dimension>,
+    registries: crate::client::registry::received::ReceivedRegistries,
+    recipes: crate::client::crafting::recipes::RecipeReceipts,
+    recipe_ghost: Option<crate::client::crafting::ghost::GhostReceipts>,
     position: Option<[f64; 3]>,
     rotation: [f32; 2],
     ready: bool,
@@ -136,22 +118,55 @@ struct State {
 impl Default for State {
     fn default() -> Self {
         Self {
+            death_message: None,
+            disconnect_reason: None,
             loading: loading::InteractionLoading::default(),
             motion: motion::OwnMotion::default(),
             identity: None,
             retirement: None,
             mining: None,
+            common_mining: None,
             placement: None,
+            common_placement: None,
+            retired_common_placement: None,
+            common_inventory_swap: None,
+            common_inventory_click: None,
+            common_crafting_take: None,
+            common_recipe_placement: None,
+            common_inventory_transfer: None,
+            common_container_close: None,
+            flight_history: Arc::default(),
+            respawn_history: Arc::default(),
+            dismount_history: Arc::default(),
+            vehicle_control_history: Arc::default(),
+            close_history: Arc::default(),
+            crafting_take_history: Arc::default(),
+            recipe_placement_history: Arc::default(),
+            common_container_open: None,
             survival_motion: None,
+            control: Default::default(),
+            retired_common_motion: None,
             recording: None,
             recording_ordinal: 0,
             operations: operations::OperationState::default(),
             players: players::PlayerTracker::default(),
+            entities: Default::default(),
+            vehicles: Default::default(),
+            scoreboard: Default::default(),
+            boss_bars: Default::default(),
+            chat: Default::default(),
+            events: Default::default(),
+            display: Default::default(),
+            teams: Default::default(),
+            player_list: Default::default(),
             phase: Phase::Configuration,
             world: World::default(),
             reconstruction: Reconstruction::default(),
             observations: observations::RegionCache::default(),
             dimensions: Vec::new(),
+            registries: Default::default(),
+            recipes: Default::default(),
+            recipe_ghost: None,
             position: None,
             rotation: [0.0; 2],
             ready: false,
@@ -168,21 +183,61 @@ impl State {
             bail!("cannot apply packets after a failed receive");
         }
         self.sequence += 1;
+        self.entities.history_context(
+            MinecraftVersion::Java1_21_11,
+            self.loading.generation,
+            self.sequence,
+        );
         if let Some(trace) = &mut self.trace {
             trace.record(
                 self.sequence,
                 self.reconstruction.tick,
-                self.phase,
+                match self.phase {
+                    Phase::Configuration => PacketPhase::Configuration,
+                    Phase::Play => PacketPhase::Play,
+                },
                 id,
                 payload,
+                (matches!(self.phase, Phase::Play) && id == ids::play_clientbound::POSITION)
+                    .then_some(LocalPlayerBasis {
+                        position: self.position,
+                        rotation: self.rotation,
+                        velocity: if self.motion.position_basis == motion::PositionBasis::Received {
+                            self.operations.local_player.velocity.map(|v| v.value)
+                        } else {
+                            None
+                        },
+                    }),
             );
         }
+        let in_play = self.phase == Phase::Play;
         let result = match self.phase {
             Phase::Configuration => apply_configuration(self, id, payload),
             Phase::Play => apply_play(self, id, payload, max_chunks),
         };
         if result.is_ok() {
+            if self.phase == Phase::Play && id == ids::play_clientbound::RESPAWN {
+                crate::client::respawn::received(
+                    &self.respawn_history,
+                    self.loading.generation,
+                    self.sequence,
+                );
+            }
+            operations::vehicle::context_received(self);
             operations::placement_context_received(self);
+            operations::placement::common_placement_context_received(self);
+            operations::inventory::common::context_received(self);
+            operations::inventory::click::context_received(self);
+            operations::inventory::crafting::context_received(self);
+            operations::inventory::recipe_placement::context_received(self);
+            operations::inventory::transfer::context_received(self);
+            operations::container::context_received(self);
+            operations::mining::common_mining_context_received(self);
+            if in_play {
+                for kind in event_kinds::kinds(id, payload) {
+                    self.events.record(self.sequence, kind);
+                }
+            }
         }
         if let Err(error) = &result {
             self.failure = Some(Error::new(
@@ -212,8 +267,11 @@ struct Session {
     changed: Notify,
     cancel: Notify,
     stopped: AtomicBool,
+    revoked: AtomicBool,
+    receiver_abort: std::sync::OnceLock<tokio::task::AbortHandle>,
+    runtime: tokio::runtime::Handle,
     interrupted_packet: AtomicI32,
-    limits: crate::ConnectionOptions,
+    limits: crate::client::ClientLimits,
     interaction_sequence: AtomicI32,
 }
 struct Lease(Weak<Session>);
@@ -227,21 +285,43 @@ impl Drop for Lease {
 
 #[derive(Clone)]
 pub(crate) struct Bot {
+    pub(crate) flight_history: crate::client::flight::History,
+    pub(crate) respawn_history: crate::client::respawn::History,
+    dismount_history: crate::client::vehicle::dismount::History,
+    vehicle_control_history: crate::client::vehicle::control::History,
+    close_history: Arc<std::sync::Mutex<Option<crate::client::container::ContainerCloseRecord>>>,
+    recipe_placement_history:
+        Arc<std::sync::Mutex<Option<crate::client::crafting::RecipePlacementRecord>>>,
+    crafting_take_history:
+        Arc<std::sync::Mutex<Option<crate::client::crafting::CraftingTakeRecord>>>,
     session: Arc<Session>,
     _lease: Arc<Lease>,
 }
 
 impl Bot {
+    pub(crate) fn connection_id(&self) -> u64 {
+        self.session.id
+    }
+    pub(crate) async fn connection_status(&self) -> crate::client::ConnectionStatus {
+        use crate::client::ConnectionStatus as S;
+        let state = self.session.state.lock().await;
+        if self.session.stopped.load(Ordering::Acquire) {
+            if state.failure.is_some() && state.disconnect_reason.is_none() {
+                S::Unknown
+            } else {
+                S::Closed
+            }
+        } else if state.ready && state.phase == Phase::Play {
+            S::Ready
+        } else {
+            S::Joining
+        }
+    }
     pub fn operations(&self) -> operations::Operations {
         operations::Operations { bot: self.clone() }
     }
     pub async fn start_packet_trace(&self, maximum_bytes: usize) -> Result<()> {
-        if !(1..=16_777_216).contains(&maximum_bytes) {
-            return Err(Error::new(
-                ErrorKind::InvalidInput,
-                anyhow::anyhow!("trace limit must be 1..=16777216"),
-            ));
-        }
+        crate::client::recording::validate_limit(maximum_bytes)?;
         let mut state = self.session.state.lock().await;
         self.session.check(&state)?;
         if state.trace.is_some() {
@@ -250,27 +330,19 @@ impl Bot {
                 anyhow::anyhow!("trace already active"),
             ));
         }
-        state.trace = Some(TraceCapture {
-            start: state.sequence,
-            bytes: 0,
-            limit: maximum_bytes,
-            complete: true,
-            records: Vec::new(),
-        });
+        state.trace = Some(TraceCapture::new(state.sequence, maximum_bytes)?);
         Ok(())
     }
 
     pub async fn stop_packet_trace(&self) -> Result<PacketTrace> {
         let mut state = self.session.state.lock().await;
         let trace = state.trace.take().context("no active packet trace")?;
-        Ok(PacketTrace {
-            minecraft_version: "1.21.11",
-            connection_id: self.session.id,
-            after_sequence: trace.start,
-            through_sequence: state.sequence,
-            complete: trace.complete,
-            records: trace.records,
-        })
+        Ok(trace.finish(
+            crate::MinecraftVersion::Java1_21_11,
+            self.session.id,
+            state.sequence,
+            state.reconstruction.tick,
+        ))
     }
 
     pub async fn interact_block(&self, position: [i32; 3], face: crate::BlockFace) -> Result<()> {
@@ -281,16 +353,20 @@ impl Bot {
     }
 
     pub async fn connect(config: ConnectionConfig) -> Result<Self> {
-        if config.username.is_empty()
-            || config.username.len() > 16
-            || !config
-                .username
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || b == b'_')
-        {
+        Self::connect_with_packet_trace(config, None).await
+    }
+    pub(crate) async fn connect_with_packet_trace(
+        config: ConnectionConfig,
+        trace_limit: Option<usize>,
+    ) -> Result<Self> {
+        let trace = trace_limit
+            .map(|limit| TraceCapture::new(0, limit))
+            .transpose()?;
+        config.validate()?;
+        if config.version != crate::MinecraftVersion::Java1_21_11 {
             return Err(Error::new(
                 ErrorKind::InvalidInput,
-                anyhow::anyhow!("invalid offline player name"),
+                anyhow::anyhow!("configuration belongs to another adapter"),
             ));
         }
         let stream = timeout(
@@ -424,11 +500,15 @@ impl Bot {
             }),
             state: Mutex::new(State {
                 identity: Some(identity),
+                trace,
                 ..State::default()
             }),
             changed: Notify::new(),
             cancel: Notify::new(),
             stopped: AtomicBool::new(false),
+            revoked: AtomicBool::new(false),
+            receiver_abort: std::sync::OnceLock::new(),
+            runtime: tokio::runtime::Handle::current(),
             interrupted_packet: AtomicI32::new(-1),
             limits: config.limits,
             interaction_sequence: AtomicI32::new(0),
@@ -437,12 +517,44 @@ impl Bot {
             .send(ids::configuration_serverbound::SETTINGS, &settings())
             .await?;
         let bot = Self {
+            respawn_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.respawn_history.clone()
+            },
+            recipe_placement_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.recipe_placement_history.clone()
+            },
+            crafting_take_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.crafting_take_history.clone()
+            },
+            flight_history: {
+                let state = session.state.lock().await;
+                state.flight_history.clone()
+            },
+            vehicle_control_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.vehicle_control_history.clone()
+            },
+            dismount_history: {
+                let state = session.state.try_lock().expect("new session");
+                state.dismount_history.clone()
+            },
+            close_history: session
+                .state
+                .try_lock()
+                .expect("new session")
+                .close_history
+                .clone(),
             _lease: Arc::new(Lease(Arc::downgrade(&session))),
             session: session.clone(),
         };
-        tokio::spawn(async move {
-            session.run_receiver(reader).await;
+        let receiving = session.clone();
+        let receiver = session.runtime.spawn(async move {
+            receiving.run_receiver(reader).await;
         });
+        let _ = session.receiver_abort.set(receiver.abort_handle());
         Ok(bot)
     }
 
@@ -538,6 +650,9 @@ impl Bot {
         self.session.writer.lock().await.stream.shutdown().await?;
         Ok(())
     }
+    pub(crate) fn revoke_connection(&self) {
+        self.session.revoke();
+    }
 }
 
 impl Session {
@@ -585,7 +700,18 @@ impl Session {
                     ..
                 } = &mut *state;
                 reconstruction.advance(world, target);
-                state.receive(packet.0, &packet.1, self.limits.max_chunks)?
+                let mut responses = state.receive(packet.0, &packet.1, self.limits.max_chunks)?;
+                if packet.0 == ids::play_clientbound::POSITION && matches!(state.phase, Phase::Play)
+                {
+                    // Publish a received correction only after its original
+                    // teleport confirmation/position response frames complete.
+                    // Normal operations share this state lock and cannot
+                    // overtake the server's outstanding teleport boundary.
+                    for (id, payload) in responses.drain(..) {
+                        self.send(id, &payload).await?;
+                    }
+                }
+                responses
             };
             for (id, payload) in responses {
                 self.send(id, &payload).await?;
@@ -625,6 +751,7 @@ fn apply_configuration(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Re
                 bail!("configuration supplied no dimension registry");
             }
             state.phase = Phase::Play;
+            state.registries.finish();
             responses.push((output::FINISH_CONFIGURATION, Vec::new()));
         }
         input::KEEP_ALIVE => {
@@ -651,23 +778,36 @@ fn apply_configuration(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Re
             let name = r.string()?;
             let count = r.count(65_536)?;
             let mut dimensions = Vec::new();
+            let mut entries = Vec::with_capacity(count);
             for _ in 0..count {
-                r.string()?;
+                let entry_name = r.string()?;
                 let present = r.bool()?;
+                if !present {
+                    bail!("registry data omitted despite empty known-packs response");
+                }
+                if r.remaining().first() != Some(&10) {
+                    bail!("registry entry data must be a compound");
+                }
+                let data = r.encoded_nbt()?;
                 if name == "minecraft:dimension_type" {
-                    if !present {
-                        bail!("dimension data omitted despite empty known-packs response");
-                    }
-                    let (min_y, height) = r.dimension_nbt()?;
+                    let (min_y, height) = Reader::new(&data).dimension_nbt()?;
                     dimensions.push(Dimension::new(
                         min_y.context("missing min_y")?,
                         height.context("missing height")?,
                     )?);
-                } else if present {
-                    r.skip_nbt()?;
                 }
+                entries.push(crate::client::registry::ServerRegistryEntry {
+                    name: entry_name,
+                    data,
+                });
             }
             r.end()?;
+            state.registries.modern_registry(
+                name.clone(),
+                entries,
+                state.sequence,
+                payload.len(),
+            )?;
             if name == "minecraft:dimension_type" {
                 state.dimensions = dimensions;
             }
@@ -696,12 +836,16 @@ fn apply_configuration(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Re
             r.end()?;
             state.operations.features = Some(features);
         }
-        // Presentation, tags and cookie storage do not change block-state IDs.
+        input::TAGS => {
+            state
+                .registries
+                .receive_tags(payload, state.sequence, MinecraftVersion::Java1_21_11)?
+        }
+        // Presentation and cookie storage do not change block-state IDs.
         input::CUSTOM_PAYLOAD
         | input::RESET_CHAT
         | input::REMOVE_RESOURCE_PACK
         | input::STORE_COOKIE
-        | input::TAGS
         | input::CUSTOM_REPORT_DETAILS
         | input::SERVER_LINKS
         | input::CLEAR_DIALOG
@@ -731,6 +875,11 @@ fn spawn_info(state: &mut State, r: &mut Reader<'_>) -> anyhow::Result<()> {
         .context("unknown dimension registry ID")?;
     state.world.select_dimension(name, dimension);
     state.loading.reset(state.sequence);
+    state.entities.history_context(
+        MinecraftVersion::Java1_21_11,
+        state.loading.generation,
+        state.sequence,
+    );
     state
         .motion
         .invalidate(state.sequence, "world generation changed");
@@ -741,6 +890,8 @@ fn spawn_info(state: &mut State, r: &mut Reader<'_>) -> anyhow::Result<()> {
     state.reconstruction = Reconstruction::default();
     state.operations.reset_world(game_mode)?;
     state.players.reset_world();
+    state.entities.clear();
+    state.vehicles.clear();
     state.ready = false;
     state.position = None;
     Ok(())
@@ -755,8 +906,17 @@ fn apply_play(
     use ids::{play_clientbound as input, play_serverbound as output};
     let mut r = Reader::new(payload);
     let mut responses = Vec::new();
+    entity::receive(state, id, payload)?;
     if operations::receive(state, id, payload)? {
         return Ok(responses);
+    }
+    if recipes::receive(state, id, payload)? {
+        return Ok(responses);
+    }
+    if id == input::PLAYER_INFO || id == input::PLAYER_REMOVE {
+        state
+            .player_list
+            .receive(MinecraftVersion::Java1_21_11, id, payload, state.sequence)?;
     }
     if state.players.receive(id, payload, state.sequence)? {
         operations::retirement_received(state, id, payload)?;
@@ -798,6 +958,47 @@ fn apply_play(
             r.end()?;
             responses.push((output::PONG, payload.to_vec()));
         }
+        input::SET_TITLE_TEXT
+        | input::SET_TITLE_SUBTITLE
+        | input::ACTION_BAR
+        | input::SET_TITLE_TIME
+        | input::CLEAR_TITLES
+        | input::PLAYERLIST_HEADER
+        | input::INITIALIZE_WORLD_BORDER
+        | input::WORLD_BORDER_CENTER
+        | input::WORLD_BORDER_SIZE
+        | input::WORLD_BORDER_LERP_SIZE
+        | input::WORLD_BORDER_WARNING_DELAY
+        | input::WORLD_BORDER_WARNING_REACH => {
+            state.display.receive(
+                MinecraftVersion::Java1_21_11,
+                id,
+                payload,
+                state.sequence,
+                state.loading.generation,
+            )?;
+        }
+        input::TEAMS => {
+            state
+                .teams
+                .receive(MinecraftVersion::Java1_21_11, payload, state.sequence)?;
+        }
+        input::PLAYER_CHAT | input::PROFILELESS_CHAT => {
+            state.chat.receive_modern(id, payload, state.sequence)?;
+        }
+        input::BOSS_BAR => {
+            state
+                .boss_bars
+                .receive(MinecraftVersion::Java1_21_11, payload, state.sequence)?;
+        }
+        input::SCOREBOARD_OBJECTIVE
+        | input::SCOREBOARD_DISPLAY_OBJECTIVE
+        | input::SCOREBOARD_SCORE
+        | input::RESET_SCORE => {
+            state
+                .scoreboard
+                .receive(MinecraftVersion::Java1_21_11, id, payload, state.sequence)?;
+        }
         input::POSITION => {
             let teleport = r.varint()?;
             let correction = correction::Correction::read(&mut r)?;
@@ -830,6 +1031,18 @@ fn apply_play(
                 velocity: state.operations.local_player.velocity.map(|v| v.value),
             });
             state.rotation = rotation;
+            state.entities.history_pose(
+                crate::client::ReceivedPose {
+                    position,
+                    rotation,
+                    receive_sequence: state.sequence,
+                },
+                state
+                    .operations
+                    .local_player
+                    .velocity
+                    .map(|v| crate::client::received(v.value, v.receive_sequence)),
+            );
             state.ready = true;
             let mut confirm = Vec::new();
             put_varint(&mut confirm, teleport);
@@ -843,6 +1056,9 @@ fn apply_play(
             }
             moved.push(0);
             responses.push((output::POSITION_LOOK, moved));
+        }
+        input::UPDATE_LIGHT => {
+            state.world.update_light(payload)?;
         }
         input::MAP_CHUNK => {
             let chunk = [r.i32()?, r.i32()?];
@@ -931,6 +1147,11 @@ fn apply_play(
         input::START_CONFIGURATION => {
             r.end()?;
             state.loading.reset(state.sequence);
+            state.entities.history_context(
+                MinecraftVersion::Java1_21_11,
+                state.loading.generation,
+                state.sequence,
+            );
             state
                 .motion
                 .invalidate(state.sequence, "world generation changed");
@@ -939,17 +1160,49 @@ fn apply_play(
             state.ready = false;
             state.position = None;
             state.dimensions.clear();
+            state.registries.reset(state.sequence);
+            state.recipes = Default::default();
             state.world.reset();
             state.reconstruction = Reconstruction::default();
             state.operations.reset_configuration(state.sequence);
             state.players = players::PlayerTracker::default();
+            // Reconfiguration creates a new native play listener/scoreboard.
+            // Ordinary respawn retains these connection-level registrations.
+            state.scoreboard.reset_context(state.sequence);
+            state.teams.reset_context(state.sequence);
+            state.player_list.reset_context(state.sequence);
+            state.boss_bars.reset_context(state.sequence);
+            state.display.reset_context(state.sequence);
+            state.entities.clear();
+            state.vehicles.clear();
             if let Some(capture) = &mut state.recording {
                 capture.invalidate(recording::RecordingIssue::WorldChanged);
             }
             responses.push((output::CONFIGURATION_ACKNOWLEDGED, vec![]));
             responses.push((ids::configuration_serverbound::SETTINGS, settings()));
         }
-        input::KICK_DISCONNECT => bail!("server disconnected"),
+        input::KICK_DISCONNECT => {
+            state.disconnect_reason = Some(crate::client::ui::UiText::NativeNbt {
+                bytes: payload.to_vec(),
+            });
+            bail!("server disconnected")
+        }
+        input::DEATH_COMBAT_EVENT => {
+            let player = r.varint()?;
+            if Some(player) == state.operations.local_player.entity_id {
+                state.death_message = Some(crate::client::received(
+                    crate::client::ui::UiText::NativeNbt {
+                        bytes: r.take(r.remaining().len())?.to_vec(),
+                    },
+                    state.sequence,
+                ));
+            }
+        }
+        input::TAGS => {
+            state
+                .registries
+                .receive_tags(payload, state.sequence, MinecraftVersion::Java1_21_11)?
+        }
         input::TRANSFER => bail!("server transfer requires a new explicitly configured connection"),
         input::ADD_RESOURCE_PACK => bail!("resource-pack negotiation is unsupported"),
         input::COOKIE_REQUEST => {
@@ -975,3 +1228,128 @@ mod movement_native_trials;
 mod placement_native_trials;
 #[cfg(test)]
 mod tests;
+
+impl crate::client::adapter::EventOps for operations::Operations {
+    async fn entity_history_after(
+        &self,
+        cursor: Option<crate::client::EntityHistoryCursor>,
+        maximum: usize,
+    ) -> Result<crate::client::EntityHistory> {
+        let state = self.bot.session.state.lock().await;
+        state.entities.history_after(
+            crate::client::SessionStamp {
+                version: MinecraftVersion::Java1_21_11,
+                connection_id: self.bot.session.id,
+                world_generation: state.loading.generation,
+            },
+            state.sequence,
+            cursor,
+            maximum,
+        )
+    }
+
+    async fn events_after(&self, cursor: u64) -> Result<crate::client::EventLog> {
+        let mut state = self.bot.session.state.lock().await;
+        if self.bot.session.stopped.load(Ordering::Acquire) && !state.events.closed() {
+            let sequence = state.sequence;
+            state
+                .events
+                .record(sequence, crate::client::EventKind::Disconnected);
+        }
+        state.events.after(cursor, state.sequence)
+    }
+    async fn death_message(
+        &self,
+    ) -> Result<Option<crate::client::ObservedValue<crate::client::ui::UiText>>> {
+        Ok(self.bot.session.state.lock().await.death_message.clone())
+    }
+    async fn disconnect_reason(&self) -> Result<Option<crate::client::ui::UiText>> {
+        Ok(self
+            .bot
+            .session
+            .state
+            .lock()
+            .await
+            .disconnect_reason
+            .clone())
+    }
+}
+
+impl crate::client::adapter::WaitOps for operations::Operations {
+    async fn wait_for_receive(&self, after: u64) -> Result<u64> {
+        let session = &self.bot.session;
+        loop {
+            let notified = session.changed.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+            {
+                let state = session.state.lock().await;
+                session.check(&state)?;
+                if state.sequence > after {
+                    return Ok(state.sequence);
+                }
+            }
+            notified.await;
+        }
+    }
+}
+
+impl crate::client::adapter::ChatOps for operations::Operations {
+    async fn send_chat(&self, message: &str) -> Result<()> {
+        operations::Operations::send_chat(self, message).await
+    }
+    async fn send_command(&self, command: &str) -> Result<()> {
+        operations::Operations::send_command(self, command).await
+    }
+    async fn chat_after(&self, cursor: u64) -> Result<crate::client::ChatLog> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.bot.session.id, false)?;
+        state.chat.after(cursor, player.session, state.sequence)
+    }
+}
+
+impl crate::client::adapter::UiOps for operations::Operations {
+    async fn scoreboard_state(&self) -> Result<crate::client::ui::ScoreboardObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.bot.session.id, false)?;
+        Ok(state.scoreboard.capture(player.session, state.sequence))
+    }
+    async fn boss_bars(&self) -> Result<crate::client::ui::BossBarsObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.bot.session.id, false)?;
+        Ok(state.boss_bars.capture(player.session, state.sequence))
+    }
+    async fn teams(&self) -> Result<crate::client::ui::TeamsObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.bot.session.id, false)?;
+        Ok(state.teams.capture(player.session, state.sequence))
+    }
+    async fn player_list(&self) -> Result<crate::client::ui::PlayerListObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.bot.session.id, false)?;
+        Ok(state.player_list.capture(player.session, state.sequence))
+    }
+    async fn titles(&self) -> Result<crate::client::ui::TitlesObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.bot.session.id, false)?;
+        Ok(state.display.titles(player.session, state.sequence))
+    }
+    async fn tab_list(&self) -> Result<crate::client::ui::TabListObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.bot.session.id, false)?;
+        Ok(state.display.tab_list(player.session, state.sequence))
+    }
+    async fn world_border(&self) -> Result<crate::client::ui::WorldBorderObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.session.check(&state)?;
+        let player = operations::common_player_in_state(&state, self.bot.session.id, false)?;
+        Ok(state.display.world_border(player.session, state.sequence))
+    }
+}

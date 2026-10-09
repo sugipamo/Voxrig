@@ -31,11 +31,44 @@ async fn fixture() -> (Bot, OwnedReadHalf, TcpStream) {
         changed: Notify::new(),
         cancel: Notify::new(),
         stopped: AtomicBool::new(false),
+        revoked: AtomicBool::new(false),
+        receiver_abort: std::sync::OnceLock::new(),
+        runtime: tokio::runtime::Handle::current(),
         interrupted_packet: AtomicI32::new(-1),
-        limits: crate::ConnectionOptions::default(),
+        limits: crate::client::ClientLimits::default(),
         interaction_sequence: AtomicI32::new(0),
     });
     let bot = Bot {
+        respawn_history: {
+            let state = session.state.try_lock().expect("new session");
+            state.respawn_history.clone()
+        },
+        recipe_placement_history: {
+            let state = session.state.try_lock().expect("new session");
+            state.recipe_placement_history.clone()
+        },
+        crafting_take_history: {
+            let state = session.state.try_lock().expect("new session");
+            state.crafting_take_history.clone()
+        },
+        flight_history: {
+            let state = session.state.try_lock().expect("new session");
+            state.flight_history.clone()
+        },
+        vehicle_control_history: {
+            let state = session.state.try_lock().expect("new session");
+            state.vehicle_control_history.clone()
+        },
+        dismount_history: {
+            let state = session.state.try_lock().expect("new session");
+            state.dismount_history.clone()
+        },
+        close_history: session
+            .state
+            .try_lock()
+            .expect("new session")
+            .close_history
+            .clone(),
         session: session.clone(),
         _lease: Arc::new(Lease(Arc::downgrade(&session))),
     };

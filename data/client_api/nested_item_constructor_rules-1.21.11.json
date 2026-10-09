@@ -1,0 +1,16 @@
+{
+  "bundle_count": "multiplyBy count;add each result in list order",
+  "bundle_weight_routes": [
+    "nested bundle +1/16",
+    "nonempty bees=1",
+    "otherwise1/max_stack_size"
+  ],
+  "container_list_trailing_empty": "retained",
+  "default_bundle_bees_prototypes": "empty lists only in pinned native registry",
+  "nonempty_item_rejects": [
+    "nonpositive count",
+    "air"
+  ],
+  "optional_item_count_nonpositive": "empty",
+  "removed_max_stack_size": 1
+}

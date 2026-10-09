@@ -10,7 +10,7 @@ pub trait ToDiagnostic {
 
 macro_rules! identity {
     ($($ty:ty),* $(,)?) => {$(
-        impl ToDiagnostic for $ty {
+        impl crate::diagnostic_projection::ToDiagnostic for $ty {
             type Record = Self;
             fn diagnostic(&self) -> Self { self.to_owned() }
         }

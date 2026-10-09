@@ -5,6 +5,7 @@ pub mod chat;
 pub mod client;
 pub(crate) mod collision;
 pub mod entity;
+pub(crate) mod generated;
 pub(crate) use crate::error;
 pub mod interaction;
 pub mod inventory;
@@ -30,20 +31,28 @@ pub mod unstable;
 pub mod world;
 
 /// Decodes a state ID exclusively using the Java 1.16.1 registry.
-pub fn native_state(id: i32) -> crate::Result<crate::NativeBlockState> {
+fn state_registry() -> &'static crate::block_state::StateRegistry {
     static STATES: std::sync::OnceLock<crate::block_state::StateRegistry> =
         std::sync::OnceLock::new();
-    STATES
-        .get_or_init(|| {
-            crate::block_state::StateRegistry::parse(include_str!("../../../data/blocks.json"))
-                .expect("bundled Java 1.16.1 state definitions are valid")
-        })
-        .decode(id)
+    STATES.get_or_init(|| {
+        crate::block_state::StateRegistry::parse(include_str!("../../../data/blocks.json"))
+            .expect("bundled Java 1.16.1 state definitions are valid")
+    })
+}
+
+/// Decodes an ID exclusively using the Java 1.16.1 registry.
+pub fn native_state(id: i32) -> crate::Result<crate::NativeBlockState> {
+    state_registry().decode(id)
+}
+
+/// Resolves a complete state exclusively using the Java 1.16.1 registry.
+pub fn state_id(state: &crate::NativeBlockState) -> crate::Result<i32> {
+    state_registry().encode(state)
 }
 
 /// Common imports for applications that control one or more clients.
 pub mod prelude {
-    pub use crate::{
+    pub use super::{
         BlockFace, BlockPos, Bot, BotManager, ClickMode, ControlState, Error, ErrorKind, Event,
         Hand, Player, Result, Server,
     };

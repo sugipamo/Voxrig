@@ -1,0 +1,1441 @@
+[
+  {
+    "case": "one-2-0",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "case": "one-2-1",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null,
+      null
+    ]
+  },
+  {
+    "case": "one-2-2",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null
+    ]
+  },
+  {
+    "case": "one-2-3",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "case": "extra-2",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      null,
+      null
+    ]
+  },
+  {
+    "case": "horizontal-2-0-False",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:dirt"
+      ]
+    ],
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      null,
+      null
+    ]
+  },
+  {
+    "case": "horizontal-2-1-False",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:dirt"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "case": "horizontal-2-0-True",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:dirt"
+      ]
+    ],
+    "inputs": [
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null,
+      null
+    ]
+  },
+  {
+    "case": "horizontal-2-1-True",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:dirt"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "case": "count-many-2",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 20
+      }
+    ]
+  },
+  {
+    "case": "named-2",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 1,
+        "name": "match me"
+      }
+    ]
+  },
+  {
+    "case": "zero-2",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 0
+      }
+    ]
+  },
+  {
+    "case": "capacity-1-2",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 2,
+        "capacity": 1
+      }
+    ]
+  },
+  {
+    "case": "hole-valid-2",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 2,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:oak_planks"
+      ],
+      null
+    ],
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      {
+        "item": "minecraft:oak_planks",
+        "count": 1
+      },
+      null
+    ]
+  },
+  {
+    "case": "hole-mirror-2",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 2,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:oak_planks"
+      ],
+      null
+    ],
+    "inputs": [
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null,
+      {
+        "item": "minecraft:oak_planks",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "case": "empty-border-2",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      null
+    ],
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "case": "shapeless-two-scattered-2",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": false,
+    "recipe_width": 0,
+    "recipe_height": 0,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:dirt"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "case": "shapeless-competing-2",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": false,
+    "recipe_width": 0,
+    "recipe_height": 0,
+    "ingredients": [
+      [
+        "minecraft:oak_planks",
+        "minecraft:spruce_planks"
+      ],
+      [
+        "minecraft:oak_planks"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      {
+        "item": "minecraft:spruce_planks",
+        "count": 1
+      },
+      {
+        "item": "minecraft:oak_planks",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "case": "shapeless-same-stack-not-two-2",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": false,
+    "recipe_width": 0,
+    "recipe_height": 0,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 20
+      }
+    ]
+  },
+  {
+    "case": "shapeless-two-types-2",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": false,
+    "recipe_width": 0,
+    "recipe_height": 0,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "case": "shapeless-damaged-tool-2",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": false,
+    "recipe_width": 0,
+    "recipe_height": 0,
+    "ingredients": [
+      [
+        "minecraft:iron_pickaxe"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:iron_pickaxe",
+        "count": 1,
+        "damage": 1
+      }
+    ]
+  },
+  {
+    "case": "shapeless-custom-name-2",
+    "grid_width": 2,
+    "grid_height": 2,
+    "shaped": false,
+    "recipe_width": 0,
+    "recipe_height": 0,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 1,
+        "name": "named"
+      }
+    ]
+  },
+  {
+    "case": "one-3-0",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "case": "one-3-1",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "case": "one-3-2",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "case": "one-3-3",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "case": "one-3-4",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "case": "one-3-5",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "case": "one-3-6",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null,
+      null
+    ]
+  },
+  {
+    "case": "one-3-7",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null
+    ]
+  },
+  {
+    "case": "one-3-8",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "case": "extra-3",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null,
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "case": "horizontal-3-0-False",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:dirt"
+      ]
+    ],
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "case": "horizontal-3-1-False",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:dirt"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "case": "horizontal-3-2-False",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:dirt"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      null
+    ]
+  },
+  {
+    "case": "horizontal-3-0-True",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:dirt"
+      ]
+    ],
+    "inputs": [
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "case": "horizontal-3-1-True",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:dirt"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "case": "horizontal-3-2-True",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:dirt"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null
+    ]
+  },
+  {
+    "case": "count-many-3",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 20
+      }
+    ]
+  },
+  {
+    "case": "named-3",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 1,
+        "name": "match me"
+      }
+    ]
+  },
+  {
+    "case": "zero-3",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 0
+      }
+    ]
+  },
+  {
+    "case": "capacity-1-3",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 1,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 2,
+        "capacity": 1
+      }
+    ]
+  },
+  {
+    "case": "hole-valid-3",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 2,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:oak_planks"
+      ],
+      null
+    ],
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      null,
+      {
+        "item": "minecraft:oak_planks",
+        "count": 1
+      },
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "case": "hole-mirror-3",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 2,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:dirt"
+      ],
+      [
+        "minecraft:oak_planks"
+      ],
+      null
+    ],
+    "inputs": [
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null,
+      null,
+      {
+        "item": "minecraft:oak_planks",
+        "count": 1
+      },
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "case": "empty-border-3",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": true,
+    "recipe_width": 2,
+    "recipe_height": 1,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      null
+    ],
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "case": "shapeless-two-scattered-3",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": false,
+    "recipe_width": 0,
+    "recipe_height": 0,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:dirt"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "case": "shapeless-competing-3",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": false,
+    "recipe_width": 0,
+    "recipe_height": 0,
+    "ingredients": [
+      [
+        "minecraft:oak_planks",
+        "minecraft:spruce_planks"
+      ],
+      [
+        "minecraft:oak_planks"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:spruce_planks",
+        "count": 1
+      },
+      {
+        "item": "minecraft:oak_planks",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "case": "shapeless-same-stack-not-two-3",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": false,
+    "recipe_width": 0,
+    "recipe_height": 0,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 20
+      }
+    ]
+  },
+  {
+    "case": "shapeless-two-types-3",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": false,
+    "recipe_width": 0,
+    "recipe_height": 0,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ],
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:dirt",
+        "count": 1
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      }
+    ]
+  },
+  {
+    "case": "shapeless-damaged-tool-3",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": false,
+    "recipe_width": 0,
+    "recipe_height": 0,
+    "ingredients": [
+      [
+        "minecraft:iron_pickaxe"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:iron_pickaxe",
+        "count": 1,
+        "damage": 1
+      }
+    ]
+  },
+  {
+    "case": "shapeless-custom-name-3",
+    "grid_width": 3,
+    "grid_height": 3,
+    "shaped": false,
+    "recipe_width": 0,
+    "recipe_height": 0,
+    "ingredients": [
+      [
+        "minecraft:stone"
+      ]
+    ],
+    "inputs": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      {
+        "item": "minecraft:stone",
+        "count": 1,
+        "name": "named"
+      }
+    ]
+  }
+]

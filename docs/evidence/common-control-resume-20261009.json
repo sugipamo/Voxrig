@@ -1,0 +1,2655 @@
+{
+  "date": "2026-10-09",
+  "issue": "https://github.com/sugipamo/Voxrig/issues/37",
+  "qualified_code_revision": "807c3cb9ba9205ac2badb75ec763b7b3d9421c7a",
+  "build_and_receipt_limits": "Local model momentum and rotation are SDK prediction/submission, never velocity/stop/position ACKs. Session starts release keys; counters exclude their initial captured receipt boundary. Original velocity decoder tests and official live traversal complement each other.",
+  "source_equivalence": "The live runner used 848f4a8 plus the frozen diff whose SHA256 is 9b11f57e14f7f1b7411fd13ac573ece88e11926bb934e9ed156d9473e10ed583. That diff equals git diff 848f4a8 807c3cb byte-for-byte. Later diagnostic example/fixture changes do not change library or Cargo manifests.",
+  "local_checks": {
+    "native_all_targets": {
+      "passed": 914,
+      "failed": 0,
+      "ignored": 8,
+      "source_revision": "848f4a8a5efb2a67bda964723c08921e31b88730"
+    },
+    "strict_native_all_target_clippy": "passed",
+    "rust185_native_all_target_check": "passed",
+    "rustfmt": "passed"
+  },
+  "live": [
+    {
+      "report": {
+        "version": "1.16.1",
+        "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "checks": [
+          {
+            "name": "ground_restart",
+            "record": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 2,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": true,
+                "pose": "Standing",
+                "position": [
+                  -0.3218165337156602,
+                  65.0,
+                  1.5907275351607841
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 2,
+                "using_item": null,
+                "velocity": [
+                  -0.026307973341160862,
+                  -0.0784000015258789,
+                  0.03491634658132604
+                ]
+              },
+              "session_id": 2,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 0
+            },
+            "native_position": [
+              -0.3218165337156602,
+              65.0,
+              1.5907275351607841
+            ],
+            "initial": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 0,
+              "frame": null,
+              "session_id": 2,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 0
+            },
+            "stopped": {
+              "controls": {
+                "forward": 1,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": true,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 7,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": true,
+                "pose": "Standing",
+                "position": [
+                  -0.1853860200715739,
+                  65.0,
+                  1.4096548604666777
+                ],
+                "sprinting": true,
+                "swimming": false,
+                "tick": 7,
+                "using_item": null,
+                "velocity": [
+                  -0.08824741788324261,
+                  -0.0784000015258789,
+                  0.11712332940894048
+                ]
+              },
+              "session_id": 1,
+              "status": {
+                "reason": "stopped by request",
+                "status": "stopped"
+              },
+              "velocity_updates": 0
+            },
+            "original_frames": [
+              {
+                "ordinal": 108,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 28,
+                "body_length": 3,
+                "wire_sha256": "a99efc037c5b5a3e40804c88116b6a62e260802e8b0f2e027c6fee6b105f472f",
+                "body_sha256": "fe45c30e7c57d882e7ae12ae74eb6a77cc835dd709cae7c18b062f96f407723e",
+                "body_hex": "240400"
+              },
+              {
+                "ordinal": 109,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "55e9a1cddb37537f2a72c0ae3f0d6b0078963d6b76f813bfe4dcb2d1fc3d0e61",
+                "body_sha256": "f9fa6048766379890d9b8f6b66d6780867ee574e70b3335941e3e186f3cdae92",
+                "body_hex": "bfd18335d2c6e92e40504000000000003ff86daef79c309242140000c140000001"
+              },
+              {
+                "ordinal": 110,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "7858e132d863f0e4e1d69ab114c349df71e380e1326416c60ea2993fe93f7a46",
+                "body_sha256": "9c6065a5020808bc44e7ec7a6f2be5ce9dfbc88733a1a5e17ce7845ea1520183",
+                "body_hex": "bfd498a45fe7bbe040504000000000003ff9739eb745cbcf42140000c140000001"
+              }
+            ]
+          },
+          {
+            "name": "falling_restart",
+            "record": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 2,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": false,
+                "pose": "Standing",
+                "position": [
+                  0.5,
+                  74.23152379758702,
+                  0.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 2,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  -0.37663049823865513,
+                  0.0
+                ]
+              },
+              "session_id": 4,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 0
+            },
+            "native_position": [
+              0.5,
+              74.23152379758702,
+              0.5
+            ],
+            "initial": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 0,
+              "frame": null,
+              "session_id": 4,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 0
+            },
+            "stopped": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 3,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": false,
+                "pose": "Standing",
+                "position": [
+                  0.5,
+                  74.76636799395752,
+                  0.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 3,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  -0.230527368912964,
+                  0.0
+                ]
+              },
+              "session_id": 3,
+              "status": {
+                "reason": "stopped by request",
+                "status": "stopped"
+              },
+              "velocity_updates": 0
+            },
+            "original_frames": [
+              {
+                "ordinal": 141,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "76d4e616b4051493f01ad273f5929b76e94f595aa7fe2dc31b109350e9a650c9",
+                "body_sha256": "59b8a280a00a7aa2d08fe1cc75694e6c04965142403f3fd00cdc6cdda81c4c28",
+                "body_hex": "3fe00000000000004052a24b367a1bd03fe000000000000042140000c140000000"
+              },
+              {
+                "ordinal": 142,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 36,
+                "body_length": 4107,
+                "wire_sha256": "d613142ef88647409321a9cb6b14fc6f069500e4d971b9083e2574943d7ad392",
+                "body_sha256": "5f2775588396258df440799058c25087efaa96474dc9d63a3738e1fd543effe4"
+              },
+              {
+                "ordinal": 143,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 33,
+                "body_length": 6806,
+                "wire_sha256": "ad954c089c4c853327034f71c2112e1c6e2dcb795c2b130aa5a54e8897e7e8d0",
+                "body_sha256": "a3744d7cad898d1e91d1e8aa680ede7984a8b0b92714b560c4573bf94904208b"
+              },
+              {
+                "ordinal": 144,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 19,
+                "body_length": 33,
+                "wire_sha256": "96b463c750e552b290e3b67938a992da7da4d957a59fc28cfacb4b3b2c9c72e2",
+                "body_sha256": "52371819012d4cc53638e62b0a74c4c54ca37535786ae6225be65ca2a89f44aa",
+                "body_hex": "3fe000000000000040528ed14930b8723fe000000000000042140000c140000000"
+              }
+            ]
+          },
+          {
+            "name": "resumed_landing",
+            "record": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 42,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": true,
+                "pose": "Standing",
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 42,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  -0.0784000015258789,
+                  0.0
+                ]
+              },
+              "session_id": 4,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 1
+            },
+            "native_position": [
+              0.5,
+              65.0,
+              0.5
+            ]
+          },
+          {
+            "name": "new_correction_before_restart",
+            "record": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -7.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 81.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 3,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": true,
+                "pose": "Standing",
+                "position": [
+                  2.5,
+                  65.0,
+                  2.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 3,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  -0.0784000015258789,
+                  0.0
+                ]
+              },
+              "session_id": 5,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 0
+            },
+            "native_position": [
+              2.5,
+              65.0,
+              2.5
+            ],
+            "received": {
+              "air_supply": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 41
+                },
+                "value": 300
+              },
+              "attributes": {
+                "minecraft:movement_speed": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 93
+                  },
+                  "value": {
+                    "base": 0.10000000149011612,
+                    "modifiers": [],
+                    "value": 0.10000000149011612
+                  }
+                }
+              },
+              "dimension": {
+                "height": 256,
+                "min_y": 0,
+                "name": "minecraft:overworld"
+              },
+              "effects": {},
+              "entity_id": 36,
+              "game_mode": "survival",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 170
+                },
+                "value": {
+                  "food": 20,
+                  "health": 17.0,
+                  "saturation": 3.0
+                }
+              },
+              "inventory": {
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 37
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                "local_cache": [
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  },
+                  {
+                    "kind": "empty"
+                  }
+                ],
+                "player_screen": {
+                  "kind": "received"
+                },
+                "player_screen_revision": null,
+                "screen_revision": null,
+                "slots": [
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 36
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  }
+                ],
+                "window_id": 0
+              },
+              "may_fly": false,
+              "on_ground": null,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 169
+                },
+                "value": [
+                  2.5,
+                  65.0,
+                  2.5
+                ]
+              },
+              "receive_sequence": 171,
+              "received_pose": {
+                "position": [
+                  2.5,
+                  65.0,
+                  2.5
+                ],
+                "receive_sequence": 169,
+                "rotation": [
+                  81.0,
+                  -7.0
+                ]
+              },
+              "rotation": [
+                81.0,
+                -7.0
+              ],
+              "rotation_source": {
+                "kind": "received",
+                "sequence": 169
+              },
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 5
+                },
+                "value": 0
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              },
+              "using_item": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 41
+                },
+                "value": null
+              },
+              "world_time": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 166
+                },
+                "value": {
+                  "day_time": -6,
+                  "game_time": 79
+                }
+              }
+            },
+            "initial": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -7.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 81.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 0,
+              "frame": null,
+              "session_id": 5,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 0
+            }
+          },
+          {
+            "name": "retained_stopped_record",
+            "record": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -7.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 81.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 3,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": true,
+                "pose": "Standing",
+                "position": [
+                  2.5,
+                  65.0,
+                  2.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 3,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  -0.0784000015258789,
+                  0.0
+                ]
+              },
+              "session_id": 5,
+              "status": {
+                "reason": "stopped by request",
+                "status": "stopped"
+              },
+              "velocity_updates": 0
+            }
+          }
+        ],
+        "commands": [
+          {
+            "command": "forceload add -8 -8 8 8",
+            "response": "Marked 4 chunks in minecraft:overworld from [-1, -1] to [0, 0] to be force loaded"
+          },
+          {
+            "command": "setblock 0 64 0 minecraft:stone",
+            "response": "Changed the block at 0, 64, 0"
+          },
+          {
+            "command": "execute if block 0 64 0 minecraft:stone",
+            "response": "Test passed"
+          },
+          {
+            "command": "fill -8 64 -8 8 64 8 minecraft:stone",
+            "response": "Successfully filled 288 blocks"
+          },
+          {
+            "command": "fill -4 65 -4 4 84 4 minecraft:air",
+            "response": "No blocks were filled"
+          },
+          {
+            "command": "setworldspawn 0 65 0",
+            "response": "Set the world spawn point to 0, 65, 0"
+          },
+          {
+            "command": "difficulty peaceful",
+            "response": "The difficulty has been set to Peaceful"
+          },
+          {
+            "command": "gamerule spawnRadius 0",
+            "response": "Gamerule spawnRadius is now set to: 0"
+          },
+          {
+            "command": "gamerule doMobSpawning false",
+            "response": "Gamerule doMobSpawning is now set to: false"
+          },
+          {
+            "command": "gamerule doDaylightCycle false",
+            "response": "Gamerule doDaylightCycle is now set to: false"
+          },
+          {
+            "command": "tp ClimbingProbe 0.5 65.0 0.5 37.0 -12.0",
+            "response": "Teleported ClimbingProbe to 0.5, 65.0, 0.5"
+          },
+          {
+            "command": "data get entity ClimbingProbe Pos",
+            "response": "ClimbingProbe has the following entity data: [-0.3218165337156602d, 65.0d, 1.5907275351607841d]"
+          },
+          {
+            "command": "tp ClimbingProbe 0.5 75.0 0.5 37.0 -12.0",
+            "response": "Teleported ClimbingProbe to 0.5, 75.0, 0.5"
+          },
+          {
+            "command": "data get entity ClimbingProbe Pos",
+            "response": "ClimbingProbe has the following entity data: [0.5d, 74.23152379758702d, 0.5d]"
+          },
+          {
+            "command": "data get entity ClimbingProbe Pos",
+            "response": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+          },
+          {
+            "command": "tp ClimbingProbe 2.5 65.0 2.5 81.0 -7.0",
+            "response": "Teleported ClimbingProbe to 2.5, 65.0, 2.5"
+          },
+          {
+            "command": "data get entity ClimbingProbe Pos",
+            "response": "ClimbingProbe has the following entity data: [2.5d, 65.0d, 2.5d]"
+          }
+        ],
+        "passed": true,
+        "source_revision": "848f4a8a5efb2a67bda964723c08921e31b88730",
+        "source_diff_sha256": "9b11f57e14f7f1b7411fd13ac573ece88e11926bb934e9ed156d9473e10ed583",
+        "binary_sha256": "b796bbcbd53236afa88fbd5320fa9f748903ba15bbb9778c9c0b1bee3606f567",
+        "cargo_lock_sha256": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+        "synthetic_fixture_not_historical_reproduction": true,
+        "trace_errors": []
+      },
+      "artifact_sha256": {
+        "report.json": "20da3f88c25bf9cc29c83d258d6320796251cf34919c0ad7286bdd2b3a389732",
+        "packets.jsonl": "d09de5be35aa2365c0d9986213445894575d0fc979d474c079df7952a32af346",
+        "probe.log": "2f671e2adb43c49760e7b4d158563fef16a2246970f47f2b905c6b3e578e843f",
+        "probe.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "server.log": "62b768478fab2ccd64c78c14cbb600027a4a57e6cd6a441ad4f64278558b5cd8"
+      }
+    },
+    {
+      "report": {
+        "version": "1.21.11",
+        "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "checks": [
+          {
+            "name": "ground_restart",
+            "record": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 2,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": true,
+                "pose": "Standing",
+                "position": [
+                  -0.22206477307308203,
+                  65.0,
+                  1.4583354652158003
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 2,
+                "using_item": null,
+                "velocity": [
+                  -0.025749758290587337,
+                  -0.0784000015258789,
+                  0.03417547498624035
+                ]
+              },
+              "session_id": 2,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 0
+            },
+            "native_position": [
+              -0.22206477307308203,
+              65.0,
+              1.4583354652158003
+            ],
+            "initial": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 0,
+              "frame": null,
+              "session_id": 2,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 0
+            },
+            "stopped": {
+              "controls": {
+                "forward": 1,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": true,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 6,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": true,
+                "pose": "Standing",
+                "position": [
+                  -0.0885291067471832,
+                  65.0,
+                  1.2811048763772284
+                ],
+                "sprinting": true,
+                "swimming": false,
+                "tick": 6,
+                "using_item": null,
+                "velocity": [
+                  -0.08637494233380132,
+                  -0.0784000015258789,
+                  0.11463815107910467
+                ]
+              },
+              "session_id": 1,
+              "status": {
+                "reason": "stopped by request",
+                "status": "stopped"
+              },
+              "velocity_updates": 0
+            },
+            "original_frames": [
+              {
+                "ordinal": 150,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 42,
+                "body_length": 1,
+                "wire_sha256": "a7b63e4c413d9c8fcfd4a92e697cd1e48ff5086e101e29e0b8d241bf2f1fc8b7",
+                "body_sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "body_hex": "00"
+              },
+              {
+                "ordinal": 151,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "27201457683f7498a7ab4e112afc7e67893d751e833303e5a0ef7fcede3490cf",
+                "body_sha256": "9755d7f75e44435976f61b8438101e5951f5cac7acf4f0624e82b9d08bbfa312",
+                "body_hex": "bfc66341815ed2c640504000000000003ff654f6a408b83d42140000c140000001"
+              },
+              {
+                "ordinal": 152,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 92,
+                "body_length": 6,
+                "wire_sha256": "248dfce3af12f3889d92916c0fb60a22e1dc1602b84323516d4881e498b3f464",
+                "body_sha256": "e771da8c51055a118a98f2043c593a982883adf8c041101b3b2756317372d6d3",
+                "body_hex": "ffffffff0f00"
+              },
+              {
+                "ordinal": 153,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 37,
+                "body_length": 8,
+                "wire_sha256": "f1371b7d11fca0f38b6354ffd9e491532f9b560f9ef330f92a3ba07997cbe024",
+                "body_sha256": "114b605562450c3a49c14d6927731ea5c36d8bbf62af3b18cefbf045c875b2a2",
+                "body_hex": "fffffffd00000003"
+              },
+              {
+                "ordinal": 154,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 37,
+                "body_length": 8,
+                "wire_sha256": "ff906a34d9ded5011f469459a064e74578616da1173555de2debefd711be8d93",
+                "body_sha256": "4e7e4e29bfde0574619144a2de0cfc73b0d46207433937b8e152fb8c3f29ea89",
+                "body_hex": "fffffffe00000003"
+              },
+              {
+                "ordinal": 155,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 37,
+                "body_length": 8,
+                "wire_sha256": "be1fccd204deb273d4ce92a3c8ac2696379c9dfd634cda9916979c0471354224",
+                "body_sha256": "d7a9150e2247a263f3891df895f77a4d4fb59ac84bd81a3bae600a236db24306",
+                "body_hex": "ffffffff00000003"
+              },
+              {
+                "ordinal": 156,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 37,
+                "body_length": 8,
+                "wire_sha256": "209c3774f144de7fd927906f354d3e47000b4923dc51a703b3661d934d57712d",
+                "body_sha256": "d5688a52d55a02ec4aea5ec1eadfffe1c9e0ee6a4ddbe2377f98326d42dfc975",
+                "body_hex": "0000000000000003"
+              },
+              {
+                "ordinal": 157,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 37,
+                "body_length": 8,
+                "wire_sha256": "20a37f59423e080569b4f272b806af19225920d4d64b31435aba98f062eb94bd",
+                "body_sha256": "b1807ed471e3f842e70faec75041f7e0ca7f254d66a2bb10215c8279abafad10",
+                "body_hex": "0000000100000003"
+              },
+              {
+                "ordinal": 158,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 37,
+                "body_length": 8,
+                "wire_sha256": "4da2116f19a497a585a0937584c34bff78133150cf26ae18fd71eed79d3511fd",
+                "body_sha256": "b51f34d123eb604fed1894df4caf94e649233ee1c618a46ffa55d66e5d9aceff",
+                "body_hex": "0000000200000003"
+              },
+              {
+                "ordinal": 159,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 37,
+                "body_length": 8,
+                "wire_sha256": "858182996d73d37ccc093ffdea877c512054d5f26313459ab79d1d18a27a3a7b",
+                "body_sha256": "4e01dbd20f0d807f0ad16d9d694590fe9f3775dfef33d2e11b76b79498c2326e",
+                "body_hex": "0000000300000003"
+              },
+              {
+                "ordinal": 160,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 97,
+                "body_length": 5,
+                "wire_sha256": "947fe163c2c07b39bd0e5f1b9a6e29a509a718a6006bdfe42cb946fbde00a88f",
+                "body_sha256": "646b2567984a9cdb58007a0b01e3bb373fd30743712760fc5b6bb9c9c71034ac",
+                "body_hex": "01000000ff"
+              },
+              {
+                "ordinal": 161,
+                "connection": 1,
+                "direction": "clientbound",
+                "phase": "play",
+                "packet_id": 129,
+                "body_length": 12,
+                "wire_sha256": "7f31a716c547535ed13bda43d0b69d49fcac74aa17006ca50576b1fc2bf4bb12",
+                "body_sha256": "476ba61d77614b255f84218086c52e1b6cc125bb0982fbfd8ab244137fb43c5a",
+                "body_hex": "0101163fb99999a000000000"
+              },
+              {
+                "ordinal": 162,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "08feb206e06644de5e2a4b97aa9db1c0f2b8b1b06d0a52c9cd44df72c393ed02",
+                "body_sha256": "ee72701be8039171b907dcbcb40f1fbb17d2faed3b5c37a311b7223e1e7ce1e1",
+                "body_hex": "bfcc6c9e54f8a57040504000000000003ff75557919b2e5142140000c140000001"
+              }
+            ]
+          },
+          {
+            "name": "falling_restart",
+            "record": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 2,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": false,
+                "pose": "Standing",
+                "position": [
+                  0.5,
+                  68.23152379758702,
+                  0.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 2,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  -0.37663049823865513,
+                  0.0
+                ]
+              },
+              "session_id": 4,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 0
+            },
+            "native_position": [
+              0.5,
+              68.53584062504456,
+              0.5
+            ],
+            "initial": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 0,
+              "frame": null,
+              "session_id": 4,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 0
+            },
+            "stopped": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 3,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": false,
+                "pose": "Standing",
+                "position": [
+                  0.5,
+                  68.76636799395752,
+                  0.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 3,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  -0.230527368912964,
+                  0.0
+                ]
+              },
+              "session_id": 3,
+              "status": {
+                "reason": "stopped by request",
+                "status": "stopped"
+              },
+              "velocity_updates": 0
+            },
+            "original_frames": [
+              {
+                "ordinal": 181,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 42,
+                "body_length": 1,
+                "wire_sha256": "a7b63e4c413d9c8fcfd4a92e697cd1e48ff5086e101e29e0b8d241bf2f1fc8b7",
+                "body_sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+                "body_hex": "00"
+              },
+              {
+                "ordinal": 182,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "4cc022ef557af983be7e92a53356ef85347c3c30c32ec5f0e16a05827a6bc323",
+                "body_sha256": "7d8f09d825e940e900fe0aea1107169071681baae9e1cfb2d64a04b8ed1097be",
+                "body_hex": "3fe00000000000004051224b367a1bd03fe000000000000042140000c140000000"
+              },
+              {
+                "ordinal": 183,
+                "connection": 1,
+                "direction": "serverbound",
+                "phase": "play",
+                "packet_id": 30,
+                "body_length": 33,
+                "wire_sha256": "410f3561557f16d9eaaff0d24f26f6525ec6781262c30105a5c92ed26b9ed9aa",
+                "body_sha256": "9202f8c9a7ab53d79a6e4a6687a0168f901e31a6ab11d4efdfaefe9a48047766",
+                "body_hex": "3fe000000000000040510ed14930b8723fe000000000000042140000c140000000"
+              }
+            ]
+          },
+          {
+            "name": "resumed_landing",
+            "record": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 42,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": true,
+                "pose": "Standing",
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 42,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  -0.0784000015258789,
+                  0.0
+                ]
+              },
+              "session_id": 4,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 1
+            },
+            "native_position": [
+              0.5,
+              65.0,
+              0.5
+            ]
+          },
+          {
+            "name": "new_correction_before_restart",
+            "record": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -7.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 81.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 3,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": true,
+                "pose": "Standing",
+                "position": [
+                  2.5,
+                  65.0,
+                  2.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 3,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  -0.0784000015258789,
+                  0.0
+                ]
+              },
+              "session_id": 5,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 0
+            },
+            "native_position": [
+              2.5,
+              65.0,
+              2.5
+            ],
+            "received": {
+              "air_supply": null,
+              "attributes": {
+                "minecraft:block_interaction_range": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 66
+                  },
+                  "value": {
+                    "base": 4.5,
+                    "modifiers": [],
+                    "value": 4.5
+                  }
+                },
+                "minecraft:entity_interaction_range": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 66
+                  },
+                  "value": {
+                    "base": 3.0,
+                    "modifiers": [],
+                    "value": 3.0
+                  }
+                },
+                "minecraft:movement_speed": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 130
+                  },
+                  "value": {
+                    "base": 0.10000000149011612,
+                    "modifiers": [],
+                    "value": 0.10000000149011612
+                  }
+                }
+              },
+              "dimension": {
+                "height": 384,
+                "min_y": -64,
+                "name": "minecraft:overworld"
+              },
+              "effects": {},
+              "entity_id": 1,
+              "game_mode": "survival",
+              "health": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 147
+                },
+                "value": {
+                  "food": 20,
+                  "health": 20.0,
+                  "saturation": 7.0
+                }
+              },
+              "inventory": {
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 49
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                "local_cache": null,
+                "player_screen": {
+                  "kind": "received"
+                },
+                "player_screen_revision": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 49
+                  },
+                  "value": 1
+                },
+                "screen_revision": 1,
+                "slots": [
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  },
+                  {
+                    "source": {
+                      "kind": "received",
+                      "sequence": 49
+                    },
+                    "value": {
+                      "kind": "empty"
+                    }
+                  }
+                ],
+                "window_id": 0
+              },
+              "may_fly": false,
+              "on_ground": null,
+              "pending_dispatch": false,
+              "position": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 150
+                },
+                "value": [
+                  2.5,
+                  65.0,
+                  2.5
+                ]
+              },
+              "receive_sequence": 150,
+              "received_pose": {
+                "position": [
+                  2.5,
+                  65.0,
+                  2.5
+                ],
+                "receive_sequence": 150,
+                "rotation": [
+                  81.0,
+                  -7.0
+                ]
+              },
+              "rotation": [
+                81.0,
+                -7.0
+              ],
+              "rotation_source": {
+                "kind": "received",
+                "sequence": 150
+              },
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 32
+                },
+                "value": 0
+              },
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              },
+              "using_item": null,
+              "world_time": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 149
+                },
+                "value": {
+                  "day_time": 5,
+                  "game_time": 79
+                }
+              }
+            },
+            "initial": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -7.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 81.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 0,
+              "frame": null,
+              "session_id": 5,
+              "status": {
+                "status": "running"
+              },
+              "velocity_updates": 0
+            }
+          },
+          {
+            "name": "retained_stopped_record",
+            "record": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -7.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 81.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 3,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": true,
+                "pose": "Standing",
+                "position": [
+                  2.5,
+                  65.0,
+                  2.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 3,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  -0.0784000015258789,
+                  0.0
+                ]
+              },
+              "session_id": 5,
+              "status": {
+                "reason": "stopped by request",
+                "status": "stopped"
+              },
+              "velocity_updates": 0
+            }
+          },
+          {
+            "name": "unsupported_high_fall_remains_paused",
+            "record": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 12,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": false,
+                "pose": "Standing",
+                "position": [
+                  0.5,
+                  67.44045513047197,
+                  0.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 12,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  -1.0248092696844984,
+                  0.0
+                ]
+              },
+              "session_id": 7,
+              "status": {
+                "reason": "fall-distance reset sweep",
+                "status": "paused"
+              },
+              "velocity_updates": 0
+            },
+            "stopped": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 3,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": false,
+                "pose": "Standing",
+                "position": [
+                  0.5,
+                  74.76636799395752,
+                  0.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 3,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  -0.230527368912964,
+                  0.0
+                ]
+              },
+              "session_id": 6,
+              "status": {
+                "reason": "stopped by request",
+                "status": "stopped"
+              },
+              "velocity_updates": 0
+            }
+          }
+        ],
+        "commands": [
+          {
+            "command": "forceload add -8 -8 8 8",
+            "response": "Marked 4 chunks in minecraft:overworld from [-1, -1] to [0, 0] to be force loaded"
+          },
+          {
+            "command": "setblock 0 64 0 minecraft:stone",
+            "response": "Changed the block at 0, 64, 0"
+          },
+          {
+            "command": "execute if block 0 64 0 minecraft:stone",
+            "response": "Test passed"
+          },
+          {
+            "command": "fill -8 64 -8 8 64 8 minecraft:stone",
+            "response": "Successfully filled 288 block(s)"
+          },
+          {
+            "command": "fill -4 65 -4 4 84 4 minecraft:air",
+            "response": "No blocks were filled"
+          },
+          {
+            "command": "setworldspawn 0 65 0",
+            "response": "Set the world spawn point to 0, 65, 0 [0.0, 0.0] in minecraft:overworld"
+          },
+          {
+            "command": "difficulty peaceful",
+            "response": "The difficulty has been set to Peaceful"
+          },
+          {
+            "command": "gamerule minecraft:respawn_radius 0",
+            "response": "Gamerule respawn_radius is now set to: 0"
+          },
+          {
+            "command": "gamerule minecraft:spawn_mobs false",
+            "response": "Gamerule spawn_mobs is now set to: false"
+          },
+          {
+            "command": "gamerule minecraft:advance_time false",
+            "response": "Gamerule advance_time is now set to: false"
+          },
+          {
+            "command": "tp ClimbingProbe 0.5 65.0 0.5 37.0 -12.0",
+            "response": "Teleported ClimbingProbe to 0.500000, 65.000000, 0.500000"
+          },
+          {
+            "command": "data get entity ClimbingProbe Pos",
+            "response": "ClimbingProbe has the following entity data: [-0.22206477307308203d, 65.0d, 1.4583354652158003d]"
+          },
+          {
+            "command": "tp ClimbingProbe 0.5 69.0 0.5 37.0 -12.0",
+            "response": "Teleported ClimbingProbe to 0.500000, 69.000000, 0.500000"
+          },
+          {
+            "command": "data get entity ClimbingProbe Pos",
+            "response": "ClimbingProbe has the following entity data: [0.5d, 68.53584062504456d, 0.5d]"
+          },
+          {
+            "command": "data get entity ClimbingProbe Pos",
+            "response": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+          },
+          {
+            "command": "tp ClimbingProbe 2.5 65.0 2.5 81.0 -7.0",
+            "response": "Teleported ClimbingProbe to 2.500000, 65.000000, 2.500000"
+          },
+          {
+            "command": "data get entity ClimbingProbe Pos",
+            "response": "ClimbingProbe has the following entity data: [2.5d, 65.0d, 2.5d]"
+          },
+          {
+            "command": "tp ClimbingProbe 0.5 75.0 0.5 37.0 -12.0",
+            "response": "Teleported ClimbingProbe to 0.500000, 75.000000, 0.500000"
+          }
+        ],
+        "passed": true,
+        "source_revision": "848f4a8a5efb2a67bda964723c08921e31b88730",
+        "source_diff_sha256": "9b11f57e14f7f1b7411fd13ac573ece88e11926bb934e9ed156d9473e10ed583",
+        "binary_sha256": "b796bbcbd53236afa88fbd5320fa9f748903ba15bbb9778c9c0b1bee3606f567",
+        "cargo_lock_sha256": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+        "synthetic_fixture_not_historical_reproduction": true,
+        "trace_errors": []
+      },
+      "artifact_sha256": {
+        "report.json": "b028e24c5cc52d69e995b35a4fbcad064c41f02807e5c05ca4bb9e09fb14b480",
+        "packets.jsonl": "ae64158d9e4821b4e308beb2dda2da186d73fe727bc761e346aa07bd13689247",
+        "probe.log": "d44d756d5333db5946be0c2551844ead1f23afd9d9c08c8451a8c8c9ea43bca8",
+        "probe.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "server.log": "370746aaa8b67a21fd8242e3bb0296545bbadf1476c75cf754d2a6803d760cd7"
+      }
+    }
+  ],
+  "initial_failed_trials": [
+    {
+      "path": "/workspace/Voxrig/.local/climbing/live/1.21.11-20261009-083528",
+      "report_sha256": "bf674a8d8ff87d5c022f44cde6d14dcf3aa088352788962ff516ebe646b36c17",
+      "error": "probe timed out; inspect probe.stderr.log",
+      "diagnostic": "Error: deadline has elapsed"
+    },
+    {
+      "path": "/workspace/Voxrig/.local/climbing/live/1.21.11-20261009-083827",
+      "report_sha256": "61b1e8165df5544cad9260142621bd5fc2f143cef31a0cc013087f77217d4b56",
+      "error": "probe timed out; inspect probe.stderr.log",
+      "diagnostic": "Error: control tick wait failed: deadline has elapsed; retained record: Some(ControlRecord { session_id: 4, status: Paused { reason: \"fall-distance reset sweep\" }, controls: Controls { forward: 0, strafe: 0, jump: false, sneak: false, sprint: false, yaw: 37.0, pitch: -12.0 }, dispatched_ticks: 12, frame: Some(ControlFrame { tick: 12, position: [0.5, 67.44045513047197, 0.5], velocity: [0.0, -1.0248092696844984, 0.0], on_ground: false, horizontal_collision: false, pose: Standing, sprinting: false, crouching: false, in_water: false, swimming: false, eye_in_water: false, using_item: None }), corrections: 0, velocity_updates: 0 })"
+    }
+  ],
+  "scope_limits": [
+    "The first modern 10-block drop entered the existing unsupported fall-distance reset sweep; that failure is retained, not called a pass.",
+    "Final modern landing covers a four-block drop inside the supported envelope; a separate ten-block drop verifies the existing Paused refusal and retained record. Legacy landing covers ten blocks. No production physics threshold was changed.",
+    "Modern restart after unrelated local motion rejects model reuse unless a newer actual pose exists; matching numeric coordinates alone is insufficient.",
+    "Not a saved-world replay of Golemkit #115/#82/#15 or Voxrig #5. No one-shot jump, inventory slot expansion or consumer continuous-control migration is claimed."
+  ],
+  "consumer_combination": {
+    "golemkit_revision": "d233f46103d568aa859a6516cb884d9a749eaccf",
+    "sdk_revision": "807c3cb9ba9205ac2badb75ec763b7b3d9421c7a",
+    "temporary_cargo_patch": "local path, not a published Golemkit dependency pin",
+    "adapter_tests": {
+      "passed": 85,
+      "failed": 0,
+      "ignored": 2
+    },
+    "official_live": [
+      {
+        "manifest": {
+          "synthetic_fixture_not_historical_reproduction": true,
+          "golemkit_revision": "d233f46103d568aa859a6516cb884d9a749eaccf",
+          "sdk_revision": "807c3cb9ba9205ac2badb75ec763b7b3d9421c7a",
+          "sdk_source": "/workspace/Voxrig",
+          "binary_sha256": "cf50ae3cede18d40b5a9ff278483ad205d68caa638babf01f85c5b70f3b4241e",
+          "lock_sha256": "5e6f33a4fd3976db426f8543b1fa2baf29b7aef3bc5e4bbd1b379b6ffd5978a8",
+          "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+          "setup_commands_before_login": [
+            "gamerule doMobSpawning false",
+            "gamerule spawnRadius 0",
+            "gamerule doDaylightCycle false",
+            "time set day",
+            "fill -16 4 -16 16 10 16 minecraft:air",
+            "setworldspawn 0 4 0"
+          ],
+          "command": [
+            "/workspace/construction-build-target/debug/deps/golemkit_voxrig-055160bcfa0e1ea6",
+            "isolated_common_entity_history",
+            "--ignored",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "staged_commands_after_login": [
+            [
+              "ready",
+              [
+                "summon sheep 3 4 0.5 {Tags:[\"HistorySheep\"],NoAI:1b,Rotation:[90.0f,0.0f]}",
+                "summon minecraft:fireball 4 7 0.5 {Tags:[\"HistoryBall\"],NoGravity:1b,Motion:[0.0d,0.0d,0.0d]}"
+              ]
+            ],
+            [
+              "observed",
+              [
+                "execute as @e[tag=HistorySheep] at @s run tp @s ~0.5 ~ ~ 45 0"
+              ]
+            ],
+            [
+              "rotated",
+              [
+                "kill @e[tag=HistorySheep]",
+                "kill @e[tag=HistoryBall]"
+              ]
+            ]
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 17.779300456000783
+        },
+        "artifacts_sha256": {
+          "manifest.json": "6c3e7de20edcf61e2137bc6aa857e93bb0c94eef198d10ed66da07ddfe9560fa",
+          "client.log": "27939b71ae0d56dd63ebca03548890356e2256b9a1d6d4554aed725ab857f6cf",
+          "history.json": "0f749f24aaadee5e6f063a4137814b188313a9455c8e679df67f36c44823b107"
+        }
+      },
+      {
+        "manifest": {
+          "synthetic_fixture_not_historical_reproduction": true,
+          "golemkit_revision": "d233f46103d568aa859a6516cb884d9a749eaccf",
+          "sdk_revision": "807c3cb9ba9205ac2badb75ec763b7b3d9421c7a",
+          "sdk_source": "/workspace/Voxrig",
+          "binary_sha256": "cf50ae3cede18d40b5a9ff278483ad205d68caa638babf01f85c5b70f3b4241e",
+          "lock_sha256": "5e6f33a4fd3976db426f8543b1fa2baf29b7aef3bc5e4bbd1b379b6ffd5978a8",
+          "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+          "setup_commands_before_login": [
+            "gamerule spawnRadius 0",
+            "gamerule doDaylightCycle false",
+            "time set day",
+            "fill -16 4 -16 16 10 16 minecraft:air",
+            "setworldspawn 0 4 0"
+          ],
+          "command": [
+            "/workspace/construction-build-target/debug/deps/golemkit_voxrig-055160bcfa0e1ea6",
+            "isolated_sdk_player_capture",
+            "--ignored",
+            "--nocapture",
+            "--test-threads=1"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 17.348122392999358
+        },
+        "artifacts_sha256": {
+          "manifest.json": "5571aef239f6d220522a9bbef244e81f639446efd72845276368bc5bf3d1350e",
+          "client.log": "b7d51d8aab1ac236e067ea9c30a12ac6c1fd2eb5e46d9aec8924f6000e0fca48",
+          "player-capture.json": "ea4cc8e5fc0e0c18760924a9b623b977748582553bfeadf229e29e07287f6960"
+        }
+      }
+    ],
+    "limits": "Entity history and player capture/Look/hotbar/raycast/Closed. This does not qualify a not-yet-implemented Golemkit continuous-control migration or its normal goal traversal on this newer SDK."
+  }
+}

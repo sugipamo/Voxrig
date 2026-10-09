@@ -1,0 +1,4450 @@
+{
+  "date": "2026-10-09",
+  "sdk_commit": "b955545685ab063d3db628fef97894a5aa5f2c79",
+  "sdk_src_tree": "9e8e0051de1c58acc312759de93ffb558c7514c9",
+  "probe_source_sha256": "3e8136da11b9f4c6c5a7015352c8220450a1e16147bfb1804357db5383c132e9",
+  "probe_sha256": "0aba603f7b2947169efabbc61a7ac82cc43fad431372692d5490a59329bc9f83",
+  "runner_sha256": "1bfc160219e8115240d6d723db8b9f0e3c9fcd8473a29a236d7d2a5d14be6e22",
+  "excluded_fixture_runs": [
+    {
+      "run": "1.16.1-20261009-040704",
+      "reason": "Integer command coordinates center X/Z at +0.5; original packets and SDK consistently observed 3.5. Use explicit decimal coordinates."
+    },
+    {
+      "run": "1.16.1-20261009-040840",
+      "reason": "All four behavioral checks passed, but the JSON driver was left open after revoked-connection diagnostics. The runner now explicitly ends the driver."
+    }
+  ],
+  "runs": [
+    {
+      "version": "1.16.1",
+      "run": "1.16.1-20261009-041505",
+      "official_server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "checks_passed": 4,
+      "trace_errors": [],
+      "report_sha256": "818233ff1146f0fc24fa756c8a6dff0a859de7b1e707782c06f226fd5d4668d7",
+      "trace_sha256": "f2244969d1a234e701bc456881afad07c36fe64d82d0e331eb9c202a122d383e",
+      "checks": [
+        {
+          "name": "historical_living_projectile_motion_status_removal",
+          "page": {
+            "gap": null,
+            "has_more": false,
+            "latest_cursor": {
+              "connection_id": 1,
+              "ordinal": 26,
+              "version": "Java1_16_1"
+            },
+            "next_cursor": {
+              "connection_id": 1,
+              "ordinal": 26,
+              "version": "Java1_16_1"
+            },
+            "receive_sequence": 227,
+            "records": [
+              {
+                "applied_after": {
+                  "nanos": 984100040,
+                  "secs": 0
+                },
+                "kind": {
+                  "Spawn": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 68,
+                        "version": "Java1_16_1"
+                      },
+                      "id": {
+                        "native_id": 37,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        },
+                        "spawn_sequence": 156
+                      },
+                      "native_type_id": 68,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 156
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:sheep",
+                      "uuid": [
+                        206,
+                        126,
+                        129,
+                        212,
+                        198,
+                        8,
+                        69,
+                        186,
+                        187,
+                        216,
+                        30,
+                        19,
+                        58,
+                        105,
+                        23,
+                        140
+                      ]
+                    },
+                    "head_yaw": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 156
+                      },
+                      "value": 0.0
+                    },
+                    "on_ground": null,
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 156
+                      },
+                      "value": {
+                        "position": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 156,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 156
+                      },
+                      "value": [
+                        0.0,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 156
+                      },
+                      "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 4,
+                "receive_sequence": 156,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 984364709,
+                  "secs": 0
+                },
+                "kind": {
+                  "Spawn": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 39,
+                        "version": "Java1_16_1"
+                      },
+                      "id": {
+                        "native_id": 38,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        },
+                        "spawn_sequence": 158
+                      },
+                      "native_type_id": 39,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 158
+                        },
+                        "value": [
+                          3.0,
+                          70.0,
+                          3.0
+                        ]
+                      },
+                      "type_name": "minecraft:fireball",
+                      "uuid": [
+                        28,
+                        84,
+                        195,
+                        213,
+                        170,
+                        107,
+                        70,
+                        241,
+                        173,
+                        128,
+                        182,
+                        168,
+                        80,
+                        39,
+                        88,
+                        131
+                      ]
+                    },
+                    "head_yaw": null,
+                    "on_ground": null,
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 158
+                      },
+                      "value": {
+                        "position": [
+                          3.0,
+                          70.0,
+                          3.0
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 158,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 158
+                      },
+                      "value": [
+                        0.0,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 158
+                      },
+                      "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 5,
+                "receive_sequence": 158,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 984412631,
+                  "secs": 0
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 39,
+                        "version": "Java1_16_1"
+                      },
+                      "id": {
+                        "native_id": 38,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        },
+                        "spawn_sequence": 158
+                      },
+                      "native_type_id": 39,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 158
+                        },
+                        "value": [
+                          3.0,
+                          70.0,
+                          3.0
+                        ]
+                      },
+                      "type_name": "minecraft:fireball",
+                      "uuid": [
+                        28,
+                        84,
+                        195,
+                        213,
+                        170,
+                        107,
+                        70,
+                        241,
+                        173,
+                        128,
+                        182,
+                        168,
+                        80,
+                        39,
+                        88,
+                        131
+                      ]
+                    },
+                    "head_yaw": null,
+                    "on_ground": null,
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 158
+                      },
+                      "value": {
+                        "position": [
+                          3.0,
+                          70.0,
+                          3.0
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 160,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 158
+                      },
+                      "value": [
+                        0.0,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 160
+                      },
+                      "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 6,
+                "receive_sequence": 160,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 716896453,
+                  "secs": 1
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 39,
+                        "version": "Java1_16_1"
+                      },
+                      "id": {
+                        "native_id": 38,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        },
+                        "spawn_sequence": 158
+                      },
+                      "native_type_id": 39,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 158
+                        },
+                        "value": [
+                          3.0,
+                          70.0,
+                          3.0
+                        ]
+                      },
+                      "type_name": "minecraft:fireball",
+                      "uuid": [
+                        28,
+                        84,
+                        195,
+                        213,
+                        170,
+                        107,
+                        70,
+                        241,
+                        173,
+                        128,
+                        182,
+                        168,
+                        80,
+                        39,
+                        88,
+                        131
+                      ]
+                    },
+                    "head_yaw": null,
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 165
+                      },
+                      "value": true
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 165
+                      },
+                      "value": {
+                        "position": [
+                          4.0,
+                          70.0,
+                          3.0
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 165,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 165
+                      },
+                      "value": [
+                        0.0,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 160
+                      },
+                      "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 7,
+                "receive_sequence": 165,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 840293873,
+                  "secs": 1
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 39,
+                        "version": "Java1_16_1"
+                      },
+                      "id": {
+                        "native_id": 38,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        },
+                        "spawn_sequence": 158
+                      },
+                      "native_type_id": 39,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 158
+                        },
+                        "value": [
+                          3.0,
+                          70.0,
+                          3.0
+                        ]
+                      },
+                      "type_name": "minecraft:fireball",
+                      "uuid": [
+                        28,
+                        84,
+                        195,
+                        213,
+                        170,
+                        107,
+                        70,
+                        241,
+                        173,
+                        128,
+                        182,
+                        168,
+                        80,
+                        39,
+                        88,
+                        131
+                      ]
+                    },
+                    "head_yaw": null,
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 171
+                      },
+                      "value": true
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 171
+                      },
+                      "value": {
+                        "position": [
+                          5.0,
+                          70.0,
+                          3.0
+                        ],
+                        "quantization_error": [
+                          0.000244140625,
+                          0.000244140625,
+                          0.000244140625
+                        ]
+                      }
+                    },
+                    "receive_sequence": 171,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 165
+                      },
+                      "value": [
+                        0.0,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 160
+                      },
+                      "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 8,
+                "receive_sequence": 171,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 906248855,
+                  "secs": 1
+                },
+                "kind": {
+                  "Status": {
+                    "entity": {
+                      "native_id": 37,
+                      "session": {
+                        "connection_id": 1,
+                        "version": "Java1_16_1",
+                        "world_generation": 1
+                      },
+                      "spawn_sequence": 156
+                    },
+                    "native_id": 37,
+                    "status": 2
+                  }
+                },
+                "ordinal": 9,
+                "receive_sequence": 174,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 909456617,
+                  "secs": 1
+                },
+                "kind": {
+                  "Spawn": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 37,
+                        "version": "Java1_16_1"
+                      },
+                      "id": {
+                        "native_id": 39,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        },
+                        "spawn_sequence": 175
+                      },
+                      "native_type_id": 37,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 175
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        75,
+                        132,
+                        119,
+                        10,
+                        84,
+                        139,
+                        72,
+                        251,
+                        150,
+                        106,
+                        75,
+                        212,
+                        172,
+                        115,
+                        61,
+                        150
+                      ]
+                    },
+                    "head_yaw": null,
+                    "on_ground": null,
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 175
+                      },
+                      "value": {
+                        "position": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 175,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 175
+                      },
+                      "value": [
+                        -82.96875,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 175
+                      },
+                      "value": [
+                        -0.0275,
+                        0.2,
+                        -0.017375
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 10,
+                "receive_sequence": 175,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 909628165,
+                  "secs": 1
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 37,
+                        "version": "Java1_16_1"
+                      },
+                      "id": {
+                        "native_id": 39,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        },
+                        "spawn_sequence": 175
+                      },
+                      "native_type_id": 37,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 175
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        75,
+                        132,
+                        119,
+                        10,
+                        84,
+                        139,
+                        72,
+                        251,
+                        150,
+                        106,
+                        75,
+                        212,
+                        172,
+                        115,
+                        61,
+                        150
+                      ]
+                    },
+                    "head_yaw": null,
+                    "on_ground": null,
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 175
+                      },
+                      "value": {
+                        "position": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 177,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 175
+                      },
+                      "value": [
+                        -82.96875,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 177
+                      },
+                      "value": [
+                        -0.0275,
+                        0.2,
+                        -0.017375
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 11,
+                "receive_sequence": 177,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 909663979,
+                  "secs": 1
+                },
+                "kind": {
+                  "Spawn": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 37,
+                        "version": "Java1_16_1"
+                      },
+                      "id": {
+                        "native_id": 40,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        },
+                        "spawn_sequence": 178
+                      },
+                      "native_type_id": 37,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 178
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        146,
+                        43,
+                        125,
+                        220,
+                        151,
+                        41,
+                        77,
+                        46,
+                        191,
+                        61,
+                        153,
+                        250,
+                        246,
+                        142,
+                        21,
+                        247
+                      ]
+                    },
+                    "head_yaw": null,
+                    "on_ground": null,
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 178
+                      },
+                      "value": {
+                        "position": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 178,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 178
+                      },
+                      "value": [
+                        60.46875,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 178
+                      },
+                      "value": [
+                        -0.03875,
+                        0.2,
+                        -0.08225
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 12,
+                "receive_sequence": 178,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 909735687,
+                  "secs": 1
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 37,
+                        "version": "Java1_16_1"
+                      },
+                      "id": {
+                        "native_id": 40,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        },
+                        "spawn_sequence": 178
+                      },
+                      "native_type_id": 37,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 178
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        146,
+                        43,
+                        125,
+                        220,
+                        151,
+                        41,
+                        77,
+                        46,
+                        191,
+                        61,
+                        153,
+                        250,
+                        246,
+                        142,
+                        21,
+                        247
+                      ]
+                    },
+                    "head_yaw": null,
+                    "on_ground": null,
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 178
+                      },
+                      "value": {
+                        "position": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 180,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 178
+                      },
+                      "value": [
+                        60.46875,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 180
+                      },
+                      "value": [
+                        -0.03875,
+                        0.2,
+                        -0.08225
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 13,
+                "receive_sequence": 180,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 909758692,
+                  "secs": 1
+                },
+                "kind": {
+                  "Status": {
+                    "entity": {
+                      "native_id": 37,
+                      "session": {
+                        "connection_id": 1,
+                        "version": "Java1_16_1",
+                        "world_generation": 1
+                      },
+                      "spawn_sequence": 156
+                    },
+                    "native_id": 37,
+                    "status": 3
+                  }
+                },
+                "ordinal": 14,
+                "receive_sequence": 181,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 941716053,
+                  "secs": 1
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 68,
+                        "version": "Java1_16_1"
+                      },
+                      "id": {
+                        "native_id": 37,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        },
+                        "spawn_sequence": 156
+                      },
+                      "native_type_id": 68,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 156
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:sheep",
+                      "uuid": [
+                        206,
+                        126,
+                        129,
+                        212,
+                        198,
+                        8,
+                        69,
+                        186,
+                        187,
+                        216,
+                        30,
+                        19,
+                        58,
+                        105,
+                        23,
+                        140
+                      ]
+                    },
+                    "head_yaw": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 156
+                      },
+                      "value": 0.0
+                    },
+                    "on_ground": null,
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 156
+                      },
+                      "value": {
+                        "position": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 183,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 156
+                      },
+                      "value": [
+                        0.0,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 183
+                      },
+                      "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 15,
+                "receive_sequence": 183,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 9264968,
+                  "secs": 2
+                },
+                "kind": {
+                  "Removed": {
+                    "entity": {
+                      "native_id": 38,
+                      "session": {
+                        "connection_id": 1,
+                        "version": "Java1_16_1",
+                        "world_generation": 1
+                      },
+                      "spawn_sequence": 158
+                    },
+                    "native_id": 38
+                  }
+                },
+                "ordinal": 16,
+                "receive_sequence": 188,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 591182458,
+                  "secs": 2
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 37,
+                        "version": "Java1_16_1"
+                      },
+                      "id": {
+                        "native_id": 39,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        },
+                        "spawn_sequence": 175
+                      },
+                      "native_type_id": 37,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 175
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        75,
+                        132,
+                        119,
+                        10,
+                        84,
+                        139,
+                        72,
+                        251,
+                        150,
+                        106,
+                        75,
+                        212,
+                        172,
+                        115,
+                        61,
+                        150
+                      ]
+                    },
+                    "head_yaw": null,
+                    "on_ground": null,
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 175
+                      },
+                      "value": {
+                        "position": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 200,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 175
+                      },
+                      "value": [
+                        -82.96875,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 200
+                      },
+                      "value": [
+                        -0.012625,
+                        0.0,
+                        -0.008
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 17,
+                "receive_sequence": 200,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 591338653,
+                  "secs": 2
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 37,
+                        "version": "Java1_16_1"
+                      },
+                      "id": {
+                        "native_id": 39,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        },
+                        "spawn_sequence": 175
+                      },
+                      "native_type_id": 37,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 175
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        75,
+                        132,
+                        119,
+                        10,
+                        84,
+                        139,
+                        72,
+                        251,
+                        150,
+                        106,
+                        75,
+                        212,
+                        172,
+                        115,
+                        61,
+                        150
+                      ]
+                    },
+                    "head_yaw": null,
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 201
+                      },
+                      "value": true
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 201
+                      },
+                      "value": {
+                        "position": [
+                          1.681972193403814,
+                          65.0,
+                          1.798105848346042
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 201,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 201
+                      },
+                      "value": [
+                        -82.96875,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 200
+                      },
+                      "value": [
+                        -0.012625,
+                        0.0,
+                        -0.008
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 18,
+                "receive_sequence": 201,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 591365534,
+                  "secs": 2
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 37,
+                        "version": "Java1_16_1"
+                      },
+                      "id": {
+                        "native_id": 40,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        },
+                        "spawn_sequence": 178
+                      },
+                      "native_type_id": 37,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 178
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        146,
+                        43,
+                        125,
+                        220,
+                        151,
+                        41,
+                        77,
+                        46,
+                        191,
+                        61,
+                        153,
+                        250,
+                        246,
+                        142,
+                        21,
+                        247
+                      ]
+                    },
+                    "head_yaw": null,
+                    "on_ground": null,
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 178
+                      },
+                      "value": {
+                        "position": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 202,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 178
+                      },
+                      "value": [
+                        60.46875,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 202
+                      },
+                      "value": [
+                        -0.017875,
+                        0.0,
+                        -0.037875
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 19,
+                "receive_sequence": 202,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 591389299,
+                  "secs": 2
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 37,
+                        "version": "Java1_16_1"
+                      },
+                      "id": {
+                        "native_id": 40,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        },
+                        "spawn_sequence": 178
+                      },
+                      "native_type_id": 37,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 178
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        146,
+                        43,
+                        125,
+                        220,
+                        151,
+                        41,
+                        77,
+                        46,
+                        191,
+                        61,
+                        153,
+                        250,
+                        246,
+                        142,
+                        21,
+                        247
+                      ]
+                    },
+                    "head_yaw": null,
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 203
+                      },
+                      "value": true
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 203
+                      },
+                      "value": {
+                        "position": [
+                          1.5516752057861825,
+                          65.0,
+                          1.0495897833804513
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 203,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 203
+                      },
+                      "value": [
+                        60.46875,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 202
+                      },
+                      "value": [
+                        -0.017875,
+                        0.0,
+                        -0.037875
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 20,
+                "receive_sequence": 203,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 941550689,
+                  "secs": 2
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 37,
+                        "version": "Java1_16_1"
+                      },
+                      "id": {
+                        "native_id": 39,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        },
+                        "spawn_sequence": 175
+                      },
+                      "native_type_id": 37,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 175
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        75,
+                        132,
+                        119,
+                        10,
+                        84,
+                        139,
+                        72,
+                        251,
+                        150,
+                        106,
+                        75,
+                        212,
+                        172,
+                        115,
+                        61,
+                        150
+                      ]
+                    },
+                    "head_yaw": null,
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 201
+                      },
+                      "value": true
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 201
+                      },
+                      "value": {
+                        "position": [
+                          1.681972193403814,
+                          65.0,
+                          1.798105848346042
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 218,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 201
+                      },
+                      "value": [
+                        -82.96875,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 218
+                      },
+                      "value": [
+                        -0.0015,
+                        -0.12,
+                        -0.000875
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 21,
+                "receive_sequence": 218,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 941678742,
+                  "secs": 2
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 37,
+                        "version": "Java1_16_1"
+                      },
+                      "id": {
+                        "native_id": 39,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        },
+                        "spawn_sequence": 175
+                      },
+                      "native_type_id": 37,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 175
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        75,
+                        132,
+                        119,
+                        10,
+                        84,
+                        139,
+                        72,
+                        251,
+                        150,
+                        106,
+                        75,
+                        212,
+                        172,
+                        115,
+                        61,
+                        150
+                      ]
+                    },
+                    "head_yaw": null,
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 219
+                      },
+                      "value": true
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 219
+                      },
+                      "value": {
+                        "position": [
+                          1.65478515625,
+                          65.0,
+                          1.78076171875
+                        ],
+                        "quantization_error": [
+                          0.000244140625,
+                          0.000244140625,
+                          0.000244140625
+                        ]
+                      }
+                    },
+                    "receive_sequence": 219,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 201
+                      },
+                      "value": [
+                        -82.96875,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 218
+                      },
+                      "value": [
+                        -0.0015,
+                        -0.12,
+                        -0.000875
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 22,
+                "receive_sequence": 219,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 941699634,
+                  "secs": 2
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 37,
+                        "version": "Java1_16_1"
+                      },
+                      "id": {
+                        "native_id": 40,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        },
+                        "spawn_sequence": 178
+                      },
+                      "native_type_id": 37,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 178
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        146,
+                        43,
+                        125,
+                        220,
+                        151,
+                        41,
+                        77,
+                        46,
+                        191,
+                        61,
+                        153,
+                        250,
+                        246,
+                        142,
+                        21,
+                        247
+                      ]
+                    },
+                    "head_yaw": null,
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 203
+                      },
+                      "value": true
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 203
+                      },
+                      "value": {
+                        "position": [
+                          1.5516752057861825,
+                          65.0,
+                          1.0495897833804513
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 220,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 203
+                      },
+                      "value": [
+                        60.46875,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 220
+                      },
+                      "value": [
+                        -0.000625,
+                        0.0,
+                        -0.0015
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 23,
+                "receive_sequence": 220,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 941716690,
+                  "secs": 2
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 37,
+                        "version": "Java1_16_1"
+                      },
+                      "id": {
+                        "native_id": 40,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        },
+                        "spawn_sequence": 178
+                      },
+                      "native_type_id": 37,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 178
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        146,
+                        43,
+                        125,
+                        220,
+                        151,
+                        41,
+                        77,
+                        46,
+                        191,
+                        61,
+                        153,
+                        250,
+                        246,
+                        142,
+                        21,
+                        247
+                      ]
+                    },
+                    "head_yaw": null,
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 221
+                      },
+                      "value": true
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 221
+                      },
+                      "value": {
+                        "position": [
+                          1.509765625,
+                          65.0,
+                          0.961181640625
+                        ],
+                        "quantization_error": [
+                          0.000244140625,
+                          0.000244140625,
+                          0.000244140625
+                        ]
+                      }
+                    },
+                    "receive_sequence": 221,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 203
+                      },
+                      "value": [
+                        60.46875,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 220
+                      },
+                      "value": [
+                        -0.000625,
+                        0.0,
+                        -0.0015
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 24,
+                "receive_sequence": 221,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 941738262,
+                  "secs": 2
+                },
+                "kind": {
+                  "Removed": {
+                    "entity": {
+                      "native_id": 37,
+                      "session": {
+                        "connection_id": 1,
+                        "version": "Java1_16_1",
+                        "world_generation": 1
+                      },
+                      "spawn_sequence": 156
+                    },
+                    "native_id": 37
+                  }
+                },
+                "ordinal": 25,
+                "receive_sequence": 222,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 991326549,
+                  "secs": 2
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 37,
+                        "version": "Java1_16_1"
+                      },
+                      "id": {
+                        "native_id": 39,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_16_1",
+                          "world_generation": 1
+                        },
+                        "spawn_sequence": 175
+                      },
+                      "native_type_id": 37,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 175
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        75,
+                        132,
+                        119,
+                        10,
+                        84,
+                        139,
+                        72,
+                        251,
+                        150,
+                        106,
+                        75,
+                        212,
+                        172,
+                        115,
+                        61,
+                        150
+                      ]
+                    },
+                    "head_yaw": null,
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 219
+                      },
+                      "value": true
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 219
+                      },
+                      "value": {
+                        "position": [
+                          1.65478515625,
+                          65.0,
+                          1.78076171875
+                        ],
+                        "quantization_error": [
+                          0.000244140625,
+                          0.000244140625,
+                          0.000244140625
+                        ]
+                      }
+                    },
+                    "receive_sequence": 225,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 201
+                      },
+                      "value": [
+                        -82.96875,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 225
+                      },
+                      "value": [
+                        -0.000875,
+                        0.0,
+                        -0.0005
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 26,
+                "receive_sequence": 225,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                }
+              }
+            ],
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            }
+          }
+        },
+        {
+          "name": "frozen_samples_after_removal",
+          "records_count": 23,
+          "same_records": true
+        },
+        {
+          "name": "actual_respawn_and_own_corrections",
+          "before": {
+            "connection_id": 1,
+            "version": "Java1_16_1",
+            "world_generation": 1
+          },
+          "page": {
+            "gap": null,
+            "has_more": false,
+            "latest_cursor": {
+              "connection_id": 1,
+              "ordinal": 42,
+              "version": "Java1_16_1"
+            },
+            "next_cursor": {
+              "connection_id": 1,
+              "ordinal": 42,
+              "version": "Java1_16_1"
+            },
+            "receive_sequence": 473,
+            "records": [
+              {
+                "applied_after": {
+                  "nanos": 193560586,
+                  "secs": 3
+                },
+                "kind": {
+                  "WorldChanged": {
+                    "previous_generation": 1
+                  }
+                },
+                "ordinal": 32,
+                "receive_sequence": 240,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 240
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 194691501,
+                  "secs": 3
+                },
+                "kind": {
+                  "OwnPositionCorrection": {
+                    "pose": {
+                      "position": [
+                        0.5,
+                        4.0,
+                        0.5
+                      ],
+                      "receive_sequence": 241,
+                      "rotation": [
+                        0.0,
+                        0.0
+                      ]
+                    },
+                    "velocity": null
+                  }
+                },
+                "ordinal": 33,
+                "receive_sequence": 241,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 240
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 402196360,
+                  "secs": 3
+                },
+                "kind": {
+                  "OwnPositionCorrection": {
+                    "pose": {
+                      "position": [
+                        0.5,
+                        65.0,
+                        0.5
+                      ],
+                      "receive_sequence": 432,
+                      "rotation": [
+                        0.0,
+                        0.0
+                      ]
+                    },
+                    "velocity": null
+                  }
+                },
+                "ordinal": 39,
+                "receive_sequence": 432,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 240
+                }
+              }
+            ],
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 240
+            }
+          },
+          "total_records": 16
+        },
+        {
+          "name": "history_after_revocation",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_16_1",
+            "world_generation": 240
+          },
+          "records_count": 42,
+          "latest_cursor": {
+            "connection_id": 1,
+            "ordinal": 42,
+            "version": "Java1_16_1"
+          },
+          "gap": null
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "run": "1.21.11-20261009-041533",
+      "official_server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "checks_passed": 4,
+      "trace_errors": [],
+      "report_sha256": "0805f07c38d9958fd2f56f32232fd87ca218a8ed5ff717483edf4f3d4cc2ab13",
+      "trace_sha256": "ab6236351b6357866ed4578ed73ac158ba680f89abef5099ac3e5d6cb2cbc08f",
+      "checks": [
+        {
+          "name": "historical_living_projectile_motion_status_removal",
+          "page": {
+            "gap": null,
+            "has_more": false,
+            "latest_cursor": {
+              "connection_id": 1,
+              "ordinal": 22,
+              "version": "Java1_21_11"
+            },
+            "next_cursor": {
+              "connection_id": 1,
+              "ordinal": 22,
+              "version": "Java1_21_11"
+            },
+            "receive_sequence": 245,
+            "records": [
+              {
+                "applied_after": {
+                  "nanos": 667878096,
+                  "secs": 0
+                },
+                "kind": {
+                  "Spawn": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 111,
+                        "version": "Java1_21_11"
+                      },
+                      "id": {
+                        "native_id": 2,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        },
+                        "spawn_sequence": 69
+                      },
+                      "native_type_id": 111,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 69
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:sheep",
+                      "uuid": [
+                        224,
+                        121,
+                        72,
+                        165,
+                        128,
+                        67,
+                        73,
+                        4,
+                        189,
+                        193,
+                        168,
+                        35,
+                        149,
+                        201,
+                        165,
+                        159
+                      ]
+                    },
+                    "head_yaw": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 69
+                      },
+                      "value": 0.0
+                    },
+                    "on_ground": null,
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 69
+                      },
+                      "value": {
+                        "position": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 69,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 69
+                      },
+                      "value": [
+                        0.0,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 69
+                      },
+                      "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 4,
+                "receive_sequence": 69,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 667920560,
+                  "secs": 0
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 111,
+                        "version": "Java1_21_11"
+                      },
+                      "id": {
+                        "native_id": 2,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        },
+                        "spawn_sequence": 69
+                      },
+                      "native_type_id": 111,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 69
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:sheep",
+                      "uuid": [
+                        224,
+                        121,
+                        72,
+                        165,
+                        128,
+                        67,
+                        73,
+                        4,
+                        189,
+                        193,
+                        168,
+                        35,
+                        149,
+                        201,
+                        165,
+                        159
+                      ]
+                    },
+                    "head_yaw": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 69
+                      },
+                      "value": 0.0
+                    },
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 72
+                      },
+                      "value": false
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 72
+                      },
+                      "value": {
+                        "position": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ],
+                        "quantization_error": [
+                          0.000244140625,
+                          0.000244140625,
+                          0.000244140625
+                        ]
+                      }
+                    },
+                    "receive_sequence": 72,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 69
+                      },
+                      "value": [
+                        0.0,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 69
+                      },
+                      "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 5,
+                "receive_sequence": 72,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 763693504,
+                  "secs": 0
+                },
+                "kind": {
+                  "Spawn": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 52,
+                        "version": "Java1_21_11"
+                      },
+                      "id": {
+                        "native_id": 3,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        },
+                        "spawn_sequence": 75
+                      },
+                      "native_type_id": 52,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 75
+                        },
+                        "value": [
+                          3.0,
+                          70.0,
+                          3.0
+                        ]
+                      },
+                      "type_name": "minecraft:fireball",
+                      "uuid": [
+                        29,
+                        81,
+                        104,
+                        162,
+                        113,
+                        245,
+                        68,
+                        106,
+                        191,
+                        204,
+                        214,
+                        90,
+                        122,
+                        129,
+                        73,
+                        146
+                      ]
+                    },
+                    "head_yaw": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 75
+                      },
+                      "value": 0.0
+                    },
+                    "on_ground": null,
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 75
+                      },
+                      "value": {
+                        "position": [
+                          3.0,
+                          70.0,
+                          3.0
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 75,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 75
+                      },
+                      "value": [
+                        0.0,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 75
+                      },
+                      "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 6,
+                "receive_sequence": 75,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 763775608,
+                  "secs": 0
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 52,
+                        "version": "Java1_21_11"
+                      },
+                      "id": {
+                        "native_id": 3,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        },
+                        "spawn_sequence": 75
+                      },
+                      "native_type_id": 52,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 75
+                        },
+                        "value": [
+                          3.0,
+                          70.0,
+                          3.0
+                        ]
+                      },
+                      "type_name": "minecraft:fireball",
+                      "uuid": [
+                        29,
+                        81,
+                        104,
+                        162,
+                        113,
+                        245,
+                        68,
+                        106,
+                        191,
+                        204,
+                        214,
+                        90,
+                        122,
+                        129,
+                        73,
+                        146
+                      ]
+                    },
+                    "head_yaw": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 75
+                      },
+                      "value": 0.0
+                    },
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 78
+                      },
+                      "value": false
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 78
+                      },
+                      "value": {
+                        "position": [
+                          3.0,
+                          70.0,
+                          3.0
+                        ],
+                        "quantization_error": [
+                          0.000244140625,
+                          0.000244140625,
+                          0.000244140625
+                        ]
+                      }
+                    },
+                    "receive_sequence": 78,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 75
+                      },
+                      "value": [
+                        0.0,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 75
+                      },
+                      "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 7,
+                "receive_sequence": 78,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 193262243,
+                  "secs": 1
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 52,
+                        "version": "Java1_21_11"
+                      },
+                      "id": {
+                        "native_id": 3,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        },
+                        "spawn_sequence": 75
+                      },
+                      "native_type_id": 52,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 75
+                        },
+                        "value": [
+                          3.0,
+                          70.0,
+                          3.0
+                        ]
+                      },
+                      "type_name": "minecraft:fireball",
+                      "uuid": [
+                        29,
+                        81,
+                        104,
+                        162,
+                        113,
+                        245,
+                        68,
+                        106,
+                        191,
+                        204,
+                        214,
+                        90,
+                        122,
+                        129,
+                        73,
+                        146
+                      ]
+                    },
+                    "head_yaw": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 75
+                      },
+                      "value": 0.0
+                    },
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 182
+                      },
+                      "value": true
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 182
+                      },
+                      "value": {
+                        "position": [
+                          4.0,
+                          70.0,
+                          3.0
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 182,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 182
+                      },
+                      "value": [
+                        0.0,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 182
+                      },
+                      "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 8,
+                "receive_sequence": 182,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 740701910,
+                  "secs": 1
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 52,
+                        "version": "Java1_21_11"
+                      },
+                      "id": {
+                        "native_id": 3,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        },
+                        "spawn_sequence": 75
+                      },
+                      "native_type_id": 52,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 75
+                        },
+                        "value": [
+                          3.0,
+                          70.0,
+                          3.0
+                        ]
+                      },
+                      "type_name": "minecraft:fireball",
+                      "uuid": [
+                        29,
+                        81,
+                        104,
+                        162,
+                        113,
+                        245,
+                        68,
+                        106,
+                        191,
+                        204,
+                        214,
+                        90,
+                        122,
+                        129,
+                        73,
+                        146
+                      ]
+                    },
+                    "head_yaw": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 75
+                      },
+                      "value": 0.0
+                    },
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 220
+                      },
+                      "value": true
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 220
+                      },
+                      "value": {
+                        "position": [
+                          5.0,
+                          70.0,
+                          3.0
+                        ],
+                        "quantization_error": [
+                          0.000244140625,
+                          0.000244140625,
+                          0.000244140625
+                        ]
+                      }
+                    },
+                    "receive_sequence": 220,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 182
+                      },
+                      "value": [
+                        0.0,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 182
+                      },
+                      "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 9,
+                "receive_sequence": 220,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 854002854,
+                  "secs": 1
+                },
+                "kind": {
+                  "Removed": {
+                    "entity": {
+                      "native_id": 3,
+                      "session": {
+                        "connection_id": 1,
+                        "version": "Java1_21_11",
+                        "world_generation": 29
+                      },
+                      "spawn_sequence": 75
+                    },
+                    "native_id": 3
+                  }
+                },
+                "ordinal": 10,
+                "receive_sequence": 221,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 867744309,
+                  "secs": 1
+                },
+                "kind": {
+                  "Spawn": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 71,
+                        "version": "Java1_21_11"
+                      },
+                      "id": {
+                        "native_id": 4,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        },
+                        "spawn_sequence": 225
+                      },
+                      "native_type_id": 71,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 225
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        151,
+                        164,
+                        238,
+                        216,
+                        139,
+                        75,
+                        72,
+                        163,
+                        141,
+                        112,
+                        3,
+                        59,
+                        194,
+                        55,
+                        189,
+                        149
+                      ]
+                    },
+                    "head_yaw": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 225
+                      },
+                      "value": 0.0
+                    },
+                    "on_ground": null,
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 225
+                      },
+                      "value": {
+                        "position": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 225,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 225
+                      },
+                      "value": [
+                        73.125,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 225
+                      },
+                      "value": [
+                        0.08057132393334565,
+                        0.2000244155527071,
+                        -0.02508698040651891
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 11,
+                "receive_sequence": 225,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 870315285,
+                  "secs": 1
+                },
+                "kind": {
+                  "Spawn": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 71,
+                        "version": "Java1_21_11"
+                      },
+                      "id": {
+                        "native_id": 5,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        },
+                        "spawn_sequence": 229
+                      },
+                      "native_type_id": 71,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 229
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        144,
+                        52,
+                        163,
+                        189,
+                        77,
+                        165,
+                        78,
+                        77,
+                        183,
+                        121,
+                        19,
+                        52,
+                        92,
+                        77,
+                        222,
+                        206
+                      ]
+                    },
+                    "head_yaw": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 229
+                      },
+                      "value": 0.0
+                    },
+                    "on_ground": null,
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 229
+                      },
+                      "value": {
+                        "position": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 229,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 229
+                      },
+                      "value": [
+                        -71.71875,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 229
+                      },
+                      "value": [
+                        -0.09674662760178232,
+                        0.2000244155527071,
+                        0.035707745834096416
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 12,
+                "receive_sequence": 229,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 870356677,
+                  "secs": 1
+                },
+                "kind": {
+                  "Status": {
+                    "entity": {
+                      "native_id": 2,
+                      "session": {
+                        "connection_id": 1,
+                        "version": "Java1_21_11",
+                        "world_generation": 29
+                      },
+                      "spawn_sequence": 69
+                    },
+                    "native_id": 2,
+                    "status": 3
+                  }
+                },
+                "ordinal": 13,
+                "receive_sequence": 232,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 898612003,
+                  "secs": 1
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 111,
+                        "version": "Java1_21_11"
+                      },
+                      "id": {
+                        "native_id": 2,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        },
+                        "spawn_sequence": 69
+                      },
+                      "native_type_id": 111,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 69
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:sheep",
+                      "uuid": [
+                        224,
+                        121,
+                        72,
+                        165,
+                        128,
+                        67,
+                        73,
+                        4,
+                        189,
+                        193,
+                        168,
+                        35,
+                        149,
+                        201,
+                        165,
+                        159
+                      ]
+                    },
+                    "head_yaw": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 69
+                      },
+                      "value": 0.0
+                    },
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 72
+                      },
+                      "value": false
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 72
+                      },
+                      "value": {
+                        "position": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ],
+                        "quantization_error": [
+                          0.000244140625,
+                          0.000244140625,
+                          0.000244140625
+                        ]
+                      }
+                    },
+                    "receive_sequence": 234,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 69
+                      },
+                      "value": [
+                        0.0,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 234
+                      },
+                      "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 14,
+                "receive_sequence": 234,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 898623530,
+                  "secs": 1
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 71,
+                        "version": "Java1_21_11"
+                      },
+                      "id": {
+                        "native_id": 4,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        },
+                        "spawn_sequence": 225
+                      },
+                      "native_type_id": 71,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 225
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        151,
+                        164,
+                        238,
+                        216,
+                        139,
+                        75,
+                        72,
+                        163,
+                        141,
+                        112,
+                        3,
+                        59,
+                        194,
+                        55,
+                        189,
+                        149
+                      ]
+                    },
+                    "head_yaw": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 225
+                      },
+                      "value": 0.0
+                    },
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 235
+                      },
+                      "value": false
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 235
+                      },
+                      "value": {
+                        "position": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ],
+                        "quantization_error": [
+                          0.000244140625,
+                          0.000244140625,
+                          0.000244140625
+                        ]
+                      }
+                    },
+                    "receive_sequence": 235,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 225
+                      },
+                      "value": [
+                        73.125,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 225
+                      },
+                      "value": [
+                        0.08057132393334565,
+                        0.2000244155527071,
+                        -0.02508698040651891
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 15,
+                "receive_sequence": 235,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 898666976,
+                  "secs": 1
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 71,
+                        "version": "Java1_21_11"
+                      },
+                      "id": {
+                        "native_id": 5,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        },
+                        "spawn_sequence": 229
+                      },
+                      "native_type_id": 71,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 229
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        144,
+                        52,
+                        163,
+                        189,
+                        77,
+                        165,
+                        78,
+                        77,
+                        183,
+                        121,
+                        19,
+                        52,
+                        92,
+                        77,
+                        222,
+                        206
+                      ]
+                    },
+                    "head_yaw": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 229
+                      },
+                      "value": 0.0
+                    },
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 237
+                      },
+                      "value": false
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 237
+                      },
+                      "value": {
+                        "position": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ],
+                        "quantization_error": [
+                          0.000244140625,
+                          0.000244140625,
+                          0.000244140625
+                        ]
+                      }
+                    },
+                    "receive_sequence": 237,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 229
+                      },
+                      "value": [
+                        -71.71875,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 229
+                      },
+                      "value": [
+                        -0.09674662760178232,
+                        0.2000244155527071,
+                        0.035707745834096416
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 16,
+                "receive_sequence": 237,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 543422889,
+                  "secs": 2
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 71,
+                        "version": "Java1_21_11"
+                      },
+                      "id": {
+                        "native_id": 4,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        },
+                        "spawn_sequence": 225
+                      },
+                      "native_type_id": 71,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 225
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        151,
+                        164,
+                        238,
+                        216,
+                        139,
+                        75,
+                        72,
+                        163,
+                        141,
+                        112,
+                        3,
+                        59,
+                        194,
+                        55,
+                        189,
+                        149
+                      ]
+                    },
+                    "head_yaw": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 225
+                      },
+                      "value": 0.0
+                    },
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 235
+                      },
+                      "value": false
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 235
+                      },
+                      "value": {
+                        "position": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ],
+                        "quantization_error": [
+                          0.000244140625,
+                          0.000244140625,
+                          0.000244140625
+                        ]
+                      }
+                    },
+                    "receive_sequence": 240,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 225
+                      },
+                      "value": [
+                        73.125,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 240
+                      },
+                      "value": [
+                        0.03717267899652077,
+                        0.0,
+                        -0.01159738753586037
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 17,
+                "receive_sequence": 240,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 543563601,
+                  "secs": 2
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 71,
+                        "version": "Java1_21_11"
+                      },
+                      "id": {
+                        "native_id": 4,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        },
+                        "spawn_sequence": 225
+                      },
+                      "native_type_id": 71,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 225
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        151,
+                        164,
+                        238,
+                        216,
+                        139,
+                        75,
+                        72,
+                        163,
+                        141,
+                        112,
+                        3,
+                        59,
+                        194,
+                        55,
+                        189,
+                        149
+                      ]
+                    },
+                    "head_yaw": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 225
+                      },
+                      "value": 0.0
+                    },
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 241
+                      },
+                      "value": true
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 241
+                      },
+                      "value": {
+                        "position": [
+                          2.9305203638043706,
+                          65.0,
+                          1.7104653984634641
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 241,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 241
+                      },
+                      "value": [
+                        73.74624633789062,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 241
+                      },
+                      "value": [
+                        0.03717716971403124,
+                        -0.0,
+                        -0.01156780382043441
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 18,
+                "receive_sequence": 241,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 543571463,
+                  "secs": 2
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 71,
+                        "version": "Java1_21_11"
+                      },
+                      "id": {
+                        "native_id": 5,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        },
+                        "spawn_sequence": 229
+                      },
+                      "native_type_id": 71,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 229
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        144,
+                        52,
+                        163,
+                        189,
+                        77,
+                        165,
+                        78,
+                        77,
+                        183,
+                        121,
+                        19,
+                        52,
+                        92,
+                        77,
+                        222,
+                        206
+                      ]
+                    },
+                    "head_yaw": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 229
+                      },
+                      "value": 0.0
+                    },
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 237
+                      },
+                      "value": false
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 237
+                      },
+                      "value": {
+                        "position": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ],
+                        "quantization_error": [
+                          0.000244140625,
+                          0.000244140625,
+                          0.000244140625
+                        ]
+                      }
+                    },
+                    "receive_sequence": 242,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 229
+                      },
+                      "value": [
+                        -71.71875,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 242
+                      },
+                      "value": [
+                        -0.044619422572178435,
+                        0.0,
+                        0.016480498077275252
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 19,
+                "receive_sequence": 242,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 543580627,
+                  "secs": 2
+                },
+                "kind": {
+                  "Motion": {
+                    "correction": null,
+                    "entity": {
+                      "entity_type": {
+                        "registry": "minecraft:entity_type",
+                        "value": 71,
+                        "version": "Java1_21_11"
+                      },
+                      "id": {
+                        "native_id": 5,
+                        "session": {
+                          "connection_id": 1,
+                          "version": "Java1_21_11",
+                          "world_generation": 29
+                        },
+                        "spawn_sequence": 229
+                      },
+                      "native_type_id": 71,
+                      "spawn_position": {
+                        "source": {
+                          "kind": "received",
+                          "sequence": 229
+                        },
+                        "value": [
+                          2.0,
+                          66.0,
+                          2.0
+                        ]
+                      },
+                      "type_name": "minecraft:item",
+                      "uuid": [
+                        144,
+                        52,
+                        163,
+                        189,
+                        77,
+                        165,
+                        78,
+                        77,
+                        183,
+                        121,
+                        19,
+                        52,
+                        92,
+                        77,
+                        222,
+                        206
+                      ]
+                    },
+                    "head_yaw": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 229
+                      },
+                      "value": 0.0
+                    },
+                    "on_ground": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 243
+                      },
+                      "value": true
+                    },
+                    "position": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 243
+                      },
+                      "value": {
+                        "position": [
+                          0.8824697339735414,
+                          65.0,
+                          2.412194442686979
+                        ],
+                        "quantization_error": [
+                          0.0,
+                          0.0,
+                          0.0
+                        ]
+                      }
+                    },
+                    "receive_sequence": 243,
+                    "rotation": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 243
+                      },
+                      "value": [
+                        289.0971984863281,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 243
+                      },
+                      "value": [
+                        -0.04464879434854232,
+                        -0.0,
+                        0.016468444267358377
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 20,
+                "receive_sequence": 243,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 846698624,
+                  "secs": 2
+                },
+                "kind": {
+                  "Status": {
+                    "entity": {
+                      "native_id": 2,
+                      "session": {
+                        "connection_id": 1,
+                        "version": "Java1_21_11",
+                        "world_generation": 29
+                      },
+                      "spawn_sequence": 69
+                    },
+                    "native_id": 2,
+                    "status": 60
+                  }
+                },
+                "ordinal": 21,
+                "receive_sequence": 244,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 846751083,
+                  "secs": 2
+                },
+                "kind": {
+                  "Removed": {
+                    "entity": {
+                      "native_id": 2,
+                      "session": {
+                        "connection_id": 1,
+                        "version": "Java1_21_11",
+                        "world_generation": 29
+                      },
+                      "spawn_sequence": 69
+                    },
+                    "native_id": 2
+                  }
+                },
+                "ordinal": 22,
+                "receive_sequence": 245,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                }
+              }
+            ],
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            }
+          }
+        },
+        {
+          "name": "frozen_samples_after_removal",
+          "records_count": 19,
+          "same_records": true
+        },
+        {
+          "name": "actual_respawn_and_own_corrections",
+          "before": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 29
+          },
+          "page": {
+            "gap": null,
+            "has_more": false,
+            "latest_cursor": {
+              "connection_id": 1,
+              "ordinal": 38,
+              "version": "Java1_21_11"
+            },
+            "next_cursor": {
+              "connection_id": 1,
+              "ordinal": 38,
+              "version": "Java1_21_11"
+            },
+            "receive_sequence": 350,
+            "records": [
+              {
+                "applied_after": {
+                  "nanos": 47898236,
+                  "secs": 3
+                },
+                "kind": {
+                  "WorldChanged": {
+                    "previous_generation": 29
+                  }
+                },
+                "ordinal": 30,
+                "receive_sequence": 260,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 260
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 48186931,
+                  "secs": 3
+                },
+                "kind": {
+                  "OwnPositionCorrection": {
+                    "pose": {
+                      "position": [
+                        0.5,
+                        65.0,
+                        0.5
+                      ],
+                      "receive_sequence": 261,
+                      "rotation": [
+                        0.0,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 261
+                      },
+                      "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 31,
+                "receive_sequence": 261,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 260
+                }
+              },
+              {
+                "applied_after": {
+                  "nanos": 123319085,
+                  "secs": 3
+                },
+                "kind": {
+                  "OwnPositionCorrection": {
+                    "pose": {
+                      "position": [
+                        0.5,
+                        65.0,
+                        0.5
+                      ],
+                      "receive_sequence": 299,
+                      "rotation": [
+                        0.0,
+                        0.0
+                      ]
+                    },
+                    "velocity": {
+                      "source": {
+                        "kind": "received",
+                        "sequence": 299
+                      },
+                      "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                      ]
+                    }
+                  }
+                },
+                "ordinal": 33,
+                "receive_sequence": 299,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 260
+                }
+              }
+            ],
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 260
+            }
+          },
+          "total_records": 12
+        },
+        {
+          "name": "history_after_revocation",
+          "session": {
+            "connection_id": 1,
+            "version": "Java1_21_11",
+            "world_generation": 260
+          },
+          "records_count": 38,
+          "latest_cursor": {
+            "connection_id": 1,
+            "ordinal": 38,
+            "version": "Java1_21_11"
+          },
+          "gap": null
+        }
+      ]
+    }
+  ]
+}

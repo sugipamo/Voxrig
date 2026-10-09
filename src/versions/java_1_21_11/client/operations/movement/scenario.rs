@@ -1,6 +1,6 @@
 //! Detached hypothetical scenes. No session, sender, observation or action authority.
 use super::*;
-use crate::diagnostic_projection::{ToDiagnostic, diagnostic_record};
+use crate::diagnostic_projection::diagnostic_record;
 use std::collections::BTreeMap;
 
 const MAX_CELLS: usize = 32768;
@@ -210,7 +210,7 @@ impl HypotheticalSceneSource {
 
 /// Validated read-only assumptions, deliberately incompatible with live validation.
 /// ```compile_fail
-/// use voxrig::checked_survival::{Operations, AssumedSurvivalScene};
+/// use voxrig::versions::java_1_21_11::checked::{Operations, AssumedSurvivalScene};
 /// async fn cannot_validate(api: &Operations, scene: &AssumedSurvivalScene) {
 ///     api.validate_survival_scene(scene).await.unwrap();
 /// }
@@ -294,7 +294,7 @@ impl AssumedSurvivalScene {
         &self,
         motion_contract: SurvivalMotionContract,
     ) -> SurvivalScenario {
-        let mut model = Model::new(self.start.position);
+        let mut model = Model::new(crate::MinecraftVersion::Java1_21_11, self.start.position);
         model.frame.velocity = self.start.velocity;
         SurvivalScenario {
             scene: self.geometry.clone(),
@@ -437,15 +437,7 @@ impl GeometryView for CapturedSurvivalScene {
 }
 fn admitted(block: &crate::NativeBlockState) -> Result<()> {
     super::super::super::super::state_id(block)?;
-    if !matches!(
-        block.name.as_str(),
-        "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air"
-    ) && !survival::DRY_CUBES.contains(&block.name.as_str())
-    {
-        return Err(invalid(
-            "hypothetical scenes require admitted dry cubes and air",
-        ));
-    }
+    crate::client::survival::model::collision_shape(crate::MinecraftVersion::Java1_21_11, block)?;
     Ok(())
 }
 fn scene_volume(region: crate::Region) -> Result<usize> {
@@ -750,7 +742,7 @@ impl SurvivalScenario {
             dimension: self.source.dimension().to_owned(),
         };
         let next = Self {
-            model: Model::new(self.position()),
+            model: Model::new(crate::MinecraftVersion::Java1_21_11, self.position()),
             origin: Arc::new(()),
             aim_requirement: HypotheticalAimRequirement::ReceivedAfterReconnect,
             // A future exact receipt is not permission to shrink standing margins.

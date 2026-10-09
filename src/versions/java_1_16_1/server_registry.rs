@@ -356,7 +356,15 @@ pub(crate) fn parse_recipes(payload: &[u8]) -> Result<ServerRecipes> {
             }
             _ => bail!("unsupported declared recipe type {kind}"),
         };
-        recipes.insert(id.clone(), ServerRecipe { kind, id, data });
+        if recipes
+            .insert(id.clone(), ServerRecipe { kind, id, data })
+            .is_some()
+        {
+            bail!("duplicate declared recipe ID");
+        }
+    }
+    if !rest.is_empty() {
+        bail!("trailing recipe declaration data");
     }
     Ok(ServerRecipes { recipes })
 }

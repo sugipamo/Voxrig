@@ -1,0 +1,231 @@
+{
+  "schema": 1,
+  "versions": [
+    {
+      "inputs": [
+        {
+          "forward": -1,
+          "jump": false,
+          "payload_hex": "bf800000bf80000000",
+          "strafe": -1
+        },
+        {
+          "forward": -1,
+          "jump": true,
+          "payload_hex": "bf800000bf80000001",
+          "strafe": -1
+        },
+        {
+          "forward": -1,
+          "jump": false,
+          "payload_hex": "00000000bf80000000",
+          "strafe": 0
+        },
+        {
+          "forward": -1,
+          "jump": true,
+          "payload_hex": "00000000bf80000001",
+          "strafe": 0
+        },
+        {
+          "forward": -1,
+          "jump": false,
+          "payload_hex": "3f800000bf80000000",
+          "strafe": 1
+        },
+        {
+          "forward": -1,
+          "jump": true,
+          "payload_hex": "3f800000bf80000001",
+          "strafe": 1
+        },
+        {
+          "forward": 0,
+          "jump": false,
+          "payload_hex": "bf8000000000000000",
+          "strafe": -1
+        },
+        {
+          "forward": 0,
+          "jump": true,
+          "payload_hex": "bf8000000000000001",
+          "strafe": -1
+        },
+        {
+          "forward": 0,
+          "jump": false,
+          "payload_hex": "000000000000000000",
+          "strafe": 0
+        },
+        {
+          "forward": 0,
+          "jump": true,
+          "payload_hex": "000000000000000001",
+          "strafe": 0
+        },
+        {
+          "forward": 0,
+          "jump": false,
+          "payload_hex": "3f8000000000000000",
+          "strafe": 1
+        },
+        {
+          "forward": 0,
+          "jump": true,
+          "payload_hex": "3f8000000000000001",
+          "strafe": 1
+        },
+        {
+          "forward": 1,
+          "jump": false,
+          "payload_hex": "bf8000003f80000000",
+          "strafe": -1
+        },
+        {
+          "forward": 1,
+          "jump": true,
+          "payload_hex": "bf8000003f80000001",
+          "strafe": -1
+        },
+        {
+          "forward": 1,
+          "jump": false,
+          "payload_hex": "000000003f80000000",
+          "strafe": 0
+        },
+        {
+          "forward": 1,
+          "jump": true,
+          "payload_hex": "000000003f80000001",
+          "strafe": 0
+        },
+        {
+          "forward": 1,
+          "jump": false,
+          "payload_hex": "3f8000003f80000000",
+          "strafe": 1
+        },
+        {
+          "forward": 1,
+          "jump": true,
+          "payload_hex": "3f8000003f80000001",
+          "strafe": 1
+        }
+      ],
+      "version": "1.16.1"
+    },
+    {
+      "inputs": [
+        {
+          "forward": -1,
+          "jump": false,
+          "payload_hex": "0a",
+          "strafe": -1
+        },
+        {
+          "forward": -1,
+          "jump": true,
+          "payload_hex": "1a",
+          "strafe": -1
+        },
+        {
+          "forward": -1,
+          "jump": false,
+          "payload_hex": "02",
+          "strafe": 0
+        },
+        {
+          "forward": -1,
+          "jump": true,
+          "payload_hex": "12",
+          "strafe": 0
+        },
+        {
+          "forward": -1,
+          "jump": false,
+          "payload_hex": "06",
+          "strafe": 1
+        },
+        {
+          "forward": -1,
+          "jump": true,
+          "payload_hex": "16",
+          "strafe": 1
+        },
+        {
+          "forward": 0,
+          "jump": false,
+          "payload_hex": "08",
+          "strafe": -1
+        },
+        {
+          "forward": 0,
+          "jump": true,
+          "payload_hex": "18",
+          "strafe": -1
+        },
+        {
+          "forward": 0,
+          "jump": false,
+          "payload_hex": "00",
+          "strafe": 0
+        },
+        {
+          "forward": 0,
+          "jump": true,
+          "payload_hex": "10",
+          "strafe": 0
+        },
+        {
+          "forward": 0,
+          "jump": false,
+          "payload_hex": "04",
+          "strafe": 1
+        },
+        {
+          "forward": 0,
+          "jump": true,
+          "payload_hex": "14",
+          "strafe": 1
+        },
+        {
+          "forward": 1,
+          "jump": false,
+          "payload_hex": "09",
+          "strafe": -1
+        },
+        {
+          "forward": 1,
+          "jump": true,
+          "payload_hex": "19",
+          "strafe": -1
+        },
+        {
+          "forward": 1,
+          "jump": false,
+          "payload_hex": "01",
+          "strafe": 0
+        },
+        {
+          "forward": 1,
+          "jump": true,
+          "payload_hex": "11",
+          "strafe": 0
+        },
+        {
+          "forward": 1,
+          "jump": false,
+          "payload_hex": "05",
+          "strafe": 1
+        },
+        {
+          "forward": 1,
+          "jump": true,
+          "payload_hex": "15",
+          "strafe": 1
+        }
+      ],
+      "version": "1.21.11"
+    }
+  ]
+}

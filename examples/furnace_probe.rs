@@ -1,6 +1,8 @@
 use anyhow::Result;
 use tokio::time::{Duration, timeout};
-use voxrig::{BlockFace, BlockPos, BotManager, ClickMode, Event, Hand, Player, Server};
+use voxrig::versions::java_1_16_1::{
+    BlockFace, BlockPos, BotManager, ClickMode, Event, Hand, Player, Server,
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {

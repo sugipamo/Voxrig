@@ -183,14 +183,14 @@ impl PlayerTracker {
             p::PLAYER_INFO => {
                 let flags = r.u8()?;
                 let mut additions = Vec::new();
-                for _ in 0..r.count(1024)? {
+                for _ in 0..r.count(4096)? {
                     let uuid = r.take(16)?.try_into()?;
                     if flags & 1 != 0 {
                         let name = r.string()?;
                         if name.is_empty() || name.len() > 64 {
                             bail!("invalid player profile name");
                         }
-                        for _ in 0..r.count(64)? {
+                        for _ in 0..r.count(1024)? {
                             r.string()?;
                             r.string()?;
                             if r.bool()? {
@@ -212,11 +212,11 @@ impl PlayerTracker {
                     if flags & 32 != 0 && r.bool()? {
                         r.skip_nbt()?;
                     }
-                    // Native action order differs from the bit order.
-                    if flags & 128 != 0 {
+                    // Native enum actions: UPDATE_LIST_ORDER precedes UPDATE_HAT.
+                    if flags & 64 != 0 {
                         r.varint()?;
                     }
-                    if flags & 64 != 0 {
+                    if flags & 128 != 0 {
                         r.bool()?;
                     }
                 }
@@ -228,14 +228,14 @@ impl PlayerTracker {
                     .iter()
                     .filter(|u| !self.profiles.contains_key(*u))
                     .count();
-                if self.profiles.len() + new_count > 1024 {
+                if self.profiles.len() + new_count > 4096 {
                     bail!("player profile limit exceeded");
                 }
                 self.profiles.extend(additions);
             }
             p::PLAYER_REMOVE => {
                 let mut removed = Vec::new();
-                for _ in 0..r.count(1024)? {
+                for _ in 0..r.count(4096)? {
                     removed.push(<[u8; 16]>::try_from(r.take(16)?)?);
                 }
                 r.end()?;
@@ -430,6 +430,15 @@ fn position(r: &mut Reader<'_>) -> anyhow::Result<[f64; 3]> {
 }
 /// Native modifier order, shared by own and remote player observations.
 pub(super) fn read_attributes(r: &mut Reader<'_>) -> anyhow::Result<BTreeMap<i32, f64>> {
+    Ok(read_attribute_details(r)?
+        .into_iter()
+        .map(|(k, (v, _))| (k, v))
+        .collect())
+}
+/// Folded values together with the received base and modifiers (arrival order).
+pub(super) fn read_attribute_details(
+    r: &mut Reader<'_>,
+) -> anyhow::Result<BTreeMap<i32, (f64, crate::client::control::ReceivedAttribute)>> {
     let mut values = BTreeMap::new();
     for _ in 0..r.count(1024)? {
         let key = r.varint()?;
@@ -441,17 +450,33 @@ pub(super) fn read_attributes(r: &mut Reader<'_>) -> anyhow::Result<BTreeMap<i32
         let mut base_factors = Vec::new();
         let mut total_factors = Vec::new();
         let mut modifiers = BTreeSet::new();
+        let mut raw = Vec::new();
         for _ in 0..r.count(1024)? {
-            if !modifiers.insert(r.string()?) {
+            let id = r.string()?;
+            if !modifiers.insert(id.clone()) {
                 bail!("duplicate attribute modifier");
             }
             let amount = r.f64()?;
-            match r.u8()? {
-                0 => additions += amount,
-                1 => base_factors.push(amount),
-                2 => total_factors.push(amount),
+            let operation = match r.u8()? {
+                0 => {
+                    additions += amount;
+                    crate::client::control::ModifierOperation::Addition
+                }
+                1 => {
+                    base_factors.push(amount);
+                    crate::client::control::ModifierOperation::MultiplyBase
+                }
+                2 => {
+                    total_factors.push(amount);
+                    crate::client::control::ModifierOperation::MultiplyTotal
+                }
                 _ => bail!("unknown attribute operation"),
-            }
+            };
+            raw.push(crate::client::control::Modifier {
+                id,
+                operation,
+                amount,
+            });
         }
         let adjusted = base + additions;
         let mut value = adjusted;
@@ -464,27 +489,48 @@ pub(super) fn read_attributes(r: &mut Reader<'_>) -> anyhow::Result<BTreeMap<i32
         if !value.is_finite() {
             bail!("non-finite player attribute");
         }
-        values.insert(key, value);
+        values.insert(
+            key,
+            (
+                value,
+                crate::client::control::ReceivedAttribute {
+                    base,
+                    modifiers: raw,
+                },
+            ),
+        );
     }
     Ok(values)
 }
+/// Entity.DATA_AIR_SUPPLY_ID (an int).
+const AIR_SUPPLY_METADATA: u8 = 1;
 pub(super) struct PoseUpdate {
     pub supported: bool,
     pub received: bool,
+    /// Received LivingEntity flags byte, if present before any unsupported entry.
+    pub living_flags: Option<u8>,
+    /// Received Entity air supply, if present before any unsupported entry.
+    pub air_supply: Option<i32>,
 }
 pub(super) fn read_pose(
     r: &mut Reader<'_>,
     pose: &mut Option<PlayerPose>,
 ) -> anyhow::Result<PoseUpdate> {
+    let flags_index = crate::MinecraftVersion::Java1_21_11
+        .table()
+        .entities
+        .living_flags_metadata_index;
     let mut seen = BTreeSet::new();
-    let mut received = false;
+    let mut update = PoseUpdate {
+        supported: true,
+        received: false,
+        living_flags: None,
+        air_supply: None,
+    };
     loop {
         let key = r.u8()?;
         if key == 255 {
-            return Ok(PoseUpdate {
-                supported: true,
-                received,
-            });
+            return Ok(update);
         }
         if !seen.insert(key) {
             bail!("duplicate player metadata index");
@@ -495,16 +541,24 @@ pub(super) fn read_pose(
                 bail!("incorrect player pose serializer");
             }
             *pose = Some(PlayerPose::decode(r.varint()?));
-            received = true;
+            update.received = true;
+        } else if key == flags_index {
+            if kind != 0 {
+                bail!("incorrect living entity flags serializer");
+            }
+            update.living_flags = Some(r.u8()?);
+        } else if key == AIR_SUPPLY_METADATA {
+            if kind != 1 {
+                bail!("incorrect air supply serializer");
+            }
+            update.air_supply = Some(r.varint()?);
         } else if !skip_metadata(r, kind)? {
-            return Ok(PoseUpdate {
-                supported: false,
-                received,
-            });
+            update.supported = false;
+            return Ok(update);
         }
     }
 }
-fn skip_metadata(r: &mut Reader<'_>, kind: i32) -> anyhow::Result<bool> {
+pub(super) fn skip_metadata(r: &mut Reader<'_>, kind: i32) -> anyhow::Result<bool> {
     match kind {
         0 => {
             r.take(1)?;

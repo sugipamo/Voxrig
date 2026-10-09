@@ -1297,7 +1297,15 @@ impl World {
         self.set_block(position.x, position.y, position.z, state_id);
     }
 
+    #[cfg(test)]
     pub(crate) fn apply_multi_block_change(&mut self, payload: &[u8]) -> Result<usize> {
+        self.apply_multi_block_change_with_changes(payload)
+            .map(|changes| changes.len())
+    }
+    pub(crate) fn apply_multi_block_change_with_changes(
+        &mut self,
+        payload: &[u8],
+    ) -> Result<Vec<(BlockPos, i32)>> {
         let mut c = Cursor::new(payload);
         let chunk_x = c.read_i32::<BigEndian>()?;
         let chunk_z = c.read_i32::<BigEndian>()?;
@@ -1310,6 +1318,7 @@ impl World {
         if !(0..=65_536).contains(&count) {
             bail!("invalid multi block change count {count}");
         }
+        let mut changes = Vec::with_capacity(count as usize);
         for _ in 0..count {
             let horizontal = c.read_u8()?;
             let y = i32::from(c.read_u8()?);
@@ -1322,9 +1331,12 @@ impl World {
                 .checked_mul(16)
                 .and_then(|base| base.checked_add(i32::from(horizontal & 0x0f)))
                 .context("multi block change z overflow")?;
-            self.set_block(x, y, z, state_id);
+            changes.push((BlockPos { x, y, z }, state_id));
         }
-        Ok(count as usize)
+        for (p, state_id) in &changes {
+            self.set_block(p.x, p.y, p.z, *state_id);
+        }
+        Ok(changes)
     }
 
     fn set_block(&mut self, x: i32, y: i32, z: i32, state_id: i32) {

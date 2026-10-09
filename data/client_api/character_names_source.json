@@ -1,0 +1,19 @@
+{
+  "ascii_upper_folds": 10,
+  "authority": "Running unchanged JDK Character.getName/codePointOf and Locale.ROOT ASCII-result case folds; factual grammar for named SNBT escapes, not Minecraft entity resolution.",
+  "files_sha256": {
+    "data/client_api/character_names-21.0.12.1.json.gz": "ea6a9aab6928c65c47f9f7d649a807b594b7e6b0769da606d73c33e537163bb4"
+  },
+  "generators_sha256": {
+    "scripts/ExportCharacterNames.java": "6701ed98dcedf0cf68f07960e6585dd61f1a537eaf8a1012058d814192513487",
+    "scripts/export_character_names.py": "d05e79a4dfcf1558b17f3f0534ad56ba3d6c399dfd2732fb39ade5f70cf74ebe",
+    "scripts/export_regular_clicks.py": "00f974491dbfc30a1d947521627229ca320ec77c1c17bcc56b641bf50a707cde"
+  },
+  "java_version": "21.0.12.1",
+  "names": 288767,
+  "raw_output_sha256": "84af193add4e025b207f787a675a1231f5fca62c5d13480ec549b51e55232b79",
+  "runtime_jdk_sha256": {
+    "java_executable_sha256": "6698f6f10143ed8463b06062281c727152d2e0ae2a3569b1716fbb2c6cedf0ba",
+    "jdk_modules_sha256": "f82ec56fbf7c7b69da09a04d4fb103c74c44e6443c8a1b2744e59c5539e7f781"
+  }
+}

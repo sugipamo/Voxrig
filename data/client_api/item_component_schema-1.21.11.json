@@ -1,0 +1,4255 @@
+{
+  "nodes": [
+    {
+      "child": 1,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "native_class": "aam$32",
+      "op": "varint"
+    },
+    {
+      "native_class": "aao$13",
+      "op": "unit"
+    },
+    {
+      "children": [
+        5,
+        5,
+        6
+      ],
+      "native_class": "aao$19",
+      "op": "sequence"
+    },
+    {
+      "native_class": "aam$1",
+      "op": "boolean"
+    },
+    {
+      "length": 4,
+      "native_class": "aam$35",
+      "op": "fixed"
+    },
+    {
+      "child": 8,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 10,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "left": 11,
+      "native_class": "aam$19",
+      "op": "either",
+      "right": 12
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:damage_type"
+    },
+    {
+      "child": 13,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 14,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "maximum": 32767,
+      "native_class": "aam$6",
+      "op": "string"
+    },
+    {
+      "child": 16,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 7,
+      "maximum": 256,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "native_class": "aam$21",
+      "op": "varint"
+    },
+    {
+      "child": 19,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "key": 20,
+      "maximum": 2147483647,
+      "native_class": "aam$18",
+      "op": "map",
+      "value": 2
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:enchantment"
+    },
+    {
+      "child": 22,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "child": 23,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "children": [
+        24,
+        27,
+        37,
+        41
+      ],
+      "native_class": "aao$2",
+      "op": "sequence"
+    },
+    {
+      "child": 25,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 26,
+      "native_class": "aam$25",
+      "op": "holder_set",
+      "registry": "minecraft:block"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:block"
+    },
+    {
+      "child": 28,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 29,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 30,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "children": [
+        14,
+        31
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "child": 32,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "left": 33,
+      "native_class": "aam$19",
+      "op": "either",
+      "right": 34
+    },
+    {
+      "child": 14,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "children": [
+        35,
+        36
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "child": 14,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 14,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 38,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 39,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 40,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "children": [
+        42,
+        45
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "child": 43,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 44,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "native_class": "kk$1",
+      "op": "typed_component"
+    },
+    {
+      "child": 46,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 47,
+      "maximum": 64,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "branched": true,
+      "native_class": "aao$16",
+      "op": "dispatch",
+      "variants": [
+        {
+          "codec": 52,
+          "left": true,
+          "name": "minecraft:damage",
+          "tag": 0
+        },
+        {
+          "codec": 55,
+          "left": true,
+          "name": "minecraft:enchantments",
+          "tag": 1
+        },
+        {
+          "codec": 58,
+          "left": true,
+          "name": "minecraft:stored_enchantments",
+          "tag": 2
+        },
+        {
+          "codec": 61,
+          "left": true,
+          "name": "minecraft:potion_contents",
+          "tag": 3
+        },
+        {
+          "codec": 64,
+          "left": true,
+          "name": "minecraft:custom_data",
+          "tag": 4
+        },
+        {
+          "codec": 67,
+          "left": true,
+          "name": "minecraft:container",
+          "tag": 5
+        },
+        {
+          "codec": 70,
+          "left": true,
+          "name": "minecraft:bundle_contents",
+          "tag": 6
+        },
+        {
+          "codec": 73,
+          "left": true,
+          "name": "minecraft:firework_explosion",
+          "tag": 7
+        },
+        {
+          "codec": 76,
+          "left": true,
+          "name": "minecraft:fireworks",
+          "tag": 8
+        },
+        {
+          "codec": 79,
+          "left": true,
+          "name": "minecraft:writable_book_content",
+          "tag": 9
+        },
+        {
+          "codec": 82,
+          "left": true,
+          "name": "minecraft:written_book_content",
+          "tag": 10
+        },
+        {
+          "codec": 85,
+          "left": true,
+          "name": "minecraft:attribute_modifiers",
+          "tag": 11
+        },
+        {
+          "codec": 88,
+          "left": true,
+          "name": "minecraft:trim",
+          "tag": 12
+        },
+        {
+          "codec": 91,
+          "left": true,
+          "name": "minecraft:jukebox_playable",
+          "tag": 13
+        },
+        {
+          "codec": 94,
+          "left": false,
+          "name": "minecraft:custom_data",
+          "tag": 0
+        },
+        {
+          "codec": 97,
+          "left": false,
+          "name": "minecraft:max_stack_size",
+          "tag": 1
+        },
+        {
+          "codec": 100,
+          "left": false,
+          "name": "minecraft:max_damage",
+          "tag": 2
+        },
+        {
+          "codec": 103,
+          "left": false,
+          "name": "minecraft:damage",
+          "tag": 3
+        },
+        {
+          "codec": 106,
+          "left": false,
+          "name": "minecraft:unbreakable",
+          "tag": 4
+        },
+        {
+          "codec": 109,
+          "left": false,
+          "name": "minecraft:use_effects",
+          "tag": 5
+        },
+        {
+          "codec": 112,
+          "left": false,
+          "name": "minecraft:custom_name",
+          "tag": 6
+        },
+        {
+          "codec": 115,
+          "left": false,
+          "name": "minecraft:minimum_attack_charge",
+          "tag": 7
+        },
+        {
+          "codec": 118,
+          "left": false,
+          "name": "minecraft:damage_type",
+          "tag": 8
+        },
+        {
+          "codec": 121,
+          "left": false,
+          "name": "minecraft:item_name",
+          "tag": 9
+        },
+        {
+          "codec": 124,
+          "left": false,
+          "name": "minecraft:item_model",
+          "tag": 10
+        },
+        {
+          "codec": 127,
+          "left": false,
+          "name": "minecraft:lore",
+          "tag": 11
+        },
+        {
+          "codec": 130,
+          "left": false,
+          "name": "minecraft:rarity",
+          "tag": 12
+        },
+        {
+          "codec": 133,
+          "left": false,
+          "name": "minecraft:enchantments",
+          "tag": 13
+        },
+        {
+          "codec": 136,
+          "left": false,
+          "name": "minecraft:can_place_on",
+          "tag": 14
+        },
+        {
+          "codec": 139,
+          "left": false,
+          "name": "minecraft:can_break",
+          "tag": 15
+        },
+        {
+          "codec": 142,
+          "left": false,
+          "name": "minecraft:attribute_modifiers",
+          "tag": 16
+        },
+        {
+          "codec": 145,
+          "left": false,
+          "name": "minecraft:custom_model_data",
+          "tag": 17
+        },
+        {
+          "codec": 148,
+          "left": false,
+          "name": "minecraft:tooltip_display",
+          "tag": 18
+        },
+        {
+          "codec": 151,
+          "left": false,
+          "name": "minecraft:repair_cost",
+          "tag": 19
+        },
+        {
+          "codec": 154,
+          "left": false,
+          "name": "minecraft:creative_slot_lock",
+          "tag": 20
+        },
+        {
+          "codec": 157,
+          "left": false,
+          "name": "minecraft:enchantment_glint_override",
+          "tag": 21
+        },
+        {
+          "codec": 160,
+          "left": false,
+          "name": "minecraft:intangible_projectile",
+          "tag": 22
+        },
+        {
+          "codec": 163,
+          "left": false,
+          "name": "minecraft:food",
+          "tag": 23
+        },
+        {
+          "codec": 166,
+          "left": false,
+          "name": "minecraft:consumable",
+          "tag": 24
+        },
+        {
+          "codec": 169,
+          "left": false,
+          "name": "minecraft:use_remainder",
+          "tag": 25
+        },
+        {
+          "codec": 172,
+          "left": false,
+          "name": "minecraft:use_cooldown",
+          "tag": 26
+        },
+        {
+          "codec": 175,
+          "left": false,
+          "name": "minecraft:damage_resistant",
+          "tag": 27
+        },
+        {
+          "codec": 178,
+          "left": false,
+          "name": "minecraft:tool",
+          "tag": 28
+        },
+        {
+          "codec": 181,
+          "left": false,
+          "name": "minecraft:weapon",
+          "tag": 29
+        },
+        {
+          "codec": 184,
+          "left": false,
+          "name": "minecraft:attack_range",
+          "tag": 30
+        },
+        {
+          "codec": 187,
+          "left": false,
+          "name": "minecraft:enchantable",
+          "tag": 31
+        },
+        {
+          "codec": 190,
+          "left": false,
+          "name": "minecraft:equippable",
+          "tag": 32
+        },
+        {
+          "codec": 193,
+          "left": false,
+          "name": "minecraft:repairable",
+          "tag": 33
+        },
+        {
+          "codec": 196,
+          "left": false,
+          "name": "minecraft:glider",
+          "tag": 34
+        },
+        {
+          "codec": 199,
+          "left": false,
+          "name": "minecraft:tooltip_style",
+          "tag": 35
+        },
+        {
+          "codec": 202,
+          "left": false,
+          "name": "minecraft:death_protection",
+          "tag": 36
+        },
+        {
+          "codec": 205,
+          "left": false,
+          "name": "minecraft:blocks_attacks",
+          "tag": 37
+        },
+        {
+          "codec": 208,
+          "left": false,
+          "name": "minecraft:piercing_weapon",
+          "tag": 38
+        },
+        {
+          "codec": 211,
+          "left": false,
+          "name": "minecraft:kinetic_weapon",
+          "tag": 39
+        },
+        {
+          "codec": 214,
+          "left": false,
+          "name": "minecraft:swing_animation",
+          "tag": 40
+        },
+        {
+          "codec": 217,
+          "left": false,
+          "name": "minecraft:stored_enchantments",
+          "tag": 41
+        },
+        {
+          "codec": 220,
+          "left": false,
+          "name": "minecraft:dyed_color",
+          "tag": 42
+        },
+        {
+          "codec": 223,
+          "left": false,
+          "name": "minecraft:map_color",
+          "tag": 43
+        },
+        {
+          "codec": 226,
+          "left": false,
+          "name": "minecraft:map_id",
+          "tag": 44
+        },
+        {
+          "codec": 229,
+          "left": false,
+          "name": "minecraft:map_decorations",
+          "tag": 45
+        },
+        {
+          "codec": 232,
+          "left": false,
+          "name": "minecraft:map_post_processing",
+          "tag": 46
+        },
+        {
+          "codec": 235,
+          "left": false,
+          "name": "minecraft:charged_projectiles",
+          "tag": 47
+        },
+        {
+          "codec": 238,
+          "left": false,
+          "name": "minecraft:bundle_contents",
+          "tag": 48
+        },
+        {
+          "codec": 241,
+          "left": false,
+          "name": "minecraft:potion_contents",
+          "tag": 49
+        },
+        {
+          "codec": 244,
+          "left": false,
+          "name": "minecraft:potion_duration_scale",
+          "tag": 50
+        },
+        {
+          "codec": 247,
+          "left": false,
+          "name": "minecraft:suspicious_stew_effects",
+          "tag": 51
+        },
+        {
+          "codec": 250,
+          "left": false,
+          "name": "minecraft:writable_book_content",
+          "tag": 52
+        },
+        {
+          "codec": 253,
+          "left": false,
+          "name": "minecraft:written_book_content",
+          "tag": 53
+        },
+        {
+          "codec": 256,
+          "left": false,
+          "name": "minecraft:trim",
+          "tag": 54
+        },
+        {
+          "codec": 259,
+          "left": false,
+          "name": "minecraft:debug_stick_state",
+          "tag": 55
+        },
+        {
+          "codec": 262,
+          "left": false,
+          "name": "minecraft:entity_data",
+          "tag": 56
+        },
+        {
+          "codec": 265,
+          "left": false,
+          "name": "minecraft:bucket_entity_data",
+          "tag": 57
+        },
+        {
+          "codec": 268,
+          "left": false,
+          "name": "minecraft:block_entity_data",
+          "tag": 58
+        },
+        {
+          "codec": 271,
+          "left": false,
+          "name": "minecraft:instrument",
+          "tag": 59
+        },
+        {
+          "codec": 274,
+          "left": false,
+          "name": "minecraft:provides_trim_material",
+          "tag": 60
+        },
+        {
+          "codec": 277,
+          "left": false,
+          "name": "minecraft:ominous_bottle_amplifier",
+          "tag": 61
+        },
+        {
+          "codec": 280,
+          "left": false,
+          "name": "minecraft:jukebox_playable",
+          "tag": 62
+        },
+        {
+          "codec": 283,
+          "left": false,
+          "name": "minecraft:provides_banner_patterns",
+          "tag": 63
+        },
+        {
+          "codec": 286,
+          "left": false,
+          "name": "minecraft:recipes",
+          "tag": 64
+        },
+        {
+          "codec": 289,
+          "left": false,
+          "name": "minecraft:lodestone_tracker",
+          "tag": 65
+        },
+        {
+          "codec": 292,
+          "left": false,
+          "name": "minecraft:firework_explosion",
+          "tag": 66
+        },
+        {
+          "codec": 295,
+          "left": false,
+          "name": "minecraft:fireworks",
+          "tag": 67
+        },
+        {
+          "codec": 298,
+          "left": false,
+          "name": "minecraft:profile",
+          "tag": 68
+        },
+        {
+          "codec": 301,
+          "left": false,
+          "name": "minecraft:note_block_sound",
+          "tag": 69
+        },
+        {
+          "codec": 304,
+          "left": false,
+          "name": "minecraft:banner_patterns",
+          "tag": 70
+        },
+        {
+          "codec": 307,
+          "left": false,
+          "name": "minecraft:base_color",
+          "tag": 71
+        },
+        {
+          "codec": 310,
+          "left": false,
+          "name": "minecraft:pot_decorations",
+          "tag": 72
+        },
+        {
+          "codec": 313,
+          "left": false,
+          "name": "minecraft:container",
+          "tag": 73
+        },
+        {
+          "codec": 316,
+          "left": false,
+          "name": "minecraft:block_state",
+          "tag": 74
+        },
+        {
+          "codec": 319,
+          "left": false,
+          "name": "minecraft:bees",
+          "tag": 75
+        },
+        {
+          "codec": 322,
+          "left": false,
+          "name": "minecraft:lock",
+          "tag": 76
+        },
+        {
+          "codec": 325,
+          "left": false,
+          "name": "minecraft:container_loot",
+          "tag": 77
+        },
+        {
+          "codec": 328,
+          "left": false,
+          "name": "minecraft:break_sound",
+          "tag": 78
+        },
+        {
+          "codec": 331,
+          "left": false,
+          "name": "minecraft:villager/variant",
+          "tag": 79
+        },
+        {
+          "codec": 334,
+          "left": false,
+          "name": "minecraft:wolf/variant",
+          "tag": 80
+        },
+        {
+          "codec": 337,
+          "left": false,
+          "name": "minecraft:wolf/sound_variant",
+          "tag": 81
+        },
+        {
+          "codec": 340,
+          "left": false,
+          "name": "minecraft:wolf/collar",
+          "tag": 82
+        },
+        {
+          "codec": 343,
+          "left": false,
+          "name": "minecraft:fox/variant",
+          "tag": 83
+        },
+        {
+          "codec": 346,
+          "left": false,
+          "name": "minecraft:salmon/size",
+          "tag": 84
+        },
+        {
+          "codec": 349,
+          "left": false,
+          "name": "minecraft:parrot/variant",
+          "tag": 85
+        },
+        {
+          "codec": 352,
+          "left": false,
+          "name": "minecraft:tropical_fish/pattern",
+          "tag": 86
+        },
+        {
+          "codec": 355,
+          "left": false,
+          "name": "minecraft:tropical_fish/base_color",
+          "tag": 87
+        },
+        {
+          "codec": 358,
+          "left": false,
+          "name": "minecraft:tropical_fish/pattern_color",
+          "tag": 88
+        },
+        {
+          "codec": 361,
+          "left": false,
+          "name": "minecraft:mooshroom/variant",
+          "tag": 89
+        },
+        {
+          "codec": 364,
+          "left": false,
+          "name": "minecraft:rabbit/variant",
+          "tag": 90
+        },
+        {
+          "codec": 367,
+          "left": false,
+          "name": "minecraft:pig/variant",
+          "tag": 91
+        },
+        {
+          "codec": 370,
+          "left": false,
+          "name": "minecraft:cow/variant",
+          "tag": 92
+        },
+        {
+          "codec": 373,
+          "left": false,
+          "name": "minecraft:chicken/variant",
+          "tag": 93
+        },
+        {
+          "codec": 376,
+          "left": false,
+          "name": "minecraft:zombie_nautilus/variant",
+          "tag": 94
+        },
+        {
+          "codec": 379,
+          "left": false,
+          "name": "minecraft:frog/variant",
+          "tag": 95
+        },
+        {
+          "codec": 382,
+          "left": false,
+          "name": "minecraft:horse/variant",
+          "tag": 96
+        },
+        {
+          "codec": 385,
+          "left": false,
+          "name": "minecraft:painting/variant",
+          "tag": 97
+        },
+        {
+          "codec": 388,
+          "left": false,
+          "name": "minecraft:llama/variant",
+          "tag": 98
+        },
+        {
+          "codec": 391,
+          "left": false,
+          "name": "minecraft:axolotl/variant",
+          "tag": 99
+        },
+        {
+          "codec": 394,
+          "left": false,
+          "name": "minecraft:cat/variant",
+          "tag": 100
+        },
+        {
+          "codec": 397,
+          "left": false,
+          "name": "minecraft:cat/collar",
+          "tag": 101
+        },
+        {
+          "codec": 400,
+          "left": false,
+          "name": "minecraft:sheep/color",
+          "tag": 102
+        },
+        {
+          "codec": 403,
+          "left": false,
+          "name": "minecraft:shulker/color",
+          "tag": 103
+        }
+      ]
+    },
+    {
+      "child": 49,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "left": 50,
+      "native_class": "aam$19",
+      "op": "either",
+      "right": 51
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:data_component_predicate_type"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:data_component_type"
+    },
+    {
+      "child": 53,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 54,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 56,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 57,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 59,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 60,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 62,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 63,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 65,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 66,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 68,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 69,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 71,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 72,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 74,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 75,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 77,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 78,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 80,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 81,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 83,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 84,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 86,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 87,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 89,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 90,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 92,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 93,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 95,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 96,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 98,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 99,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 101,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 102,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 104,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 105,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 107,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 108,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 110,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 111,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 113,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 114,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 116,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 117,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 119,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 120,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 122,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 123,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 125,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 126,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 128,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 129,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 131,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 132,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 134,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 135,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 137,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 138,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 140,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 141,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 143,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 144,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 146,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 147,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 149,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 150,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 152,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 153,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 155,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 156,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 158,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 159,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 161,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 162,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 164,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 165,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 167,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 168,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 170,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 171,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 173,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 174,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 176,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 177,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 179,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 180,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 182,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 183,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 185,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 186,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 188,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 189,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 191,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 192,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 194,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 195,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 197,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 198,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 200,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 201,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 203,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 204,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 206,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 207,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 209,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 210,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 212,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 213,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 215,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 216,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 218,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 219,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 221,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 222,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 224,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 225,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 227,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 228,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 230,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 231,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 233,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 234,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 236,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 237,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 239,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 240,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 242,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 243,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 245,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 246,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 248,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 249,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 251,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 252,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 254,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 255,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 257,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 258,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 260,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 261,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 263,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 264,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 266,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 267,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 269,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 270,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 272,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 273,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 275,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 276,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 278,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 279,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 281,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 282,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 284,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 285,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 287,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 288,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 290,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 291,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 293,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 294,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 296,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 297,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 299,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 300,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 302,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 303,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 305,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 306,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 308,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 309,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 311,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 312,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 314,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 315,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 317,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 318,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 320,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 321,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 323,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 324,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 326,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 327,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 329,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 330,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 332,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 333,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 335,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 336,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 338,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 339,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 341,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 342,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 344,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 345,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 347,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 348,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 350,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 351,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 353,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 354,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 356,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 357,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 359,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 360,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 362,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 363,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 365,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 366,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 368,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 369,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 371,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 372,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 374,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 375,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 377,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 378,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 380,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 381,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 383,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 384,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 386,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 387,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 389,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 390,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 392,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 393,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 395,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 396,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 398,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 399,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 401,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 402,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 404,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 405,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 407,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "child": 408,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "children": [
+        409,
+        410,
+        413,
+        414
+      ],
+      "native_class": "aao$2",
+      "op": "sequence"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:attribute"
+    },
+    {
+      "children": [
+        13,
+        411,
+        412
+      ],
+      "native_class": "aao$19",
+      "op": "sequence"
+    },
+    {
+      "length": 8,
+      "native_class": "aam$2",
+      "op": "fixed"
+    },
+    {
+      "native_class": "aam$21",
+      "op": "varint"
+    },
+    {
+      "native_class": "aam$21",
+      "op": "varint"
+    },
+    {
+      "branched": false,
+      "native_class": "aao$16",
+      "op": "dispatch",
+      "variants": [
+        {
+          "codec": 416,
+          "tag": 0
+        },
+        {
+          "codec": 417,
+          "tag": 1
+        },
+        {
+          "codec": 418,
+          "tag": 2
+        }
+      ]
+    },
+    {
+      "native_class": "aam$21",
+      "op": "varint"
+    },
+    {
+      "native_class": "aao$13",
+      "op": "unit"
+    },
+    {
+      "native_class": "aao$13",
+      "op": "unit"
+    },
+    {
+      "child": 7,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "children": [
+        420,
+        421,
+        422,
+        423
+      ],
+      "native_class": "aao$2",
+      "op": "sequence"
+    },
+    {
+      "child": 6,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "child": 5,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "child": 14,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "child": 424,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "length": 4,
+      "native_class": "aam$31",
+      "op": "fixed"
+    },
+    {
+      "children": [
+        5,
+        426
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "child": 427,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "child": 428,
+      "native_class": "aao$11",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:data_component_type"
+    },
+    {
+      "child": 430,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "children": [
+        2,
+        6,
+        5
+      ],
+      "native_class": "aao$19",
+      "op": "sequence"
+    },
+    {
+      "children": [
+        6,
+        433,
+        434,
+        5,
+        437
+      ],
+      "native_class": "aao$3",
+      "op": "sequence"
+    },
+    {
+      "native_class": "aam$21",
+      "op": "varint"
+    },
+    {
+      "inline": 435,
+      "native_class": "aam$24",
+      "op": "holder",
+      "registry": "minecraft:sound_event"
+    },
+    {
+      "children": [
+        13,
+        436
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "child": 6,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 438,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "branched": false,
+      "native_class": "aao$16",
+      "op": "dispatch",
+      "variants": [
+        {
+          "codec": 440,
+          "name": "minecraft:apply_effects",
+          "tag": 0
+        },
+        {
+          "codec": 447,
+          "name": "minecraft:remove_effects",
+          "tag": 1
+        },
+        {
+          "codec": 450,
+          "name": "minecraft:clear_all_effects",
+          "tag": 2
+        },
+        {
+          "codec": 451,
+          "name": "minecraft:teleport_randomly",
+          "tag": 3
+        },
+        {
+          "codec": 452,
+          "name": "minecraft:play_sound",
+          "tag": 4
+        }
+      ]
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:consume_effect_type"
+    },
+    {
+      "children": [
+        441,
+        6
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "child": 442,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "children": [
+        443,
+        444
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:mob_effect"
+    },
+    {
+      "child": 445,
+      "native_class": "aao$11",
+      "op": "forward"
+    },
+    {
+      "children": [
+        2,
+        2,
+        5,
+        5,
+        5,
+        446
+      ],
+      "native_class": "aao$4",
+      "op": "sequence"
+    },
+    {
+      "child": 444,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 448,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "child": 449,
+      "native_class": "aam$25",
+      "op": "holder_set",
+      "registry": "minecraft:mob_effect"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:mob_effect"
+    },
+    {
+      "native_class": "aao$13",
+      "op": "unit"
+    },
+    {
+      "child": 6,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "child": 434,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "child": 454,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "native_class": "dlt$2",
+      "nonempty": true,
+      "op": "item"
+    },
+    {
+      "children": [
+        6,
+        456
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "child": 13,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 458,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "child": 13,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "children": [
+        460,
+        6,
+        2,
+        5
+      ],
+      "native_class": "aao$2",
+      "op": "sequence"
+    },
+    {
+      "child": 461,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "children": [
+        462,
+        464,
+        465
+      ],
+      "native_class": "aao$19",
+      "op": "sequence"
+    },
+    {
+      "child": 463,
+      "native_class": "aam$25",
+      "op": "holder_set",
+      "registry": "minecraft:block"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:block"
+    },
+    {
+      "child": 6,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 5,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "children": [
+        2,
+        6
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "children": [
+        6,
+        6,
+        6,
+        6,
+        6,
+        6
+      ],
+      "native_class": "aao$4",
+      "op": "sequence"
+    },
+    {
+      "child": 2,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "children": [
+        470,
+        434,
+        471,
+        473,
+        474,
+        5,
+        5,
+        5,
+        5,
+        5,
+        434
+      ],
+      "native_class": "aao$9",
+      "op": "sequence"
+    },
+    {
+      "native_class": "aam$21",
+      "op": "varint"
+    },
+    {
+      "child": 472,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 13,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 13,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 475,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 476,
+      "native_class": "aam$25",
+      "op": "holder_set",
+      "registry": "minecraft:entity_type"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:entity_type"
+    },
+    {
+      "child": 478,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "child": 479,
+      "native_class": "aam$25",
+      "op": "holder_set",
+      "registry": "minecraft:item"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:item"
+    },
+    {
+      "child": 481,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "child": 438,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "children": [
+        6,
+        6,
+        483,
+        488,
+        489,
+        491,
+        492
+      ],
+      "native_class": "aao$5",
+      "op": "sequence"
+    },
+    {
+      "child": 484,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "children": [
+        6,
+        485,
+        6,
+        6
+      ],
+      "native_class": "aao$2",
+      "op": "sequence"
+    },
+    {
+      "child": 486,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 487,
+      "native_class": "aam$25",
+      "op": "holder_set",
+      "registry": "minecraft:damage_type"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:damage_type"
+    },
+    {
+      "children": [
+        6,
+        6,
+        6
+      ],
+      "native_class": "aao$19",
+      "op": "sequence"
+    },
+    {
+      "child": 490,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 13,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 434,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 434,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "children": [
+        5,
+        5,
+        494,
+        495
+      ],
+      "native_class": "aao$2",
+      "op": "sequence"
+    },
+    {
+      "child": 434,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 434,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "children": [
+        2,
+        2,
+        497,
+        499,
+        500,
+        6,
+        6,
+        501,
+        502
+      ],
+      "native_class": "aao$7",
+      "op": "sequence"
+    },
+    {
+      "child": 498,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "children": [
+        2,
+        6,
+        6
+      ],
+      "native_class": "aao$19",
+      "op": "sequence"
+    },
+    {
+      "child": 498,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 498,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 434,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 434,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "children": [
+        504,
+        2
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "native_class": "aam$21",
+      "op": "varint"
+    },
+    {
+      "child": 424,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "child": 424,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 2,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 509,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "native_class": "aam$21",
+      "op": "varint"
+    },
+    {
+      "child": 512,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 454,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "child": 514,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 454,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "children": [
+        516,
+        518,
+        519,
+        520
+      ],
+      "native_class": "aao$2",
+      "op": "sequence"
+    },
+    {
+      "child": 517,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:potion"
+    },
+    {
+      "child": 424,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 442,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "child": 14,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 522,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 523,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "children": [
+        443,
+        2
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "child": 525,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 526,
+      "maximum": 100,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "children": [
+        527,
+        528
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "maximum": 1024,
+      "native_class": "aam$6",
+      "op": "string"
+    },
+    {
+      "child": 527,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "children": [
+        530,
+        14,
+        2,
+        533,
+        5
+      ],
+      "native_class": "aao$3",
+      "op": "sequence"
+    },
+    {
+      "children": [
+        531,
+        532
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "maximum": 32,
+      "native_class": "aam$6",
+      "op": "string"
+    },
+    {
+      "child": 531,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 534,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "children": [
+        7,
+        535
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "child": 7,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "children": [
+        537,
+        543
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "inline": 538,
+      "native_class": "aam$24",
+      "op": "holder",
+      "registry": "minecraft:trim_material"
+    },
+    {
+      "children": [
+        539,
+        7
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "children": [
+        540,
+        541
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "child": 14,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "key": 542,
+      "maximum": 2147483647,
+      "native_class": "aam$18",
+      "op": "map",
+      "value": 540
+    },
+    {
+      "child": 13,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "inline": 544,
+      "native_class": "aam$24",
+      "op": "holder",
+      "registry": "minecraft:trim_pattern"
+    },
+    {
+      "children": [
+        13,
+        7,
+        5
+      ],
+      "native_class": "aao$19",
+      "op": "sequence"
+    },
+    {
+      "child": 546,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "children": [
+        548,
+        39
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:entity_type"
+    },
+    {
+      "child": 39,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "children": [
+        551,
+        39
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:block_entity_type"
+    },
+    {
+      "child": 553,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 554,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "left": 555,
+      "native_class": "aam$19",
+      "op": "either",
+      "right": 557
+    },
+    {
+      "inline": 556,
+      "native_class": "aam$24",
+      "op": "holder",
+      "registry": "minecraft:instrument"
+    },
+    {
+      "children": [
+        434,
+        6,
+        6,
+        7
+      ],
+      "native_class": "aao$2",
+      "op": "sequence"
+    },
+    {
+      "child": 13,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 559,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 560,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "left": 537,
+      "native_class": "aam$19",
+      "op": "either",
+      "right": 561
+    },
+    {
+      "child": 13,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 2,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "child": 564,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "child": 565,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "left": 566,
+      "native_class": "aam$19",
+      "op": "either",
+      "right": 568
+    },
+    {
+      "inline": 567,
+      "native_class": "aam$24",
+      "op": "holder",
+      "registry": "minecraft:jukebox_song"
+    },
+    {
+      "children": [
+        434,
+        7,
+        6,
+        2
+      ],
+      "native_class": "aao$2",
+      "op": "sequence"
+    },
+    {
+      "child": 13,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 13,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 571,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "children": [
+        573,
+        5
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "child": 574,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "children": [
+        575,
+        576
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "child": 13,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "length": 8,
+      "native_class": "is$1",
+      "op": "fixed"
+    },
+    {
+      "children": [
+        578,
+        579,
+        579,
+        5,
+        5
+      ],
+      "native_class": "aao$3",
+      "op": "sequence"
+    },
+    {
+      "native_class": "aam$21",
+      "op": "varint"
+    },
+    {
+      "child": 580,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 424,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "children": [
+        2,
+        582
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "child": 577,
+      "maximum": 256,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "children": [
+        584,
+        592
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "left": 585,
+      "native_class": "aam$19",
+      "op": "either",
+      "right": 589
+    },
+    {
+      "children": [
+        586,
+        587,
+        588
+      ],
+      "native_class": "aao$19",
+      "op": "sequence"
+    },
+    {
+      "length": 16,
+      "native_class": "jx$1",
+      "op": "fixed"
+    },
+    {
+      "maximum": 16,
+      "native_class": "aam$6",
+      "op": "string"
+    },
+    {
+      "native_class": "aam$26",
+      "op": "profile_properties"
+    },
+    {
+      "children": [
+        590,
+        591,
+        588
+      ],
+      "native_class": "aao$19",
+      "op": "sequence"
+    },
+    {
+      "child": 587,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 586,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "children": [
+        593,
+        595,
+        596,
+        597
+      ],
+      "native_class": "aao$2",
+      "op": "sequence"
+    },
+    {
+      "child": 594,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 13,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 594,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 594,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 598,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 5,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 600,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 601,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "children": [
+        602,
+        604
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "inline": 603,
+      "native_class": "aam$24",
+      "op": "holder",
+      "registry": "minecraft:banner_pattern"
+    },
+    {
+      "children": [
+        13,
+        14
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "native_class": "aam$21",
+      "op": "varint"
+    },
+    {
+      "child": 606,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 607,
+      "maximum": 4,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:item"
+    },
+    {
+      "child": 609,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 610,
+      "maximum": 256,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "native_class": "dlt$1",
+      "nonempty": false,
+      "op": "item"
+    },
+    {
+      "native_class": "kg$3",
+      "op": "patch"
+    },
+    {
+      "child": 613,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "key": 14,
+      "maximum": 2147483647,
+      "native_class": "aam$18",
+      "op": "map",
+      "value": 14
+    },
+    {
+      "child": 615,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 616,
+      "maximum": 2147483647,
+      "native_class": "aam$17",
+      "op": "list"
+    },
+    {
+      "children": [
+        617,
+        2,
+        2
+      ],
+      "native_class": "aao$19",
+      "op": "sequence"
+    },
+    {
+      "children": [
+        548,
+        39
+      ],
+      "native_class": "aao$18",
+      "op": "sequence"
+    },
+    {
+      "child": 619,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "child": 621,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:villager_type"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:wolf_variant"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:wolf_sound_variant"
+    },
+    {
+      "native_class": "aam$21",
+      "op": "varint"
+    },
+    {
+      "native_class": "aam$21",
+      "op": "varint"
+    },
+    {
+      "native_class": "aam$21",
+      "op": "varint"
+    },
+    {
+      "native_class": "aam$21",
+      "op": "varint"
+    },
+    {
+      "native_class": "aam$21",
+      "op": "varint"
+    },
+    {
+      "native_class": "aam$21",
+      "op": "varint"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:pig_variant"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:cow_variant"
+    },
+    {
+      "child": 634,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "left": 635,
+      "native_class": "aam$19",
+      "op": "either",
+      "right": 636
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:chicken_variant"
+    },
+    {
+      "child": 13,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "child": 638,
+      "native_class": "aao$17",
+      "op": "forward"
+    },
+    {
+      "left": 639,
+      "native_class": "aam$19",
+      "op": "either",
+      "right": 640
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:zombie_nautilus_variant"
+    },
+    {
+      "child": 13,
+      "native_class": "aao$14",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:frog_variant"
+    },
+    {
+      "native_class": "aam$21",
+      "op": "varint"
+    },
+    {
+      "inline": 644,
+      "native_class": "aam$24",
+      "op": "holder",
+      "registry": "minecraft:painting_variant"
+    },
+    {
+      "children": [
+        2,
+        2,
+        13,
+        645,
+        645
+      ],
+      "native_class": "aao$3",
+      "op": "sequence"
+    },
+    {
+      "child": 646,
+      "native_class": "aam$16",
+      "op": "optional"
+    },
+    {
+      "child": 647,
+      "native_class": "aam$10",
+      "op": "forward"
+    },
+    {
+      "native_class": "aam$8",
+      "op": "nbt"
+    },
+    {
+      "native_class": "aam$21",
+      "op": "varint"
+    },
+    {
+      "native_class": "aam$21",
+      "op": "varint"
+    },
+    {
+      "native_class": "aam$22",
+      "op": "registry",
+      "registry": "minecraft:cat_variant"
+    }
+  ],
+  "roots": {
+    "minecraft:attack_range": 467,
+    "minecraft:attribute_modifiers": 406,
+    "minecraft:axolotl/variant": 649,
+    "minecraft:banner_patterns": 599,
+    "minecraft:base_color": 604,
+    "minecraft:bees": 614,
+    "minecraft:block_entity_data": 550,
+    "minecraft:block_state": 612,
+    "minecraft:blocks_attacks": 482,
+    "minecraft:break_sound": 434,
+    "minecraft:bucket_entity_data": 549,
+    "minecraft:bundle_contents": 513,
+    "minecraft:can_break": 21,
+    "minecraft:can_place_on": 21,
+    "minecraft:cat/collar": 604,
+    "minecraft:cat/variant": 650,
+    "minecraft:charged_projectiles": 511,
+    "minecraft:chicken/variant": 633,
+    "minecraft:consumable": 432,
+    "minecraft:container": 608,
+    "minecraft:container_loot": 620,
+    "minecraft:cow/variant": 632,
+    "minecraft:creative_slot_lock": 3,
+    "minecraft:custom_data": 0,
+    "minecraft:custom_model_data": 419,
+    "minecraft:custom_name": 7,
+    "minecraft:damage": 2,
+    "minecraft:damage_resistant": 457,
+    "minecraft:damage_type": 9,
+    "minecraft:death_protection": 480,
+    "minecraft:debug_stick_state": 545,
+    "minecraft:dyed_color": 505,
+    "minecraft:enchantable": 468,
+    "minecraft:enchantment_glint_override": 5,
+    "minecraft:enchantments": 18,
+    "minecraft:entity_data": 547,
+    "minecraft:equippable": 469,
+    "minecraft:firework_explosion": 577,
+    "minecraft:fireworks": 581,
+    "minecraft:food": 431,
+    "minecraft:fox/variant": 625,
+    "minecraft:frog/variant": 641,
+    "minecraft:glider": 3,
+    "minecraft:horse/variant": 642,
+    "minecraft:instrument": 552,
+    "minecraft:intangible_projectile": 429,
+    "minecraft:item_model": 13,
+    "minecraft:item_name": 7,
+    "minecraft:jukebox_playable": 563,
+    "minecraft:kinetic_weapon": 496,
+    "minecraft:llama/variant": 648,
+    "minecraft:lock": 618,
+    "minecraft:lodestone_tracker": 572,
+    "minecraft:lore": 15,
+    "minecraft:map_color": 506,
+    "minecraft:map_decorations": 508,
+    "minecraft:map_id": 507,
+    "minecraft:map_post_processing": 510,
+    "minecraft:max_damage": 2,
+    "minecraft:max_stack_size": 2,
+    "minecraft:minimum_attack_charge": 6,
+    "minecraft:mooshroom/variant": 629,
+    "minecraft:note_block_sound": 13,
+    "minecraft:ominous_bottle_amplifier": 562,
+    "minecraft:painting/variant": 643,
+    "minecraft:parrot/variant": 627,
+    "minecraft:piercing_weapon": 493,
+    "minecraft:pig/variant": 631,
+    "minecraft:pot_decorations": 605,
+    "minecraft:potion_contents": 515,
+    "minecraft:potion_duration_scale": 6,
+    "minecraft:profile": 583,
+    "minecraft:provides_banner_patterns": 569,
+    "minecraft:provides_trim_material": 558,
+    "minecraft:rabbit/variant": 630,
+    "minecraft:rarity": 17,
+    "minecraft:recipes": 570,
+    "minecraft:repair_cost": 2,
+    "minecraft:repairable": 477,
+    "minecraft:salmon/size": 626,
+    "minecraft:sheep/color": 604,
+    "minecraft:shulker/color": 604,
+    "minecraft:stored_enchantments": 18,
+    "minecraft:suspicious_stew_effects": 521,
+    "minecraft:swing_animation": 503,
+    "minecraft:tool": 459,
+    "minecraft:tooltip_display": 425,
+    "minecraft:tooltip_style": 13,
+    "minecraft:trim": 536,
+    "minecraft:tropical_fish/base_color": 604,
+    "minecraft:tropical_fish/pattern": 628,
+    "minecraft:tropical_fish/pattern_color": 604,
+    "minecraft:unbreakable": 3,
+    "minecraft:use_cooldown": 455,
+    "minecraft:use_effects": 4,
+    "minecraft:use_remainder": 453,
+    "minecraft:villager/variant": 622,
+    "minecraft:weapon": 466,
+    "minecraft:wolf/collar": 604,
+    "minecraft:wolf/sound_variant": 624,
+    "minecraft:wolf/variant": 623,
+    "minecraft:writable_book_content": 524,
+    "minecraft:written_book_content": 529,
+    "minecraft:zombie_nautilus/variant": 637,
+    "native_item": 610
+  },
+  "schema": 1,
+  "version": "1.21.11"
+}

@@ -1,0 +1,641 @@
+[
+  {
+    "case": "empty-main",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 4
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 3
+      }
+    ],
+    "fill": null,
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "selected-first",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 4
+      }
+    ],
+    "fill": null,
+    "slots": {
+      "2": {
+        "item": "minecraft:stone",
+        "count": 60
+      },
+      "9": {
+        "item": "minecraft:stone",
+        "count": 60
+      }
+    },
+    "offhand": null,
+    "selected": 2
+  },
+  {
+    "case": "offhand-before-main",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 4
+      }
+    ],
+    "fill": null,
+    "slots": {
+      "9": {
+        "item": "minecraft:stone",
+        "count": 60
+      }
+    },
+    "offhand": {
+      "item": "minecraft:stone",
+      "count": 60
+    },
+    "selected": 0
+  },
+  {
+    "case": "partial-selected-offhand-main",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 7
+      }
+    ],
+    "fill": null,
+    "slots": {
+      "2": {
+        "item": "minecraft:stone",
+        "count": 63
+      },
+      "9": {
+        "item": "minecraft:stone",
+        "count": 60
+      }
+    },
+    "offhand": {
+      "item": "minecraft:stone",
+      "count": 63
+    },
+    "selected": 2
+  },
+  {
+    "case": "merge-main-before-free",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 4
+      }
+    ],
+    "fill": null,
+    "slots": {
+      "9": {
+        "item": "minecraft:stone",
+        "count": 60
+      }
+    },
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "named-separate",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 4,
+        "name": "One"
+      }
+    ],
+    "fill": null,
+    "slots": {
+      "0": {
+        "item": "minecraft:stone",
+        "count": 60,
+        "name": "Two"
+      }
+    },
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "named-merge",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 4,
+        "name": "One"
+      }
+    ],
+    "fill": null,
+    "slots": {
+      "0": {
+        "item": "minecraft:stone",
+        "count": 60,
+        "name": "One"
+      }
+    },
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "input-pooling",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 40
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 24
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 3
+      }
+    ],
+    "fill": null,
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "named-inputs-separate",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 40,
+        "name": "One"
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 24,
+        "name": "Two"
+      }
+    ],
+    "fill": null,
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "tools-no-merge",
+    "inputs": [
+      {
+        "item": "minecraft:iron_pickaxe",
+        "count": 1
+      },
+      {
+        "item": "minecraft:iron_pickaxe",
+        "count": 1
+      }
+    ],
+    "fill": null,
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "full-0-1",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 3
+      }
+    ],
+    "fill": {
+      "item": "minecraft:cobblestone",
+      "count": 64
+    },
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "full-0-63",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 63
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 3
+      }
+    ],
+    "fill": {
+      "item": "minecraft:cobblestone",
+      "count": 64
+    },
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "full-0-64",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 64
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 3
+      }
+    ],
+    "fill": {
+      "item": "minecraft:cobblestone",
+      "count": 64
+    },
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "full-1-1",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 3
+      }
+    ],
+    "fill": {
+      "item": "minecraft:cobblestone",
+      "count": 64
+    },
+    "slots": {
+      "0": null
+    },
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "full-1-63",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 63
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 3
+      }
+    ],
+    "fill": {
+      "item": "minecraft:cobblestone",
+      "count": 64
+    },
+    "slots": {
+      "0": null
+    },
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "full-1-64",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 64
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 3
+      }
+    ],
+    "fill": {
+      "item": "minecraft:cobblestone",
+      "count": 64
+    },
+    "slots": {
+      "0": null
+    },
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "full-2-1",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 3
+      }
+    ],
+    "fill": {
+      "item": "minecraft:cobblestone",
+      "count": 64
+    },
+    "slots": {
+      "0": null,
+      "1": null
+    },
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "full-2-63",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 63
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 3
+      }
+    ],
+    "fill": {
+      "item": "minecraft:cobblestone",
+      "count": 64
+    },
+    "slots": {
+      "0": null,
+      "1": null
+    },
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "full-2-64",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 64
+      },
+      {
+        "item": "minecraft:dirt",
+        "count": 3
+      }
+    ],
+    "fill": {
+      "item": "minecraft:cobblestone",
+      "count": 64
+    },
+    "slots": {
+      "0": null,
+      "1": null
+    },
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "full-offhand-only",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 2
+      }
+    ],
+    "fill": {
+      "item": "minecraft:cobblestone",
+      "count": 64
+    },
+    "slots": {},
+    "offhand": {
+      "item": "minecraft:stone",
+      "count": 62
+    },
+    "selected": 0
+  },
+  {
+    "case": "full-selected-partial-insufficient",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 3
+      }
+    ],
+    "fill": {
+      "item": "minecraft:cobblestone",
+      "count": 64
+    },
+    "slots": {
+      "2": {
+        "item": "minecraft:stone",
+        "count": 63
+      }
+    },
+    "offhand": null,
+    "selected": 2
+  },
+  {
+    "case": "offhand-empty-is-not-free",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      }
+    ],
+    "fill": {
+      "item": "minecraft:cobblestone",
+      "count": 64
+    },
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "capacity-16",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 10,
+        "capacity": 16
+      }
+    ],
+    "fill": null,
+    "slots": {
+      "0": {
+        "item": "minecraft:stone",
+        "count": 12,
+        "capacity": 16
+      }
+    },
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "capacity-128",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 10,
+        "capacity": 128
+      }
+    ],
+    "fill": null,
+    "slots": {
+      "0": {
+        "item": "minecraft:stone",
+        "count": 95,
+        "capacity": 128
+      }
+    },
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "nine-inputs",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 1
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 2
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 3
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 4
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 5
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 6
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 7
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 8
+      },
+      {
+        "item": "minecraft:stone",
+        "count": 9
+      }
+    ],
+    "fill": null,
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "over-limit-source-100",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 100
+      }
+    ],
+    "fill": null,
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "over-limit-destination-100",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 4
+      }
+    ],
+    "fill": null,
+    "slots": {
+      "0": {
+        "item": "minecraft:stone",
+        "count": 100
+      }
+    },
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "damaged-two-tools",
+    "inputs": [
+      {
+        "item": "minecraft:iron_pickaxe",
+        "count": 2,
+        "damage": 1
+      }
+    ],
+    "fill": null,
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "damaged-custom-capacity-over-inventory",
+    "inputs": [
+      {
+        "item": "minecraft:iron_pickaxe",
+        "count": 100,
+        "damage": 1,
+        "capacity": 128
+      }
+    ],
+    "fill": null,
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "damaged-custom-capacity-16",
+    "inputs": [
+      {
+        "item": "minecraft:iron_pickaxe",
+        "count": 20,
+        "damage": 1,
+        "capacity": 16
+      }
+    ],
+    "fill": null,
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "modified-small-capacity-source-100",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 100,
+        "capacity": 16
+      }
+    ],
+    "fill": null,
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  },
+  {
+    "case": "modified-large-capacity-source-100",
+    "inputs": [
+      {
+        "item": "minecraft:stone",
+        "count": 100,
+        "capacity": 128
+      }
+    ],
+    "fill": null,
+    "slots": {},
+    "offhand": null,
+    "selected": 0
+  }
+]

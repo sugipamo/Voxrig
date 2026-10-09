@@ -2,15 +2,20 @@
 //! Static dry-cube standing and bounded survival controls have explicit admission.
 //! General locomotion/pathfinding and complex item components are not inferred.
 //! Mining removal alone does not authorize further mutations on that connection.
+pub(super) mod container;
+use crate::client::adapter::FlightOps;
+pub(super) mod continuous;
+mod flight;
 mod geometry;
-mod inventory;
-mod mining;
+pub(super) mod inventory;
+pub(super) mod mining;
 mod movement;
-mod placement;
+pub(super) mod placement;
 mod profile_recovery;
 mod recovery;
 mod retirement;
 mod survival;
+pub(super) mod vehicle;
 pub use movement::{
     AssumedSurvivalScene, AssumedSurvivalStart, CapturedSurvivalScene, HypotheticalAimRequirement,
     HypotheticalBlockEdit, HypotheticalMovementPreview, HypotheticalMovementTransition,
@@ -19,6 +24,8 @@ pub use movement::{
     SurvivalInput, SurvivalMotionContract, SurvivalMotionRecheck, SurvivalMotionRecord,
     SurvivalMotionStatus, SurvivalMovementPreview, SurvivalScenario, TerminalClearance,
 };
+#[cfg(test)]
+mod component_tests;
 #[cfg(test)]
 mod tests;
 pub use super::loading::{InteractionLoading, LoadingAttempt};
@@ -32,7 +39,8 @@ pub use mining::{
     MiningSend, MiningStatus, MiningTargetReceipt,
 };
 pub use mining::{
-    RecordedMiningIntent, RecordedMiningRecord, RecordedMiningRemoval, RecordedMiningStatus,
+    RecordedMiningIntent, RecordedMiningInventoryChange, RecordedMiningRecord,
+    RecordedMiningRemoval, RecordedMiningStatus,
 };
 pub(super) use mining::{mining_chunk_changed, mining_received, mining_world_changed};
 pub use movement::RecordedSurvivalMovementPreview;
@@ -63,33 +71,10 @@ use serde::Serialize;
 pub use survival::RecordedStandingContext;
 pub use survival::{
     AttributeValue, LocalPlayerState, MotionInterruption, PlayerHealth, ReceivedEffect,
-    StandingContext, ValueBasis, VelocitySample,
+    ReceivedItemUse, StandingContext, ValueBasis, VelocitySample,
 };
 
-/// Game mode observed in a native login/respawn/change packet.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum GameMode {
-    /// Survival.
-    Survival,
-    /// Creative.
-    Creative,
-    /// Adventure.
-    Adventure,
-    /// Spectator.
-    Spectator,
-}
-impl GameMode {
-    fn decode(id: u8) -> anyhow::Result<Self> {
-        Ok(match id {
-            0 => Self::Survival,
-            1 => Self::Creative,
-            2 => Self::Adventure,
-            3 => Self::Spectator,
-            _ => bail!("invalid game mode"),
-        })
-    }
-}
+pub use crate::client::GameMode;
 
 /// A default item stack, without added or removed data components.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, serde::Deserialize)]
@@ -119,10 +104,11 @@ pub fn default_item(name: &str, count: u8) -> Result<PlainItem> {
         count: i32::from(count),
     })
 }
+crate::diagnostic_projection::diagnostic_record! {
 /// Received inventory knowledge; unknown never means an empty slot.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub enum InventorySlot {
+pub enum InventorySlot => RecordedInventorySlot {
     /// No complete supported packet has established this slot.
     Unavailable,
     /// A native packet declared this slot empty.
@@ -132,7 +118,17 @@ pub enum InventorySlot {
         /// Exact item identity and count.
         item: PlainItem,
     },
+    /// A received stack with a complete supported native component patch.
+    ItemWithComponents {
+        /// Native item identity/count; prototype data is not flattened into this value.
+        item: PlainItem,
+        /// Exact supported values/removals, distinct from a default stack.
+        components: crate::client::ItemComponentPatch,
+    },
 }
+    diagnostic_serde { #[serde(tag = "kind", rename_all = "snake_case")] }
+}
+
 diagnostic_record! {
     /// Received inventory contents; unsupported components invalidate the affected baseline.
     #[derive(Clone, Debug, Serialize)]
@@ -157,6 +153,12 @@ diagnostic_record! {
     native_only {
         #[serde(skip)]
         slot_sequences: Vec<Option<u64>>,
+        #[serde(skip)]
+        cursor_sequence: Option<u64>,
+        #[serde(skip)]
+        pub(crate) container: Option<crate::client::container::ScreenReceipts>,
+        #[serde(skip)]
+        player_revision: Option<crate::client::ObservedValue<i32>>,
     }
     diagnostic_serde {}
 }
@@ -184,6 +186,9 @@ impl Default for Inventory {
             cursor: InventorySlot::Unavailable,
             pending_swap: None,
             slot_sequences: vec![None; 46],
+            cursor_sequence: None,
+            container: None,
+            player_revision: None,
         }
     }
 }
@@ -309,13 +314,20 @@ pub(super) struct OperationState {
     messages_dropped_through: u64,
     game_mode: Option<GameMode>,
     abilities: Option<u8>,
+    abilities_sequence: Option<u64>,
     requested_flying: bool,
     ack: Option<i32>,
+    ack_receive_sequence: Option<u64>,
     inventory: Inventory,
     selected_hotbar: Option<HotbarSelection>,
     pub(super) local_player: LocalPlayerState,
 }
 impl OperationState {
+    pub(super) fn abilities_receipt(&self) -> Option<crate::client::ObservedValue<u8>> {
+        self.abilities
+            .zip(self.abilities_sequence)
+            .map(|(flags, sequence)| crate::client::received(flags, sequence))
+    }
     pub fn reset_configuration(&mut self, sequence: u64) {
         *self = Self {
             messages_dropped_through: sequence,
@@ -343,6 +355,22 @@ impl OperationState {
 #[derive(Clone)]
 pub struct Operations {
     pub(super) bot: Bot,
+}
+impl Operations {
+    /// The session this handle operates on.
+    pub(crate) fn bot(&self) -> &Bot {
+        &self.bot
+    }
+}
+pub(super) fn recipe_ghost_context(state: &State) -> crate::client::crafting::ghost::GhostContext {
+    crate::client::crafting::ghost::GhostContext {
+        generation: state.loading.generation,
+        sequence: state.sequence,
+        active_window: state.operations.inventory.window_id,
+        screen: state.operations.inventory.container.clone(),
+        close: state.common_container_close.clone(),
+        registries: state.registries.clone(),
+    }
 }
 impl Operations {
     /// Inspect unresolved operation history without sending, reconnecting or
@@ -450,11 +478,38 @@ impl Operations {
             .await?;
         Ok(())
     }
+    /// Send an unsigned chat line on an offline connection. The server may
+    /// still reject or rewrite it; dispatch is not delivery.
+    pub async fn send_chat(&self, message: &str) -> Result<()> {
+        crate::client::chat::validate_chat(message)?;
+        let state = self.bot.session.state.lock().await;
+        self.mutable(&state)?;
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |elapsed| elapsed.as_millis() as u64);
+        let mut payload = Vec::new();
+        put_string(&mut payload, message);
+        payload.extend_from_slice(&timestamp.to_be_bytes());
+        payload.extend_from_slice(&0u64.to_be_bytes()); // Salt; unused without a signature.
+        payload.push(0); // No signature.
+        payload.push(0); // Last-seen offset.
+        payload.extend_from_slice(&[0; 3]); // Acknowledged last-seen bitset (20 bits).
+        payload.push(0); // Last-seen checksum.
+        self.bot
+            .session
+            .send(ids::play_serverbound::CHAT_MESSAGE, &payload)
+            .await?;
+        Ok(())
+    }
     /// Request flight only when the server advertises the ability.
     pub async fn set_flying(&self, flying: bool) -> Result<()> {
+        self.set_flying_in_mode(None, flying).await
+    }
+    async fn set_flying_in_mode(&self, mode: Option<GameMode>, flying: bool) -> Result<()> {
         let mut state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
-        if flying && !state.operations.abilities.is_some_and(|a| a & 4 != 0) {
+        self.require_mode(&state, mode)?;
+        if flying && state.operations.abilities.is_none_or(|a| a & 4 == 0) {
             return Err(invalid("server has not granted flight"));
         }
         self.bot
@@ -470,11 +525,20 @@ impl Operations {
     /// Submit a short creative flight step, with rotation in degrees.
     /// This does not implement collision resolution or server-confirmed teleportation.
     pub async fn move_flying(&self, position: [f64; 3], rotation: [f32; 2]) -> Result<()> {
+        self.move_flying_in_mode(None, position, rotation).await
+    }
+    async fn move_flying_in_mode(
+        &self,
+        mode: Option<GameMode>,
+        position: [f64; 3],
+        rotation: [f32; 2],
+    ) -> Result<()> {
         validate_pose(position, rotation)?;
         let mut state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
+        self.require_mode(&state, mode)?;
         if !state.operations.requested_flying
-            || !state.operations.abilities.is_some_and(|a| a & 4 != 0)
+            || state.operations.abilities.is_none_or(|a| a & 4 == 0)
         {
             return Err(invalid("flight must be permitted and requested"));
         }
@@ -514,9 +578,13 @@ impl Operations {
     /// Survival rechecks stationary standing geometry to derive the ground bit;
     /// unavailable or unsupported context refuses before sending or changing rotation.
     pub async fn look(&self, rotation: [f32; 2]) -> Result<()> {
+        self.look_in_mode(None, rotation).await
+    }
+    async fn look_in_mode(&self, mode: Option<GameMode>, rotation: [f32; 2]) -> Result<()> {
         validate_pose([0.0; 3], rotation)?;
         let mut state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
+        self.require_mode(&state, mode)?;
         let mut payload = Vec::new();
         for v in rotation {
             payload.extend(v.to_be_bytes());
@@ -530,6 +598,7 @@ impl Operations {
             .send(ids::play_serverbound::LOOK, &payload)
             .await?;
         state.rotation = rotation;
+        state.motion.rotation_source = Some(crate::client::ValueSource::Submitted);
         Ok(())
     }
     /// Submit a default item to a creative hotbar slot (0..8). No inventory echo is invented.
@@ -560,11 +629,18 @@ impl Operations {
     }
     /// Submit held hotbar selection. The server still decides which item is present.
     pub async fn select_hotbar(&self, slot: u8) -> Result<()> {
+        self.select_hotbar_in_mode(None, slot).await
+    }
+    async fn select_hotbar_in_mode(&self, mode: Option<GameMode>, slot: u8) -> Result<()> {
         if slot > 8 {
             return Err(invalid("hotbar slot must be 0..8"));
         }
         let mut state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
+        self.require_mode(&state, mode)?;
+        if let Some(mode) = mode {
+            crate::client::operations::validate_hotbar_selection(mode, slot)?;
+        }
         if state.operations.inventory.pending_swap.is_some() {
             return Err(Error::new(
                 ErrorKind::State,
@@ -616,28 +692,37 @@ impl Operations {
         face: crate::BlockFace,
         cursor: [f32; 3],
     ) -> Result<i32> {
-        if cursor
-            .iter()
-            .any(|v| !v.is_finite() || !(0.0..=1.0).contains(v))
-        {
-            return Err(invalid("invalid block hit"));
-        }
+        self.use_on_block_in(None, crate::client::Hand::Main, position, face, cursor)
+            .await
+    }
+    /// `mode` None is the native API, which keeps survival on the checked placement path.
+    async fn use_on_block_in(
+        &self,
+        mode: Option<GameMode>,
+        hand: crate::client::Hand,
+        position: [i32; 3],
+        face: crate::BlockFace,
+        cursor: [f32; 3],
+    ) -> Result<i32> {
+        crate::client::item_use::validate_cursor(cursor)?;
         let state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
+        self.require_mode(&state, mode)?;
         if state.operations.inventory.pending_swap.is_some() {
             return Err(Error::new(
                 ErrorKind::State,
                 anyhow::anyhow!("inventory swap needs inspection"),
             ));
         }
-        if state.operations.game_mode == Some(GameMode::Survival) {
+        if mode.is_none() && state.operations.game_mode == Some(GameMode::Survival) {
             return Err(invalid(
                 "survival placement requires place_survival_cube and received material accounting",
             ));
         }
-        check_reach(&state, position)?;
+        check_hit_reach(&state, position, cursor)?;
         let seq = self.next_sequence()?;
-        let mut payload = vec![0];
+        let mut payload = Vec::new();
+        put_varint(&mut payload, hand as i32);
         payload.extend(pack_position(position).to_be_bytes());
         put_varint(&mut payload, face as i32);
         for v in cursor {
@@ -651,6 +736,67 @@ impl Operations {
             .await?;
         Ok(seq)
     }
+    /// PLAYER_ACTION START (0) or STOP (2) _DESTROY_BLOCK with its interaction sequence.
+    async fn dig_survival(
+        &self,
+        mode: GameMode,
+        position: [i32; 3],
+        face: crate::BlockFace,
+        status: i32,
+    ) -> Result<i32> {
+        let state = self.bot.session.state.lock().await;
+        self.mutable(&state)?;
+        self.require_mode(&state, Some(mode))?;
+        check_reach(&state, position)?;
+        let seq = self.next_sequence()?;
+        let mut payload = Vec::new();
+        put_varint(&mut payload, status);
+        payload.extend(pack_position(position).to_be_bytes());
+        payload.push(face as u8);
+        put_varint(&mut payload, seq);
+        self.bot
+            .session
+            .send(ids::play_serverbound::BLOCK_DIG, &payload)
+            .await?;
+        Ok(seq)
+    }
+    /// ServerboundUseItemPacket: hand, sequence, then the current rotation, which the
+    /// server snaps the player to before using the item.
+    async fn use_item_in(&self, mode: GameMode, hand: crate::client::Hand) -> Result<i32> {
+        let state = self.bot.session.state.lock().await;
+        self.mutable(&state)?;
+        self.require_mode(&state, Some(mode))?;
+        let seq = self.next_sequence()?;
+        let mut payload = Vec::new();
+        put_varint(&mut payload, hand as i32);
+        put_varint(&mut payload, seq);
+        for v in state.rotation {
+            payload.extend(v.to_be_bytes());
+        }
+        self.bot
+            .session
+            .send(ids::play_serverbound::USE_ITEM, &payload)
+            .await?;
+        Ok(seq)
+    }
+    /// PLAYER_ACTION RELEASE_USE_ITEM with the zero position, face DOWN and sequence 0,
+    /// as the official client sends it.
+    async fn release_use_item_in(&self, mode: GameMode) -> Result<()> {
+        let mut state = self.bot.session.state.lock().await;
+        self.mutable(&state)?;
+        self.require_mode(&state, Some(mode))?;
+        let mut payload = Vec::new();
+        put_varint(&mut payload, 5);
+        payload.extend(0u64.to_be_bytes());
+        payload.push(0);
+        put_varint(&mut payload, 0);
+        self.bot
+            .session
+            .send(ids::play_serverbound::BLOCK_DIG, &payload)
+            .await?;
+        continuous::item_released(&mut state);
+        Ok(())
+    }
     pub(super) fn ready(&self, state: &State) -> Result<()> {
         self.bot.session.check(state)?;
         if !state.ready {
@@ -659,7 +805,122 @@ impl Operations {
         Ok(())
     }
     pub(super) fn mutable(&self, state: &State) -> Result<()> {
+        self.mutable_with_ground_requirement(state, true)
+    }
+    fn mutable_for_dismount(&self, state: &State) -> Result<()> {
+        self.mutable_with_ground_requirement(state, false)
+    }
+    fn mutable_with_ground_requirement(&self, state: &State, ground: bool) -> Result<()> {
+        self.mutable_with_flight_owner(state, ground, false)
+    }
+    fn mutable_with_flight_owner(
+        &self,
+        state: &State,
+        ground: bool,
+        flight_owner: bool,
+    ) -> Result<()> {
+        self.mutable_with_owners(state, ground, flight_owner, None)
+    }
+    fn mutable_with_owners(
+        &self,
+        state: &State,
+        ground: bool,
+        flight_owner: bool,
+        ground_owner: Option<crate::client::DismountId>,
+    ) -> Result<()> {
         self.ready(state)?;
+        if state
+            .operations
+            .selected_hotbar
+            .as_ref()
+            .is_some_and(|selection| !selection.dispatched)
+        {
+            return Err(crate::client::inventory::unavailable(
+                "held slot dispatch unresolved; inspect and reconnect without replay",
+            ));
+        }
+        if crate::client::vehicle::control::unresolved(&state.vehicle_control_history) {
+            return Err(crate::client::inventory::unavailable(
+                "vehicle control unresolved; inspect without replay",
+            ));
+        }
+        if !flight_owner && crate::client::flight::unresolved(&state.flight_history) {
+            return Err(crate::client::inventory::unavailable(
+                "flight dispatch unresolved; inspect without replay",
+            ));
+        }
+        if state
+            .dismount_history
+            .lock()
+            .expect("dismount history")
+            .as_ref()
+            .is_some_and(|r| r.unresolved() && Some(r.id) != ground_owner)
+        {
+            return Err(crate::client::inventory::unavailable(
+                "dismount input unresolved; inspect and explicitly complete without replay",
+            ));
+        }
+        if state
+            .common_container_open
+            .as_ref()
+            .is_some_and(|o| o.unresolved())
+        {
+            return Err(crate::client::inventory::unavailable(
+                "common storage activation unresolved; inspect without replay",
+            ));
+        }
+        if state
+            .common_container_close
+            .as_ref()
+            .is_some_and(|r| r.unresolved())
+        {
+            return Err(crate::client::inventory::unavailable(
+                "common container close unresolved; inspect without replay",
+            ));
+        }
+        if state.common_inventory_swap.as_ref().is_some_and(|s| {
+            s.record.stage != crate::client::inventory::InventorySwapStage::ObservedSwapped
+        }) {
+            return Err(crate::client::inventory::unavailable(
+                "common inventory swap unresolved; inspect retained record without replay",
+            ));
+        }
+        if state
+            .common_inventory_click
+            .as_ref()
+            .is_some_and(|s| s.unresolved())
+        {
+            return Err(crate::client::inventory::unavailable(
+                "common inventory click unresolved; inspect without replay",
+            ));
+        }
+        if state
+            .common_recipe_placement
+            .as_ref()
+            .is_some_and(|r| r.unresolved())
+        {
+            return Err(crate::client::inventory::unavailable(
+                "common recipe placement unresolved; inspect without replay",
+            ));
+        }
+        if state
+            .common_crafting_take
+            .as_ref()
+            .is_some_and(|r| r.unresolved())
+        {
+            return Err(crate::client::inventory::unavailable(
+                "common crafting take unresolved; inspect without replay",
+            ));
+        }
+        if state
+            .common_inventory_transfer
+            .as_ref()
+            .is_some_and(|s| s.unresolved())
+        {
+            return Err(crate::client::inventory::unavailable(
+                "common inventory transfer unresolved; inspect without replay",
+            ));
+        }
         if !state.loading.notification_dispatched() {
             return Err(Error::new(
                 ErrorKind::State,
@@ -677,7 +938,7 @@ impl Operations {
                 "survival motion unresolved; inspect retained run before another mutation",
             ));
         }
-        if state.survival_motion.is_some() {
+        if ground && state.survival_motion.is_some() {
             movement::standing_basis(state)?;
         }
         if state.motion.position_basis == PositionBasis::PendingSubmission {
@@ -704,6 +965,15 @@ impl Operations {
                 anyhow::anyhow!(
                     "survival mining continuation needs inspection; observing removal alone does not authorize another mutation"
                 ),
+            ));
+        }
+        Ok(())
+    }
+    fn require_mode(&self, state: &State, mode: Option<GameMode>) -> Result<()> {
+        if mode.is_some() && state.operations.game_mode != mode {
+            return Err(Error::new(
+                ErrorKind::State,
+                anyhow::anyhow!("operation requires matching received game mode"),
             ));
         }
         Ok(())
@@ -752,13 +1022,16 @@ fn pack_position(p: [i32; 3]) -> i64 {
         | (i64::from(p[1]) & 0xfff)
 }
 fn check_reach(state: &State, p: [i32; 3]) -> Result<()> {
+    check_hit_reach(state, p, [0.5; 3])
+}
+fn check_hit_reach(state: &State, p: [i32; 3], cursor: [f32; 3]) -> Result<()> {
     if state.world.block(p).is_none() {
         return Err(invalid("interaction target is not loaded"));
     }
     let player = state.position.context("player position unavailable")?;
     let eye = [player[0], player[1] + 1.62, player[2]];
     if (0..3)
-        .map(|i| (eye[i] - f64::from(p[i]) - 0.5).powi(2))
+        .map(|i| (eye[i] - f64::from(p[i]) - f64::from(cursor[i])).powi(2))
         .sum::<f64>()
         > 4.5f64.powi(2)
     {
@@ -780,7 +1053,18 @@ fn items() -> &'static [ItemDefinition] {
             .expect("valid pinned item registry")
     })
 }
-fn slot(r: &mut Reader<'_>) -> anyhow::Result<Option<InventorySlot>> {
+pub(crate) fn item_definition(id: i32) -> Result<(String, u32)> {
+    let item = items()
+        .iter()
+        .find(|item| item.id == id)
+        .ok_or_else(|| invalid("unknown native item ID"))?;
+    let size = u32::try_from(item.stack_size)
+        .ok()
+        .filter(|size| *size > 0)
+        .ok_or_else(|| invalid("invalid native item capacity"))?;
+    Ok((format!("minecraft:{}", item.name), size))
+}
+pub(super) fn slot(r: &mut Reader<'_>) -> anyhow::Result<Option<InventorySlot>> {
     let count = r.varint()?;
     if count < 0 {
         bail!("negative item count");
@@ -793,18 +1077,21 @@ fn slot(r: &mut Reader<'_>) -> anyhow::Result<Option<InventorySlot>> {
         .iter()
         .find(|i| i.id == id)
         .context("unknown item id")?;
-    let added = r.count(256)?;
-    let removed = r.count(256)?;
-    if added != 0 || removed != 0 {
+    let Some(components) = super::super::item_components::read_patch(r)? else {
         return Ok(None);
-    }
-    Ok(Some(InventorySlot::Item {
-        item: PlainItem {
-            name: format!("minecraft:{}", definition.name),
-            item_id: id,
-            count,
+    };
+    let item = PlainItem {
+        name: format!("minecraft:{}", definition.name),
+        item_id: id,
+        count,
+    };
+    Ok(Some(
+        if components.added.is_empty() && components.removed.is_empty() {
+            InventorySlot::Item { item }
+        } else {
+            InventorySlot::ItemWithComponents { item, components }
         },
-    }))
+    ))
 }
 pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Result<bool> {
     use ids::play_clientbound as input;
@@ -845,6 +1132,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             });
         }
         input::SYSTEM_CHAT => {
+            state.chat.receive_modern(id, payload, state.sequence)?;
             // Validate framing even when presentation exceeds our projection budget.
             r.skip_nbt()?;
             let overlay = r.bool()?;
@@ -887,6 +1175,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             r.f32()?;
             r.end()?;
             next.abilities = Some(flags);
+            next.abilities_sequence = Some(state.sequence);
             if flags & 4 == 0 {
                 next.requested_flying = false;
             }
@@ -914,7 +1203,10 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
             if seq < 0 {
                 bail!("negative interaction acknowledgement");
             }
-            next.ack = Some(next.ack.unwrap_or(0).max(seq));
+            if next.ack.is_none_or(|old| seq >= old) {
+                next.ack = Some(seq);
+                next.ack_receive_sequence = Some(state.sequence);
+            }
         }
         input::WINDOW_ITEMS
         | input::SET_SLOT
@@ -922,11 +1214,722 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         | input::SET_CURSOR_ITEM
         | input::OPEN_WINDOW
         | input::CLOSE_WINDOW => {
-            inventory::receive(&mut next.inventory, id, payload, state.sequence)?;
+            let player_access_after_close =
+                state.common_container_close.as_ref().is_some_and(|close| {
+                    let mut session = close.initial.session;
+                    session.world_generation = state.loading.generation;
+                    matches!(
+                        crate::client::container::player_screen_access(
+                            session,
+                            state.operations.inventory.window_id,
+                            state
+                                .operations
+                                .inventory
+                                .container
+                                .as_ref()
+                                .map(|s| s.capture(session).id),
+                            Some(close),
+                        ),
+                        Some(crate::client::container::PlayerScreenAccess::SubmittedClose { .. })
+                    )
+                });
+            inventory::receive(
+                &mut next.inventory,
+                id,
+                payload,
+                state.sequence,
+                player_access_after_close,
+            )?;
+            if id == input::CLOSE_WINDOW {
+                // Decode succeeded atomically; original state still identifies the opening.
+                let mut close = Reader::new(payload);
+                container::close_received(state, close.varint()?);
+            }
         }
         _ => return Ok(false),
     }
     state.operations = next;
     mining::mining_inventory_received(state);
     Ok(true)
+}
+
+impl Operations {
+    fn common_player_unlocked(&self, state: &State) -> Result<crate::client::PlayerObservation> {
+        self.bot.session.check(state)?;
+        common_player_in_state(
+            state,
+            self.bot.session.id,
+            self.bot.session.interrupted_packet.load(Ordering::Acquire) >= 0,
+        )
+    }
+}
+pub(super) fn common_player_in_state(
+    state: &State,
+    connection_id: u64,
+    interrupted: bool,
+) -> Result<crate::client::PlayerObservation> {
+    use crate::client as api;
+    let native = &state.operations;
+    let inventory = &native.inventory;
+    let slots = inventory
+        .slots
+        .iter()
+        .zip(&inventory.slot_sequences)
+        .map(|(slot, sequence)| {
+            if matches!(slot, InventorySlot::Unavailable) {
+                return Ok(None);
+            }
+            sequence
+                .map(|sequence| common_slot(slot).map(|value| api::received(value, sequence)))
+                .transpose()
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let cursor = match inventory.cursor {
+        InventorySlot::Unavailable => None,
+        _ => inventory
+            .cursor_sequence
+            .map(|sequence| {
+                common_slot(&inventory.cursor).map(|value| api::received(value, sequence))
+            })
+            .transpose()?,
+    };
+    let pose = state
+        .motion
+        .received_pose
+        .as_ref()
+        .filter(|pose| pose.generation == state.loading.generation)
+        .map(|pose| api::ReceivedPose {
+            position: pose.position,
+            rotation: pose.rotation,
+            receive_sequence: pose.receive_sequence,
+        });
+    let source = match state.motion.position_basis {
+        PositionBasis::Received => api::ValueSource::Received {
+            sequence: pose.as_ref().map_or(state.sequence, |p| p.receive_sequence),
+        },
+        PositionBasis::Submitted => api::ValueSource::Submitted,
+        _ => api::ValueSource::Predicted,
+    };
+    Ok(api::PlayerObservation {
+        session: api::SessionStamp {
+            version: crate::MinecraftVersion::Java1_21_11,
+            connection_id,
+            world_generation: state.loading.generation,
+        },
+        receive_sequence: state.sequence,
+        pending_dispatch: crate::client::vehicle::control::unresolved(
+            &state.vehicle_control_history,
+        ) || crate::client::flight::unresolved(&state.flight_history)
+            || state
+                .dismount_history
+                .lock()
+                .expect("dismount history")
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
+            || state
+                .common_container_open
+                .as_ref()
+                .is_some_and(|o| o.unresolved())
+            || interrupted
+            || state
+                .common_container_close
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
+            || state.common_inventory_swap.as_ref().is_some_and(|s| {
+                s.record.stage != crate::client::inventory::InventorySwapStage::ObservedSwapped
+            })
+            || state
+                .common_inventory_click
+                .as_ref()
+                .is_some_and(|s| s.unresolved())
+            || state
+                .common_recipe_placement
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
+            || state
+                .common_crafting_take
+                .as_ref()
+                .is_some_and(|r| r.unresolved())
+            || state
+                .common_inventory_transfer
+                .as_ref()
+                .is_some_and(|s| s.unresolved())
+            || state
+                .operations
+                .selected_hotbar
+                .as_ref()
+                .is_some_and(|selection| !selection.dispatched)
+            || !inventory.pending_creative.is_empty()
+            || inventory.pending_swap.is_some()
+            || state.motion.position_basis == PositionBasis::PendingSubmission
+            || state.mining.is_some()
+            || state
+                .placement
+                .as_ref()
+                .is_some_and(|p| p.observation.is_none())
+            || state
+                .survival_motion
+                .as_ref()
+                .is_some_and(|m| !m.status.is_continuation_candidate()),
+        dimension: state
+            .world
+            .dimension
+            .as_ref()
+            .map(|(name, dimension)| api::Dimension {
+                name: name.clone(),
+                min_y: dimension.min_y,
+                height: dimension.height,
+            }),
+        position: match state.motion.position_basis {
+            PositionBasis::Unavailable | PositionBasis::PendingSubmission => None,
+            _ => state
+                .position
+                .map(|value| api::ObservedValue { value, source }),
+        },
+        received_pose: pose,
+        rotation: state.rotation,
+        rotation_source: state.motion.rotation_source,
+        on_ground: state.motion.on_ground.map(|value| api::ObservedValue {
+            value,
+            source: api::ValueSource::Predicted,
+        }),
+        game_mode: native.game_mode,
+        may_fly: native.abilities.map(|flags| flags & 4 != 0),
+        health: native.local_player.health.as_ref().map(|health| {
+            api::received(
+                api::Health {
+                    health: health.health,
+                    food: health.food,
+                    saturation: health.saturation,
+                },
+                health.receive_sequence,
+            )
+        }),
+        selected_hotbar: native
+            .selected_hotbar
+            .as_ref()
+            .filter(|selection| selection.dispatched)
+            .map(|selection| api::ObservedValue {
+                value: selection.slot,
+                source: if selection.from_server {
+                    api::ValueSource::Received {
+                        sequence: selection.sequence,
+                    }
+                } else {
+                    api::ValueSource::Submitted
+                },
+            }),
+        using_item: native
+            .local_player
+            .using_item
+            .map(|u| api::received(u.hand, u.receive_sequence)),
+        entity_id: native.local_player.entity_id,
+        attributes: native
+            .local_player
+            .received_attributes
+            .iter()
+            .filter_map(|(id, a)| {
+                let name = crate::client::player_facts::modern_attribute_name(*id)?;
+                let sequence = *native.local_player.attribute_sequences.get(id)?;
+                let value = crate::client::player_facts::attribute(
+                    crate::MinecraftVersion::Java1_21_11,
+                    a.base,
+                    a.modifiers.clone(),
+                );
+                Some((name, api::received(value, sequence)))
+            })
+            .collect(),
+        effects: native
+            .local_player
+            .effect_updates
+            .values()
+            .filter_map(|e| {
+                let name = crate::client::player_facts::effect_name(
+                    crate::MinecraftVersion::Java1_21_11,
+                    e.effect_id,
+                )?;
+                let value = crate::client::player_facts::effect(
+                    e.amplifier,
+                    e.duration_at_receipt,
+                    e.flags,
+                );
+                Some((name, api::received(value, e.receive_sequence)))
+            })
+            .collect(),
+        air_supply: native
+            .local_player
+            .air_supply
+            .map(|(air, sequence)| api::received(air, sequence)),
+        world_time: native.server_time.as_ref().map(|time| {
+            api::received(
+                api::WorldTime {
+                    game_time: time.game_age,
+                    day_time: time.day_time,
+                },
+                time.receive_sequence,
+            )
+        }),
+        inventory: api::InventoryObservation {
+            slots,
+            cursor,
+            window_id: inventory.window_id,
+            player_screen: crate::client::container::player_screen_access(
+                api::SessionStamp {
+                    version: crate::MinecraftVersion::Java1_21_11,
+                    connection_id,
+                    world_generation: state.loading.generation,
+                },
+                inventory.window_id,
+                inventory.container.as_ref().map(|s| {
+                    s.capture(api::SessionStamp {
+                        version: crate::MinecraftVersion::Java1_21_11,
+                        connection_id,
+                        world_generation: state.loading.generation,
+                    })
+                    .id
+                }),
+                state.common_container_close.as_ref(),
+            ),
+            screen_revision: inventory.screen_revision,
+            player_screen_revision: inventory.player_revision.clone(),
+            local_cache: None,
+        },
+    })
+}
+
+pub(super) fn common_slot(slot: &InventorySlot) -> Result<crate::client::SlotKnowledge> {
+    use crate::client as api;
+    Ok(match slot {
+        InventorySlot::Unavailable => api::SlotKnowledge::Unavailable,
+        InventorySlot::Empty => api::SlotKnowledge::Empty,
+        InventorySlot::Item { item } | InventorySlot::ItemWithComponents { item, .. } => {
+            let definition =
+                api::registry::Registry::for_version(crate::MinecraftVersion::Java1_21_11)
+                    .item_by_native_id(item.item_id)?;
+            let count = u32::try_from(item.count)
+                .ok()
+                .filter(|count| *count > 0)
+                .ok_or_else(|| invalid("invalid native item count"))?;
+            api::SlotKnowledge::Item {
+                item: api::ItemStack {
+                    id: definition.id,
+                    name: definition.name,
+                    count,
+                    data: match slot {
+                        InventorySlot::ItemWithComponents { components, .. } => {
+                            api::ItemData::ModernComponents {
+                                patch: components.clone(),
+                            }
+                        }
+                        _ => api::ItemData::Default,
+                    },
+                },
+            }
+        }
+    })
+}
+
+impl crate::client::adapter::CoreOps for Operations {
+    async fn server_registry_state(
+        &self,
+    ) -> Result<crate::client::registry::ServerRegistryObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.bot.session.check(&state)?;
+        Ok(state.registries.capture(
+            crate::client::SessionStamp {
+                version: crate::MinecraftVersion::Java1_21_11,
+                connection_id: self.bot.session.id,
+                world_generation: state.loading.generation,
+            },
+            state.sequence,
+        ))
+    }
+    async fn screen_state(&self) -> Result<crate::client::container::ScreenObservation> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        Ok(crate::client::container::ScreenObservation {
+            session: player.session,
+            receive_sequence: state.sequence,
+            active_window: state.operations.inventory.window_id,
+            player_screen: player.inventory.player_screen,
+            screen: state
+                .operations
+                .inventory
+                .container
+                .as_ref()
+                .map(|s| s.capture(player.session)),
+            cursor: player.inventory.cursor,
+        })
+    }
+    async fn respawn(&self) -> Result<crate::client::RespawnRecord> {
+        let owned = self.clone();
+        tokio::spawn(async move {
+            let state = owned.bot.session.state.lock().await;
+            owned.ready(&state)?;
+            if state.phase != Phase::Play {
+                return Err(invalid("respawn requires play context"));
+            }
+            let player = owned.common_player_unlocked(&state)?;
+            crate::client::respawn::prepare(&owned.bot.respawn_history, &player)?;
+            let result = owned
+                .bot
+                .session
+                .send(ids::play_serverbound::CLIENT_COMMAND, &[0])
+                .await;
+            crate::client::respawn::dispatched(&owned.bot.respawn_history, &result);
+            result?;
+            Ok(
+                crate::client::respawn::snapshot(&owned.bot.respawn_history)
+                    .expect("owned respawn"),
+            )
+        })
+        .await
+        .map_err(|error| Error::from(anyhow::anyhow!("respawn owner failed: {error}")))?
+    }
+    async fn execute(
+        &self,
+        mode: GameMode,
+        action: crate::client::operations::Action<'_>,
+    ) -> Result<Option<i32>> {
+        use crate::client::operations::Action;
+        match action {
+            Action::Entity(target, interaction) => {
+                let state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                self.require_mode(&state, Some(mode))?;
+                state.entities.validate(
+                    crate::client::SessionStamp {
+                        version: crate::MinecraftVersion::Java1_21_11,
+                        connection_id: self.bot.session.id,
+                        world_generation: state.loading.generation,
+                    },
+                    target,
+                )?;
+                self.bot
+                    .session
+                    .send(
+                        ids::play_serverbound::USE_ENTITY,
+                        &interaction.payload(target),
+                    )
+                    .await?;
+            }
+
+            Action::EntityPart(_, _) => {
+                return Err(crate::client::inventory::unavailable(
+                    "multipart model is not supported for Java 1.21.11",
+                ));
+            }
+
+            Action::Look(rotation) => {
+                crate::client::operations::validate_rotation(rotation)?;
+                self.look_in_mode(Some(mode), rotation).await?;
+            }
+            Action::SelectHotbar(slot) => self.select_hotbar_in_mode(Some(mode), slot).await?,
+            Action::SetFlying(flying) => {
+                if mode != GameMode::Creative {
+                    return Err(invalid("creative operation required"));
+                }
+                self.flight(crate::client::FlightCommand::SetFlying { flying })
+                    .await?;
+            }
+            Action::MoveFlying(position, rotation) => {
+                crate::client::operations::validate_rotation(rotation)?;
+                if mode != GameMode::Creative {
+                    return Err(invalid("creative operation required"));
+                }
+                self.flight(crate::client::FlightCommand::Move { position, rotation })
+                    .await?;
+            }
+            Action::SetHotbar(slot, item) => {
+                if let Some((name, _)) = item {
+                    crate::client::registry::Registry::for_version(
+                        crate::MinecraftVersion::Java1_21_11,
+                    )
+                    .item(name)?;
+                }
+                self.set_creative_hotbar(slot, item).await?;
+            }
+            Action::Dig(position, face) => {
+                return self.dig_creative(position, face).await.map(Some);
+            }
+            Action::UseOnBlock(position, face, cursor, hand) => {
+                return self
+                    .use_on_block_in(Some(mode), hand, position, face, cursor)
+                    .await
+                    .map(Some);
+            }
+            Action::UseItem(hand) => return self.use_item_in(mode, hand).await.map(Some),
+            Action::ReleaseUseItem => self.release_use_item_in(mode).await?,
+            Action::DigStart(position, face) => {
+                return self.dig_survival(mode, position, face, 0).await.map(Some);
+            }
+            Action::DigFinish(position, face) => {
+                return self.dig_survival(mode, position, face, 2).await.map(Some);
+            }
+            Action::Swing(hand) => {
+                let state = self.bot.session.state.lock().await;
+                self.mutable(&state)?;
+                self.require_mode(&state, Some(mode))?;
+                let mut payload = Vec::new();
+                put_varint(&mut payload, hand as i32);
+                self.bot
+                    .session
+                    .send(ids::play_serverbound::ARM_ANIMATION, &payload)
+                    .await?;
+            }
+        }
+        Ok(None)
+    }
+    async fn connection_identity(&self) -> Result<crate::client::ConnectionIdentity> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let identity = state
+            .identity
+            .as_ref()
+            .ok_or_else(|| invalid("received login profile unavailable"))?;
+        Ok(crate::client::ConnectionIdentity {
+            session: player.session,
+            uuid: identity.uuid,
+            name: identity.name.clone(),
+        })
+    }
+    async fn entity_spawns(&self) -> Result<crate::client::EntitySpawns> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        Ok(state.entities.capture(player.session, state.sequence))
+    }
+    async fn entity_motion(
+        &self,
+        target: crate::client::EntityId,
+    ) -> Result<crate::client::EntityMotionObservation> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        state
+            .entities
+            .capture_motion(player.session, target, state.sequence)
+    }
+    async fn entities(&self) -> Result<crate::client::EntitiesObservation> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        Ok(state.entities.capture_all(
+            crate::MinecraftVersion::Java1_21_11,
+            player.session,
+            state.sequence,
+        ))
+    }
+    async fn vehicle_state(&self) -> Result<crate::client::VehicleObservation> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        Ok(state.vehicles.capture(
+            player.session,
+            state.sequence,
+            state.operations.local_player.entity_id,
+            &state.entities,
+        ))
+    }
+    async fn player_state(&self) -> Result<crate::client::PlayerObservation> {
+        let state = self.bot.session.state.lock().await;
+        self.common_player_unlocked(&state)
+    }
+    async fn received_inventory(&self) -> Result<crate::client::ReceivedInventory> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let registries = state
+            .registries
+            .capture(player.session, player.receive_sequence);
+        crate::client::ReceivedInventory::capture(
+            player.session,
+            player.receive_sequence,
+            &player.inventory,
+            registries,
+        )
+    }
+    async fn received_recipes(&self) -> Result<crate::client::ReceivedRecipes> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        state.recipes.capture(
+            player.session,
+            state.sequence,
+            state.registries.capture(player.session, state.sequence),
+        )
+    }
+    async fn received_recipe_ghost(&self) -> Result<Option<crate::client::ReceivedRecipeGhost>> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        state
+            .recipe_ghost
+            .as_ref()
+            .map(|ghost| ghost.capture(player.session))
+            .transpose()
+            .map(Option::flatten)
+    }
+    async fn received_crafting_context(
+        &self,
+    ) -> Result<Option<crate::client::ReceivedCraftingContext>> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let screen = crate::client::container::ScreenObservation {
+            session: player.session,
+            receive_sequence: player.receive_sequence,
+            active_window: state.operations.inventory.window_id,
+            player_screen: player.inventory.player_screen,
+            screen: state
+                .operations
+                .inventory
+                .container
+                .as_ref()
+                .map(|s| s.capture(player.session)),
+            cursor: player.inventory.cursor.clone(),
+        };
+        let registries = state
+            .registries
+            .capture(player.session, player.receive_sequence);
+        let recipes =
+            state
+                .recipes
+                .capture(player.session, player.receive_sequence, registries.clone())?;
+        crate::client::ReceivedCraftingContext::capture(player, screen, registries, recipes)
+    }
+    async fn recipe_book_materials(
+        &self,
+        recipe: &crate::client::RecipeId,
+        crafts: u32,
+        maximum_bound: u32,
+    ) -> Result<crate::client::RecipeBookMaterials> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let registries = state
+            .registries
+            .capture(player.session, player.receive_sequence);
+        let catalogue =
+            state
+                .recipes
+                .capture(player.session, player.receive_sequence, registries.clone())?;
+        let inventory = crate::client::ReceivedInventory::capture(
+            player.session,
+            player.receive_sequence,
+            &player.inventory,
+            registries,
+        )?;
+        crate::client::RecipeBookMaterials::capture(
+            catalogue,
+            inventory,
+            recipe,
+            crafts,
+            maximum_bound,
+        )
+    }
+    async fn received_crafting(&self) -> Result<Option<crate::client::ReceivedCrafting>> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let screen = crate::client::container::ScreenObservation {
+            session: player.session,
+            receive_sequence: state.sequence,
+            active_window: state.operations.inventory.window_id,
+            player_screen: player.inventory.player_screen,
+            screen: state
+                .operations
+                .inventory
+                .container
+                .as_ref()
+                .map(|s| s.capture(player.session)),
+            cursor: player.inventory.cursor.clone(),
+        };
+        let registries = state
+            .registries
+            .capture(player.session, player.receive_sequence);
+        crate::client::ReceivedCrafting::capture(&player, &screen, registries)
+    }
+    async fn capture(&self, region: crate::Region) -> Result<crate::client::Capture> {
+        let volume = region.volume()?;
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let dimension = &state
+            .world
+            .dimension
+            .as_ref()
+            .context("dimension unavailable")?
+            .1;
+        if region.min[1] < dimension.min_y || region.max[1] >= dimension.min_y + dimension.height {
+            return Err(invalid("region outside dimension height"));
+        }
+        let mut blocks = Vec::with_capacity(volume);
+        for y in region.min[1]..=region.max[1] {
+            for z in region.min[2]..=region.max[2] {
+                for x in region.min[0]..=region.max[0] {
+                    let position = [x, y, z];
+                    blocks.push(crate::ObservedBlock {
+                        position,
+                        state: state
+                            .world
+                            .block(position)
+                            .map(super::super::native_state)
+                            .transpose()?,
+                    });
+                }
+            }
+        }
+        Ok(crate::client::Capture {
+            world: crate::Observation {
+                version: crate::MinecraftVersion::Java1_21_11,
+                connection_id: self.bot.session.id,
+                revision: state.world.revision,
+                receive_sequence: Some(state.sequence),
+                captured_at: self.bot.session.started.elapsed(),
+                region,
+                blocks,
+            },
+            player,
+        })
+    }
+}
+
+impl crate::client::adapter::ChunkOps for Operations {
+    async fn loaded_chunks(&self) -> Result<crate::client::LoadedChunks> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        Ok(crate::client::LoadedChunks {
+            session: player.session,
+            receive_sequence: state.sequence,
+            chunks: state.world.loaded_chunks().collect(),
+        })
+    }
+
+    async fn chunk(&self, position: [i32; 2]) -> Result<Option<crate::client::ChunkObservation>> {
+        let state = self.bot.session.state.lock().await;
+        let player = self.common_player_unlocked(&state)?;
+        let Some((_, dimension)) = state.world.dimension.as_ref() else {
+            return Ok(None);
+        };
+        let Some((sections, light)) = state.world.column(position[0], position[1]) else {
+            return Ok(None);
+        };
+        Ok(Some(crate::client::ChunkObservation {
+            session: player.session,
+            receive_sequence: state.sequence,
+            position,
+            min_y: dimension.min_y,
+            height: dimension.height,
+            sections,
+            sky_light: light.sky,
+            block_light: light.block,
+        }))
+    }
+}
+
+impl crate::client::adapter::DigOps for Operations {
+    async fn own_on_ground(&self) -> Result<bool> {
+        let mut state = self.bot.session.state.lock().await;
+        if let Some(frame) = state
+            .control
+            .session
+            .as_ref()
+            .filter(|s| s.running())
+            .and_then(|s| s.frame.as_ref())
+        {
+            return Ok(frame.on_ground);
+        }
+        let tick = self.bot.session.started.elapsed().as_millis() as u64 / 50;
+        Ok(survival::context(&mut state, self.bot.session.id, tick)?.on_ground)
+    }
 }

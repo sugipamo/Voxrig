@@ -1,0 +1,190 @@
+{
+  "issue": 20,
+  "baseline": "77b35e70bf68f76f44a96056f09c39790991a403",
+  "native_feature": false,
+  "view_distance": 6,
+  "max_players": 8,
+  "runs": [
+    {
+      "version": "1.16.1",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "passed": true,
+      "trials": 10,
+      "report_sha256": "c89942ae9c5727ecafe646e195d9f6191bd8877ccbfab8c0e0799df2278afcc6",
+      "trace_errors": [],
+      "results": [
+        {
+          "trial": 0,
+          "chunk_counts": [
+            85,
+            108
+          ],
+          "disconnect_seconds": 0.001005140999041032
+        },
+        {
+          "trial": 1,
+          "chunk_counts": [
+            225,
+            225
+          ],
+          "disconnect_seconds": 0.0009857500008365605
+        },
+        {
+          "trial": 2,
+          "chunk_counts": [
+            225,
+            225
+          ],
+          "disconnect_seconds": 0.0010336939994886052
+        },
+        {
+          "trial": 3,
+          "chunk_counts": [
+            225,
+            225
+          ],
+          "disconnect_seconds": 0.00111694099905435
+        },
+        {
+          "trial": 4,
+          "chunk_counts": [
+            225,
+            225
+          ],
+          "disconnect_seconds": 0.0009471340017626062
+        },
+        {
+          "trial": 5,
+          "chunk_counts": [
+            225,
+            225
+          ],
+          "disconnect_seconds": 0.0012820510019082576
+        },
+        {
+          "trial": 6,
+          "chunk_counts": [
+            225,
+            225
+          ],
+          "disconnect_seconds": 0.0006934080010978505
+        },
+        {
+          "trial": 7,
+          "chunk_counts": [
+            225,
+            225
+          ],
+          "disconnect_seconds": 0.0007880379998823628
+        },
+        {
+          "trial": 8,
+          "chunk_counts": [
+            225,
+            225
+          ],
+          "disconnect_seconds": 0.0014361569992615841
+        },
+        {
+          "trial": 9,
+          "chunk_counts": [
+            225,
+            225
+          ],
+          "disconnect_seconds": 0.0011052859990741126
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "passed": true,
+      "trials": 10,
+      "report_sha256": "387f6daeeb4a6a7935ab6f5668f741c787910acec218e5aaf6169596054fd1c3",
+      "trace_errors": [],
+      "results": [
+        {
+          "trial": 0,
+          "chunk_counts": [
+            117,
+            117
+          ],
+          "disconnect_seconds": 0.0004002390014647972
+        },
+        {
+          "trial": 1,
+          "chunk_counts": [
+            117,
+            117
+          ],
+          "disconnect_seconds": 0.00021956100317765959
+        },
+        {
+          "trial": 2,
+          "chunk_counts": [
+            117,
+            117
+          ],
+          "disconnect_seconds": 0.0002129280001099687
+        },
+        {
+          "trial": 3,
+          "chunk_counts": [
+            117,
+            117
+          ],
+          "disconnect_seconds": 0.0003867700033879373
+        },
+        {
+          "trial": 4,
+          "chunk_counts": [
+            117,
+            117
+          ],
+          "disconnect_seconds": 0.0008037570005399175
+        },
+        {
+          "trial": 5,
+          "chunk_counts": [
+            117,
+            117
+          ],
+          "disconnect_seconds": 0.0002923840002040379
+        },
+        {
+          "trial": 6,
+          "chunk_counts": [
+            117,
+            117
+          ],
+          "disconnect_seconds": 0.00034273900018888526
+        },
+        {
+          "trial": 7,
+          "chunk_counts": [
+            117,
+            117
+          ],
+          "disconnect_seconds": 0.0004462219985725824
+        },
+        {
+          "trial": 8,
+          "chunk_counts": [
+            117,
+            117
+          ],
+          "disconnect_seconds": 0.00019807100034086034
+        },
+        {
+          "trial": 9,
+          "chunk_counts": [
+            117,
+            117
+          ],
+          "disconnect_seconds": 0.07261414300228353
+        }
+      ]
+    }
+  ],
+  "scope": "Official loopback vanilla regression checks; deterministic TCP test separately forces post-shutdown protocol admission rejection. Warm subsequent trials need not be under chunk-loading backlog."
+}

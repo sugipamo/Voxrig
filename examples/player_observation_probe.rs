@@ -3,7 +3,8 @@ use std::{
     io::{self, Write},
     time::Duration,
 };
-use voxrig::{Client, ConnectionConfig, MinecraftVersion, Server};
+use voxrig::client::Server;
+use voxrig::{Client, ConnectionConfig, MinecraftVersion};
 
 async fn connect(name: &str) -> anyhow::Result<Client> {
     let client = Client::connect(ConnectionConfig::offline(
@@ -37,8 +38,8 @@ async fn main() -> anyhow::Result<()> {
     let builder = connect("BuildProbe").await?;
     pause("READY; creative both, OP BuildProbe; teleport ViewProbe to 100.5 182 103.5 and BuildProbe to 101.123 182 102.5 with yaw 90 pitch 30; enter").await?;
     tokio::time::sleep(Duration::from_secs(2)).await;
-    let view = observer.java_1_21_11_operations()?;
-    let actions = builder.java_1_21_11_operations()?;
+    let view = observer.java_1_21_11()?.operations();
+    let actions = builder.java_1_21_11()?.operations();
     let initial = view.visible_players().await?;
     actions.set_flying(true).await?;
     actions

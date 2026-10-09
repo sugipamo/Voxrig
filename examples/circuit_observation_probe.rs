@@ -4,7 +4,8 @@ use std::{
     io::{self, Write},
     time::Duration,
 };
-use voxrig::{BlockFace, Client, ConnectionConfig, MinecraftVersion, Region, Server};
+use voxrig::versions::java_1_16_1::{BlockFace, Server};
+use voxrig::{Client, ConnectionConfig, MinecraftVersion, Region};
 
 #[derive(serde::Deserialize)]
 struct Config {
@@ -62,13 +63,16 @@ async fn main() -> anyhow::Result<()> {
     let mut settled = Vec::new();
     let mut inputs = Vec::new();
     for wait in config.waits_ms {
-        let boundary = client.observe_client_region(region).await?;
-        client.interact_block(config.input, BlockFace::Up).await?;
+        let boundary = client.java_1_21_11()?.observe_client_region(region).await?;
+        client
+            .java_1_21_11()?
+            .interact_block(config.input, BlockFace::Up)
+            .await?;
         inputs.push(serde_json::json!({"before_sequence":boundary.received.receive_sequence,"before_frame":boundary.client_tick,"wait_ms":wait}));
         let started = tokio::time::Instant::now();
         while started.elapsed() < Duration::from_millis(wait) {
             tokio::time::sleep(Duration::from_millis(20)).await;
-            let mut sample = client.observe_client_region(region).await?;
+            let mut sample = client.java_1_21_11()?.observe_client_region(region).await?;
             // Preserve all packet/frame boundaries, but sample late settled states less often.
             if started.elapsed() < Duration::from_millis(1800) {
                 // Full regions remain in before/settled/final. Intermediate evidence
@@ -86,18 +90,18 @@ async fn main() -> anyhow::Result<()> {
                 transient.push(sample);
             }
         }
-        settled.push(client.observe_client_region(region).await?);
+        settled.push(client.java_1_21_11()?.observe_client_region(region).await?);
     }
     let mut reload = Vec::new();
     if std::env::var("PROBE_RELOAD").as_deref() == Ok("1") {
         barrier("READY_FOR_TELEPORT_AWAY").await?;
         tokio::time::sleep(Duration::from_secs(2)).await;
-        reload.push(client.observe_client_region(region).await?);
+        reload.push(client.java_1_21_11()?.observe_client_region(region).await?);
         barrier("READY_FOR_TELEPORT_BACK").await?;
         tokio::time::sleep(Duration::from_secs(3)).await;
-        reload.push(client.observe_client_region(region).await?);
+        reload.push(client.java_1_21_11()?.observe_client_region(region).await?);
     }
-    let after_client = client.observe_client_region(region).await?;
+    let after_client = client.java_1_21_11()?.observe_client_region(region).await?;
     let trace = client.stop_packet_trace().await?;
     let record = serde_json::json!({"fixture":config.fixture,"before":before,"trace":trace,"inputs":inputs,"settled":settled,"transient":transient,"reload":reload,"after_client":after_client});
     serde_json::to_writer(file, &record)?;

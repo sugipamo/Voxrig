@@ -1,5 +1,6 @@
 //! Isolated-server probe for the explicitly versioned observation API.
-use voxrig::{Client, ConnectionConfig, MinecraftVersion, Region, Server};
+use voxrig::client::Server;
+use voxrig::{Client, ConnectionConfig, MinecraftVersion, Region};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -55,7 +56,7 @@ async fn main() -> anyhow::Result<()> {
         state([0, 4, 0]).properties["facing"] == "north",
         "stair facing was lost"
     );
-    println!("VERSION_OBSERVATION {:?}", observation);
+    println!("VERSION_OBSERVATION {observation:?}");
     client.disconnect().await?;
     Ok(())
 }

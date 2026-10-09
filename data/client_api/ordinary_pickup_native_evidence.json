@@ -1,0 +1,3540 @@
+{
+  "schema": 1,
+  "baseline_library_commit": "e1ff67caafd7a37bbea41fc954d7cd131dbee6fb",
+  "runtime_source_status": "Uncommitted ordinary PICKUP implementation captured with the actual built consumer before these sequential runs. Later additions to cfg(test) cases/documentation and restoration of the original lockfile package order (with identical dependency contents) are not retroactively part of the runtime snapshot.",
+  "status": "passed",
+  "scope": "Original network common Client PICKUP of default storage/player stacks in both modes on official vanilla versions, with actual source/cursor receipts and independently read RCON storage/player contents. No cursor/menu ownership assertion from RCON, no causal proof of target from OPEN, no general item data or shift-click parity claim.",
+  "native_runtime_inputs_sha256": {
+    "data/block_collision_shapes.json": "133fa12949ee8f5a2d94551f5d03468b0441ac7994905a36509b7fd6956af944",
+    "data/block_state_ranges.json": "e09fe5973d72086d0139e9b80a3006bfd176bc701618fd442e1f2e2a6d6218ca",
+    "data/blocks.json": "9955a271f507cf8d8d47b3d52c52137539dd5f70171353870f7cb0b72f6e41a0",
+    "data/client_api/common_native_evidence.json": "20bf22cefe79e681b659af611c94c19d744f3e531286785f692de08814c3a2ad",
+    "data/client_api/container_close_packets.json": "521af67af23adeaad7980e7dca4535d4a5097b5bec325162ae55005235587067",
+    "data/client_api/java_1_16_1_dry_movement.json": "235cf33deacb7fd9fd64a3806fe581984361508ab1ce5cbb480a50236d3ab885",
+    "data/client_api/java_1_16_1_dry_movement_source.json": "12d76e69564f2aff5d3f28493c8ab0abdbbed05e909a62fe6b3348bcf96afaec",
+    "data/client_api/java_1_16_1_wire.json": "298d151e86c647f51d36595a04a6bbcc836e492b9af9465d22e28e42737c008d",
+    "data/client_api/legacy_inventory_swap_packets.json": "73b7573912ca821b518385fb6a256f13183bea665f6d6884dd11eb508bcdc688",
+    "data/client_api/legacy_targeting_oracle.json": "ddb04af17bb62019696ec460bec062f5bbb181a367eeda4027b9137b936e34d0",
+    "data/client_api/legacy_targeting_source.json": "0a21bfe19738c36c3b3060d9034b3c9a6fd8f90e5e2bd9516b8b74704f83c686",
+    "data/client_api/menus-1.16.1.json": "6f24bb20bffee0b0e6207640f5cb4308302b010883da5fdbfe15839f7939d4cd",
+    "data/client_api/menus-1.21.11.json": "203c3ccc2a5c6206cbaef4fd4d48bdc2f3bf283fb8de815df412d6b90d91c9ca",
+    "data/client_api/regular_click_cases-1.16.1.json.gz": "77b1c4ae76671431a492cbc20d2b24dbfab059d0e0ac2bddf9ee2aa8e3b93d78",
+    "data/client_api/regular_click_cases-1.21.11.json.gz": "adfd504a690bc5629594818cd2cf129a42f91a6a7de47b452c90555de1ef8bb4",
+    "data/client_api/regular_click_native_evidence.json": "64d53e36f2ae0ad74f67e513da8b7a5402b1f139433c82c6db67cdb987fbb417",
+    "data/client_api/regular_click_packets-1.16.1.json": "bb5f48c1b213887b1786319e447b31d9d93bf8112a560268109475c89f1e0424",
+    "data/client_api/regular_click_packets-1.21.11.json": "130a9826719d0ffd809b75d7acd708092ca438fc9400c7d26b17423187b78adb",
+    "data/client_api/regular_click_profiles-1.16.1.json": "b4a3f8cd7ef6613f5731982853311c38444eba6a9ead6a515b841d53a8910f15",
+    "data/client_api/regular_click_profiles-1.21.11.json": "1dabd56a059430bf76e18a375666d8066603ae0fa5b52c8dc1f6b1aa2c7a9e45",
+    "data/client_api/regular_click_source.json": "ee22d0157740c95baab56cba65941e11d3b35808470f99f83f484ad59d101d90",
+    "data/client_api/storage_activation_source.json": "618a9ecc4b899807709507a068daa6af5fcccc9a6d0d3e8106fa7bf943bf9f8c",
+    "data/client_api/storage_outline_rays-1.16.1.json.gz": "79330dfe1a9a0315eb4532ed5552085077d2a1ba5288da9850ec6b2147be46b4",
+    "data/client_api/storage_outline_rays-1.21.11.json.gz": "79330dfe1a9a0315eb4532ed5552085077d2a1ba5288da9850ec6b2147be46b4",
+    "data/client_api/storage_outline_source.json": "eaab9a1a97ada364f5f34042b6a7f9e977eaf5cf6095e4573182db930ad68783",
+    "data/client_api/storage_outlines-1.16.1.json": "e5e93a03c3dac0a318f29eb74a26d0b910b58a8ce3924b7fec77fb321e8e3e9d",
+    "data/client_api/storage_outlines-1.21.11.json": "8181669f1c98d417b12f0bf95871165a4cae4361a9276649df80245f1b7d0555",
+    "data/enchantments-source.json": "d2b07c82aba9cd804affc96f3462d4f553be7c814a3a4bc6288df2bdb5cee8ad",
+    "data/enchantments.json": "e6e19e5d3e09c5946d78ae94cb9751655f0090d460ceaf4d87f8f3cee87b0d77",
+    "data/entities.json": "5d50e5f819001980262faebd3984dff05cfb1c2e6101ec02d3a6ae4f34687cf7",
+    "data/harvest_gate_corrections.json": "ffc94117427e00ad135ec161bcadcf1bebc4430eeaabfd6789a66684fa7f66e8",
+    "data/items.json": "94132023a25ffbe5410c186a263dce79a3e6f469f196e2978778e9a129a69021",
+    "data/java_1_21_11/blocks.json": "b152350461ff183c7444ad3107a98ac555de579c4afadd092f2c2d03fb5b80eb",
+    "data/java_1_21_11/collision_shapes.json": "1ee9dd534848604495193ad8b3c06ffd1674cda09a609850c12a9746ba1b9812",
+    "data/java_1_21_11/dry_movement.json": "c11d2071a8cbb1d26a7aecf29986eca52b14e4749671b98094250c85659a0bb4",
+    "data/java_1_21_11/dry_movement_source.json": "25badc36cbaf8ed9e43ad6ba827af8b200d62ef443d3e268d8557e11a4045906",
+    "data/java_1_21_11/inventory_swap_packets.json": "916e61040a033a90432b85a08c34f474fa98b7c4a9db7aa4fb00a8cb934c6f63",
+    "data/java_1_21_11/items.json": "528dc62f92a40981e32ee8826adcf7ad00bce153484c17d5109d0f4353a70264",
+    "data/java_1_21_11/outline_coverage.json": "88b5ec0d474012479a3d3fb8c4659cee29094700720e37a207b93e0cb0c3a92d",
+    "data/java_1_21_11/outline_raycast_cases.json.gz": "a1900f4eed584de07fe3628bcae4fb57f0df2d94e11d4a3dfe23d75e36a251d4",
+    "data/java_1_21_11/outline_rotation_cases.json.gz": "837458b1aa9fdf731e4774685ea6ba6711d26f161cdd6d3e8e4caf5f19764430",
+    "data/java_1_21_11/outline_shapes.json": "f96c141d4bbfe12d14157ce6228802a9ec4ee5caffa40467c260c054e00311d2",
+    "data/java_1_21_11/outline_source.json": "7a0cd1a511ab009a3dc9e2cf222cd8fb7a203b9be93b1f99cf572373aed4e134",
+    "data/java_1_21_11/position_corrections.json": "0eabe98ed2f21cc593c8784fceca3e8a6ebc8f4f8c8c74c99541528e0f9621d1",
+    "data/java_1_21_11/source.json": "ea9a050eeb3513b9017b4112da1f1beabaec218b828a922989e2355308d09578",
+    "data/java_1_21_11/survival_foundation.json": "3e4a7eb97acb3b6c50a11954261c7b70160d6b4e55f9dbc1c303c4e1ef6f96b4",
+    "data/java_1_21_11/survival_foundation_source.json": "f0fe0e27a4b35c10828240d438360d3c75bdd063e467d46153899571b2ad379f",
+    "data/java_1_21_11/survival_movement.json": "3fa48dea890294c551a70f618e4e0bca9f79d2b4285c2621328a65ae7bd2087e",
+    "data/java_1_21_11/survival_movement_source.json": "56e485e2835fb75963d50214ec10f4715c7ef77378e19bfe20cd1c75be9afeb1",
+    "data/java_1_21_11/survival_placement.json": "42205603305e85e94a6f5044f5f7600168faa8118664f7d2bb65256a39644269",
+    "data/java_1_21_11/survival_placement_source.json": "7d91063620ddaed62c6108d88424dc3734d4cff58ff01d2aa030f5c9f5dd0aaa",
+    "data/materials.json": "64172813642aae7c05321fe36136a37b2f98845732541e025d296628a7944b1f",
+    "data/prismarine_physics_fixtures.json": "8333fc4d2b7e10d609bc390d0721e2d51baa9bf2cc0e56ba32dc643e63b323cb",
+    "data/recipes.json": "f2d8d44a5c80b224d1ae33d1910800c5f43ced5b535a7adfb927a029550b2e21",
+    "data/sounds.json": "625dfab3246730311b4a228d4d01e62d6c8429065c0e4df3530e4f71fb7c943f",
+    "src/block_state.rs": "8f1f169bbee43fe8fdf91931cfd433cae7e1a23752aad2c35555ee4af3cbd0e2",
+    "src/client/capabilities.rs": "f080895fb7ec64f22a5f63673417f01be9f97fc0f16bb0db744d8ea63e6e96ac",
+    "src/client/config.rs": "f61f7cd82ca773202f6b851af73434a7f8ff3330c7549fc9337644da3f812f02",
+    "src/client/container.rs": "7fbdf46296721281c9abff0c5b409e7aaacd7a8b623fabbad08e5166c3a75bec",
+    "src/client/container/open.rs": "f9dc20e5b8d897647aa8ae1d63f156b7fcad1572807b3fd3a67c2af703617594",
+    "src/client/container/outline.rs": "cc5b0d705e01ce8095db46ef4f461a2b9fd01164b7a86919ea15ffaf737de5c5",
+    "src/client/geometry.rs": "69b7a146407675ed30e7878075166c2739f5b47957fac6d43e78899a3e5e943f",
+    "src/client/inventory.rs": "dc7f8c82f84085576d9892fdf207b1e1a2f3422ddf1dfe4fcffadde937c67df9",
+    "src/client/inventory/click.rs": "5800addf17f0b89a465b4e51b60f140e13d436fc024cf309eaa55ce4245666b4",
+    "src/client/inventory/slot_policy.rs": "4e2549104c0f4d4379e329e4e5603cf5d4e5538e73cd3de5fab0c7b4250de468",
+    "src/client/mod.rs": "6febcecaf6d4413c8e5716b14ff5c0b044d85479b731dc6d230c63a88566be32",
+    "src/client/observation.rs": "f6872b698f3199ca15614355977e502f9f945c3087ca3c8dd4b71c961efd95d4",
+    "src/client/operations.rs": "56749a675d07294d97f71793ab51586b2c20e6b1477dc95760c6a10e36e0610d",
+    "src/client/registry.rs": "b1f53883be34c96e048427b0024a56569dd327bc131da14bf8f28868eee12ed6",
+    "src/client/survival.rs": "7be78a0216b2ecfa94e4816bdd49500f116f91538853a789dce1655ca5aeb4e5",
+    "src/client/survival/checked.rs": "1e6105da20b38e56cefbe1ed7c34f19f8ae9bd01a744c0933b7a6f46533182d8",
+    "src/client/survival/mining.rs": "96c2588f3e21f4e9cb86dab1aab9cf8662f9b986c5bd96aadcb1f83924291347",
+    "src/client/survival/model.rs": "5142678df9a4936000f5c83c1864b7fd00bd63d1be7fc553a1673baee6ca1592",
+    "src/client/survival/motion.rs": "edee38d19269693f7a7ca194a980b61a92aaa4ab24914c5500b5be88c1dd022a",
+    "src/client/survival/placement.rs": "615da875af2b620d08bc06b5c41683d9852b56f79f0b929e9b5ead8ef147b74a",
+    "src/client/survival/target.rs": "433b7c0e184a1d1b5832749c6625d6eb02cbea10876dc0e964eea397a7e261b4",
+    "src/client/tests.rs": "25ba7d3de6676eed7e627085c439ba5534505e602f7386722294afeb487b39f3",
+    "src/connection.rs": "7cc014ad4e6450658f28b66a6f00bb552aeed8039e2bd564bca78b1acefc8db6",
+    "src/error.rs": "1f5aeb1c74b0a3b8cc72703fd059bb86035e833d56c8b83d703d2d5d525f25b0",
+    "src/lib.rs": "2e46844d713bdfa6a8bca98ccda88f1e2f7cb9094f73c0745c5801ff3b257b45",
+    "src/protocol.rs": "7a29b63ea207b91e64b413631ebf8f4d12d01130c20ed67e8d9593ecc9431383",
+    "src/snapshot.rs": "4a32c3fe6c1995595c1c0da21eaec9dc0368d3e58e89111fb4a216335a8a894a",
+    "src/versions/java_1_16_1/chat.rs": "3f2295100317f9197b0bf9d0c6600bc9cdc115b2bfc2afb3bdf3b31231f1c0c9",
+    "src/versions/java_1_16_1/client.rs": "87682e20928b2c298b03e4fe4919531923e80b008420bf198c6e29a4977b5c65",
+    "src/versions/java_1_16_1/client/common_api.rs": "bc9416544ef8cb0f96b9ab673b91795cf829deae593836b719878ab224951e39",
+    "src/versions/java_1_16_1/client/common_click.rs": "e1e80805cb2f6bf12f760667fd9c752f68951c17f220ecaa2a8917a17a8f78e8",
+    "src/versions/java_1_16_1/client/common_container.rs": "3a4aab32a78672eb9985581e387146fe41e2dadfb2b4aafdd5701c04d8552767",
+    "src/versions/java_1_16_1/client/common_inventory.rs": "6dd649c6d25e76952d91824ab11f33b447caa36cd102db1063afe775d7738a30",
+    "src/versions/java_1_16_1/client/common_mining.rs": "ef4a1f26555a8040c58596191027157b96ac9244cdb731cfc6428e82aaf032e4",
+    "src/versions/java_1_16_1/client/common_motion.rs": "4380472ced68fca597394c96b601034452e56bc2299fc3e91811453364d6f495",
+    "src/versions/java_1_16_1/client/common_placement.rs": "bc897ce7cda4fbd818d97c356eb1c4ac0dddf377c4a6a1fdf7d32547fa699e1a",
+    "src/versions/java_1_16_1/client/packet_deadline_tests.rs": "877c2370ec2b564f227b5c665506881c09050980ab54c3c84cf51306bcc81e68",
+    "src/versions/java_1_16_1/client/storage_tests.rs": "75c07a149cecaac7954abbd217ec9d16d943fe2358348f54b273fd0e349dee41",
+    "src/versions/java_1_16_1/collision.rs": "d4ce098e6a0e8abaf59dca0e34ad8562287f39dcaf5c3effbb929aff7a5c0780",
+    "src/versions/java_1_16_1/entity.rs": "a1fda57736c36e6e64b7280c53f6e074867008203c131b3eb97b1cd9fbbf999f",
+    "src/versions/java_1_16_1/interaction.rs": "d048da265194099bcd16cb8baeb7449b9d853b6aebebae7a4c83fe2022ff8c2e",
+    "src/versions/java_1_16_1/inventory.rs": "fc1abbb539ce5ebb66455a032702e50d074b8070308e2d52c1a48f362393aaf9",
+    "src/versions/java_1_16_1/lifecycle.rs": "4d4516a9c7a12486ecbb7317e01f3421db51e1b96e2a6b6e75f8eef9f09f3d25",
+    "src/versions/java_1_16_1/lifecycle/bounded_motion.rs": "5e8bb4e462252048362f4c2b6007227ad5ac4658fedcf311af235a5c7cd92e90",
+    "src/versions/java_1_16_1/lifecycle/bounded_motion_tests.rs": "a3f66092e80c1efc958424018fe13adb9cb1727dd533af19f123c25e50aa47e0",
+    "src/versions/java_1_16_1/manager.rs": "75ad7f97da8cf7cd1dd420816a31ced98cc3eff88ed5201818ae7b057f9cae9c",
+    "src/versions/java_1_16_1/map.rs": "3f6b09de2f7a8a2e86dabe3c60607ee88e831897648b4e51aecc1fbe9b76f0b9",
+    "src/versions/java_1_16_1/mining_environment.rs": "28591403893c806f8489f04c5c69d04e30746d77eed06e8179ef949097792523",
+    "src/versions/java_1_16_1/mod.rs": "2f7679b9bf8c6839e5fca7dccb2e124c9af7289aae883269f3c277fdbe90a5a0",
+    "src/versions/java_1_16_1/observation.rs": "588b2094bfd82ff078f9c73882e5ae59d542ff68d390f8cfdfe9510643e13739",
+    "src/versions/java_1_16_1/operation.rs": "5f007d6dd0342a2ba73e72e27886e31228ab5d6da9859b423ee8ffb596febecd",
+    "src/versions/java_1_16_1/physics.rs": "5fa4d246cb5a6e7c637ba07de6e53806558a72b6f3bc6cdbaeb4adb15eb8546f",
+    "src/versions/java_1_16_1/progress.rs": "350a2e41d4dd348fed92a9dbfeb01f1de47a99311fa4e07b2204d7babed6df99",
+    "src/versions/java_1_16_1/registry.rs": "063b48394b3d796b29f40040a3e8236034a8708859394fd098714eac1fee2f8d",
+    "src/versions/java_1_16_1/registry_harvest_corrections.rs": "c779923efefa6706f217efd6d317fcca1f21c474a6eeca455dd34469ecc7de26",
+    "src/versions/java_1_16_1/server_registry.rs": "0b61fdc1bc0fe5ce94d0aac64d9f263975144a48410cced47d1dcb4042bb2ce2",
+    "src/versions/java_1_16_1/survival.rs": "ed0372876a58375daf83dee234b04230001f2eeec078a50d274df4d8108ea93c",
+    "src/versions/java_1_16_1/ui.rs": "4ec80717a019f72b3b5676ec956cfb5b6b36364f3312755b9ee0e1ae74ca906e",
+    "src/versions/java_1_16_1/unstable.rs": "7e2791ac9b9d48dbee335b07905ce111586f60c54966474395b4aee2b9e93570",
+    "src/versions/java_1_16_1/world.rs": "d1451ea09a36c27df09b44861bd2ca715f6e61ec08726caa0ccd251f4072f3df",
+    "src/versions/java_1_21_11/client.rs": "216508a8a7c2b4e73a867dd996c9e3a717f7ad3d3346111b8d77e34202aca112",
+    "src/versions/java_1_21_11/client/correction.rs": "e2d7d58ccf934aedcb2759464cf9b673ddd6f07c94ee64d9408a48f34996cdd9",
+    "src/versions/java_1_21_11/client/edge_native_trials.rs": "323860a9fd7ea2d46eabeedf046ef80ede96564db655daa0ba2306b27c685c19",
+    "src/versions/java_1_21_11/client/loading.rs": "4b8b746d2e7dd23167fd432034b45766f2c52bf686920294b09579782a9e729a",
+    "src/versions/java_1_21_11/client/loading/tests.rs": "94a26c405ba5515bba0523b0032dd057e076266a1e845ccf2417f1e2c2c02b32",
+    "src/versions/java_1_21_11/client/mining_native_trials.rs": "ed982aad12cb45cd689df7618aee1ca905abab2db3c323ac79567808ba919e2d",
+    "src/versions/java_1_21_11/client/motion.rs": "312eb801d83b976d3b63bbe2e298ced1f56c13aa899b945dfcee98cfee723e98",
+    "src/versions/java_1_21_11/client/movement_native_trials.rs": "5d7e80daf8f4bf12ea652dc969e0ca57aca2becef04652bb9f8c39e5045f5c81",
+    "src/versions/java_1_21_11/client/observations.rs": "6b60093264c85be724b36a811ed2f22d14a678e43b02a584a5e23f82cd914f6c",
+    "src/versions/java_1_21_11/client/operations.rs": "5d001535944fc0a881d1d5f12bbae90c081c025e7052826261161c96edb44a6c",
+    "src/versions/java_1_21_11/client/operations/container.rs": "703866eb21f97496f5d19064f023441451139ca5445ba45effe1ba7405732f93",
+    "src/versions/java_1_21_11/client/operations/geometry.rs": "5b504de281198fda5b4c0d76753d8538424f48039131e28a60bb5c37622ae48f",
+    "src/versions/java_1_21_11/client/operations/inventory.rs": "680ab0023e7de3183e8ae9d9c428a4500e44782b57ef499043d87d53c8a0042f",
+    "src/versions/java_1_21_11/client/operations/inventory/click.rs": "dd41fb49d4e8f58e811607a21fdb3858816fe23a827825f096779db777ae1b14",
+    "src/versions/java_1_21_11/client/operations/inventory/common.rs": "317ae77017ed4a78fcabbbcb7614a8335eb9201e49f5a85ef8bc000a64b63f83",
+    "src/versions/java_1_21_11/client/operations/inventory/tests.rs": "a1464c235ed12e1b012c44dc0484d52177b13da531f3684f438cb9adeec3445c",
+    "src/versions/java_1_21_11/client/operations/mining.rs": "458c08568388035610223d21134e890152a98c6f9f0c7f9ed3250dfdff8a8339",
+    "src/versions/java_1_21_11/client/operations/mining/inventory_tests.rs": "a9c1b71fcbcef1fd2487af918a3a3a88b9429e47a31e74698d16e27fad6c5918",
+    "src/versions/java_1_21_11/client/operations/mining/prediction_tests.rs": "a50370c834d1fc1c12300af4ed6ba8725364cce35226f9cdb01063bd6c28c8b4",
+    "src/versions/java_1_21_11/client/operations/mining/profile_tests.rs": "f99953d9cb8f3f1eafa64739690bcd700b2482c8f4a5f8346a06250be3da8b7b",
+    "src/versions/java_1_21_11/client/operations/mining/tests.rs": "ef40ad63a4b8f2b466b049a008e468410c095e314dc82e6783ff0bcb6a0e9503",
+    "src/versions/java_1_21_11/client/operations/movement.rs": "09c5139848e429f2881a4fc183974c11b0e1fa8f734f275da3a0a2ac068c1000",
+    "src/versions/java_1_21_11/client/operations/movement/control.rs": "5827110068926d9c17fc40e41f8dadbcee6ccf9738f865d05ceb8e33d0f0a228",
+    "src/versions/java_1_21_11/client/operations/movement/endpoint.rs": "f3f81df0d01d4bacb97cf456a183cabcd485db672c70e4aed4502964eeff70b1",
+    "src/versions/java_1_21_11/client/operations/movement/scenario.rs": "6054e9d6ddbac73824737ad7d56f792b3446d79332a60f3cc3746a69f203e91f",
+    "src/versions/java_1_21_11/client/operations/placement.rs": "31d44c3f0b87fb601ec8203209515e68ced3c8c7811f2e6ba3b15d7a7e0d6f39",
+    "src/versions/java_1_21_11/client/operations/placement/tests.rs": "20aa09a131e7e0b19e94a36e1b8f4d4f695d2693d8e45d32604a7817a06966c8",
+    "src/versions/java_1_21_11/client/operations/profile_recovery.rs": "08082accb5eb765e83da52441e49af28e7c8512afde6f9ded1150909b4825ed6",
+    "src/versions/java_1_21_11/client/operations/recovery.rs": "17b10627358cce5786fcf094315fe6b620fc58f7e6392b3fd0b80953affb3d65",
+    "src/versions/java_1_21_11/client/operations/retirement.rs": "268476b3e961f7df8357625ddf87d207aa0345a206c70cb19549e418aa585eeb",
+    "src/versions/java_1_21_11/client/operations/survival.rs": "f2e9e7174701feeb86990f8f951d58cb8a690fd85c183207992661613fb498b3",
+    "src/versions/java_1_21_11/client/operations/survival/attributes.rs": "3c24ac65afc7cb35096726231c1f3bd5e9044bd7934a38629c87149ba311c156",
+    "src/versions/java_1_21_11/client/operations/survival/tests.rs": "d554a38e53621a7ae36f1e0c91b60376ecbe63d4c96fb489d0079578564d508c",
+    "src/versions/java_1_21_11/client/operations/tests.rs": "1a81a211a2ccba6e42bb0e6fc05bd3eb1edb1ecc59c67ccdc6de9f814c5bdfcd",
+    "src/versions/java_1_21_11/client/outbound.rs": "0cfd4cac22076813b155b2ad5c02b27579b1c07f8f0c607e12011bfaad1515c6",
+    "src/versions/java_1_21_11/client/outbound/tests.rs": "effb068ef439e75916615fc05f713c20197d7bc98f0342acdac339ab25c7ecd2",
+    "src/versions/java_1_21_11/client/placement_native_trials.rs": "b7a3e4b69e53ec12a34ff60a7a731cbeda19fa808f397bdb1e3b0c446d5c54b0",
+    "src/versions/java_1_21_11/client/players.rs": "1b78ebc0010b50a2dc7a3d1e8ff2fcdbf213f0e2241c8dd61baacb9f7483f895",
+    "src/versions/java_1_21_11/client/players/motion.rs": "48ae0e823b43ca2a129ef2bf712a09025fcaf8f3e81723a0ce70564ed41b04f6",
+    "src/versions/java_1_21_11/client/players/tests.rs": "34f7283a900c94ee492cd9c051742a46c3f94fdea936151147ab821712c0fc9f",
+    "src/versions/java_1_21_11/client/raycast.rs": "97e95b79b4e0a26a0e442cb60ea81eaa97ebb66adf45ef3dc50e9e4d4440c7c6",
+    "src/versions/java_1_21_11/client/raycast/outline.rs": "93f4d6742058139500401dfeba9b838becd23c142c284f1be5fc4652c176c5c5",
+    "src/versions/java_1_21_11/client/raycast/outline/uncertainty.rs": "438ee23c2a6a131d7f3d61956eae5aceba657cd17f9e07daeca7ec1b9a104958",
+    "src/versions/java_1_21_11/client/recording.rs": "de3c6ad62e7229218ec041f66c33e2902bbb9d397296b52d6ab1d2315d37a426",
+    "src/versions/java_1_21_11/client/tests.rs": "f2ec421e67737ffbee1bb156b9a49b14bf95f18398d310a7ba8fbf33d9f9b622",
+    "src/versions/java_1_21_11/component_nbt.rs": "bce1b6920f3d9fd958c102d2a93818c36fad4b604783b4baa71e219fe52f83ab",
+    "src/versions/java_1_21_11/ids.rs": "55f81e9b0f7eb0f03e42111de7d7e8ffc19b420e3df53fa661643a24ef06d6e1",
+    "src/versions/java_1_21_11/math.rs": "d780a16da40530bc203bb3fdd2f24aabdd131bf3b41e3fd20ae4f88dfd334ef3",
+    "src/versions/java_1_21_11/mod.rs": "394e308cc3050d685e2bf98cfb5bebda598a470903faffda15d36a5e3a4b9772",
+    "src/versions/java_1_21_11/piston_nbt.rs": "d40ebd94b8a8b3eeeb4cba5c5af94e06e34a2892d2285a50941a67483dd8f5ac",
+    "src/versions/java_1_21_11/reconstruction.rs": "b1462d8efb0c966c30187dc643d1269145a58758e88e5c59b26304dcbd39c15e",
+    "src/versions/java_1_21_11/reconstruction/adhesion.rs": "6d25b703fc47566042dd6d8b78a7f60954263962c4860e8e4bc9c40f310be924",
+    "src/versions/java_1_21_11/reconstruction/motion.rs": "67578f90f3d6f662c2fd0e9657279670c2dabfb36101c8bfc262c546d11b568b",
+    "src/versions/java_1_21_11/reconstruction/rules.rs": "4c8eea74418e3d7af737a0f6d61123798e6d200bd9d547d840c11230b474536f",
+    "src/versions/java_1_21_11/reconstruction/tests.rs": "53316c79b97689e61a638ce6152b0008b9bb5940d9143dc7de781a5e8c7a785e",
+    "src/versions/java_1_21_11/reconstruction/wire_updates.rs": "e3e9d12d073c0f728d5eb3a08b602e88648e9b66e01f03a0f728fd16badb19ee",
+    "src/versions/java_1_21_11/recovery_tests.rs": "a30d0542997bfdc2f5b995a10f1ddfab3644c75deed2865e8cd809d554c2a4e5",
+    "src/versions/java_1_21_11/wire.rs": "5c80f55a641b5ebd5feb0a0e8adbec3dbb189f727f9c485679ab57969100304c",
+    "src/versions/java_1_21_11/world.rs": "c58faa72de6d954b0fc4d9551da4f0f460cd445e21c829290ffe194d971f97ee",
+    "src/versions/mod.rs": "bc02286fe6c7f028d718f5140f6839f10afe8b74cd0c48a713efab2e3fabc6fe",
+    "Cargo.toml": "4f1d8c1b0ff2ea38d4e095c207433d7b3f550e4979fcb318ef89cab2af84aace",
+    "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+    "examples/common_native_probe.rs": "42f93cc9a12f8a4dad253934e9f4b321eadf528fdb06bdf2ef44552954374012",
+    "scripts/run_common_native.py": "870ed097e62130fbf63a5b5d26e9dfa9b516bc11d5fff130cb4594274f6b4e2c",
+    "target/debug/examples/common_native_probe": "678637ff9a7f5f8e9cc39a573af1398a4b8c2e509489e7c3bb33ad4a3d4be43d"
+  },
+  "primitive_evidence": "data/client_api/regular_click_source.json",
+  "prior_regression": "data/client_api/regular_click_native_evidence.json",
+  "prior_history": "data/client_api/common_native_evidence.json",
+  "runs": [
+    {
+      "version": "1.16.1",
+      "run_id": "trial-1.16.1-3275293e",
+      "source": {
+        "version": "1.16.1",
+        "metadata_url": "https://piston-meta.mojang.com/v1/packages/54fa3af57d041d2771e66d390197b2c0288e697c/1.16.1.json",
+        "metadata_sha1": "54fa3af57d041d2771e66d390197b2c0288e697c",
+        "server": {
+          "sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+          "size": 37968964,
+          "url": "https://piston-data.mojang.com/v1/objects/a412fd69db1f81db3f511c1463fd304675244077/server.jar"
+        }
+      },
+      "result": "passed",
+      "server_exit_code": 0,
+      "server_memory_limit": "1024M",
+      "runtime_parent": "/dev/shm/voxrig-pickup-validation",
+      "sync_chunk_writes": false,
+      "tmpfs_runtime_removed": true,
+      "raw_report_sha256": "c7a5c7ad90a587d611d0732ac36d402d9212ae69bfa0aed26f04e923a165ff2d",
+      "probe_jsonl_sha256": "18ccc235071729247818ee6760f3b1b07e6c6a8ae9e54b3bccb70893a8d14e6f",
+      "native_results": {
+        "container_pickups": {
+          "survival_split_contents": "0, 65, 2 has the following block data: [{Slot: 0b, id: \"minecraft:stone\", Count: 3b}]",
+          "creative_one_contents": "0, 65, 2 has the following block data: [{Slot: 0b, id: \"minecraft:stone\", Count: 4b}]",
+          "creative_return_contents": "0, 65, 2 has the following block data: [{Slot: 0b, id: \"minecraft:stone\", Count: 7b}]",
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "authority_limits": "Original network PICKUP in both modes; independent RCON verifies storage counts. Fresh source/cursor and legacy comparison reply come from actual received packets; RCON does not verify cursor/menu ownership."
+        },
+        "player_pickups": {
+          "player_pickup_taken": "UnifiedProbe has the following entity data: []",
+          "player_pickup_one": "UnifiedProbe has the following entity data: [{Slot: 0b, id: \"minecraft:dirt\", Count: 1b}]",
+          "player_pickup_returned": "UnifiedProbe has the following entity data: [{Slot: 0b, id: \"minecraft:dirt\", Count: 1b}, {Slot: 9b, id: \"minecraft:dirt\", Count: 1b}]",
+          "player_pickup_retaken": "UnifiedProbe has the following entity data: [{Slot: 9b, id: \"minecraft:dirt\", Count: 1b}]",
+          "player_pickup_restored": "UnifiedProbe has the following entity data: [{Slot: 9b, id: \"minecraft:dirt\", Count: 2b}]",
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "authority_limits": "Actual ordinary player main/hotbar PICKUP after no-echo close, both modes and nonempty cursor. RCON independently verifies exact player inventory; cursor completion is separate actual receive evidence. No predicted receipt, invented window/revision/close acknowledgement or replay."
+        },
+        "container_swaps": {
+          "survival_container": "0, 65, 2 has the following block data: []",
+          "survival_inventory": "UnifiedProbe has the following entity data: [{Slot: 0b, id: \"minecraft:stone\", Count: 7b}, {Slot: 9b, id: \"minecraft:dirt\", Count: 2b}]",
+          "creative_container": "0, 65, 2 has the following block data: [{Slot: 0b, id: \"minecraft:stone\", Count: 7b}]",
+          "creative_inventory": "UnifiedProbe has the following entity data: [{Slot: 9b, id: \"minecraft:dirt\", Count: 2b}]",
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        },
+        "player_screen_after_close": {
+          "survival_inventory": "UnifiedProbe has the following entity data: [{Slot: 0b, id: \"minecraft:dirt\", Count: 2b}]",
+          "creative_inventory": "UnifiedProbe has the following entity data: [{Slot: 9b, id: \"minecraft:dirt\", Count: 2b}]",
+          "container_contents": "0, 65, 2 has the following block data: [{Slot: 0b, id: \"minecraft:stone\", Count: 11b}]",
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "authority_limits": "Native default player inventory exchanges after complete no-echo close. Received slots and explicit submitted-close UI basis, not a fabricated received active window/cursor/revision; RCON verifies exact contents/inventory/position."
+        },
+        "container_open": {
+          "target": [
+            0,
+            65,
+            2
+          ],
+          "creative_contents": "0, 65, 2 has the following block data: [{Slot: 0b, id: \"minecraft:stone\", Count: 3b}]",
+          "survival_contents": "0, 65, 2 has the following block data: [{Slot: 0b, id: \"minecraft:stone\", Count: 11b}]",
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "authority_limits": "Same common empty-hand API in both modes: complete activation frame, actual fresh matching OPEN/full/cursor, modern actual processing ACK, distinct reopening and retained history. OPEN has no target coordinates: received screen facts do not prove causal target ownership. RCON independently verifies actual storage contents and unchanged native position."
+        },
+        "barrel_activation": {
+          "modes": {
+            "creative": {
+              "opened": "0, 65, 2 has the following block data: [{Slot: 0b, id: \"minecraft:stone\", Count: 5b}]",
+              "closed": "0, 65, 2 has the following block data: [{Slot: 0b, id: \"minecraft:stone\", Count: 5b}]"
+            },
+            "survival": {
+              "opened": "0, 65, 2 has the following block data: [{Slot: 0b, id: \"minecraft:stone\", Count: 5b}]",
+              "closed": "0, 65, 2 has the following block data: [{Slot: 0b, id: \"minecraft:stone\", Count: 5b}]"
+            }
+          },
+          "player_inventory": "UnifiedProbe has the following entity data: [{Slot: 9b, id: \"minecraft:dirt\", Count: 2b}]",
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "authority_limits": "Native RCON verifies real barrel open/closed boolean and unchanged stone 5 contents/player inventory/pose. Same Client independently receives matching menus/full/cursor/modern processing and actual open flag cache. Open-property transitions are outline/menu-compatible, not a target-linked acknowledgement or menu ownership proof."
+        }
+      },
+      "click_records": [
+        {
+          "consumer_stage": "container_pickup_split",
+          "record": {
+            "id": {
+              "attempt": 1,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              }
+            },
+            "mode": "survival",
+            "source": {
+              "kind": "container",
+              "screen": {
+                "opened_sequence": 132,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                },
+                "window": 1
+              }
+            },
+            "source_slot": 0,
+            "button": "right",
+            "source_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 166
+              },
+              "value": {
+                "item": {
+                  "count": 7,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 159
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "prediction": {
+              "cursor": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 4,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 1,
+                      "version": "Java1_16_1"
+                    },
+                    "name": "minecraft:stone"
+                  },
+                  "kind": "item"
+                }
+              },
+              "source": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 3,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 1,
+                      "version": "Java1_16_1"
+                    },
+                    "name": "minecraft:stone"
+                  },
+                  "kind": "item"
+                }
+              }
+            },
+            "send": {
+              "after_sequence": 167,
+              "dispatched": true,
+              "legacy_action": 3,
+              "legacy_comparison": {
+                "kind": "empty"
+              },
+              "screen_revision": null
+            },
+            "source_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 169
+              },
+              "value": {
+                "item": {
+                  "count": 3,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 170
+              },
+              "value": {
+                "item": {
+                  "count": 4,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "legacy_reply": {
+              "accepted": false,
+              "action": 3,
+              "receive_sequence": 168,
+              "window_id": 1
+            },
+            "requires_inspection": null,
+            "stage": "observed_clicked",
+            "initial": {
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              },
+              "receive_sequence": 167,
+              "game_mode": "survival",
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 5
+                },
+                "value": 0
+              },
+              "inventory": {
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 159
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                "window_id": 1,
+                "player_screen": null,
+                "screen_revision": null,
+                "player_screen_revision": null
+              }
+            },
+            "initial_screen": {
+              "id": {
+                "opened_sequence": 132,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                },
+                "window": 1
+              },
+              "menu_name": "minecraft:generic_9x3",
+              "full_contents_sequence": 158,
+              "revision": null
+            }
+          }
+        },
+        {
+          "consumer_stage": "container_pickup_one",
+          "record": {
+            "id": {
+              "attempt": 2,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              }
+            },
+            "mode": "creative",
+            "source": {
+              "kind": "container",
+              "screen": {
+                "opened_sequence": 132,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                },
+                "window": 1
+              }
+            },
+            "source_slot": 0,
+            "button": "right",
+            "source_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 171
+              },
+              "value": {
+                "item": {
+                  "count": 3,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 170
+              },
+              "value": {
+                "item": {
+                  "count": 4,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "prediction": {
+              "cursor": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 3,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 1,
+                      "version": "Java1_16_1"
+                    },
+                    "name": "minecraft:stone"
+                  },
+                  "kind": "item"
+                }
+              },
+              "source": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 4,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 1,
+                      "version": "Java1_16_1"
+                    },
+                    "name": "minecraft:stone"
+                  },
+                  "kind": "item"
+                }
+              }
+            },
+            "send": {
+              "after_sequence": 176,
+              "dispatched": true,
+              "legacy_action": 4,
+              "legacy_comparison": {
+                "kind": "empty"
+              },
+              "screen_revision": null
+            },
+            "source_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 178
+              },
+              "value": {
+                "item": {
+                  "count": 4,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 179
+              },
+              "value": {
+                "item": {
+                  "count": 3,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "legacy_reply": {
+              "accepted": false,
+              "action": 4,
+              "receive_sequence": 177,
+              "window_id": 1
+            },
+            "requires_inspection": null,
+            "stage": "observed_clicked",
+            "initial": {
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              },
+              "receive_sequence": 176,
+              "game_mode": "creative",
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 5
+                },
+                "value": 0
+              },
+              "inventory": {
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 170
+                  },
+                  "value": {
+                    "item": {
+                      "count": 4,
+                      "data": {
+                        "kind": "default"
+                      },
+                      "id": {
+                        "kind": "Item",
+                        "value": 1,
+                        "version": "Java1_16_1"
+                      },
+                      "name": "minecraft:stone"
+                    },
+                    "kind": "item"
+                  }
+                },
+                "window_id": 1,
+                "player_screen": null,
+                "screen_revision": null,
+                "player_screen_revision": null
+              }
+            },
+            "initial_screen": {
+              "id": {
+                "opened_sequence": 132,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                },
+                "window": 1
+              },
+              "menu_name": "minecraft:generic_9x3",
+              "full_contents_sequence": 169,
+              "revision": null
+            }
+          }
+        },
+        {
+          "consumer_stage": "container_pickup_returned",
+          "record": {
+            "id": {
+              "attempt": 3,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              }
+            },
+            "mode": "creative",
+            "source": {
+              "kind": "container",
+              "screen": {
+                "opened_sequence": 132,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                },
+                "window": 1
+              }
+            },
+            "source_slot": 0,
+            "button": "left",
+            "source_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 178
+              },
+              "value": {
+                "item": {
+                  "count": 4,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 179
+              },
+              "value": {
+                "item": {
+                  "count": 3,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "prediction": {
+              "cursor": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "kind": "empty"
+                }
+              },
+              "source": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 7,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 1,
+                      "version": "Java1_16_1"
+                    },
+                    "name": "minecraft:stone"
+                  },
+                  "kind": "item"
+                }
+              }
+            },
+            "send": {
+              "after_sequence": 179,
+              "dispatched": true,
+              "legacy_action": 5,
+              "legacy_comparison": {
+                "kind": "empty"
+              },
+              "screen_revision": null
+            },
+            "source_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 182
+              },
+              "value": {
+                "item": {
+                  "count": 7,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 183
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "legacy_reply": {
+              "accepted": false,
+              "action": 5,
+              "receive_sequence": 181,
+              "window_id": 1
+            },
+            "requires_inspection": null,
+            "stage": "observed_clicked",
+            "initial": {
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              },
+              "receive_sequence": 179,
+              "game_mode": "creative",
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 5
+                },
+                "value": 0
+              },
+              "inventory": {
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 179
+                  },
+                  "value": {
+                    "item": {
+                      "count": 3,
+                      "data": {
+                        "kind": "default"
+                      },
+                      "id": {
+                        "kind": "Item",
+                        "value": 1,
+                        "version": "Java1_16_1"
+                      },
+                      "name": "minecraft:stone"
+                    },
+                    "kind": "item"
+                  }
+                },
+                "window_id": 1,
+                "player_screen": null,
+                "screen_revision": null,
+                "player_screen_revision": null
+              }
+            },
+            "initial_screen": {
+              "id": {
+                "opened_sequence": 132,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_16_1",
+                  "world_generation": 1
+                },
+                "window": 1
+              },
+              "menu_name": "minecraft:generic_9x3",
+              "full_contents_sequence": 178,
+              "revision": null
+            }
+          }
+        },
+        {
+          "consumer_stage": "player_pickup_taken",
+          "record": {
+            "id": {
+              "attempt": 4,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              }
+            },
+            "mode": "survival",
+            "source": {
+              "kind": "player"
+            },
+            "source_slot": 9,
+            "button": "left",
+            "source_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 219
+              },
+              "value": {
+                "item": {
+                  "count": 2,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 9,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 213
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "prediction": {
+              "cursor": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 2,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 9,
+                      "version": "Java1_16_1"
+                    },
+                    "name": "minecraft:dirt"
+                  },
+                  "kind": "item"
+                }
+              },
+              "source": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "kind": "empty"
+                }
+              }
+            },
+            "send": {
+              "after_sequence": 220,
+              "dispatched": true,
+              "legacy_action": 3,
+              "legacy_comparison": {
+                "kind": "empty"
+              },
+              "screen_revision": null
+            },
+            "source_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 222
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "cursor_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 223
+              },
+              "value": {
+                "item": {
+                  "count": 2,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 9,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "legacy_reply": {
+              "accepted": false,
+              "action": 3,
+              "receive_sequence": 221,
+              "window_id": 0
+            },
+            "requires_inspection": null,
+            "stage": "observed_clicked",
+            "initial": {
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              },
+              "receive_sequence": 220,
+              "game_mode": "survival",
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 5
+                },
+                "value": 0
+              },
+              "inventory": {
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 213
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                "window_id": 2,
+                "player_screen": {
+                  "close": {
+                    "attempt": 2,
+                    "screen": {
+                      "opened_sequence": 192,
+                      "session": {
+                        "connection_id": 1,
+                        "version": "Java1_16_1",
+                        "world_generation": 1
+                      },
+                      "window": 2
+                    }
+                  },
+                  "kind": "submitted_close"
+                },
+                "screen_revision": null,
+                "player_screen_revision": null
+              }
+            },
+            "initial_screen": null
+          }
+        },
+        {
+          "consumer_stage": "player_pickup_one",
+          "record": {
+            "id": {
+              "attempt": 5,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              }
+            },
+            "mode": "creative",
+            "source": {
+              "kind": "player"
+            },
+            "source_slot": 36,
+            "button": "right",
+            "source_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 222
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "cursor_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 223
+              },
+              "value": {
+                "item": {
+                  "count": 2,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 9,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "prediction": {
+              "cursor": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 1,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 9,
+                      "version": "Java1_16_1"
+                    },
+                    "name": "minecraft:dirt"
+                  },
+                  "kind": "item"
+                }
+              },
+              "source": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 1,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 9,
+                      "version": "Java1_16_1"
+                    },
+                    "name": "minecraft:dirt"
+                  },
+                  "kind": "item"
+                }
+              }
+            },
+            "send": {
+              "after_sequence": 228,
+              "dispatched": true,
+              "legacy_action": 4,
+              "legacy_comparison": {
+                "item": {
+                  "count": 2,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 9,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              },
+              "screen_revision": null
+            },
+            "source_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 232
+              },
+              "value": {
+                "item": {
+                  "count": 1,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 9,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 233
+              },
+              "value": {
+                "item": {
+                  "count": 1,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 9,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "legacy_reply": {
+              "accepted": false,
+              "action": 4,
+              "receive_sequence": 231,
+              "window_id": 0
+            },
+            "requires_inspection": null,
+            "stage": "observed_clicked",
+            "initial": {
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              },
+              "receive_sequence": 228,
+              "game_mode": "creative",
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 5
+                },
+                "value": 0
+              },
+              "inventory": {
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 223
+                  },
+                  "value": {
+                    "item": {
+                      "count": 2,
+                      "data": {
+                        "kind": "default"
+                      },
+                      "id": {
+                        "kind": "Item",
+                        "value": 9,
+                        "version": "Java1_16_1"
+                      },
+                      "name": "minecraft:dirt"
+                    },
+                    "kind": "item"
+                  }
+                },
+                "window_id": 2,
+                "player_screen": {
+                  "close": {
+                    "attempt": 2,
+                    "screen": {
+                      "opened_sequence": 192,
+                      "session": {
+                        "connection_id": 1,
+                        "version": "Java1_16_1",
+                        "world_generation": 1
+                      },
+                      "window": 2
+                    }
+                  },
+                  "kind": "submitted_close"
+                },
+                "screen_revision": null,
+                "player_screen_revision": null
+              }
+            },
+            "initial_screen": null
+          }
+        },
+        {
+          "consumer_stage": "player_pickup_returned",
+          "record": {
+            "id": {
+              "attempt": 6,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              }
+            },
+            "mode": "creative",
+            "source": {
+              "kind": "player"
+            },
+            "source_slot": 9,
+            "button": "left",
+            "source_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 232
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "cursor_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 233
+              },
+              "value": {
+                "item": {
+                  "count": 1,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 9,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "prediction": {
+              "cursor": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "kind": "empty"
+                }
+              },
+              "source": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 1,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 9,
+                      "version": "Java1_16_1"
+                    },
+                    "name": "minecraft:dirt"
+                  },
+                  "kind": "item"
+                }
+              }
+            },
+            "send": {
+              "after_sequence": 233,
+              "dispatched": true,
+              "legacy_action": 5,
+              "legacy_comparison": {
+                "item": {
+                  "count": 1,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 9,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              },
+              "screen_revision": null
+            },
+            "source_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 236
+              },
+              "value": {
+                "item": {
+                  "count": 1,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 9,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 237
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "legacy_reply": {
+              "accepted": false,
+              "action": 5,
+              "receive_sequence": 235,
+              "window_id": 0
+            },
+            "requires_inspection": null,
+            "stage": "observed_clicked",
+            "initial": {
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              },
+              "receive_sequence": 233,
+              "game_mode": "creative",
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 5
+                },
+                "value": 0
+              },
+              "inventory": {
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 233
+                  },
+                  "value": {
+                    "item": {
+                      "count": 1,
+                      "data": {
+                        "kind": "default"
+                      },
+                      "id": {
+                        "kind": "Item",
+                        "value": 9,
+                        "version": "Java1_16_1"
+                      },
+                      "name": "minecraft:dirt"
+                    },
+                    "kind": "item"
+                  }
+                },
+                "window_id": 2,
+                "player_screen": {
+                  "close": {
+                    "attempt": 2,
+                    "screen": {
+                      "opened_sequence": 192,
+                      "session": {
+                        "connection_id": 1,
+                        "version": "Java1_16_1",
+                        "world_generation": 1
+                      },
+                      "window": 2
+                    }
+                  },
+                  "kind": "submitted_close"
+                },
+                "screen_revision": null,
+                "player_screen_revision": null
+              }
+            },
+            "initial_screen": null
+          }
+        },
+        {
+          "consumer_stage": "player_pickup_retaken",
+          "record": {
+            "id": {
+              "attempt": 7,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              }
+            },
+            "mode": "creative",
+            "source": {
+              "kind": "player"
+            },
+            "source_slot": 36,
+            "button": "left",
+            "source_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 236
+              },
+              "value": {
+                "item": {
+                  "count": 1,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 9,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 237
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "prediction": {
+              "cursor": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 1,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 9,
+                      "version": "Java1_16_1"
+                    },
+                    "name": "minecraft:dirt"
+                  },
+                  "kind": "item"
+                }
+              },
+              "source": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "kind": "empty"
+                }
+              }
+            },
+            "send": {
+              "after_sequence": 237,
+              "dispatched": true,
+              "legacy_action": 6,
+              "legacy_comparison": {
+                "kind": "empty"
+              },
+              "screen_revision": null
+            },
+            "source_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 240
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "cursor_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 241
+              },
+              "value": {
+                "item": {
+                  "count": 1,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 9,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "legacy_reply": {
+              "accepted": false,
+              "action": 6,
+              "receive_sequence": 239,
+              "window_id": 0
+            },
+            "requires_inspection": null,
+            "stage": "observed_clicked",
+            "initial": {
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              },
+              "receive_sequence": 237,
+              "game_mode": "creative",
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 5
+                },
+                "value": 0
+              },
+              "inventory": {
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 237
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                "window_id": 2,
+                "player_screen": {
+                  "close": {
+                    "attempt": 2,
+                    "screen": {
+                      "opened_sequence": 192,
+                      "session": {
+                        "connection_id": 1,
+                        "version": "Java1_16_1",
+                        "world_generation": 1
+                      },
+                      "window": 2
+                    }
+                  },
+                  "kind": "submitted_close"
+                },
+                "screen_revision": null,
+                "player_screen_revision": null
+              }
+            },
+            "initial_screen": null
+          }
+        },
+        {
+          "consumer_stage": "player_pickup_restored",
+          "record": {
+            "id": {
+              "attempt": 8,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              }
+            },
+            "mode": "creative",
+            "source": {
+              "kind": "player"
+            },
+            "source_slot": 9,
+            "button": "left",
+            "source_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 240
+              },
+              "value": {
+                "item": {
+                  "count": 1,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 9,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 241
+              },
+              "value": {
+                "item": {
+                  "count": 1,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 9,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "prediction": {
+              "cursor": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "kind": "empty"
+                }
+              },
+              "source": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 2,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 9,
+                      "version": "Java1_16_1"
+                    },
+                    "name": "minecraft:dirt"
+                  },
+                  "kind": "item"
+                }
+              }
+            },
+            "send": {
+              "after_sequence": 241,
+              "dispatched": true,
+              "legacy_action": 7,
+              "legacy_comparison": {
+                "kind": "empty"
+              },
+              "screen_revision": null
+            },
+            "source_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 244
+              },
+              "value": {
+                "item": {
+                  "count": 2,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 9,
+                    "version": "Java1_16_1"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 245
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "legacy_reply": {
+              "accepted": false,
+              "action": 7,
+              "receive_sequence": 243,
+              "window_id": 0
+            },
+            "requires_inspection": null,
+            "stage": "observed_clicked",
+            "initial": {
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_16_1",
+                "world_generation": 1
+              },
+              "receive_sequence": 241,
+              "game_mode": "creative",
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 5
+                },
+                "value": 0
+              },
+              "inventory": {
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 241
+                  },
+                  "value": {
+                    "item": {
+                      "count": 1,
+                      "data": {
+                        "kind": "default"
+                      },
+                      "id": {
+                        "kind": "Item",
+                        "value": 9,
+                        "version": "Java1_16_1"
+                      },
+                      "name": "minecraft:dirt"
+                    },
+                    "kind": "item"
+                  }
+                },
+                "window_id": 2,
+                "player_screen": {
+                  "close": {
+                    "attempt": 2,
+                    "screen": {
+                      "opened_sequence": 192,
+                      "session": {
+                        "connection_id": 1,
+                        "version": "Java1_16_1",
+                        "world_generation": 1
+                      },
+                      "window": 2
+                    }
+                  },
+                  "kind": "submitted_close"
+                },
+                "screen_revision": null,
+                "player_screen_revision": null
+              }
+            },
+            "initial_screen": null
+          }
+        }
+      ]
+    },
+    {
+      "version": "1.21.11",
+      "run_id": "trial-1.21.11-a30b17c0",
+      "source": {
+        "version": "1.21.11",
+        "metadata_url": "https://piston-meta.mojang.com/v1/packages/4f6bd9388f12e9d7adc2ded64acba66212d60521/1.21.11.json",
+        "metadata_sha1": "4f6bd9388f12e9d7adc2ded64acba66212d60521",
+        "server": {
+          "sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+          "size": 56327581,
+          "url": "https://piston-data.mojang.com/v1/objects/64bb6d763bed0a9f1d632ec347938594144943ed/server.jar"
+        }
+      },
+      "result": "passed",
+      "server_exit_code": 0,
+      "server_memory_limit": "1024M",
+      "runtime_parent": "/dev/shm/voxrig-pickup-validation",
+      "sync_chunk_writes": false,
+      "tmpfs_runtime_removed": true,
+      "raw_report_sha256": "03cca76c4ac472d33aec2c65aeeea3f26318462e118ddf652bbdfb30e4dfca00",
+      "probe_jsonl_sha256": "fde8daf8045d077f52a4b3c03cef99e21599f07c6f4d8bcda7959eebe8834382",
+      "native_results": {
+        "container_pickups": {
+          "survival_split_contents": "0, 65, 2 has the following block data: [{count: 3, Slot: 0b, id: \"minecraft:stone\"}]",
+          "creative_one_contents": "0, 65, 2 has the following block data: [{count: 4, Slot: 0b, id: \"minecraft:stone\"}]",
+          "creative_return_contents": "0, 65, 2 has the following block data: [{count: 7, Slot: 0b, id: \"minecraft:stone\"}]",
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "authority_limits": "Original network PICKUP in both modes; independent RCON verifies storage counts. Fresh source/cursor and legacy comparison reply come from actual received packets; RCON does not verify cursor/menu ownership."
+        },
+        "player_pickups": {
+          "player_pickup_taken": "UnifiedProbe has the following entity data: []",
+          "player_pickup_one": "UnifiedProbe has the following entity data: [{count: 1, Slot: 0b, id: \"minecraft:dirt\"}]",
+          "player_pickup_returned": "UnifiedProbe has the following entity data: [{count: 1, Slot: 0b, id: \"minecraft:dirt\"}, {count: 1, Slot: 9b, id: \"minecraft:dirt\"}]",
+          "player_pickup_retaken": "UnifiedProbe has the following entity data: [{count: 1, Slot: 9b, id: \"minecraft:dirt\"}]",
+          "player_pickup_restored": "UnifiedProbe has the following entity data: [{count: 2, Slot: 9b, id: \"minecraft:dirt\"}]",
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "authority_limits": "Actual ordinary player main/hotbar PICKUP after no-echo close, both modes and nonempty cursor. RCON independently verifies exact player inventory; cursor completion is separate actual receive evidence. No predicted receipt, invented window/revision/close acknowledgement or replay."
+        },
+        "container_swaps": {
+          "survival_container": "0, 65, 2 has the following block data: []",
+          "survival_inventory": "UnifiedProbe has the following entity data: [{count: 7, Slot: 0b, id: \"minecraft:stone\"}, {count: 2, Slot: 9b, id: \"minecraft:dirt\"}]",
+          "creative_container": "0, 65, 2 has the following block data: [{count: 7, Slot: 0b, id: \"minecraft:stone\"}]",
+          "creative_inventory": "UnifiedProbe has the following entity data: [{count: 2, Slot: 9b, id: \"minecraft:dirt\"}]",
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        },
+        "player_screen_after_close": {
+          "survival_inventory": "UnifiedProbe has the following entity data: [{count: 2, Slot: 0b, id: \"minecraft:dirt\"}]",
+          "creative_inventory": "UnifiedProbe has the following entity data: [{count: 2, Slot: 9b, id: \"minecraft:dirt\"}]",
+          "container_contents": "0, 65, 2 has the following block data: [{count: 11, Slot: 0b, id: \"minecraft:stone\"}]",
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "authority_limits": "Native default player inventory exchanges after complete no-echo close. Received slots and explicit submitted-close UI basis, not a fabricated received active window/cursor/revision; RCON verifies exact contents/inventory/position."
+        },
+        "container_open": {
+          "target": [
+            0,
+            65,
+            2
+          ],
+          "creative_contents": "0, 65, 2 has the following block data: [{count: 3, Slot: 0b, id: \"minecraft:stone\"}]",
+          "survival_contents": "0, 65, 2 has the following block data: [{count: 11, Slot: 0b, id: \"minecraft:stone\"}]",
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "authority_limits": "Same common empty-hand API in both modes: complete activation frame, actual fresh matching OPEN/full/cursor, modern actual processing ACK, distinct reopening and retained history. OPEN has no target coordinates: received screen facts do not prove causal target ownership. RCON independently verifies actual storage contents and unchanged native position."
+        },
+        "barrel_activation": {
+          "modes": {
+            "creative": {
+              "opened": "0, 65, 2 has the following block data: [{count: 5, Slot: 0b, id: \"minecraft:stone\"}]",
+              "closed": "0, 65, 2 has the following block data: [{count: 5, Slot: 0b, id: \"minecraft:stone\"}]"
+            },
+            "survival": {
+              "opened": "0, 65, 2 has the following block data: [{count: 5, Slot: 0b, id: \"minecraft:stone\"}]",
+              "closed": "0, 65, 2 has the following block data: [{count: 5, Slot: 0b, id: \"minecraft:stone\"}]"
+            }
+          },
+          "player_inventory": "UnifiedProbe has the following entity data: [{count: 2, Slot: 9b, id: \"minecraft:dirt\"}]",
+          "position_before": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "position_after": "UnifiedProbe has the following entity data: [0.5d, 65.0d, 0.5d]",
+          "authority_limits": "Native RCON verifies real barrel open/closed boolean and unchanged stone 5 contents/player inventory/pose. Same Client independently receives matching menus/full/cursor/modern processing and actual open flag cache. Open-property transitions are outline/menu-compatible, not a target-linked acknowledgement or menu ownership proof."
+        }
+      },
+      "click_records": [
+        {
+          "consumer_stage": "container_pickup_split",
+          "record": {
+            "id": {
+              "attempt": 1,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              }
+            },
+            "mode": "survival",
+            "source": {
+              "kind": "container",
+              "screen": {
+                "opened_sequence": 93,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                },
+                "window": 1
+              }
+            },
+            "source_slot": 0,
+            "button": "right",
+            "source_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 144
+              },
+              "value": {
+                "item": {
+                  "count": 7,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 94
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "prediction": {
+              "cursor": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 4,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 1,
+                      "version": "Java1_21_11"
+                    },
+                    "name": "minecraft:stone"
+                  },
+                  "kind": "item"
+                }
+              },
+              "source": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 3,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 1,
+                      "version": "Java1_21_11"
+                    },
+                    "name": "minecraft:stone"
+                  },
+                  "kind": "item"
+                }
+              }
+            },
+            "send": {
+              "after_sequence": 151,
+              "dispatched": true,
+              "legacy_action": null,
+              "legacy_comparison": null,
+              "screen_revision": 6
+            },
+            "source_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 152
+              },
+              "value": {
+                "item": {
+                  "count": 3,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 153
+              },
+              "value": {
+                "item": {
+                  "count": 4,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "legacy_reply": null,
+            "requires_inspection": null,
+            "stage": "observed_clicked",
+            "initial": {
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              },
+              "receive_sequence": 151,
+              "game_mode": "survival",
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 32
+                },
+                "value": 0
+              },
+              "inventory": {
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 94
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                "window_id": 1,
+                "player_screen": null,
+                "screen_revision": null,
+                "player_screen_revision": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 70
+                  },
+                  "value": 5
+                }
+              }
+            },
+            "initial_screen": {
+              "id": {
+                "opened_sequence": 93,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                },
+                "window": 1
+              },
+              "menu_name": "minecraft:generic_9x3",
+              "full_contents_sequence": 94,
+              "revision": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 145
+                },
+                "value": 6
+              }
+            }
+          }
+        },
+        {
+          "consumer_stage": "container_pickup_one",
+          "record": {
+            "id": {
+              "attempt": 2,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              }
+            },
+            "mode": "creative",
+            "source": {
+              "kind": "container",
+              "screen": {
+                "opened_sequence": 93,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                },
+                "window": 1
+              }
+            },
+            "source_slot": 0,
+            "button": "right",
+            "source_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 152
+              },
+              "value": {
+                "item": {
+                  "count": 3,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 153
+              },
+              "value": {
+                "item": {
+                  "count": 4,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "prediction": {
+              "cursor": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 3,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 1,
+                      "version": "Java1_21_11"
+                    },
+                    "name": "minecraft:stone"
+                  },
+                  "kind": "item"
+                }
+              },
+              "source": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 4,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 1,
+                      "version": "Java1_21_11"
+                    },
+                    "name": "minecraft:stone"
+                  },
+                  "kind": "item"
+                }
+              }
+            },
+            "send": {
+              "after_sequence": 159,
+              "dispatched": true,
+              "legacy_action": null,
+              "legacy_comparison": null,
+              "screen_revision": 7
+            },
+            "source_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 161
+              },
+              "value": {
+                "item": {
+                  "count": 4,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 162
+              },
+              "value": {
+                "item": {
+                  "count": 3,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "legacy_reply": null,
+            "requires_inspection": null,
+            "stage": "observed_clicked",
+            "initial": {
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              },
+              "receive_sequence": 159,
+              "game_mode": "creative",
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 32
+                },
+                "value": 0
+              },
+              "inventory": {
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 153
+                  },
+                  "value": {
+                    "item": {
+                      "count": 4,
+                      "data": {
+                        "kind": "default"
+                      },
+                      "id": {
+                        "kind": "Item",
+                        "value": 1,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:stone"
+                    },
+                    "kind": "item"
+                  }
+                },
+                "window_id": 1,
+                "player_screen": null,
+                "screen_revision": null,
+                "player_screen_revision": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 70
+                  },
+                  "value": 5
+                }
+              }
+            },
+            "initial_screen": {
+              "id": {
+                "opened_sequence": 93,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                },
+                "window": 1
+              },
+              "menu_name": "minecraft:generic_9x3",
+              "full_contents_sequence": 94,
+              "revision": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 152
+                },
+                "value": 7
+              }
+            }
+          }
+        },
+        {
+          "consumer_stage": "container_pickup_returned",
+          "record": {
+            "id": {
+              "attempt": 3,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              }
+            },
+            "mode": "creative",
+            "source": {
+              "kind": "container",
+              "screen": {
+                "opened_sequence": 93,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                },
+                "window": 1
+              }
+            },
+            "source_slot": 0,
+            "button": "left",
+            "source_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 161
+              },
+              "value": {
+                "item": {
+                  "count": 4,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 162
+              },
+              "value": {
+                "item": {
+                  "count": 3,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "prediction": {
+              "cursor": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "kind": "empty"
+                }
+              },
+              "source": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 7,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 1,
+                      "version": "Java1_21_11"
+                    },
+                    "name": "minecraft:stone"
+                  },
+                  "kind": "item"
+                }
+              }
+            },
+            "send": {
+              "after_sequence": 164,
+              "dispatched": true,
+              "legacy_action": null,
+              "legacy_comparison": null,
+              "screen_revision": 8
+            },
+            "source_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 165
+              },
+              "value": {
+                "item": {
+                  "count": 7,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 1,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:stone"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 166
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "legacy_reply": null,
+            "requires_inspection": null,
+            "stage": "observed_clicked",
+            "initial": {
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              },
+              "receive_sequence": 164,
+              "game_mode": "creative",
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 32
+                },
+                "value": 0
+              },
+              "inventory": {
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 162
+                  },
+                  "value": {
+                    "item": {
+                      "count": 3,
+                      "data": {
+                        "kind": "default"
+                      },
+                      "id": {
+                        "kind": "Item",
+                        "value": 1,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:stone"
+                    },
+                    "kind": "item"
+                  }
+                },
+                "window_id": 1,
+                "player_screen": null,
+                "screen_revision": null,
+                "player_screen_revision": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 70
+                  },
+                  "value": 5
+                }
+              }
+            },
+            "initial_screen": {
+              "id": {
+                "opened_sequence": 93,
+                "session": {
+                  "connection_id": 1,
+                  "version": "Java1_21_11",
+                  "world_generation": 29
+                },
+                "window": 1
+              },
+              "menu_name": "minecraft:generic_9x3",
+              "full_contents_sequence": 94,
+              "revision": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 161
+                },
+                "value": 8
+              }
+            }
+          }
+        },
+        {
+          "consumer_stage": "player_pickup_taken",
+          "record": {
+            "id": {
+              "attempt": 4,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              }
+            },
+            "mode": "survival",
+            "source": {
+              "kind": "player"
+            },
+            "source_slot": 9,
+            "button": "left",
+            "source_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 192
+              },
+              "value": {
+                "item": {
+                  "count": 2,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 28,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 178
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "prediction": {
+              "cursor": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 2,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 28,
+                      "version": "Java1_21_11"
+                    },
+                    "name": "minecraft:dirt"
+                  },
+                  "kind": "item"
+                }
+              },
+              "source": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "kind": "empty"
+                }
+              }
+            },
+            "send": {
+              "after_sequence": 199,
+              "dispatched": true,
+              "legacy_action": null,
+              "legacy_comparison": null,
+              "screen_revision": 9
+            },
+            "source_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 201
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "cursor_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 202
+              },
+              "value": {
+                "item": {
+                  "count": 2,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 28,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "legacy_reply": null,
+            "requires_inspection": null,
+            "stage": "observed_clicked",
+            "initial": {
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              },
+              "receive_sequence": 199,
+              "game_mode": "survival",
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 32
+                },
+                "value": 0
+              },
+              "inventory": {
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 178
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                "window_id": 2,
+                "player_screen": {
+                  "close": {
+                    "attempt": 2,
+                    "screen": {
+                      "opened_sequence": 177,
+                      "session": {
+                        "connection_id": 1,
+                        "version": "Java1_21_11",
+                        "world_generation": 29
+                      },
+                      "window": 2
+                    }
+                  },
+                  "kind": "submitted_close"
+                },
+                "screen_revision": null,
+                "player_screen_revision": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 193
+                  },
+                  "value": 9
+                }
+              }
+            },
+            "initial_screen": null
+          }
+        },
+        {
+          "consumer_stage": "player_pickup_one",
+          "record": {
+            "id": {
+              "attempt": 5,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              }
+            },
+            "mode": "creative",
+            "source": {
+              "kind": "player"
+            },
+            "source_slot": 36,
+            "button": "right",
+            "source_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 193
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "cursor_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 202
+              },
+              "value": {
+                "item": {
+                  "count": 2,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 28,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "prediction": {
+              "cursor": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 1,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 28,
+                      "version": "Java1_21_11"
+                    },
+                    "name": "minecraft:dirt"
+                  },
+                  "kind": "item"
+                }
+              },
+              "source": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 1,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 28,
+                      "version": "Java1_21_11"
+                    },
+                    "name": "minecraft:dirt"
+                  },
+                  "kind": "item"
+                }
+              }
+            },
+            "send": {
+              "after_sequence": 209,
+              "dispatched": true,
+              "legacy_action": null,
+              "legacy_comparison": null,
+              "screen_revision": 10
+            },
+            "source_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 210
+              },
+              "value": {
+                "item": {
+                  "count": 1,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 28,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 211
+              },
+              "value": {
+                "item": {
+                  "count": 1,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 28,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "legacy_reply": null,
+            "requires_inspection": null,
+            "stage": "observed_clicked",
+            "initial": {
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              },
+              "receive_sequence": 209,
+              "game_mode": "creative",
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 32
+                },
+                "value": 0
+              },
+              "inventory": {
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 202
+                  },
+                  "value": {
+                    "item": {
+                      "count": 2,
+                      "data": {
+                        "kind": "default"
+                      },
+                      "id": {
+                        "kind": "Item",
+                        "value": 28,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:dirt"
+                    },
+                    "kind": "item"
+                  }
+                },
+                "window_id": 2,
+                "player_screen": {
+                  "close": {
+                    "attempt": 2,
+                    "screen": {
+                      "opened_sequence": 177,
+                      "session": {
+                        "connection_id": 1,
+                        "version": "Java1_21_11",
+                        "world_generation": 29
+                      },
+                      "window": 2
+                    }
+                  },
+                  "kind": "submitted_close"
+                },
+                "screen_revision": null,
+                "player_screen_revision": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 201
+                  },
+                  "value": 10
+                }
+              }
+            },
+            "initial_screen": null
+          }
+        },
+        {
+          "consumer_stage": "player_pickup_returned",
+          "record": {
+            "id": {
+              "attempt": 6,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              }
+            },
+            "mode": "creative",
+            "source": {
+              "kind": "player"
+            },
+            "source_slot": 9,
+            "button": "left",
+            "source_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 201
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "cursor_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 211
+              },
+              "value": {
+                "item": {
+                  "count": 1,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 28,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "prediction": {
+              "cursor": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "kind": "empty"
+                }
+              },
+              "source": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 1,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 28,
+                      "version": "Java1_21_11"
+                    },
+                    "name": "minecraft:dirt"
+                  },
+                  "kind": "item"
+                }
+              }
+            },
+            "send": {
+              "after_sequence": 211,
+              "dispatched": true,
+              "legacy_action": null,
+              "legacy_comparison": null,
+              "screen_revision": 11
+            },
+            "source_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 213
+              },
+              "value": {
+                "item": {
+                  "count": 1,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 28,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 214
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "legacy_reply": null,
+            "requires_inspection": null,
+            "stage": "observed_clicked",
+            "initial": {
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              },
+              "receive_sequence": 211,
+              "game_mode": "creative",
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 32
+                },
+                "value": 0
+              },
+              "inventory": {
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 211
+                  },
+                  "value": {
+                    "item": {
+                      "count": 1,
+                      "data": {
+                        "kind": "default"
+                      },
+                      "id": {
+                        "kind": "Item",
+                        "value": 28,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:dirt"
+                    },
+                    "kind": "item"
+                  }
+                },
+                "window_id": 2,
+                "player_screen": {
+                  "close": {
+                    "attempt": 2,
+                    "screen": {
+                      "opened_sequence": 177,
+                      "session": {
+                        "connection_id": 1,
+                        "version": "Java1_21_11",
+                        "world_generation": 29
+                      },
+                      "window": 2
+                    }
+                  },
+                  "kind": "submitted_close"
+                },
+                "screen_revision": null,
+                "player_screen_revision": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 210
+                  },
+                  "value": 11
+                }
+              }
+            },
+            "initial_screen": null
+          }
+        },
+        {
+          "consumer_stage": "player_pickup_retaken",
+          "record": {
+            "id": {
+              "attempt": 7,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              }
+            },
+            "mode": "creative",
+            "source": {
+              "kind": "player"
+            },
+            "source_slot": 36,
+            "button": "left",
+            "source_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 210
+              },
+              "value": {
+                "item": {
+                  "count": 1,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 28,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 214
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "prediction": {
+              "cursor": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 1,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 28,
+                      "version": "Java1_21_11"
+                    },
+                    "name": "minecraft:dirt"
+                  },
+                  "kind": "item"
+                }
+              },
+              "source": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "kind": "empty"
+                }
+              }
+            },
+            "send": {
+              "after_sequence": 214,
+              "dispatched": true,
+              "legacy_action": null,
+              "legacy_comparison": null,
+              "screen_revision": 12
+            },
+            "source_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 215
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "cursor_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 216
+              },
+              "value": {
+                "item": {
+                  "count": 1,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 28,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "legacy_reply": null,
+            "requires_inspection": null,
+            "stage": "observed_clicked",
+            "initial": {
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              },
+              "receive_sequence": 214,
+              "game_mode": "creative",
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 32
+                },
+                "value": 0
+              },
+              "inventory": {
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 214
+                  },
+                  "value": {
+                    "kind": "empty"
+                  }
+                },
+                "window_id": 2,
+                "player_screen": {
+                  "close": {
+                    "attempt": 2,
+                    "screen": {
+                      "opened_sequence": 177,
+                      "session": {
+                        "connection_id": 1,
+                        "version": "Java1_21_11",
+                        "world_generation": 29
+                      },
+                      "window": 2
+                    }
+                  },
+                  "kind": "submitted_close"
+                },
+                "screen_revision": null,
+                "player_screen_revision": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 213
+                  },
+                  "value": 12
+                }
+              }
+            },
+            "initial_screen": null
+          }
+        },
+        {
+          "consumer_stage": "player_pickup_restored",
+          "record": {
+            "id": {
+              "attempt": 8,
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              }
+            },
+            "mode": "creative",
+            "source": {
+              "kind": "player"
+            },
+            "source_slot": 9,
+            "button": "left",
+            "source_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 213
+              },
+              "value": {
+                "item": {
+                  "count": 1,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 28,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_before": {
+              "source": {
+                "kind": "received",
+                "sequence": 216
+              },
+              "value": {
+                "item": {
+                  "count": 1,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 28,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "prediction": {
+              "cursor": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "kind": "empty"
+                }
+              },
+              "source": {
+                "source": {
+                  "kind": "predicted"
+                },
+                "value": {
+                  "item": {
+                    "count": 2,
+                    "data": {
+                      "kind": "default"
+                    },
+                    "id": {
+                      "kind": "Item",
+                      "value": 28,
+                      "version": "Java1_21_11"
+                    },
+                    "name": "minecraft:dirt"
+                  },
+                  "kind": "item"
+                }
+              }
+            },
+            "send": {
+              "after_sequence": 216,
+              "dispatched": true,
+              "legacy_action": null,
+              "legacy_comparison": null,
+              "screen_revision": 13
+            },
+            "source_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 217
+              },
+              "value": {
+                "item": {
+                  "count": 2,
+                  "data": {
+                    "kind": "default"
+                  },
+                  "id": {
+                    "kind": "Item",
+                    "value": 28,
+                    "version": "Java1_21_11"
+                  },
+                  "name": "minecraft:dirt"
+                },
+                "kind": "item"
+              }
+            },
+            "cursor_receipt": {
+              "source": {
+                "kind": "received",
+                "sequence": 218
+              },
+              "value": {
+                "kind": "empty"
+              }
+            },
+            "legacy_reply": null,
+            "requires_inspection": null,
+            "stage": "observed_clicked",
+            "initial": {
+              "session": {
+                "connection_id": 1,
+                "version": "Java1_21_11",
+                "world_generation": 29
+              },
+              "receive_sequence": 216,
+              "game_mode": "creative",
+              "selected_hotbar": {
+                "source": {
+                  "kind": "received",
+                  "sequence": 32
+                },
+                "value": 0
+              },
+              "inventory": {
+                "cursor": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 216
+                  },
+                  "value": {
+                    "item": {
+                      "count": 1,
+                      "data": {
+                        "kind": "default"
+                      },
+                      "id": {
+                        "kind": "Item",
+                        "value": 28,
+                        "version": "Java1_21_11"
+                      },
+                      "name": "minecraft:dirt"
+                    },
+                    "kind": "item"
+                  }
+                },
+                "window_id": 2,
+                "player_screen": {
+                  "close": {
+                    "attempt": 2,
+                    "screen": {
+                      "opened_sequence": 177,
+                      "session": {
+                        "connection_id": 1,
+                        "version": "Java1_21_11",
+                        "world_generation": 29
+                      },
+                      "window": 2
+                    }
+                  },
+                  "kind": "submitted_close"
+                },
+                "screen_revision": null,
+                "player_screen_revision": {
+                  "source": {
+                    "kind": "received",
+                    "sequence": 215
+                  },
+                  "value": 13
+                }
+              }
+            },
+            "initial_screen": null
+          }
+        }
+      ]
+    }
+  ]
+}

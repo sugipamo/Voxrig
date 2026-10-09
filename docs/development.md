@@ -52,9 +52,9 @@ checkoutはNode 24対応の`actions/checkout@v7`を使用します。
 個別probeは`examples/`にあります。接続先、username、対象座標など、各exampleが参照する環境変数や引数を確認して実行してください。
 
 ```bash
-cargo run --release --example multi_bot
-cargo run --release --example interaction_probe
-cargo run --release --example cooperation_probe
+cargo run --release --features native --example multi_bot
+cargo run --release --features native --example interaction_probe
+cargo run --release --features native --example cooperation_probe
 ```
 
 自然生成地形では、serverから3分ごとに安全な地表へ分散teleportする専用scenarioを利用できます。
@@ -74,7 +74,7 @@ teleport直後の補正burstに関する条件比較は[位置補正調査](tele
 API拡張後の初期同期と共有chunk storageは、server起動後に次で再検証できます。
 
 ```bash
-MC_PORT=25566 cargo run --release --example api_surface_probe
+MC_PORT=25566 cargo run --release --features native --example api_surface_probe
 ```
 
 直近の実行結果は[API拡張ロードマップ](headless-api-roadmap.md)に記録しています。

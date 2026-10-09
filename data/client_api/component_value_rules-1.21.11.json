@@ -1,0 +1,738 @@
+{
+  "enums": [
+    {
+      "node": 17,
+      "normalization": "zero",
+      "value_class": "dmp",
+      "values": [
+        {
+          "name": "COMMON",
+          "native_id": 0,
+          "serialized_name": "common"
+        },
+        {
+          "name": "UNCOMMON",
+          "native_id": 1,
+          "serialized_name": "uncommon"
+        },
+        {
+          "name": "RARE",
+          "native_id": 2,
+          "serialized_name": "rare"
+        },
+        {
+          "name": "EPIC",
+          "native_id": 3,
+          "serialized_name": "epic"
+        }
+      ]
+    },
+    {
+      "node": 412,
+      "normalization": "zero",
+      "value_class": "ciq$a",
+      "values": [
+        {
+          "name": "ADD_VALUE",
+          "native_id": 0,
+          "serialized_name": "add_value"
+        },
+        {
+          "name": "ADD_MULTIPLIED_BASE",
+          "native_id": 1,
+          "serialized_name": "add_multiplied_base"
+        },
+        {
+          "name": "ADD_MULTIPLIED_TOTAL",
+          "native_id": 2,
+          "serialized_name": "add_multiplied_total"
+        }
+      ]
+    },
+    {
+      "node": 413,
+      "normalization": "zero",
+      "value_class": "cgw",
+      "values": [
+        {
+          "name": "ANY",
+          "native_id": 0,
+          "serialized_name": "any"
+        },
+        {
+          "name": "MAINHAND",
+          "native_id": 1,
+          "serialized_name": "mainhand"
+        },
+        {
+          "name": "OFFHAND",
+          "native_id": 2,
+          "serialized_name": "offhand"
+        },
+        {
+          "name": "HAND",
+          "native_id": 3,
+          "serialized_name": "hand"
+        },
+        {
+          "name": "FEET",
+          "native_id": 4,
+          "serialized_name": "feet"
+        },
+        {
+          "name": "LEGS",
+          "native_id": 5,
+          "serialized_name": "legs"
+        },
+        {
+          "name": "CHEST",
+          "native_id": 6,
+          "serialized_name": "chest"
+        },
+        {
+          "name": "HEAD",
+          "native_id": 7,
+          "serialized_name": "head"
+        },
+        {
+          "name": "ARMOR",
+          "native_id": 8,
+          "serialized_name": "armor"
+        },
+        {
+          "name": "BODY",
+          "native_id": 9,
+          "serialized_name": "body"
+        },
+        {
+          "name": "SADDLE",
+          "native_id": 10,
+          "serialized_name": "saddle"
+        }
+      ]
+    },
+    {
+      "node": 415,
+      "normalization": "zero",
+      "value_class": "don$b$d",
+      "values": [
+        {
+          "name": "DEFAULT",
+          "native_id": 0,
+          "serialized_name": "default"
+        },
+        {
+          "name": "HIDDEN",
+          "native_id": 1,
+          "serialized_name": "hidden"
+        },
+        {
+          "name": "OVERRIDE",
+          "native_id": 2,
+          "serialized_name": "override"
+        }
+      ]
+    },
+    {
+      "node": 433,
+      "normalization": "zero",
+      "value_class": "dlv",
+      "values": [
+        {
+          "name": "NONE",
+          "native_id": 0,
+          "serialized_name": "none"
+        },
+        {
+          "name": "EAT",
+          "native_id": 1,
+          "serialized_name": "eat"
+        },
+        {
+          "name": "DRINK",
+          "native_id": 2,
+          "serialized_name": "drink"
+        },
+        {
+          "name": "BLOCK",
+          "native_id": 3,
+          "serialized_name": "block"
+        },
+        {
+          "name": "BOW",
+          "native_id": 4,
+          "serialized_name": "bow"
+        },
+        {
+          "name": "TRIDENT",
+          "native_id": 5,
+          "serialized_name": "trident"
+        },
+        {
+          "name": "CROSSBOW",
+          "native_id": 6,
+          "serialized_name": "crossbow"
+        },
+        {
+          "name": "SPYGLASS",
+          "native_id": 7,
+          "serialized_name": "spyglass"
+        },
+        {
+          "name": "TOOT_HORN",
+          "native_id": 8,
+          "serialized_name": "toot_horn"
+        },
+        {
+          "name": "BRUSH",
+          "native_id": 9,
+          "serialized_name": "brush"
+        },
+        {
+          "name": "BUNDLE",
+          "native_id": 10,
+          "serialized_name": "bundle"
+        },
+        {
+          "name": "SPEAR",
+          "native_id": 11,
+          "serialized_name": "spear"
+        }
+      ]
+    },
+    {
+      "node": 470,
+      "normalization": "zero",
+      "value_class": "cgv",
+      "values": [
+        {
+          "name": "MAINHAND",
+          "native_id": 0,
+          "serialized_name": "mainhand"
+        },
+        {
+          "name": "FEET",
+          "native_id": 1,
+          "serialized_name": "feet"
+        },
+        {
+          "name": "LEGS",
+          "native_id": 2,
+          "serialized_name": "legs"
+        },
+        {
+          "name": "CHEST",
+          "native_id": 3,
+          "serialized_name": "chest"
+        },
+        {
+          "name": "HEAD",
+          "native_id": 4,
+          "serialized_name": "head"
+        },
+        {
+          "name": "OFFHAND",
+          "native_id": 5,
+          "serialized_name": "offhand"
+        },
+        {
+          "name": "BODY",
+          "native_id": 6,
+          "serialized_name": "body"
+        },
+        {
+          "name": "SADDLE",
+          "native_id": 7,
+          "serialized_name": "saddle"
+        }
+      ]
+    },
+    {
+      "node": 504,
+      "normalization": "zero",
+      "value_class": "dnf",
+      "values": [
+        {
+          "name": "NONE",
+          "native_id": 0,
+          "serialized_name": "none"
+        },
+        {
+          "name": "WHACK",
+          "native_id": 1,
+          "serialized_name": "whack"
+        },
+        {
+          "name": "STAB",
+          "native_id": 2,
+          "serialized_name": "stab"
+        }
+      ]
+    },
+    {
+      "node": 510,
+      "normalization": "zero",
+      "value_class": "dou",
+      "values": [
+        {
+          "name": "LOCK",
+          "native_id": 0
+        },
+        {
+          "name": "SCALE",
+          "native_id": 1
+        }
+      ]
+    },
+    {
+      "node": 578,
+      "normalization": "zero",
+      "value_class": "dok$a",
+      "values": [
+        {
+          "name": "SMALL_BALL",
+          "native_id": 0,
+          "serialized_name": "small_ball"
+        },
+        {
+          "name": "LARGE_BALL",
+          "native_id": 1,
+          "serialized_name": "large_ball"
+        },
+        {
+          "name": "STAR",
+          "native_id": 2,
+          "serialized_name": "star"
+        },
+        {
+          "name": "CREEPER",
+          "native_id": 3,
+          "serialized_name": "creeper"
+        },
+        {
+          "name": "BURST",
+          "native_id": 4,
+          "serialized_name": "burst"
+        }
+      ]
+    },
+    {
+      "node": 604,
+      "normalization": "zero",
+      "value_class": "dkr",
+      "values": [
+        {
+          "name": "WHITE",
+          "native_id": 0,
+          "serialized_name": "white"
+        },
+        {
+          "name": "ORANGE",
+          "native_id": 1,
+          "serialized_name": "orange"
+        },
+        {
+          "name": "MAGENTA",
+          "native_id": 2,
+          "serialized_name": "magenta"
+        },
+        {
+          "name": "LIGHT_BLUE",
+          "native_id": 3,
+          "serialized_name": "light_blue"
+        },
+        {
+          "name": "YELLOW",
+          "native_id": 4,
+          "serialized_name": "yellow"
+        },
+        {
+          "name": "LIME",
+          "native_id": 5,
+          "serialized_name": "lime"
+        },
+        {
+          "name": "PINK",
+          "native_id": 6,
+          "serialized_name": "pink"
+        },
+        {
+          "name": "GRAY",
+          "native_id": 7,
+          "serialized_name": "gray"
+        },
+        {
+          "name": "LIGHT_GRAY",
+          "native_id": 8,
+          "serialized_name": "light_gray"
+        },
+        {
+          "name": "CYAN",
+          "native_id": 9,
+          "serialized_name": "cyan"
+        },
+        {
+          "name": "PURPLE",
+          "native_id": 10,
+          "serialized_name": "purple"
+        },
+        {
+          "name": "BLUE",
+          "native_id": 11,
+          "serialized_name": "blue"
+        },
+        {
+          "name": "BROWN",
+          "native_id": 12,
+          "serialized_name": "brown"
+        },
+        {
+          "name": "GREEN",
+          "native_id": 13,
+          "serialized_name": "green"
+        },
+        {
+          "name": "RED",
+          "native_id": 14,
+          "serialized_name": "red"
+        },
+        {
+          "name": "BLACK",
+          "native_id": 15,
+          "serialized_name": "black"
+        }
+      ]
+    },
+    {
+      "node": 625,
+      "normalization": "zero",
+      "value_class": "cvo$v",
+      "values": [
+        {
+          "name": "RED",
+          "native_id": 0,
+          "serialized_name": "red"
+        },
+        {
+          "name": "SNOW",
+          "native_id": 1,
+          "serialized_name": "snow"
+        }
+      ]
+    },
+    {
+      "node": 626,
+      "normalization": "clamp",
+      "value_class": "cvk$a",
+      "values": [
+        {
+          "name": "SMALL",
+          "native_id": 0,
+          "serialized_name": "small"
+        },
+        {
+          "name": "MEDIUM",
+          "native_id": 1,
+          "serialized_name": "medium"
+        },
+        {
+          "name": "LARGE",
+          "native_id": 2,
+          "serialized_name": "large"
+        }
+      ]
+    },
+    {
+      "node": 627,
+      "normalization": "clamp",
+      "value_class": "cwy$b",
+      "values": [
+        {
+          "name": "RED_BLUE",
+          "native_id": 0,
+          "serialized_name": "red_blue"
+        },
+        {
+          "name": "BLUE",
+          "native_id": 1,
+          "serialized_name": "blue"
+        },
+        {
+          "name": "GREEN",
+          "native_id": 2,
+          "serialized_name": "green"
+        },
+        {
+          "name": "YELLOW_BLUE",
+          "native_id": 3,
+          "serialized_name": "yellow_blue"
+        },
+        {
+          "name": "GRAY",
+          "native_id": 4,
+          "serialized_name": "gray"
+        }
+      ]
+    },
+    {
+      "node": 628,
+      "normalization": "zero",
+      "value_class": "cvl$b",
+      "values": [
+        {
+          "name": "KOB",
+          "native_id": 0,
+          "serialized_name": "kob"
+        },
+        {
+          "name": "FLOPPER",
+          "native_id": 1,
+          "serialized_name": "flopper"
+        },
+        {
+          "name": "SUNSTREAK",
+          "native_id": 256,
+          "serialized_name": "sunstreak"
+        },
+        {
+          "name": "STRIPEY",
+          "native_id": 257,
+          "serialized_name": "stripey"
+        },
+        {
+          "name": "SNOOPER",
+          "native_id": 512,
+          "serialized_name": "snooper"
+        },
+        {
+          "name": "GLITTER",
+          "native_id": 513,
+          "serialized_name": "glitter"
+        },
+        {
+          "name": "DASHER",
+          "native_id": 768,
+          "serialized_name": "dasher"
+        },
+        {
+          "name": "BLOCKFISH",
+          "native_id": 769,
+          "serialized_name": "blockfish"
+        },
+        {
+          "name": "BRINELY",
+          "native_id": 1024,
+          "serialized_name": "brinely"
+        },
+        {
+          "name": "BETTY",
+          "native_id": 1025,
+          "serialized_name": "betty"
+        },
+        {
+          "name": "SPOTTY",
+          "native_id": 1280,
+          "serialized_name": "spotty"
+        },
+        {
+          "name": "CLAYFISH",
+          "native_id": 1281,
+          "serialized_name": "clayfish"
+        }
+      ]
+    },
+    {
+      "node": 629,
+      "normalization": "clamp",
+      "value_class": "cuk$a",
+      "values": [
+        {
+          "name": "RED",
+          "native_id": 0,
+          "serialized_name": "red"
+        },
+        {
+          "name": "BROWN",
+          "native_id": 1,
+          "serialized_name": "brown"
+        }
+      ]
+    },
+    {
+      "node": 630,
+      "normalization": "zero",
+      "value_class": "cxh$g",
+      "values": [
+        {
+          "name": "BROWN",
+          "native_id": 0,
+          "serialized_name": "brown"
+        },
+        {
+          "name": "WHITE",
+          "native_id": 1,
+          "serialized_name": "white"
+        },
+        {
+          "name": "BLACK",
+          "native_id": 2,
+          "serialized_name": "black"
+        },
+        {
+          "name": "WHITE_SPLOTCHED",
+          "native_id": 3,
+          "serialized_name": "white_splotched"
+        },
+        {
+          "name": "GOLD",
+          "native_id": 4,
+          "serialized_name": "gold"
+        },
+        {
+          "name": "SALT",
+          "native_id": 5,
+          "serialized_name": "salt"
+        },
+        {
+          "name": "EVIL",
+          "native_id": 99,
+          "serialized_name": "evil"
+        }
+      ]
+    },
+    {
+      "node": 642,
+      "normalization": "wrap",
+      "value_class": "cuy",
+      "values": [
+        {
+          "name": "WHITE",
+          "native_id": 0,
+          "serialized_name": "white"
+        },
+        {
+          "name": "CREAMY",
+          "native_id": 1,
+          "serialized_name": "creamy"
+        },
+        {
+          "name": "CHESTNUT",
+          "native_id": 2,
+          "serialized_name": "chestnut"
+        },
+        {
+          "name": "BROWN",
+          "native_id": 3,
+          "serialized_name": "brown"
+        },
+        {
+          "name": "BLACK",
+          "native_id": 4,
+          "serialized_name": "black"
+        },
+        {
+          "name": "GRAY",
+          "native_id": 5,
+          "serialized_name": "gray"
+        },
+        {
+          "name": "DARK_BROWN",
+          "native_id": 6,
+          "serialized_name": "dark_brown"
+        }
+      ]
+    },
+    {
+      "node": 648,
+      "normalization": "clamp",
+      "value_class": "cus$d",
+      "values": [
+        {
+          "name": "CREAMY",
+          "native_id": 0,
+          "serialized_name": "creamy"
+        },
+        {
+          "name": "WHITE",
+          "native_id": 1,
+          "serialized_name": "white"
+        },
+        {
+          "name": "BROWN",
+          "native_id": 2,
+          "serialized_name": "brown"
+        },
+        {
+          "name": "GRAY",
+          "native_id": 3,
+          "serialized_name": "gray"
+        }
+      ]
+    },
+    {
+      "node": 649,
+      "normalization": "zero",
+      "value_class": "ctr$e",
+      "values": [
+        {
+          "name": "LUCY",
+          "native_id": 0,
+          "serialized_name": "lucy"
+        },
+        {
+          "name": "WILD",
+          "native_id": 1,
+          "serialized_name": "wild"
+        },
+        {
+          "name": "GOLD",
+          "native_id": 2,
+          "serialized_name": "gold"
+        },
+        {
+          "name": "CYAN",
+          "native_id": 3,
+          "serialized_name": "cyan"
+        },
+        {
+          "name": "BLUE",
+          "native_id": 4,
+          "serialized_name": "blue"
+        }
+      ]
+    }
+  ],
+  "scalars": [
+    {
+      "codec_class": "aam$35",
+      "node": 6,
+      "value_class": "java.lang.Float",
+      "width": 4
+    },
+    {
+      "codec_class": "aam$2",
+      "node": 411,
+      "value_class": "java.lang.Double",
+      "width": 8
+    },
+    {
+      "codec_class": "aam$31",
+      "node": 424,
+      "value_class": "java.lang.Integer",
+      "width": 4
+    },
+    {
+      "codec_class": "is$1",
+      "node": 576,
+      "value_class": "is",
+      "width": 8
+    },
+    {
+      "codec_class": "jx$1",
+      "node": 586,
+      "value_class": "java.util.UUID",
+      "width": 16
+    }
+  ],
+  "schema": 1
+}

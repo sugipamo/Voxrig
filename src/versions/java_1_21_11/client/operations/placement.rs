@@ -136,6 +136,7 @@ fn prepare(
     tick: u64,
     support: [i32; 3],
     face: u8,
+    common_player_screen: bool,
 ) -> Result<PlacementIntent> {
     if state.operations.game_mode != Some(GameMode::Survival) {
         return Err(unavailable("placement requires received survival mode"));
@@ -161,7 +162,7 @@ fn prepare(
         .ok_or_else(|| unavailable("selected hand unavailable or incomplete"))?;
     let inventory = &state.operations.inventory;
     let slot = 36 + usize::from(selection.slot);
-    if inventory.window_id != Some(0)
+    if (!common_player_screen && inventory.window_id != Some(0))
         || inventory.cursor != InventorySlot::Empty
         || inventory.unsupported_components
         || inventory.pending_swap.is_some()
@@ -313,16 +314,40 @@ impl Operations {
         support: [i32; 3],
         face: crate::BlockFace,
     ) -> Result<PlacementIntent> {
+        self.place_cube_in(support, face, false).await
+    }
+    async fn place_cube_in(
+        &self,
+        support: [i32; 3],
+        face: crate::BlockFace,
+        capture_common: bool,
+    ) -> Result<PlacementIntent> {
         let mut state = self.bot.session.state.lock().await;
         self.mutable(&state)?;
+        let initial = capture_common
+            .then(|| self.common_player_unlocked(&state))
+            .transpose()?;
+        if let Some(p) = &initial {
+            crate::client::survival::placement::selected_material(p)?;
+        }
         let mut intent = prepare(
             &mut state,
             self.bot.session.id,
             self.bot.session.started.elapsed().as_millis() as u64 / 50,
             support,
             face as u8,
+            initial
+                .as_ref()
+                .is_some_and(|p| p.inventory.player_screen.is_some()),
         )?;
         intent.sequence = self.next_sequence()?;
+        if !capture_common && state.common_placement.is_some() {
+            state.retired_common_placement = common_record_in(&state)?;
+        }
+        state.common_placement = initial.map(|initial| CommonPlacementCapture {
+            initial,
+            sequence: intent.sequence,
+        });
         state.placement = Some(PlacementRecord {
             intent: intent.clone(),
             dispatched: false,
@@ -347,62 +372,12 @@ impl Operations {
         let mut state = self.bot.session.state.lock().await;
         self.ready(&state)?;
         owning(&state, intent, self.bot.session.id)?;
-        if let Some(observation) = &state.placement.as_ref().expect("owner").observation {
-            return Ok(PlacementStatus::ObservedPlaced {
-                observation: observation.clone(),
-            });
-        }
-        placement_context_received(&mut state);
-        let tick = self.bot.session.started.elapsed().as_millis() as u64 / 50;
-        if let Err(e) = survival::context(&mut state, self.bot.session.id, tick) {
-            state
-                .placement
-                .as_mut()
-                .expect("owner")
-                .requires_inspection
-                .get_or_insert_with(|| e.to_string());
-        }
-        let cell = state.reconstruction.cell(&state.world, intent.target);
-        let State {
-            placement,
-            operations,
-            ..
-        } = &mut *state;
-        let record = placement.as_mut().expect("owner");
-        if cell.moving.is_some() || cell.state.is_none() {
-            record
-                .requires_inspection
-                .get_or_insert_with(|| "placement target unavailable or moving".into());
-        }
-        if record.requires_inspection.is_some() {
-            return Ok(PlacementStatus::RequiresInspection {
-                record: record.clone(),
-            });
-        }
-        let inventory = &operations.inventory;
-        let slot = 36 + usize::from(intent.selection.slot);
-        if record.dispatched
-            && record
-                .target_receive_sequence
-                .is_some_and(|s| s > intent.after_sequence)
-            && cell.state.as_ref() == Some(&intent.expected)
-            && inventory.slot_sequences[slot].is_some_and(|s| s > intent.after_sequence)
-            && inventory.slots[slot] == remaining(intent)
-            && operations.ack.is_some_and(|s| s >= intent.sequence)
-        {
-            let observation = PlacementObservation {
-                intent: intent.clone(),
-                target_receive_sequence: record.target_receive_sequence.unwrap(),
-                inventory_receive_sequence: inventory.slot_sequences[slot].unwrap(),
-                held_after: inventory.slots[slot].clone(),
-                acknowledged_sequence: operations.ack.unwrap(),
-            };
-            record.observation = Some(observation.clone());
-            return Ok(PlacementStatus::ObservedPlaced { observation });
-        }
-        Ok(PlacementStatus::Pending {
-            record: record.clone(),
-        })
+        observe_in(
+            &mut state,
+            self.bot.session.id,
+            self.bot.session.started.elapsed().as_millis() as u64 / 50,
+            intent,
+        )
     }
     /// Bounded read-only wait; timeout/cancellation retains the original intent.
     pub async fn wait_survival_placement(
@@ -434,9 +409,83 @@ impl Operations {
         }
     }
 }
+fn observe_in(
+    state: &mut State,
+    connection_id: u64,
+    tick: u64,
+    intent: &PlacementIntent,
+) -> Result<PlacementStatus> {
+    if let Some(observation) = &state.placement.as_ref().expect("owner").observation {
+        return Ok(PlacementStatus::ObservedPlaced {
+            observation: observation.clone(),
+        });
+    }
+    placement_context_received(state);
+    if let Err(e) = survival::context(state, connection_id, tick) {
+        state
+            .placement
+            .as_mut()
+            .expect("owner")
+            .requires_inspection
+            .get_or_insert_with(|| e.to_string());
+    }
+    let cell = state.reconstruction.cell(&state.world, intent.target);
+    let require_fresh_ack = state.common_placement.is_some();
+    let State {
+        placement,
+        operations,
+        ..
+    } = state;
+    let record = placement.as_mut().expect("owner");
+    if cell.moving.is_some() || cell.state.is_none() {
+        record
+            .requires_inspection
+            .get_or_insert_with(|| "placement target unavailable or moving".into());
+    }
+    if record.requires_inspection.is_some() {
+        return Ok(PlacementStatus::RequiresInspection {
+            record: record.clone(),
+        });
+    }
+    let inventory = &operations.inventory;
+    let slot = 36 + usize::from(intent.selection.slot);
+    if record.dispatched
+        && record
+            .target_receive_sequence
+            .is_some_and(|s| s > intent.after_sequence)
+        && cell.state.as_ref() == Some(&intent.expected)
+        && inventory.slot_sequences[slot].is_some_and(|s| s > intent.after_sequence)
+        && inventory.slots[slot] == remaining(intent)
+        && operations.ack.is_some_and(|s| s >= intent.sequence)
+        && (!require_fresh_ack
+            || operations
+                .ack_receive_sequence
+                .is_some_and(|s| s > intent.after_sequence))
+    {
+        let observation = PlacementObservation {
+            intent: intent.clone(),
+            target_receive_sequence: record.target_receive_sequence.unwrap(),
+            inventory_receive_sequence: inventory.slot_sequences[slot].unwrap(),
+            held_after: inventory.slots[slot].clone(),
+            acknowledged_sequence: operations.ack.unwrap(),
+        };
+        record.observation = Some(observation.clone());
+        return Ok(PlacementStatus::ObservedPlaced { observation });
+    }
+    Ok(PlacementStatus::Pending {
+        record: record.clone(),
+    })
+}
 /// Called after every successfully applied receive packet, so a conflicting
 /// intermediate inventory/world state cannot be erased by a later matching one.
 pub(in crate::versions::java_1_21_11::client) fn placement_context_received(state: &mut State) {
+    let screen_matches = state.common_placement.as_ref().map_or(
+        state.operations.inventory.window_id == Some(0),
+        |capture| {
+            common_player_screen_access(state, capture.initial.session)
+                .is_some_and(|basis| Some(basis) == capture.initial.inventory.player_screen)
+        },
+    );
     let Some(r) = &mut state.placement else {
         return;
     };
@@ -465,7 +514,7 @@ pub(in crate::versions::java_1_21_11::client) fn placement_context_received(stat
         || state.world.dimension.as_ref().map(|d| &d.0) != Some(&i.dimension)
         || state.operations.game_mode != Some(GameMode::Survival)
         || state.operations.selected_hotbar.as_ref().map(|s| s.slot) != Some(i.selection.slot)
-        || inventory.window_id != Some(0)
+        || !screen_matches
         || inventory.cursor != InventorySlot::Empty
         || inventory.unsupported_components
         || inventory.pending_swap.is_some()
@@ -528,3 +577,198 @@ pub(in crate::versions::java_1_21_11::client) fn placement_received(
 }
 #[cfg(test)]
 mod tests;
+
+/// Original common capture retained under the same native intent lock.
+#[derive(Clone)]
+pub(in crate::versions::java_1_21_11::client) struct CommonPlacementCapture {
+    initial: crate::client::PlayerObservation,
+    sequence: i32,
+}
+fn common_player_screen_access(
+    state: &State,
+    mut session: crate::client::SessionStamp,
+) -> Option<crate::client::container::PlayerScreenAccess> {
+    session.world_generation = state.loading.generation;
+    let inventory = &state.operations.inventory;
+    crate::client::container::player_screen_access(
+        session,
+        inventory.window_id,
+        inventory.container.as_ref().map(|s| s.capture(session).id),
+        state.common_container_close.as_ref(),
+    )
+}
+fn common_record_in(state: &State) -> Result<Option<crate::client::survival::PlacementRecord>> {
+    use crate::client::{self as common, survival as api};
+    let Some(capture) = state.common_placement.as_ref() else {
+        return Ok(state.retired_common_placement.clone());
+    };
+    let native = state
+        .placement
+        .as_ref()
+        .filter(|p| p.intent.sequence == capture.sequence)
+        .ok_or_else(|| unavailable("common placement no longer owns native intent"))?;
+    let i = &native.intent;
+    let (held_before, held_receive_sequence) = api::placement::selected_material(&capture.initial)?;
+    let processing = state
+        .operations
+        .ack
+        .zip(state.operations.ack_receive_sequence)
+        .filter(|(sequence, receive)| *sequence >= i.sequence && *receive > i.after_sequence)
+        .map(|(sequence, receive_sequence)| api::PlacementProcessing {
+            sequence,
+            receive_sequence,
+        });
+    // Completed receipts are frozen in observation, independent of current inventory.
+    let material_receipt = if let Some(o) = &native.observation {
+        Some(common::received(
+            super::common_slot(&o.held_after)?,
+            o.inventory_receive_sequence,
+        ))
+    } else {
+        native
+            .inventory_receive_sequence
+            .map(|s| common::received(api::placement::remaining(&held_before), s))
+    };
+    Ok(Some(api::PlacementRecord {
+        id: api::PlacementId::new(capture.initial.session, i.sequence as u64 + 1),
+        initial: capture.initial.clone(),
+        support: i.support,
+        support_state: i.support_state.clone(),
+        face: [
+            crate::BlockFace::Down,
+            crate::BlockFace::Up,
+            crate::BlockFace::North,
+            crate::BlockFace::South,
+            crate::BlockFace::West,
+            crate::BlockFace::East,
+        ][i.face_id as usize],
+        cursor: i.cursor,
+        target: i.target,
+        before: i.before.clone(),
+        expected: i.expected.clone(),
+        held_before,
+        held_receive_sequence,
+        send: api::PlacementSend {
+            after_sequence: i.after_sequence,
+            interaction_sequence: Some(i.sequence),
+            dispatched: native.dispatched,
+        },
+        target_receipt: native
+            .target_receive_sequence
+            .map(|s| common::received(i.expected.clone(), s)),
+        material_receipt,
+        processing,
+        requires_inspection: native.requires_inspection.clone(),
+        stage: if native.observation.is_some() {
+            api::PlacementStage::ObservedPlaced
+        } else if native.requires_inspection.is_some() {
+            api::PlacementStage::RequiresInspection
+        } else {
+            api::PlacementStage::Pending
+        },
+    }))
+}
+pub(in crate::versions::java_1_21_11::client) fn common_placement_context_received(
+    state: &mut State,
+) {
+    let Some(capture) = state.common_placement.clone() else {
+        return;
+    };
+    if state
+        .placement
+        .as_ref()
+        .is_none_or(|p| p.observation.is_some())
+    {
+        return;
+    }
+    let check = (|| -> Result<()> {
+        let p = &capture.initial;
+        if state.loading.generation != p.session.world_generation
+            || common_player_screen_access(state, p.session) != p.inventory.player_screen
+            || state.position != p.position.as_ref().map(|p| p.value)
+            || state.rotation != p.rotation
+            || state.operations.selected_hotbar.as_ref()
+                != Some(&state.placement.as_ref().expect("retained").intent.selection)
+            || state
+                .motion
+                .received_pose
+                .as_ref()
+                .map(|r| r.receive_sequence)
+                != p.received_pose.as_ref().map(|r| r.receive_sequence)
+            || state.operations.inventory.cursor_sequence.is_none()
+        {
+            return Err(unavailable(
+                "common placement pose/selection/cursor context changed",
+            ));
+        }
+        let standing =
+            survival::context(state, p.session.connection_id, state.reconstruction.tick)?;
+        if !standing.on_ground
+            || !standing
+                .player
+                .health
+                .as_ref()
+                .is_some_and(|h| h.health > 0.0)
+        {
+            return Err(unavailable(
+                "common placement healthy dry standing prerequisites changed",
+            ));
+        }
+        Ok(())
+    })();
+    if let Err(error) = check {
+        state
+            .placement
+            .as_mut()
+            .expect("retained")
+            .requires_inspection
+            .get_or_insert_with(|| error.to_string());
+    }
+}
+
+impl crate::client::adapter::PlacementOps for Operations {
+    async fn place_cube(
+        &self,
+        support: [i32; 3],
+        face: crate::BlockFace,
+    ) -> Result<crate::client::survival::PlacementRecord> {
+        self.place_cube_in(support, face, true).await?;
+        self.placement_record()
+            .await?
+            .ok_or_else(|| unavailable("common placement capture missing"))
+    }
+    async fn placement_record(&self) -> Result<Option<crate::client::survival::PlacementRecord>> {
+        let mut state = self.bot.session.state.lock().await;
+        let Some(intent) = state
+            .common_placement
+            .as_ref()
+            .and_then(|c| {
+                state
+                    .placement
+                    .as_ref()
+                    .filter(|p| p.intent.sequence == c.sequence)
+            })
+            .map(|p| p.intent.clone())
+        else {
+            return common_record_in(&state);
+        };
+        if self.bot.session.stopped.load(Ordering::Acquire)
+            || state.failure.is_some()
+            || !state.ready
+            || !matches!(state.phase, Phase::Play)
+        {
+            if let Some(p) = state.placement.as_mut().filter(|p| p.observation.is_none()) {
+                p.requires_inspection
+                    .get_or_insert_with(|| "placement connection closed or uncertain".into());
+            }
+        }
+        common_placement_context_received(&mut state);
+        observe_in(
+            &mut state,
+            self.bot.session.id,
+            self.bot.session.started.elapsed().as_millis() as u64 / 50,
+            &intent,
+        )?;
+        common_record_in(&state)
+    }
+}

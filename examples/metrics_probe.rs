@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use std::time::Duration;
-use voxrig::{BotManager, Event, Player, Server};
+use voxrig::versions::java_1_16_1::{BotManager, Event, Player, Server};
 
 #[tokio::main]
 async fn main() -> Result<()> {

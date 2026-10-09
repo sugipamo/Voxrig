@@ -1,0 +1,31 @@
+{
+  "authority": "Unchanged official InventoryMenu clicked PICKUP on slots 5..8 and 45.",
+  "generated_compiler_sha256": "e52f390392f02e494e1a0055515e3080bfc7cb9acec188ab5e1cd76526bcf340",
+  "generators_sha256": {
+    "scripts/ExportEquipmentPickups.java": "62ea7cc3ec8da88dc2af75b44439d76e85bd0811b8cfaca7f0bd72bd2e647dff",
+    "scripts/ExportInventoryTransfers.java": "6c3208f45290c535ac510db4d0a308c944bd601331d61b577ab5235744db8806",
+    "scripts/export_equipment_pickups.py": "59e8152740ac791ce41e660e380927281af98c7210f6f9b6d0c99cd446c8fa9a"
+  },
+  "limits": "Default stack primitive predictions only; not live receipt, cancellation, curse/component or mode/world qualification.",
+  "runs": [
+    {
+      "cases": 7290,
+      "files_sha256": {
+        "data/client_api/equipment_pickup_cases-1.16.1.json.gz": "6c93d0645eb43160400a7dd1e057db3e1ec62b211e15ceb5b1b6127d74553356"
+      },
+      "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "raw_output_sha256": "6fcb31fded9f971005754aee5858caa5b8e6d191f6b543805d6d3dc0267ec108",
+      "version": "1.16.1"
+    },
+    {
+      "cases": 7290,
+      "files_sha256": {
+        "data/client_api/equipment_pickup_cases-1.21.11.json.gz": "b44fc9e6297245b84bbe13a8404bdb34a7be9d76f9d956d7dd71224a09260cd2"
+      },
+      "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "raw_output_sha256": "7f2680814cc3eec002f53808477ca5ab5efeb64fb1a954430345509cb4378317",
+      "version": "1.21.11"
+    }
+  ],
+  "schema": 1
+}

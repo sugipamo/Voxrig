@@ -1,0 +1,2260 @@
+{
+  "schema": 1,
+  "scope": "Session-owned one-shot ground requests on unchanged official loopback servers; outcome is client model evaluation and movement dispatch, not server jump acknowledgement.",
+  "sdk_execution_revision": "6f65e480b475d35501b7b1a39a60faee56464728",
+  "source_sha256": {
+    "scripts/run_ground_jump.py": "b28323046b39ab9364904b960d0bc524d2d10b82f2b2b55b0af63930bf69eee8",
+    "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+    "scripts/run_common_native.py": "a585067fcfd4fd4c8cc9ca82185258ebf1abbc4a7982a435bbbef6c4ecd9a198",
+    "examples/climbing_control_probe.rs": "d372d907b260245eeff6169fd47b912e9e04ec2dd457ddf574339bee02480142",
+    "src/client/control.rs": "3b16919f474331c665406395ed519100c202979c7d4a5bcda61b215a09193a79",
+    "src/client/physics/mod.rs": "5c92e99d48b799ed98e73cecf6d9b16bfa9060485f22417508ef156ef5b1df41",
+    "src/client/adapter.rs": "38818681f64d5c3d649bd0201b8a46c1f8575108eac5a8ca50db8dfe094ff676",
+    "src/client/operations.rs": "ed8fbdba0d96da4b4400bd731379a8f38550ce05fcc58b144272b32569fe9cd4",
+    "src/client/capabilities.rs": "ae9ca1ba24475eb688a8408c932a9fb05c367e7ed689ed8f767bdad16d233e32",
+    "src/versions/java_1_16_1/client.rs": "e4f3482d67285b672bd8d70c500a5d88bfa8baa36457bd44dd86196ade4ab72f",
+    "src/versions/java_1_16_1/client/common_control.rs": "029e0c88e89a7024eb0157a34b10f2216c7aeebb73f09fc328320459d81627bb",
+    "src/versions/java_1_21_11/client/operations/continuous.rs": "5378431054fe22f518dd65b8bcef323a155ab64ac47965a6ac0353d0204d0359"
+  },
+  "binary_sha256": "6b1cdade0e30cda8eaa235ada3c4c3741689cd6e5cc489f9b8c4c10a1ab4a032",
+  "validation": {
+    "native_library_tests": 920,
+    "native_integration_tests": 4,
+    "ignored_tests": 8,
+    "strict_clippy": "passed",
+    "strict_rustdoc": "passed"
+  },
+  "versions": [
+    {
+      "version": "1.16.1",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "passed": true,
+      "trace_errors": [],
+      "checks": [
+        {
+          "name": "absent_session_refused",
+          "response": {
+            "error": "ground jump control belongs to a previous world"
+          }
+        },
+        {
+          "name": "single_ground_jump_preserves_forward_sneak_aim",
+          "before": {
+            "controls": {
+              "forward": 1,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": true,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 4,
+            "frame": {
+              "crouching": true,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Crouching",
+              "position": [
+                0.4088123344076168,
+                65.0,
+                0.6210256713611683
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 4,
+              "using_item": null,
+              "velocity": [
+                -0.018805675805598956,
+                -0.0784000015258789,
+                0.02495918197913822
+              ]
+            },
+            "ground_jump": null,
+            "session_id": 1,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "queued": {
+            "request_id": 1,
+            "session_id": 1,
+            "status": {
+              "status": "queued"
+            }
+          },
+          "stale_refusal": {
+            "error": "ground jump requires the same running control session"
+          },
+          "after": {
+            "controls": {
+              "forward": 1,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": true,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 36,
+            "frame": {
+              "crouching": true,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Crouching",
+              "position": [
+                -0.745402952062366,
+                65.0,
+                2.152917940264924
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 36,
+              "using_item": null,
+              "velocity": [
+                -0.021277113536700074,
+                -0.0784000015258789,
+                0.028239312122735394
+              ]
+            },
+            "ground_jump": {
+              "request_id": 1,
+              "session_id": 1,
+              "status": {
+                "dispatched": true,
+                "outcome": "applied",
+                "status": "evaluated",
+                "tick": 5
+              }
+            },
+            "session_id": 1,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "native_position": "ClimbingProbe has the following entity data: [-0.745402952062366d, 65.0d, 2.152917940264924d]",
+          "movement_packets": [
+            {
+              "ordinal": 90,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "fa5e8fa5c010ef5ff55f272d7103617cd450b87cc9e59758a0a9e250b577af90",
+              "body_sha256": "f72692f90bf0c141fb37a7348eb6619bdbf5f06d24327546c74de39568ad64e8",
+              "body_hex": "3fd7d401399f117840505ae147a000003fe56c439c2b714f42140000c140000000"
+            },
+            {
+              "ordinal": 97,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "1b3ce590b6b7e39e3be1858cddf7ab9b11435ae073467b1eb82bf9a25cc81277",
+              "body_sha256": "914ce87d01684c75e1ec638f7842ba62a76a86610664ae054738d163b4338e5c",
+              "body_hex": "3fd65389665bbf19405070346db0ebee3fe66b666ab85f0e42140000c140000000"
+            },
+            {
+              "ordinal": 98,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "46825b53b64ba0db5eceb28b610a15df58b9c1679df89c6c9952141a2cd48a7f",
+              "body_sha256": "ced2d352350bf366436e09ea5f3d79ad761c1b2f81df10d5bc01488397b79f63",
+              "body_hex": "3fd4bbb2aa09c67740508015e380a6113fe77a0b876df30042140000c140000000"
+            },
+            {
+              "ordinal": 99,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "570cea331cbb9d0291b3a9085a3ec36f1786672b9cb1aee593d19197939132f6",
+              "body_sha256": "9a2b6b1702da89b8859ef52c916abf18bbc0e123c4765eafae3035eeba73a4a9",
+              "body_hex": "3fd30e977ae0309b40508aa188bcd2b63fe896cd9e7d6c0042140000c140000000"
+            },
+            {
+              "ordinal": 100,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "9a974d83cf96c42c40ac4fb88e0f2ad687808cb2975596d437e394b3848afd0b",
+              "body_sha256": "180f6970a406e7af51ec4dcb0eb27297d60d12113f66a20ae0d61d18e47b2d0a",
+              "body_hex": "3fd14e21d8ee287140508ff2ae5c72d43fe9c06784ea075042140000c140000000"
+            },
+            {
+              "ordinal": 101,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "012be10058a866c74f50826b1132fdc614b9c10aa6b577159037f8e359e50487",
+              "body_sha256": "99ed2f096cf5c8049f9f9b503f2d35d694fedf9ff83964317093a9b72b642ea7",
+              "body_hex": "3fcef81f555172d640509024197a953b3feaf5b15394e0ce42140000c140000000"
+            },
+            {
+              "ordinal": 104,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "dc28e9052695345795c091b6a3e27997b2064a2ffe7f663019b5e584b50db2b2",
+              "body_sha256": "6865be37a2dffd8cb738098c7bda40d5bfec70f5cabe63b2c257489f70123367",
+              "body_hex": "3fcb33ed69f654f140508b5006226a993fec359dc4f8641e42140000c140000000"
+            },
+            {
+              "ordinal": 109,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "071304d5e399735e1a1680ad3bfced08fc7b3277d2a1de42a6642bce932a5d60",
+              "body_sha256": "ddb760b6fc2acf2961fe924d5c2edf4e0a2b9860de153a7887907a8976b2a9ba",
+              "body_hex": "3fc752906fca7c1a405081902a0d07323fed7f37cf92de0242140000c140000000"
+            },
+            {
+              "ordinal": 112,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "a7a6884666fed546e02e3fafbb076eaa160d0a2298a142361accf03b617a66b8",
+              "body_sha256": "b9e717670025f17ccadd934c0663aed36747d02dad4f74e352007148c13e7d88",
+              "body_hex": "3fc356a86fc47fcc405072fdb7511b963feed1a0778a04aa42140000c140000000"
+            },
+            {
+              "ordinal": 113,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "280a8c29414a992c45959bfc74753e5974bc026f291ccde3b47829ef1865ed3c",
+              "body_sha256": "b4109201106640ad26809020cce37b53b77a38b269d0fb4842c90dbee877c81c",
+              "body_hex": "3fbe8531ee58a84240505fb15f04ec393ff01606694791ba42140000c140000000"
+            },
+            {
+              "ordinal": 120,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "9ee01cf8dae3a2b580bbc1ec4a1f2ac4f0a91d52ea34bc32a1c029fa9fdbf7f4",
+              "body_sha256": "3ad32a4be06f06c6b49a32b887e5ebb6414b4c4843047c4021d00760fe52eb42",
+              "body_hex": "3fb6311d12467196405047c353d2ce563ff0c6e21cbf0c7042140000c140000000"
+            },
+            {
+              "ordinal": 124,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "1911f3b46d54f5947dfcad6de49554087a8ffc4b8c19ca954cb29111029a0d3b",
+              "body_sha256": "f917ffe545dcff4665eb1c9bcb872d366be77561b401c2527576277c60c5399d",
+              "body_hex": "3fab6a0e4b02d8de40504000000000003ff17b0f51ccc4d442140000c140000001"
+            },
+            {
+              "ordinal": 127,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "fd0e36668c8fbf52c9edf8dc35b0c3bae0693433219d73613790a5ca0b6cef5e",
+              "body_sha256": "0cbfbccc1d7a8318a876a52a9f7238b5c26a2861740d81baae06e3ed948a7cec",
+              "body_hex": "3f774f901ffddfe040504000000000003ff27f32d9cc34ae42140000c140000001"
+            },
+            {
+              "ordinal": 128,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "5fd0fcbc4bc3f2f71fbd34a049f17b23ae7092e4fd536ea7872606f0c51bea99",
+              "body_sha256": "93db5219ee2965b6452d26eea9c90766f53a418c2387b947d389930ec0b86e92",
+              "body_hex": "bfa3858ab3ddf7b440504000000000003ff36d699b4355f342140000c140000001"
+            },
+            {
+              "ordinal": 139,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "de751ee50cb897715cd8846777914dffdc5fd140bb710f07a693f75981621e83",
+              "body_sha256": "35477b1856232158fd2df7994e913990d0f1c45b42232690ec2e8a0d9e4d33cc",
+              "body_hex": "bfb46a334850276b40504000000000003ff44fa7c953981242140000c140000001"
+            },
+            {
+              "ordinal": 146,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "0233632a259618ba766dc89a9d0f3503447d58a19516604e2d702495877618db",
+              "body_sha256": "0b4ce490bbf7b9869929f2760f18169e6757dc64cccf110c8de462c362ee9b59",
+              "body_hex": "bfbec2d58dbb917640504000000000003ff52b5cb531e42742140000c140000001"
+            },
+            {
+              "ordinal": 147,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "8d147c3b090b23c2ff9190ad8357d94e2344b2eb50fb6395c8dfd5c62c19c709",
+              "body_sha256": "b5eb149fe1ee6d9fafa6a75d0a51bd7947d091bd45151a954bae4745865e7e3b",
+              "body_hex": "bfc478390c70356740504000000000003ff6038007a5404e42140000c140000001"
+            },
+            {
+              "ordinal": 148,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "df1dcf8d2cb70bf7ee9206393a90d6f6b168e621bd933e7add75983f2667fa90",
+              "body_sha256": "073e4b2abdac73983a0ce1d2af429ac780ff1acc184842fccf456c5fd6bef8fb",
+              "body_hex": "bfc9834892860c8540504000000000003ff6d9b086d3c53142140000c140000001"
+            },
+            {
+              "ordinal": 149,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "0204089a2e4b3850a5de28d4ae09943025b536e6d64ae7f0797e49f553738815",
+              "body_sha256": "3a5e684f04ba5a283e4533ce1d46cdc64b386af1feee0092d7e867387c4d7148",
+              "body_hex": "bfce87ee695a37a940504000000000003ff7aed0aa33347b42140000c140000001"
+            },
+            {
+              "ordinal": 150,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "76c2e6e58f47cdd9e77ff03f50714eacfbd61d32454ca9b54145e1687d4c195d",
+              "body_sha256": "d0880dfba7245d678c373d35f3c4fbdb2c5846c074f7f5aa1f5913e9ea475bee",
+              "body_hex": "bfd1c489f206347840504000000000003ff8835c185e644542140000c140000001"
+            },
+            {
+              "ordinal": 155,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "f37eafd9a9311baa8cc5d9922576caa67cf5cbd4d95859757ec3617447ee81d6",
+              "body_sha256": "f81bfcceeed1e1b53af24d7322ec917280a0ca3777c8863673cfa401566dd9b2",
+              "body_hex": "bfd44427fa90943940504000000000003ff9579654bfe38c42140000c140000001"
+            },
+            {
+              "ordinal": 160,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "d969bb452f7f7b478e52c59e18f164fbe67eaaf99233a9fcc1a79f5444ea01ef",
+              "body_sha256": "43f0c2b0ce65bfbb9728507f1b4d989e9e94d64a78f563378e47a27efea9db41",
+              "body_hex": "bfd6c3406709525740504000000000003ffa2ba43c16c41f42140000c140000001"
+            },
+            {
+              "ordinal": 163,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "9d729ee4fceb58ca2160182395325d6913c87eaf17553520cdd84c7742d3ecb1",
+              "body_sha256": "c19f5fc08d65f021fc6c800945315185d793a6999f66e402bd9b45a3eefe42bc",
+              "body_hex": "bfd9420fe015940740504000000000003ffaff99eed9d62b42140000c140000001"
+            },
+            {
+              "ordinal": 164,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "bc2f6de62e6f4fe73ff267651c46526df478cc17d779052132a49af2a65c3100",
+              "body_sha256": "97901117030997ed7ff5ea898ca0c28b6fc547b7b45878d68dc049961d09f008",
+              "body_hex": "bfdbc0b784597f8d40504000000000003ffbd3826a48020e42140000c140000001"
+            },
+            {
+              "ordinal": 165,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "51a1ac1f6ae38482a3b40cd9acf5a6f43168ada309737707c01abf48fb489ebe",
+              "body_sha256": "2b8a1de20b23c6f254f1e1e0f07e3905c2f1fd913d771861d1cc1b7980b5ca5f",
+              "body_hex": "bfde3f49692bc5df40504000000000003ffca763ae698fc642140000c140000001"
+            },
+            {
+              "ordinal": 170,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "981ed7fd3668165723d467571d381eb453c18b5f15c0b7556b05ffef10203fa1",
+              "body_sha256": "14e849d75e1da740598a84a1e8ab2e7ff6dda2df6cf3efbfb5fc862a794fd57c",
+              "body_hex": "bfe05ee7b715751b40504000000000003ffd7b4101eafad942140000c140000001"
+            },
+            {
+              "ordinal": 173,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "b1c52dd6fcf545cd3fd7a6df67f246333e7839d29088c21ecb18ce40f6c4abdb",
+              "body_sha256": "7ccfcb0418013745d77347281fdaf726723ea4c0568f8a7ab742dc8e9fe7b1bb",
+              "body_hex": "bfe19e277bb5bb8540504000000000003ffe4f1c2eb6bd6842140000c140000001"
+            },
+            {
+              "ordinal": 174,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "326bc36a066cc97ca941dc286b2ce810772a63a0ed38bc3b788e4230c8015af0",
+              "body_sha256": "e2ab8465d9cedf07df7412414556e651e792a4f7a4ff4a90c9804dcae9824610",
+              "body_hex": "bfe2dd657b39c54140504000000000003fff22f62ed2816a42140000c140000001"
+            },
+            {
+              "ordinal": 177,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "63640b77b8e80ce1f65e9faea93d0297273da92230b79cf145fa8d59e7b198f8",
+              "body_sha256": "b66abc5c14327a067cc05e7033c6515ee688d852dede8c361455be031f2fd494",
+              "body_hex": "bfe41ca28357db1340504000000000003ffff6cf8ac15f9642140000c140000001"
+            },
+            {
+              "ordinal": 180,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "1b0a0645da14ca32978e0f2c14a1e661c5320d886d90eb4775ff40933333f44e",
+              "body_sha256": "c2b744aab1bdf097eff6c30d9df5897c0e29e2df311c2418bd736cdbc404e51c",
+              "body_hex": "bfe55bdf0461994840504000000000004000655446863aed42140000c140000001"
+            },
+            {
+              "ordinal": 183,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "c5cfd3c783bb969514bff07b3e94eb3927beae8a50af8584740a0cafd2e945eb",
+              "body_sha256": "a0add6fdc4716273a0dce5e345ec02eccf144d6e1c97fb99afc3efbd80398fac",
+              "body_hex": "bfe69b1b3baa790440504000000000004000cf40af33075d42140000c140000001"
+            },
+            {
+              "ordinal": 185,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 19,
+              "body_length": 33,
+              "wire_sha256": "f2249c1d88ecf270f70e3462ae96bf163a771e38f3753217be85cffaa487af52",
+              "body_sha256": "f1135bc4cb928212c250984683c298aca74e14964ee84c0c0db134ceb7fb117e",
+              "body_hex": "bfe7da574aae641640504000000000004001392d0a8346b842140000c140000001"
+            }
+          ],
+          "input_packets": []
+        },
+        {
+          "name": "stopped_session_refused",
+          "record": {
+            "controls": {
+              "forward": 1,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": true,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 36,
+            "frame": {
+              "crouching": true,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Crouching",
+              "position": [
+                -0.745402952062366,
+                65.0,
+                2.152917940264924
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 36,
+              "using_item": null,
+              "velocity": [
+                -0.021277113536700074,
+                -0.0784000015258789,
+                0.028239312122735394
+              ]
+            },
+            "ground_jump": {
+              "request_id": 1,
+              "session_id": 1,
+              "status": {
+                "dispatched": true,
+                "outcome": "applied",
+                "status": "evaluated",
+                "tick": 5
+              }
+            },
+            "session_id": 1,
+            "status": {
+              "reason": "stopped by request",
+              "status": "stopped"
+            },
+            "velocity_updates": 0
+          },
+          "response": {
+            "error": "ground jump requires the same running control session"
+          }
+        },
+        {
+          "name": "airborne_consumed_without_landing_retry",
+          "before": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 3,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": false,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                70.76636799395752,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 3,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.230527368912964,
+                0.0
+              ]
+            },
+            "ground_jump": null,
+            "session_id": 2,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "queued": {
+            "request_id": 1,
+            "session_id": 2,
+            "status": {
+              "status": "queued"
+            }
+          },
+          "after": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 28,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 28,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "ground_jump": {
+              "request_id": 1,
+              "session_id": 2,
+              "status": {
+                "dispatched": true,
+                "outcome": "airborne",
+                "status": "evaluated",
+                "tick": 4
+              }
+            },
+            "session_id": 2,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 1
+          },
+          "native_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        },
+        {
+          "name": "held_water_input_preserved",
+          "before": {
+            "controls": {
+              "forward": 0,
+              "jump": true,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 5,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": true,
+              "horizontal_collision": false,
+              "in_water": true,
+              "on_ground": false,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                68.42118399619008,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 5,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                0.09076320131254192,
+                0.0
+              ]
+            },
+            "ground_jump": null,
+            "session_id": 3,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "queued": {
+            "request_id": 1,
+            "session_id": 3,
+            "status": {
+              "status": "queued"
+            }
+          },
+          "after": {
+            "controls": {
+              "forward": 0,
+              "jump": true,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 10,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": true,
+              "horizontal_collision": false,
+              "in_water": true,
+              "on_ground": false,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                69.14747757701885,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 10,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                0.1205044893345342,
+                0.0
+              ]
+            },
+            "ground_jump": {
+              "request_id": 1,
+              "session_id": 3,
+              "status": {
+                "dispatched": true,
+                "outcome": "already_held",
+                "status": "evaluated",
+                "tick": 6
+              }
+            },
+            "session_id": 3,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "native_position": "ClimbingProbe has the following entity data: [0.5d, 69.14747757701885d, 0.5d]"
+        },
+        {
+          "name": "held_ladder_input_preserved",
+          "before": {
+            "controls": {
+              "forward": 0,
+              "jump": true,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 5,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": false,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                65.65519999146463,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 5,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                0.11760000228881837,
+                0.0
+              ]
+            },
+            "ground_jump": null,
+            "session_id": 4,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "queued": {
+            "request_id": 1,
+            "session_id": 4,
+            "status": {
+              "status": "queued"
+            }
+          },
+          "after": {
+            "controls": {
+              "forward": 0,
+              "jump": true,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 10,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": false,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                66.24320000290875,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 10,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                0.11760000228881837,
+                0.0
+              ]
+            },
+            "ground_jump": {
+              "request_id": 1,
+              "session_id": 4,
+              "status": {
+                "dispatched": true,
+                "outcome": "already_held",
+                "status": "evaluated",
+                "tick": 6
+              }
+            },
+            "session_id": 4,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "native_position": "ClimbingProbe has the following entity data: [0.5d, 66.24320000290875d, 0.5d]"
+        },
+        {
+          "name": "paused_request_refused_without_later_jump",
+          "paused": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 0,
+            "frame": null,
+            "ground_jump": null,
+            "session_id": 5,
+            "status": {
+              "reason": "inside minecraft:nether_portal: Unsupported(\"block interior effect\")",
+              "status": "paused"
+            },
+            "velocity_updates": 0
+          },
+          "response": {
+            "error": "ground jump requires the same running control session"
+          },
+          "resumed": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 5,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": false,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 5,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "ground_jump": null,
+            "session_id": 5,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          }
+        },
+        {
+          "name": "received_mode_change_fences_request",
+          "queued": {
+            "request_id": 1,
+            "session_id": 6,
+            "status": {
+              "status": "queued"
+            }
+          },
+          "record": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 3,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 3,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "ground_jump": {
+              "request_id": 1,
+              "session_id": 6,
+              "status": {
+                "reason": "game mode changed",
+                "status": "cancelled"
+              }
+            },
+            "session_id": 6,
+            "status": {
+              "reason": "game mode changed",
+              "status": "stopped"
+            },
+            "velocity_updates": 0
+          },
+          "response": {
+            "error": "ground jump requires received survival mode"
+          }
+        },
+        {
+          "name": "respawn_world_and_replaced_session_fenced",
+          "respawn": {
+            "after_sequence": 231,
+            "death": {
+              "source": {
+                "kind": "received",
+                "sequence": 230
+              },
+              "value": {
+                "food": 20,
+                "health": 0.0,
+                "saturation": 3.0
+              }
+            },
+            "dispatched": true,
+            "received_spawn": null,
+            "requires_inspection": null,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_16_1",
+              "world_generation": 1
+            },
+            "stage": "submitted"
+          },
+          "old_session": 7,
+          "current_session": 8,
+          "world_refusal": {
+            "error": "ground jump control belongs to a previous world"
+          },
+          "stale_refusal": {
+            "error": "ground jump requires the same running control session"
+          }
+        },
+        {
+          "name": "revoked_connection_retains_request_outcome",
+          "queued": {
+            "request_id": 1,
+            "session_id": 8,
+            "status": {
+              "status": "queued"
+            }
+          },
+          "result": {
+            "jump_rejected": true,
+            "record": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 3,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": true,
+                "pose": "Standing",
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 3,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  -0.0784000015258789,
+                  0.0
+                ]
+              },
+              "ground_jump": {
+                "request_id": 1,
+                "session_id": 8,
+                "status": {
+                  "reason": "disconnected",
+                  "status": "cancelled"
+                }
+              },
+              "session_id": 8,
+              "status": {
+                "reason": "disconnected",
+                "status": "stopped"
+              },
+              "velocity_updates": 0
+            },
+            "revoked": {
+              "connection_id": 1,
+              "version": "Java1_16_1"
+            }
+          }
+        }
+      ],
+      "artifacts": {
+        ".local/climbing/live/1.16.1-20261009-094623/report.json": "1f633e2bbe158259786f23d6458116eeb301b3ee7b25fbe40c95a0c0026530b2",
+        ".local/climbing/live/1.16.1-20261009-094623/packets.jsonl": "498e84575bd3c0e95d76e6efd54ccc1e37e55e964d5754a2861a46446c60bfa5",
+        ".local/climbing/live/1.16.1-20261009-094623/probe.log": "229e4564d3900b54582975607912a117e55c88bdee3092d7656f5a418174c060",
+        ".local/climbing/live/1.16.1-20261009-094623/probe.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        ".local/climbing/live/1.16.1-20261009-094623/server.log": "acf0b2d1f48bc26d0932441c19a536dca83e0471957888ff93b11e5c1d22ce58"
+      }
+    },
+    {
+      "version": "1.21.11",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "passed": true,
+      "trace_errors": [],
+      "checks": [
+        {
+          "name": "absent_session_refused",
+          "response": {
+            "error": "ground jump control belongs to a previous world"
+          }
+        },
+        {
+          "name": "single_ground_jump_preserves_forward_sneak_aim",
+          "before": {
+            "controls": {
+              "forward": 1,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": true,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 4,
+            "frame": {
+              "crouching": true,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Crouching",
+              "position": [
+                0.40881233440761683,
+                65.0,
+                0.6210256713611683
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 4,
+              "using_item": null,
+              "velocity": [
+                -0.018805675805598956,
+                -0.0784000015258789,
+                0.02495918197913822
+              ]
+            },
+            "ground_jump": null,
+            "session_id": 1,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "queued": {
+            "request_id": 1,
+            "session_id": 1,
+            "status": {
+              "status": "queued"
+            }
+          },
+          "stale_refusal": {
+            "error": "ground jump requires the same running control session"
+          },
+          "after": {
+            "controls": {
+              "forward": 1,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": true,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 36,
+            "frame": {
+              "crouching": true,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Crouching",
+              "position": [
+                -0.745402952062366,
+                65.0,
+                2.1529179402649237
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 36,
+              "using_item": null,
+              "velocity": [
+                -0.021277113536700074,
+                -0.0784000015258789,
+                0.028239312122735394
+              ]
+            },
+            "ground_jump": {
+              "request_id": 1,
+              "session_id": 1,
+              "status": {
+                "dispatched": true,
+                "outcome": "applied",
+                "status": "evaluated",
+                "tick": 5
+              }
+            },
+            "session_id": 1,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "native_position": "ClimbingProbe has the following entity data: [-0.7064338841771876d, 65.0d, 2.1011975943992365d]",
+          "movement_packets": [
+            {
+              "ordinal": 148,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "a4e8edc069547f6fa44597e186892c50417ba08d92a3978acfa03ebe62b83bc3",
+              "body_sha256": "f72692f90bf0c141fb37a7348eb6619bdbf5f06d24327546c74de39568ad64e8",
+              "body_hex": "3fd7d401399f117840505ae147a000003fe56c439c2b714f42140000c140000000"
+            },
+            {
+              "ordinal": 150,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "e447ab532d98420f06fa967cc4ea29e193cd0ca83fa27a0948853d2b072ceca2",
+              "body_sha256": "914ce87d01684c75e1ec638f7842ba62a76a86610664ae054738d163b4338e5c",
+              "body_hex": "3fd65389665bbf19405070346db0ebee3fe66b666ab85f0e42140000c140000000"
+            },
+            {
+              "ordinal": 151,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "dc144c600dc642c190d07ba220aed5ae33571a36dcaa9a066ea69fff664d9529",
+              "body_sha256": "7e93bb3f5e81f552bc5bc07a6395a0916f17be41c3a2c8d0f22b62f59dee3b0e",
+              "body_hex": "3fd4bbb2aa09c67640508015e380a6113fe77a0b876df30042140000c140000000"
+            },
+            {
+              "ordinal": 152,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "a8d21ee810a91cd1c9bd4f8ee56e48ea5aae8c2cb2c79863827ef2bf7c2eb586",
+              "body_sha256": "a329edc76966bc1d62c39441d291c0b3aa3efdeaeeae5846381e7fb60e399c08",
+              "body_hex": "3fd30e977ae0309a40508aa188bcd2b63fe896cd9e7d6c0042140000c140000000"
+            },
+            {
+              "ordinal": 153,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "17811df84996f46663cfad9c5d39effe86017cd7e0eeb71502a580b96bd9dc7e",
+              "body_sha256": "ecb4d431baa4ce157f620d6e05516e989006402fb293136a93fd864fd95f3890",
+              "body_hex": "3fd14e21d8ee286f40508ff2ae5c72d43fe9c06784ea075042140000c140000000"
+            },
+            {
+              "ordinal": 154,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "1d6d386438550b28fc07559c90ba7cb48ac7812f7572087d37d39394a20352e3",
+              "body_sha256": "58b04d6c8e998a4b919b04678e432020a9239658f766dbf0e828978ff43c95b8",
+              "body_hex": "3fcef81f555172d140509024197a953b3feaf5b15394e0ce42140000c140000000"
+            },
+            {
+              "ordinal": 155,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "facd1b6d7dbf859aab0b35db436d43d03a5af6a84e215a774349fa5f00db8e57",
+              "body_sha256": "343d4ca84281b33c9b97cdb0b78719ea5259633bf22ce759c43b4fc9ddd6da94",
+              "body_hex": "3fcb33ed69f654ec40508b5006226a993fec359dc4f8641e42140000c140000000"
+            },
+            {
+              "ordinal": 156,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "4867eca9e7f81aa9e678b1eb6163eb9b27914a922e03ebe3ef75919d73a36cdc",
+              "body_sha256": "04040aa99389d468aede8ab9f7fa3270c668527dd49552a7fb98571349615c74",
+              "body_hex": "3fc752906fca7c15405081902a0d07323fed7f37cf92de0242140000c140000000"
+            },
+            {
+              "ordinal": 157,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "fc52444366e1925fc8263c959075edf6aea04c757ea64f2a3fcb261cc4149fe1",
+              "body_sha256": "926278f902872896baca356c6d1c46c170faaa10a492143a9baebc268788329a",
+              "body_hex": "3fc356a86fc47fc7405072fdb7511b963feed1a0778a04ab42140000c140000000"
+            },
+            {
+              "ordinal": 158,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "57c09a7b8d1fd4159811820e5e077cd2ccdcfe0d7c5c0c49dd2acda057f6e843",
+              "body_sha256": "c7a9806a94f70a451f965a73f10bcc53df8773446a59ae13477f41a556966417",
+              "body_hex": "3fbe8531ee58a83840505fb15f04ec393ff01606694791bb42140000c140000000"
+            },
+            {
+              "ordinal": 159,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "bdcab3afd6c11770949fb07669719b88ac3417e7bc3bf876b2c8e26f9a0fa85b",
+              "body_sha256": "5e36bfd5ca6e462fb43daef368c156e400a72eca8fc7b96ce3c09334483e3b54",
+              "body_hex": "3fb6311d1246718c405047c353d2ce563ff0c6e21cbf0c7042140000c140000000"
+            },
+            {
+              "ordinal": 160,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "28235337e60461b7faac5e8230a980d35b4c466861c5e5406e01fd65de714f58",
+              "body_sha256": "f7394a6ba0c230552f857292df7fcfaf6c097647b14cfe1343065490c46324db",
+              "body_hex": "3fab6a0e4b02d8cb40504000000000003ff17b0f51ccc4d542140000c140000001"
+            },
+            {
+              "ordinal": 161,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "3291593131ffd7bd96f06e42070d68f273cc3d5c7a719dac47c0377ac301567f",
+              "body_sha256": "a168389a2710bcd970dcc1e93a003c31222c9c3ca16f442ec7920040927d44ff",
+              "body_hex": "3f774f901ffddf5840504000000000003ff27f32d9cc34ae42140000c140000001"
+            },
+            {
+              "ordinal": 162,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "162776b455359ebd1bee88dedc8cf18ae655b39b6aeb684d2d2395d622bd3aa8",
+              "body_sha256": "2ac8bbf99231027aa04b92a74a7cea883d93013acd32204876c94dad877e1bbc",
+              "body_hex": "bfa3858ab3ddf7c540504000000000003ff36d699b4355f442140000c140000001"
+            },
+            {
+              "ordinal": 163,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "58374b72b777321c8c56890746e0a56989caf81d4f7c5ce68989621a39a4c74d",
+              "body_sha256": "c99587b4c285b74a2b5e95c9a62ae02886e9c1dcced8799db21e56bd7200814b",
+              "body_hex": "bfb46a334850277440504000000000003ff44fa7c953981342140000c140000001"
+            },
+            {
+              "ordinal": 164,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "f416f4ee1843ae8fc0c485b9d322a74e7e173a4a03d19695a488ce5373379fba",
+              "body_sha256": "0674d30074f2261ee16119e6a4578408f3ced274d8d05e5d228a5a1d7a62cf8b",
+              "body_hex": "bfbec2d58dbb917f40504000000000003ff52b5cb531e42842140000c140000001"
+            },
+            {
+              "ordinal": 173,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "061e3b9ff6f867d58ba98c2dcb421266a3b6f84e53eaba0278226fde1fe8165e",
+              "body_sha256": "02623f165b4f0f62d9d4d7315f9d3c0742f7208d24b6adae76147b3d7386dc8b",
+              "body_hex": "bfc478390c70356c40504000000000003ff6038007a5404f42140000c140000001"
+            },
+            {
+              "ordinal": 174,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "c1ee427ef884fa95fce33a2debdb30a27a046105a76551af65d27819db48b58c",
+              "body_sha256": "e6341595f1c587e69c31c6416c5bdba623c66a6d4b50d81ef830c540f4da3b7b",
+              "body_hex": "bfc9834892860c8a40504000000000003ff6d9b086d3c53242140000c140000001"
+            },
+            {
+              "ordinal": 176,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "a6af001588e00ed13a8112e1415bf0563eb9c7f2d3baf5df0dd2c415f5ea4d82",
+              "body_sha256": "127a5738dbd080fb685b165077b95834f79a126f8cc03aed222a9500460923d9",
+              "body_hex": "bfce87ee695a37ae40504000000000003ff7aed0aa33347c42140000c140000001"
+            },
+            {
+              "ordinal": 177,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "b6123a898ea6403eb180ff24983d6a3354a1aef7ed0bb4d3adddccfcdc9f3db9",
+              "body_sha256": "02eaa0bccf92e093bc45659fa5bacf3657460ea692fffb2307ed89700ecc1ad9",
+              "body_hex": "bfd1c489f206347a40504000000000003ff8835c185e644642140000c140000001"
+            },
+            {
+              "ordinal": 188,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "01e70cfacbb5a6ab949a1efd861fc590903a2268a25e0057afb4501e6d272357",
+              "body_sha256": "234405b8acf070a22da81caa1189993479af43ac34368f76e3f6d5cd155475ea",
+              "body_hex": "bfd44427fa90943b40504000000000003ff9579654bfe38d42140000c140000001"
+            },
+            {
+              "ordinal": 189,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "95839795e6355e6e045a61afca864018125f156aea58f4e98fd31c352177f019",
+              "body_sha256": "336bae52470ffbb2a8a3d6ff6e0a9164b2623394d941724e189fd15dec2f1264",
+              "body_hex": "bfd6c3406709525940504000000000003ffa2ba43c16c42042140000c140000001"
+            },
+            {
+              "ordinal": 190,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "f3cfd550635c19183ebfa764747d25558d9d20d2305f744fdc302ae76bd7206b",
+              "body_sha256": "447476d57b903b85ba99c6c4dbce923f94c4da1e75c4313ded80e1b7b2d992b5",
+              "body_hex": "bfd9420fe015940940504000000000003ffaff99eed9d62c42140000c140000001"
+            },
+            {
+              "ordinal": 191,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "3c7a071edb9ddc946ce27be42a7f5cbd1ff2e623e4e3eed190271756898afded",
+              "body_sha256": "1e2cb2f78d402b6d3331e35e56a8b7cdc030923dff586371deed8ab73a01f3e3",
+              "body_hex": "bfdbc0b784597f8f40504000000000003ffbd3826a48020e42140000c140000001"
+            },
+            {
+              "ordinal": 192,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "79848e18bb7505c5a2b3e340b5354556181a11d71a89b32f32cfe8253dbbdccb",
+              "body_sha256": "63f23b63f7b1bc8186958b943d82a4c5fc154d6de32a72d35ad27da028c3dc67",
+              "body_hex": "bfde3f49692bc5e140504000000000003ffca763ae698fc642140000c140000001"
+            },
+            {
+              "ordinal": 193,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "bd4b936d3fbf55102086b8d780dcc2b002279864e6707624c83d11fa0ab9b214",
+              "body_sha256": "1d26926647284d0dcd4b7a6da9c64941a0d03cca038afaf02c0f5fad4df21cc1",
+              "body_hex": "bfe05ee7b715751c40504000000000003ffd7b4101eafad942140000c140000001"
+            },
+            {
+              "ordinal": 194,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "585151553fbd0fee7a5ac9e8cfba756ded0e4ccfb691c0d7da9851559820554a",
+              "body_sha256": "b901a27bf4ba21c1d9193e8c0e50dbb1dba7d8d3ef4ee480e80be801b68f777b",
+              "body_hex": "bfe19e277bb5bb8640504000000000003ffe4f1c2eb6bd6842140000c140000001"
+            },
+            {
+              "ordinal": 195,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "b94da8779bc52f21d0ced2d19421eed305792ac8c3dc3c7a0a95536d6309e3c4",
+              "body_sha256": "2f0b37fb7f84c7cc9cf74a63fd983679ef025beeae84459b9bef597babca9add",
+              "body_hex": "bfe2dd657b39c54240504000000000003fff22f62ed2816942140000c140000001"
+            },
+            {
+              "ordinal": 196,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "a4fff58efc3ea054c3824d99da7742c4b89f7f8cc33ee1b316c71e431f42e493",
+              "body_sha256": "cd57ce3d544a4f8c117e17315230d5cf5fcf6a6ad312e5aaad551007c07a71c8",
+              "body_hex": "bfe41ca28357db1440504000000000003ffff6cf8ac15f9442140000c140000001"
+            },
+            {
+              "ordinal": 197,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "c1adfc1c9d4bbcacc23d5dff3bad69e4719557cc01793c51616dd4afeb34e721",
+              "body_sha256": "2452fded7bb3746190fc20bd2c96af0ad78872995cea15163dcc441f487230d6",
+              "body_hex": "bfe55bdf0461994940504000000000004000655446863aec42140000c140000001"
+            },
+            {
+              "ordinal": 198,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "58830d264005dfcf596d535ce73c84f70eecfea50d0f1b09000a43f980bc7625",
+              "body_sha256": "a810c3f51a71a807d2527e1d4c0c55c9d0c39f2a9ef18ff0ccf15d03c9b43019",
+              "body_hex": "bfe69b1b3baa790440504000000000004000cf40af33075c42140000c140000001"
+            },
+            {
+              "ordinal": 199,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 30,
+              "body_length": 33,
+              "wire_sha256": "0af52a5f68cd9c145424d3a8b56806a5c649174adb9f7135bf6b27d0fdd1082f",
+              "body_sha256": "6e4a6cea258604e671581c8f569149c533bfdd8ee451173be0b9d4a7f1fe31c5",
+              "body_hex": "bfe7da574aae641640504000000000004001392d0a8346b742140000c140000001"
+            }
+          ],
+          "input_packets": [
+            {
+              "ordinal": 147,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 42,
+              "body_length": 1,
+              "wire_sha256": "dcded2448de233fee88fd291abd4dc917a56898e1d1a602ffd7d5f7f4489c522",
+              "body_sha256": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+              "body_hex": "31"
+            },
+            {
+              "ordinal": 149,
+              "connection": 1,
+              "direction": "serverbound",
+              "phase": "play",
+              "packet_id": 42,
+              "body_length": 1,
+              "wire_sha256": "3c26bf6b41a05043be77adb0650bcc9b135f9a0d6ed90fd1753f484f01dfd205",
+              "body_sha256": "bb7208bc9b5d7c04f1236a82a0093a5e33f40423d5ba8d4266f7092c3ba43b62",
+              "body_hex": "21"
+            }
+          ]
+        },
+        {
+          "name": "stopped_session_refused",
+          "record": {
+            "controls": {
+              "forward": 1,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": true,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 36,
+            "frame": {
+              "crouching": true,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Crouching",
+              "position": [
+                -0.745402952062366,
+                65.0,
+                2.1529179402649237
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 36,
+              "using_item": null,
+              "velocity": [
+                -0.021277113536700074,
+                -0.0784000015258789,
+                0.028239312122735394
+              ]
+            },
+            "ground_jump": {
+              "request_id": 1,
+              "session_id": 1,
+              "status": {
+                "dispatched": true,
+                "outcome": "applied",
+                "status": "evaluated",
+                "tick": 5
+              }
+            },
+            "session_id": 1,
+            "status": {
+              "reason": "stopped by request",
+              "status": "stopped"
+            },
+            "velocity_updates": 0
+          },
+          "response": {
+            "error": "ground jump requires the same running control session"
+          }
+        },
+        {
+          "name": "airborne_consumed_without_landing_retry",
+          "before": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 2,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": false,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                70.92159999847412,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 2,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.1552320045166016,
+                0.0
+              ]
+            },
+            "ground_jump": null,
+            "session_id": 2,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "queued": {
+            "request_id": 1,
+            "session_id": 2,
+            "status": {
+              "status": "queued"
+            }
+          },
+          "after": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 27,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 27,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "ground_jump": {
+              "request_id": 1,
+              "session_id": 2,
+              "status": {
+                "dispatched": true,
+                "outcome": "airborne",
+                "status": "evaluated",
+                "tick": 3
+              }
+            },
+            "session_id": 2,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 1
+          },
+          "native_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        },
+        {
+          "name": "received_zero_jump_strength",
+          "queued": {
+            "request_id": 1,
+            "session_id": 3,
+            "status": {
+              "status": "queued"
+            }
+          },
+          "after": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 9,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 9,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "ground_jump": {
+              "request_id": 1,
+              "session_id": 3,
+              "status": {
+                "dispatched": true,
+                "outcome": "no_jump_power",
+                "status": "evaluated",
+                "tick": 6
+              }
+            },
+            "session_id": 3,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          }
+        },
+        {
+          "name": "held_water_input_preserved",
+          "before": {
+            "controls": {
+              "forward": 0,
+              "jump": true,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 4,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": true,
+              "horizontal_collision": false,
+              "in_water": true,
+              "on_ground": false,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                68.30147999633313,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 4,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                0.07970400075101848,
+                0.0
+              ]
+            },
+            "ground_jump": null,
+            "session_id": 4,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "queued": {
+            "request_id": 1,
+            "session_id": 4,
+            "status": {
+              "status": "queued"
+            }
+          },
+          "after": {
+            "controls": {
+              "forward": 0,
+              "jump": true,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 9,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": true,
+              "horizontal_collision": false,
+              "in_water": true,
+              "on_ground": false,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                68.99059696768838,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 9,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                0.11688061022453416,
+                0.0
+              ]
+            },
+            "ground_jump": {
+              "request_id": 1,
+              "session_id": 4,
+              "status": {
+                "dispatched": true,
+                "outcome": "already_held",
+                "status": "evaluated",
+                "tick": 5
+              }
+            },
+            "session_id": 4,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "native_position": "ClimbingProbe has the following entity data: [0.5d, 68.99059696768838d, 0.5d]"
+        },
+        {
+          "name": "held_ladder_input_preserved",
+          "before": {
+            "controls": {
+              "forward": 0,
+              "jump": true,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 5,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": false,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                65.65519999146463,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 5,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                0.11760000228881837,
+                0.0
+              ]
+            },
+            "ground_jump": null,
+            "session_id": 5,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "queued": {
+            "request_id": 1,
+            "session_id": 5,
+            "status": {
+              "status": "queued"
+            }
+          },
+          "after": {
+            "controls": {
+              "forward": 0,
+              "jump": true,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 10,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": false,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                66.24320000290875,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 10,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                0.11760000228881837,
+                0.0
+              ]
+            },
+            "ground_jump": {
+              "request_id": 1,
+              "session_id": 5,
+              "status": {
+                "dispatched": true,
+                "outcome": "already_held",
+                "status": "evaluated",
+                "tick": 6
+              }
+            },
+            "session_id": 5,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "native_position": "ClimbingProbe has the following entity data: [0.5d, 66.12560000061993d, 0.5d]"
+        },
+        {
+          "name": "paused_request_refused_without_later_jump",
+          "paused": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 0,
+            "frame": null,
+            "ground_jump": null,
+            "session_id": 6,
+            "status": {
+              "reason": "inside minecraft:nether_portal: Unsupported(\"block interior effect\")",
+              "status": "paused"
+            },
+            "velocity_updates": 0
+          },
+          "response": {
+            "error": "ground jump requires the same running control session"
+          },
+          "resumed": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 5,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": false,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 5,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "ground_jump": null,
+            "session_id": 6,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          }
+        },
+        {
+          "name": "received_mode_change_fences_request",
+          "queued": {
+            "request_id": 1,
+            "session_id": 7,
+            "status": {
+              "status": "queued"
+            }
+          },
+          "record": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 3,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 3,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "ground_jump": {
+              "request_id": 1,
+              "session_id": 7,
+              "status": {
+                "reason": "game mode changed",
+                "status": "cancelled"
+              }
+            },
+            "session_id": 7,
+            "status": {
+              "reason": "game mode changed",
+              "status": "stopped"
+            },
+            "velocity_updates": 0
+          },
+          "response": {
+            "error": "ground jump requires received survival mode"
+          }
+        },
+        {
+          "name": "respawn_world_and_replaced_session_fenced",
+          "respawn": {
+            "after_sequence": 238,
+            "death": {
+              "source": {
+                "kind": "received",
+                "sequence": 238
+              },
+              "value": {
+                "food": 20,
+                "health": 0.0,
+                "saturation": 10.0
+              }
+            },
+            "dispatched": true,
+            "received_spawn": null,
+            "requires_inspection": null,
+            "session": {
+              "connection_id": 1,
+              "version": "Java1_21_11",
+              "world_generation": 29
+            },
+            "stage": "submitted"
+          },
+          "old_session": 8,
+          "current_session": 9,
+          "world_refusal": {
+            "error": "ground jump control belongs to a previous world"
+          },
+          "stale_refusal": {
+            "error": "ground jump requires the same running control session"
+          }
+        },
+        {
+          "name": "revoked_connection_retains_request_outcome",
+          "queued": {
+            "request_id": 1,
+            "session_id": 9,
+            "status": {
+              "status": "queued"
+            }
+          },
+          "result": {
+            "jump_rejected": true,
+            "record": {
+              "controls": {
+                "forward": 0,
+                "jump": false,
+                "pitch": -12.0,
+                "sneak": false,
+                "sprint": false,
+                "strafe": 0,
+                "yaw": 37.0
+              },
+              "corrections": 0,
+              "dispatched_ticks": 3,
+              "frame": {
+                "crouching": false,
+                "eye_in_water": false,
+                "horizontal_collision": false,
+                "in_water": false,
+                "on_ground": true,
+                "pose": "Standing",
+                "position": [
+                  0.5,
+                  65.0,
+                  0.5
+                ],
+                "sprinting": false,
+                "swimming": false,
+                "tick": 3,
+                "using_item": null,
+                "velocity": [
+                  0.0,
+                  -0.0784000015258789,
+                  0.0
+                ]
+              },
+              "ground_jump": {
+                "request_id": 1,
+                "session_id": 9,
+                "status": {
+                  "reason": "connection closed",
+                  "status": "cancelled"
+                }
+              },
+              "session_id": 9,
+              "status": {
+                "reason": "connection closed",
+                "status": "stopped"
+              },
+              "velocity_updates": 0
+            },
+            "revoked": {
+              "connection_id": 1,
+              "version": "Java1_21_11"
+            }
+          }
+        }
+      ],
+      "artifacts": {
+        ".local/climbing/live/1.21.11-20261009-094658/report.json": "e7b2c4e00266eda1fefbe016a211da4a6c08791c397d134e15b3b4d7418db6a1",
+        ".local/climbing/live/1.21.11-20261009-094658/packets.jsonl": "2eef6cd2d48f87f25d580ceb89f01c7cd1cafc93fa02be330d77eb5681792b68",
+        ".local/climbing/live/1.21.11-20261009-094658/probe.log": "0c2f757d52b2208842018245ae32c386e3c0ca3693b182141c5bb2e8cd60849f",
+        ".local/climbing/live/1.21.11-20261009-094658/probe.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        ".local/climbing/live/1.21.11-20261009-094658/server.log": "0b81af103cbc923c327d9fe81eea2ef5446c7dd32143af1c2ea267a37f2dec2f"
+      }
+    }
+  ]
+}

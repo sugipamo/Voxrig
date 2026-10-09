@@ -27,10 +27,15 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all -- --check
+      - run: python3 scripts/test_native_trace.py
       - run: cargo test --locked --all-targets -j1 -- --test-threads=1
       - run: cargo test --locked --doc -j1
       - run: cargo clippy --locked --all-targets -j1 -- -D warnings
       - run: RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps -j1
+      - run: cargo test --locked --all-targets --features native -j1 -- --test-threads=1
+      - run: cargo test --locked --doc --features native -j1
+      - run: cargo clippy --locked --all-targets --features native -j1 -- -D warnings
+      - run: RUSTDOCFLAGS="-D warnings" cargo doc --locked --no-deps --features native -j1
       - name: Verify package allowlist
         run: |
           cargo package --locked --allow-dirty --list > package-files.txt
@@ -57,3 +62,4 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.85.0
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --locked --all-targets -j1
+      - run: cargo check --locked --all-targets --features native -j1

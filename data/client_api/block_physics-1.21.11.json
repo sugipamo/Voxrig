@@ -1,0 +1,5835 @@
+{
+"blocks": {
+"minecraft:acacia_button": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:acacia_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:acacia_fence": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:acacia_fence_gate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:acacia_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:acacia_leaves": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:acacia_log": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:acacia_planks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:acacia_pressure_plate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:acacia_sapling": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:acacia_shelf": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:acacia_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:acacia_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:acacia_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:acacia_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:acacia_wall_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:acacia_wall_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:acacia_wood": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:activator_rail": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:air": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:allium": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:amethyst_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:amethyst_cluster": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:ancient_debris": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:andesite": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:andesite_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:andesite_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:andesite_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:anvil": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:attached_melon_stem": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:attached_pumpkin_stem": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:azalea": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:azalea_leaves": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:azure_bluet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo_button": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo_fence": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo_fence_gate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo_mosaic": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo_mosaic_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo_mosaic_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo_planks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo_pressure_plate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo_sapling": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo_shelf": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo_wall_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bamboo_wall_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:barrel": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:barrier": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:basalt": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:beacon": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bedrock": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bee_nest": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:beehive": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:beetroots": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bell": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:big_dripleaf": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:big_dripleaf_stem": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:birch_button": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:birch_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:birch_fence": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:birch_fence_gate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:birch_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:birch_leaves": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:birch_log": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:birch_planks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:birch_pressure_plate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:birch_sapling": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:birch_shelf": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:birch_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:birch_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:birch_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:birch_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:birch_wall_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:birch_wall_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:birch_wood": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:black_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:black_bed": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:black_candle": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:black_candle_cake": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:black_carpet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:black_concrete": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:black_concrete_powder": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:black_glazed_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:black_shulker_box": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:black_stained_glass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:black_stained_glass_pane": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:black_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:black_wall_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:black_wool": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blackstone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blackstone_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blackstone_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blackstone_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blast_furnace": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blue_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blue_bed": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blue_candle": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blue_candle_cake": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blue_carpet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blue_concrete": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blue_concrete_powder": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blue_glazed_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blue_ice": {
+"friction": 0.989,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blue_orchid": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blue_shulker_box": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blue_stained_glass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blue_stained_glass_pane": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blue_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blue_wall_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:blue_wool": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bone_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bookshelf": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brain_coral": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brain_coral_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brain_coral_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brain_coral_wall_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brewing_stand": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brick_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brick_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brick_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brown_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brown_bed": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brown_candle": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brown_candle_cake": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brown_carpet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brown_concrete": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brown_concrete_powder": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brown_glazed_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brown_mushroom": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brown_mushroom_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brown_shulker_box": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brown_stained_glass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brown_stained_glass_pane": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brown_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brown_wall_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:brown_wool": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bubble_column": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bubble_coral": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bubble_coral_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bubble_coral_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bubble_coral_wall_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:budding_amethyst": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:bush": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cactus": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cactus_flower": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cake": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:calcite": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:calibrated_sculk_sensor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:campfire": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:candle": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:candle_cake": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:carrots": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cartography_table": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:carved_pumpkin": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cauldron": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cave_air": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cave_vines": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cave_vines_plant": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:chain_command_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cherry_button": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cherry_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cherry_fence": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cherry_fence_gate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cherry_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cherry_leaves": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cherry_log": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cherry_planks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cherry_pressure_plate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cherry_sapling": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cherry_shelf": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cherry_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cherry_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cherry_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cherry_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cherry_wall_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cherry_wall_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cherry_wood": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:chest": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:chipped_anvil": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:chiseled_bookshelf": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:chiseled_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:chiseled_deepslate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:chiseled_nether_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:chiseled_polished_blackstone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:chiseled_quartz_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:chiseled_red_sandstone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:chiseled_resin_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:chiseled_sandstone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:chiseled_stone_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:chiseled_tuff": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:chiseled_tuff_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:chorus_flower": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:chorus_plant": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:clay": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:closed_eyeblossom": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:coal_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:coal_ore": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:coarse_dirt": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cobbled_deepslate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cobbled_deepslate_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cobbled_deepslate_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cobbled_deepslate_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cobblestone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cobblestone_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cobblestone_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cobblestone_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cobweb": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cocoa": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:command_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:comparator": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:composter": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:conduit": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:copper_bars": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:copper_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:copper_bulb": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:copper_chain": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:copper_chest": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:copper_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:copper_golem_statue": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:copper_grate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:copper_lantern": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:copper_ore": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:copper_torch": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:copper_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:copper_wall_torch": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cornflower": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cracked_deepslate_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cracked_deepslate_tiles": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cracked_nether_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cracked_polished_blackstone_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cracked_stone_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crafter": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crafting_table": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:creaking_heart": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:creeper_head": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:creeper_wall_head": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crimson_button": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crimson_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crimson_fence": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crimson_fence_gate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crimson_fungus": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crimson_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crimson_hyphae": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crimson_nylium": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crimson_planks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crimson_pressure_plate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crimson_roots": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crimson_shelf": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crimson_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crimson_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crimson_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crimson_stem": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crimson_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crimson_wall_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crimson_wall_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:crying_obsidian": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cut_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cut_copper_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cut_copper_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cut_red_sandstone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cut_red_sandstone_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cut_sandstone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cut_sandstone_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cyan_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cyan_bed": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cyan_candle": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cyan_candle_cake": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cyan_carpet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cyan_concrete": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cyan_concrete_powder": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cyan_glazed_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cyan_shulker_box": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cyan_stained_glass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cyan_stained_glass_pane": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cyan_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cyan_wall_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:cyan_wool": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:damaged_anvil": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dandelion": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_oak_button": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_oak_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_oak_fence": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_oak_fence_gate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_oak_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_oak_leaves": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_oak_log": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_oak_planks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_oak_pressure_plate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_oak_sapling": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_oak_shelf": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_oak_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_oak_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_oak_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_oak_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_oak_wall_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_oak_wall_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_oak_wood": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_prismarine": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_prismarine_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dark_prismarine_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:daylight_detector": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_brain_coral": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_brain_coral_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_brain_coral_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_brain_coral_wall_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_bubble_coral": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_bubble_coral_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_bubble_coral_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_bubble_coral_wall_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_bush": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_fire_coral": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_fire_coral_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_fire_coral_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_fire_coral_wall_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_horn_coral": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_horn_coral_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_horn_coral_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_horn_coral_wall_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_tube_coral": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_tube_coral_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_tube_coral_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dead_tube_coral_wall_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:decorated_pot": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:deepslate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:deepslate_brick_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:deepslate_brick_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:deepslate_brick_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:deepslate_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:deepslate_coal_ore": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:deepslate_copper_ore": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:deepslate_diamond_ore": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:deepslate_emerald_ore": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:deepslate_gold_ore": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:deepslate_iron_ore": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:deepslate_lapis_ore": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:deepslate_redstone_ore": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:deepslate_tile_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:deepslate_tile_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:deepslate_tile_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:deepslate_tiles": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:detector_rail": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:diamond_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:diamond_ore": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:diorite": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:diorite_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:diorite_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:diorite_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dirt": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dirt_path": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dispenser": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dragon_egg": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dragon_head": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dragon_wall_head": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dried_ghast": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dried_kelp_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dripstone_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:dropper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:emerald_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:emerald_ore": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:enchanting_table": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:end_gateway": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:end_portal": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:end_portal_frame": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:end_rod": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:end_stone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:end_stone_brick_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:end_stone_brick_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:end_stone_brick_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:end_stone_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:ender_chest": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:exposed_chiseled_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:exposed_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:exposed_copper_bars": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:exposed_copper_bulb": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:exposed_copper_chain": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:exposed_copper_chest": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:exposed_copper_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:exposed_copper_golem_statue": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:exposed_copper_grate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:exposed_copper_lantern": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:exposed_copper_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:exposed_cut_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:exposed_cut_copper_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:exposed_cut_copper_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:exposed_lightning_rod": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:farmland": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:fern": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:fire": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:fire_coral": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:fire_coral_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:fire_coral_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:fire_coral_wall_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:firefly_bush": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:fletching_table": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:flower_pot": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:flowering_azalea": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:flowering_azalea_leaves": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:frogspawn": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:frosted_ice": {
+"friction": 0.98,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:furnace": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:gilded_blackstone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:glass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:glass_pane": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:glow_lichen": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:glowstone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:gold_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:gold_ore": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:granite": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:granite_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:granite_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:granite_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:grass_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:gravel": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:gray_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:gray_bed": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:gray_candle": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:gray_candle_cake": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:gray_carpet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:gray_concrete": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:gray_concrete_powder": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:gray_glazed_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:gray_shulker_box": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:gray_stained_glass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:gray_stained_glass_pane": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:gray_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:gray_wall_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:gray_wool": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:green_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:green_bed": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:green_candle": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:green_candle_cake": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:green_carpet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:green_concrete": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:green_concrete_powder": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:green_glazed_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:green_shulker_box": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:green_stained_glass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:green_stained_glass_pane": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:green_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:green_wall_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:green_wool": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:grindstone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:hanging_roots": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:hay_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:heavy_core": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:heavy_weighted_pressure_plate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:honey_block": {
+"friction": 0.6,
+"jump_factor": 0.5,
+"speed_factor": 0.4
+},
+"minecraft:honeycomb_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:hopper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:horn_coral": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:horn_coral_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:horn_coral_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:horn_coral_wall_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:ice": {
+"friction": 0.98,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:infested_chiseled_stone_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:infested_cobblestone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:infested_cracked_stone_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:infested_deepslate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:infested_mossy_stone_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:infested_stone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:infested_stone_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:iron_bars": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:iron_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:iron_chain": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:iron_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:iron_ore": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:iron_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jack_o_lantern": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jigsaw": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jukebox": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jungle_button": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jungle_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jungle_fence": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jungle_fence_gate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jungle_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jungle_leaves": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jungle_log": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jungle_planks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jungle_pressure_plate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jungle_sapling": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jungle_shelf": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jungle_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jungle_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jungle_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jungle_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jungle_wall_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jungle_wall_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:jungle_wood": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:kelp": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:kelp_plant": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:ladder": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lantern": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lapis_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lapis_ore": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:large_amethyst_bud": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:large_fern": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lava": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lava_cauldron": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:leaf_litter": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lectern": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lever": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_blue_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_blue_bed": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_blue_candle": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_blue_candle_cake": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_blue_carpet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_blue_concrete": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_blue_concrete_powder": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_blue_glazed_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_blue_shulker_box": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_blue_stained_glass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_blue_stained_glass_pane": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_blue_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_blue_wall_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_blue_wool": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_gray_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_gray_bed": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_gray_candle": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_gray_candle_cake": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_gray_carpet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_gray_concrete": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_gray_concrete_powder": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_gray_glazed_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_gray_shulker_box": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_gray_stained_glass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_gray_stained_glass_pane": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_gray_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_gray_wall_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_gray_wool": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:light_weighted_pressure_plate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lightning_rod": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lilac": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lily_of_the_valley": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lily_pad": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lime_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lime_bed": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lime_candle": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lime_candle_cake": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lime_carpet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lime_concrete": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lime_concrete_powder": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lime_glazed_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lime_shulker_box": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lime_stained_glass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lime_stained_glass_pane": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lime_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lime_wall_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lime_wool": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:lodestone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:loom": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:magenta_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:magenta_bed": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:magenta_candle": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:magenta_candle_cake": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:magenta_carpet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:magenta_concrete": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:magenta_concrete_powder": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:magenta_glazed_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:magenta_shulker_box": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:magenta_stained_glass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:magenta_stained_glass_pane": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:magenta_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:magenta_wall_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:magenta_wool": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:magma_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mangrove_button": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mangrove_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mangrove_fence": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mangrove_fence_gate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mangrove_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mangrove_leaves": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mangrove_log": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mangrove_planks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mangrove_pressure_plate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mangrove_propagule": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mangrove_roots": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mangrove_shelf": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mangrove_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mangrove_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mangrove_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mangrove_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mangrove_wall_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mangrove_wall_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mangrove_wood": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:medium_amethyst_bud": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:melon": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:melon_stem": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:moss_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:moss_carpet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mossy_cobblestone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mossy_cobblestone_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mossy_cobblestone_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mossy_cobblestone_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mossy_stone_brick_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mossy_stone_brick_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mossy_stone_brick_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mossy_stone_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:moving_piston": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mud": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mud_brick_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mud_brick_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mud_brick_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mud_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:muddy_mangrove_roots": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mushroom_stem": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:mycelium": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:nether_brick_fence": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:nether_brick_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:nether_brick_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:nether_brick_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:nether_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:nether_gold_ore": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:nether_portal": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:nether_quartz_ore": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:nether_sprouts": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:nether_wart": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:nether_wart_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:netherite_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:netherrack": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:note_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oak_button": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oak_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oak_fence": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oak_fence_gate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oak_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oak_leaves": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oak_log": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oak_planks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oak_pressure_plate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oak_sapling": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oak_shelf": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oak_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oak_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oak_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oak_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oak_wall_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oak_wall_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oak_wood": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:observer": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:obsidian": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:ochre_froglight": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:open_eyeblossom": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:orange_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:orange_bed": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:orange_candle": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:orange_candle_cake": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:orange_carpet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:orange_concrete": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:orange_concrete_powder": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:orange_glazed_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:orange_shulker_box": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:orange_stained_glass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:orange_stained_glass_pane": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:orange_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:orange_tulip": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:orange_wall_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:orange_wool": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oxeye_daisy": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oxidized_chiseled_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oxidized_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oxidized_copper_bars": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oxidized_copper_bulb": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oxidized_copper_chain": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oxidized_copper_chest": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oxidized_copper_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oxidized_copper_golem_statue": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oxidized_copper_grate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oxidized_copper_lantern": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oxidized_copper_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oxidized_cut_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oxidized_cut_copper_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oxidized_cut_copper_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:oxidized_lightning_rod": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:packed_ice": {
+"friction": 0.98,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:packed_mud": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_hanging_moss": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_moss_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_moss_carpet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_oak_button": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_oak_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_oak_fence": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_oak_fence_gate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_oak_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_oak_leaves": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_oak_log": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_oak_planks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_oak_pressure_plate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_oak_sapling": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_oak_shelf": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_oak_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_oak_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_oak_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_oak_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_oak_wall_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_oak_wall_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pale_oak_wood": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pearlescent_froglight": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:peony": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:petrified_oak_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:piglin_head": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:piglin_wall_head": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pink_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pink_bed": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pink_candle": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pink_candle_cake": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pink_carpet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pink_concrete": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pink_concrete_powder": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pink_glazed_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pink_petals": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pink_shulker_box": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pink_stained_glass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pink_stained_glass_pane": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pink_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pink_tulip": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pink_wall_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pink_wool": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:piston": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:piston_head": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pitcher_crop": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pitcher_plant": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:player_head": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:player_wall_head": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:podzol": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pointed_dripstone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_andesite": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_andesite_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_andesite_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_basalt": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_blackstone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_blackstone_brick_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_blackstone_brick_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_blackstone_brick_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_blackstone_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_blackstone_button": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_blackstone_pressure_plate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_blackstone_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_blackstone_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_blackstone_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_deepslate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_deepslate_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_deepslate_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_deepslate_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_diorite": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_diorite_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_diorite_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_granite": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_granite_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_granite_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_tuff": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_tuff_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_tuff_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:polished_tuff_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:poppy": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potatoes": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_acacia_sapling": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_allium": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_azalea_bush": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_azure_bluet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_bamboo": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_birch_sapling": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_blue_orchid": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_brown_mushroom": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_cactus": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_cherry_sapling": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_closed_eyeblossom": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_cornflower": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_crimson_fungus": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_crimson_roots": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_dandelion": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_dark_oak_sapling": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_dead_bush": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_fern": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_flowering_azalea_bush": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_jungle_sapling": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_lily_of_the_valley": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_mangrove_propagule": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_oak_sapling": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_open_eyeblossom": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_orange_tulip": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_oxeye_daisy": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_pale_oak_sapling": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_pink_tulip": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_poppy": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_red_mushroom": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_red_tulip": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_spruce_sapling": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_torchflower": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_warped_fungus": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_warped_roots": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_white_tulip": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:potted_wither_rose": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:powder_snow": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:powder_snow_cauldron": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:powered_rail": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:prismarine": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:prismarine_brick_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:prismarine_brick_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:prismarine_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:prismarine_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:prismarine_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:prismarine_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pumpkin": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:pumpkin_stem": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:purple_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:purple_bed": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:purple_candle": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:purple_candle_cake": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:purple_carpet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:purple_concrete": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:purple_concrete_powder": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:purple_glazed_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:purple_shulker_box": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:purple_stained_glass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:purple_stained_glass_pane": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:purple_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:purple_wall_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:purple_wool": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:purpur_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:purpur_pillar": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:purpur_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:purpur_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:quartz_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:quartz_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:quartz_pillar": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:quartz_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:quartz_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:rail": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:raw_copper_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:raw_gold_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:raw_iron_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_bed": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_candle": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_candle_cake": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_carpet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_concrete": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_concrete_powder": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_glazed_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_mushroom": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_mushroom_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_nether_brick_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_nether_brick_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_nether_brick_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_nether_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_sand": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_sandstone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_sandstone_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_sandstone_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_sandstone_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_shulker_box": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_stained_glass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_stained_glass_pane": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_tulip": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_wall_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:red_wool": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:redstone_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:redstone_lamp": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:redstone_ore": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:redstone_torch": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:redstone_wall_torch": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:redstone_wire": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:reinforced_deepslate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:repeater": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:repeating_command_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:resin_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:resin_brick_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:resin_brick_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:resin_brick_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:resin_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:resin_clump": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:respawn_anchor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:rooted_dirt": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:rose_bush": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:sand": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:sandstone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:sandstone_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:sandstone_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:sandstone_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:scaffolding": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:sculk": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:sculk_catalyst": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:sculk_sensor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:sculk_shrieker": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:sculk_vein": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:sea_lantern": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:sea_pickle": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:seagrass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:short_dry_grass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:short_grass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:shroomlight": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:shulker_box": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:skeleton_skull": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:skeleton_wall_skull": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:slime_block": {
+"friction": 0.8,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:small_amethyst_bud": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:small_dripleaf": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:smithing_table": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:smoker": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:smooth_basalt": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:smooth_quartz": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:smooth_quartz_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:smooth_quartz_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:smooth_red_sandstone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:smooth_red_sandstone_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:smooth_red_sandstone_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:smooth_sandstone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:smooth_sandstone_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:smooth_sandstone_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:smooth_stone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:smooth_stone_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:sniffer_egg": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:snow": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:snow_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:soul_campfire": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:soul_fire": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:soul_lantern": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:soul_sand": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 0.4
+},
+"minecraft:soul_soil": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:soul_torch": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:soul_wall_torch": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spawner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:sponge": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spore_blossom": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spruce_button": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spruce_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spruce_fence": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spruce_fence_gate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spruce_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spruce_leaves": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spruce_log": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spruce_planks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spruce_pressure_plate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spruce_sapling": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spruce_shelf": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spruce_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spruce_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spruce_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spruce_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spruce_wall_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spruce_wall_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:spruce_wood": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:sticky_piston": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stone": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stone_brick_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stone_brick_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stone_brick_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stone_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stone_button": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stone_pressure_plate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stone_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stone_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stonecutter": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_acacia_log": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_acacia_wood": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_bamboo_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_birch_log": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_birch_wood": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_cherry_log": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_cherry_wood": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_crimson_hyphae": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_crimson_stem": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_dark_oak_log": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_dark_oak_wood": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_jungle_log": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_jungle_wood": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_mangrove_log": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_mangrove_wood": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_oak_log": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_oak_wood": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_pale_oak_log": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_pale_oak_wood": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_spruce_log": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_spruce_wood": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_warped_hyphae": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:stripped_warped_stem": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:structure_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:structure_void": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:sugar_cane": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:sunflower": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:suspicious_gravel": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:suspicious_sand": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:sweet_berry_bush": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:tall_dry_grass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:tall_grass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:tall_seagrass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:target": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:test_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:test_instance_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:tinted_glass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:tnt": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:torch": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:torchflower": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:torchflower_crop": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:trapped_chest": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:trial_spawner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:tripwire": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:tripwire_hook": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:tube_coral": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:tube_coral_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:tube_coral_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:tube_coral_wall_fan": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:tuff": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:tuff_brick_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:tuff_brick_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:tuff_brick_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:tuff_bricks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:tuff_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:tuff_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:tuff_wall": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:turtle_egg": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:twisting_vines": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:twisting_vines_plant": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:vault": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:verdant_froglight": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:vine": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:void_air": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:wall_torch": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_button": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_fence": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_fence_gate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_fungus": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_hyphae": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_nylium": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_planks": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_pressure_plate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_roots": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_shelf": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_stem": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_wall_hanging_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_wall_sign": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:warped_wart_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:water": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:water_cauldron": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_chiseled_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_copper_bars": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_copper_block": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_copper_bulb": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_copper_chain": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_copper_chest": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_copper_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_copper_golem_statue": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_copper_grate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_copper_lantern": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_copper_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_cut_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_cut_copper_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_cut_copper_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_exposed_chiseled_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_exposed_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_exposed_copper_bars": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_exposed_copper_bulb": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_exposed_copper_chain": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_exposed_copper_chest": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_exposed_copper_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_exposed_copper_golem_statue": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_exposed_copper_grate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_exposed_copper_lantern": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_exposed_copper_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_exposed_cut_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_exposed_cut_copper_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_exposed_cut_copper_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_exposed_lightning_rod": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_lightning_rod": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_oxidized_chiseled_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_oxidized_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_oxidized_copper_bars": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_oxidized_copper_bulb": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_oxidized_copper_chain": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_oxidized_copper_chest": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_oxidized_copper_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_oxidized_copper_golem_statue": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_oxidized_copper_grate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_oxidized_copper_lantern": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_oxidized_copper_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_oxidized_cut_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_oxidized_cut_copper_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_oxidized_cut_copper_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_oxidized_lightning_rod": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_weathered_chiseled_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_weathered_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_weathered_copper_bars": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_weathered_copper_bulb": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_weathered_copper_chain": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_weathered_copper_chest": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_weathered_copper_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_weathered_copper_golem_statue": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_weathered_copper_grate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_weathered_copper_lantern": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_weathered_copper_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_weathered_cut_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_weathered_cut_copper_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_weathered_cut_copper_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:waxed_weathered_lightning_rod": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:weathered_chiseled_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:weathered_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:weathered_copper_bars": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:weathered_copper_bulb": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:weathered_copper_chain": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:weathered_copper_chest": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:weathered_copper_door": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:weathered_copper_golem_statue": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:weathered_copper_grate": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:weathered_copper_lantern": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:weathered_copper_trapdoor": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:weathered_cut_copper": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:weathered_cut_copper_slab": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:weathered_cut_copper_stairs": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:weathered_lightning_rod": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:weeping_vines": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:weeping_vines_plant": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:wet_sponge": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:wheat": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:white_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:white_bed": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:white_candle": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:white_candle_cake": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:white_carpet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:white_concrete": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:white_concrete_powder": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:white_glazed_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:white_shulker_box": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:white_stained_glass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:white_stained_glass_pane": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:white_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:white_tulip": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:white_wall_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:white_wool": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:wildflowers": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:wither_rose": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:wither_skeleton_skull": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:wither_skeleton_wall_skull": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:yellow_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:yellow_bed": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:yellow_candle": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:yellow_candle_cake": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:yellow_carpet": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:yellow_concrete": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:yellow_concrete_powder": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:yellow_glazed_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:yellow_shulker_box": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:yellow_stained_glass": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:yellow_stained_glass_pane": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:yellow_terracotta": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:yellow_wall_banner": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:yellow_wool": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:zombie_head": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+},
+"minecraft:zombie_wall_head": {
+"friction": 0.6,
+"jump_factor": 1.0,
+"speed_factor": 1.0
+}
+},
+"minecraft": "1.21.11"
+}

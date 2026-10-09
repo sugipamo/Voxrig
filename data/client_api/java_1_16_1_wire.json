@@ -1,0 +1,137 @@
+{
+  "source": "https://raw.githubusercontent.com/PrismarineJS/minecraft-data/886d159e4dc349d6b9204df2d17e1ea29e7b546e/data/pc/1.16.1/protocol.json",
+  "sha256": "f2c7e37cde952c29e8b9d92866dbef8ab67c61b2c4101df582b3c43b57dbbc4e",
+  "license": "MIT",
+  "version": "1.16.1",
+  "protocol": 736,
+  "packets": {
+    "set_creative_slot": {
+      "id": 39,
+      "schema": [
+        "container",
+        [
+          {
+            "name": "slot",
+            "type": "i16"
+          },
+          {
+            "name": "item",
+            "type": "slot"
+          }
+        ]
+      ]
+    },
+    "position_look": {
+      "id": 19,
+      "schema": [
+        "container",
+        [
+          {
+            "name": "x",
+            "type": "f64"
+          },
+          {
+            "name": "y",
+            "type": "f64"
+          },
+          {
+            "name": "z",
+            "type": "f64"
+          },
+          {
+            "name": "yaw",
+            "type": "f32"
+          },
+          {
+            "name": "pitch",
+            "type": "f32"
+          },
+          {
+            "name": "onGround",
+            "type": "bool"
+          }
+        ]
+      ]
+    },
+    "held_item_slot": {
+      "id": 36,
+      "schema": [
+        "container",
+        [
+          {
+            "name": "slotId",
+            "type": "i16"
+          }
+        ]
+      ]
+    },
+    "abilities": {
+      "id": 26,
+      "schema": [
+        "container",
+        [
+          {
+            "name": "flags",
+            "type": "i8"
+          }
+        ]
+      ]
+    },
+    "block_dig": {
+      "id": 27,
+      "schema": [
+        "container",
+        [
+          {
+            "name": "status",
+            "type": "varint"
+          },
+          {
+            "name": "location",
+            "type": "position"
+          },
+          {
+            "name": "face",
+            "type": "i8"
+          }
+        ]
+      ]
+    },
+    "block_place": {
+      "id": 45,
+      "schema": [
+        "container",
+        [
+          {
+            "name": "hand",
+            "type": "varint"
+          },
+          {
+            "name": "location",
+            "type": "position"
+          },
+          {
+            "name": "direction",
+            "type": "varint"
+          },
+          {
+            "name": "cursorX",
+            "type": "f32"
+          },
+          {
+            "name": "cursorY",
+            "type": "f32"
+          },
+          {
+            "name": "cursorZ",
+            "type": "f32"
+          },
+          {
+            "name": "insideBlock",
+            "type": "bool"
+          }
+        ]
+      ]
+    }
+  }
+}

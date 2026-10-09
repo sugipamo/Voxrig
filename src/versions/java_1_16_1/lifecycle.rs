@@ -5,6 +5,9 @@
 //! actor boundary in the coherent-observation phase. Emergency revocation is an
 //! irreversible generation fence independent of this owner's queued work.
 
+mod bounded_motion;
+use bounded_motion::MotionGate;
+
 use std::{
     collections::{HashMap, HashSet},
     fmt::{Display, Formatter},
@@ -114,6 +117,20 @@ impl ConnectionState {
     }
 }
 
+/// A protocol packet rejected by the actor before any write was attempted.
+/// Kept distinct from writer/channel failures so teardown cannot certify
+/// delivery or transport closure from an admission decision.
+#[derive(Debug)]
+pub(crate) struct ProtocolDispatchRejected {
+    pub(crate) state: ConnectionState,
+}
+impl Display for ProtocolDispatchRejected {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("protocol dispatch rejected after operation barrier")
+    }
+}
+impl std::error::Error for ProtocolDispatchRejected {}
+
 /// Operation class used by the disconnect barrier.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OperationClass {
@@ -126,6 +143,24 @@ pub enum OperationClass {
 /// Typed rejection from the connection actor before packet write.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum OperationAdmissionError {
+    /// A retained cursor-return/close pipeline owns normal dispatch.
+    BoundedContainerCloseInProgress,
+    /// A retained common storage activation owns ordinary gameplay dispatch.
+    BoundedContainerOpenInProgress,
+    /// Retained recipe placement owns normal dispatch until actual inventory/grid conservation.
+    BoundedRecipePlacementInProgress,
+    /// A finite common motion run exclusively owns normal gameplay dispatch.
+    BoundedMotionInProgress,
+    /// A retained common mining attempt owns normal dispatch until fresh recovery.
+    BoundedMiningInProgress,
+    /// Retained placement owns gameplay dispatch until received outcomes agree.
+    BoundedPlacementInProgress,
+    /// A retained common inventory exchange owns ordinary gameplay dispatch.
+    BoundedInventorySwapInProgress,
+    /// A retained common ordinary click owns gameplay dispatch.
+    BoundedInventoryClickInProgress,
+    /// Retained one-shot shift transfer owns normal gameplay dispatch.
+    BoundedInventoryTransferInProgress,
     /// The operation belongs to a previous or different connection.
     StaleGeneration,
     /// The connection has not reached its initial ready boundary.
@@ -145,6 +180,27 @@ pub enum OperationAdmissionError {
 impl Display for OperationAdmissionError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {
         let name = match self {
+            Self::BoundedRecipePlacementInProgress => {
+                "bounded recipe placement owns normal dispatch"
+            }
+            Self::BoundedContainerCloseInProgress => {
+                "retained cursor return/close owns gameplay dispatch"
+            }
+            Self::BoundedContainerOpenInProgress => {
+                "retained common container open owns gameplay dispatch"
+            }
+            Self::BoundedMotionInProgress => "finite common motion owns gameplay dispatch",
+            Self::BoundedPlacementInProgress => "retained common placement owns gameplay dispatch",
+            Self::BoundedInventoryTransferInProgress => {
+                "retained common inventory transfer owns gameplay dispatch"
+            }
+            Self::BoundedInventoryClickInProgress => {
+                "retained common inventory click owns gameplay dispatch"
+            }
+            Self::BoundedInventorySwapInProgress => {
+                "retained common inventory swap owns gameplay dispatch"
+            }
+            Self::BoundedMiningInProgress => "retained common mining owns gameplay dispatch",
             Self::StaleGeneration => "stale connection generation",
             Self::Connecting => "connection is not ready",
             Self::Disconnecting => "connection is disconnecting",
@@ -230,6 +286,35 @@ pub(crate) enum TerminalClassification {
 }
 
 enum Command {
+    Motion(bounded_motion::MotionCommand),
+    BeginCursorClose {
+        identity: (u64, i8, u16),
+        expected_revision: u64,
+        reply: oneshot::Sender<Result<(), OperationAdmissionError>>,
+    },
+    ReserveCursorReturn {
+        identity: (u64, u16),
+        reply: oneshot::Sender<Result<i16, OperationAdmissionError>>,
+    },
+    BeginInventorySwap {
+        run_id: u64,
+        expected_revision: u64,
+        window: i8,
+        reply: oneshot::Sender<Result<i16, OperationAdmissionError>>,
+    },
+    BeginInventoryClick {
+        result_take: Option<crate::client::crafting::CraftingResultDestination>,
+        run_id: u64,
+        expected_revision: u64,
+        window: i8,
+        reply: oneshot::Sender<Result<i16, OperationAdmissionError>>,
+    },
+    BeginInventoryTransfer {
+        run_id: u64,
+        expected_revision: u64,
+        window: i8,
+        reply: oneshot::Sender<Result<i16, OperationAdmissionError>>,
+    },
     RecordObservation {
         sequence: u64,
         reply: oneshot::Sender<Result<(), OperationAdmissionError>>,
@@ -422,13 +507,13 @@ pub(crate) struct ConnectionActor {
     lifecycle: watch::Receiver<ConnectionState>,
     revoked: Arc<AtomicBool>,
     owner: tokio::task::AbortHandle,
-    writer: Arc<Mutex<crate::client::PacketWriter>>,
+    writer: Arc<Mutex<super::client::PacketWriter>>,
     runtime: tokio::runtime::Handle,
 }
 
 impl ConnectionActor {
     pub(crate) fn spawn(
-        writer: Arc<Mutex<crate::client::PacketWriter>>,
+        writer: Arc<Mutex<crate::versions::java_1_16_1::client::PacketWriter>>,
         acknowledgement_timeout: Duration,
         control: Arc<RwLock<crate::snapshot::Versioned<crate::ControlState>>>,
     ) -> Self {
@@ -452,11 +537,123 @@ impl ConnectionActor {
             let mut furnace_interaction_ambiguous = false;
             let mut latest_observation_sequence = None;
             let mut active_output_sequence = None;
+            let mut motion_gate = MotionGate::default();
             while let Some(command) = receiver.recv().await {
                 if actor_revoked.load(Ordering::Acquire) {
                     break;
                 }
                 match command {
+                    Command::BeginCursorClose {
+                        identity,
+                        expected_revision,
+                        reply,
+                    } => {
+                        let result = motion_gate
+                            .begin_cursor_close(
+                                identity,
+                                expected_revision,
+                                state,
+                                &actor_control,
+                                !pending_transactions.is_empty()
+                                    || pending_furnace_interaction
+                                        .is_some_and(|p| p.expires_at > Instant::now()),
+                            )
+                            .await;
+                        let _ = reply.send(result);
+                    }
+                    Command::ReserveCursorReturn { identity, reply } => {
+                        let _ = reply.send(motion_gate.reserve_cursor_return(
+                            identity,
+                            state,
+                            &mut next_actions,
+                        ));
+                    }
+                    Command::BeginInventorySwap {
+                        run_id,
+                        expected_revision,
+                        window,
+                        reply,
+                    } => {
+                        let result = motion_gate
+                            .begin_inventory_swap(
+                                (run_id, window),
+                                expected_revision,
+                                state,
+                                &actor_control,
+                                !pending_transactions.is_empty()
+                                    || pending_furnace_interaction
+                                        .is_some_and(|p| p.expires_at > Instant::now()),
+                                &mut next_actions,
+                            )
+                            .await;
+                        let _ = reply.send(result);
+                    }
+                    Command::BeginInventoryClick {
+                        result_take,
+                        run_id,
+                        expected_revision,
+                        window,
+                        reply,
+                    } => {
+                        let result = motion_gate
+                            .begin_inventory_click(
+                                (run_id, window, result_take),
+                                expected_revision,
+                                state,
+                                &actor_control,
+                                !pending_transactions.is_empty()
+                                    || pending_furnace_interaction
+                                        .is_some_and(|p| p.expires_at > Instant::now()),
+                                &mut next_actions,
+                            )
+                            .await;
+                        let _ = reply.send(result);
+                    }
+                    Command::BeginInventoryTransfer {
+                        run_id,
+                        expected_revision,
+                        window,
+                        reply,
+                    } => {
+                        let result = motion_gate
+                            .begin_inventory_transfer(
+                                (run_id, window),
+                                expected_revision,
+                                state,
+                                &actor_control,
+                                !pending_transactions.is_empty()
+                                    || pending_furnace_interaction
+                                        .is_some_and(|p| p.expires_at > Instant::now()),
+                                &mut next_actions,
+                            )
+                            .await;
+                        let _ = reply.send(result);
+                    }
+                    Command::Motion(command) => {
+                        if motion_gate
+                            .process(
+                                command,
+                                state,
+                                &writer,
+                                &actor_control,
+                                !pending_transactions.is_empty()
+                                    || pending_furnace_interaction
+                                        .is_some_and(|p| p.expires_at > Instant::now()),
+                            )
+                            .await
+                        {
+                            emit_connection_diagnostic(
+                                generation,
+                                state,
+                                "unknown_transition",
+                                "bounded_gameplay_write_failed",
+                                || "bounded gameplay write failed".to_string(),
+                            );
+                            state = ConnectionState::ConnectionStateUnknown;
+                            lifecycle_tx.send_replace(state);
+                            break;
+                        }
+                    }
                     Command::RecordObservation { sequence, reply } => {
                         let result = if state != ConnectionState::Ready || sequence == 0 {
                             Err(admit_lifecycle(state, OperationClass::Normal)
@@ -503,14 +700,16 @@ impl ConnectionActor {
                         class,
                         reply,
                     } => {
-                        let result = activate_output(
-                            generation,
-                            state,
-                            latest_observation_sequence,
-                            &mut active_output_sequence,
-                            context,
-                            class,
-                        );
+                        let result = motion_gate.normal_admission(class).and_then(|()| {
+                            activate_output(
+                                generation,
+                                state,
+                                latest_observation_sequence,
+                                &mut active_output_sequence,
+                                context,
+                                class,
+                            )
+                        });
                         let _ = reply.send(result);
                     }
                     Command::ConsumeControl { tick, reply } => {
@@ -545,8 +744,13 @@ impl ConnectionActor {
                         control: replacement,
                         reply,
                     } => {
-                        let result =
-                            admit(generation, state, active_output_sequence, context, class);
+                        let result = motion_gate.admit(
+                            generation,
+                            state,
+                            active_output_sequence,
+                            context,
+                            class,
+                        );
                         if result.is_ok() {
                             **actor_control.write().await = replacement;
                         }
@@ -559,8 +763,13 @@ impl ConnectionActor {
                         payload,
                         reply,
                     } => {
-                        let admission =
-                            admit(generation, state, active_output_sequence, context, class);
+                        let admission = motion_gate.admit(
+                            generation,
+                            state,
+                            active_output_sequence,
+                            context,
+                            class,
+                        );
                         let result = match admission {
                             Ok(()) => {
                                 let mut writer = writer.lock().await;
@@ -613,8 +822,13 @@ impl ConnectionActor {
                         dig_diagnostic,
                         reply,
                     } => {
-                        let admission =
-                            admit(generation, state, active_output_sequence, context, class);
+                        let admission = motion_gate.admit(
+                            generation,
+                            state,
+                            active_output_sequence,
+                            context,
+                            class,
+                        );
                         let result = match admission {
                             Ok(()) => {
                                 let write_result = {
@@ -731,8 +945,13 @@ impl ConnectionActor {
                         packets,
                         reply,
                     } => {
-                        let admission =
-                            admit(generation, state, active_output_sequence, context, class);
+                        let admission = motion_gate.admit(
+                            generation,
+                            state,
+                            active_output_sequence,
+                            context,
+                            class,
+                        );
                         match admission {
                             Err(error) => {
                                 let _ = reply.send(Err(error));
@@ -802,8 +1021,13 @@ impl ConnectionActor {
                         diagnostic_correlation,
                         reply,
                     } => {
-                        let admission =
-                            admit(generation, state, active_output_sequence, context, class);
+                        let admission = motion_gate.admit(
+                            generation,
+                            state,
+                            active_output_sequence,
+                            context,
+                            class,
+                        );
                         if let Err(error) = admission {
                             let _ = reply.send(Err(error));
                             continue;
@@ -1120,9 +1344,7 @@ impl ConnectionActor {
                         } else {
                             Err(crate::Error::new(
                                 crate::ErrorKind::State,
-                                anyhow::anyhow!(
-                                    "protocol dispatch rejected after operation barrier"
-                                ),
+                                ProtocolDispatchRejected { state },
                             ))
                         };
                         let write_failed = result.is_err() && admitted;
@@ -1760,7 +1982,7 @@ mod tests {
     async fn actor_fixture_with_writer() -> (
         ConnectionActor,
         TcpStream,
-        Arc<Mutex<crate::client::PacketWriter>>,
+        Arc<Mutex<crate::versions::java_1_16_1::client::PacketWriter>>,
     ) {
         actor_fixture_with_ack_timeout(Duration::from_secs(5)).await
     }
@@ -1770,17 +1992,19 @@ mod tests {
     ) -> (
         ConnectionActor,
         TcpStream,
-        Arc<Mutex<crate::client::PacketWriter>>,
+        Arc<Mutex<crate::versions::java_1_16_1::client::PacketWriter>>,
     ) {
         let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
         let address = listener.local_addr().unwrap();
         let client = TcpStream::connect(address).await.unwrap();
         let (server, _) = listener.accept().await.unwrap();
         let (_, writer) = client.into_split();
-        let writer = Arc::new(Mutex::new(crate::client::PacketWriter {
-            inner: writer,
-            compression: None,
-        }));
+        let writer = Arc::new(Mutex::new(
+            crate::versions::java_1_16_1::client::PacketWriter {
+                inner: writer,
+                compression: None,
+            },
+        ));
         let control = Arc::new(RwLock::new(crate::snapshot::Versioned::new(
             crate::ControlState::default(),
             std::time::Instant::now(),
@@ -1791,6 +2015,8 @@ mod tests {
             writer,
         )
     }
+
+    include!("lifecycle/bounded_motion_tests.rs");
 
     async fn no_packet<R: AsyncRead + Unpin>(reader: &mut R) {
         match timeout(Duration::from_millis(50), read_packet(reader, None)).await {
@@ -2364,6 +2590,36 @@ mod tests {
             "legacy None duration remains held-key compatible"
         );
         no_packet(&mut server).await;
+    }
+
+    #[tokio::test]
+    async fn protocol_admission_rejection_is_distinct_from_write_failure() {
+        let (actor, mut server, _) = actor_fixture_with_writer().await;
+        actor.mark_ready().await;
+        actor.begin_disconnect().await.unwrap();
+        let error = actor.dispatch_protocol(0x10, &[0; 8]).await.unwrap_err();
+        assert_eq!(
+            error
+                .diagnostic()
+                .downcast_ref::<ProtocolDispatchRejected>()
+                .unwrap()
+                .state,
+            ConnectionState::Disconnecting
+        );
+        assert_eq!(actor.lifecycle(), ConnectionState::Disconnecting);
+        no_packet(&mut server).await;
+
+        let (actor, _server, writer) = actor_fixture_with_writer().await;
+        actor.mark_ready().await;
+        writer.lock().await.inner.shutdown().await.unwrap();
+        let error = actor.dispatch_protocol(0x10, &[0; 8]).await.unwrap_err();
+        assert!(
+            error
+                .diagnostic()
+                .downcast_ref::<ProtocolDispatchRejected>()
+                .is_none()
+        );
+        assert_eq!(actor.lifecycle(), ConnectionState::ConnectionStateUnknown);
     }
 
     #[tokio::test]

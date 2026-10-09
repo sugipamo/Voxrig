@@ -1,0 +1,13 @@
+{
+  "generator": {
+    "scripts/ExportEntityDimensions.java": "85f0255731d2bf801c90f081f1d7b919444e5cc51f7407b9d3b00b2daa2e42d2"
+  },
+  "mappings": "Mojang official server mappings 1.21.11 (names resolved by hand into the generator)",
+  "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+  "minecraft": "Java 1.21.11",
+  "outputs": {
+    "data/java_1_21_11/entity_dimensions.json": "556e7e28aabd7383ae5ebe87fe7226c211a8afd28ab9d7de54e69f14e4e54250"
+  },
+  "server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+  "transformation": "Bootstraps the unmodified server, iterates the built-in entity type registry and reads each type's default EntityDimensions width, height and eye height, and whether DefaultAttributes has a supplier (living types). Pose, scale and per-entity dimension overrides are not applied."
+}

@@ -1,0 +1,15 @@
+{
+  "arguments": "- uj.a aom aoq tq a legacy e tt d tt$a a b bD S",
+  "generator": {
+    "scripts/ExportEntityData.java": "9a89c8535c1b97e42151594c0d084ef80633ce3792242aa91fe2711af7fc080f",
+    "scripts/generate_entity_data.py": "3a14e8881671fbfba6e661ce71f45b4fbff3650f1498ee5a297a555744838e9f"
+  },
+  "mappings": "Mojang official server mappings",
+  "mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+  "minecraft": "Java 1.16.1",
+  "outputs": {
+    "data/client_api/entity_data-1.16.1.json": "601d0fad5425ac8ec45008ae3933e8f599f5b69880dee6e498f8f56609946f6f"
+  },
+  "server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+  "transformation": "Bootstraps the unmodified server, reads every static EntityDataAccessor id of each Entity subclass and each EntityType constant's entity class (its generic argument), and lists per registry name the accessors of the class and its superclasses with their Mojang-mapped owner class and field names. Defaults come from calling defineSynchedData on a constructor-less instance of the type's class; the Entity constructor's own base defines are constants read from its bytecode, except the air supply, which is the type's getMaxAirSupply()."
+}

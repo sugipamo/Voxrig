@@ -1,0 +1,85 @@
+{
+  "purpose": "Common received scoreboard wire fields; no rendering or complete server catalogue claimed",
+  "sources": {
+    "1.16.1": {
+      "metadata_url": "https://piston-meta.mojang.com/v1/packages/54fa3af57d041d2771e66d390197b2c0288e697c/1.16.1.json",
+      "metadata_sha1": "54fa3af57d041d2771e66d390197b2c0288e697c",
+      "server": {
+        "sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "size": 37968964,
+        "url": "https://piston-data.mojang.com/v1/objects/a412fd69db1f81db3f511c1463fd304675244077/server.jar"
+      },
+      "mappings_sha256": "9b19cc7d56e58258117e2fcc092f773b151682ecb2b1adb3de9832b3c450a30f"
+    },
+    "1.21.11": {
+      "metadata_url": "https://piston-meta.mojang.com/v1/packages/4f6bd9388f12e9d7adc2ded64acba66212d60521/1.21.11.json",
+      "metadata_sha1": "4f6bd9388f12e9d7adc2ded64acba66212d60521",
+      "server": {
+        "sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "size": 56327581,
+        "url": "https://piston-data.mojang.com/v1/objects/64bb6d763bed0a9f1d632ec347938594144943ed/server.jar"
+      },
+      "mappings_sha256": "7ffd98f77f403043748d56467aac287a58f8187a27d5d6b7ebcac70042b02b1c"
+    }
+  },
+  "modern_native_classes": {
+    "ClientboundSetObjectivePacket": "agw",
+    "ClientboundSetScorePacket": "aha",
+    "ClientboundResetScorePacket": "afx",
+    "ClientboundSetDisplayObjectivePacket": "ago",
+    "NumberFormatTypes": "aai",
+    "StyledFormat.type": "aaj$1",
+    "FixedFormat.type": "aaf$1"
+  },
+  "legacy_native_classes": {
+    "ClientboundSetScorePacket": "qi",
+    "ServerScoreboard": "ux"
+  },
+  "observations": [
+    "Modern objective: name, method byte, trusted component, enum render type, optional number format; score: holder/objective/score/optional trusted display/optional number format; display uses enum varint; reset has optional objective string",
+    "Native number format bootstrap registers blank, styled, fixed in that order; styled uses trusted Style codec; fixed uses component stream codec",
+    "Legacy REMOVE permits a null objective and serializes empty name; a reset without objective removes the holder across objectives, not a score in an empty-named objective",
+    "Raw native legacy JSON and modern NBT text bytes are preserved, not rendered or resolved"
+  ],
+  "bytecode_sha256": {
+    "scoreboard-bytecode.txt": "0788be15ffb5c2306d331e60446be9cbe02317d13fc8012490f3815b055081d5",
+    "legacy-scoreboard-bytecode.txt": "205127565c9629b1188ecc0196b292c015639ba057cb659e43a924b20b26a0fc"
+  },
+  "clientbound_play_packet_ids": {
+    "1.16.1": {
+      "objective": "0x4a",
+      "display": "0x43",
+      "score_and_reset": "0x4d"
+    },
+    "1.21.11": {
+      "objective": "0x68",
+      "display": "0x60",
+      "score": "0x6c",
+      "reset": "0x4d"
+    }
+  },
+  "native_runs": [
+    {
+      "version": "1.16.1",
+      "run_id": "trial-1.16.1-09bd195f",
+      "report_sha256": "d636eda7b2c30101c7ddc4f667c5cd13faa69309fbe1d1ee774678035bf2d682",
+      "actual_logins": 2,
+      "native_score": "UnifiedProbe has 9 [A5]",
+      "native_after_shutdown": "There are 0 of a max of 4 players online: ",
+      "server_exit_code": 0,
+      "original_field_proof_count": 16,
+      "proxy_errors": []
+    },
+    {
+      "version": "1.21.11",
+      "run_id": "trial-1.21.11-b61b968e",
+      "report_sha256": "b4a325c5094e237488d5e92c1be8cbe1ce2da38290a1d31df29ca03e4129e4d6",
+      "actual_logins": 2,
+      "native_score": "UnifiedProbe has 9 [A5]",
+      "native_after_shutdown": "There are 0 of a max of 4 players online: ",
+      "server_exit_code": 0,
+      "original_field_proof_count": 16,
+      "proxy_errors": []
+    }
+  ]
+}

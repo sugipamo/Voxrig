@@ -1,0 +1,147 @@
+{
+  "schema": 1,
+  "scope": "Original unmodified native packet codecs and read-only Player input/rideTick/RootVehicle inspection, plus live common Client mounted -> owned one-shot request -> actual same-vehicle absence -> explicit neutral -> disconnect. Actual absence is not causal ACK or ground motion admission. No copied or replaced native methods. Both modes per version; JVMs sequential.",
+  "original_codec_manifest": {
+    "path": "data/client_api/vehicle_input_source.json",
+    "sha256": "b38f08294e35d87a615a2953115d9f5bf1cffcf1191787e1f8a2e8d4e86dfd8b"
+  },
+  "original_passenger_binding_inspection": {
+    "path": "docs/evidence/common-vehicle-observation-20261006.json",
+    "sha256": "e84c577b1e61af12931d4177f310996ad137225678013b48a6ce2f7d0c71fd11"
+  },
+  "read_only_native_inspection_sha256": {
+    ".local/integration-validation/client-api-unification/a5-dismount/1.16.1-ze-bytecode.log": "33ff736f3f7117d2163abb818ab3286c39fd04e6942426ee3d4bf57684460b26",
+    ".local/integration-validation/client-api-unification/a5-dismount/1.16.1-bec-bytecode.log": "d260866c8642fbe6faa5a095612fc13ba8591bb4ff197211376bda910282314c",
+    ".local/integration-validation/client-api-unification/a5-dismount/1.21.11-axg-bytecode.log": "4395f6bb226c1631c15ff1437292babe12dcb82243dbcd7de7156e401c9d9a8a",
+    ".local/integration-validation/client-api-unification/a5-dismount/1.21.11-ddm-bytecode.log": "0aeda261a59325d5a4871ca14989913692af08f148fb609f857670d56feda853"
+  },
+  "runtime": {
+    "same_source_data_inputs": 414,
+    "source_input_manifest_sha256": "00dff30cc410a785883e9b7bce5866b69383f376f893003441da6b06aa4d6418",
+    "consumer_binary_sha256": "c9093570f0e4ed7d9da845167445111d5737f4a2725fc3fbdd9d4184098077b0",
+    "native_runs": [
+      {
+        "version": "1.16.1",
+        "run": "trial-1.16.1-677755d2",
+        "report_sha256": "298278a2c92f637ae76608cf2ea4ce6cd8359dbdd086c174bde64ee3335bbf2f",
+        "server_exit_code": 0,
+        "proxy_errors": [],
+        "modes": {
+          "survival": {
+            "result": "passed",
+            "native_vehicle_uuid": "Minecart has the following entity data: [I; -1855324094, 631390577, -1344386582, -1040046502]",
+            "native_player_root_vehicle_attach": "UnifiedProbe has the following entity data: [I; -1855324094, 631390577, -1344386582, -1040046502]",
+            "native_player_present": "Test passed, count: 1",
+            "native_root_vehicle_absent": "Test passed",
+            "source_proof": [
+              {
+                "connection": 1,
+                "ordinal": 88,
+                "packet_id": 75,
+                "body_sha256": "da190605597bbb4f6880a44e23d7044ee128eb1e851b0298592fc8aaeca807d8"
+              },
+              {
+                "connection": 1,
+                "ordinal": 109,
+                "packet_id": 75,
+                "body_sha256": "33b67cb5385ceddad93d0ee960679041613bed34b8b4a5e6362fe7539ba2d3ce"
+              }
+            ]
+          },
+          "creative": {
+            "result": "passed",
+            "native_vehicle_uuid": "Minecart has the following entity data: [I; 1684237937, 1813334414, -2015791758, -2024142025]",
+            "native_player_root_vehicle_attach": "UnifiedProbe has the following entity data: [I; 1684237937, 1813334414, -2015791758, -2024142025]",
+            "native_player_present": "Test passed, count: 1",
+            "native_root_vehicle_absent": "Test passed",
+            "source_proof": [
+              {
+                "connection": 2,
+                "ordinal": 208,
+                "packet_id": 75,
+                "body_sha256": "04c46faeb6007718e6ed595050594e51165a53317c94ff4baa218ba745ac645a"
+              },
+              {
+                "connection": 2,
+                "ordinal": 221,
+                "packet_id": 75,
+                "body_sha256": "512f843c7b45913b2109e87cb29cc3857d2dcb48a02d304515e1e5eabd64bd29"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "version": "1.21.11",
+        "run": "trial-1.21.11-52997305",
+        "report_sha256": "15e7bb8fc431c6dc134cea3ce38b141cc96c862100258d724b154c94c4f6323d",
+        "server_exit_code": 0,
+        "proxy_errors": [],
+        "modes": {
+          "survival": {
+            "result": "passed",
+            "native_vehicle_uuid": "Minecart has the following entity data: [I; -1292931965, -937145833, -1728638874, 970798671]",
+            "native_player_root_vehicle_attach": "UnifiedProbe has the following entity data: [I; -1292931965, -937145833, -1728638874, 970798671]",
+            "native_player_present": "Test passed. Count: 1",
+            "native_root_vehicle_absent": "Test passed",
+            "source_proof": [
+              {
+                "connection": 1,
+                "ordinal": 141,
+                "packet_id": 105,
+                "body_sha256": "5e98aaa886032724db1ffd795b2f63b93a1d90f236e77eabfcc2913e4dd6e1d6"
+              },
+              {
+                "connection": 1,
+                "ordinal": 157,
+                "packet_id": 105,
+                "body_sha256": "47dc540c94ceb704a23875c11273e16bb0b8a87aed84de911f2133568115f254"
+              }
+            ]
+          },
+          "creative": {
+            "result": "passed",
+            "native_vehicle_uuid": "Minecart has the following entity data: [I; 562999029, -1195620362, -1625885691, 1477956646]",
+            "native_player_root_vehicle_attach": "UnifiedProbe has the following entity data: [I; 562999029, -1195620362, -1625885691, 1477956646]",
+            "native_player_present": "Test passed. Count: 1",
+            "native_root_vehicle_absent": "Test passed",
+            "source_proof": [
+              {
+                "connection": 2,
+                "ordinal": 285,
+                "packet_id": 105,
+                "body_sha256": "9ceed0d818acc42d0318974c548e2251f888f8512bc5c4c70378aa969a883cad"
+              },
+              {
+                "connection": 2,
+                "ordinal": 313,
+                "packet_id": 105,
+                "body_sha256": "9b4fb24edd6d1d8830e272398263cdbf026b97392cc35387b991dc0248a628f9"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "failed_native_trials": [
+    {
+      "run": "trial-1.16.1-09bf6c8e",
+      "reason": "Independent RCON query used invalid plain player name plus selector predicates; native mount/request/received absence had already occurred, but full workflow was not passed. Fixed with original @a selector and explicit player-presence check."
+    }
+  ],
+  "limits": [
+    "No vehicle physics, steering or current entity metadata",
+    "No neutral input until actual original same-vehicle absence; unknown/despawn is not absence",
+    "No automatic retries or release of ground/standing admission",
+    "Native fixture covers default empty-hand minecart interaction only; broader vehicles/UI remain B"
+  ],
+  "post_native_metadata_only_changes": [
+    {
+      "path": "Cargo.toml",
+      "native_input_sha256": "67aa7d49a91fb07c87ff73d0e09ab93786b601fbf1e2a66076b1c3c0095f3a55",
+      "current_sha256": "103fa17690e9626a5bd54ef794dde6ee5ed2e950e8e2382a4327b99844cd0ca4",
+      "only_change": "Package include allowlist adds the two original packet observer tools. Package/dependencies/build/features/source are unchanged; native inputs remain original, not rewritten as the later worktree."
+    }
+  ]
+}

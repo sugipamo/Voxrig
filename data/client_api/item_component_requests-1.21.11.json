@@ -1,0 +1,476 @@
+[
+  {
+    "name": "minecraft:custom_data",
+    "value": {
+      "VoxrigProbe": 17,
+      "nested": {
+        "key": "value"
+      },
+      "bytes": [
+        1,
+        2,
+        3
+      ]
+    }
+  },
+  {
+    "name": "minecraft:max_stack_size",
+    "value": 1
+  },
+  {
+    "name": "minecraft:max_stack_size",
+    "value": 16
+  },
+  {
+    "name": "minecraft:max_stack_size",
+    "value": 64
+  },
+  {
+    "name": "minecraft:max_damage",
+    "value": 200
+  },
+  {
+    "name": "minecraft:damage",
+    "value": 7
+  },
+  {
+    "name": "minecraft:unbreakable",
+    "value": {}
+  },
+  {
+    "name": "minecraft:custom_name",
+    "value": "Voxrig name"
+  },
+  {
+    "name": "minecraft:custom_name",
+    "value": {
+      "text": "Voxrig",
+      "color": "red"
+    }
+  },
+  {
+    "name": "minecraft:minimum_attack_charge",
+    "value": 0.75
+  },
+  {
+    "name": "minecraft:item_name",
+    "value": "Native item"
+  },
+  {
+    "name": "minecraft:item_model",
+    "value": "minecraft:stone"
+  },
+  {
+    "name": "minecraft:lore",
+    "value": [
+      "one",
+      {
+        "text": "two"
+      }
+    ]
+  },
+  {
+    "name": "minecraft:rarity",
+    "value": "rare"
+  },
+  {
+    "name": "minecraft:repair_cost",
+    "value": 8
+  },
+  {
+    "name": "minecraft:creative_slot_lock",
+    "value": {}
+  },
+  {
+    "name": "minecraft:enchantment_glint_override",
+    "value": false
+  },
+  {
+    "name": "minecraft:enchantment_glint_override",
+    "value": true
+  },
+  {
+    "name": "minecraft:intangible_projectile",
+    "value": {}
+  },
+  {
+    "name": "minecraft:potion_duration_scale",
+    "value": 1.5
+  },
+  {
+    "name": "minecraft:ominous_bottle_amplifier",
+    "value": 3
+  },
+  {
+    "name": "minecraft:note_block_sound",
+    "value": "minecraft:block.note_block.bell"
+  },
+  {
+    "name": "minecraft:base_color",
+    "value": "red"
+  },
+  {
+    "name": "minecraft:block_state",
+    "value": {
+      "facing": "north"
+    }
+  },
+  {
+    "name": "minecraft:custom_model_data",
+    "value": {
+      "floats": [
+        1.5,
+        -2.0
+      ],
+      "flags": [
+        true,
+        false
+      ],
+      "strings": [
+        "abc"
+      ],
+      "colors": [
+        16711680
+      ]
+    }
+  },
+  {
+    "name": "minecraft:tooltip_display",
+    "value": {
+      "hide_tooltip": false,
+      "hidden_components": [
+        "minecraft:custom_name"
+      ]
+    }
+  },
+  {
+    "name": "minecraft:use_effects",
+    "value": {
+      "can_sprint": false,
+      "speed_multiplier": 0.3
+    }
+  },
+  {
+    "name": "minecraft:glider",
+    "value": {}
+  },
+  {
+    "name": "minecraft:tooltip_style",
+    "value": "minecraft:custom"
+  },
+  {
+    "name": "minecraft:map_id",
+    "value": 123
+  },
+  {
+    "name": "minecraft:map_color",
+    "value": 16711680
+  },
+  {
+    "name": "minecraft:dyed_color",
+    "value": 123456
+  },
+  {
+    "name": "minecraft:enchantable",
+    "value": {
+      "value": 7
+    }
+  },
+  {
+    "name": "minecraft:weapon",
+    "value": {
+      "item_damage_per_attack": 2,
+      "disable_blocking_for_seconds": 0.75
+    }
+  },
+  {
+    "name": "minecraft:use_cooldown",
+    "value": {
+      "seconds": 1.5,
+      "cooldown_group": "minecraft:probe"
+    }
+  },
+  {
+    "name": "minecraft:map_decorations",
+    "value": {}
+  },
+  {
+    "name": "minecraft:debug_stick_state",
+    "value": {}
+  },
+  {
+    "name": "minecraft:recipes",
+    "value": []
+  },
+  {
+    "name": "minecraft:lock",
+    "value": {}
+  },
+  {
+    "name": "minecraft:container_loot",
+    "value": {
+      "loot_table": "minecraft:chests/simple_dungeon",
+      "seed": 123
+    }
+  },
+  {
+    "name": "minecraft:bundle_contents",
+    "value": []
+  },
+  {
+    "name": "minecraft:charged_projectiles",
+    "value": []
+  },
+  {
+    "name": "minecraft:container",
+    "value": []
+  },
+  {
+    "name": "minecraft:enchantments",
+    "value": {}
+  },
+  {
+    "name": "minecraft:stored_enchantments",
+    "value": {}
+  },
+  {
+    "name": "minecraft:potion_contents",
+    "value": {}
+  },
+  {
+    "name": "minecraft:suspicious_stew_effects",
+    "value": []
+  },
+  {
+    "name": "minecraft:firework_explosion",
+    "value": {
+      "shape": "small_ball",
+      "colors": [
+        16711680
+      ],
+      "fade_colors": [
+        255
+      ],
+      "has_trail": true,
+      "has_twinkle": false
+    }
+  },
+  {
+    "name": "minecraft:fireworks",
+    "value": {
+      "flight_duration": 1,
+      "explosions": []
+    }
+  },
+  {
+    "name": "minecraft:writable_book_content",
+    "value": {
+      "pages": []
+    }
+  },
+  {
+    "name": "minecraft:written_book_content",
+    "value": {
+      "title": "VoxrigProbe",
+      "author": "Voxrig",
+      "generation": 0,
+      "pages": [],
+      "resolved": false
+    }
+  },
+  {
+    "name": "minecraft:bees",
+    "value": []
+  },
+  {
+    "name": "minecraft:pot_decorations",
+    "value": []
+  },
+  {
+    "name": "minecraft:charged_projectiles",
+    "value": [
+      {
+        "id": "minecraft:stone",
+        "count": 2,
+        "components": {
+          "minecraft:custom_name": "NestedProbe"
+        }
+      }
+    ]
+  },
+  {
+    "name": "minecraft:bundle_contents",
+    "value": [
+      {
+        "id": "minecraft:stone",
+        "count": 2,
+        "components": {
+          "minecraft:custom_name": "NestedProbe"
+        }
+      }
+    ]
+  },
+  {
+    "name": "minecraft:container",
+    "value": [
+      {
+        "slot": 0,
+        "item": {
+          "id": "minecraft:stone",
+          "count": 2,
+          "components": {
+            "minecraft:custom_name": "NestedProbe"
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "minecraft:potion_contents",
+    "value": {
+      "potion": "minecraft:healing",
+      "custom_color": 16711680,
+      "custom_name": "ProbePotion"
+    }
+  },
+  {
+    "name": "minecraft:writable_book_content",
+    "value": {
+      "pages": [
+        {
+          "raw": "VisibleProbe",
+          "filtered": "FilteredProbe"
+        }
+      ]
+    }
+  },
+  {
+    "name": "minecraft:written_book_content",
+    "value": {
+      "title": {
+        "raw": "VisibleTitle",
+        "filtered": "FilteredTitle"
+      },
+      "author": "Voxrig",
+      "generation": 1,
+      "pages": [
+        {
+          "raw": {
+            "text": "VisiblePage"
+          },
+          "filtered": {
+            "text": "FilteredPage"
+          }
+        }
+      ],
+      "resolved": true
+    }
+  },
+  {
+    "name": "minecraft:can_place_on",
+    "value": {
+      "blocks": "minecraft:stone"
+    }
+  },
+  {
+    "name": "minecraft:can_break",
+    "value": {
+      "blocks": "#minecraft:mineable/pickaxe"
+    }
+  },
+  {
+    "name": "minecraft:trim",
+    "value": {
+      "material": "minecraft:iron",
+      "pattern": "minecraft:coast"
+    }
+  },
+  {
+    "name": "minecraft:block_entity_data",
+    "value": {
+      "id": "minecraft:chest",
+      "VoxrigProbe": 17
+    }
+  },
+  {
+    "name": "minecraft:lodestone_tracker",
+    "value": {
+      "target": {
+        "dimension": "minecraft:overworld",
+        "pos": [
+          1,
+          64,
+          2
+        ]
+      },
+      "tracked": true
+    }
+  },
+  {
+    "name": "minecraft:profile",
+    "value": {
+      "name": "VoxrigProbe",
+      "id": [
+        0,
+        0,
+        0,
+        23
+      ],
+      "properties": [
+        {
+          "name": "textures",
+          "value": "VoxrigProfile",
+          "signature": "ProbeSignature"
+        }
+      ]
+    }
+  },
+  {
+    "name": "minecraft:enchantments",
+    "value": {
+      "minecraft:unbreaking": 2
+    }
+  },
+  {
+    "name": "minecraft:stored_enchantments",
+    "value": {
+      "minecraft:unbreaking": 2
+    }
+  },
+  {
+    "name": "minecraft:villager/variant",
+    "value": "minecraft:desert"
+  },
+  {
+    "name": "minecraft:wolf/variant",
+    "value": "minecraft:ashen"
+  },
+  {
+    "name": "minecraft:pig/variant",
+    "value": "minecraft:cold"
+  },
+  {
+    "name": "minecraft:cow/variant",
+    "value": "minecraft:cold"
+  },
+  {
+    "name": "minecraft:zombie_nautilus/variant",
+    "value": "minecraft:temperate"
+  },
+  {
+    "name": "minecraft:frog/variant",
+    "value": "minecraft:cold"
+  },
+  {
+    "name": "minecraft:painting/variant",
+    "value": "minecraft:alban"
+  },
+  {
+    "name": "minecraft:cat/variant",
+    "value": "minecraft:all_black"
+  },
+  {
+    "name": "minecraft:wolf/sound_variant",
+    "value": "minecraft:angry"
+  }
+]

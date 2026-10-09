@@ -9,7 +9,7 @@ a server simulator or a server-confirmed observation API.
 
 - `Client::observe_region` still returns only received block states. Its behavior
   and the original stale-stair evidence remain available for diagnostics.
-- `Client::observe_client_region` returns that received snapshot alongside client
+- `NativeClient::observe_client_region` returns that received snapshot alongside client
   states, per-cell provenance, moving-block metadata, dimension, local frame and
   reconstruction revision. Both views are sampled under the same session lock.
 - `StateOrigin::ClientUpdate` retains the causal block-action receive sequence.

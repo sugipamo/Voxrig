@@ -5,6 +5,12 @@ use std::{collections::HashMap, sync::OnceLock};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct RelativeAabb([f64; 6]);
+impl RelativeAabb {
+    /// Cell-relative min x/y/z then max x/y/z.
+    pub(crate) fn bounds(self) -> [f64; 6] {
+        self.0
+    }
+}
 
 impl RelativeAabb {
     pub fn at(self, x: i32, y: i32, z: i32) -> Aabb {

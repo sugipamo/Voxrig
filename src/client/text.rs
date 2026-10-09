@@ -1,0 +1,417 @@
+//! Shared, internal text constructor fields. Registry/item/dialog
+//! dependencies are explicit. A retained dependency is never a native equality
+//! result, persistent hash or authority to perform an item operation.
+use super::nbt::{NbtString, NbtValue};
+use serde::Serialize;
+use std::sync::Arc;
+
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct Text {
+    #[serde(skip)]
+    pub source: Option<Arc<NbtValue>>,
+    pub contents: Contents,
+    pub style: Style,
+    pub siblings: Vec<Text>,
+}
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub(crate) enum Contents {
+    Literal {
+        text: NbtString,
+    },
+    Keybind {
+        keybind: NbtString,
+    },
+    Translate {
+        key: NbtString,
+        fallback: Option<NbtString>,
+        arguments: Vec<Argument>,
+    },
+    Selector {
+        pattern: super::selector::Pattern,
+        separator: Option<Box<Text>>,
+    },
+    Score {
+        name: ScoreName,
+        objective: NbtString,
+    },
+    Nbt {
+        path: NbtString,
+        interpret: bool,
+        separator: Option<Box<Text>>,
+        source: NbtSource,
+    },
+    Sprite {
+        atlas: Identifier,
+        sprite: Identifier,
+    },
+    PlayerSprite {
+        profile: Box<super::profile::Profile>,
+        hat: bool,
+    },
+}
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+pub(crate) enum ScoreName {
+    Selector(super::selector::Pattern),
+    Literal(NbtString),
+}
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+pub(crate) enum Argument {
+    String(NbtString),
+    Number(Number),
+    Text(Box<Text>),
+}
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+pub(crate) enum Number {
+    Byte(i8),
+    Short(i16),
+    Integer(i32),
+    Long(i64),
+    Float { bits: u32 },
+    Double { bits: u64 },
+}
+impl PartialEq for Number {
+    fn eq(&self, other: &Self) -> bool {
+        use Number::*;
+        match (self, other) {
+            (Byte(a), Byte(b)) => a == b,
+            (Short(a), Short(b)) => a == b,
+            (Integer(a), Integer(b)) => a == b,
+            (Long(a), Long(b)) => a == b,
+            (Float { bits: a }, Float { bits: b }) => {
+                a == b || f32::from_bits(*a).is_nan() && f32::from_bits(*b).is_nan()
+            }
+            (Double { bits: a }, Double { bits: b }) => {
+                a == b || f64::from_bits(*a).is_nan() && f64::from_bits(*b).is_nan()
+            }
+            _ => false,
+        }
+    }
+}
+impl Eq for Number {}
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub(crate) struct Identifier {
+    pub namespace: String,
+    pub path: String,
+}
+impl Identifier {
+    pub(crate) fn parse(value: &str) -> anyhow::Result<Self> {
+        let (namespace, path) = super::identifier::parts(value)?;
+        Ok(Self {
+            namespace: namespace.to_owned(),
+            path: path.to_owned(),
+        })
+    }
+}
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+pub(crate) enum NbtSource {
+    Block(NbtString),
+    Entity(NbtString),
+    Storage(Identifier),
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub(crate) struct FieldKey {
+    contents: ContentsKey,
+    style: StyleKey,
+    siblings: Vec<FieldKey>,
+}
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+enum ContentsKey {
+    Literal(NbtString),
+    Keybind(NbtString),
+    Translate {
+        key: NbtString,
+        fallback: Option<NbtString>,
+        arguments: Vec<ArgumentKey>,
+    },
+    Nbt {
+        path: NbtString,
+        interpret: bool,
+        separator: Option<Box<FieldKey>>,
+        source: NbtSource,
+    },
+    Selector(super::selector::Pattern, Option<Box<FieldKey>>),
+    Score(ScoreName, NbtString),
+    Sprite(Identifier, Identifier),
+    PlayerSprite(Box<super::profile::Profile>, bool),
+}
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+enum ArgumentKey {
+    String(NbtString),
+    Number(Number),
+    Text(Box<FieldKey>),
+}
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+struct StyleKey {
+    rgb: Option<u32>,
+    shadow_color: Option<i32>,
+    flags: [Option<bool>; 5],
+    click: Option<ClickKey>,
+    hover: Option<HoverKey>,
+    insertion: Option<NbtString>,
+    font: Option<Identifier>,
+}
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+enum HoverKey {
+    Item(Box<super::item_semantics::Item>),
+    Text(Box<FieldKey>),
+    Entity(Identifier, [i32; 4], Option<Box<FieldKey>>),
+}
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+enum ClickKey {
+    Dialog(super::item_semantics::Entry),
+    OpenUrl(Box<super::uri::Uri>),
+    RunCommand(NbtString),
+    SuggestCommand(NbtString),
+    ChangePage(i32),
+    Copy(NbtString),
+    Custom(Identifier, Option<ModernPayloadKey>),
+}
+#[derive(Clone, Debug, Serialize)]
+#[serde(transparent)]
+struct ModernPayloadKey(Arc<NbtValue>);
+impl PartialEq for ModernPayloadKey {
+    fn eq(&self, other: &Self) -> bool {
+        super::nbt::equivalent(&self.0, &other.0, crate::MinecraftVersion::Java1_21_11)
+    }
+}
+impl Eq for ModernPayloadKey {}
+#[derive(Clone, Debug, Default, Serialize)]
+pub(crate) struct Style {
+    pub color: Option<Color>,
+    pub shadow_color: Option<i32>,
+    pub bold: Option<bool>,
+    pub italic: Option<bool>,
+    pub underlined: Option<bool>,
+    pub strikethrough: Option<bool>,
+    pub obfuscated: Option<bool>,
+    pub click: Option<Click>,
+    pub hover: Option<Hover>,
+    pub insertion: Option<NbtString>,
+    pub font: Option<Identifier>,
+}
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct Color {
+    pub rgb: u32,
+    /// Native persistent spelling remains distinct from RGB equality.
+    pub serialized: String,
+}
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+pub(crate) enum Click {
+    OpenUrl(Box<super::uri::Uri>),
+    RunCommand(NbtString),
+    SuggestCommand(NbtString),
+    ChangePage(i32),
+    Copy(NbtString),
+    Custom {
+        id: Identifier,
+        payload: Option<Arc<NbtValue>>,
+    },
+    Dialog(Arc<NbtValue>),
+    BoundDialog(super::item_semantics::Entry),
+}
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+pub(crate) enum Hover {
+    Text(Box<Text>),
+    Item(Arc<NbtValue>),
+    BoundItem(Box<super::item_semantics::Item>),
+    Entity(Box<EntityTooltip>),
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct EntityTooltip {
+    pub entity_type: Identifier,
+    pub uuid: [i32; 4],
+    pub name: Option<Box<Text>>,
+}
+
+/// These fields still require native constructor/context work. No blanket Eq is
+/// implemented for this model: nested items/dialogs and
+/// other contextual bindings cannot be replaced with raw NBT/string/CRC equality.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+pub(crate) enum Dependency {
+    Dialog,
+    Item,
+}
+impl Text {
+    pub(crate) fn dependencies(&self) -> Vec<Dependency> {
+        fn visit(text: &Text, out: &mut Vec<Dependency>) {
+            use Contents::*;
+            match &text.contents {
+                Selector {
+                    separator: Some(value),
+                    ..
+                } => visit(value, out),
+                Translate { arguments, .. } => {
+                    for value in arguments {
+                        if let Argument::Text(value) = value {
+                            visit(value, out);
+                        }
+                    }
+                }
+                Nbt {
+                    separator: Some(value),
+                    ..
+                } => visit(value, out),
+                _ => {}
+            }
+            if let Some(Click::Dialog(_)) = &text.style.click {
+                out.push(Dependency::Dialog);
+            }
+            match &text.style.hover {
+                Some(Hover::Text(value)) => visit(value, out),
+                Some(Hover::Item(_)) => out.push(Dependency::Item),
+                Some(Hover::Entity(value)) => {
+                    if let Some(name) = &value.name {
+                        visit(name, out);
+                    }
+                }
+                Some(Hover::BoundItem(_)) | None => {}
+            }
+            for value in &text.siblings {
+                visit(value, out);
+            }
+        }
+        let mut values = Vec::new();
+        visit(self, &mut values);
+        values
+    }
+    /// A key for fully represented, context-free modern text fields. It does
+    /// not attest complete original constructor validation, whole item equality,
+    /// persistent encoding, cached server hashes or action admission.
+    pub(crate) fn modern_field_key(&self) -> Option<FieldKey> {
+        if !self.dependencies().is_empty() {
+            return None;
+        }
+        fn key(text: &Text) -> FieldKey {
+            let contents = match &text.contents {
+                Contents::Literal { text } => ContentsKey::Literal(text.clone()),
+                Contents::Keybind { keybind } => ContentsKey::Keybind(keybind.clone()),
+                Contents::Translate {
+                    key: k,
+                    fallback,
+                    arguments,
+                } => ContentsKey::Translate {
+                    key: k.clone(),
+                    fallback: fallback.clone(),
+                    arguments: arguments
+                        .iter()
+                        .map(|a| match a {
+                            Argument::String(s) => ArgumentKey::String(s.clone()),
+                            Argument::Number(n) => ArgumentKey::Number(n.clone()),
+                            Argument::Text(t) => ArgumentKey::Text(Box::new(key(t))),
+                        })
+                        .collect(),
+                },
+                Contents::Nbt {
+                    path,
+                    interpret,
+                    separator,
+                    source,
+                } => ContentsKey::Nbt {
+                    path: path.clone(),
+                    interpret: *interpret,
+                    separator: separator.as_ref().map(|v| Box::new(key(v))),
+                    source: source.clone(),
+                },
+                Contents::Sprite { atlas, sprite } => {
+                    ContentsKey::Sprite(atlas.clone(), sprite.clone())
+                }
+                Contents::PlayerSprite { profile, hat } => {
+                    ContentsKey::PlayerSprite(profile.clone(), *hat)
+                }
+                Contents::Selector { pattern, separator } => ContentsKey::Selector(
+                    pattern.clone(),
+                    separator.as_ref().map(|v| Box::new(key(v))),
+                ),
+                Contents::Score { name, objective } => {
+                    ContentsKey::Score(name.clone(), objective.clone())
+                }
+            };
+            let s = &text.style;
+            let click = s.click.as_ref().map(|c| match c {
+                Click::OpenUrl(v) => ClickKey::OpenUrl(v.clone()),
+                Click::RunCommand(v) => ClickKey::RunCommand(v.clone()),
+                Click::SuggestCommand(v) => ClickKey::SuggestCommand(v.clone()),
+                Click::ChangePage(v) => ClickKey::ChangePage(*v),
+                Click::Copy(v) => ClickKey::Copy(v.clone()),
+                Click::BoundDialog(v) => ClickKey::Dialog(v.clone()),
+                Click::Custom { id, payload } => {
+                    ClickKey::Custom(id.clone(), payload.clone().map(ModernPayloadKey))
+                }
+                _ => unreachable!("unresolved click dependency"),
+            });
+            let hover = s.hover.as_ref().map(|h| match h {
+                Hover::Text(t) => HoverKey::Text(Box::new(key(t))),
+                Hover::BoundItem(v) => HoverKey::Item(v.clone()),
+                Hover::Entity(v) => HoverKey::Entity(
+                    v.entity_type.clone(),
+                    v.uuid,
+                    v.name.as_ref().map(|v| Box::new(key(v))),
+                ),
+                _ => unreachable!("unresolved hover dependency"),
+            });
+            FieldKey {
+                contents,
+                style: StyleKey {
+                    rgb: s.color.as_ref().map(|c| c.rgb),
+                    shadow_color: s.shadow_color,
+                    flags: [
+                        s.bold,
+                        s.italic,
+                        s.underlined,
+                        s.strikethrough,
+                        s.obfuscated,
+                    ],
+                    click,
+                    hover,
+                    insertion: s.insertion.clone(),
+                    font: s.font.clone(),
+                },
+                siblings: text.siblings.iter().map(key).collect(),
+            }
+        }
+        Some(key(self))
+    }
+}
+
+impl FieldKey {
+    pub(crate) fn uses_tags(&self) -> bool {
+        let contents = match &self.contents {
+            ContentsKey::Translate { arguments, .. } => arguments
+                .iter()
+                .any(|v| matches!(v, ArgumentKey::Text(t) if t.uses_tags())),
+            ContentsKey::Nbt { separator, .. } | ContentsKey::Selector(_, separator) => {
+                separator.as_deref().is_some_and(Self::uses_tags)
+            }
+            _ => false,
+        };
+        let hover = match &self.style.hover {
+            Some(HoverKey::Item(v)) => v
+                .components
+                .values()
+                .any(super::item_semantics::Component::uses_tags),
+            Some(HoverKey::Text(v)) => v.uses_tags(),
+            Some(HoverKey::Entity(_, _, name)) => name.as_deref().is_some_and(Self::uses_tags),
+            None => false,
+        };
+        contents || hover || self.siblings.iter().any(Self::uses_tags)
+    }
+}
+
+#[cfg(test)]
+impl FieldKey {
+    pub(crate) fn hover_item(&self) -> Option<&super::item_semantics::Item> {
+        match &self.style.hover {
+            Some(HoverKey::Item(value)) => Some(value),
+            _ => None,
+        }
+    }
+}

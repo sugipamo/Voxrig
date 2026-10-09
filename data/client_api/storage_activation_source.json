@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "scope": "Original unmodified official BarrelBlockEntity startOpen/stopOpen/openers-counter/updateBlockState native methods. Normal OPEN boolean changes preserve audited outline/menu; no causal player/target attribution. Only this property is compatible after complete dispatch; all other properties remain exact. Actual native trials independently verify boolean/content/pose and common receipts.",
+  "audit_tool": "Java 21 jdk.jdeps/com.sun.tools.javap.Main -p -c -classpath original server JAR and libraries",
+  "versions": {
+    "1.16.1": {
+      "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "mappings_sha256": "9b19cc7d56e58258117e2fcc092f773b151682ecb2b1adb3de9832b3c450a30f",
+      "audited_native_classes": [
+        "cde",
+        "bva"
+      ],
+      "native_open_property": "bva.b",
+      "bytecode_audit_sha256": "3c1af3caa2ecb9fca425c785dd116abb5f6c594ee20a4a85e80f3257a3a41c9a",
+      "semantic_methods": [
+        "BarrelBlockEntity.startOpen",
+        "BarrelBlockEntity.stopOpen",
+        "BarrelBlockEntity.updateBlockState"
+      ]
+    },
+    "1.21.11": {
+      "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "mappings_sha256": "7ffd98f77f403043748d56467aac287a58f8187a27d5d6b7ebcac70042b02b1c",
+      "audited_native_classes": [
+        "ekt",
+        "ekt$1",
+        "dyw"
+      ],
+      "native_open_property": "dyw.c",
+      "bytecode_audit_sha256": "eb12bba11ca21b80a977e7e2bda18ea475be622f59cac4ef7bc7a17d632a7a96",
+      "semantic_methods": [
+        "BarrelBlockEntity.startOpen",
+        "BarrelBlockEntity.stopOpen",
+        "BarrelBlockEntity.updateBlockState"
+      ]
+    }
+  }
+}

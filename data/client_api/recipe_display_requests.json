@@ -1,0 +1,673 @@
+[
+  {
+    "id": "empty",
+    "domain": "slot",
+    "input": {
+      "type": "minecraft:empty"
+    }
+  },
+  {
+    "id": "fuel",
+    "domain": "slot",
+    "input": {
+      "type": "minecraft:any_fuel"
+    }
+  },
+  {
+    "id": "stone",
+    "domain": "slot",
+    "input": {
+      "type": "minecraft:item",
+      "item": "minecraft:stone"
+    }
+  },
+  {
+    "id": "stack",
+    "domain": "slot",
+    "input": {
+      "type": "minecraft:item_stack",
+      "item": {
+        "id": "minecraft:sugar",
+        "count": 3
+      }
+    }
+  },
+  {
+    "id": "tag",
+    "domain": "slot",
+    "input": {
+      "type": "minecraft:tag",
+      "tag": "minecraft:planks"
+    }
+  },
+  {
+    "id": "remainder",
+    "domain": "slot",
+    "input": {
+      "type": "minecraft:with_remainder",
+      "input": {
+        "type": "minecraft:item",
+        "item": "minecraft:milk_bucket"
+      },
+      "remainder": {
+        "type": "minecraft:item",
+        "item": "minecraft:bucket"
+      }
+    }
+  },
+  {
+    "id": "composite",
+    "domain": "slot",
+    "input": {
+      "type": "minecraft:composite",
+      "contents": [
+        {
+          "type": "minecraft:empty"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item_stack",
+          "item": {
+            "id": "minecraft:sugar",
+            "count": 3
+          }
+        },
+        {
+          "type": "minecraft:tag",
+          "tag": "minecraft:planks"
+        },
+        {
+          "type": "minecraft:with_remainder",
+          "input": {
+            "type": "minecraft:item",
+            "item": "minecraft:milk_bucket"
+          },
+          "remainder": {
+            "type": "minecraft:item",
+            "item": "minecraft:bucket"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "trim",
+    "domain": "slot",
+    "input": {
+      "type": "minecraft:smithing_trim",
+      "base": {
+        "type": "minecraft:item",
+        "item": "minecraft:iron_chestplate"
+      },
+      "material": {
+        "type": "minecraft:item",
+        "item": "minecraft:redstone"
+      },
+      "pattern": "minecraft:sentry"
+    }
+  },
+  {
+    "id": "composite-empty",
+    "domain": "slot",
+    "input": {
+      "type": "minecraft:composite",
+      "contents": []
+    }
+  },
+  {
+    "id": "unknown-item",
+    "domain": "slot",
+    "input": {
+      "type": "minecraft:item",
+      "item": "minecraft:voxrig_missing"
+    }
+  },
+  {
+    "id": "shapeless",
+    "domain": "recipe",
+    "input": {
+      "type": "minecraft:crafting_shapeless",
+      "ingredients": [
+        {
+          "type": "minecraft:tag",
+          "tag": "minecraft:planks"
+        },
+        {
+          "type": "minecraft:with_remainder",
+          "input": {
+            "type": "minecraft:item",
+            "item": "minecraft:milk_bucket"
+          },
+          "remainder": {
+            "type": "minecraft:item",
+            "item": "minecraft:bucket"
+          }
+        }
+      ],
+      "result": {
+        "type": "minecraft:item",
+        "item": "minecraft:cake"
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    }
+  },
+  {
+    "id": "shaped",
+    "domain": "recipe",
+    "input": {
+      "type": "minecraft:crafting_shaped",
+      "width": 2,
+      "height": 2,
+      "ingredients": [
+        {
+          "type": "minecraft:tag",
+          "tag": "minecraft:planks"
+        },
+        {
+          "type": "minecraft:empty"
+        },
+        {
+          "type": "minecraft:tag",
+          "tag": "minecraft:planks"
+        },
+        {
+          "type": "minecraft:empty"
+        }
+      ],
+      "result": {
+        "type": "minecraft:item_stack",
+        "item": {
+          "id": "minecraft:stick",
+          "count": 4
+        }
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    }
+  },
+  {
+    "id": "furnace",
+    "domain": "recipe",
+    "input": {
+      "type": "minecraft:furnace",
+      "ingredient": {
+        "type": "minecraft:item",
+        "item": "minecraft:stone"
+      },
+      "fuel": {
+        "type": "minecraft:any_fuel"
+      },
+      "result": {
+        "type": "minecraft:item",
+        "item": "minecraft:smooth_stone"
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:furnace"
+      },
+      "duration": 200,
+      "experience": 0.1
+    }
+  },
+  {
+    "id": "stonecutter",
+    "domain": "recipe",
+    "input": {
+      "type": "minecraft:stonecutter",
+      "input": {
+        "type": "minecraft:item",
+        "item": "minecraft:stone"
+      },
+      "result": {
+        "type": "minecraft:item",
+        "item": "minecraft:stone_slab"
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:stonecutter"
+      }
+    }
+  },
+  {
+    "id": "smithing",
+    "domain": "recipe",
+    "input": {
+      "type": "minecraft:smithing",
+      "template": {
+        "type": "minecraft:item",
+        "item": "minecraft:sentry_armor_trim_smithing_template"
+      },
+      "base": {
+        "type": "minecraft:item",
+        "item": "minecraft:iron_chestplate"
+      },
+      "addition": {
+        "type": "minecraft:item",
+        "item": "minecraft:redstone"
+      },
+      "result": {
+        "type": "minecraft:smithing_trim",
+        "base": {
+          "type": "minecraft:item",
+          "item": "minecraft:iron_chestplate"
+        },
+        "material": {
+          "type": "minecraft:item",
+          "item": "minecraft:redstone"
+        },
+        "pattern": "minecraft:sentry"
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:smithing_table"
+      }
+    }
+  },
+  {
+    "id": "shaped-1-1",
+    "domain": "recipe",
+    "input": {
+      "type": "minecraft:crafting_shaped",
+      "width": 1,
+      "height": 1,
+      "ingredients": [
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        }
+      ],
+      "result": {
+        "type": "minecraft:item_stack",
+        "item": {
+          "id": "minecraft:stick",
+          "count": 4
+        }
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    }
+  },
+  {
+    "id": "shaped-2-1",
+    "domain": "recipe",
+    "input": {
+      "type": "minecraft:crafting_shaped",
+      "width": 2,
+      "height": 1,
+      "ingredients": [
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        }
+      ],
+      "result": {
+        "type": "minecraft:item_stack",
+        "item": {
+          "id": "minecraft:stick",
+          "count": 4
+        }
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    }
+  },
+  {
+    "id": "shaped-3-3",
+    "domain": "recipe",
+    "input": {
+      "type": "minecraft:crafting_shaped",
+      "width": 3,
+      "height": 3,
+      "ingredients": [
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        }
+      ],
+      "result": {
+        "type": "minecraft:item_stack",
+        "item": {
+          "id": "minecraft:stick",
+          "count": 4
+        }
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    }
+  },
+  {
+    "id": "shaped-0-0",
+    "domain": "recipe",
+    "input": {
+      "type": "minecraft:crafting_shaped",
+      "width": 0,
+      "height": 0,
+      "ingredients": [],
+      "result": {
+        "type": "minecraft:item_stack",
+        "item": {
+          "id": "minecraft:stick",
+          "count": 4
+        }
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    }
+  },
+  {
+    "id": "shaped--1--1",
+    "domain": "recipe",
+    "input": {
+      "type": "minecraft:crafting_shaped",
+      "width": -1,
+      "height": -1,
+      "ingredients": [
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        }
+      ],
+      "result": {
+        "type": "minecraft:item_stack",
+        "item": {
+          "id": "minecraft:stick",
+          "count": 4
+        }
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    }
+  },
+  {
+    "id": "shaped-4-4",
+    "domain": "recipe",
+    "input": {
+      "type": "minecraft:crafting_shaped",
+      "width": 4,
+      "height": 4,
+      "ingredients": [
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        },
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        }
+      ],
+      "result": {
+        "type": "minecraft:item_stack",
+        "item": {
+          "id": "minecraft:stick",
+          "count": 4
+        }
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    }
+  },
+  {
+    "id": "shaped-mismatch",
+    "domain": "recipe",
+    "input": {
+      "type": "minecraft:crafting_shaped",
+      "width": 2,
+      "height": 2,
+      "ingredients": [
+        {
+          "type": "minecraft:item",
+          "item": "minecraft:stone"
+        }
+      ],
+      "result": {
+        "type": "minecraft:item_stack",
+        "item": {
+          "id": "minecraft:stick",
+          "count": 4
+        }
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    }
+  },
+  {
+    "id": "shapeless-requirements-0",
+    "domain": "recipe",
+    "input": {
+      "type": "minecraft:crafting_shapeless",
+      "ingredients": [
+        {
+          "type": "minecraft:tag",
+          "tag": "minecraft:planks"
+        },
+        {
+          "type": "minecraft:with_remainder",
+          "input": {
+            "type": "minecraft:item",
+            "item": "minecraft:milk_bucket"
+          },
+          "remainder": {
+            "type": "minecraft:item",
+            "item": "minecraft:bucket"
+          }
+        }
+      ],
+      "result": {
+        "type": "minecraft:item",
+        "item": "minecraft:cake"
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    },
+    "requirements": []
+  },
+  {
+    "id": "shapeless-requirements-1",
+    "domain": "recipe",
+    "input": {
+      "type": "minecraft:crafting_shapeless",
+      "ingredients": [
+        {
+          "type": "minecraft:tag",
+          "tag": "minecraft:planks"
+        },
+        {
+          "type": "minecraft:with_remainder",
+          "input": {
+            "type": "minecraft:item",
+            "item": "minecraft:milk_bucket"
+          },
+          "remainder": {
+            "type": "minecraft:item",
+            "item": "minecraft:bucket"
+          }
+        }
+      ],
+      "result": {
+        "type": "minecraft:item",
+        "item": "minecraft:cake"
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    },
+    "requirements": [
+      "minecraft:oak_planks"
+    ]
+  },
+  {
+    "id": "shapeless-requirements-2",
+    "domain": "recipe",
+    "input": {
+      "type": "minecraft:crafting_shapeless",
+      "ingredients": [
+        {
+          "type": "minecraft:tag",
+          "tag": "minecraft:planks"
+        },
+        {
+          "type": "minecraft:with_remainder",
+          "input": {
+            "type": "minecraft:item",
+            "item": "minecraft:milk_bucket"
+          },
+          "remainder": {
+            "type": "minecraft:item",
+            "item": "minecraft:bucket"
+          }
+        }
+      ],
+      "result": {
+        "type": "minecraft:item",
+        "item": "minecraft:cake"
+      },
+      "crafting_station": {
+        "type": "minecraft:item",
+        "item": "minecraft:crafting_table"
+      }
+    },
+    "requirements": [
+      "#minecraft:planks",
+      "minecraft:milk_bucket"
+    ]
+  },
+  {
+    "id": "trim-inline",
+    "domain": "slot",
+    "input": {
+      "type": "minecraft:smithing_trim",
+      "base": {
+        "type": "minecraft:item",
+        "item": "minecraft:iron_chestplate"
+      },
+      "material": {
+        "type": "minecraft:item",
+        "item": "minecraft:redstone"
+      },
+      "pattern": {
+        "asset_id": "minecraft:voxrig_demo",
+        "description": {
+          "text": "Recipe display"
+        },
+        "decal": false
+      }
+    }
+  }
+]
