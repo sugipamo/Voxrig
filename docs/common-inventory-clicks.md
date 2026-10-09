@@ -12,7 +12,7 @@ nativeでは1だった。元の`data/items.json`とharvest監査のsource hash�
 empty sentinelの容量値をitem容量に読み替えない。
 
 `Survival::click_inventory` / `Creative::click_inventory`は同じ引数・recordで通常PICKUPを実装する。
-`InventoryClickSource::Player`はcanonical player screen slot 9..44、`Container { screen }`は
+`InventorySource::Player`（互換名 `InventoryClickSource`）はcanonical player screen slot 1..45、`Container { screen }`は
 元の受信済みopeningのstorageと付属player slotを指定する。native slot番号であり、hotbar indexではない。
 元opening、実mode、受信済みsource/cursor、版別slot条件を送信前に検査する。
 通常PICKUPの既知itemではlegacy NBTとmodern componentsも保持する。受信と同時に保存したregistryで
@@ -20,7 +20,8 @@ empty sentinelの容量値をitem容量に読み替えない。
 Leftの空きcursor/空きslotとの移動は、
 元JARで照合したdefault constructorのlegacy NBTもそのまま保持する。modern default bundleのLeft移動も
 空きcursor/空きslotとの境界に限って認める。bundle内部への収納、Right overrideは後続作業。
-Shift転送は[共通転送API](common-inventory-transfers.md)で別途実装する。PICKUPのcrafting/result/armor/offhandは追加対応を要する。cursor付きcloseは[返却とclose](common-container-close.md)で別に実装する。
+1..4はplayer crafting入力、5..8は鎧、9..44は通常在庫、45はオフハンド。結果slot 0は専用のcrafting結果APIを使う。
+Shift転送は[共通転送API](common-inventory-transfers.md)で別途実装する。cursor付きcloseは[返却とclose](common-container-close.md)で別に実装する。
 
 ```rust,ignore
 use voxrig::client::prelude::*;
@@ -91,7 +92,45 @@ legacyは元のNBTを保持した比較値と実comparison replyで既存の再�
 データ付き結果の照合はcountとnative fieldを別々に行う。元NBTのkey順や明示default componentが
 受信で正規化されてもtyped意味が同じなら一致する。configuration/tag所有が変わったり、
 意味解決ができなかった場合は`RequiresInspection`へ保持する。QUICK_MOVE、cursor付きclose、
-特殊item・crafting/result/equipment slotの一般data対応は後続作業。
+特殊item overrideと未解決item dataは後続作業。crafting結果は専用APIの条件に従う。
+
+## exactな鎧・オフハンド操作
+
+通常の `click_inventory(Player, slot, button)` を装備slotにも使う。
+装備先を自動選択せず、指定したslotとcursorだけを予測する。
+鎧の基本容量1、オフハンドの版別基本容量、itemの実効容量を合わせて検査する。
+鎧には元のnative slotが許すitemだけを置き、modernは実効 `equippable` と
+その `allowed_entities` の受信済み意味を使う。
+取り出しは元のnative enchantment条件に従い、Survivalの束縛された鎧は拒否する。
+Creativeの取り出し許可も実modeで判断し、呪いの名前だけからmodernの効果を推測しない。
+これらは既存QUICK_MOVEと同じSDKのslot判定を共有する。
+
+受信済みの鎧がslot容量を超えていれば、値を切り詰めず送信前に拒否する。
+元のnativeクリックはその不正な前提で通常とは違う数量操作を行う場合があり、
+本APIはその状態の一般的な修復を提供しない。
+
+2 slotの占有済み内容の交換は、空cursorから `from -> to -> from` の3回のLeft PICKUPで組み立てられる。
+各回の `ObservedClicked` を待つ。これはatomicな交換ではなく、途中取消・競合・不確実な送信があれば
+その回の記録と実cursorを調べ、同じクリックを再送しない。具体例の13→45は、
+通常在庫のslot13を選び、オフハンド45と交換した後、残るcursorをslot13へ置く。
+player screenが変わった場合も別の装備先へ迂回しない。
+
+公式未変更JARのexact equipment PICKUPを各版7,290ケース取得し、item/slot容量内の結果を照合した。
+元の上限超過ケースも保持し、SDKは送信前拒否を確認する。
+生成器とJAR/出力hashは `data/client_api/equipment_pickup_source.json` に固定した。
+既存の648件のmodern実効装備条件と、432件の両版・mode別armor取り出し条件も共通判定で検査する。
+さらに公式サーバーへの実接続で、両modeの占有済みオフハンド/鎧交換、装備不適合の送信前拒否、
+Survivalの束縛拒否とCreativeの取り外し/返却を、freshなsource/cursorと独立したnative保存物で確認する。
+modernの装備は通常 `Inventory` と別の `equipment.head` 等を読む。
+[実接続記録](evidence/common-equipment-pickup-20261009.json)に元packetと初回fixture失敗も保存する。
+GolemkitのBody移行や、元の保存world不具合の再現はこのSDK検証に含まない。
+
+```sh
+python3 -B scripts/export_equipment_pickups.py --downloads "$DOWNLOADS" \
+  --runtime-output .local/exact-equipment/oracle --check
+cargo build --locked --features native --example climbing_control_probe
+python3 -B scripts/run_equipment_pickups.py --accept-eula
+```
 
 ## 再生成
 
