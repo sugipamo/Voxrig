@@ -13,6 +13,30 @@ class ClosedDestination:
         pass
 
 class TraceTests(unittest.TestCase):
+    def test_large_metadata_body_retention_preserves_all_original_frames_and_wire_bytes(self):
+        class Destination:
+            def __init__(self): self.wire=bytearray()
+            def sendall(self,wire): self.wire.extend(wire)
+            def shutdown(self,_): pass
+        with tempfile.TemporaryDirectory() as folder:
+            trace=PacketTraceProxy(1,'1.21.11',Path(folder)/'frames.jsonl',
+                body_capture_filter=lambda record: record['packet_id']==0x2c and record['body_length']<=700)
+            incoming,outgoing=socket.socketpair()
+            wire=bytes([0xd9,4,0x2c])+b'A'*600+bytes([0xd9,4,0x2d])+b'B'*600
+            destination=Destination()
+            try:
+                outgoing.sendall(wire);outgoing.shutdown(socket.SHUT_WR)
+                trace.forward(incoming,destination,'clientbound',{'compression':None,'phase':'play','connection':1})
+                self.assertEqual(bytes(destination.wire),wire)
+                self.assertEqual(trace.frame_count,2)
+                self.assertEqual([f['ordinal'] for f in trace.frames],[1,2])
+                self.assertEqual(trace.frames[0]['body_hex'],(b'A'*600).hex())
+                self.assertNotIn('body_hex',trace.frames[1])
+                self.assertEqual(trace.frames[1]['body_length'],600)
+                self.assertEqual(trace.errors,[])
+            finally:
+                incoming.close();outgoing.close();trace.close()
+
     def test_diagnostic_retention_never_filters_original_wire_bytes(self):
         class Destination:
             def __init__(self): self.wire = bytearray()

@@ -9,12 +9,20 @@ import struct
 import subprocess
 
 from run_climbing_control import REPO, run
-from run_common_native import NativeSocialReader, until
+from run_common_native import NativeSocialReader, PacketTraceProxy, until
 from run_player_context import unpack_position
 
 KINDS = ["WorldSurfaceWg", "WorldSurface", "OceanFloorWg", "OceanFloor", "MotionBlocking", "MotionBlockingNoLeaves"]
 NAMES = ["WORLD_SURFACE_WG", "WORLD_SURFACE", "OCEAN_FLOOR_WG", "OCEAN_FLOOR", "MOTION_BLOCKING", "MOTION_BLOCKING_NO_LEAVES"]
 NATIVE_RUNTIME = {}
+
+
+def metadata_trace(port, version, path):
+    def capture(record):
+        return record["direction"]=="clientbound" and record["body_length"]<=2_097_152 and (
+            (record["phase"]=="play" and record["packet_id"] in ((0x21,0x09) if version=="1.16.1" else (0x2c,0x06,0x0d)))
+            or (version=="1.21.11" and record["phase"]=="configuration" and record["packet_id"]==7))
+    return PacketTraceProxy(port,version,path,body_capture_filter=capture)
 
 
 def reader(raw, version):
@@ -357,7 +365,7 @@ def main():
                    "scripts/run_climbing_control.py","scripts/run_common_native.py","examples/climbing_control_probe.rs")})
     for version in args.version or ("1.16.1","1.21.11"):
         sdk["native_heightmap_oracle"] = prepare_native(version,args.jars.resolve())
-        run(version,args.binary.resolve(),args.jars.resolve(),check=functools.partial(check,sdk=sdk.copy()),
+        run(version,args.binary.resolve(),args.jars.resolve(),check=functools.partial(check,sdk=sdk.copy()),trace_factory=metadata_trace,
             server_properties={"view-distance":3,"simulation-distance":2,"max-players":5})
 
 
