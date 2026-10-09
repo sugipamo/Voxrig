@@ -35,7 +35,7 @@ pub enum Feature {
     WorldObservation,
     /// Common own-player and received inventory observations.
     PlayerObservation,
-    /// Received experience, weather, default spawn and world-view fields.
+    /// Received abilities, difficulty, experience, weather, spawn and view fields.
     PlayerContext,
     /// Received biome volumes, packed heightmaps and block-entity NBT.
     ChunkContext,
@@ -213,7 +213,7 @@ impl Capabilities {
                 "docs/common-chunk-context.md",
             ),
             Feature::PlayerContext => restricted(
-                "received abilities/difficulty/experience/weather/default spawn/view packets; explicit version-only fields",
+                "received abilities, difficulty, XP, weather, spawn and view; explicit version-only fields",
                 "docs/common-player-context.md",
             ),
             Feature::ConnectionRevocation
