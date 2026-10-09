@@ -143,7 +143,14 @@ def check(version, command, request, trace, report, *, sdk):
     before=current['session']['world_generation']
     until(lambda: (c if (c:=request('player_context'))['session']['world_generation']!=before else None),10)
     current,events=capture('return_dimension_entry_ownership');notified(current,events,current['world_entry'])
-    command('kill ClimbingProbe')
+    request('prepare',position=[0.5,65.,0.5])
+    if version=='1.21.11':
+        boundary=verify(version,current,trace)['original_entry']['ordinal']
+        def loaded():
+            return next((p for p in trace.since(boundary) if p['direction']=='serverbound' and p['phase']=='play' and p['packet_id']==0x2b),None)
+        report['checks'][-1]['original_player_loaded']=until(loaded,15)
+        request('wait',ms=150)
+    report['checks'][-1]['native_kill_result']=command('kill ClimbingProbe')
     until(lambda: (p if (p:=request('player'))['health'] and p['health']['value']['health']==0 else None),5)
     request('respawn')
     before=current['session']['world_generation']

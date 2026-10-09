@@ -134,3 +134,37 @@ weather/game-state-change、spawn、view、cooldownの成功受信を同じ元or
 
 公式サーバーでの再生成は`scripts/run_world_entry_context.py`を使う。
 原パケット／NBT由来の詳細reportは`.local`へ保持し、公開記録は結果とhashに限定する。
+
+### Native sensor coverage audit
+
+`java_1_16_1::SurvivalState`の各sensorを共通surfaceへ照合した。
+modernは同名の旧型をコピーせず、元の1.21.11 codecと所有generationで読む。
+
+| native sensor | common consumer | modern差分／境界 |
+| --- | --- | --- |
+| vitals・attributes・effects | `player_state` | 受信registryへ所属する属性・effect。world変更で古い元値を使わない |
+| game_mode | `player_state.game_mode` | 元GAME_STATE_CHANGEの現在値。入場時のbyteとは区別 |
+| previous_game_mode・dimension・world_name | `player_context.world_entry` | signed sentinel、modernのdimension-type registry IDとworld key |
+| experience | `player_context.experience` | 元のfloat／level／totalを保持 |
+| difficulty | `player_context.difficulty` | 元ID／lock。server設定操作の権限ではない |
+| world_age・time_of_day | `player_state.world_time` | 元のtime packet。現在tickを推測しない |
+| raining・rain_level・thunder_level | `player_context.weather` | 独立receipt。欠測とclearを混同しない |
+| spawn_position・world_view | `player_context.default_spawn/world_view` | modern spawnはglobal position／rotation、simulation distanceを追加 |
+| flying_allowed・flying・invulnerable・creative_mode・speeds | `player_context.abilities` | 元flags／speeds。使用許可は最新operation guardが別に検査 |
+| item_cooldowns | `player_context.item_cooldowns` | modern groupをlegacy item IDへ変換せず、ゼロ通知も保持 |
+
+LOGIN／RESPAWNはworld-entry全fieldの検証が済むまで新generationへcommitしない。
+legacyのregistry codecも先に一時台帳へ検証し、失敗したcodecで既存台帳を退役させない。
+modernのconfiguration移行では文脈を退役させ、`WorldChanged`と`ContextChanged`で通知する。
+この表はworld／own-player sensorの監査であり、advancement・statistics・command tree等の
+全protocol packetを共通APIへ提供したという意味ではない。その他のsurfaceは
+[downstream coverage](downstream-client-coverage.md)で機能ごとに扱う。
+
+2026-10-10の公式接続で、legacy 9項目・modern 11項目が成功した。
+前回mode、全world-entryとLOGIN条件、ender pearlの正値／ゼロ通知、
+modernのitem名と異なる`voxrig:shared` cooldown group、無関係な受信でのsource維持、
+難易度の通知、Nether往復による退役、死亡による同dimensionの新generation・keep-data・
+modern last-death、切断後の読取を元パケットと照合した。
+死亡操作前には地形受信とmodernの元`PLAYER_LOADED`送信を待つ。
+954単体・4統合テストが成功した（専用環境等の8件ignored）。
+[検証結果・ビルド／検証ソースのhash](evidence/common-world-entry-cooldowns-20261010.json)を参照。
