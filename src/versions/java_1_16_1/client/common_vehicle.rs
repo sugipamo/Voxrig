@@ -129,9 +129,26 @@ impl Bot {
                         "vehicle control connection/native control changed",
                     ));
                 }
-                let record = self.vehicle_control_snapshot(id)?;
+                let mut record = self.vehicle_control_snapshot(id)?;
                 let (player, vehicle) = self.vehicle_capture_unlocked().await?;
                 api::vehicle::control::validate(&record, &player, &vehicle)?;
+                if record.boat_motion.is_some() {
+                    let target = id
+                        .mount()
+                        .vehicle()
+                        .ok_or_else(|| unavailable("boat spawn unavailable"))?;
+                    let motion = self.common_receipts.lock().await.entities.capture_motion(
+                        player.session,
+                        target,
+                        player.receive_sequence,
+                    )?;
+                    if api::vehicle::control::receive_boat_velocity(&mut record, &motion)? {
+                        *self
+                            .vehicle_control_history
+                            .lock()
+                            .expect("vehicle control history") = Some(record.clone());
+                    }
+                }
                 if usize::from(record.dispatched_ticks) != index
                     || usize::from(record.attempted_tick) != index
                 {
@@ -183,6 +200,7 @@ impl Bot {
                 record.dispatched_ticks = (index + 1) as u16;
                 if let (Some(boat), Some(frame)) = (record.boat_motion.as_mut(), boat_frame) {
                     boat.frames.push(frame);
+                    boat.pending_velocity = None;
                 }
                 if self.is_stopped() {
                     record.inspection("vehicle control connection closed during write");

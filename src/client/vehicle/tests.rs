@@ -499,3 +499,275 @@ fn vehicle_control_requires_final_neutral_and_latches_original_mount_conflicts()
         );
     }
 }
+
+fn boat_velocity_fixture(
+    version: MinecraftVersion,
+) -> (
+    control::VehicleControlRecord,
+    crate::client::EntityMotionObservation,
+) {
+    use crate::client::{
+        EntityMotionObservation, EntityPosition, GameMode, Health, InventoryObservation,
+        PlayerObservation, received,
+    };
+    let session = SessionStamp {
+        version,
+        connection_id: 4,
+        world_generation: 7,
+    };
+    let mut spawns = SpawnLedger::default();
+    spawns
+        .insert(
+            version,
+            NativeSpawn {
+                id: 10,
+                uuid: Some([7; 16]),
+                type_id: None,
+                dedicated_type_name: Some(if version == MinecraftVersion::Java1_16_1 {
+                    "boat"
+                } else {
+                    "oak_boat"
+                }),
+                position: [0.5, 65., 2.5],
+                living: None,
+            },
+            11,
+            4,
+        )
+        .unwrap();
+    let mut ledger = PassengerLedger::default();
+    ledger.receive(
+        &NativePassengers {
+            vehicle: 10,
+            passengers: vec![42],
+        },
+        Some(42),
+        &spawns,
+        12,
+    );
+    let vehicle = ledger.capture(session, 12, Some(42), &spawns);
+    let VehicleRelation::Mounted { mount } = vehicle.relation.as_ref().unwrap().value else {
+        panic!()
+    };
+    let player = PlayerObservation {
+        using_item: None,
+        entity_id: None,
+        attributes: Default::default(),
+        effects: Default::default(),
+        air_supply: None,
+        world_time: None,
+        session,
+        receive_sequence: 12,
+        pending_dispatch: false,
+        dimension: None,
+        position: None,
+        received_pose: None,
+        rotation: [0.; 2],
+        rotation_source: None,
+        on_ground: None,
+        game_mode: Some(GameMode::Survival),
+        may_fly: None,
+        health: Some(received(
+            Health {
+                health: 20.,
+                food: 20,
+                saturation: 5.,
+            },
+            11,
+        )),
+        selected_hotbar: None,
+        inventory: InventoryObservation::default(),
+    };
+    let record = control::prepare(
+        player,
+        vehicle,
+        GameMode::Survival,
+        mount,
+        &[Default::default(); 3],
+        None,
+    )
+    .unwrap();
+    let motion = EntityMotionObservation {
+        entity: spawns.capture(session, 12).entities.remove(0),
+        receive_sequence: 12,
+        position: Some(received(
+            EntityPosition {
+                position: [0.5, 65., 2.5],
+                quantization_error: [0.; 3],
+            },
+            11,
+        )),
+        rotation: Some(received([0.; 2], 11)),
+        head_yaw: None,
+        velocity: Some(received([0.; 3], 11)),
+        on_ground: None,
+        correction: None,
+    };
+    (record, motion)
+}
+
+#[test]
+fn boat_velocity_receipts_fold_once_without_rewriting_submitted_frames() {
+    use crate::client::{GameMode, received};
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        let (mut prior, motion) = boat_velocity_fixture(version);
+        control::configure_boat(&mut prior, Some(motion.clone()), None).unwrap();
+        let frame = control::BoatFrame::new([1.5, 65., 2.5], [0.; 2], [0.4, 0.2, 0.1]);
+        prior
+            .boat_motion
+            .as_mut()
+            .unwrap()
+            .frames
+            .push(frame.clone());
+        prior.dispatched_ticks = 3;
+        prior.attempted_tick = 3;
+        prior.stage = control::VehicleControlStage::Submitted;
+        let make = |previous: &control::VehicleControlRecord| {
+            control::prepare(
+                previous.initial.clone(),
+                previous.vehicle.clone(),
+                GameMode::Survival,
+                previous.id.mount(),
+                &[Default::default(); 3],
+                Some(previous),
+            )
+            .unwrap()
+        };
+        let mut unchanged = make(&prior);
+        control::configure_boat(&mut unchanged, Some(motion.clone()), Some(&prior)).unwrap();
+        assert_eq!(unchanged.boat_motion.as_ref().unwrap().initial_frame, frame);
+        let mut live = motion.clone();
+        live.receive_sequence = 13;
+        live.velocity = Some(received([0., 2.7, 0.], 13));
+        assert!(control::receive_boat_velocity(&mut unchanged, &live).unwrap());
+        assert!(!control::receive_boat_velocity(&mut unchanged, &live).unwrap());
+        let boat = unchanged.boat_motion.as_ref().unwrap();
+        assert_eq!(boat.velocity_updates.len(), 1);
+        assert_eq!(boat.velocity_updates[0].sampled_before_tick, 1);
+        assert_eq!(boat.initial_frame, frame);
+        assert_eq!(
+            prior.boat_motion.as_ref().unwrap().frames,
+            std::slice::from_ref(&frame)
+        );
+        let air = crate::NativeBlockState {
+            name: "minecraft:air".into(),
+            properties: Default::default(),
+        };
+        let mut blocks = |_: [i32; 3]| Ok(air.clone());
+        let first = control::boat_step(&unchanged, Default::default(), &mut blocks)
+            .unwrap()
+            .unwrap();
+        assert_eq!(first.position[0], frame.position[0]);
+        assert!(first.velocity[1] > 2.6);
+        unchanged
+            .boat_motion
+            .as_mut()
+            .unwrap()
+            .frames
+            .push(first.clone());
+        unchanged.boat_motion.as_mut().unwrap().pending_velocity = None;
+        unchanged.dispatched_ticks = 1;
+        assert!(!control::receive_boat_velocity(&mut unchanged, &live).unwrap());
+        let second = control::boat_step(&unchanged, Default::default(), &mut blocks)
+            .unwrap()
+            .unwrap();
+        assert!(second.velocity[1] < first.velocity[1]);
+        assert_eq!(unchanged.boat_motion.as_ref().unwrap().frames, [first]);
+        // A new finite plan also consumes the newest original receipt only once.
+        let mut player = prior.initial.clone();
+        player.receive_sequence = 13;
+        let mut vehicle = prior.vehicle.clone();
+        vehicle.receive_sequence = 13;
+        let mut restarted = control::prepare(
+            player,
+            vehicle,
+            GameMode::Survival,
+            prior.id.mount(),
+            &[Default::default(); 3],
+            Some(&prior),
+        )
+        .unwrap();
+        control::configure_boat(&mut restarted, Some(live.clone()), Some(&prior)).unwrap();
+        assert_eq!(
+            restarted
+                .boat_motion
+                .as_ref()
+                .unwrap()
+                .initial_frame
+                .position,
+            frame.position
+        );
+        assert_eq!(
+            restarted
+                .boat_motion
+                .as_ref()
+                .unwrap()
+                .initial_frame
+                .velocity,
+            [0., 2.7, 0.]
+        );
+        assert!(
+            restarted
+                .boat_motion
+                .as_ref()
+                .unwrap()
+                .velocity_updates
+                .is_empty()
+        );
+    }
+}
+
+#[test]
+fn boat_velocity_receipts_refuse_stale_spawn_future_sources_and_failed_owners() {
+    use crate::client::received;
+    for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+        let (mut record, motion) = boat_velocity_fixture(version);
+        control::configure_boat(&mut record, Some(motion.clone()), None).unwrap();
+        let mut live = motion.clone();
+        live.receive_sequence = 13;
+        live.velocity = Some(received([0., -0.7, 0.], 13));
+        let mut other = boat_velocity_fixture(version).1;
+        let mut stale = record.initial.session;
+        stale.world_generation += 1;
+        let mut spawns = SpawnLedger::default();
+        spawns
+            .insert(
+                version,
+                NativeSpawn {
+                    id: 10,
+                    uuid: Some([7; 16]),
+                    type_id: None,
+                    dedicated_type_name: Some("boat"),
+                    position: [0.5, 65., 2.5],
+                    living: None,
+                },
+                11,
+                4,
+            )
+            .unwrap();
+        other.entity.id = spawns.identity(stale, 10).unwrap();
+        assert!(control::receive_boat_velocity(&mut record, &other).is_err());
+        let mut future = live.clone();
+        future.receive_sequence = 12;
+        assert!(control::receive_boat_velocity(&mut record, &future).is_err());
+        assert!(control::configure_boat(&mut record, Some(future), None).is_err());
+        assert!(control::receive_boat_velocity(&mut record, &live).unwrap());
+        assert!(control::receive_boat_velocity(&mut record, &motion).is_err());
+        record.inspection("uncertain write");
+        live.receive_sequence = 14;
+        live.velocity = Some(received([0., 2.7, 0.], 14));
+        assert!(control::receive_boat_velocity(&mut record, &live).is_err());
+        assert_eq!(
+            record.requires_inspection.as_deref(),
+            Some("uncertain write")
+        );
+        assert_eq!(
+            record.boat_motion.as_ref().unwrap().velocity_updates.len(),
+            1
+        );
+        assert_eq!(
+            record.boat_motion.as_ref().unwrap().received_velocity.value,
+            [0., -0.7, 0.]
+        );
+    }
+}

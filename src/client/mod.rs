@@ -104,8 +104,8 @@ pub use received_items::{ReceivedInventory, ReceivedItem, ReceivedSlot};
 pub use recording::{PacketPhase, PacketRecord, PacketTrace};
 pub use survival::{BlockTargetHit, BlockTargetObservation, MiningEstimate};
 pub use vehicle::{
-    BoatFrame, BoatMotion, DismountGrounding, DismountId, DismountRecord, DismountStage,
-    MAX_VEHICLE_CONTROL_TICKS, MountId, VehicleControlId, VehicleControlRecord,
+    BoatFrame, BoatMotion, BoatVelocityUpdate, DismountGrounding, DismountId, DismountRecord,
+    DismountStage, MAX_VEHICLE_CONTROL_TICKS, MountId, VehicleControlId, VehicleControlRecord,
     VehicleControlStage, VehicleInput, VehicleObservation, VehicleRelation,
 };
 
@@ -160,8 +160,8 @@ pub mod prelude {
         WorldBorderSize,
     };
     pub use super::vehicle::control::{
-        BoatFrame, BoatMotion, MAX_VEHICLE_CONTROL_TICKS, VehicleControlId, VehicleControlRecord,
-        VehicleControlStage, VehicleInput,
+        BoatFrame, BoatMotion, BoatVelocityUpdate, MAX_VEHICLE_CONTROL_TICKS, VehicleControlId,
+        VehicleControlRecord, VehicleControlStage, VehicleInput,
     };
     pub use super::{
         BlockFace, ChunkObservation, ConnectionStatus, CraftOnceRecord, CraftingFillRecord,

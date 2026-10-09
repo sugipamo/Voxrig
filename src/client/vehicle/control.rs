@@ -12,12 +12,27 @@ use crate::{
 pub struct BoatMotion {
     /// Actual vehicle samples captured at admission.
     pub received: api::EntityMotionObservation,
+    /// Last actual velocity selected for prediction; never a predicted velocity.
+    pub received_velocity: api::ObservedValue<[f64; 3]>,
+    /// Fresh native velocities selected during this run, bounded by its ticks.
+    /// Selection does not certify prediction, dispatch or a server-side cause.
+    pub velocity_updates: Vec<BoatVelocityUpdate>,
+    #[serde(skip)]
+    pub(crate) pending_velocity: Option<[f64; 3]>,
     /// Declared seed, or the previous submitted run's final prediction.
     pub initial_frame: BoatFrame,
     /// Latest predicted frame retained before the multi-packet write.
     pub attempted_frame: Option<BoatFrame>,
     /// Predicted frames whose input, paddles and vehicle position were fully sent.
     pub frames: Vec<BoatFrame>,
+}
+/// An actual vehicle velocity sample selected before a model tick.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct BoatVelocityUpdate {
+    /// One-based upcoming local tick, without a server-clock interpretation.
+    pub sampled_before_tick: u16,
+    /// Actual packet value and its original receive ordinal.
+    pub receipt: api::ObservedValue<[f64; 3]>,
 }
 
 pub(crate) type History = std::sync::Arc<std::sync::Mutex<Option<VehicleControlRecord>>>;
@@ -190,15 +205,27 @@ pub(crate) fn configure_boat(
             "boat control requires the first actual passenger",
         ));
     }
-    let seed = previous
+    let previous_boat = previous
         .filter(|p| p.stage == VehicleControlStage::Submitted && p.id.mount() == record.id.mount())
         .filter(|p| {
             p.vehicle.motion_correction_sequence == record.vehicle.motion_correction_sequence
         })
-        .and_then(|p| p.boat_motion.as_ref())
-        .and_then(|b| b.frames.last())
-        .cloned();
-    let initial_frame = match seed {
+        .and_then(|p| p.boat_motion.as_ref());
+    let seed = previous_boat.and_then(|b| b.frames.last()).cloned();
+    let velocity = motion
+        .velocity
+        .clone()
+        .ok_or_else(|| unavailable("boat requires received velocity"))?;
+    let sequence = velocity_sequence(&velocity)?;
+    if Some(motion.entity.id) != record.id.mount().vehicle()
+        || motion.receive_sequence != record.initial.receive_sequence
+        || sequence > motion.receive_sequence
+    {
+        return Err(unavailable(
+            "boat seed requires its coherent original spawn receipt",
+        ));
+    }
+    let mut initial_frame = match seed {
         Some(frame) => frame,
         None => BoatFrame::new(
             motion
@@ -219,13 +246,74 @@ pub(crate) fn configure_boat(
                 .value,
         ),
     };
+    if let Some(previous) = previous_boat {
+        let previous_sequence = velocity_sequence(&previous.received_velocity)?;
+        if sequence < previous_sequence {
+            return Err(unavailable("boat velocity receipt regressed"));
+        }
+        if sequence > previous_sequence {
+            initial_frame.velocity = velocity.value;
+        }
+    }
     record.boat_motion = Some(BoatMotion {
         received: motion,
+        received_velocity: velocity,
+        velocity_updates: Vec::new(),
+        pending_velocity: None,
         initial_frame,
         attempted_frame: None,
         frames: Vec::new(),
     });
     Ok(())
+}
+
+fn velocity_sequence(value: &api::ObservedValue<[f64; 3]>) -> Result<u64> {
+    match value.source {
+        ValueSource::Received { sequence } if sequence > 0 => Ok(sequence),
+        _ => Err(unavailable(
+            "boat velocity must retain its actual packet source",
+        )),
+    }
+}
+
+/// Fold a fresh velocity from the same received spawn exactly once. Historical
+/// frames stay immutable; only the next model seed receives the packet value.
+pub(crate) fn receive_boat_velocity(
+    record: &mut VehicleControlRecord,
+    motion: &api::EntityMotionObservation,
+) -> Result<bool> {
+    let Some(boat) = record.boat_motion.as_mut() else {
+        return Ok(false);
+    };
+    if motion.entity.id != boat.received.entity.id {
+        return Err(unavailable("boat velocity belongs to another spawn/world"));
+    }
+    let Some(velocity) = &motion.velocity else {
+        return Ok(false);
+    };
+    let sequence = velocity_sequence(velocity)?;
+    if sequence > motion.receive_sequence {
+        return Err(unavailable("boat velocity beyond capture boundary"));
+    }
+    let previous = velocity_sequence(&boat.received_velocity)?;
+    if sequence < previous {
+        return Err(unavailable("boat velocity receipt regressed"));
+    }
+    if sequence == previous {
+        return Ok(false);
+    }
+    if record.stage != VehicleControlStage::Running
+        || boat.velocity_updates.len() >= record.inputs.len()
+    {
+        return Err(unavailable("boat velocity outside owned finite run"));
+    }
+    boat.received_velocity = velocity.clone();
+    boat.pending_velocity = Some(velocity.value);
+    boat.velocity_updates.push(BoatVelocityUpdate {
+        sampled_before_tick: record.dispatched_ticks + 1,
+        receipt: velocity.clone(),
+    });
+    Ok(true)
 }
 
 pub(crate) fn boat_step(
@@ -237,9 +325,13 @@ pub(crate) fn boat_step(
         .boat_motion
         .as_ref()
         .map(|boat| {
+            let mut seed = boat.frames.last().unwrap_or(&boat.initial_frame).clone();
+            if let Some(velocity) = boat.pending_velocity {
+                seed.velocity = velocity;
+            }
             crate::client::physics::boat::tick(
                 record.id.mount().session().version,
-                boat.frames.last().unwrap_or(&boat.initial_frame),
+                &seed,
                 input,
                 block_at,
             )
