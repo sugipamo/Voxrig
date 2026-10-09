@@ -62,7 +62,7 @@ nativeの機能数やpacket分岐数を共通機能の数へ加算しない。
 | block検索・ray・照準 | `BlockQueries`, `BlockTargeting`, `SurvivalTargeting` | `find_blocks`、64block collision ray、handleのstatic outline targeting。形状・姿勢の制約は別 |
 | 読取専用予測 | `SurvivalPreview` | `preview_path`。1〜120tick、限定したdry地形・状態 |
 | 有限地上移動 | `SurvivalMovement`, `CreativeMovement` | `start_predicted_path`、`motion_record`。予測の完了はserverの受理ではない |
-| 継続移動 | `ContinuousControl` | `start_control`／`set_controls`／`stop_control`。液体、梯子、つる、足場、playerの泡の柱。飛行・乗車は別 |
+| 継続移動 | `ContinuousControl` | `start_control`／`set_controls`／`request_ground_jump`／`stop_control`。液体、梯子、つる、足場、playerの泡の柱。接地ジャンプはsession所有の一度だけの予約と結果記録。飛行・乗車は別 |
 | Creative操作 | `CreativeControls` | default stack、有限飛行・着地。広い姿勢／effectからの継続は残る |
 | 採掘・明示復旧 | `Digging`, `SurvivalMining`, `SurvivalMiningRecovery` | `dig`／`dig_estimate`とretained mining。既定tool速度、受信effect／属性。復旧は同profileの限定条件 |
 | 設置・使用 | `SurvivalPlacement`, `PlacementCheck`, `ItemUse` | receipt付き`place_cube`、読取専用`placement_check`、送信のみの`use_item`／`use_on_block`／解除 |
@@ -87,7 +87,8 @@ chunk列と受信光は[common-chunks](common-chunks.md)、dynamic registryは
 ## 共通化の残件
 
 利用側の具体的な移行阻害項目を先に扱う。継続操作の停止／再開で古い速度を再適用し向きを0へ戻す
-[Issue #37](https://github.com/sugipamo/Voxrig/issues/37)はP0の不具合修正、
+[Issue #37](https://github.com/sugipamo/Voxrig/issues/37)は[PR #50](https://github.com/sugipamo/Voxrig/pull/50)で修正済み。
+単発接地ジャンプの[Issue #49](https://github.com/sugipamo/Voxrig/issues/49)は共通sessionが予約・物理・取消と結果記録を持つ。
 armor／offhandの厳密なPICKUP／交換は[Issue #38](https://github.com/sugipamo/Voxrig/issues/38)のP1。
 読取時計の[Issue #36](https://github.com/sugipamo/Voxrig/issues/36)はPR #35の統合で解決済み。
 
@@ -161,4 +162,4 @@ Voxrigは、その判断に必要な受信事実、指定された低水準操�
 | LIFECYCLE | [#47](https://github.com/sugipamo/Voxrig/issues/47) |
 
 INVENTORYのarmor／offhand交換は既存#38で追跡し、#42はそれ以外の残件。
-MOVEMENTの拡張#44とは別に、再開時の既存動作の不具合#37を先に修正する。
+MOVEMENTの拡張#44とは別に、再開不具合#37はPR #50で修正済み。単発接地ジャンプは#49で追跡する。
