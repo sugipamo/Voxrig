@@ -180,9 +180,7 @@ def check(version, command, request, trace, report, *, sdk):
         raise RuntimeError('native map ID reuse resurrected old observation identity')
     report['checks'].append(dict(name='same_native_map_id_new_world_receipt',**verify(version,renewed,trace)))
     trace.expect_disconnect()
-    request('revoke')
-    closed=request('map_context',id=identifier)
-    closed['saved']=request('saved_map_context')
+    closed=request('map_context_disconnect',id=identifier)
     if closed['context']['map']!=renewed['context']['map'] or closed['saved']!=saved:
         raise RuntimeError('map reads after closure lost original facts')
     report['checks'].append(dict(name='maps_readable_after_close',**verify(version,closed,trace)))
