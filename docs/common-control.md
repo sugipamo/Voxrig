@@ -8,7 +8,7 @@ use voxrig::client::control::Controls;
 use voxrig::client::prelude::*;
 # async fn run(client: &Client) -> Result<()> {
 let survival = client.survival();
-survival.start_control().await?;                  // 受信した最新の位置から、キーを離した状態で開始
+survival.start_control().await?;                  // 現在のSDKモデルと向きで、キーを離した状態で開始
 survival.set_controls(Controls { forward: 1, sprint: true, ..Default::default() }).await?;
 tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 let record = survival.control_record().await?;   // 予測した位置・状態、補正の回数
@@ -31,8 +31,10 @@ survival.stop_control().await?;                   // ダッシュとしゃがみ
 - 受信したものは公式clientと同じように取り込み、続ける。
   - serverからの位置（テレポート・補正）: 位置を置き換える（`corrections`に数える）。
   - 自分への速度（ノックバック等）: 速度を置き換える（`velocity_updates`に数える）。
-  - 開始時も最新の受信速度を取り込む。位置と速度を同じtickで取り込む場合は受信順に適用し、
-    古いノックバックで新しいテレポートの速度を上書きしない。
+  - 開始時は現在のSDKモデルとローカルのyaw/pitchを使い、移動・ジャンプ・しゃがみ・ダッシュの入力を離す。
+    同じworldでの停止・再開でも、すでにモデルへ取り込んだ古いノックバックを再適用しない。
+    停止中に届いた新しい位置・速度は受信順に取り込み、古いノックバックで新しいテレポートを上書きしない。
+    開始境界までの受信は初期状態に含み、補正・速度更新のカウンタは開始後の更新を数える。
   - 移動速度の属性（受信した修飾子にclient自身のダッシュ修飾子を加える）、効果、満腹度、飛行許可、ネザー（溶岩の流れ）。
 - 予測できないtick（範囲外の地形、未ロードのchunk）では`Paused`になり、そのtickは何も送らない。
   毎tick同じ状態からやり直し、予測できれば`Running`に戻る。
@@ -42,6 +44,10 @@ survival.stop_control().await?;                   // ダッシュとしゃがみ
   `stop_control`が対象sessionを取得した後は、待ち手がキャンセルされてもClientのtaskが入力解除と記録保持を完了する。
 - sessionの間は、静止を前提にする操作（移動の予測・有限の移動・照準・採掘・設置・収納を開く）は拒否する。
   1.16.1では、sessionの間`Bot`自身の物理と`set_control`のloopを止める（開始時に`Bot`のキーが離されていることを要求する）。
+  停止中はSDKの通常の物理loopが進むため、再開はその時点のモデル位置・速度から始まる。
+  1.21.11では停止した共通sessionのモデルを引き継ぐ。停止後に別の有限移動・位置送信を行った場合、
+  新しい位置受信がない限り、そのsessionの古いモデルを使った再開は拒否する。
+  同じ座標に戻っていても、別の移動送信を現在のモデル速度の証拠として扱わない。
 
 ## 範囲と制限
 

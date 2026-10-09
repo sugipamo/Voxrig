@@ -19,6 +19,8 @@ fn attribute(name: &str) -> Option<i32> {
 pub(in crate::versions::java_1_21_11::client) struct ContinuousControl {
     pub session: Option<ControlSession>,
     next_id: u64,
+    generation: Option<u64>,
+    model_attempt: Option<u64>,
 }
 
 impl ContinuousControl {
@@ -341,6 +343,8 @@ impl Operations {
                     state.motion.dispatched();
                     state.motion.on_ground = Some(output.on_ground);
                     session.dispatched(&output);
+                    state.control.model_attempt =
+                        state.motion.last_submission.as_ref().map(|s| s.attempt_id);
                     state.control.session = Some(session);
                     self.bot.session.changed.notify_waiters();
                 }
@@ -386,14 +390,38 @@ impl crate::client::adapter::ControlOps for Operations {
             return Err(invalid("continuous control requires a received pose"));
         }
         let received = received(&state);
-        state.control.next_id += 1;
-        let id = state.control.next_id;
-        let session = ControlSession::new(
-            crate::MinecraftVersion::Java1_21_11,
-            id,
-            position,
-            &received,
-        );
+        let previous = state
+            .control
+            .session
+            .as_ref()
+            .filter(|_| state.control.generation == Some(generation));
+        if let Some(previous) = previous {
+            let attempt = state.motion.last_submission.as_ref().map(|s| s.attempt_id);
+            if (previous.body.position != position || attempt != state.control.model_attempt)
+                && !previous.has_new_pose(&received)
+            {
+                return Err(invalid(
+                    "current model momentum unavailable after unrelated local movement",
+                ));
+            }
+        }
+        let id = state.control.next_id + 1;
+        let rotation = state.rotation;
+        let session = if let Some(previous) = previous {
+            previous.resume(id, rotation, &received)
+        } else {
+            let mut session = ControlSession::new(
+                crate::MinecraftVersion::Java1_21_11,
+                id,
+                position,
+                &received,
+            );
+            session.controls.yaw = rotation[0];
+            session.controls.pitch = rotation[1];
+            session
+        };
+        state.control.next_id = id;
+        state.control.generation = Some(generation);
         let record = session.record();
         state.control.session = Some(session);
         drop(state);

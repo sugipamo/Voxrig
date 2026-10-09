@@ -373,7 +373,12 @@ impl Survival {
     pub async fn player_state(&self) -> Result<PlayerObservation> {
         self.client.player_state().await
     }
-    /// Start continuous control from the latest received pose with released keys.
+    /// Start continuous control from the current SDK model with released keys
+    /// and the current local yaw/pitch. A received pose is still required.
+    /// Same-world restarts retain model momentum without replaying old velocity
+    /// packets; subsequently received corrections and velocities apply once.
+    /// The modern adapter rejects reuse after unrelated local movement when
+    /// no fresh pose or supported current model is available.
     /// The client then runs the shared physics every 50 ms tick and sends each
     /// tick's movement; sent positions are submissions, not server acceptance.
     pub async fn start_control(&self) -> Result<super::control::ControlRecord> {

@@ -141,6 +141,83 @@ async fn long_raycast_rejects_world_switch_between_height_and_capture() {
 }
 
 #[tokio::test]
+async fn control_restart_keeps_model_momentum_and_aim_after_decoded_velocity() {
+    let (session, api, _peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    client.look([37.0, -12.0]).await.unwrap();
+    // Modern packed vector, decoded by the actual receive path. Y/Z are zero.
+    let packed = 1u64 | (17694u64 << 3) | (16383u64 << 18) | (16383u64 << 33);
+    let mut velocity = vec![42, packed as u8, (packed >> 8) as u8];
+    velocity.extend(((packed >> 16) as u32).to_be_bytes());
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::ENTITY_VELOCITY, &velocity, 256)
+        .unwrap();
+    let survival = client.survival();
+    let start = survival.start_control().await.unwrap();
+    assert_eq!([start.controls.yaw, start.controls.pitch], [37.0, -12.0]);
+    timeout(Duration::from_secs(2), async {
+        while survival
+            .control_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .dispatched_ticks
+            < 3
+        {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let stopped = survival.stop_control().await.unwrap().unwrap();
+    let previous = stopped.frame.unwrap();
+    assert!(previous.velocity[0] > 0.0 && previous.velocity[0] < 0.08);
+    let start = survival.start_control().await.unwrap();
+    assert_ne!(start.session_id, stopped.session_id);
+    assert_eq!([start.controls.yaw, start.controls.pitch], [37.0, -12.0]);
+    assert_eq!((start.controls.forward, start.controls.strafe), (0, 0));
+    timeout(Duration::from_secs(2), async {
+        while survival
+            .control_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .dispatched_ticks
+            == 0
+        {
+            tokio::time::sleep(Duration::from_millis(2)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let resumed = survival.stop_control().await.unwrap().unwrap();
+    let frame = resumed.frame.unwrap();
+    assert_eq!((resumed.corrections, resumed.velocity_updates), (0, 0));
+    assert!(frame.position[0] > previous.position[0]);
+    assert!(frame.velocity[0] > 0.0 && frame.velocity[0] < previous.velocity[0]);
+    assert_eq!(client.player_state().await.unwrap().rotation, [37.0, -12.0]);
+    // Another local movement send can end at the same coordinates. Position
+    // equality alone cannot authorize reusing the stopped controller's model.
+    {
+        let mut state = session.state.lock().await;
+        let position = state.position.unwrap();
+        let rotation = state.rotation;
+        let generation = state.loading.generation;
+        let sequence = state.sequence;
+        state
+            .motion
+            .begin(generation, sequence, position, rotation)
+            .unwrap();
+        state.motion.dispatched();
+    }
+    assert!(survival.start_control().await.is_err());
+    session.stop();
+}
+
+#[tokio::test]
 async fn common_player_control_checks_all_received_modes_and_pending_dispatch() {
     use crate::client::GameMode;
     for mode in [

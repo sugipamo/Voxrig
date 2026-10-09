@@ -152,11 +152,28 @@ impl ControlSession {
                 body.velocity = value;
             }
         }
+        Self::from_model(version, id, body, [0.0; 2], received)
+    }
+
+    /// Resume from the SDK's current local model, never from retained packets.
+    /// The adapter has already applied the captured receipt boundary to this
+    /// model. Neither its velocity nor its ground flag is a server receipt.
+    pub(crate) fn from_model(
+        version: MinecraftVersion,
+        id: u64,
+        body: Body,
+        rotation: [f32; 2],
+        received: &Received,
+    ) -> Self {
         Self {
             version,
             id,
             status: ControlStatus::Running,
-            controls: Controls::default(),
+            controls: Controls {
+                yaw: rotation[0],
+                pitch: rotation[1],
+                ..Default::default()
+            },
             body,
             tick: 0,
             dispatched_ticks: 0,
@@ -170,6 +187,32 @@ impl ControlSession {
             sent_input: None,
             released_use: None,
         }
+    }
+
+    /// Retain stopped model momentum and consume only subsequently received
+    /// corrections/velocities. The adapter must check the world generation and
+    /// exclude intervening unrelated local movement before calling this.
+    pub(crate) fn resume(&self, id: u64, rotation: [f32; 2], received: &Received) -> Self {
+        let mut next = Self::from_model(self.version, id, self.body.clone(), rotation, received);
+        next.last_pose = self.last_pose;
+        next.last_velocity = self.last_velocity;
+        next.released_use = self.released_use;
+        next.apply_received(received);
+        // The start boundary is part of the initial seed, just as it is for a
+        // fresh model. Counters describe updates after that boundary.
+        next.corrections = 0;
+        next.velocity_updates = 0;
+        next
+    }
+
+    pub(crate) fn inherit_item_release(&mut self, previous: &Self) {
+        self.released_use = previous.released_use;
+    }
+
+    pub(crate) fn has_new_pose(&self, received: &Received) -> bool {
+        received
+            .pose
+            .is_some_and(|p| self.last_pose.is_none_or(|seen| p.0 > seen))
     }
 
     /// The client stops using an item as soon as it releases it; the received flags
@@ -462,6 +505,62 @@ mod tests {
         session.step(&knockback, &mut blocks).unwrap();
         assert!(session.frame.as_ref().unwrap().position[1] > 64.0);
         assert_eq!((session.corrections, session.velocity_updates), (1, 2));
+    }
+
+    #[test]
+    fn resume_preserves_falling_model_and_only_applies_new_receipts() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let mut start = received(
+                Some((5, [0.5, 68.0, 0.5], Some([0.0; 3]))),
+                Some((7, [0.08, -0.1, 0.0])),
+            );
+            start.environment = Environment::defaults(version);
+            let mut original = ControlSession::new(version, 1, [0.5, 68.0, 0.5], &start);
+            original.controls.yaw = 37.0;
+            for _ in 0..3 {
+                original.step(&start, &mut world(false)).unwrap();
+            }
+            let mut uninterrupted = ControlSession::from_model(
+                version,
+                1,
+                original.body.clone(),
+                [37.0, -12.0],
+                &start,
+            );
+            let mut resumed = original.resume(2, [37.0, -12.0], &start);
+            uninterrupted.controls.pitch = -12.0;
+            assert!(!resumed.body.on_ground);
+            for _ in 0..20 {
+                let expected = uninterrupted
+                    .step(&start, &mut world(false))
+                    .unwrap()
+                    .unwrap();
+                let actual = resumed.step(&start, &mut world(false)).unwrap().unwrap();
+                assert_eq!(actual.position, expected.position);
+                assert_eq!(actual.rotation, [37.0, -12.0]);
+                assert_eq!(actual.on_ground, expected.on_ground);
+                assert_eq!(resumed.body.velocity, uninterrupted.body.velocity);
+            }
+            assert!(resumed.body.on_ground);
+            assert_eq!((resumed.corrections, resumed.velocity_updates), (0, 0));
+            // A new velocity received after stop supersedes the old model once.
+            let next = received(start.pose, Some((9, [0.0, 0.42, 0.0])));
+            let mut jumped = resumed.resume(3, [37.0, -12.0], &next);
+            jumped.step(&next, &mut world(false)).unwrap();
+            assert!(jumped.body.position[1] > 64.0);
+            assert_eq!((jumped.corrections, jumped.velocity_updates), (0, 0));
+            jumped.step(&next, &mut world(false)).unwrap();
+            assert_eq!((jumped.corrections, jumped.velocity_updates), (0, 0));
+            // A later correction resets the earlier knockback, including when
+            // both arrived while control ownership was released.
+            let corrected = received(Some((10, [2.5, 64.0, 2.5], Some([0.0; 3]))), next.velocity);
+            let mut corrected = resumed.resume(4, [37.0, -12.0], &corrected);
+            assert_eq!(corrected.body.position, [2.5, 64.0, 2.5]);
+            assert_eq!(corrected.body.velocity, [0.0; 3]);
+            assert_eq!((corrected.corrections, corrected.velocity_updates), (0, 0));
+            corrected.step(&start, &mut world(false)).unwrap();
+            assert_eq!(corrected.body.position[1], 64.0);
+        }
     }
 
     #[test]
