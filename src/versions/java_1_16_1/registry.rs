@@ -136,6 +136,9 @@ struct BlockData {
     min_state_id: i32,
     max_state_id: i32,
     default_state: i32,
+    emit_light: Option<u8>,
+    filter_light: Option<u8>,
+    transparent: Option<bool>,
     #[serde(default)]
     diggable: bool,
     material: Option<String>,
@@ -144,6 +147,69 @@ struct BlockData {
     harvest_tools: Option<HashMap<String, bool>>,
     #[serde(default)]
     states: Vec<BlockStateData>,
+}
+
+/// Only certify native opaque, non-emitting full cubes. Per-block defaults do
+/// not establish the optical behavior of arbitrary state-dependent variants.
+pub(crate) fn lighting_equivalent(before: i32, after: i32) -> bool {
+    if before == after {
+        return true;
+    }
+    static OPAQUE: OnceLock<Vec<bool>> = OnceLock::new();
+    let opaque = OPAQUE.get_or_init(|| {
+        let blocks = &registry().blocks;
+        let max = blocks.iter().map(|b| b.max_state_id).max().unwrap_or(0);
+        let mut certified = vec![false; usize::try_from(max).unwrap_or(0) + 1];
+        for block in blocks {
+            let static_state = block.states.is_empty() && block.min_state_id == block.max_state_id;
+            // These properties only change appearance/orientation on a full
+            // opaque cube. Lit, waterlogged, charges and other properties are
+            // deliberately not inferred from minecraft-data's type defaults.
+            let passive_variant = block.states.len() == 1
+                && ((matches!(block.name.as_str(), "grass_block" | "podzol")
+                    && block.states[0].name == "snowy"
+                    && block.states[0].kind == "bool"
+                    && block.states[0].num_values == 2
+                    && block.max_state_id - block.min_state_id == 1)
+                    || ((block.name.ends_with("_log") || block.name.ends_with("_wood"))
+                        && block.states[0].name == "axis"
+                        && block.states[0].kind == "enum"
+                        && block.states[0].values == ["x", "y", "z"]
+                        && block.max_state_id - block.min_state_id == 2));
+            if !(static_state || passive_variant)
+                || block.emit_light != Some(0)
+                || block.filter_light != Some(15)
+                || block.transparent != Some(false)
+                || block.min_state_id < 0
+                || !(block.min_state_id..=block.max_state_id).contains(&block.default_state)
+                || !(block.min_state_id..=block.max_state_id).all(|id| {
+                    crate::block_collision_shapes(id).is_some_and(|shapes| {
+                        shapes.len() == 1
+                            && shapes[0].min_x == 0.0
+                            && shapes[0].min_y == 0.0
+                            && shapes[0].min_z == 0.0
+                            && shapes[0].max_x == 1.0
+                            && shapes[0].max_y == 1.0
+                            && shapes[0].max_z == 1.0
+                    })
+                })
+            {
+                continue;
+            }
+            for id in block.min_state_id..=block.max_state_id {
+                certified[id as usize] = true;
+            }
+        }
+        certified
+    });
+    let is_certified = |id| {
+        usize::try_from(id)
+            .ok()
+            .and_then(|id| opaque.get(id))
+            .copied()
+            .unwrap_or(false)
+    };
+    is_certified(before) && is_certified(after)
 }
 
 pub(crate) fn placed_block_physical_descriptor(
