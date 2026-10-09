@@ -8,7 +8,7 @@ impl Bot {
         p: &[u8],
         packet_sequence: u64,
     ) -> Result<()> {
-        if !(p.len() == 5) {
+        if p.len() != 5 {
             return Err(anyhow::anyhow!("invalid game-state packet length").into());
         }
         let mut c = Cursor::new(p);
