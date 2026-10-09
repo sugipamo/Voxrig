@@ -126,11 +126,15 @@ history読取時計／cursor ordinalはOBS-ENTITYの未実装分へ重複登録�
 | player泡の柱、ボートの水源／水没／流水・解除・強制下車 | `scripts/run_fluid_control.py`、[公式34checkの証拠](evidence/common-fluid-control-20261009.json)、[3346tickのoracle](movement-oracle.md) |
 | 64block ray、mode別look／hotbar | `scripts/run_migration_api.py`、[両版42checkの証拠](evidence/common-migration-api-20261009.json) |
 | entity寿命／受信履歴 | `scripts/run_entity_history.py`、[両版8checkの証拠](evidence/common-entity-history-20261009.json) |
+| 履歴読取時計・空page・world変更・遮断後 | [今回の公式両版14checkの証拠](evidence/common-consumer-history-clock-20261009.json)。既存runnerと追加clock検査の実行ソース・hashを保持 |
 | entity health／equipment／named dataと使用中状態 | `examples/entity_block_probe.rs`、`entity_data_probe.rs`、`item_use_probe.rs`。各common文書の検証節 |
 | native元イベント容量（1.16.1） | `scripts/run_native_event_capacity.py`、[common-events](common-events.md)。modern明示指定は接続前拒否 |
 
-この文書と能力一覧exampleの追加で新しいゲーム内機能は増えないため、上の過去の検証を
-今回の新規実接続として数えない。追加機能はそれぞれ公式両版で同じcommon consumerを通し、
+この文書と能力一覧exampleの追加で新しいゲーム内機能は増えない。過去の検証を今回の新規実接続として数えない。
+今回の追加実接続はPR #35の履歴時計を含む同じSDKソースを対象とし、両版各7checkが成功した。
+既存sampleの時刻が変わらずageが増えること、空pageの時計、world変更・revocation後の同じ時計を確認した。
+検証サーバーは終了済み。証拠JSONのSDK commitとsource treeは実行時のものを記録している。
+追加機能はそれぞれ公式両版で同じcommon consumerを通し、
 成功だけでなく欠測・拒否・取消・切断・world／ID／screen再利用も記録する。
 原packet、SDKソースcommit／tree、公式JAR hash、結果との対応を保存する。
 非公開利用側のworkflowはそのプロジェクトで固定commitを使って確認する。
@@ -147,7 +151,7 @@ Voxrigは、その判断に必要な受信事実、指定された低水準操�
 
 | 群 | Issue |
 | --- | --- |
-+| OBS-ENTITY | [#40](https://github.com/sugipamo/Voxrig/issues/40) |
+| OBS-ENTITY | [#40](https://github.com/sugipamo/Voxrig/issues/40) |
 | OBS-WORLD | [#41](https://github.com/sugipamo/Voxrig/issues/41) |
 | INVENTORY | [#42](https://github.com/sugipamo/Voxrig/issues/42) |
 | WINDOWS | [#43](https://github.com/sugipamo/Voxrig/issues/43) |
