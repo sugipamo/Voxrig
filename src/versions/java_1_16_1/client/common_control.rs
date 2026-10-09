@@ -16,6 +16,7 @@ pub(crate) struct ContinuousControl {
     session: Option<ControlSession>,
     next_id: u64,
     generation: Option<u64>,
+    model_tick: Option<u64>,
 }
 
 impl ContinuousControl {
@@ -274,6 +275,8 @@ impl Bot {
             }
             session.dispatched(&output);
             let frame = session.frame.clone().unwrap();
+            let fall_distance = session.body.fall_distance as f32;
+            let vertical_collision = session.body.vertical_collision;
             drop(control);
             let snapshot = {
                 let mut player = self.player.lock().await;
@@ -298,10 +301,11 @@ impl Bot {
                         z: frame.velocity[2],
                     },
                     collided_horizontal: frame.horizontal_collision,
-                    collided_vertical: frame.on_ground,
+                    collided_vertical: vertical_collision,
                     ticks: previous.ticks + 1,
-                    fall_distance: previous.fall_distance,
+                    fall_distance,
                 };
+                self.common_control.lock().await.model_tick = Some(motion.ticks);
             }
             self.physics.lock().await.record_movement(snapshot);
             self.common_receipts.lock().await.position_source =
@@ -344,7 +348,9 @@ impl crate::client::adapter::ControlOps for Bot {
         let mut body = control
             .session
             .as_ref()
-            .filter(|_| control.generation == Some(generation))
+            .filter(|_| {
+                control.generation == Some(generation) && control.model_tick == Some(motion.ticks)
+            })
             .map_or_else(
                 || Body::new([player.x, player.y, player.z]),
                 |s| s.body.clone(),
@@ -371,6 +377,7 @@ impl crate::client::adapter::ControlOps for Bot {
             }
         }
         control.generation = Some(generation);
+        control.model_tick = Some(motion.ticks);
         let record = session.record();
         control.session = Some(session);
         drop(control);
@@ -508,6 +515,67 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
+    }
+
+    #[tokio::test]
+    async fn falling_control_exports_fall_distance_to_the_passive_model_before_restart() {
+        let (bot, _packets, _release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        {
+            let mut player = bot.player.lock().await;
+            player.y = 68.;
+            player.on_ground = false;
+        }
+        bot.common_receipts
+            .lock()
+            .await
+            .pose
+            .as_mut()
+            .unwrap()
+            .position[1] = 68.;
+        bot.start_control(GameMode::Survival).await.unwrap();
+        timeout(Duration::from_secs(2), async {
+            while bot
+                .control_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .dispatched_ticks
+                < 3
+            {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        })
+        .await
+        .unwrap();
+        bot.stop_control().await.unwrap();
+        let fall = bot
+            .common_control
+            .lock()
+            .await
+            .session
+            .as_ref()
+            .unwrap()
+            .body
+            .fall_distance;
+        assert!(fall > 0.);
+        assert_eq!(f64::from(bot.motion.lock().await.fall_distance), fall);
+        bot.start_control(GameMode::Survival).await.unwrap();
+        assert!(
+            bot.common_control
+                .lock()
+                .await
+                .session
+                .as_ref()
+                .unwrap()
+                .body
+                .fall_distance
+                >= fall
+        );
+        bot.stop_control().await.unwrap();
+        bot.disconnect().await.unwrap();
+        server.await.unwrap();
     }
 
     #[tokio::test]

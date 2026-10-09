@@ -1490,7 +1490,19 @@ async fn common_cursor_provenance_does_not_advance_on_unrelated_slot_packets() {
 async fn common_ground_fixture(
     mode: crate::client::GameMode,
 ) -> (Arc<Session>, operations::Operations, TcpStream) {
-    let (session, _, peer) = fixture().await;
+    let (session, api, peer, _) = common_ground_transport(mode).await;
+    (session, api, peer)
+}
+
+async fn common_ground_transport(
+    mode: crate::client::GameMode,
+) -> (
+    Arc<Session>,
+    operations::Operations,
+    TcpStream,
+    OwnedReadHalf,
+) {
+    let (session, reader, peer) = fixture().await;
     let api = operations(&session);
     {
         let mut state = session.state.lock().await;
@@ -1554,7 +1566,160 @@ async fn common_ground_fixture(
             }
         }
     }
-    (session, api, peer)
+    (session, api, peer, reader)
+}
+
+#[tokio::test]
+async fn restart_does_not_replay_modern_received_tcp_velocity_or_reset_rotation() {
+    use crate::client::adapter::ControlOps;
+    let (session, api, mut peer, reader) =
+        common_ground_transport(crate::client::GameMode::Survival).await;
+    {
+        let mut state = session.state.lock().await;
+        state.rotation = [37., -12.];
+    }
+    let receiving = session.clone();
+    let receiver = tokio::spawn(async move { receiving.run_receiver(reader).await });
+    // Native 1.21.11 packed vector, with a small positive X impulse.
+    let packed = 1u64 | (17694u64 << 3) | (16383u64 << 18) | (16383u64 << 33);
+    let mut velocity = vec![42, packed as u8, (packed >> 8) as u8];
+    velocity.extend(((packed >> 16) as u32).to_be_bytes());
+    write_packet(
+        &mut peer,
+        None,
+        ids::play_clientbound::ENTITY_VELOCITY,
+        &velocity,
+    )
+    .await
+    .unwrap();
+    timeout(Duration::from_secs(2), async {
+        while session.state.lock().await.sequence == 10 {
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let start = api
+        .start_control(crate::client::GameMode::Survival)
+        .await
+        .unwrap();
+    assert_eq!([start.controls.yaw, start.controls.pitch], [37., -12.]);
+    timeout(Duration::from_secs(2), async {
+        while api
+            .control_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .dispatched_ticks
+            < 3
+        {
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let frame = api.stop_control().await.unwrap().unwrap().frame.unwrap();
+    assert!(frame.velocity[0] > 0. && frame.velocity[0] < 0.08);
+    let start = api
+        .start_control(crate::client::GameMode::Survival)
+        .await
+        .unwrap();
+    assert_eq!([start.controls.yaw, start.controls.pitch], [37., -12.]);
+    timeout(Duration::from_secs(2), async {
+        loop {
+            let record = api.control_record().await.unwrap().unwrap();
+            if record.dispatched_ticks > 0 {
+                assert_eq!(record.dispatched_ticks, 1);
+                assert_eq!((record.corrections, record.velocity_updates), (0, 0));
+                assert!(
+                    (record.frame.unwrap().position[0] - frame.position[0] - frame.velocity[0])
+                        .abs()
+                        < 1e-12
+                );
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+    })
+    .await
+    .unwrap();
+    api.stop_control().await.unwrap();
+    // A new impulse while stopped is consumed exactly once by the new session.
+    let before = session.state.lock().await.position.unwrap();
+    let sequence = session.state.lock().await.sequence;
+    let packed = 1u64 | (15728u64 << 3) | (16383u64 << 18) | (16383u64 << 33);
+    let mut velocity = vec![42, packed as u8, (packed >> 8) as u8];
+    velocity.extend(((packed >> 16) as u32).to_be_bytes());
+    write_packet(
+        &mut peer,
+        None,
+        ids::play_clientbound::ENTITY_VELOCITY,
+        &velocity,
+    )
+    .await
+    .unwrap();
+    timeout(Duration::from_secs(2), async {
+        while session.state.lock().await.sequence == sequence {
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let expected = session
+        .state
+        .lock()
+        .await
+        .operations
+        .local_player
+        .velocity
+        .unwrap()
+        .value[0];
+    api.start_control(crate::client::GameMode::Survival)
+        .await
+        .unwrap();
+    timeout(Duration::from_secs(2), async {
+        loop {
+            let record = api.control_record().await.unwrap().unwrap();
+            if record.dispatched_ticks > 0 {
+                assert_eq!(record.dispatched_ticks, 1);
+                assert!((record.frame.unwrap().position[0] - before[0] - expected).abs() < 1e-12);
+                assert_eq!(record.velocity_updates, 0);
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+    })
+    .await
+    .unwrap();
+    api.stop_control().await.unwrap();
+    // A real own-position correction while stopped also supplies the next view.
+    let sequence = session.state.lock().await.sequence;
+    let mut pose = vec![1];
+    for v in [9.5f64, 68., 9.5, 0., 0., 0.] {
+        pose.extend(v.to_be_bytes());
+    }
+    for v in [151f32, -23.] {
+        pose.extend(v.to_be_bytes());
+    }
+    pose.extend(0u32.to_be_bytes());
+    write_packet(&mut peer, None, ids::play_clientbound::POSITION, &pose)
+        .await
+        .unwrap();
+    timeout(Duration::from_secs(2), async {
+        while session.state.lock().await.sequence == sequence {
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let start = api
+        .start_control(crate::client::GameMode::Survival)
+        .await
+        .unwrap();
+    assert_eq!([start.controls.yaw, start.controls.pitch], [151., -23.]);
+    api.stop_control().await.unwrap();
+    session.stop();
+    receiver.await.unwrap();
 }
 
 #[tokio::test]
