@@ -110,6 +110,22 @@ let latest = survival.control_record().await?.unwrap().ground_jump;
   `release_use_item`を送れる（[アイテム使用](common-item-use.md)）。
 - 時刻はclientの時計で、serverのtickとは同期しない（公式clientと同じ）。
 
+## 単発接地ジャンプの実接続検証（2026-10-09）
+
+公式1.16.1・1.21.11サーバーで共通APIだけを使い、計21項目が通過した。
+前進・しゃがみ・照準を保持した1回のジャンプ、空中で消費して着地後に再試行しないこと、
+押し続けている水中・梯子入力の保存、停止・一時停止・mode変更・respawn・session置換・
+接続遮断後の拒否と結果保持を検査した。modernでは受信したジャンプ強度0も検査した。
+予期しない補正は0回。元のmovement packet、modernの単発jump入力と解除、
+RCONの位置、実行SDK revisionとsource・binary・公式JAR hashは
+[検証記録](evidence/common-ground-jump-20261009.json)に保存した。
+回帰テスト924件、doctest、strict Clippy・rustdocも通過した。
+
+```sh
+cargo build --locked --example climbing_control_probe
+python3 -B scripts/run_ground_jump.py --accept-eula
+```
+
 ## 停止・再開の検証（2026-10-09）
 
 `run_control_resume.py` が公式 1.16.1・1.21.11 サーバーへ共通 Client で接続し、
