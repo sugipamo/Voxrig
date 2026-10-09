@@ -303,7 +303,10 @@ def check(version, command, request, trace, report, *, sdk):
         changed = capture("dedicated_biome_update")
         if changed["chunk"]!=first["chunk"] or changed["heightmaps"]!=first["heightmaps"] or changed["block_entities"]!=first["block_entities"]:
             raise RuntimeError("biome-only update replaced unrelated receipts/incarnation")
-        report["checks"][-1]["native_biome"] = dict(registry=desert,result=command("execute if biome 1 65 1 minecraft:desert"))
+        # The command uses Minecraft's noise-based biome selection, rather than
+        # the received quart cell. Keep its sample inside the edited volume so
+        # that neighbouring cells outside the fill cannot determine the result.
+        report["checks"][-1]["native_biome"] = dict(registry=desert,position=[8,72,8],result=command("execute if biome 8 72 8 minecraft:desert"))
         if "Test passed" not in report["checks"][-1]["native_biome"]["result"]:
             raise RuntimeError("native desert biome condition failed")
     else:
