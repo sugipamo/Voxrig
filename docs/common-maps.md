@@ -26,9 +26,15 @@ modernのicon省略は以前の一覧とsourceを保持し、空一覧は一覧�
 pixel/source arrayは各mapで固定16384cell。保存したcaptureはArcで共有し、後の更新は
 copy-on-writeする。payload・rectangle・color length・trailing dataと容量を検証してから
 cacheへ適用し、上限や不正packetで部分更新しない。保持済みmapの更新は容量上限でも受け取る。
+legacy nativeの既存`ConnectionOptions.max_maps`指定も維持する。
 
 再現用の公式実接続driverは`scripts/run_map_context.py`。実際に空の地図を使って公式
 サーバーにmap IDを発行させ、元packetのheader・icon・全pixel/sourceを独立に再構成し、
 公式サーバーが保存した地図のcolor arrayとも照合する。world変更、同じIDの再受信、
 保存したcaptureと切断後の読取も確認する。未受信の部分coverage、icon省略／空、
 不正更新と容量上限は別のwire fixtureで検査する。
+modern公式サーバーは別dimensionで持った地図をこのfixtureでは送らないため、欠測のまま
+保持し、元のdimensionに戻った後で同じIDの再受信を検査する。以前のworldのpixelを
+補完しない。公式両版の結果とSDK/JAR hashは
+[保存した検証結果](evidence/common-map-context-20261009.json)に記録する。原packetと
+保存された地図の画素はローカルの検証artifactに保持し、公開証拠は結果とhashのみ。
