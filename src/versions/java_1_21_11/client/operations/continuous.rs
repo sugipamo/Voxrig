@@ -87,12 +87,12 @@ fn received(state: &State) -> Received {
     if let Some(a) = attribute("minecraft:water_movement_efficiency")
         .and_then(|id| p.received_attributes.get(&id))
     {
-        let mut v = a.base;
-        for m in &a.modifiers {
-            if m.operation == crate::client::control::ModifierOperation::Addition {
-                v += m.amount;
-            }
-        }
+        let modifiers: Vec<_> = a.modifiers.iter().collect();
+        let v = crate::client::physics::attribute_value(
+            crate::MinecraftVersion::Java1_21_11,
+            a.base,
+            &modifiers,
+        );
         environment.water_movement_efficiency = v.clamp(0.0, 1.0);
     }
     environment.jump_boost = effect(state, "minecraft:jump_boost").map(|a| a as u8);
@@ -562,5 +562,77 @@ impl crate::client::adapter::ControlOps for Operations {
             .session
             .as_ref()
             .map(ControlSession::record))
+    }
+}
+
+#[cfg(test)]
+mod equipment_tests {
+    use super::*;
+    #[test]
+    fn received_water_modifiers_match_original_native_attribute_and_preserve_receipt() {
+        let oracle: serde_json::Value = serde_json::from_reader(flate2::read::GzDecoder::new(
+            &include_bytes!("../../../../../data/client_api/equipment_movement_oracle.json.gz")[..],
+        ))
+        .unwrap();
+        for name in [
+            "modern_water_default",
+            "modern_water_mixed",
+            "modern_water_clamp",
+        ] {
+            let scenario = oracle["scenarios"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|s| s["name"] == name)
+                .unwrap();
+            let original = oracle["results"]["1.21.11"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|s| s["name"] == name)
+                .unwrap();
+            let mut state = State {
+                phase: super::super::Phase::Play,
+                ..Default::default()
+            };
+            state.operations.local_player = LocalPlayerState::spawned(7);
+            let mut packet = vec![7, 1];
+            put_varint(
+                &mut packet,
+                attribute("minecraft:water_movement_efficiency").unwrap(),
+            );
+            packet.extend(
+                scenario["attributes"]["minecraft:water_movement_efficiency"]
+                    .as_f64()
+                    .unwrap()
+                    .to_be_bytes(),
+            );
+            let mods = scenario["attribute_modifiers"].as_array().unwrap();
+            put_varint(&mut packet, mods.len() as i32);
+            for m in mods {
+                crate::protocol::put_string(&mut packet, m["id"].as_str().unwrap());
+                packet.extend(m["amount"].as_f64().unwrap().to_be_bytes());
+                packet.push(match m["operation"].as_str().unwrap() {
+                    "ADD_VALUE" => 0,
+                    "ADD_MULTIPLIED_BASE" => 1,
+                    _ => 2,
+                });
+            }
+            state
+                .receive(ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES, &packet, 64)
+                .unwrap();
+            let receipt = state.operations.local_player.received_attributes.clone();
+            let input = received(&state);
+            assert_eq!(
+                input.environment.water_movement_efficiency,
+                original["initial"]["water_movement_efficiency"]
+                    .as_str()
+                    .unwrap()
+                    .parse::<f64>()
+                    .unwrap(),
+                "{name}"
+            );
+            assert_eq!(state.operations.local_player.received_attributes, receipt);
+        }
     }
 }

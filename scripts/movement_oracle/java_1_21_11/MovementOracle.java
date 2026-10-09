@@ -358,6 +358,15 @@ public final class MovementOracle {
                 player.getAttribute(holder).setBaseValue(a.getValue().getAsDouble());
             }
         }
+        if (scenario.has("attribute_modifiers")) {
+            for (JsonElement e : scenario.getAsJsonArray("attribute_modifiers")) {
+                JsonObject m=e.getAsJsonObject();
+                var holder=BuiltInRegistries.ATTRIBUTE.get(Identifier.parse(m.get("attribute").getAsString())).orElseThrow();
+                player.getAttribute(holder).addTransientModifier(new net.minecraft.world.entity.ai.attributes.AttributeModifier(
+                    Identifier.parse(m.get("id").getAsString()),m.get("amount").getAsDouble(),
+                    net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.valueOf(m.get("operation").getAsString())));
+            }
+        }
         if (scenario.has("effects")) {
             for (Map.Entry<String, JsonElement> a : scenario.getAsJsonObject("effects").entrySet()) {
                 var holder = BuiltInRegistries.MOB_EFFECT.get(Identifier.parse(a.getKey())).orElseThrow();

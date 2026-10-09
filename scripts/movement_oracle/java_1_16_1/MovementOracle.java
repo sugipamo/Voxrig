@@ -56,6 +56,11 @@ public final class MovementOracle {
             abilities.invulnerable = true;
         }
 
+        // Establish the original server-computed attribute before recording
+        // client movement inputs. The SDK consumes its received modifier; it
+        // does not manufacture the server's Soul Speed boost.
+        void primeEquipmentAttribute() { tryAddSoulSpeed(); }
+
         @Override public boolean isSpectator() { return false; }
         @Override public boolean isCreative() { return false; }
         // LocalPlayer overrides.
@@ -347,6 +352,13 @@ public final class MovementOracle {
         player.setPos(origin.getX() + start.get(0).getAsDouble(), origin.getY() + start.get(1).getAsDouble(), origin.getZ() + start.get(2).getAsDouble());
         player.setOnGround(scenario.has("on_ground") ? scenario.get("on_ground").getAsBoolean() : true);
         if (scenario.has("boat")) return boatScenario(level, origin, scenario, resolved, player);
+        if (scenario.has("boots_nbt")) {
+            var boots = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.DIAMOND_BOOTS);
+            try { boots.setTag(net.minecraft.nbt.TagParser.parseTag(scenario.get("boots_nbt").getAsString())); }
+            catch (com.mojang.brigadier.exceptions.CommandSyntaxException e) { throw new IllegalArgumentException(e); }
+            player.setItemSlot(net.minecraft.world.entity.EquipmentSlot.FEET, boots);
+        }
+
         if (scenario.has("attributes")) {
             for (Map.Entry<String, JsonElement> a : scenario.getAsJsonObject("attributes").entrySet()) {
                 var attribute = Registry.ATTRIBUTE.getOptional(new ResourceLocation(a.getKey())).orElseThrow();
@@ -359,6 +371,7 @@ public final class MovementOracle {
                 player.addEffect(new MobEffectInstance(effect, 100000, a.getValue().getAsInt()));
             }
         }
+        if (scenario.has("boots_nbt")) player.primeEquipmentAttribute();
         JsonObject initial = new JsonObject();
         var speed = player.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
         initial.addProperty("movement_speed_base", Double.toString(speed.getBaseValue()));
@@ -372,6 +385,15 @@ public final class MovementOracle {
         }
         initial.add("movement_speed_modifiers", modifiers);
         initial.addProperty("food", player.getFoodData().getFoodLevel());
+        if (scenario.has("boots_nbt")) {
+            initial.addProperty("depth_strider", net.minecraft.world.item.enchantment.EnchantmentHelper.getDepthStrider(player));
+            if (net.minecraft.world.item.enchantment.EnchantmentHelper.getEnchantmentLevel(net.minecraft.world.item.enchantment.Enchantments.SOUL_SPEED,player)>0) {
+                JsonArray soulBlocks = new JsonArray();
+                for (var block : net.minecraft.tags.BlockTags.SOUL_SPEED_BLOCKS.getValues()) soulBlocks.add(Registry.BLOCK.getKey(block).toString());
+                initial.add("legacy_soul_speed_blocks",soulBlocks);
+            }
+        }
+
         JsonArray frames = new JsonArray();
         for (JsonElement e : scenario.getAsJsonArray("ticks")) {
             JsonObject t = e.getAsJsonObject();

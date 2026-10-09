@@ -14,6 +14,7 @@ pub(crate) mod blocks;
 pub(crate) mod boat;
 mod bubbles;
 pub(crate) mod collision;
+pub(crate) mod equipment;
 #[cfg(test)]
 mod oracle_tests;
 
@@ -88,6 +89,13 @@ pub struct Environment {
     pub water_movement_efficiency: f64,
     /// Legacy Depth Strider level on the boots (0..3 counts).
     pub depth_strider: u8,
+    /// Legacy Soul Speed block tag from the owning received registry context.
+    /// Some(empty) is a received empty tag; None means no Soul Speed on the boots.
+    #[serde(default)]
+    pub legacy_soul_speed_blocks: Option<Vec<String>>,
+    /// A supplied equipment receipt/tag could not be interpreted safely.
+    #[serde(default)]
+    pub equipment_unavailable: bool,
     /// Dimension with fast lava (the Nether): stronger lava currents.
     pub fast_lava: bool,
     pub food_level: i32,
@@ -133,6 +141,8 @@ impl Environment {
             dolphins_grace: false,
             water_movement_efficiency: 0.0,
             depth_strider: 0,
+            legacy_soul_speed_blocks: None,
+            equipment_unavailable: false,
             fast_lava: false,
             food_level: 20,
             may_fly: false,
@@ -481,6 +491,11 @@ pub(crate) fn tick_with_ground_jump(
     }
     if env.levitation {
         return Err(unsupported("levitation".into()));
+    }
+    if env.equipment_unavailable {
+        return Err(unsupported(
+            "received movement equipment/tag unavailable".into(),
+        ));
     }
     let mut level = Level {
         version,
@@ -1637,6 +1652,15 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
     }
 
     fn speed_factor(&mut self) -> Result<f32> {
+        if self.legacy() {
+            let env = self.env;
+            if let Some(blocks) = &env.legacy_soul_speed_blocks {
+                let p = self.landing_position()?;
+                if blocks.contains(&self.level.block(p)?.name) {
+                    return Ok(1.0);
+                }
+            }
+        }
         let feet = self.level.block(self.block_position())?;
         let own = feet.speed_factor;
         let below = self.below_affecting_movement();
