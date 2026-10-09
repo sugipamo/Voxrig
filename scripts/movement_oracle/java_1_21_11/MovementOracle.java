@@ -442,6 +442,22 @@ public final class MovementOracle {
             var boat = new net.minecraft.world.entity.vehicle.boat.Boat(net.minecraft.world.entity.EntityType.OAK_BOAT, level, () -> net.minecraft.world.item.Items.OAK_BOAT);
             boat.setPos(player.getX(), player.getY(), player.getZ());
             boat.setYRot(scenario.has("yaw") ? scenario.get("yaw").getAsFloat() : 0.0F);
+            // Explicit stationary native fixtures: their world collision
+            // queries run unchanged; no entity predicate/geometry is overridden.
+            List<net.minecraft.world.entity.Entity> obstacles = new java.util.ArrayList<>();
+            JsonArray collisionBoxes = new JsonArray();
+            if (scenario.has("collision_bodies")) for (JsonElement element : scenario.getAsJsonArray("collision_bodies")) {
+                JsonObject inputBody = element.getAsJsonObject();
+                net.minecraft.world.entity.Entity other = inputBody.get("type").getAsString().equals("minecart") ? new net.minecraft.world.entity.vehicle.minecart.Minecart(net.minecraft.world.entity.EntityType.MINECART, level) : new net.minecraft.world.entity.vehicle.boat.Boat(net.minecraft.world.entity.EntityType.OAK_BOAT, level, () -> net.minecraft.world.item.Items.OAK_BOAT);
+                JsonArray at = inputBody.getAsJsonArray("position");
+                other.setPos(origin.getX()+at.get(0).getAsDouble(),origin.getY()+at.get(1).getAsDouble(),origin.getZ()+at.get(2).getAsDouble());
+                if (!level.addFreshEntity(other)) throw new IllegalStateException("native collision fixture not registered");
+                obstacles.add(other);
+                var box = other.getBoundingBox();
+                collisionBoxes.add(vec(box.minX-origin.getX(),box.minY-origin.getY(),box.minZ-origin.getZ(),box.maxX-origin.getX(),box.maxY-origin.getY(),box.maxZ-origin.getZ()));
+            }
+            for (var other : obstacles) if (!level.getEntities(boat, other.getBoundingBox().inflate(0.1)).contains(other))
+                throw new IllegalStateException("declared native collision fixture not visible to original world query");
             player.startRiding(boat, true, false);
             if (scenario.has("velocity")) {
                 JsonArray v = scenario.getAsJsonArray("velocity");
@@ -495,8 +511,10 @@ public final class MovementOracle {
                 frames.add(f);
             }
             player.stopRiding();
+            for (var other : obstacles) other.discard();
             JsonObject out = new JsonObject();
             out.addProperty("name", scenario.get("name").getAsString());
+            if (scenario.has("collision_bodies")) out.add("collision_boxes", collisionBoxes);
             out.add("states", resolved); out.add("frames", frames);
             return out;
         } catch (Exception e) { throw new RuntimeException(e); }
@@ -538,6 +556,24 @@ public final class MovementOracle {
         }
         JsonArray results = new JsonArray();
         MinecraftServer s = server;
+        boolean collisionScenes = false;
+        for (JsonElement e : scenarios) collisionScenes |= e.getAsJsonObject().has("collision_bodies");
+        if (collisionScenes) {
+            // Wait on the original server's actual entity-ticking chunk state,
+            // outside its thread. Hidden entity sections are not a collision oracle.
+            s.executeBlocking(() -> {
+                for (int x=63;x<=65;x++) for (int z=63;z<=65;z++) {
+                    s.overworld().setChunkForced(x,z,true);
+                    s.overworld().getChunk(x,z);
+                }
+            });
+            java.util.concurrent.atomic.AtomicBoolean ready = new java.util.concurrent.atomic.AtomicBoolean(false);
+            for (int attempt=0;attempt<600 && !ready.get();attempt++) {
+                s.executeBlocking(() -> ready.set(s.overworld().isPositionEntityTicking(new BlockPos(1024,100,1024))));
+                if (!ready.get()) Thread.sleep(50);
+            }
+            if (!ready.get()) throw new IllegalStateException("native collision fixture chunk is not entity ticking");
+        }
         server.executeBlocking(() -> {
             ServerLevel level = s.overworld();
             BlockPos origin = new BlockPos(1024, 100, 1024);

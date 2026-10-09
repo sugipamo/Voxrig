@@ -263,6 +263,16 @@ async fn main() -> anyhow::Result<()> {
                 return Ok(());
             }
             "vehicle_record" => serde_json::to_value(client.vehicle_control_record().await?)?,
+            "entities" => serde_json::to_value(client.entities().await?)?,
+            "vehicle_disconnect" => {
+                client.disconnect().await?;
+                println!(
+                    "{}",
+                    serde_json::json!({"record":client.vehicle_control_record().await?})
+                );
+                std::io::stdout().flush()?;
+                return Ok(());
+            }
             "capture" => serde_json::to_value(
                 client
                     .capture(Region {

@@ -10,6 +10,9 @@ use crate::{
 /// Boat prediction and submission history; received motion stays separate.
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct BoatMotion {
+    /// Rigid-body model inputs sampled before each local tick, bounded by the plan.
+    /// Not actual contact, render interpolation, current server pose or acceptance.
+    pub collision_samples: Vec<super::BoatCollisionSample>,
     /// Actual vehicle samples captured at admission.
     pub received: api::EntityMotionObservation,
     /// Last actual velocity selected for prediction; never a predicted velocity.
@@ -209,6 +212,7 @@ pub(crate) fn configure_boat(
         .filter(|p| p.stage == VehicleControlStage::Submitted && p.id.mount() == record.id.mount())
         .filter(|p| {
             p.vehicle.motion_correction_sequence == record.vehicle.motion_correction_sequence
+                && p.vehicle.attachment_change_sequence == record.vehicle.attachment_change_sequence
         })
         .and_then(|p| p.boat_motion.as_ref());
     let seed = previous_boat.and_then(|b| b.frames.last()).cloned();
@@ -256,6 +260,7 @@ pub(crate) fn configure_boat(
         }
     }
     record.boat_motion = Some(BoatMotion {
+        collision_samples: Vec::new(),
         received: motion,
         received_velocity: velocity,
         velocity_updates: Vec::new(),
@@ -319,12 +324,15 @@ pub(crate) fn receive_boat_velocity(
 pub(crate) fn boat_step(
     record: &VehicleControlRecord,
     input: VehicleInput,
+    collisions: Option<&super::BoatCollisionSample>,
     block_at: &mut impl FnMut([i32; 3]) -> Result<crate::NativeBlockState>,
 ) -> Result<Option<BoatFrame>> {
     record
         .boat_motion
         .as_ref()
         .map(|boat| {
+            let collisions =
+                collisions.ok_or_else(|| unavailable("boat collision sample missing"))?;
             let mut seed = boat.frames.last().unwrap_or(&boat.initial_frame).clone();
             if let Some(velocity) = boat.pending_velocity {
                 seed.velocity = velocity;
@@ -333,6 +341,11 @@ pub(crate) fn boat_step(
                 record.id.mount().session().version,
                 &seed,
                 input,
+                &collisions
+                    .bodies
+                    .iter()
+                    .map(|b| b.model_box)
+                    .collect::<Vec<_>>(),
                 block_at,
             )
         })
@@ -375,6 +388,11 @@ pub(crate) fn validate(
     if vehicle.motion_correction_sequence != record.vehicle.motion_correction_sequence {
         return Err(unavailable(
             "received vehicle correction or explosion interrupted control",
+        ));
+    }
+    if vehicle.attachment_change_sequence != record.vehicle.attachment_change_sequence {
+        return Err(unavailable(
+            "received nested vehicle attachment interrupted control",
         ));
     }
     if record.boat_motion.is_some()

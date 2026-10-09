@@ -149,11 +149,13 @@ frame数で、サーバーからの確認ではない。`Submitted`も移動・�
 同じ連続乗車の完全送信済みrunからは、最後の予測を引き継ぐ。
 `attempted_frame`は3パケットのI/O前に残す。3つすべての送信後だけ`frames`へ追加する。
 
-未読込の地形、溶岩、未監査のblock hookは、そのtickの送信前に拒否する。他entityとの衝突や乗り物固有の効果全般は再現していない。
-検証済みの範囲は単独の通常ボートと水面・水没・流水・空中・通常の陸上地形。
+未読込の地形、溶岩、未監査のblock hookは、そのtickの送信前に拒否する。
+固定形状のボート・raft・トロッコとの衝突は、下記の受信ターゲットに基づくモデルで扱う。
+他のentityや乗り物固有の効果全般には引き続き制約がある。
 操作中にサーバーから車両位置補正や爆発を受けた場合、同じ乗車が続いていても
 `RequiresInspection`へ移し、後続tickを送らない。乗員順序が変わり操縦席から外れた場合も中断する。
 `vehicle_state().motion_correction_sequence`はその受信境界であり、補正位置そのものではない。
+入れ子の乗車通知は`attachment_change_sequence`に別途記録し、一瞬で関係が戻った場合も実行中のrunを中断する。
 
 最後のneutralはパドルを解除する。速度を瞬時に0にはせず、惰性が残る。
 トロッコは元の入力をサーバーへ送り、サーバー側のレールとphysicsに任せる。
@@ -272,3 +274,60 @@ python3 -B scripts/run_boat_hooks.py --accept-eula \
 補完しない。両版で実際の速度通知を受ける場面は上記の泡の実接続検証で扱う。
 
 [結果と実行ソースのhash](evidence/common-boat-hooks-20261009.json)に検証範囲と通知件数を保持する。
+
+## 固定車両との衝突モデル（2026-10-10）
+
+ボートの有限入力は、各tickで受信済みの固定形状のボート・raft・トロッコを選び、
+その最新packet targetに公式のfloat寸法で箱を作る。衝突形状はblock形状より先に評価し、
+公式と同じ移動範囲＋1e-7の検索で絞る。modernの水面への移行も同じ箱を検査する。
+トロッコ自身の移動・衝突は従来どおりサーバーの物理へ入力を送る。
+
+`boat_motion.collision_samples`は元のconnection/world/spawn ID、受信位置と量子化の幅、
+変換した`model_box`、同じ境界で受信した除外対象の乗員listを保持する。
+最大32車両×120 tickで、I/O前の試行も含む。完全送信済みの`frames`とは別であり、
+受信した接触・補間位置・サーバーの現在位置・衝突しないことの保証・承認を意味しない。
+保存した診断値からlive操作を復元しない。despawn後のID再利用を過去の箱へ結び直さない。
+乗員の除外にも元のspawn寿命を使う。古い乗員listにある数値IDが再利用された場合、
+または元のlistで未知だった乗員が後でspawnした場合は、新しい実際のlistが届くまで拒否する。
+受信listそのものを推測で更新しない。
+
+位置が未解決、元の受信境界が不明、車両数が予算超過の場合はそのtickの送信前に拒否する。
+近くの未監査entityの種類や姿勢も、defaultの大人サイズの箱を使わず拒否する。
+この近隣チェックは受信したターゲット位置のモデル入力に基づき、任意の生物のpose・scaleや
+補間／entity物理の対応を主張しない。入れ子の車両・乗員attachmentは未対応として拒否する。
+入れ子通知は既存のrunを止め、関係が戻っても後続入力を自動で再送しない。
+乗員が別entityの親になった場合も通知を保持する。一部の乗員のdespawnでは、生存する
+兄弟の関係を消さない。完全送信後に新しい操作を明示的に始めても、入れ子通知が挟まった
+古いrunの予測frameは継承せず、元の受信位置を使う。
+受信乗車グラフは最大128 listで、不完全になった予算超過はworldのリセットまで保持する。
+
+`boat_collision_scenarios.json`の6場面を両版の元の公式ワールドで実行し、計12実行・480 tickが
+位置・速度・回転・角速度・接地・パドルを含めて厳密一致した。
+フィクスチャは実際の公式車両をworldへ登録する。1.16.1の場面間の除去は公式`despawn`を使い、
+1.21.11は公式のentity-ticking chunkになるまで待つ。元のworld検索で車両が見えることも確認する。
+ゲーム本体のクラス・衝突predicate・形状を差し替えない。
+
+変更していない公式サーバーへの実接続は次を使う。
+
+```bash
+cargo build --locked --example climbing_control_probe
+python3 -B scripts/run_boat_collisions.py --accept-eula \
+  --binary target/debug/examples/climbing_control_probe \
+  --jars /absolute/path/to/downloads --compiled-sdk-revision <build-commit>
+python3 -B scripts/run_boat_collisions.py --accept-eula --version 1.21.11 \
+  --nested-attachment-only --binary target/debug/examples/climbing_control_probe \
+  --jars /absolute/path/to/downloads --compiled-sdk-revision <build-commit>
+```
+
+両版各9項目、計18項目で、ボート対ボート／トロッコの衝突、元の受信target・乗員list、
+各tickの送信frame、独立RCONの最終座標、取消後の所有run継続、neutral、despawn、
+未監査entityへの送信前拒否、強制除外後の再送禁止、切断後の履歴を確認した。
+1.21.11の元の`/ride`でも、実際の入れ子通知と関係復帰後の停止・再送禁止・履歴保持を
+別の3項目で検証した。通知が送られる前に同じserver tickで関係を戻す場面は検証項目に数えない。
+1.16.1には元の`/ride`がないため、この実接続項目を対応済みと扱わない。
+
+既存のトロッコ自身のserver physicsによる乗車・前進・neutral・下車も、両版各4項目、計8項目を
+同じSDKバイナリで再検証した。全965 unit・4 integration・34 doctestとstrict Clippy／rustdocが成功。
+原packet・NBTを含むreportは`.local`に保存し、公開するのは
+[結果と実行ソースのhash](evidence/common-boat-collisions-20261010.json)である。
+一般のentityの姿勢・scale・補間／押し合い、連続飛行／elytra、追加の乗り物は#44の残件である。
