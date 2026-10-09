@@ -47,16 +47,23 @@ def check(version, command, request, trace, report):
             text = command('data get entity ClimbingProbe Inventory')
             stacks = outer_snbt_compounds(text)
             matches = True
+            equipment = {}
             for index, (name, count) in expected.items():
                 raw = 108-index if 5 <= index <= 8 else -106 if index == 45 else index
-                actual = [s for s in stacks if re.search(rf'Slot: {raw}b(?:,|\s|}})', s)]
+                if version == '1.21.11' and index in (5, 6, 7, 8, 45):
+                    field = {5:'head', 6:'chest', 7:'legs', 8:'feet', 45:'offhand'}[index]
+                    # Modern vanilla saves equipment separately from Inventory.
+                    equipment[index] = command(f'data get entity ClimbingProbe equipment.{field}')
+                    actual = outer_snbt_compounds(equipment[index])
+                else:
+                    actual = [s for s in stacks if re.search(rf'Slot: {raw}b(?:,|\s|}})', s)]
                 if count == 0:
                     matches &= not actual
                 else:
                     matches &= len(actual) == 1 and f'id: "{name}"' in actual[0] and bool(
                         re.search(rf'(?:Count|count): {count}(?:b)?(?:,|\s|}})', actual[0]))
             if matches:
-                return text
+                return dict(inventory=text, equipment=equipment)
             if time.monotonic() >= deadline:
                 raise RuntimeError('independent native equipment/inventory differs')
             time.sleep(0.05)
