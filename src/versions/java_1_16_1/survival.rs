@@ -196,6 +196,10 @@ pub(crate) struct JoinState {
     pub dimension: String,
     pub world_name: String,
     pub view_distance: Option<i32>,
+    pub hashed_seed: Option<i64>,
+    pub debug: Option<bool>,
+    pub flat: Option<bool>,
+    pub login_conditions: Option<crate::client::LoginConditions>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -338,6 +342,10 @@ pub(crate) fn parse_respawn(payload: &[u8]) -> Result<RespawnState> {
     let debug = cursor.read_u8()? != 0;
     let flat = cursor.read_u8()? != 0;
     let copy_metadata = cursor.read_u8()? != 0;
+    anyhow::ensure!(
+        cursor.position() as usize == rest.len(),
+        "trailing respawn bytes"
+    );
     Ok(RespawnState {
         dimension,
         world_name,
@@ -374,16 +382,30 @@ pub(crate) fn parse_join(payload: &[u8]) -> Result<JoinState> {
     let world_name = get_string(&mut rest)?;
     // Historical native prefix fixtures omit the ignored login suffix. Keep
     // those explicitly unknown, while actual login packets supply the radius.
-    let view_distance = if rest.is_empty() {
-        None
+    let (view_distance, hashed_seed, debug, flat, login_conditions) = if rest.is_empty() {
+        (None, None, None, None, None)
     } else {
         let mut suffix = Cursor::new(rest);
-        suffix.read_i64::<BigEndian>()?;
-        suffix.read_u8()?;
+        let seed = suffix.read_i64::<BigEndian>()?;
+        let max_players = i32::from(suffix.read_u8()?);
         rest = &rest[suffix.position() as usize..];
         let distance = get_varint(&mut rest)?;
         anyhow::ensure!(distance >= 0, "negative login view distance");
-        Some(distance)
+        anyhow::ensure!(rest.len() == 4, "invalid login suffix length");
+        (
+            Some(distance),
+            Some(seed),
+            Some(rest[2] != 0),
+            Some(rest[3] != 0),
+            Some(crate::client::LoginConditions {
+                max_players,
+                reduced_debug_info: rest[0] != 0,
+                enable_respawn_screen: rest[1] != 0,
+                hardcore: None,
+                limited_crafting: None,
+                enforces_secure_chat: None,
+            }),
+        )
     };
     Ok(JoinState {
         registry_codec,
@@ -393,6 +415,10 @@ pub(crate) fn parse_join(payload: &[u8]) -> Result<JoinState> {
         dimension,
         world_name,
         view_distance,
+        hashed_seed,
+        debug,
+        flat,
+        login_conditions,
     })
 }
 

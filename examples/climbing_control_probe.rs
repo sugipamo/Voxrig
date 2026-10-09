@@ -231,6 +231,11 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
             "vehicle" => serde_json::to_value(client.vehicle_state().await?)?,
+            "events" => serde_json::to_value(
+                client
+                    .events_after(request["cursor"].as_u64().unwrap_or(0))
+                    .await?,
+            )?,
             "player_context" => serde_json::to_value(client.player_context().await?)?,
             "chunk_context" => {
                 let position = serde_json::from_value(request["position"].clone())?;

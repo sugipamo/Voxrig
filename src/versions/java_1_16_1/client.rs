@@ -808,6 +808,8 @@ pub struct SoundEvent {
 #[non_exhaustive]
 /// Possible values represented by `Event`.
 pub enum Event {
+    /// A complete own-player context receipt was applied.
+    PlayerContextUpdated,
     /// The `Login` variant.
     Login,
     /// The `Spawn` variant.
@@ -5118,11 +5120,21 @@ impl Bot {
                 let mut rest = p.as_slice();
                 let item_id = get_varint(&mut rest)?;
                 let ticks = get_varint(&mut rest)?;
-                self.survival
-                    .write()
-                    .await
-                    .item_cooldowns
-                    .insert(item_id, ticks);
+                if !rest.is_empty() || item_id < 0 {
+                    return Err(anyhow::anyhow!("invalid item cooldown packet").into());
+                }
+                self.common_receipts.lock().await.context.cooldown(
+                    crate::client::CooldownKey::LegacyItem(item_id),
+                    ticks,
+                    packet_sequence,
+                )?;
+                let mut survival = self.survival.write().await;
+                if ticks == 0 {
+                    survival.item_cooldowns.remove(&item_id);
+                } else {
+                    survival.item_cooldowns.insert(item_id, ticks);
+                }
+                drop(survival);
                 self.emit(Event::ItemCooldown { item_id, ticks });
             }
             0x18 => self.receive_custom_payload(&p).await?,
@@ -6051,7 +6063,7 @@ fn common_event_kinds(event: &Event) -> Vec<crate::client::EventKind> {
         min: [x, y, z],
         max: [x, y, z],
     };
-    match event {
+    let mut kinds = match event {
         Event::BlockChanged { x, y, z, .. } => vec![block(*x, *y, *z)],
         Event::BlockEntityUpdated(data) => {
             vec![block(data.position.x, data.position.y, data.position.z)]
@@ -6106,7 +6118,22 @@ fn common_event_kinds(event: &Event) -> Vec<crate::client::EventKind> {
             }]
         }
         _ => Vec::new(),
+    };
+    if matches!(
+        event,
+        Event::Spawn
+            | Event::Respawn(_)
+            | Event::Experience(_)
+            | Event::Difficulty(_)
+            | Event::GameStateChange(_)
+            | Event::PlayerContextUpdated
+            | Event::SpawnPosition(_)
+            | Event::WorldViewUpdated(_)
+            | Event::ItemCooldown { .. }
+    ) {
+        kinds.push(K::ContextChanged);
     }
+    kinds
 }
 
 #[cfg(test)]

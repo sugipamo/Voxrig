@@ -102,3 +102,35 @@ modernの全packet分岐のparityは、この場面の検証だけでは宣言�
 追加された場合も、新しい受信ordinalを元packetと照合する。切断直前のcaptureと無条件で
 同一とは扱わず、切断後の値が適用済みの最新の元packetであることを確認する。
 [結果と実行ソースのhash](evidence/common-abilities-difficulty-20261009.json)を参照する。
+
+## World entry・クールダウン・変更通知
+
+`world_entry`はそのgenerationを開始した元のLOGIN／RESPAWN全体を保持する。
+`game_mode`は入場時の元byteで、後のgame-mode-changeを適用した現在値ではない。
+`previous_game_mode`はsigned byte。元の`-1` sentinelをNoneやsurvivalへ変換しない。
+world key、版ごとのdimension type key／registry ID、hashed seed、debug／flat、
+modernのlast death・portal cooldown・sea level、RESPAWNのkeep-dataを区別する。
+legacy LOGINのhardcore bitは元の`game_mode`内に残す。modernは独立boolean。
+legacyのkeep-dataはnative booleanの0／1、modernは元のflags byteであり、同じ意味に換算しない。
+
+`login_conditions`は元のmax players、reduced debug、enable respawn screenと、
+modernのみhardcore・limited crafting・secure chat enforcementを保持する。
+RESPAWNはこれらのLOGIN-only fieldを送らないのでNoneになる。過去のLOGINを新worldへ流用しない。
+歴史的legacy prefix fixtureが省略したsuffixは欠測のまま。実パケットのsuffixは最後まで検証する。
+modernも末尾・dimension ID・game modeを検証してからワールドを切り替えるので、
+途中で切れたLOGIN／RESPAWNや余分な末尾を受けて台帳・generation・操作modeを部分更新しない。
+
+`item_cooldowns`は最新の元通知をnative key順で返す。legacyはitem registry ID、
+modernはcooldown group resource keyであり、groupをitem IDへ置き換えない。
+`ticks.value`のゼロは明示的な解除通知で、欠測と別。クライアント時計で減算しない。
+元の受信sourceとgenerationを保持し、ワールド変更／configurationで退役させる。
+最大1024 key、modern resource key最大32767byte。新keyが上限を超えるpacketや負のticksは
+更新前に拒否する。既存keyの再通知は上限でも適用できる。現在の使用許可やserver ACKではない。
+
+`events_after`の`EventKind::ContextChanged`はworld entry、abilities、difficulty、XP、
+weather/game-state-change、spawn、view、cooldownの成功受信を同じ元ordinalで通知する。
+既存の`PlayerChanged`・`WorldChanged`も維持する。通知後に`player_context`を読み、
+各fieldのsourceを調べる。イベントの保持上限・cursor gapの検査は通常のevent契約と同じ。
+
+公式サーバーでの再生成は`scripts/run_world_entry_context.py`を使う。
+原パケット／NBT由来の詳細reportは`.local`へ保持し、公開記録は結果とhashに限定する。
