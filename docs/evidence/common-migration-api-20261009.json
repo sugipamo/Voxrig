@@ -5,8 +5,8 @@
   ],
   "recorded_on": "2026-10-09",
   "scope": "Common-only functional validation on unmodified vanilla servers; no Golemkit changes or #5 endurance claim. Later server reads are separate from capture and dispatch receipts.",
-  "sdk_commit": "879e90df95175b2abb67fce544d4d11283b2c4bc",
-  "sdk_src_tree": "c80f706915ef269d0cbb67c74c096f540734eba7",
+  "sdk_commit": "915e97cd59fc61cc053cb109bffe483ab359e1e9",
+  "sdk_src_tree": "b61e0e9792b1906d5f95763906044b64f202f2a5",
   "probe_sha256": "e1616deb5540f2e4e0ce580a2ad2aa02d23929e8644cfef0a595a2a2c400c228",
   "probe_source_sha256": "a109494308077d88513b87fe687e3f771da7dddf829aadd91b96233d2bf76a85",
   "runner_sha256": "77668a551146f446182585399773285750a0c6a69786da1187b57f289e4d2cdc",
@@ -17,17 +17,17 @@
   "runs": [
     {
       "version": "1.16.1",
-      "run": "1.16.1-20261009-033633",
+      "run": "1.16.1-20261009-035443",
       "official_server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
       "checks_passed": 21,
       "trace_errors": [],
-      "report_sha256": "ee46a66839d81ef64628190447dec3e48d0dc4bd459f92558150b653d471dcaf",
-      "trace_sha256": "9157c3136005cffc0c12fcc8e8a0f56b2fed21d1a41431f647640284814b0682",
+      "report_sha256": "b10423f3aa37f6a5af7a845467d1999ca85354c25cd552a5248f67758a5dff9e",
+      "trace_sha256": "43fe7671d9f33df5b11e7874bb9d8a2579c53ec4c17646d5d8be14f62160e2cd",
       "checks": [
         {
           "name": "obstruction_beyond_32",
           "raycast": {
-            "receive_sequence": 241,
+            "receive_sequence": 269,
             "result": {
               "Hit": {
                 "distance": 39.5,
@@ -58,7 +58,7 @@
         {
           "name": "transparent_path_over_partial_shape",
           "raycast": {
-            "receive_sequence": 248,
+            "receive_sequence": 272,
             "result": "Miss",
             "session": {
               "connection_id": 1,
@@ -70,7 +70,7 @@
         {
           "name": "partial_shape_beyond_32",
           "raycast": {
-            "receive_sequence": 248,
+            "receive_sequence": 272,
             "result": {
               "Hit": {
                 "distance": 45.5,
@@ -104,7 +104,7 @@
         {
           "name": "48_plus_target_offset",
           "raycast": {
-            "receive_sequence": 249,
+            "receive_sequence": 273,
             "result": {
               "Hit": {
                 "distance": 47.50064425561353,
@@ -135,7 +135,7 @@
         {
           "name": "maximum_64",
           "raycast": {
-            "receive_sequence": 251,
+            "receive_sequence": 275,
             "result": {
               "Hit": {
                 "distance": 63.5,
@@ -174,7 +174,7 @@
         {
           "name": "unloaded_boundary_beyond_32",
           "raycast": {
-            "receive_sequence": 251,
+            "receive_sequence": 275,
             "result": {
               "Unloaded": {
                 "position": [
@@ -212,7 +212,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 252
+                  "sequence": 278
                 },
                 "value": [
                   0.5,
@@ -220,14 +220,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 254,
+              "receive_sequence": 322,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 252,
+                "receive_sequence": 278,
                 "rotation": [
                   0.0,
                   0.0
@@ -260,7 +260,7 @@
             }
           },
           "original": {
-            "ordinal": 309,
+            "ordinal": 564,
             "connection": 1,
             "direction": "serverbound",
             "phase": "play",
@@ -296,7 +296,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 252
+                  "sequence": 278
                 },
                 "value": [
                   0.5,
@@ -304,14 +304,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 254,
+              "receive_sequence": 328,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 252,
+                "receive_sequence": 278,
                 "rotation": [
                   0.0,
                   0.0
@@ -344,7 +344,7 @@
           },
           "originals": [
             {
-              "ordinal": 310,
+              "ordinal": 565,
               "connection": 1,
               "direction": "serverbound",
               "phase": "play",
@@ -380,7 +380,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 260
+                  "sequence": 493
                 },
                 "value": [
                   0.5,
@@ -388,14 +388,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 274,
+              "receive_sequence": 493,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 260,
+                "receive_sequence": 493,
                 "rotation": [
                   0.0,
                   0.0
@@ -427,7 +427,7 @@
             }
           },
           "original": {
-            "ordinal": 333,
+            "ordinal": 574,
             "connection": 1,
             "direction": "serverbound",
             "phase": "play",
@@ -463,7 +463,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 260
+                  "sequence": 493
                 },
                 "value": [
                   0.5,
@@ -471,14 +471,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 274,
+              "receive_sequence": 493,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 260,
+                "receive_sequence": 493,
                 "rotation": [
                   0.0,
                   0.0
@@ -511,7 +511,7 @@
           },
           "originals": [
             {
-              "ordinal": 335,
+              "ordinal": 575,
               "connection": 1,
               "direction": "serverbound",
               "phase": "play",
@@ -547,7 +547,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 294
+                  "sequence": 499
                 },
                 "value": [
                   0.5,
@@ -555,14 +555,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 305,
+              "receive_sequence": 499,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 294,
+                "receive_sequence": 499,
                 "rotation": [
                   0.0,
                   0.0
@@ -594,7 +594,7 @@
             }
           },
           "original": {
-            "ordinal": 368,
+            "ordinal": 584,
             "connection": 1,
             "direction": "serverbound",
             "phase": "play",
@@ -630,7 +630,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 294
+                  "sequence": 499
                 },
                 "value": [
                   0.5,
@@ -638,14 +638,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 307,
+              "receive_sequence": 499,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 294,
+                "receive_sequence": 499,
                 "rotation": [
                   0.0,
                   0.0
@@ -678,7 +678,7 @@
           },
           "originals": [
             {
-              "ordinal": 371,
+              "ordinal": 585,
               "connection": 1,
               "direction": "serverbound",
               "phase": "play",
@@ -714,7 +714,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 313
+                  "sequence": 505
                 },
                 "value": [
                   0.5,
@@ -722,14 +722,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 326,
+              "receive_sequence": 507,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 313,
+                "receive_sequence": 505,
                 "rotation": [
                   0.0,
                   0.0
@@ -761,7 +761,7 @@
             }
           },
           "original": {
-            "ordinal": 393,
+            "ordinal": 596,
             "connection": 1,
             "direction": "serverbound",
             "phase": "play",
@@ -804,7 +804,7 @@
         {
           "name": "raycast_respawn_world_boundary",
           "before": {
-            "receive_sequence": 343,
+            "receive_sequence": 514,
             "result": "Miss",
             "session": {
               "connection_id": 1,
@@ -813,12 +813,12 @@
             }
           },
           "after": {
-            "receive_sequence": 829,
+            "receive_sequence": 993,
             "result": "Miss",
             "session": {
               "connection_id": 1,
               "version": "Java1_16_1",
-              "world_generation": 359
+              "world_generation": 524
             }
           }
         }
@@ -826,17 +826,17 @@
     },
     {
       "version": "1.21.11",
-      "run": "1.21.11-20261009-033659",
+      "run": "1.21.11-20261009-035509",
       "official_server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
       "checks_passed": 21,
       "trace_errors": [],
-      "report_sha256": "441c4921b415da98bc758d49acdd48acf1db12a117b5a4d80a06123c873b3163",
-      "trace_sha256": "b791e3e2677e90e104c36638d5518dc41011ca8c90d0dcd224664ab238b57334",
+      "report_sha256": "079957e38f3b0ddaa6c74186ef3863bebdae33cd365da7b44c2564afbb0f7991",
+      "trace_sha256": "abe3043b7a6ebdfec45056db5451948d342481e418a9147de0116888ab7a8a1a",
       "checks": [
         {
           "name": "obstruction_beyond_32",
           "raycast": {
-            "receive_sequence": 186,
+            "receive_sequence": 180,
             "result": {
               "Hit": {
                 "distance": 39.5,
@@ -867,7 +867,7 @@
         {
           "name": "transparent_path_over_partial_shape",
           "raycast": {
-            "receive_sequence": 214,
+            "receive_sequence": 204,
             "result": "Miss",
             "session": {
               "connection_id": 1,
@@ -879,7 +879,7 @@
         {
           "name": "partial_shape_beyond_32",
           "raycast": {
-            "receive_sequence": 214,
+            "receive_sequence": 206,
             "result": {
               "Hit": {
                 "distance": 45.5,
@@ -913,7 +913,7 @@
         {
           "name": "48_plus_target_offset",
           "raycast": {
-            "receive_sequence": 220,
+            "receive_sequence": 228,
             "result": {
               "Hit": {
                 "distance": 47.50064425561353,
@@ -944,7 +944,7 @@
         {
           "name": "maximum_64",
           "raycast": {
-            "receive_sequence": 227,
+            "receive_sequence": 235,
             "result": {
               "Hit": {
                 "distance": 63.5,
@@ -983,7 +983,7 @@
         {
           "name": "unloaded_boundary_beyond_32",
           "raycast": {
-            "receive_sequence": 227,
+            "receive_sequence": 235,
             "result": {
               "Unloaded": {
                 "position": [
@@ -1021,7 +1021,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 228
+                  "sequence": 236
                 },
                 "value": [
                   0.5,
@@ -1029,14 +1029,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 228,
+              "receive_sequence": 236,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 228,
+                "receive_sequence": 236,
                 "rotation": [
                   0.0,
                   0.0
@@ -1069,7 +1069,7 @@
             }
           },
           "original": {
-            "ordinal": 260,
+            "ordinal": 267,
             "connection": 1,
             "direction": "serverbound",
             "phase": "play",
@@ -1105,7 +1105,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 228
+                  "sequence": 236
                 },
                 "value": [
                   0.5,
@@ -1113,14 +1113,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 228,
+              "receive_sequence": 237,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 228,
+                "receive_sequence": 236,
                 "rotation": [
                   0.0,
                   0.0
@@ -1153,7 +1153,7 @@
           },
           "originals": [
             {
-              "ordinal": 261,
+              "ordinal": 269,
               "connection": 1,
               "direction": "serverbound",
               "phase": "play",
@@ -1189,7 +1189,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 235
+                  "sequence": 244
                 },
                 "value": [
                   0.5,
@@ -1197,14 +1197,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 236,
+              "receive_sequence": 244,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 235,
+                "receive_sequence": 244,
                 "rotation": [
                   0.0,
                   0.0
@@ -1236,7 +1236,7 @@
             }
           },
           "original": {
-            "ordinal": 272,
+            "ordinal": 279,
             "connection": 1,
             "direction": "serverbound",
             "phase": "play",
@@ -1272,7 +1272,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 235
+                  "sequence": 244
                 },
                 "value": [
                   0.5,
@@ -1280,14 +1280,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 236,
+              "receive_sequence": 244,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 235,
+                "receive_sequence": 244,
                 "rotation": [
                   0.0,
                   0.0
@@ -1320,7 +1320,7 @@
           },
           "originals": [
             {
-              "ordinal": 273,
+              "ordinal": 280,
               "connection": 1,
               "direction": "serverbound",
               "phase": "play",
@@ -1356,7 +1356,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 243
+                  "sequence": 251
                 },
                 "value": [
                   0.5,
@@ -1364,14 +1364,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 243,
+              "receive_sequence": 251,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 243,
+                "receive_sequence": 251,
                 "rotation": [
                   0.0,
                   0.0
@@ -1403,7 +1403,7 @@
             }
           },
           "original": {
-            "ordinal": 283,
+            "ordinal": 290,
             "connection": 1,
             "direction": "serverbound",
             "phase": "play",
@@ -1439,7 +1439,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 243
+                  "sequence": 251
                 },
                 "value": [
                   0.5,
@@ -1447,14 +1447,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 243,
+              "receive_sequence": 252,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 243,
+                "receive_sequence": 251,
                 "rotation": [
                   0.0,
                   0.0
@@ -1487,7 +1487,7 @@
           },
           "originals": [
             {
-              "ordinal": 284,
+              "ordinal": 292,
               "connection": 1,
               "direction": "serverbound",
               "phase": "play",
@@ -1523,7 +1523,7 @@
               "position": {
                 "source": {
                   "kind": "received",
-                  "sequence": 249
+                  "sequence": 259
                 },
                 "value": [
                   0.5,
@@ -1531,14 +1531,14 @@
                   0.5
                 ]
               },
-              "receive_sequence": 250,
+              "receive_sequence": 259,
               "received_pose": {
                 "position": [
                   0.5,
                   65.0,
                   0.5
                 ],
-                "receive_sequence": 249,
+                "receive_sequence": 259,
                 "rotation": [
                   0.0,
                   0.0
@@ -1570,7 +1570,7 @@
             }
           },
           "original": {
-            "ordinal": 294,
+            "ordinal": 302,
             "connection": 1,
             "direction": "serverbound",
             "phase": "play",
@@ -1613,7 +1613,7 @@
         {
           "name": "raycast_respawn_world_boundary",
           "before": {
-            "receive_sequence": 258,
+            "receive_sequence": 266,
             "result": "Miss",
             "session": {
               "connection_id": 1,
@@ -1622,12 +1622,12 @@
             }
           },
           "after": {
-            "receive_sequence": 346,
+            "receive_sequence": 355,
             "result": "Miss",
             "session": {
               "connection_id": 1,
               "version": "Java1_21_11",
-              "world_generation": 267
+              "world_generation": 275
             }
           }
         }
