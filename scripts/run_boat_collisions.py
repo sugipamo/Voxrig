@@ -198,7 +198,7 @@ def check_nested_attachment(version, command, request, trace, report, *, sdk):
         until(lambda: any(p['direction'] == 'serverbound' and p['phase'] == 'play'
                           and p['packet_id'] == 0x21 for p in trace.since(boundary)), 5)
         attached = command('ride @e[tag=CollisionMount,limit=1] mount @e[tag=CollisionParent,limit=1]')
-        if 'now riding' not in attached:
+        if 'started riding' not in attached:
             raise RuntimeError('original /ride did not actually attach the vehicle: ' + attached)
         restored = command('ride @e[tag=CollisionMount,limit=1] dismount')
         if 'stopped riding' not in restored:
