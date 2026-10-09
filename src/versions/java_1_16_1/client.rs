@@ -9467,11 +9467,13 @@ mod tests {
         let normal_bot = bot.clone();
         let normal = tokio::spawn(async move { normal_bot.attack(77).await });
         tokio::time::sleep(Duration::from_millis(40)).await;
+        // Measure from admission, not from the caller being scheduled again
+        // after dispatch. A delayed continuation must not shorten the measured cooldown.
+        let immediate_at = std::time::Instant::now();
         tokio::time::timeout(Duration::from_millis(100), bot.attack_immediate(88))
             .await
             .unwrap()
             .unwrap();
-        let immediate_at = std::time::Instant::now();
         let first = tokio::time::timeout(Duration::from_millis(100), async {
             loop {
                 let packet = packets.recv().await.unwrap();
