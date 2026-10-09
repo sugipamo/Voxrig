@@ -264,6 +264,11 @@ python3 -B scripts/run_boat_hooks.py --accept-eula \
 ```
 
 両版の変更していない公式サーバーで4地形×5項目、合計40項目を確認した。
-各tickの車両位置・paddleと保持frame、元の速度通知とその受信ordinal、独立RCONの最終座標、
+各tickの車両位置・paddleと保持frame、提供された速度通知とその受信ordinal、独立RCONの最終座標、
 有限ownerの待機取消後の継続、実際の下車を照合する。これはサーバーによる各frameのACKや
 他entityとの衝突の再現を意味しない。公開する証拠は検証結果とhashに限定する。
+
+この地形fixtureでは1.16.1のrun中の速度更新は0件、1.21.11は3件だった。未提供の通知を
+補完しない。両版で実際の速度通知を受ける場面は上記の泡の実接続検証で扱う。
+
+[結果と実行ソースのhash](evidence/common-boat-hooks-20261009.json)に検証範囲と通知件数を保持する。
