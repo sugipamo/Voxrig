@@ -495,6 +495,31 @@ impl crate::client::adapter::ControlOps for Operations {
             .map_err(|error| invalid(&format!("control stop task failed: {error}")))?
     }
 
+    async fn request_ground_jump(
+        &self,
+        mode: GameMode,
+        session_id: u64,
+    ) -> Result<crate::client::control::GroundJumpRequest> {
+        let mut state = self.bot.session.state.lock().await;
+        self.ready(&state)?;
+        if mode != GameMode::Survival || state.operations.game_mode != Some(mode) {
+            return Err(invalid("ground jump requires received survival mode"));
+        }
+        let generation = state.loading.generation;
+        if state.control.generation != Some(generation) {
+            return Err(invalid("ground jump control belongs to a previous world"));
+        }
+        if let Some(reason) = stop_reason(&state, generation, mode) {
+            return Err(invalid(reason));
+        }
+        state
+            .control
+            .session
+            .as_mut()
+            .ok_or_else(|| invalid("no running control session"))?
+            .request_ground_jump(session_id)
+    }
+
     async fn control_record(&self) -> Result<Option<ControlRecord>> {
         Ok(self
             .bot
