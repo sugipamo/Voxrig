@@ -5141,7 +5141,7 @@ impl Bot {
             }
             0x1c => self.receive_explosion(&p).await?,
             0x1d => self.receive_unload_chunk(&p).await?,
-            0x1e => self.receive_game_state_change(&p).await?,
+            0x1e => self.receive_game_state_change(&p, packet_sequence).await?,
             0x1f => self.receive_horse_window(&p, packet_sequence).await?,
             0x20 => {
                 let result = self.send_protocol(0x10, &p).await;
@@ -5251,6 +5251,11 @@ impl Bot {
                 let mut rest = p.as_slice();
                 let x = get_varint(&mut rest)?;
                 let z = get_varint(&mut rest)?;
+                if !(rest.is_empty()) {
+                    return Err(anyhow::anyhow!("trailing view-center data").into());
+                }
+                self.common_receipts.lock().await.context.world_view.center =
+                    Some(crate::client::received([x, z], packet_sequence));
                 let mut view = self.world_view.write().await;
                 view.center_x = x;
                 view.center_z = z;
@@ -5261,6 +5266,15 @@ impl Bot {
             0x41 => {
                 let mut rest = p.as_slice();
                 let distance = get_varint(&mut rest)?;
+                if !(rest.is_empty() && distance >= 0) {
+                    return Err(anyhow::anyhow!("invalid view distance").into());
+                }
+                self.common_receipts
+                    .lock()
+                    .await
+                    .context
+                    .world_view
+                    .distance = Some(crate::client::received(distance, packet_sequence));
                 let mut view = self.world_view.write().await;
                 view.distance = distance;
                 let snapshot = **view;
@@ -5268,8 +5282,21 @@ impl Bot {
                 self.emit(Event::WorldViewUpdated(snapshot));
             }
             0x42 => {
+                if !(p.len() == 8) {
+                    return Err(anyhow::anyhow!("invalid spawn-position packet length").into());
+                }
                 let mut c = Cursor::new(&p);
                 let position = unpack_position(c.read_u64::<BigEndian>()?);
+                self.common_receipts.lock().await.context.default_spawn =
+                    Some(crate::client::received(
+                        crate::client::DefaultSpawnPosition {
+                            position: [position.x, position.y, position.z],
+                            dimension: None,
+                            yaw: None,
+                            pitch: None,
+                        },
+                        packet_sequence,
+                    ));
                 self.survival.write().await.spawn_position = Some(position);
                 self.emit(Event::SpawnPosition(position));
             }
@@ -5295,6 +5322,15 @@ impl Bot {
             0x47 => self.receive_entity_equipment(&p, packet_sequence).await?,
             0x48 => {
                 let experience = parse_experience(&p)?;
+                self.common_receipts.lock().await.context.experience =
+                    Some(crate::client::received(
+                        crate::client::Experience {
+                            progress: experience.progress,
+                            level: experience.level,
+                            total: experience.total,
+                        },
+                        packet_sequence,
+                    ));
                 self.survival.write().await.experience = experience;
                 self.emit(Event::Experience(experience));
             }

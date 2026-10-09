@@ -1,4 +1,23 @@
 use super::*;
+
+#[tokio::test]
+async fn player_context_keeps_received_fields_readable_after_transport_revocation() {
+    let (session, api, _peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let mut xp = 0.25f32.to_be_bytes().to_vec();
+    xp.extend([7, 20]);
+    session
+        .state
+        .lock()
+        .await
+        .receive(ids::play_clientbound::EXPERIENCE, &xp, 256)
+        .unwrap();
+    let before = client.player_context().await.unwrap();
+    let _ = client.revoke_connection();
+    let closed = client.player_context().await.unwrap();
+    assert_eq!(closed.experience, before.experience);
+    assert_eq!(closed.session, before.session);
+}
 use crate::client::adapter::{CoreOps, StandingQueryOps};
 use std::{
     future::Future,
