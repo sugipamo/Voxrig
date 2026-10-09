@@ -232,6 +232,11 @@ class PacketTraceProxy:
                     record = {"ordinal": self.frame_count, "connection": state["connection"], "direction": direction, "phase": recorded_phase, "packet_id": packet, "body_length": len(body), "wire_sha256": hashlib.sha256(header + frame).hexdigest(), "body_sha256": hashlib.sha256(body).hexdigest()}
                     if len(body) <= 512 or (self.version == "1.16.1" and state["phase"] == "play" and direction == "clientbound" and packet == 0x25) or (self.body_capture_filter is not None and self.body_capture_filter(record)):
                         record["body_hex"] = body.hex()
+                    if self.version == "1.16.1" and recorded_phase == "play" and direction == "clientbound" and packet == 0x24:
+                        # Coordinates, trust flag and four masks fit in 31 bytes.
+                        # Keep the original header even when the light arrays
+                        # exceed the normal small-body diagnostic bound.
+                        record["light_header_hex"] = body[:32].hex()
                     recorded_ordinal = record["ordinal"]
                     retain = True
                     if self.record_filter is not None:

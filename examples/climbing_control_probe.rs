@@ -5,6 +5,28 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use voxrig::client::control::Controls;
 use voxrig::client::prelude::*;
 
+fn lighting_samples(
+    chunks: &[voxrig::client::ChunkObservation],
+    positions: &[[i32; 3]],
+) -> serde_json::Value {
+    serde_json::json!(
+        positions
+            .iter()
+            .map(|&position| {
+                let chunk = chunks.iter().find(|c| {
+                    c.position == [position[0].div_euclid(16), position[2].div_euclid(16)]
+                });
+                serde_json::json!({"position":position,
+            "state":chunk.and_then(|c|c.block(position)),
+            "sky_light":chunk.and_then(|c|c.sky_light(position)),
+            "block_light":chunk.and_then(|c|c.block_light(position)),
+            "receive_sequence":chunk.map(|c|c.receive_sequence),
+            "session":chunk.map(|c|c.session)})
+            })
+            .collect::<Vec<_>>()
+    )
+}
+
 fn face(request: &serde_json::Value) -> anyhow::Result<voxrig::client::BlockFace> {
     use voxrig::client::BlockFace;
     Ok(match request["face"].as_str() {
@@ -32,6 +54,7 @@ async fn main() -> anyhow::Result<()> {
     let survival = client.survival();
     let mut mounted = None;
     let mut saved_chunk = None;
+    let mut saved_lighting = Vec::new();
     let creative_vehicle = std::env::var("VOXRIG_VEHICLE_MODE").as_deref() == Ok("creative");
     let mut lines = BufReader::new(tokio::io::stdin()).lines();
     while let Some(line) = lines.next_line().await? {
@@ -69,6 +92,29 @@ async fn main() -> anyhow::Result<()> {
             }
             "respawn" => serde_json::to_value(client.respawn().await?)?,
             "player" => serde_json::to_value(client.player_state().await?)?,
+            "lighting" => {
+                let positions: Vec<[i32; 3]> =
+                    serde_json::from_value(request["positions"].clone())?;
+                let columns: std::collections::BTreeSet<_> = positions
+                    .iter()
+                    .map(|p| [p[0].div_euclid(16), p[2].div_euclid(16)])
+                    .collect();
+                let mut chunks = Vec::new();
+                for column in columns {
+                    if let Some(chunk) = client.chunk(column).await? {
+                        chunks.push(chunk);
+                    }
+                }
+                let value = lighting_samples(&chunks, &positions);
+                if request["save"] == true {
+                    saved_lighting = chunks;
+                }
+                value
+            }
+            "saved_lighting" => lighting_samples(
+                &saved_lighting,
+                &serde_json::from_value::<Vec<[i32; 3]>>(request["positions"].clone())?,
+            ),
             "placement_check" => serde_json::to_value(
                 survival
                     .placement_check(
@@ -253,6 +299,17 @@ async fn main() -> anyhow::Result<()> {
                 let controls: Controls = serde_json::from_value(request["controls"].clone())?;
                 serde_json::to_value(survival.set_controls(controls).await?)?
             }
+            "keys_for" => {
+                let controls = serde_json::from_value(request["controls"].clone())?;
+                let result = survival
+                    .set_controls_for(request["session_id"].as_u64().unwrap(), controls)
+                    .await;
+                match result {
+                    Ok(record) => serde_json::json!({"admitted":true, "record":record}),
+                    Err(error) => serde_json::json!({"admitted":false, "error":error.to_string(),
+                        "record":survival.control_record().await?}),
+                }
+            }
             "ticks" => {
                 let initial = survival.control_record().await?.unwrap().dispatched_ticks;
                 let count = request["count"].as_u64().unwrap();
@@ -418,6 +475,16 @@ async fn main() -> anyhow::Result<()> {
                 serde_json::to_value(complete)?
             }
             "stop" => serde_json::to_value(survival.stop_control().await?)?,
+            "stop_for" => {
+                let result = survival
+                    .stop_control_for(request["session_id"].as_u64().unwrap())
+                    .await;
+                match result {
+                    Ok(record) => serde_json::json!({"admitted":true, "record":record}),
+                    Err(error) => serde_json::json!({"admitted":false, "error":error.to_string(),
+                        "record":survival.control_record().await?}),
+                }
+            }
             "wait" => {
                 tokio::time::sleep(Duration::from_millis(request["ms"].as_u64().unwrap())).await;
                 serde_json::to_value(survival.control_record().await?)?

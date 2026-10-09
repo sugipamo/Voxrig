@@ -5289,7 +5289,7 @@ impl Bot {
                 self.emit(Event::WorldViewUpdated(snapshot));
             }
             0x42 => {
-                if !(p.len() == 8) {
+                if p.len() != 8 {
                     return Err(anyhow::anyhow!("invalid spawn-position packet length").into());
                 }
                 let mut c = Cursor::new(&p);

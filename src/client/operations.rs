@@ -385,12 +385,24 @@ impl Survival {
     pub async fn start_control(&self) -> Result<super::control::ControlRecord> {
         crate::client::dispatch!(&self.client.adapter, a => ControlOps::start_control(a, GameMode::Survival).await)
     }
-    /// Replace the held keys; they apply from the next tick until replaced.
+    /// Replace the current session's held keys until replaced.
+    /// Call `set_controls_for` when the caller tracks a particular session.
     pub async fn set_controls(
         &self,
         controls: super::control::Controls,
     ) -> Result<super::control::ControlRecord> {
-        crate::client::dispatch!(&self.client.adapter, a => ControlOps::set_controls(a, GameMode::Survival, controls).await)
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::set_controls(a, GameMode::Survival, None, controls).await)
+    }
+    /// Replace held keys only if this connection still has the selected running
+    /// session in the current world. ID comparison and mutation share the SDK
+    /// state lock; rejection cannot mutate a replacement session.
+    /// IDs identify sessions on this connection, not authorization capabilities.
+    pub async fn set_controls_for(
+        &self,
+        session_id: u64,
+        controls: super::control::Controls,
+    ) -> Result<super::control::ControlRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::set_controls(a, GameMode::Survival, Some(session_id), controls).await)
     }
     /// Queue one ground jump on the selected running session, preserving held keys.
     /// Repeated pending requests coalesce. Airborne/fluid/paused ticks never retry
@@ -402,9 +414,18 @@ impl Survival {
     ) -> Result<super::control::GroundJumpRequest> {
         crate::client::dispatch!(&self.client.adapter, a => ControlOps::request_ground_jump(a, GameMode::Survival, session_id).await)
     }
-    /// Stop the session, releasing sprint and sneak. Returns the final record.
+    /// Stop the current session, releasing sprint and sneak. Returns its record.
+    /// Call `stop_control_for` when the caller tracks a particular session.
     pub async fn stop_control(&self) -> Result<Option<super::control::ControlRecord>> {
         crate::client::dispatch!(&self.client.adapter, a => ControlOps::stop_control(a).await)
+    }
+    /// Stop only the selected session; a missing or replacement session is
+    /// rejected without releasing its inputs. The connection owns admitted
+    /// release writes even if the caller cancels its wait. A matching stopped
+    /// record remains readable; an old world cannot send release commands into
+    /// the new world. Success records submission, not physical rest.
+    pub async fn stop_control_for(&self, session_id: u64) -> Result<super::control::ControlRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::stop_control_for(a, session_id).await)
     }
     /// Latest control record, readable after the session or connection ended.
     pub async fn control_record(&self) -> Result<Option<super::control::ControlRecord>> {

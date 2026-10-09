@@ -1240,7 +1240,8 @@ impl World {
                 sections.entry(*section).or_insert_with(|| states.clone());
             }
         }
-        let changed = previous.terrain_received && previous.sections != sections;
+        let changed =
+            previous.terrain_received && sections_change_lighting(&previous.sections, &sections);
         self.chunks.insert(
             (x, z),
             Chunk {
@@ -1418,6 +1419,8 @@ impl World {
             if let Some(context) = self.contexts.get_mut(&(x.div_euclid(16), z.div_euclid(16))) {
                 context.invalidate_cell([x, y, z]);
             }
+        }
+        if !super::registry::lighting_equivalent(old_state_id, state_id) {
             self.invalidate_light_neighborhood(x.div_euclid(16), z.div_euclid(16));
         }
         self.update_resource_index_block(position, old_state_id, state_id);
@@ -1440,6 +1443,24 @@ impl World {
     pub(crate) fn set_block_for_test(&mut self, position: BlockPos, state_id: i32) {
         self.set_block(position.x, position.y, position.z, state_id);
     }
+}
+
+fn sections_change_lighting(
+    before: &HashMap<i32, Arc<[i32; 4096]>>,
+    after: &HashMap<i32, Arc<[i32; 4096]>>,
+) -> bool {
+    const AIR: [i32; 4096] = [0; 4096];
+    before
+        .keys()
+        .chain(after.keys().filter(|key| !before.contains_key(key)))
+        .any(|key| {
+            let a = before.get(key).map_or(&AIR, |s| s.as_ref());
+            let b = after.get(key).map_or(&AIR, |s| s.as_ref());
+            a != b
+                && a.iter()
+                    .zip(b)
+                    .any(|(&a, &b)| !super::registry::lighting_equivalent(a, b))
+        })
 }
 
 fn is_indexed_resource(name: &str) -> bool {
@@ -2514,6 +2535,11 @@ mod tests {
         world
             .apply_chunk(&uniform_chunk_packet(-1, -1, 2), 256)
             .unwrap();
+        assert_eq!(world.light_at(-16, 0, -16), Some((14, 15)));
+        // Removing the opaque support changes light transfer.
+        world
+            .apply_chunk(&uniform_chunk_packet(-1, -1, 0), 256)
+            .unwrap();
         assert_eq!(world.light_at(-16, 0, -16), None);
         world.unload_chunk(&unload_chunk_packet(-1, -1)).unwrap();
         world
@@ -2561,6 +2587,147 @@ mod tests {
         assert_eq!(world.light_at(-16, 0, -16), None);
         assert_eq!(world.light_at(-16, 16, -16), None);
         assert_eq!(old.block_light(0, 0, 0), Some(14));
+    }
+
+    fn lit_opaque_neighborhood() -> World {
+        let mut world = World::default();
+        for x in -2..=0 {
+            for z in -2..=0 {
+                world
+                    .apply_chunk(&uniform_chunk_packet(x, z, 1), 256)
+                    .unwrap();
+            }
+        }
+        for chunk in world.chunks.values_mut() {
+            for section in [0, 15] {
+                chunk.sky_light.insert(section, Arc::new([0xff; 2048]));
+                chunk.block_light.insert(section, Arc::new([0xee; 2048]));
+            }
+        }
+        world
+    }
+
+    fn assert_neighborhood_lit(world: &World) {
+        for x in -2..=0 {
+            for z in -2..=0 {
+                assert_eq!(world.light_at(x * 16, 0, z * 16), Some((14, 15)));
+                assert_eq!(world.light_at(x * 16, 240, z * 16), Some((14, 15)));
+            }
+        }
+    }
+
+    #[test]
+    fn opaque_equivalent_block_multi_and_ack_changes_keep_neighbor_light() {
+        let mut world = lit_opaque_neighborhood();
+        let position = BlockPos { x: -1, y: 0, z: -1 };
+        let old = world.chunk_snapshot(ChunkPos { x: -1, z: -1 }).unwrap();
+        world
+            .apply_block_change(&block_change_packet(position, 14))
+            .unwrap();
+        assert_eq!(world.block(-1, 0, -1), Some(14));
+        assert_neighborhood_lit(&world);
+        world
+            .apply_multi_block_change(&multi_block_change_packet(
+                -1,
+                -1,
+                &[(0xff, 0, 10), (0xfe, 0, 14)],
+            ))
+            .unwrap();
+        assert_eq!(world.block(-1, 0, -1), Some(10));
+        assert_neighborhood_lit(&world);
+        world.apply_acknowledged_block_state(position, 1);
+        assert_neighborhood_lit(&world);
+        assert_eq!(old.block(15, 0, 15), Some(1));
+        assert_eq!(old.block_light(15, 0, 15), Some(14));
+    }
+
+    #[test]
+    fn opaque_equivalent_full_and_partial_chunks_keep_light() {
+        let mut world = lit_opaque_neighborhood();
+        world
+            .apply_chunk(&uniform_chunk_packet(-1, -1, 14), 256)
+            .unwrap();
+        assert_eq!(world.block(-16, 0, -16), Some(14));
+        assert_neighborhood_lit(&world);
+        // Replace just section 0, retaining omitted terrain/light sections.
+        let full = uniform_chunk_packet(-1, -1, 10);
+        let mut partial = full[..12].to_vec();
+        partial[8] = 0;
+        partial.extend_from_slice(&full[12 + 1024 * 4..]);
+        world.apply_chunk(&partial, 256).unwrap();
+        assert_eq!(world.block(-16, 0, -16), Some(10));
+        assert_neighborhood_lit(&world);
+    }
+
+    #[test]
+    fn opaque_equivalence_never_restores_invalidated_arrays() {
+        let mut world = lit_opaque_neighborhood();
+        world.set_block(-1, 0, -1, 0);
+        assert_eq!(world.light_at(-16, 0, -16), None);
+        world.set_block(-1, 0, -1, 1);
+        world.set_block(-1, 0, -1, 14);
+        assert_eq!(world.light_at(-16, 0, -16), None);
+        world
+            .apply_light(&framed_light_packet([0, 2, 0, 0], &[[0xaa; 2048]]), 256)
+            .unwrap();
+        let c = world.chunk_snapshot(ChunkPos { x: -1, z: -1 }).unwrap();
+        assert_eq!(c.block_light(0, 0, 0), Some(10));
+        assert_eq!(c.sky_light(0, 0, 0), None);
+        assert_eq!(world.light_at(-32, 0, -16), None);
+        world.set_block(-1, 0, -1, 10);
+        assert_eq!(
+            world
+                .chunk_snapshot(ChunkPos { x: -1, z: -1 })
+                .unwrap()
+                .block_light(0, 0, 0),
+            Some(10)
+        );
+    }
+
+    #[test]
+    fn lighting_equivalence_rejects_emission_transparency_partial_and_unknown_states() {
+        use super::super::registry::lighting_equivalent as equivalent;
+        for id in [1, 2, 8, 9, 10, 14, 73, 74, 75] {
+            assert!(equivalent(1, id), "opaque native state {id}");
+        }
+        for id in [
+            0,
+            -1,
+            i32::MAX,
+            231,
+            1435,
+            2034,
+            2035,
+            3373,
+            3374,
+            3885,
+            3886,
+            4013,
+            5156,
+            5157,
+            8300,
+            8301,
+        ] {
+            assert!(!equivalent(1, id), "uncertified native state {id}");
+        }
+        assert!(!equivalent(3885, 3886));
+        assert!(!equivalent(5156, 5157));
+        assert!(!equivalent(2034, 2035));
+        assert!(!equivalent(3373, 3374));
+    }
+
+    #[test]
+    fn real_light_changes_still_invalidate_both_channels_and_neighbors() {
+        for state in [0, 1435, 4013, 231, 8300, -1, i32::MAX] {
+            let mut world = lit_opaque_neighborhood();
+            world.set_block(-1, 0, -1, state);
+            for x in -2..=0 {
+                for z in -2..=0 {
+                    assert_eq!(world.light_at(x * 16, 0, z * 16), None);
+                    assert_eq!(world.light_at(x * 16, 240, z * 16), None);
+                }
+            }
+        }
     }
 
     #[test]
