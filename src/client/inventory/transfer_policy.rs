@@ -544,6 +544,27 @@ mod tests {
                     case["equipment_acceptance"][i].as_bool().unwrap(),
                     "acceptance case {index}, slot {slot}"
                 );
+                let result = super::super::slot_policy::pickup_equipment(
+                    session.version,
+                    slot,
+                    super::super::InventoryClickButton::Left,
+                    (&SlotKnowledge::Empty, &before[source]),
+                    crate::client::GameMode::Survival,
+                    Some(&context),
+                )
+                .unwrap();
+                let expected = if case["equipment_acceptance"][i] == true {
+                    // Original ArmorSlot capacity is one; offhand takes the
+                    // complete (at most three) native predecessor in this oracle.
+                    let placed = if slot == 45 { item.count } else { 1 };
+                    (counted(item, placed), counted(item, item.count - placed))
+                } else {
+                    (SlotKnowledge::Empty, before[source].clone())
+                };
+                assert_eq!(
+                    result, expected,
+                    "modified exact PICKUP case {index}, slot {slot}"
+                );
             }
             let prediction = calculate_with_data(
                 session.version,

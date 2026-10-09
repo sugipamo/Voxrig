@@ -130,6 +130,28 @@ def check(version, command, request, trace, report):
             report['checks'].append(dict(name='creative_binding_armor_actual_removal_and_return',
                 removed=removed, restored=restored, original_frames=clicks_since(boundary),
                 native_inventory=native_inventory({5:('minecraft:diamond_helmet',1)})))
+    if version == '1.21.11':
+        command('clear ClimbingProbe')
+        replace('inventory.6', 'stone[equippable={slot:"head",allowed_entities:["minecraft:player"]},custom_data={EquipmentPickupProbe:41}] 2')
+        wait_for(lambda s: item(s, 15) == ('minecraft:stone', 2) and item(s, 5) == ('empty', 0))
+        boundary = trace.mark()
+        records = [request('inventory_click', slot=i) for i in [15, 5, 15]]
+        native = native_inventory({15:('minecraft:stone', 1), 5:('minecraft:stone', 1)})
+        marker = command('data get entity ClimbingProbe equipment.head.components."minecraft:custom_data".EquipmentPickupProbe')
+        if not re.search(r'\b41\b', marker):
+            raise RuntimeError('native equipped custom data was lost')
+        report['checks'].append(dict(name='modern_modified_equippable_capacity_and_data', records=records,
+            original_frames=clicks_since(boundary), native_inventory=native, native_head_marker=marker))
+        replace('inventory.7', 'stone[equippable={slot:"head",allowed_entities:["minecraft:cow"]}] 1')
+        wait_for(lambda s: item(s, 16) == ('minecraft:stone', 1))
+        held = request('inventory_click', slot=16)
+        boundary = trace.mark()
+        rejection = request('inventory_click', slot=5, expect_rejected=True)
+        if clicks_since(boundary):
+            raise RuntimeError('cow-only equipment emitted a player armor click')
+        restored = request('inventory_click', slot=16)
+        report['checks'].append(dict(name='modern_other_entity_equipment_rejected_before_write',
+            held=held, rejection=rejection, restored=restored))
     report['authority_limits'] = ('Exact received slot/cursor predecessors, three independent PICKUP records '
         'for an explicitly chosen occupied exchange, no alternate equipment routing, both fresh receipts '
         'per click, original comparison replies and native inventory reads. Fixture changes are setup; '
