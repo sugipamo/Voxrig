@@ -40,6 +40,17 @@ fn face(request: &serde_json::Value) -> anyhow::Result<voxrig::client::BlockFace
     })
 }
 
+fn map_pixels(context: Option<&MapObservation>) -> serde_json::Value {
+    serde_json::json!({"context":context,"pixels":context.map(|map| {
+        (0..128u8).flat_map(|y| (0..128u8).map(move |x| {
+            map.pixel(x,y).map(|pixel| match pixel.source {
+                ValueSource::Received { sequence } => [u64::from(pixel.value),sequence],
+                _ => panic!("map pixel was not an original receipt"),
+            })
+        })).collect::<Vec<_>>()
+    })})
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let port = std::env::var("VOXRIG_PORT")?.parse()?;
@@ -54,12 +65,33 @@ async fn main() -> anyhow::Result<()> {
     let survival = client.survival();
     let mut mounted = None;
     let mut saved_chunk = None;
+    let mut saved_map = None;
     let mut saved_lighting = Vec::new();
     let creative_vehicle = std::env::var("VOXRIG_VEHICLE_MODE").as_deref() == Ok("creative");
     let mut lines = BufReader::new(tokio::io::stdin()).lines();
     while let Some(line) = lines.next_line().await? {
         let request: serde_json::Value = serde_json::from_str(&line)?;
         let value = match request["command"].as_str().unwrap_or_default() {
+            "use_item" => serde_json::to_value(survival.use_item(Hand::Main).await?)?,
+            "map_context" => {
+                let context = client
+                    .map_observation(request["id"].as_i64().unwrap().try_into()?)
+                    .await?;
+                if request["save"] == true {
+                    saved_map = context.clone();
+                }
+                map_pixels(context.as_ref())
+            }
+            "saved_map_context" => map_pixels(saved_map.as_ref()),
+            "map_context_disconnect" => {
+                client.disconnect().await?;
+                let context = client
+                    .map_observation(request["id"].as_i64().unwrap().try_into()?)
+                    .await?;
+                let mut response = map_pixels(context.as_ref());
+                response["saved"] = map_pixels(saved_map.as_ref());
+                response
+            }
             "prepare" => {
                 let target: [f64; 3] = serde_json::from_value(request["position"].clone())?;
                 tokio::time::timeout(Duration::from_secs(10), async {
