@@ -72,7 +72,7 @@ nativeの機能数やpacket分岐数を共通機能の数へ加算しない。
 | 別player・mobの現在状態 | `EntityObservation`, `EntityMotion`, `EntityState` | `entity_spawns`、`entity_motion`、`entities`。元spawn寿命、field別sample、health／equipment／named data。boxは型の既定寸法 |
 | entity受信履歴 | `EntityHistory` | `entity_history_after`。spawn／motion／status／animation／remove／world変更／自身補正。metadata／equipment履歴は残る |
 | entityの指定操作 | `EntityInteraction` | `interact_entity`／`attack_entity`。旧版Dragon部位は明示的な派生モデル。命中・reach証明や自動戦術なし |
-| 乗車・操縦・下車 | `VehicleObservation`, `VehicleInput`, `VehicleDismount`, `VehicleGrounding` | `vehicle_state`、有限`start_vehicle_control`、owned下車、限定した地上継続。ボートの水面／水没／流水、server駆動トロッコ |
+| 乗車・操縦・下車 | `VehicleObservation`, `VehicleInput`, `VehicleDismount`, `VehicleGrounding` | `vehicle_state`、有限`start_vehicle_control`、owned下車、限定した地上継続。ボートの水面／水没／流水／泡、元の速度受信の一度だけの反映、server駆動トロッコ |
 | chat・command | `Chat` | unsigned `send_chat`／`send_command`、`chat_after`。署名必須serverは対象外 |
 | change通知と待機 | `Events`, `Waits` | cursor通知、receive／block／loaded／chat／event待機。entity payload履歴とは別 |
 | profiles・team | `PlayerList`, `Teams` | `player_list`、`teams`。tab登録は空間上のentityの存在ではない |
@@ -102,7 +102,7 @@ P3は現在のoffline二版以外の導入条件。各項目内でも場面を�
 | OBS-WORLD / P1 | biome、heightmap、block entity NBT、map pixels/icons、天候、経験値・spawnなどnativeにあるworld/player文脈 | `src/versions/java_1_16_1/client.rs`のnative snapshotsと共通`PlayerObservation`／`ChunkObservation`を照合。単なるre-exportを両版対応としない。受信元・未知・更新／unload／world寿命と実packet照合が必要 |
 | INVENTORY / P1 | 明示slot装備・drop・hand swap、armor／offhand／resultのclick残差、製作台入力SWAP／QUICK_MOVE、複雑item/componentの残constructor・比較・hash | [item data](common-item-data.md)・[inventory](common-inventory-clicks.md)・[recipes](common-recipes.md)。容量・item data・cursor／slot保存を検査し、拒否／取消／部分I/Oで再送しない。装備計画は利用側 |
 | WINDOWS / P2 | villager trade、enchant、anvil、beacon、brewingなど特殊menuとsign／book編集 | nativeには一部入口があるが共通layout・結果契約は未完。openingに束縛した対象、slot／property／選択の元値、消費と出力の受信を保持。別screen／mode／close／取消を検査 |
-| MOVEMENT / P2 | ボートの泡の柱・entity衝突・特殊block hook、残る装備移動効果、別姿勢／飛行／elytra／他の乗り物 | [vehicles](common-vehicles.md)・[control](common-control.md)・[physics](physics-engine.md)。ボート／トロッコを先行する。公式処理oracle＋元送信packet＋独立server pose、neutral／強制下車／補正後の停止を検査 |
+| MOVEMENT / P2 | ボートのentity衝突・特殊block hook、残る装備移動効果、別姿勢／飛行／elytra／他の乗り物 | [vehicles](common-vehicles.md)・[control](common-control.md)・[physics](physics-engine.md)。ボート／トロッコを先行する。公式処理oracle＋元送信packet＋独立server pose、neutral／強制下車／補正後の停止を検査 |
 | INTERACTION / P2 | 姿勢・属性に合うreach／eye、entity ray／visibilityと位置指定interaction、非cube／waterloggedなどの確認付き設置と結果待機 | `use_on_block`は汎用送信として既存。確認付き操作への拡張を混同しない。未知shape／動くblock／欠測／変更競合を拒否し、対象blockと材料の実受信を別々に保持 |
 | PROTOCOL / P2 | sound／stop sound、particle、world／block action、pickup、break progress、explosion文脈、camera／leash、command tree／tab completion、statistics／advancements、client settings／brand／payload、resource pack／NBT query | [旧版packet coverage](protocol-coverage.md)はnativeの全92分岐を示すだけ。共通型・能力宣言・bounded受信とrequest ID所有を追加。権限による拒否も実接続で検査。resource packは要求/statusのprotocol面が先で、asset download／描画は別 |
 | LIFECYCLE / P2–P3 | 広いscene／編集／replay／reconfiguration／chunk再観測・明示復旧、遮断後の全履歴可読性、online認証・暗号化・署名chat、追加版 | raw recordingと選択replayは既存。操作権限を復元せず、切断／取消／buffer上限／旧IDを検査。onlineと追加版は別のP3導入機能として分離し、offline対応をonline対応としない |
@@ -126,6 +126,7 @@ history読取時計／cursor ordinalはOBS-ENTITYの未実装分へ重複登録�
 | 水中・梯子・つる・足場の継続操作 | `scripts/run_climbing_control.py`、[common-control](common-control.md) |
 | session所有の単発接地ジャンプ・押下入力保持・取消境界 | `scripts/run_ground_jump.py`、[公式両版21checkの証拠](evidence/common-ground-jump-20261009.json) |
 | player泡の柱、ボートの水源／水没／流水・解除・強制下車 | `scripts/run_fluid_control.py`、[公式34checkの証拠](evidence/common-fluid-control-20261009.json)、[3346tickのoracle](movement-oracle.md) |
+| ボートの泡・速度受信元・待機取消・強制下車 | `scripts/run_boat_bubbles.py`、[公式両版48checkの証拠](evidence/common-boat-bubbles-20261009.json)、32実行・1,080tickの元の移動照合 |
 | 64block ray、mode別look／hotbar | `scripts/run_migration_api.py`、[両版42checkの証拠](evidence/common-migration-api-20261009.json) |
 | entity寿命／受信履歴 | `scripts/run_entity_history.py`、[両版8checkの証拠](evidence/common-entity-history-20261009.json) |
 | 履歴読取時計・空page・world変更・遮断後 | [今回の公式両版14checkの証拠](evidence/common-consumer-history-clock-20261009.json)。既存runnerと追加clock検査の実行ソース・hashを保持 |

@@ -232,3 +232,8 @@ block効果を適用する。水面の泡では、クライアントのボート
 水・衝突形状・水浸しのハーフブロックを上に置いた場合を含む。
 再生成は[移動oracle](movement-oracle.md#ボートの泡の比較2026-10-09)、
 実接続は`scripts/run_boat_bubbles.py`で行う。
+
+確定ソースの公式サーバー接続では、両版各24checkが成功した。元のvelocity／同期packetと
+受信ordinal、予測どおりの元送信frame、独立RCONの最終位置、取消後も同じ有限ownerが
+完全送信すること、泡の実除外で後続frameが止まることを確認した。
+[証拠と実行ソース](evidence/common-boat-bubbles-20261009.json)を参照。
