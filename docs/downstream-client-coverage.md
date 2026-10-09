@@ -39,7 +39,8 @@ cargo run --locked --example client_capabilities > /tmp/voxrig-capabilities.json
 - change通知は4096件、entity履歴は8192件（1read最大1024件）、chatは256件。
   event overflowでは再観測、entity履歴では明示的な`gap`を処理する。
   履歴の時刻はSDK適用時計でありsocket到着・server tick・UTCではない。
-  読取時計と有限tailの追加は[PR #35](https://github.com/sugipamo/Voxrig/pull/35)を参照し、採用commitを確認する。
+  読取時計と有限tailは[PR #35](https://github.com/sugipamo/Voxrig/pull/35)で追加済み（main `6db149b`）。
+  それ以前を固定している利用側は採用commitを確認する。
 - 未対応item data、metadata、geometryを既定値・air・空stackへ置き換えない。
   同じitem名だけでstackを結合しない。
 
@@ -88,7 +89,7 @@ chunk列と受信光は[common-chunks](common-chunks.md)、dynamic registryは
 利用側の具体的な移行阻害項目を先に扱う。継続操作の停止／再開で古い速度を再適用し向きを0へ戻す
 [Issue #37](https://github.com/sugipamo/Voxrig/issues/37)はP0の不具合修正、
 armor／offhandの厳密なPICKUP／交換は[Issue #38](https://github.com/sugipamo/Voxrig/issues/38)のP1。
-読取時計の[Issue #36](https://github.com/sugipamo/Voxrig/issues/36)はPR #35と同じ要求であり、競合実装しない。
+読取時計の[Issue #36](https://github.com/sugipamo/Voxrig/issues/36)はPR #35の統合で解決済み。
 
 優先度は実装順の提案。P1は誤った利用判断を防ぐ観測と在庫、P2は用途別の拡張、
 P3は現在のoffline二版以外の導入条件。各項目内でも場面を分けて実装・検証する。
@@ -104,6 +105,12 @@ P3は現在のoffline二版以外の導入条件。各項目内でも場面を�
 | INTERACTION / P2 | 姿勢・属性に合うreach／eye、entity ray／visibilityと位置指定interaction、非cube／waterloggedなどの確認付き設置と結果待機 | `use_on_block`は汎用送信として既存。確認付き操作への拡張を混同しない。未知shape／動くblock／欠測／変更競合を拒否し、対象blockと材料の実受信を別々に保持 |
 | PROTOCOL / P2 | sound／stop sound、particle、world／block action、pickup、break progress、explosion文脈、camera／leash、command tree／tab completion、statistics／advancements、client settings／brand／payload、resource pack／NBT query | [旧版packet coverage](protocol-coverage.md)はnativeの全92分岐を示すだけ。共通型・能力宣言・bounded受信とrequest ID所有を追加。権限による拒否も実接続で検査。resource packは要求/statusのprotocol面が先で、asset download／描画は別 |
 | LIFECYCLE / P2–P3 | 広いscene／編集／replay／reconfiguration／chunk再観測・明示復旧、遮断後の全履歴可読性、online認証・暗号化・署名chat、追加版 | raw recordingと選択replayは既存。操作権限を復元せず、切断／取消／buffer上限／旧IDを検査。onlineと追加版は別のP3導入機能として分離し、offline対応をonline対応としない |
+
+広いsceneには、native modern拡張のmoving-piston carrier／回路再構成、slime／honey付着、
+block callback、仮想編集・予測の連鎖・assumed scene・光の再構成も含む。
+nativeで検証済みでも、共通の両版契約へ接続するまでは共通対応済みに加算しない。
+受信光とローカルに計算する光は区別する。[過去の回路rollout](client-rollout-roadmap.md)と
+[共通scene](common-recording-scenes.md)を参照する。
 
 Issueへのリンクは下の追跡欄に記録する。既存[PR #35](https://github.com/sugipamo/Voxrig/pull/35)の
 history読取時計／cursor ordinalはOBS-ENTITYの未実装分へ重複登録しない。
