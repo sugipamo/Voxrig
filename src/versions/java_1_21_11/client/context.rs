@@ -122,19 +122,18 @@ mod tests {
         }
         for bad in invalid {
             assert!(
-                state
-                    .receive(ids::play_clientbound::ABILITIES, &bad, 64)
-                    .is_err()
+                super::super::operations::receive(
+                    &mut state,
+                    ids::play_clientbound::ABILITIES,
+                    &bad
+                )
+                .is_err()
             );
             assert_eq!(state.operations.abilities_receipt(), native);
             assert_eq!(state.context.abilities, abilities);
         }
         for bad in [vec![], vec![1], vec![1, 0, 0]] {
-            assert!(
-                state
-                    .receive(ids::play_clientbound::DIFFICULTY, &bad, 64)
-                    .is_err()
-            );
+            assert!(receive(&mut state, ids::play_clientbound::DIFFICULTY, &bad).is_err());
             assert_eq!(state.context.difficulty, difficulty);
         }
         state
@@ -162,6 +161,23 @@ mod tests {
         assert!(state.context.abilities.is_none() && state.context.difficulty.is_none());
         assert!(state.operations.abilities_receipt().is_none());
         assert_eq!(abilities.unwrap().value.flags, 15);
+        // The transport receiver is terminal on malformed input; parser
+        // atomicity above does not authorize replaying a failed stream.
+        let mut failed = State {
+            phase: super::super::Phase::Play,
+            ..Default::default()
+        };
+        assert!(
+            failed
+                .receive(ids::play_clientbound::ABILITIES, &[15], 64)
+                .is_err()
+        );
+        assert!(
+            failed
+                .receive(ids::play_clientbound::ABILITIES, &packet, 64)
+                .is_err()
+        );
+        assert!(failed.context.abilities.is_none());
     }
     #[test]
     fn player_context_modern_packets_are_atomic_and_reset_at_configuration_boundary() {

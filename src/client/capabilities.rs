@@ -213,7 +213,7 @@ impl Capabilities {
                 "docs/common-chunk-context.md",
             ),
             Feature::PlayerContext => restricted(
-                "received experience/weather/default spawn/view packets; explicit version-only fields",
+                "received abilities/difficulty/experience/weather/default spawn/view packets; explicit version-only fields",
                 "docs/common-player-context.md",
             ),
             Feature::ConnectionRevocation
