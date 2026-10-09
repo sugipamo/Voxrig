@@ -97,3 +97,8 @@ modernの全packet分岐のparityは、この場面の検証だけでは宣言�
 能力の通知には既存の`PlayerChanged`がある。難易度専用のchange通知は現時点では未提供なので、
 `wait_for_receive`で受信境界が進むのを待ってから`player_context`を再読取する。
 各fieldのsourceを比較し、無関係なpacketで値が変わったとは扱わない。
+
+確定した統合 SDK で両版12項目ずつ、計24項目を確認した。capture後に同じ値の通知が
+追加された場合も、新しい受信ordinalを元packetと照合する。切断直前のcaptureと無条件で
+同一とは扱わず、切断後の値が適用済みの最新の元packetであることを確認する。
+[結果と実行ソースのhash](evidence/common-abilities-difficulty-20261009.json)を参照する。
