@@ -1,0 +1,1427 @@
+{
+  "schema": 1,
+  "scope": "Review qualification of PR #50: first restart packet, repeated restarts, fall/landing, and fresh stopped pose on both unchanged official servers.",
+  "sdk_execution_revision": "dcc0bd064880d03d3dbd7deb9dc0358ec886f879",
+  "source_sha256": {
+    "scripts/run_control_restart.py": "4c1e4dec9380486a41a091893da47b97a26f25944fd96f86e3bdfe14a0b2b36b",
+    "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+    "scripts/run_common_native.py": "a585067fcfd4fd4c8cc9ca82185258ebf1abbc4a7982a435bbbef6c4ecd9a198",
+    "examples/climbing_control_probe.rs": "e0d77d711a18129cea8136327702a63b3d42d34a7e92f1359b900bd32d27c223",
+    "src/client/control.rs": "2ac4d4ab312a9118779ec7d437412c5bbe0069047ded9b7a0fbfde479593ab70",
+    "src/client/physics/mod.rs": "6d8cf6a9ade22a57119549bde5a9442d990723d956e24687b9954382d584766f",
+    "src/versions/java_1_16_1/client/common_control.rs": "ef380e74a69ecb52668a20aa96672f3e957088933d5859351fc787421322dc2d",
+    "src/versions/java_1_21_11/client/operations/continuous.rs": "2baf855c0b4a05d4420b18d8a62190bd410b8a05f0fd2c263fa01c14ce907fc9"
+  },
+  "binary_sha256": "17c8f05622c306c72b7363c3a18b1bd9bc38fb44888aca8f68ab43c6a36d7f2e",
+  "versions": [
+    {
+      "version": "1.16.1",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "passed": true,
+      "trace_errors": [],
+      "checks": [
+        {
+          "name": "moving_restart",
+          "stopped": {
+            "controls": {
+              "forward": 1,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 7,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                -0.03513273829975194,
+                65.0,
+                1.2102363954525621
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 7,
+              "using_item": null,
+              "velocity": [
+                -0.06800281431438021,
+                -0.0784000015258789,
+                0.09025438038556588
+              ]
+            },
+            "session_id": 1,
+            "status": {
+              "reason": "stopped by request",
+              "status": "stopped"
+            },
+            "velocity_updates": 0
+          },
+          "started": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 0,
+            "frame": null,
+            "session_id": 2,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 1,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                -0.10313555261413215,
+                65.0,
+                1.3004907758381279
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 1,
+              "using_item": null,
+              "velocity": [
+                -0.037129540928345334,
+                -0.0784000015258789,
+                0.04927889741439239
+              ]
+            },
+            "session_id": 2,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first_position_packet": {
+            "ordinal": 88,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 19,
+            "body_length": 33,
+            "wire_sha256": "af9c97188a609c1560290857eaa69f44ce2a1f9265602c83627b39cf6eda01ad",
+            "body_sha256": "af1595c71c9d38a875e24a0f0e4515506a1fa3f44207473a0407ef18bd2c34c7",
+            "body_hex": "bfba67177188577c40504000000000003ff4cecf6a6f974042140000c140000001"
+          }
+        },
+        {
+          "name": "released_restart_1",
+          "stopped": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 4,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                -0.17160673803884618,
+                65.0,
+                1.3913667855603598
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 4,
+              "using_item": null,
+              "velocity": [
+                -0.006043627087922705,
+                -0.0784000015258789,
+                0.008021194763795815
+              ]
+            },
+            "session_id": 2,
+            "status": {
+              "reason": "stopped by request",
+              "status": "stopped"
+            },
+            "velocity_updates": 0
+          },
+          "started": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 0,
+            "frame": null,
+            "session_id": 3,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 1,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                -0.1776503651267689,
+                65.0,
+                1.3993879803241556
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 1,
+              "using_item": null,
+              "velocity": [
+                -0.0032998207732886503,
+                -0.0784000015258789,
+                0.004379572849731409
+              ]
+            },
+            "session_id": 3,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first_position_packet": {
+            "ordinal": 104,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 19,
+            "body_length": 33,
+            "wire_sha256": "8b1cd39153ced93d1cd519c9cf910264a43c0a0560ab7f0793679bc733923ea3",
+            "body_sha256": "db5fc34da483ba982cb362d82f4586725434d3553523c35fa18ce62ddfbb83fb",
+            "body_hex": "bfc6bd3f462bc46840504000000000003ff663e4a69e861a42140000c140000001"
+          }
+        },
+        {
+          "name": "released_restart_2",
+          "stopped": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 5,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                -0.18095018590005757,
+                65.0,
+                1.403767553173887
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 5,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "session_id": 3,
+            "status": {
+              "reason": "stopped by request",
+              "status": "stopped"
+            },
+            "velocity_updates": 0
+          },
+          "started": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 0,
+            "frame": null,
+            "session_id": 4,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 1,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                -0.18095018590005757,
+                65.0,
+                1.403767553173887
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 1,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "session_id": 4,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first_position_packet": {
+            "ordinal": 114,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 19,
+            "body_length": 33,
+            "wire_sha256": "cfefc296388e4e52a9f6c1549653b33aa4684903a099da668dc8e287d98ce23d",
+            "body_sha256": "515590c30d7b3c91098068aa6c35375f3881191a0a777c29f03d51b3d4d86517",
+            "body_hex": "bfc729602d52abca40504000000000003ff675d4f74115a642140000c140000001"
+          }
+        },
+        {
+          "name": "released_restart_3",
+          "stopped": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 3,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                -0.18095018590005757,
+                65.0,
+                1.403767553173887
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 3,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "session_id": 4,
+            "status": {
+              "reason": "stopped by request",
+              "status": "stopped"
+            },
+            "velocity_updates": 0
+          },
+          "started": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 0,
+            "frame": null,
+            "session_id": 5,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 1,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                -0.18095018590005757,
+                65.0,
+                1.403767553173887
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 1,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "session_id": 5,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first_position_packet": {
+            "ordinal": 121,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 19,
+            "body_length": 33,
+            "wire_sha256": "cfefc296388e4e52a9f6c1549653b33aa4684903a099da668dc8e287d98ce23d",
+            "body_sha256": "515590c30d7b3c91098068aa6c35375f3881191a0a777c29f03d51b3d4d86517",
+            "body_hex": "bfc729602d52abca40504000000000003ff675d4f74115a642140000c140000001"
+          }
+        },
+        {
+          "name": "falling_restart",
+          "stopped": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": 24.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 113.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 2,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": false,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                70.92159999847412,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 2,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.1552320045166016,
+                0.0
+              ]
+            },
+            "session_id": 6,
+            "status": {
+              "reason": "stopped by request",
+              "status": "stopped"
+            },
+            "velocity_updates": 0
+          },
+          "started": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": 24.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 113.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 0,
+            "frame": null,
+            "session_id": 7,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": 24.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 113.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 1,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": false,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                70.76636799395752,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 1,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.230527368912964,
+                0.0
+              ]
+            },
+            "session_id": 7,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first_position_packet": {
+            "ordinal": 154,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 19,
+            "body_length": 33,
+            "wire_sha256": "329e26410f5dfe9d0c1f3a308099c575322689fe0335674a592bb790e0181c7d",
+            "body_sha256": "9de0959fe9e77de560d31bdffa43133419cfeeb880481ad448fd3c81cf7ed895",
+            "body_hex": "3fe00000000000004051b10c2c57afea3fe000000000000042e2000041c0000000"
+          }
+        },
+        {
+          "name": "falling_lands_without_correction",
+          "record": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": 24.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 113.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 28,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 28,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "session_id": 7,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 1
+          },
+          "native_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        },
+        {
+          "name": "fresh_pose_after_stop",
+          "started": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -23.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 151.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 0,
+            "frame": null,
+            "session_id": 8,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "record": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -23.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 151.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 2,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                4.5,
+                65.0,
+                4.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 2,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "session_id": 8,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          }
+        }
+      ],
+      "artifacts": {
+        "report.json": {
+          "path": "/workspace/Voxrig/.local/climbing/live/1.16.1-20261009-085841/report.json",
+          "sha256": "b249de82d7571a58f6c6e3c8f01a0601288cb444476d56ad60263d42b245291e"
+        },
+        "packets.jsonl": {
+          "path": "/workspace/Voxrig/.local/climbing/live/1.16.1-20261009-085841/packets.jsonl",
+          "sha256": "dbd00998dd2408a289feb451c90b37aaac64b50aa4a05ade69fc3ffa7cb0ae67"
+        },
+        "probe.log": {
+          "path": "/workspace/Voxrig/.local/climbing/live/1.16.1-20261009-085841/probe.log",
+          "sha256": "4604d7597f332d80494e716a576804b36aac6414bbaa02c72a1628cf38bb4cc9"
+        },
+        "server.log": {
+          "path": "/workspace/Voxrig/.local/climbing/live/1.16.1-20261009-085841/server.log",
+          "sha256": "4a6d3353e4cc0e48e8fbab94e2653c5adf6f5d6ee143a885317eec38811e1872"
+        }
+      }
+    },
+    {
+      "version": "1.21.11",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "passed": true,
+      "trace_errors": [],
+      "checks": [
+        {
+          "name": "moving_restart",
+          "stopped": {
+            "controls": {
+              "forward": 1,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 7,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                -0.07812997505467084,
+                65.0,
+                1.2673029889565612
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 7,
+              "using_item": null,
+              "velocity": [
+                -0.06847676130466951,
+                -0.0784000015258789,
+                0.09088341011581216
+              ]
+            },
+            "session_id": 1,
+            "status": {
+              "reason": "stopped by request",
+              "status": "stopped"
+            },
+            "velocity_updates": 0
+          },
+          "started": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 0,
+            "frame": null,
+            "session_id": 2,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 1,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                -0.14660673635934035,
+                65.0,
+                1.3581863990723735
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 1,
+              "using_item": null,
+              "velocity": [
+                -0.037388316015100696,
+                -0.0784000015258789,
+                0.04962234768699951
+              ]
+            },
+            "session_id": 2,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first_position_packet": {
+            "ordinal": 148,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 30,
+            "body_length": 33,
+            "wire_sha256": "ea90f76f6ceede62ed82031086586c38a0a9c1ef9d8863ce56242b7586e364aa",
+            "body_sha256": "6969688c590e527279e9c9a7fa60747fddc2912adf6f8b3310ed320b8964f2a9",
+            "body_hex": "bfc2c4027104b14e40504000000000003ff5bb21a95e34a142140000c140000001"
+          }
+        },
+        {
+          "name": "released_restart_1",
+          "stopped": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 3,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                -0.20440907528982843,
+                65.0,
+                1.4349025517434912
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 3,
+              "using_item": null,
+              "velocity": [
+                -0.011146057806445411,
+                -0.0784000015258789,
+                0.014793219239599918
+              ]
+            },
+            "session_id": 2,
+            "status": {
+              "reason": "stopped by request",
+              "status": "stopped"
+            },
+            "velocity_updates": 0
+          },
+          "started": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 0,
+            "frame": null,
+            "session_id": 3,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 1,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                -0.21555513309627383,
+                65.0,
+                1.449695770983091
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 1,
+              "using_item": null,
+              "velocity": [
+                -0.006085748269194847,
+                -0.0784000015258789,
+                0.008077098642997787
+              ]
+            },
+            "session_id": 3,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first_position_packet": {
+            "ordinal": 165,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 30,
+            "body_length": 33,
+            "wire_sha256": "db643fe280212eed9e7f42d484ed075247b1a849a19bab2ea08c4193f6f73ef2",
+            "body_sha256": "bbbb8284d5a1b40db240ecca5c84ce28278960a121986e3b31472fcc065fb35d",
+            "body_hex": "bfcb974f8391140440504000000000003ff731f4315859a142140000c140000001"
+          }
+        },
+        {
+          "name": "released_restart_2",
+          "stopped": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 5,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                -0.22677795965888445,
+                65.0,
+                1.4645908788958368
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 5,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "session_id": 3,
+            "status": {
+              "reason": "stopped by request",
+              "status": "stopped"
+            },
+            "velocity_updates": 0
+          },
+          "started": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 0,
+            "frame": null,
+            "session_id": 4,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 1,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                -0.22677795965888445,
+                65.0,
+                1.4645908788958368
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 1,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "session_id": 4,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first_position_packet": {
+            "ordinal": 180,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 30,
+            "body_length": 33,
+            "wire_sha256": "d2bf40b7061cda7ffcbad1bd675c3065a208ab778cec3f0d91c6870d3fd9a50a",
+            "body_sha256": "08f820e098c6be304d56c541afee5131b6d7495339a32b184c08e1a17f1d7fd8",
+            "body_hex": "bfcd070f6818214b40504000000000003ff76ef6d86e0a4e42140000c140000001"
+          }
+        },
+        {
+          "name": "released_restart_3",
+          "stopped": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 3,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                -0.22677795965888445,
+                65.0,
+                1.4645908788958368
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 3,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "session_id": 4,
+            "status": {
+              "reason": "stopped by request",
+              "status": "stopped"
+            },
+            "velocity_updates": 0
+          },
+          "started": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 0,
+            "frame": null,
+            "session_id": 5,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -12.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 37.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 1,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                -0.22677795965888445,
+                65.0,
+                1.4645908788958368
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 1,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "session_id": 5,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first_position_packet": {
+            "ordinal": 184,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 30,
+            "body_length": 33,
+            "wire_sha256": "d2bf40b7061cda7ffcbad1bd675c3065a208ab778cec3f0d91c6870d3fd9a50a",
+            "body_sha256": "08f820e098c6be304d56c541afee5131b6d7495339a32b184c08e1a17f1d7fd8",
+            "body_hex": "bfcd070f6818214b40504000000000003ff76ef6d86e0a4e42140000c140000001"
+          }
+        },
+        {
+          "name": "falling_restart",
+          "stopped": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": 24.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 113.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 2,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": false,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                70.92159999847412,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 2,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.1552320045166016,
+                0.0
+              ]
+            },
+            "session_id": 6,
+            "status": {
+              "reason": "stopped by request",
+              "status": "stopped"
+            },
+            "velocity_updates": 0
+          },
+          "started": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": 24.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 113.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 0,
+            "frame": null,
+            "session_id": 7,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": 24.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 113.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 1,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": false,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                70.76636799395752,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 1,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.230527368912964,
+                0.0
+              ]
+            },
+            "session_id": 7,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "first_position_packet": {
+            "ordinal": 210,
+            "connection": 1,
+            "direction": "serverbound",
+            "phase": "play",
+            "packet_id": 30,
+            "body_length": 33,
+            "wire_sha256": "233a1f546186bb932dfa2f5563de828349abdf27ebfbf500537fefc439cba3e5",
+            "body_sha256": "9de0959fe9e77de560d31bdffa43133419cfeeb880481ad448fd3c81cf7ed895",
+            "body_hex": "3fe00000000000004051b10c2c57afea3fe000000000000042e2000041c0000000"
+          }
+        },
+        {
+          "name": "falling_lands_without_correction",
+          "record": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": 24.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 113.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 26,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                0.5,
+                65.0,
+                0.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 26,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "session_id": 7,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 1
+          },
+          "native_position": "ClimbingProbe has the following entity data: [0.5d, 65.0d, 0.5d]"
+        },
+        {
+          "name": "fresh_pose_after_stop",
+          "started": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -23.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 151.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 0,
+            "frame": null,
+            "session_id": 8,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          },
+          "record": {
+            "controls": {
+              "forward": 0,
+              "jump": false,
+              "pitch": -23.0,
+              "sneak": false,
+              "sprint": false,
+              "strafe": 0,
+              "yaw": 151.0
+            },
+            "corrections": 0,
+            "dispatched_ticks": 2,
+            "frame": {
+              "crouching": false,
+              "eye_in_water": false,
+              "horizontal_collision": false,
+              "in_water": false,
+              "on_ground": true,
+              "pose": "Standing",
+              "position": [
+                4.5,
+                65.0,
+                4.5
+              ],
+              "sprinting": false,
+              "swimming": false,
+              "tick": 2,
+              "using_item": null,
+              "velocity": [
+                0.0,
+                -0.0784000015258789,
+                0.0
+              ]
+            },
+            "session_id": 8,
+            "status": {
+              "status": "running"
+            },
+            "velocity_updates": 0
+          }
+        }
+      ],
+      "artifacts": {
+        "report.json": {
+          "path": "/workspace/Voxrig/.local/climbing/live/1.21.11-20261009-085914/report.json",
+          "sha256": "5905aed42d902267670009658a8245432a3f6c1bc617fe8385ee3c3c33eaa3da"
+        },
+        "packets.jsonl": {
+          "path": "/workspace/Voxrig/.local/climbing/live/1.21.11-20261009-085914/packets.jsonl",
+          "sha256": "d1042aec1c67f44a3d9c9330915be6b0ab62ee2f6c11b710396d5c43b2039d79"
+        },
+        "probe.log": {
+          "path": "/workspace/Voxrig/.local/climbing/live/1.21.11-20261009-085914/probe.log",
+          "sha256": "bb4c0095cbe79425460820859058020b71cdca046980ded73955fc4fabc24c3d"
+        },
+        "server.log": {
+          "path": "/workspace/Voxrig/.local/climbing/live/1.21.11-20261009-085914/server.log",
+          "sha256": "1c749c32b4b1acf275476a8b5f4796f1f4c05366f12761426fce03486a8cbd5f"
+        }
+      }
+    }
+  ],
+  "limitations": [
+    "Dispatched client predictions and original packet bytes are not server acceptance receipts.",
+    "The legacy passive physics loop may advance between stop and start; only the modern controller has an exact no-idle-tick displacement comparison.",
+    "These checks do not qualify unrelated finite motion models, equipment swaps, or one-shot ground jump requests."
+  ]
+}

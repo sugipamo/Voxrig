@@ -19,6 +19,8 @@ fn attribute(name: &str) -> Option<i32> {
 pub(in crate::versions::java_1_21_11::client) struct ContinuousControl {
     pub session: Option<ControlSession>,
     next_id: u64,
+    generation: Option<u64>,
+    model_attempt: Option<u64>,
 }
 
 impl ContinuousControl {
@@ -341,6 +343,8 @@ impl Operations {
                     state.motion.dispatched();
                     state.motion.on_ground = Some(output.on_ground);
                     session.dispatched(&output);
+                    state.control.model_attempt =
+                        state.motion.last_submission.as_ref().map(|s| s.attempt_id);
                     state.control.session = Some(session);
                     self.bot.session.changed.notify_waiters();
                 }
@@ -382,18 +386,75 @@ impl crate::client::adapter::ControlOps for Operations {
         let Some(position) = state.position else {
             return Err(invalid("continuous control requires a received position"));
         };
-        if state.motion.received_pose.is_none() {
+        if state
+            .motion
+            .received_pose
+            .as_ref()
+            .is_none_or(|p| p.generation != generation)
+        {
             return Err(invalid("continuous control requires a received pose"));
         }
         let received = received(&state);
-        state.control.next_id += 1;
-        let id = state.control.next_id;
-        let session = ControlSession::new(
-            crate::MinecraftVersion::Java1_21_11,
-            id,
-            position,
-            &received,
-        );
+        if matches!(
+            state.motion.position_basis,
+            super::super::motion::PositionBasis::Unavailable
+                | super::super::motion::PositionBasis::PendingSubmission
+        ) {
+            return Err(invalid(
+                "continuous control requires a resolved position model",
+            ));
+        }
+        let previous = state
+            .control
+            .session
+            .as_ref()
+            .filter(|_| state.control.generation == Some(generation));
+        let attempt = state.motion.last_submission.as_ref().map(|s| s.attempt_id);
+        if let Some(previous) = previous {
+            if (previous.body.position != position || attempt != state.control.model_attempt)
+                && !previous.has_new_pose(&received)
+            {
+                return Err(invalid(
+                    "current model momentum unavailable after unrelated local movement",
+                ));
+            }
+        }
+        let owned_model = previous.filter(|_| attempt == state.control.model_attempt);
+        if owned_model.is_none()
+            && state.motion.position_basis == super::super::motion::PositionBasis::Submitted
+        {
+            return Err(invalid(
+                "position was submitted outside this control model; receive a fresh pose first",
+            ));
+        }
+        if owned_model.is_none()
+            && received.pose.is_some_and(|(pose_sequence, _, velocity)| {
+                velocity.is_none() && received.velocity.is_none_or(|v| v.0 < pose_sequence)
+            })
+        {
+            return Err(invalid("received velocity baseline is unavailable"));
+        }
+        let id = state.control.next_id + 1;
+        let rotation = state.rotation;
+        let mut session = if let Some(previous) = owned_model {
+            previous.resume(id, rotation, &received)
+        } else {
+            let mut session = ControlSession::new(
+                crate::MinecraftVersion::Java1_21_11,
+                id,
+                position,
+                &received,
+            );
+            session.controls.yaw = rotation[0];
+            session.controls.pitch = rotation[1];
+            session
+        };
+        if let Some(previous) = previous {
+            session.inherit_item_release(previous);
+        }
+        state.control.next_id = id;
+        state.control.generation = Some(generation);
+        state.control.model_attempt = attempt;
         let record = session.record();
         state.control.session = Some(session);
         drop(state);

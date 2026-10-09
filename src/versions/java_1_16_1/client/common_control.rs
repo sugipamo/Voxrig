@@ -4,7 +4,7 @@
 use super::{Bot, MotionState, Vec3};
 use crate::client::GameMode;
 use crate::client::control::{ControlRecord, ControlSession, ControlStatus, Controls, Received};
-use crate::client::physics::{Environment, Modifier, ModifierOperation};
+use crate::client::physics::{Body, Environment, Modifier, ModifierOperation};
 use crate::protocol::put_varint;
 use crate::{Error, ErrorKind, MinecraftVersion, Result};
 use std::sync::atomic::Ordering;
@@ -15,6 +15,8 @@ use std::time::Duration;
 pub(crate) struct ContinuousControl {
     session: Option<ControlSession>,
     next_id: u64,
+    generation: Option<u64>,
+    model_tick: Option<u64>,
 }
 
 impl ContinuousControl {
@@ -273,6 +275,8 @@ impl Bot {
             }
             session.dispatched(&output);
             let frame = session.frame.clone().unwrap();
+            let fall_distance = session.body.fall_distance as f32;
+            let vertical_collision = session.body.vertical_collision;
             drop(control);
             let snapshot = {
                 let mut player = self.player.lock().await;
@@ -297,10 +301,11 @@ impl Bot {
                         z: frame.velocity[2],
                     },
                     collided_horizontal: frame.horizontal_collision,
-                    collided_vertical: frame.on_ground,
+                    collided_vertical: vertical_collision,
                     ticks: previous.ticks + 1,
-                    fall_distance: previous.fall_distance,
+                    fall_distance,
                 };
+                self.common_control.lock().await.model_tick = Some(motion.ticks);
             }
             self.physics.lock().await.record_movement(snapshot);
             self.common_receipts.lock().await.position_source =
@@ -334,15 +339,45 @@ impl crate::client::adapter::ControlOps for Bot {
         if self.common_receipts.lock().await.pose.is_none() {
             return Err(invalid("continuous control requires a received pose"));
         }
-        let position = {
-            let p = self.player.lock().await;
-            [p.x, p.y, p.z]
-        };
+        let player = self.player.lock().await.clone();
+        let motion = **self.motion.lock().await;
         let received = self.control_received().await;
         let mut control = self.common_control.lock().await;
         control.next_id += 1;
         let id = control.next_id;
-        let session = ControlSession::new(MinecraftVersion::Java1_16_1, id, position, &received);
+        let mut body = control
+            .session
+            .as_ref()
+            .filter(|_| {
+                control.generation == Some(generation) && control.model_tick == Some(motion.ticks)
+            })
+            .map_or_else(
+                || Body::new([player.x, player.y, player.z]),
+                |s| s.body.clone(),
+            );
+        body.teleport(MinecraftVersion::Java1_16_1, [player.x, player.y, player.z]);
+        // Native packet application and the passive SDK loop already update
+        // this model. Retained received velocity must not be replayed here.
+        body.velocity = [motion.velocity.x, motion.velocity.y, motion.velocity.z];
+        body.on_ground = player.on_ground;
+        body.horizontal_collision = motion.collided_horizontal;
+        body.vertical_collision = motion.collided_vertical;
+        body.fall_distance = f64::from(motion.fall_distance);
+        let mut session = ControlSession::from_model(
+            MinecraftVersion::Java1_16_1,
+            id,
+            body,
+            [player.yaw, player.pitch],
+            &received,
+        );
+        if control.generation == Some(generation) {
+            if let Some(previous) = &control.session {
+                // Keep local item release provenance across control ownership changes.
+                session.inherit_item_release(previous);
+            }
+        }
+        control.generation = Some(generation);
+        control.model_tick = Some(motion.ticks);
         let record = session.record();
         control.session = Some(session);
         drop(control);
@@ -399,6 +434,149 @@ mod tests {
     use crate::client::adapter::ControlOps;
     use crate::client::control::Output;
     use tokio::time::timeout;
+
+    #[tokio::test]
+    async fn control_restart_keeps_current_momentum_and_aim_after_decoded_velocity() {
+        // The fake TCP peer sends one actual velocity packet after a look.
+        // The SDK's passive producer is held at the teleport barrier so the
+        // stop/start boundary has no intervening model tick or second receipt.
+        let mut velocity = vec![42];
+        velocity.extend(640_i16.to_be_bytes());
+        velocity.extend(0_i16.to_be_bytes());
+        velocity.extend(0_i16.to_be_bytes());
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x13, 0x46, velocity).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.player.lock().await.entity_id = Some(42);
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        client.look([37.0, -12.0]).await.unwrap();
+        release.send(()).unwrap();
+        timeout(Duration::from_secs(2), async {
+            while bot.own_velocity_receipt.lock().await.is_none() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        let received = *bot.own_velocity_receipt.lock().await;
+        let survival = client.survival();
+        let first = survival.start_control().await.unwrap();
+        assert_eq!([first.controls.yaw, first.controls.pitch], [37.0, -12.0]);
+        timeout(Duration::from_secs(2), async {
+            while survival
+                .control_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .dispatched_ticks
+                < 3
+            {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await
+        .unwrap();
+        let stopped = survival.stop_control().await.unwrap().unwrap();
+        let old_frame = stopped.frame.unwrap();
+        assert!(old_frame.velocity[0] > 0.0 && old_frame.velocity[0] < 0.08);
+        let started = survival.start_control().await.unwrap();
+        assert_ne!(started.session_id, stopped.session_id);
+        assert_eq!(
+            [started.controls.yaw, started.controls.pitch],
+            [37.0, -12.0]
+        );
+        assert!(!started.controls.jump && !started.controls.sprint && !started.controls.sneak);
+        assert_eq!((started.controls.forward, started.controls.strafe), (0, 0));
+        timeout(Duration::from_secs(2), async {
+            while survival
+                .control_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .dispatched_ticks
+                == 0
+            {
+                tokio::time::sleep(Duration::from_millis(2)).await;
+            }
+        })
+        .await
+        .unwrap();
+        let resumed = survival.stop_control().await.unwrap().unwrap();
+        let frame = resumed.frame.unwrap();
+        assert_eq!((resumed.corrections, resumed.velocity_updates), (0, 0));
+        assert!(frame.position[0] > old_frame.position[0]);
+        assert!(frame.velocity[0] > 0.0 && frame.velocity[0] < old_frame.velocity[0]);
+        assert_eq!(*bot.own_velocity_receipt.lock().await, received);
+        assert_eq!(client.player_state().await.unwrap().rotation, [37.0, -12.0]);
+        let _ = client.revoke_connection();
+        drop(client);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn falling_control_exports_fall_distance_to_the_passive_model_before_restart() {
+        let (bot, _packets, _release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        {
+            let mut player = bot.player.lock().await;
+            player.y = 68.;
+            player.on_ground = false;
+        }
+        bot.common_receipts
+            .lock()
+            .await
+            .pose
+            .as_mut()
+            .unwrap()
+            .position[1] = 68.;
+        bot.start_control(GameMode::Survival).await.unwrap();
+        timeout(Duration::from_secs(2), async {
+            while bot
+                .control_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .dispatched_ticks
+                < 3
+            {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        })
+        .await
+        .unwrap();
+        bot.stop_control().await.unwrap();
+        let fall = bot
+            .common_control
+            .lock()
+            .await
+            .session
+            .as_ref()
+            .unwrap()
+            .body
+            .fall_distance;
+        assert!(fall > 0.);
+        assert_eq!(f64::from(bot.motion.lock().await.fall_distance), fall);
+        bot.start_control(GameMode::Survival).await.unwrap();
+        assert!(
+            bot.common_control
+                .lock()
+                .await
+                .session
+                .as_ref()
+                .unwrap()
+                .body
+                .fall_distance
+                >= fall
+        );
+        bot.stop_control().await.unwrap();
+        bot.disconnect().await.unwrap();
+        server.await.unwrap();
+    }
 
     #[tokio::test]
     async fn cancelling_stop_wait_still_releases_keys_and_retains_record() {
