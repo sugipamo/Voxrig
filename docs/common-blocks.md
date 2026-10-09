@@ -13,7 +13,7 @@
 
 ## `raycast_blocks(origin, direction, max_distance)`
 
-`origin`から`direction`方向へ最大32ブロック、blockの**衝突形状**に対して光線を飛ばす。
+`origin`から`direction`方向へ最大64ブロック、blockの**衝突形状**に対して光線を飛ばす。
 
 | 結果 | 意味 |
 | --- | --- |
@@ -21,6 +21,8 @@
 | `Miss` | 通過したセルはすべてロード済みで、何にも当たらなかった |
 | `Unloaded { position }` | 当たる前に未ロードのセルに達した |
 
+- 距離上限は 64。48 ブロックの観測範囲に目・対象点の offset を加えた query も一つの capture で扱える。
+  捕捉領域の上限は従来の 262,144 セルで、未ロード・world 切り替えの拒否も維持する。
 - 光線が通るセルを順にたどり（Amanatides–Woo）、最初に当たったセルで止まる（vanillaのclipと同じ順序）。
 - 衝突形状は各版のデータを使う（1.16.1は`data/block_collision_shapes.json`、1.21.11は
   `data/java_1_21_11/collision_shapes.json`）。草花のように衝突形状がないblockは通り抜ける。

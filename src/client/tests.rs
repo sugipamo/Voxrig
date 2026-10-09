@@ -1,6 +1,82 @@
 use super::*;
 use crate::MinecraftVersion;
 
+pub(crate) async fn common_basic_actions_scenario(client: &Client, mode: GameMode) {
+    let before = client.player_state().await.unwrap();
+    assert_eq!(before.game_mode, Some(mode));
+    for rotation in [[f32::NAN, 0.0], [0.0, 91.0], [f32::INFINITY, 0.0]] {
+        assert!(client.look(rotation).await.is_err());
+    }
+    assert!(client.select_hotbar(9).await.is_err());
+    let receipt = client.look([45.0, -10.0]).await.unwrap();
+    assert_eq!(receipt.version, before.session.version);
+    assert_eq!(receipt.connection_id, before.session.connection_id);
+    let selected = client.select_hotbar(8).await.unwrap();
+    assert_eq!(selected.connection_id, receipt.connection_id);
+    let after = client.player_state().await.unwrap();
+    assert_eq!(after.rotation, [45.0, -10.0]);
+    assert_eq!(after.rotation_source, Some(ValueSource::Submitted));
+    assert_eq!(after.received_pose, before.received_pose);
+    assert_eq!(after.position, before.position);
+    assert_eq!(
+        after.selected_hotbar.unwrap(),
+        ObservedValue {
+            value: 8,
+            source: ValueSource::Submitted
+        }
+    );
+    if mode != GameMode::Survival {
+        assert!(client.survival().look([0.0, 0.0]).await.is_err());
+    }
+    if mode != GameMode::Creative {
+        assert!(client.creative().select_hotbar(0).await.is_err());
+    }
+}
+
+pub(crate) async fn common_long_raycast_scenario(client: &Client) {
+    let wall = client
+        .raycast_blocks([8.5, 66.5, 8.5], [1.0, 0.0, 0.0], 49.5)
+        .await
+        .unwrap();
+    assert!(
+        matches!(wall.result, BlockRaycast::Hit { position: [48, 66, 8], distance, .. } if (distance - 39.5).abs() < 1e-9)
+    );
+    let clear = client
+        .raycast_blocks([8.5, 66.5, 9.5], [1.0, 0.0, 0.0], 49.5)
+        .await
+        .unwrap();
+    assert_eq!(clear.result, BlockRaycast::Miss);
+    let unknown = client
+        .raycast_blocks([8.5, 66.5, 9.5], [1.0, 0.0, 0.0], 64.0)
+        .await
+        .unwrap();
+    assert_eq!(
+        unknown.result,
+        BlockRaycast::Unloaded {
+            position: [64, 66, 9]
+        }
+    );
+    assert_eq!(wall.session, clear.session);
+    assert_eq!(clear.session, unknown.session);
+    assert!(
+        client
+            .raycast_blocks([8.5, 66.5, 8.5], [1.0, 0.0, 0.0], 64.01)
+            .await
+            .is_err()
+    );
+    assert!(
+        client
+            .raycast_blocks([8.5, 66.5, 8.5], [f64::MAX, 0.0, 0.0], 48.0)
+            .await
+            .is_err()
+    );
+    // The worst bounding-box direction remains within the unchanged region cap.
+    client
+        .raycast_blocks([8.5, 66.5, 8.5], [1.0; 3], 64.0)
+        .await
+        .unwrap();
+}
+
 /// Exercise actual controller publication, without assigning synthetic ground.
 pub(crate) async fn common_control_capture_scenario(client: &crate::Client) {
     use crate::client::{ValueSource, control::Controls};
