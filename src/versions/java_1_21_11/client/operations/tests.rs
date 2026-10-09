@@ -1,6 +1,31 @@
 use super::*;
 
 #[test]
+fn block_hit_reach_preserves_hit_point_and_center_based_digging_admission() {
+    let mut state = State {
+        position: Some([0.19061256589492, 65., 0.499862279722396]),
+        ..Default::default()
+    };
+    state.world.select_dimension(
+        "minecraft:overworld".into(),
+        super::super::super::world::Dimension::new(-64, 384).unwrap(),
+    );
+    let support = [2, 66, 4];
+    state.world.seed_replay_cell(support, 1);
+    assert!(check_reach(&state, support).is_err());
+    assert!(check_hit_reach(&state, support, [0., 0.5, 0.5]).is_ok());
+    assert!(check_hit_reach(&state, support, [1., 0.5, 0.5]).is_err());
+    assert!(
+        check_hit_reach(&state, [32, 66, 4], [0., 0.5, 0.5])
+            .unwrap_err()
+            .to_string()
+            .contains("not loaded")
+    );
+    state.position = None;
+    assert!(check_hit_reach(&state, support, [0., 0.5, 0.5]).is_err());
+}
+
+#[test]
 fn received_item_registry_owner_survives_native_reconfiguration_packet_reset() {
     use crate::client::{ReceivedInventory, registry::Registry};
     let registry = Registry::for_version(MinecraftVersion::Java1_21_11);

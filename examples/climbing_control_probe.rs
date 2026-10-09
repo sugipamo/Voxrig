@@ -5,6 +5,19 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use voxrig::client::control::Controls;
 use voxrig::client::prelude::*;
 
+fn face(request: &serde_json::Value) -> anyhow::Result<voxrig::client::BlockFace> {
+    use voxrig::client::BlockFace;
+    Ok(match request["face"].as_str() {
+        Some("Down") => BlockFace::Down,
+        Some("Up") => BlockFace::Up,
+        Some("North") => BlockFace::North,
+        Some("South") => BlockFace::South,
+        Some("West") => BlockFace::West,
+        Some("East") => BlockFace::East,
+        _ => anyhow::bail!("invalid probe face"),
+    })
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let port = std::env::var("VOXRIG_PORT")?.parse()?;
@@ -55,6 +68,30 @@ async fn main() -> anyhow::Result<()> {
             }
             "respawn" => serde_json::to_value(client.respawn().await?)?,
             "player" => serde_json::to_value(client.player_state().await?)?,
+            "placement_check" => serde_json::to_value(
+                survival
+                    .placement_check(
+                        serde_json::from_value(request["support"].clone())?,
+                        face(&request)?,
+                    )
+                    .await?,
+            )?,
+            "use_on_block" => {
+                let result = survival
+                    .use_on_block(
+                        serde_json::from_value(request["support"].clone())?,
+                        face(&request)?,
+                        serde_json::from_value(request["cursor"].clone())?,
+                        voxrig::client::Hand::Main,
+                    )
+                    .await;
+                if request["expect_rejected"] == true {
+                    let error = result.expect_err("out-of-range hit unexpectedly admitted");
+                    serde_json::json!({"rejected":true,"kind":format!("{:?}",error.kind()),"message":error.to_string()})
+                } else {
+                    serde_json::to_value(result?)?
+                }
+            }
             "inventory_record" => serde_json::to_value(survival.inventory_click_record().await?)?,
             "inventory_click" => {
                 use voxrig::client::inventory::{
