@@ -1,0 +1,97 @@
+{
+  "schema": 1,
+  "scope": "World-scoped original map identities, received headers, optional icon lists, per-pixel partial coverage/sources, immutable saved captures and reads after closure. No inferred map dimension/center, rendering or native global asset-cache lifecycle parity.",
+  "publication": "Results and hashes only; raw map packets, original item data and independently saved native pixels remain local. Tracked scripts reproduce full exact-value/source comparisons.",
+  "sdk_build_revision": "213ae07b415ffc6ee50ef9bb83574d1b9d23747a",
+  "qualification_source_revision": "111843ac37ef292587bd1868e671d1858ff16452",
+  "source_relationship": "Qualification changes Python fixture handling of modern other-dimension map omission only. Full library tests ran with identical src/ implementation; the probe-only follow-up terminates after its one disconnect. Merging PR 63 history changes no source tree.",
+  "validation": {
+    "native_library_passed": 946,
+    "native_integration_passed": 4,
+    "native_ignored": 8,
+    "doctests_passed": 34,
+    "doctests_ignored": 1,
+    "map_wire_tests_passed": 3,
+    "strict_clippy": true,
+    "strict_rustdoc": true,
+    "logs_sha256": {
+      "/tmp/voxrig-41-map-final-tests.log": "727322202b5b69f731875aa90a0e67c390bba203fbf5063c4d01f7060a0c16f5",
+      "/tmp/voxrig-41-map-full-tests.log": "fb969da68160583e43f6738d1f41ac6fc75accd56f915c00d1cb7f97b73f10d1",
+      "/tmp/voxrig-41-map-doc.log": "04410ab2f46c144fab3dd2fae8e5e01e565232e0fa650ee3f0fda5a8fb7dcc29",
+      "/tmp/voxrig-41-map-clippy.log": "637f655bec391305a29ade7d61e1bcdd938126893b405a911813ca503562ef2a",
+      "/tmp/voxrig-41-map-rustdoc.log": "c0c11414c0253802a673e138e2eb32e0d50cd10f6c1983e455e9a3ff4aa4d19d",
+      "/tmp/voxrig-41-map-final-probe.log": "a4531c4b2469e893b4449048752083046a2e4846c537539a9bff7af933f9905b",
+      "/tmp/voxrig-41-map-final-probe-clippy.log": "3c1e1ed18d07c86c10bc1d29b1e2ff10cb09cf0ab7d63df5128be632205ee50c",
+      "/tmp/voxrig-41-map-qualified-final.log": "5595086265f5bcb667e7687823aa1b5874198518b8d7543038be4983c862868c"
+    }
+  },
+  "diagnostics": [
+    "Qualification driver initially used incorrect existing probe/proxy entry points; corrected without altering SDK receipt assertions.",
+    "Second disconnect is rejected by the SDK; the probe now reads retained maps after one disconnect and exits.",
+    "Modern original server does not supply the overworld map in the Nether fixture; omission is recorded explicitly and ID reuse is qualified after returning to the original dimension."
+  ],
+  "local_original_evidence_sha256": "86fb5f8fdbce0cea80801e547b50bb9c4751822be9f7081999e21b1e22b4d6ae",
+  "runs": [
+    {
+      "version": "1.16.1",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "sdk": {
+        "source_revision": "111843ac37ef292587bd1868e671d1858ff16452",
+        "binary_build_revision": "213ae07b415ffc6ee50ef9bb83574d1b9d23747a",
+        "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "binary_sha256": "b673d918b9c29776f709ac0ba2e18dd4b1edc4f57b2a87593403ca6006ddf3b2",
+        "artifacts": {
+          "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+          "scripts/run_map_context.py": "c75b823873b390e74b9318a394dc548680f90901f12371ec881f41cb2a508519",
+          "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+          "scripts/run_common_native.py": "d285b1997fe10efaf2221ef54818b1aa25770487479e80a50390fdaa0e2e6d00",
+          "examples/climbing_control_probe.rs": "10b0c5c060d6f10e2ccf46cebb50287d4ba928809f6eee06cf2f8727e8479faa"
+        }
+      },
+      "passed": true,
+      "check_names": [
+        "unreceived_map_is_missing",
+        "first_received_map",
+        "saved_map_keeps_original_receipts",
+        "changed_pixels_keep_unmodified_cell_sources",
+        "received_pixels_match_independently_saved_official_map",
+        "fresh_icons_keep_pixel_sources",
+        "world_change_retires_live_map_and_preserves_saved",
+        "same_native_map_id_new_world_receipt",
+        "maps_readable_after_close"
+      ],
+      "report_sha256": "c062f0f2bca280e278a6bc2e32e59de4f01dd5f059d14d8d18bccd3fa5e5680f"
+    },
+    {
+      "version": "1.21.11",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "sdk": {
+        "source_revision": "111843ac37ef292587bd1868e671d1858ff16452",
+        "binary_build_revision": "213ae07b415ffc6ee50ef9bb83574d1b9d23747a",
+        "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "binary_sha256": "b673d918b9c29776f709ac0ba2e18dd4b1edc4f57b2a87593403ca6006ddf3b2",
+        "artifacts": {
+          "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+          "scripts/run_map_context.py": "c75b823873b390e74b9318a394dc548680f90901f12371ec881f41cb2a508519",
+          "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+          "scripts/run_common_native.py": "d285b1997fe10efaf2221ef54818b1aa25770487479e80a50390fdaa0e2e6d00",
+          "examples/climbing_control_probe.rs": "10b0c5c060d6f10e2ccf46cebb50287d4ba928809f6eee06cf2f8727e8479faa"
+        }
+      },
+      "passed": true,
+      "check_names": [
+        "unreceived_map_is_missing",
+        "first_received_map",
+        "saved_map_keeps_original_receipts",
+        "changed_pixels_keep_unmodified_cell_sources",
+        "received_pixels_match_independently_saved_official_map",
+        "fresh_icons_keep_pixel_sources",
+        "world_change_retires_live_map_and_preserves_saved",
+        "modern_other_dimension_map_receipt",
+        "same_native_map_id_new_world_receipt",
+        "maps_readable_after_close"
+      ],
+      "report_sha256": "fcf3c3b8a97350b16b53e24ba57a501ade313b274af1d2cc1345318269f5fb5c"
+    }
+  ]
+}

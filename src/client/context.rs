@@ -71,6 +71,7 @@ impl crate::Client {
 
 #[derive(Default)]
 pub(crate) struct ContextLedger {
+    pub maps: super::maps::MapLedger,
     pub experience: Option<ObservedValue<Experience>>,
     pub weather: WeatherObservation,
     pub default_spawn: Option<ObservedValue<DefaultSpawnPosition>>,

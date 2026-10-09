@@ -61,6 +61,7 @@ pub(crate) trait CoreOps {
     async fn server_registry_state(&self) -> Result<ServerRegistryObservation>;
     async fn player_state(&self) -> Result<PlayerObservation>;
     async fn player_context(&self) -> Result<super::PlayerContextObservation>;
+    async fn map_observation(&self, native_id: i32) -> Result<Option<super::MapObservation>>;
     async fn received_inventory(&self) -> Result<ReceivedInventory>;
     async fn respawn(&self) -> Result<RespawnRecord>;
     async fn entity_spawns(&self) -> Result<EntitySpawns>;

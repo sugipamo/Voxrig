@@ -61,7 +61,9 @@ pub use lifecycle::{ConnectionRevocation, ConnectionStatus};
 pub(crate) mod login;
 pub use furnace::{FurnaceObservation, FurnaceSlot};
 pub mod manager;
+pub mod maps;
 pub use manager::ClientManager;
+pub use maps::{MAX_RECEIVED_MAPS, MapIconKind, MapIdentity, MapObservation, ReceivedMapIcon};
 pub mod nbt;
 pub(crate) mod observation;
 pub(crate) mod operations;
@@ -148,6 +150,9 @@ pub mod prelude {
         InventoryClickStage, InventorySource, InventorySwapId, InventorySwapRecord,
         InventorySwapSource, InventorySwapStage, InventoryTransferId, InventoryTransferRecord,
         InventoryTransferStage,
+    };
+    pub use super::maps::{
+        MAX_RECEIVED_MAPS, MapIconKind, MapIdentity, MapObservation, ReceivedMapIcon,
     };
     pub use super::nbt::{NbtCompound, NbtData, NbtEntry, NbtString, NbtValue};
     pub use super::observation::SlotKnowledge;
