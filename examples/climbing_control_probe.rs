@@ -146,6 +146,7 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
             "vehicle" => serde_json::to_value(client.vehicle_state().await?)?,
+            "player_context" => serde_json::to_value(client.player_context().await?)?,
             "vehicle_record" => serde_json::to_value(client.vehicle_control_record().await?)?,
             "capture" => serde_json::to_value(
                 client
@@ -402,6 +403,13 @@ async fn main() -> anyhow::Result<()> {
                     "{}",
                     serde_json::to_value(survival.control_record().await?)?
                 );
+                std::io::stdout().flush()?;
+                return Ok(());
+            }
+            "context_disconnect" => {
+                client.disconnect().await?;
+                tokio::time::sleep(Duration::from_millis(150)).await;
+                println!("{}", serde_json::to_value(client.player_context().await?)?);
                 std::io::stdout().flush()?;
                 return Ok(());
             }

@@ -35,6 +35,8 @@ pub enum Feature {
     WorldObservation,
     /// Common own-player and received inventory observations.
     PlayerObservation,
+    /// Received experience, weather, default spawn and world-view fields.
+    PlayerContext,
     /// Mode-checked look and hotbar selection.
     BasicControls,
     /// Same static outline query on survival and creative handles.
@@ -132,6 +134,7 @@ impl Feature {
         Feature::Registry,
         Feature::WorldObservation,
         Feature::PlayerObservation,
+        Feature::PlayerContext,
         Feature::BasicControls,
         Feature::BlockTargeting,
         Feature::SurvivalTargeting,
@@ -195,6 +198,10 @@ impl Capabilities {
             Support::Restricted(Restriction { summary, doc })
         }
         match feature {
+            Feature::PlayerContext => restricted(
+                "received experience/weather/default spawn/view packets; explicit version-only fields",
+                "docs/common-player-context.md",
+            ),
             Feature::ConnectionRevocation
             | Feature::Registry
             | Feature::WorldObservation

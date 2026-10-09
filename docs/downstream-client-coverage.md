@@ -99,7 +99,7 @@ P3は現在のoffline二版以外の導入条件。各項目内でも場面を�
 | ID・優先度 | 利用側に必要な残件 | 現状の根拠と受入条件 |
 | --- | --- | --- |
 | OBS-ENTITY / P1 | pose／子供／scaleを反映したentity box・eye、未解読metadata、metadata／equipment履歴、modern相対補正・特殊トロッコsample | [entity現在状態](common-entities.md)・[motion](common-entity-motion.md)・[history](common-entity-history.md)。既定boxと受信確定値を分離し、未確定なら理由を返す。remove／ID再利用／world resetと両版実接続を検査 |
-| OBS-WORLD / P1 | biome、heightmap、block entity NBT、map pixels/icons、天候、経験値・spawnなどnativeにあるworld/player文脈 | `src/versions/java_1_16_1/client.rs`のnative snapshotsと共通`PlayerObservation`／`ChunkObservation`を照合。単なるre-exportを両版対応としない。受信元・未知・更新／unload／world寿命と実packet照合が必要 |
+| OBS-WORLD / P1 | biome、heightmap、block entity NBT、map pixels/iconsなど残るworld文脈 | [`Client::player_context()`](common-player-context.md)で経験値・独立天候field・default world spawn・world-view fieldを両版へ提供。各fieldは元の受信sourceとworld generationを保持し、未受信と既知のゼロ／falseを区別。公式両版28項目を原packet・RCON・保存天候で照合。biome／heightmap／block entity NBT／mapは未提供で#41継続 |
 | INVENTORY / P1 | 明示slot装備・drop・hand swap、armor／offhand／resultのclick残差、製作台入力SWAP／QUICK_MOVE、複雑item/componentの残constructor・比較・hash | [item data](common-item-data.md)・[inventory](common-inventory-clicks.md)・[recipes](common-recipes.md)。容量・item data・cursor／slot保存を検査し、拒否／取消／部分I/Oで再送しない。装備計画は利用側 |
 | WINDOWS / P2 | villager trade、enchant、anvil、beacon、brewingなど特殊menuとsign／book編集 | nativeには一部入口があるが共通layout・結果契約は未完。openingに束縛した対象、slot／property／選択の元値、消費と出力の受信を保持。別screen／mode／close／取消を検査 |
 | MOVEMENT / P2 | ボートのentity衝突・特殊block hook、残る装備移動効果、別姿勢／飛行／elytra／他の乗り物 | [vehicles](common-vehicles.md)・[control](common-control.md)・[physics](physics-engine.md)。ボート／トロッコを先行する。公式処理oracle＋元送信packet＋独立server pose、neutral／強制下車／補正後の停止を検査 |
