@@ -300,7 +300,7 @@ impl Capabilities {
                 "docs/common-vehicles.md",
             ),
             Feature::VehicleInput => restricted(
-                "finite mounted inputs; ordinary boats and server-driven minecarts; final neutral",
+                "finite mounted inputs; audited boat terrain callbacks and server-driven minecarts; final neutral",
                 "docs/common-vehicles.md",
             ),
             Feature::VehicleGrounding => restricted(

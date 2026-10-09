@@ -127,6 +127,7 @@ history読取時計／cursor ordinalはOBS-ENTITYの未実装分へ重複登録�
 | session所有の単発接地ジャンプ・押下入力保持・取消境界 | `scripts/run_ground_jump.py`、[公式両版21checkの証拠](evidence/common-ground-jump-20261009.json) |
 | player泡の柱、ボートの水源／水没／流水・解除・強制下車 | `scripts/run_fluid_control.py`、[公式34checkの証拠](evidence/common-fluid-control-20261009.json)、[3346tickのoracle](movement-oracle.md) |
 | ボートの泡・速度受信元・待機取消・強制下車 | `scripts/run_boat_bubbles.py`、[公式両版48checkの証拠](evidence/common-boat-bubbles-20261009.json)、32実行・1,080tickの元の移動照合 |
+| ボートのスライム・ベッド・クモの巣・蜂蜜 | `scripts/run_boat_hooks.py`、公式両版40check、28実行・1,470tickの元の非LivingEntity callback照合。他entityとの衝突は継続対象 |
 | 64block ray、mode別look／hotbar | `scripts/run_migration_api.py`、[両版42checkの証拠](evidence/common-migration-api-20261009.json) |
 | entity寿命／受信履歴 | `scripts/run_entity_history.py`、[両版8checkの証拠](evidence/common-entity-history-20261009.json) |
 | 履歴読取時計・空page・world変更・遮断後 | [今回の公式両版14checkの証拠](evidence/common-consumer-history-clock-20261009.json)。既存runnerと追加clock検査の実行ソース・hashを保持 |

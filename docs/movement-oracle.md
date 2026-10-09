@@ -161,3 +161,21 @@ python3 -B scripts/run_boat_bubbles.py --accept-eula \
 
 混在する泡、移動途中の接触、水浸しの上面を含む32実行の全tickについて、位置・速度・
 回転・角速度・接地・水接触・パドルを比較する。モデルをpacketの現在位置やACKとは扱わない。
+
+
+## ボートの特殊地形の比較（2026-10-09）
+
+`boat_hook_scenarios.json`はスライムとベッドへの落下・前進・斜め移動、蜂蜜の床と側面、
+クモの巣への接地・落下を含む14場面である。公式の非LivingEntityのcallbackを呼び、
+28実行・1,470tickの全frameを比較する。計測入力の速度は受信証拠ではない。
+
+```bash
+python3 -B scripts/movement_oracle/run.py \
+  --downloads /absolute/path/to/downloads --work "$PWD/.local/boat-hooks-oracle" \
+  --scenarios scripts/movement_oracle/boat_hook_scenarios.json \
+  --output "$PWD/data/client_api/boat_hooks_oracle.json.gz" \
+  --blocks-output "$PWD/.local/boat-hooks-blocks"
+cargo test --locked --lib special_block_hooks_match_original_nonliving_boat_callbacks
+```
+
+`--work`の版別ディレクトリは再生成されるため、他の検証出力とは別のパスを使う。

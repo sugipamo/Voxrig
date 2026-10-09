@@ -1,0 +1,152 @@
+{
+  "schema": 1,
+  "scope": "Single ordinary boat: nonliving slime/bed landing, slime ground slowdown, honey speed/slide, deferred cobweb motion. Entity collision and unaudited hooks remain restricted.",
+  "publication": "Results and hashes only. Original packet/NBT-containing reports remain local; controlled oracle fixture has synthetic block/tick model data only.",
+  "sdk_build_revision": "ede771bc061fa820859edb482f1e3eca14a37fa6",
+  "qualification_source_revision": "7d8781da29afe5ce04336f19f5cadd9d1a244d82",
+  "source_relationship": "Qualification revision changes only driver syntax and documentation. Native suite and probe use identical Rust/Cargo implementation.",
+  "validation": {
+    "native_library_passed": 947,
+    "native_integration_passed": 4,
+    "native_ignored": 8,
+    "doctests_passed": 34,
+    "doctests_ignored": 1,
+    "boat_oracle_tests_passed": 5,
+    "strict_clippy": true,
+    "strict_rustdoc": true,
+    "trace_tests_passed": 6,
+    "logs_sha256": {
+      "/tmp/voxrig-44-hooks-all-tests.log": "6fc631174484141b85a6013fd84ca743484b9383dbbae49174b2ebef30733e29",
+      "/tmp/voxrig-44-hooks-doc-tests.log": "b325acdda065c4c5a67c4a1ed6dcede3600312eb98355ce19a6500f00e197136",
+      "/tmp/voxrig-44-hooks-clippy.log": "462cdfbdb27cbfede269034f8808df0272aa28757a88207985b12277027bfb50",
+      "/tmp/voxrig-44-hooks-rustdoc.log": "176d09cec0118250129fda4d195bf229561daf07c158a867676f5f230ef1cb77",
+      "/tmp/voxrig-44-hooks-trace-tests.log": "d8f76759d5a662ac1e7de7e9b732e7b9cfa2a897995917a79d7c8731c7b55370",
+      "/tmp/voxrig-44-hooks-probe.log": "35371b026e23218cd5ee23a013f755e97172c14a2210fff6270628c1f9c15905",
+      "/tmp/voxrig-44-hooks-qualified-live.log": "a3b4f0f290b296e8d3f5e6276570ac40bb46b905644a8218d8604e6d6e9b428e",
+      "/tmp/voxrig-44-hooks-reproduced-oracle.log": "b36cad516c046528792f7993953768ed2bd6b02d4ce5b0f9c89e1bcb1122200a"
+    }
+  },
+  "oracle": {
+    "controlled_scenarios": 14,
+    "runs": 28,
+    "ticks": 1470,
+    "fixture_sha256": "e0dd99076b45315f35f7e166f38a60ba43d72c3c5b46c9d0c8cafd744720180c",
+    "native_inputs": [
+      {
+        "version": "1.16.1",
+        "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+        "harness_sha256": "bc6275e116bce230319ea2a67ea175c1c9943e9850cdcd20315c4c6004f2f83b"
+      },
+      {
+        "version": "1.21.11",
+        "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+        "harness_sha256": "fde85a9f6299bcd8828da0e5e155bcfeda027aa1010fb37f31d35c5ce89db68b"
+      }
+    ]
+  },
+  "diagnostics": [
+    "Driver syntax rejected before server startup, corrected without changing SDK or receipt assertions.",
+    "Legacy fixture supplies no in-run velocity updates; zero is retained explicitly, not counted as actual received velocity coverage. Bubble qualification already covers supplied velocity updates on both versions."
+  ],
+  "local_original_evidence_sha256": "4a7de86460b7653a6c71e169a2ddad580db4c27318761285b6bfe8e99f6dbb7e",
+  "runs": [
+    {
+      "version": "1.16.1",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "sdk": {
+        "source_revision": "7d8781da29afe5ce04336f19f5cadd9d1a244d82",
+        "binary_build_revision": "ede771bc061fa820859edb482f1e3eca14a37fa6",
+        "binary_sha256": "72eb89f73924c59189fd565086cc59c1f4b28be02ececf4091b86b4ed8b82b97",
+        "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "artifacts": {
+          "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+          "scripts/run_boat_hooks.py": "7036033d305a445f6d218943584dfc70a665b13385a2a2330f91930285facbe1",
+          "scripts/run_boat_bubbles.py": "e519ffe34e264f4ad690a5d61a42344e2b7086430776c7d71bfe295d4c2bdf31",
+          "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+          "scripts/run_common_native.py": "d285b1997fe10efaf2221ef54818b1aa25770487479e80a50390fdaa0e2e6d00",
+          "examples/climbing_control_probe.rs": "10b0c5c060d6f10e2ccf46cebb50287d4ba928809f6eee06cf2f8727e8479faa",
+          "scripts/movement_oracle/run.py": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+          "scripts/movement_oracle/boat_hook_scenarios.json": "86da8b1c8928631e719bb0425d0743855cc77279f909485ebcf287af88fd9d6d",
+          "scripts/movement_oracle/java_1_16_1/MovementOracle.java": "bc6275e116bce230319ea2a67ea175c1c9943e9850cdcd20315c4c6004f2f83b",
+          "scripts/movement_oracle/java_1_21_11/MovementOracle.java": "fde85a9f6299bcd8828da0e5e155bcfeda027aa1010fb37f31d35c5ce89db68b",
+          "data/client_api/boat_hooks_oracle.json.gz": "e0dd99076b45315f35f7e166f38a60ba43d72c3c5b46c9d0c8cafd744720180c"
+        }
+      },
+      "passed": true,
+      "check_names": [
+        "slime_mount",
+        "slime_finite_dispatch",
+        "slime_velocity_sources",
+        "slime_native_endpoint",
+        "slime_received_dismount",
+        "bed_mount",
+        "bed_finite_dispatch",
+        "bed_velocity_sources",
+        "bed_native_endpoint",
+        "bed_received_dismount",
+        "cobweb_mount",
+        "cobweb_finite_dispatch",
+        "cobweb_velocity_sources",
+        "cobweb_native_endpoint",
+        "cobweb_received_dismount",
+        "honey_mount",
+        "honey_finite_dispatch",
+        "honey_velocity_sources",
+        "honey_native_endpoint",
+        "honey_received_dismount"
+      ],
+      "verified_velocity_update_count": 0,
+      "report_sha256": "181239e5aaa714eba72025f94a507878ee2cadc8bd4b5a9562da652b2b7f3b0b"
+    },
+    {
+      "version": "1.21.11",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "sdk": {
+        "source_revision": "7d8781da29afe5ce04336f19f5cadd9d1a244d82",
+        "binary_build_revision": "ede771bc061fa820859edb482f1e3eca14a37fa6",
+        "binary_sha256": "72eb89f73924c59189fd565086cc59c1f4b28be02ececf4091b86b4ed8b82b97",
+        "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "artifacts": {
+          "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+          "scripts/run_boat_hooks.py": "7036033d305a445f6d218943584dfc70a665b13385a2a2330f91930285facbe1",
+          "scripts/run_boat_bubbles.py": "e519ffe34e264f4ad690a5d61a42344e2b7086430776c7d71bfe295d4c2bdf31",
+          "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+          "scripts/run_common_native.py": "d285b1997fe10efaf2221ef54818b1aa25770487479e80a50390fdaa0e2e6d00",
+          "examples/climbing_control_probe.rs": "10b0c5c060d6f10e2ccf46cebb50287d4ba928809f6eee06cf2f8727e8479faa",
+          "scripts/movement_oracle/run.py": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+          "scripts/movement_oracle/boat_hook_scenarios.json": "86da8b1c8928631e719bb0425d0743855cc77279f909485ebcf287af88fd9d6d",
+          "scripts/movement_oracle/java_1_16_1/MovementOracle.java": "bc6275e116bce230319ea2a67ea175c1c9943e9850cdcd20315c4c6004f2f83b",
+          "scripts/movement_oracle/java_1_21_11/MovementOracle.java": "fde85a9f6299bcd8828da0e5e155bcfeda027aa1010fb37f31d35c5ce89db68b",
+          "data/client_api/boat_hooks_oracle.json.gz": "e0dd99076b45315f35f7e166f38a60ba43d72c3c5b46c9d0c8cafd744720180c"
+        }
+      },
+      "passed": true,
+      "check_names": [
+        "slime_mount",
+        "slime_finite_dispatch",
+        "slime_velocity_sources",
+        "slime_native_endpoint",
+        "slime_received_dismount",
+        "bed_mount",
+        "bed_finite_dispatch",
+        "bed_velocity_sources",
+        "bed_native_endpoint",
+        "bed_received_dismount",
+        "cobweb_mount",
+        "cobweb_finite_dispatch",
+        "cobweb_velocity_sources",
+        "cobweb_native_endpoint",
+        "cobweb_received_dismount",
+        "honey_mount",
+        "honey_finite_dispatch",
+        "honey_velocity_sources",
+        "honey_native_endpoint",
+        "honey_received_dismount"
+      ],
+      "verified_velocity_update_count": 3,
+      "report_sha256": "75268ab68bc56069d860ab1d6b4884c3cfbb7923dcd26ddd92b816612316168d"
+    }
+  ]
+}
