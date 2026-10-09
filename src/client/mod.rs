@@ -13,7 +13,12 @@ mod capabilities;
 mod config;
 pub(crate) mod constructor;
 pub mod container;
+pub mod context;
 pub mod control;
+pub use context::{
+    DefaultSpawnPosition, Experience, PlayerContextObservation, WeatherObservation,
+    WorldViewObservation,
+};
 pub mod crafting;
 pub(crate) mod enchantments;
 pub(crate) mod entity;
@@ -118,6 +123,10 @@ pub mod prelude {
         ContainerOpenProcessing, ContainerOpenRecord, ContainerOpenSend, ContainerOpenStage,
         ContainerOpenTargetState, ContainerScreen, CursorReturnPlanStep, PlayerScreenAccess,
         ScreenId, ScreenObservation,
+    };
+    pub use super::context::{
+        DefaultSpawnPosition, Experience, PlayerContextObservation, WeatherObservation,
+        WorldViewObservation,
     };
     pub use super::entity::{
         EntitiesObservation, EntityObservation, EntityPartEvidence, EntityPartId, EntityPartKind,

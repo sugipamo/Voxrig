@@ -3,22 +3,37 @@
 use super::*;
 
 impl Bot {
-    pub(super) async fn receive_game_state_change(&self, p: &[u8]) -> Result<()> {
+    pub(super) async fn receive_game_state_change(
+        &self,
+        p: &[u8],
+        packet_sequence: u64,
+    ) -> Result<()> {
+        if !(p.len() == 5) {
+            return Err(anyhow::anyhow!("invalid game-state packet length").into());
+        }
         let mut c = Cursor::new(p);
         let change = GameStateChange {
             reason: c.read_u8()?,
             value: c.read_f32::<BigEndian>()?,
         };
+        if !(change.value.is_finite()) {
+            return Err(anyhow::anyhow!("non-finite game-state value").into());
+        }
         let mut state = self.survival.write().await;
         match change.reason {
-            1 => state.raining = Some(false),
-            2 => state.raining = Some(true),
+            1 => state.raining = Some(true),
+            2 => state.raining = Some(false),
             3 => state.game_mode = Some(change.value as u8),
             7 => state.rain_level = Some(change.value),
             8 => state.thunder_level = Some(change.value),
             _ => {}
         }
         drop(state);
+        self.common_receipts.lock().await.context.weather(
+            change.reason,
+            change.value,
+            packet_sequence,
+        );
         if change.reason == 3 {
             self.interrupt_common_motion("native game mode changed after finite motion started")
                 .await;
@@ -32,6 +47,7 @@ impl Bot {
         {
             let mut receipts = self.common_receipts.lock().await;
             receipts.generation = packet_sequence;
+            receipts.context = Default::default();
             receipts.entities.history_context(
                 crate::MinecraftVersion::Java1_16_1,
                 packet_sequence,
@@ -168,6 +184,7 @@ impl Bot {
         {
             let mut receipts = self.common_receipts.lock().await;
             receipts.generation = packet_sequence;
+            receipts.context = Default::default();
             receipts.entities.history_context(
                 crate::MinecraftVersion::Java1_16_1,
                 packet_sequence,
@@ -327,5 +344,70 @@ impl Bot {
             self.emit(Event::SurvivalStateUpdated);
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod context_tests {
+    use super::*;
+    #[tokio::test]
+    async fn player_context_legacy_keeps_sources_missing_fields_and_world_lifetimes() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        assert!(client.player_context().await.unwrap().experience.is_none());
+        let mut rain = vec![7];
+        rain.extend(0.25f32.to_be_bytes());
+        bot.apply_packet(0x1e, rain).await.unwrap();
+        let first = client.player_context().await.unwrap();
+        assert!(first.weather.raining.is_none());
+        assert_eq!(first.weather.rain_level.as_ref().unwrap().value, 0.25);
+        let mut start = vec![1];
+        start.extend(0f32.to_be_bytes());
+        bot.apply_packet(0x1e, start).await.unwrap();
+        assert_eq!(bot.survival.read().await.raining, Some(true));
+        let mut xp = 0.25f32.to_be_bytes().to_vec();
+        xp.extend([7, 20]);
+        bot.apply_packet(0x48, xp.clone()).await.unwrap();
+        let original = client.player_context().await.unwrap();
+        for end in 0..xp.len() {
+            assert!(bot.apply_packet(0x48, xp[..end].to_vec()).await.is_err());
+            let retained = client.player_context().await.unwrap();
+            assert_eq!(retained.experience, original.experience);
+        }
+        let mut zero = 0f32.to_be_bytes().to_vec();
+        zero.extend([0, 0]);
+        bot.apply_packet(0x48, zero).await.unwrap();
+        let zero = client.player_context().await.unwrap();
+        assert_eq!(
+            zero.experience.as_ref().unwrap().value,
+            crate::client::Experience {
+                progress: 0.,
+                level: 0,
+                total: 0
+            }
+        );
+        assert!(zero.receive_sequence > original.receive_sequence);
+        assert_eq!(zero.weather.rain_level, first.weather.rain_level);
+        assert!(zero.default_spawn.is_none());
+        assert!(zero.world_view.simulation_distance.is_none());
+        let mut respawn = Vec::new();
+        put_string(&mut respawn, "minecraft:overworld");
+        put_string(&mut respawn, "world");
+        respawn.extend([0; 8]);
+        respawn.extend([0, 255, 0, 0, 1]);
+        bot.apply_packet(0x3a, respawn).await.unwrap();
+        let next = client.player_context().await.unwrap();
+        assert_ne!(next.session.world_generation, zero.session.world_generation);
+        assert!(
+            next.experience.is_none()
+                && next.weather.raining.is_none()
+                && next.weather.rain_level.is_none()
+        );
+        assert_eq!(original.experience.as_ref().unwrap().value.level, 7);
+        let _ = client.revoke_connection();
+        assert_eq!(client.player_context().await.unwrap().session, next.session);
+        drop(release);
+        server.await.unwrap();
     }
 }

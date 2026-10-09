@@ -424,6 +424,18 @@ fn common_state(message: &str) -> crate::Error {
 }
 
 impl crate::client::adapter::CoreOps for Bot {
+    async fn player_context(&self) -> Result<api::PlayerContextObservation> {
+        let _gate = self.coherent_state_gate.lock().await;
+        let receipts = self.common_receipts.lock().await;
+        Ok(receipts.context.capture(
+            api::SessionStamp {
+                version: crate::MinecraftVersion::Java1_16_1,
+                connection_id: self.connection_id(),
+                world_generation: receipts.generation,
+            },
+            self.protocol_packet_sequence.load(Ordering::Acquire),
+        ))
+    }
     async fn respawn(&self) -> Result<api::RespawnRecord> {
         let bot = self.clone();
         tokio::spawn(async move {
@@ -834,7 +846,7 @@ mod tests {
         );
         let mut change = vec![3];
         change.extend(2f32.to_be_bytes());
-        bot.receive_game_state_change(&change).await.unwrap();
+        bot.receive_game_state_change(&change, 1).await.unwrap();
         drop(gate);
         assert_eq!(look.await.unwrap_err().kind(), ErrorKind::State);
         let input = client.player_control(api::GameMode::Adventure);

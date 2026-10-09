@@ -1,4 +1,5 @@
 //! Ordered 1.21.11 receive loop. Local state is committed under one session lock.
+mod context;
 mod correction;
 #[cfg(test)]
 mod edge_native_trials;
@@ -55,6 +56,7 @@ use crate::client::recording::{LocalPlayerBasis, PacketPhase, TraceCapture};
 pub use crate::client::recording::{PacketRecord, PacketTrace};
 
 struct State {
+    context: crate::client::context::ContextLedger,
     /// Last received own death message (DEATH_COMBAT_EVENT).
     death_message: Option<crate::client::ObservedValue<crate::client::ui::UiText>>,
     /// Text of the last received KICK_DISCONNECT.
@@ -118,6 +120,7 @@ struct State {
 impl Default for State {
     fn default() -> Self {
         Self {
+            context: Default::default(),
             death_message: None,
             disconnect_reason: None,
             loading: loading::InteractionLoading::default(),
@@ -875,6 +878,7 @@ fn spawn_info(state: &mut State, r: &mut Reader<'_>) -> anyhow::Result<()> {
         .context("unknown dimension registry ID")?;
     state.world.select_dimension(name, dimension);
     state.loading.reset(state.sequence);
+    state.context = Default::default();
     state.entities.history_context(
         MinecraftVersion::Java1_21_11,
         state.loading.generation,
@@ -907,6 +911,9 @@ fn apply_play(
     let mut r = Reader::new(payload);
     let mut responses = Vec::new();
     entity::receive(state, id, payload)?;
+    if context::receive(state, id, payload)? {
+        return Ok(responses);
+    }
     if operations::receive(state, id, payload)? {
         return Ok(responses);
     }
@@ -1147,6 +1154,7 @@ fn apply_play(
         input::START_CONFIGURATION => {
             r.end()?;
             state.loading.reset(state.sequence);
+            state.context = Default::default();
             state.entities.history_context(
                 MinecraftVersion::Java1_21_11,
                 state.loading.generation,

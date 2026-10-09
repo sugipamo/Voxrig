@@ -243,10 +243,16 @@ pub(crate) fn parse_experience(payload: &[u8]) -> Result<Experience> {
     let mut cursor = Cursor::new(payload);
     let progress = cursor.read_f32::<BigEndian>()?;
     let mut rest = &payload[cursor.position() as usize..];
+    let level = get_varint(&mut rest)?;
+    let total = get_varint(&mut rest)?;
+    anyhow::ensure!(
+        progress.is_finite() && rest.is_empty(),
+        "invalid experience packet"
+    );
     Ok(Experience {
         progress,
-        level: get_varint(&mut rest)?,
-        total: get_varint(&mut rest)?,
+        level,
+        total,
     })
 }
 

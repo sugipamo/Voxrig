@@ -1527,6 +1527,17 @@ pub(super) fn common_slot(slot: &InventorySlot) -> Result<crate::client::SlotKno
 }
 
 impl crate::client::adapter::CoreOps for Operations {
+    async fn player_context(&self) -> Result<crate::client::PlayerContextObservation> {
+        let state = self.bot.session.state.lock().await;
+        Ok(state.context.capture(
+            crate::client::SessionStamp {
+                version: crate::MinecraftVersion::Java1_21_11,
+                connection_id: self.bot.session.id,
+                world_generation: state.loading.generation,
+            },
+            state.sequence,
+        ))
+    }
     async fn server_registry_state(
         &self,
     ) -> Result<crate::client::registry::ServerRegistryObservation> {
