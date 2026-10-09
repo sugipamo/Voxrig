@@ -90,7 +90,9 @@ async fn main() -> anyhow::Result<()> {
                     .await?;
                 let mut response = map_pixels(context.as_ref());
                 response["saved"] = map_pixels(saved_map.as_ref());
-                response
+                println!("{response}");
+                std::io::stdout().flush()?;
+                return Ok(());
             }
             "prepare" => {
                 let target: [f64; 3] = serde_json::from_value(request["position"].clone())?;

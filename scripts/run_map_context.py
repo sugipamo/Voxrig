@@ -184,7 +184,6 @@ def check(version, command, request, trace, report, *, sdk):
     if closed['context']['map']!=renewed['context']['map'] or closed['saved']!=saved:
         raise RuntimeError('map reads after closure lost original facts')
     report['checks'].append(dict(name='maps_readable_after_close',**verify(version,closed,trace)))
-    request('disconnect')
 
 
 def main():
