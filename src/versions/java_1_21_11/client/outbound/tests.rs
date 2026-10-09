@@ -3535,8 +3535,8 @@ async fn common_entity_history_freezes_native_packets_and_reports_retention() {
     let mut status = 42i32.to_be_bytes().to_vec();
     status.push(2);
     receive!(ids::play_clientbound::ENTITY_STATUS, status);
-    receive!(ids::play_clientbound::ANIMATION, vec![42, 1]);
-    receive!(ids::play_clientbound::ENTITY_DESTROY, vec![2, 42, 43]);
+    receive!(ids::play_clientbound::ANIMATION, [42, 1]);
+    receive!(ids::play_clientbound::ENTITY_DESTROY, [2, 42, 43]);
     let page = client
         .entity_history_after(Some(baseline), 1024)
         .await
