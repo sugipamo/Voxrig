@@ -74,3 +74,22 @@ ProjectileTrack、予測・物理、freshness、戦闘判断、Body policyは利
 両adapterの実decoderによる回帰テストで、生き物とfireballの混在、同じpacketの複数field、
 読取前の連続velocity更新、1 packetの複数削除、respawn・ID再利用、8192件超の保持欠落と
 分割読取、revocation後の読取を検証する。欠測と受信済みのゼロ、異なる接続のカーソルも区別する。
+
+
+2026-10-09、SHA-1を照合した未改変の公式1.16.1・1.21.11 server.jarへのloopback実接続でも
+各版4項目（合計8項目）が成功し、両packet traceのエラーは0だった。生き物とfireballを
+出現・移動・削除し、過去の位置・status・削除後のサンプル、実respawn・own補正、
+revocation後の履歴読取を確認した。[証跡](evidence/common-entity-history-20261009.json)には
+SDK・probe・runner・公式jar・report・元packet traceのidentityと関連recordを保存する。
+
+最初のfixtureは整数X/Zのcommand中心寄せ（3.0の期待に対し実際は3.5）を見落とし、
+次のfixtureは診断後のJSON driver終了を呼ばず終了待機で失敗した。fixtureを修正し、
+両版を再実行した。この2 runは成功数に含めない。起動した全server/probeは停止・回収した。
+RCONはfixtureの操作と独立した状態確認に使い、SDKの過去値や受信時刻へ混ぜていない。
+
+```sh
+cargo build --locked --example migration_api_probe
+python3 scripts/run_entity_history.py --accept-eula \
+  --binary target/debug/examples/migration_api_probe --jars /path/to/official-jars
+cargo test --locked --lib entity_history --features native
+```
