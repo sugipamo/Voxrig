@@ -183,7 +183,8 @@ def check_nested_attachment(version, command, request, trace, report, *, sdk):
     command('summon minecraft:oak_boat 0.5 65.25 1.5 {Tags:["CollisionMount"],Invulnerable:1b}')
     mount = request('mount', type='minecraft:oak_boat')
     native_mount = mount['relation']['value']['mount']
-    command('summon minecraft:minecart 0.5 65.25 2 {Tags:["CollisionParent"],NoGravity:1b,Invulnerable:1b}')
+    # Keep it outside native minecart pickup distance until the explicit /ride.
+    command('summon minecraft:minecart 6.5 65.25 1.5 {Tags:["CollisionParent"],NoGravity:1b,Invulnerable:1b}')
     def received_parent():
         entities = request('entities')['entities']
         return entities if any(e['motion']['entity']['type_name'] == 'minecraft:minecart'
