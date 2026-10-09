@@ -117,8 +117,9 @@ pub use received_items::{ReceivedInventory, ReceivedItem, ReceivedSlot};
 pub use recording::{PacketPhase, PacketRecord, PacketTrace};
 pub use survival::{BlockTargetHit, BlockTargetObservation, MiningEstimate};
 pub use vehicle::{
-    BoatFrame, BoatMotion, BoatVelocityUpdate, DismountGrounding, DismountId, DismountRecord,
-    DismountStage, MAX_VEHICLE_CONTROL_TICKS, MountId, VehicleControlId, VehicleControlRecord,
+    BoatCollisionBody, BoatCollisionSample, BoatFrame, BoatMotion, BoatVelocityUpdate,
+    DismountGrounding, DismountId, DismountRecord, DismountStage, MAX_BOAT_COLLISION_BODIES,
+    MAX_VEHICLE_CONTROL_TICKS, MountId, VehicleControlId, VehicleControlRecord,
     VehicleControlStage, VehicleInput, VehicleObservation, VehicleRelation,
 };
 
@@ -188,6 +189,7 @@ pub mod prelude {
         BoatFrame, BoatMotion, BoatVelocityUpdate, MAX_VEHICLE_CONTROL_TICKS, VehicleControlId,
         VehicleControlRecord, VehicleControlStage, VehicleInput,
     };
+    pub use super::vehicle::{BoatCollisionBody, BoatCollisionSample, MAX_BOAT_COLLISION_BODIES};
     pub use super::{
         BlockFace, ChunkObservation, ConnectionStatus, CraftOnceRecord, CraftingFillRecord,
         DigEstimate, DigRecord, Hand, LoadedChunks, ObservedValue, PlacementCheck, PlayerAttribute,

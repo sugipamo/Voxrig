@@ -156,11 +156,24 @@ impl Bot {
                         "vehicle control frame already claimed or uncertain",
                     ));
                 }
+                let collisions = {
+                    let receipts = self.common_receipts.lock().await;
+                    api::vehicle::collision::sample(
+                        &record,
+                        &vehicle,
+                        &receipts.entities,
+                        &receipts.vehicles,
+                        player.receive_sequence,
+                    )?
+                };
                 let boat_frame = {
                     let world = self.world.lock().await;
-                    api::vehicle::control::boat_step(&record, input, &mut |p| {
-                        super::common_motion::legacy_motion_block(&world, p)
-                    })?
+                    api::vehicle::control::boat_step(
+                        &record,
+                        input,
+                        collisions.as_ref(),
+                        &mut |p| super::common_motion::legacy_motion_block(&world, p),
+                    )?
                 };
                 if let Some(boat) = self
                     .vehicle_control_history
@@ -171,6 +184,9 @@ impl Bot {
                     .boat_motion
                     .as_mut()
                 {
+                    if let Some(sample) = collisions {
+                        boat.collision_samples.push(sample);
+                    }
                     boat.attempted_frame = boat_frame.clone();
                 }
                 self.vehicle_control_history

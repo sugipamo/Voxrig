@@ -1,7 +1,9 @@
 //! Actual received own-player passenger relationships, separate from motion.
 use super::{EntityId, ObservedValue, SessionStamp, entity::SpawnLedger, received};
 use crate::protocol::get_varint;
+pub(crate) mod collision;
 pub mod control;
+pub use collision::{BoatCollisionBody, BoatCollisionSample, MAX_BOAT_COLLISION_BODIES};
 pub use control::{
     BoatFrame, BoatMotion, BoatVelocityUpdate, MAX_VEHICLE_CONTROL_TICKS, VehicleControlId,
     VehicleControlRecord, VehicleControlStage, VehicleInput,
@@ -69,6 +71,9 @@ pub struct VehicleObservation {
     /// Latest own-vehicle correction or explosion receipt. This is a packet
     /// boundary, not an acknowledged vehicle pose.
     pub motion_correction_sequence: Option<u64>,
+    /// Original passenger packet that attached this vehicle under another
+    /// entity. A latched interruption, never a position correction or pose.
+    pub attachment_change_sequence: Option<u64>,
     /// Native own player identity actually received in JOIN/LOGIN.
     pub player_native_id: Option<i32>,
     /// Last explicit own-player relationship; None means no applicable receipt.
@@ -121,13 +126,54 @@ struct NativeRelation {
 }
 #[derive(Default)]
 pub(crate) struct PassengerLedger {
+    collision_parents: std::collections::BTreeMap<i32, CollisionPassengers>,
+    collision_parents_unavailable: bool,
+    attachment_change_sequence: Option<u64>,
     relation: Option<ObservedValue<NativeRelation>>,
     passengers: Option<ObservedValue<Vec<i32>>>,
     // Removing the player from a list does not prove ordinary standing geometry.
     motion_interrupted: bool,
     motion_correction_sequence: Option<u64>,
 }
+struct CollisionPassengers {
+    parent_spawn: Option<u64>,
+    children: Vec<(i32, Option<u64>)>,
+}
 impl PassengerLedger {
+    /// Nested vehicles require additional native attachment physics. Retired
+    /// known lifetimes never attach a numeric ID's replacement to an old list.
+    pub(crate) fn collision_safe(&self, mount: MountId, spawns: &SpawnLedger) -> crate::Result<()> {
+        if self.collision_parents_unavailable {
+            return Err(super::inventory::unavailable(
+                "boat passenger graph budget unavailable",
+            ));
+        }
+        for (&parent, relation) in &self.collision_parents {
+            if relation.parent_spawn.is_some()
+                && relation.parent_spawn != spawns.spawn_sequence(parent)
+            {
+                continue;
+            }
+            if self
+                .passengers
+                .as_ref()
+                .is_some_and(|p| p.value.contains(&parent))
+            {
+                return Err(super::inventory::unavailable(
+                    "nested boat passenger attachment not audited",
+                ));
+            }
+            if relation.children.iter().any(|&(id, spawn)| {
+                id == mount.native_vehicle_id()
+                    && (spawn.is_none() || spawn == mount.vehicle().map(|v| v.spawn_sequence()))
+            }) {
+                return Err(super::inventory::unavailable(
+                    "nested boat vehicle collision/attachment not audited",
+                ));
+            }
+        }
+        Ok(())
+    }
     pub(crate) fn interrupt_motion(&mut self, sequence: u64) {
         self.motion_correction_sequence = Some(sequence);
     }
@@ -135,6 +181,9 @@ impl PassengerLedger {
         *self = Self::default();
     }
     pub(crate) fn retire(&mut self, vehicle: i32) {
+        self.collision_parents.retain(|&parent, row| {
+            parent != vehicle && !row.children.iter().any(|&(child, _)| child == vehicle)
+        });
         if self
             .relation
             .as_ref()
@@ -183,6 +232,33 @@ impl PassengerLedger {
         spawns: &SpawnLedger,
         sequence: u64,
     ) {
+        if update.passengers.is_empty() {
+            self.collision_parents.remove(&update.vehicle);
+        } else if self.collision_parents.contains_key(&update.vehicle)
+            || self.collision_parents.len() < 128
+        {
+            self.collision_parents.insert(
+                update.vehicle,
+                CollisionPassengers {
+                    parent_spawn: spawns.spawn_sequence(update.vehicle),
+                    children: update
+                        .passengers
+                        .iter()
+                        .map(|&id| (id, spawns.spawn_sequence(id)))
+                        .collect(),
+                },
+            );
+        } else {
+            self.collision_parents_unavailable = true;
+        }
+        if self.relation.as_ref().is_some_and(|r| {
+            r.value.mounted
+                && update.passengers.contains(&r.value.mount.vehicle)
+                && r.value.mount.spawn_sequence == spawns.spawn_sequence(r.value.mount.vehicle)
+        }) {
+            // Even a transient nested attachment must fence the running owner.
+            self.attachment_change_sequence = Some(sequence);
+        }
         let Some(player) = player else { return };
         if update.passengers.contains(&player) {
             let mount = self
@@ -263,6 +339,7 @@ impl PassengerLedger {
             session,
             receive_sequence: sequence,
             motion_correction_sequence: self.motion_correction_sequence,
+            attachment_change_sequence: self.attachment_change_sequence,
             player_native_id: player,
             passengers: relation.as_ref().and(self.passengers.clone()),
             relation,

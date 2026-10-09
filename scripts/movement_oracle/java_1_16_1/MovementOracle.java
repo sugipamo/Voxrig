@@ -452,7 +452,23 @@ public final class MovementOracle {
             var nearby = level.getEntities(boat, boat.getBoundingBox().inflate(CLEAR));
             // stopRiding registers artificial players in the legacy chunk.
             // Retire fixtures from previous scenarios before collision queries.
-            for (var entity : nearby) entity.remove();
+            for (var entity : nearby) { entity.remove(); if (scenario.has("collision_bodies")) level.despawn(entity); }
+            // Explicit stationary native fixtures: their world collision
+            // queries run unchanged; no entity predicate/geometry is overridden.
+            List<net.minecraft.world.entity.Entity> obstacles = new java.util.ArrayList<>();
+            JsonArray collisionBoxes = new JsonArray();
+            if (scenario.has("collision_bodies")) for (JsonElement element : scenario.getAsJsonArray("collision_bodies")) {
+                JsonObject inputBody = element.getAsJsonObject();
+                net.minecraft.world.entity.Entity other = inputBody.get("type").getAsString().equals("minecart") ? new net.minecraft.world.entity.vehicle.Minecart(level, 0.0, 0.0, 0.0) : new net.minecraft.world.entity.vehicle.Boat(level, 0.0, 0.0, 0.0);
+                JsonArray at = inputBody.getAsJsonArray("position");
+                other.setPos(origin.getX()+at.get(0).getAsDouble(),origin.getY()+at.get(1).getAsDouble(),origin.getZ()+at.get(2).getAsDouble());
+                if (!level.addFreshEntity(other)) throw new IllegalStateException("native collision fixture not registered");
+                obstacles.add(other);
+                var box = other.getBoundingBox();
+                collisionBoxes.add(vec(box.minX-origin.getX(),box.minY-origin.getY(),box.minZ-origin.getZ(),box.maxX-origin.getX(),box.maxY-origin.getY(),box.maxZ-origin.getZ()));
+            }
+            for (var other : obstacles) if (!level.getEntities(boat, other.getBoundingBox().inflate(0.1)).contains(other))
+                throw new IllegalStateException("declared native collision fixture not visible to original world query");
             player.startRiding(boat, true);
             if (scenario.has("velocity")) {
                 JsonArray v = scenario.getAsJsonArray("velocity");
@@ -501,10 +517,13 @@ public final class MovementOracle {
                 frames.add(f);
             }
             player.stopRiding();
+            for (var other : obstacles) { other.remove(); level.despawn(other); }
             player.remove();
             boat.remove();
+            if (scenario.has("collision_bodies")) { level.despawn(player); level.despawn(boat); }
             JsonObject out = new JsonObject();
             out.addProperty("name", scenario.get("name").getAsString());
+            if (scenario.has("collision_bodies")) out.add("collision_boxes", collisionBoxes);
             out.add("states", resolved); out.add("frames", frames);
             return out;
         } catch (Exception e) { throw new RuntimeException(e); }

@@ -654,9 +654,20 @@ fn boat_velocity_receipts_fold_once_without_rewriting_submitted_frames() {
             properties: Default::default(),
         };
         let mut blocks = |_: [i32; 3]| Ok(air.clone());
-        let first = control::boat_step(&unchanged, Default::default(), &mut blocks)
-            .unwrap()
-            .unwrap();
+        let mut collisions = BoatCollisionSample {
+            sampled_before_tick: 1,
+            receive_sequence: 13,
+            passengers: unchanged.vehicle.passengers.clone().unwrap(),
+            bodies: vec![],
+        };
+        let first = control::boat_step(
+            &unchanged,
+            Default::default(),
+            Some(&collisions),
+            &mut blocks,
+        )
+        .unwrap()
+        .unwrap();
         assert_eq!(first.position[0], frame.position[0]);
         assert!(first.velocity[1] > 2.6);
         unchanged
@@ -668,9 +679,15 @@ fn boat_velocity_receipts_fold_once_without_rewriting_submitted_frames() {
         unchanged.boat_motion.as_mut().unwrap().pending_velocity = None;
         unchanged.dispatched_ticks = 1;
         assert!(!control::receive_boat_velocity(&mut unchanged, &live).unwrap());
-        let second = control::boat_step(&unchanged, Default::default(), &mut blocks)
-            .unwrap()
-            .unwrap();
+        collisions.sampled_before_tick = 2;
+        let second = control::boat_step(
+            &unchanged,
+            Default::default(),
+            Some(&collisions),
+            &mut blocks,
+        )
+        .unwrap()
+        .unwrap();
         assert!(second.velocity[1] < first.velocity[1]);
         assert_eq!(unchanged.boat_motion.as_ref().unwrap().frames, [first]);
         // A new finite plan also consumes the newest original receipt only once.
@@ -770,4 +787,97 @@ fn boat_velocity_receipts_refuse_stale_spawn_future_sources_and_failed_owners() 
             [0., -0.7, 0.]
         );
     }
+}
+
+#[test]
+fn nested_attachment_latches_a_distinct_receipt_and_retired_spawns_do_not_rebind() {
+    use crate::client::entity::NativeSpawn;
+    let version = MinecraftVersion::Java1_21_11;
+    let session = SessionStamp {
+        version,
+        connection_id: 4,
+        world_generation: 7,
+    };
+    let mut spawns = SpawnLedger::default();
+    for (id, sequence) in [(10, 1), (100, 2)] {
+        spawns
+            .insert(
+                version,
+                NativeSpawn {
+                    id,
+                    uuid: None,
+                    type_id: None,
+                    dedicated_type_name: Some("oak_boat"),
+                    position: [0.; 3],
+                    living: None,
+                },
+                sequence,
+                4096,
+            )
+            .unwrap();
+    }
+    let mut ledger = PassengerLedger::default();
+    ledger.receive(
+        &NativePassengers::decode(&[10, 1, 42]).unwrap(),
+        Some(42),
+        &spawns,
+        3,
+    );
+    let initial = ledger.capture(session, 3, Some(42), &spawns);
+    let VehicleRelation::Mounted { mount } = initial.relation.unwrap().value else {
+        panic!()
+    };
+    assert!(ledger.collision_safe(mount, &spawns).is_ok());
+    ledger.receive(
+        &NativePassengers::decode(&[100, 1, 10]).unwrap(),
+        Some(42),
+        &spawns,
+        4,
+    );
+    assert!(ledger.collision_safe(mount, &spawns).is_err());
+    let nested = ledger.capture(session, 4, Some(42), &spawns);
+    assert_eq!(nested.attachment_change_sequence, Some(4));
+    assert_eq!(nested.motion_correction_sequence, None);
+    ledger.receive(
+        &NativePassengers::decode(&[100, 0]).unwrap(),
+        Some(42),
+        &spawns,
+        5,
+    );
+    assert!(ledger.collision_safe(mount, &spawns).is_ok());
+    assert_eq!(
+        ledger
+            .capture(session, 5, Some(42), &spawns)
+            .attachment_change_sequence,
+        Some(4)
+    );
+    ledger.receive(
+        &NativePassengers::decode(&[100, 1, 10]).unwrap(),
+        Some(42),
+        &spawns,
+        6,
+    );
+    spawns
+        .insert(
+            version,
+            NativeSpawn {
+                id: 100,
+                uuid: None,
+                type_id: None,
+                dedicated_type_name: Some("oak_boat"),
+                position: [0.; 3],
+                living: None,
+            },
+            7,
+            4096,
+        )
+        .unwrap();
+    assert!(ledger.collision_safe(mount, &spawns).is_ok());
+    ledger.clear();
+    assert_eq!(
+        ledger
+            .capture(session, 8, Some(42), &spawns)
+            .attachment_change_sequence,
+        None
+    );
 }

@@ -185,8 +185,19 @@ impl Operations {
                         "vehicle control frame already claimed or uncertain",
                     ));
                 }
-                let boat_frame =
-                    api::vehicle::control::boat_step(&record, input, &mut |p| state.block(p))?;
+                let collisions = api::vehicle::collision::sample(
+                    &record,
+                    &vehicle,
+                    &state.entities,
+                    &state.vehicles,
+                    state.sequence,
+                )?;
+                let boat_frame = api::vehicle::control::boat_step(
+                    &record,
+                    input,
+                    collisions.as_ref(),
+                    &mut |p| state.block(p),
+                )?;
                 if let Some(boat) = self
                     .bot
                     .vehicle_control_history
@@ -197,6 +208,9 @@ impl Operations {
                     .boat_motion
                     .as_mut()
                 {
+                    if let Some(sample) = collisions {
+                        boat.collision_samples.push(sample);
+                    }
                     boat.attempted_frame = boat_frame.clone();
                 }
                 self.bot

@@ -1,7 +1,7 @@
 //! Mounted boat motion using the pinned Boat/AbstractBoat movement rules.
 //! Surface/submerged/flowing water, bubble interiors, air, audited block
 //! collision and nonliving terrain callbacks. Surface bubble launch/ejection
-//! belongs to the server; entity collisions are separate scope.
+//! belongs to the server. Rigid entity boxes are explicit sampled model inputs.
 use super::*;
 use crate::client::vehicle::VehicleInput;
 
@@ -82,6 +82,7 @@ pub(crate) fn tick(
     version: MinecraftVersion,
     frame: &BoatFrame,
     input: VehicleInput,
+    entity_boxes: &[[f64; 6]],
     block_at: &mut impl FnMut([i32; 3]) -> Result<NativeBlockState>,
 ) -> Result<BoatFrame> {
     let mut level = Level {
@@ -209,10 +210,13 @@ pub(crate) fn tick(
         ];
         let target = BoatFrame::box_at(position);
         let no_collision = version == MinecraftVersion::Java1_16_1
-            || !level
-                .geometry(target, context)?
+            || (!entity_boxes
                 .iter()
-                .any(|s| intersects(*s, target));
+                .any(|s| intersects(*s, deflate(target, -1e-7)))
+                && !level
+                    .geometry(target, context)?
+                    .iter()
+                    .any(|s| intersects(*s, target)));
         if no_collision {
             next.position = position;
             next.bounds = target;
@@ -323,13 +327,19 @@ pub(crate) fn tick(
             }
         }
     }
-    let geometry = level.geometry(
+    let mut geometry = level.geometry(
         region,
         CollisionContext {
             bottom: b[1],
             descending: false,
         },
     )?;
+    let selected: Vec<_> = entity_boxes
+        .iter()
+        .copied()
+        .filter(|s| intersects(*s, deflate(region, -1e-7)))
+        .collect();
+    geometry.prepend_entities(&selected);
     let velocity = next.velocity;
     let moved = collision::collide(version, b, motion, &geometry, frame.on_ground, 0.0);
     next.on_ground = moved[1] != motion[1] && motion[1] < 0.0;
@@ -614,7 +624,7 @@ mod tests {
                     )
                 };
                 assert!(
-                    tick(version, &initial, VehicleInput::default(), &mut blocks).is_err(),
+                    tick(version, &initial, VehicleInput::default(), &[], &mut blocks).is_err(),
                     "{version:?} {name}"
                 );
                 assert_eq!(initial, saved);
@@ -654,6 +664,15 @@ mod tests {
         compare_boat_ticks(&oracle, 14);
     }
 
+    #[test]
+    fn rigid_vehicle_collisions_match_original_world_queries() {
+        let oracle: Value = serde_json::from_reader(flate2::read::GzDecoder::new(
+            &include_bytes!("../../../data/client_api/boat_collision_oracle.json.gz")[..],
+        ))
+        .unwrap();
+        compare_boat_ticks(&oracle, 6);
+    }
+
     fn compare_boat_ticks(oracle: &Value, count: usize) {
         let origin = [1024, 100, 1024];
         let exact = |v: &Value| v.as_str().unwrap().parse::<f64>().unwrap();
@@ -688,6 +707,14 @@ mod tests {
                         .unwrap_or_else(|| air.clone()))
                 };
                 let controls = scenario["ticks"].as_array().unwrap();
+                // Independently exported original Entity.getBoundingBox values.
+                // Do not construct the expected shape with the SDK's dimensions.
+                let entity_boxes: Vec<[f64; 6]> = result["collision_boxes"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|b| std::array::from_fn(|i| exact(&b[i]) + f64::from(origin[i % 3])))
+                    .collect();
                 let frames = result["frames"].as_array().unwrap();
                 assert_eq!(controls.len(), frames.len());
                 for (index, (input, expected)) in controls.iter().zip(frames).enumerate() {
@@ -699,7 +726,7 @@ mod tests {
                         strafe: input["strafe"].as_i64().unwrap_or(0) as i8,
                         jump: false,
                     };
-                    frame = tick(version, &frame, input, &mut block).unwrap();
+                    frame = tick(version, &frame, input, &entity_boxes, &mut block).unwrap();
                     let position = frame.position;
                     let mismatch = (0..3).find(|&i| {
                         position[i] - f64::from(origin[i]) != exact(&expected["position"][i])
