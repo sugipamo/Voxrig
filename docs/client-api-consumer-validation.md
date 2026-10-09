@@ -1,5 +1,8 @@
 # A6: 非公開の利用側で確認する
 
+必要な操作の選定には[利用クライアント向け共通API網羅表](downstream-client-coverage.md)を使う。
+対応済みの限定機能と未共通化の残件、利用側が持つ計画を区別している。
+
 A0〜A5の代表操作はVoxrig内の同じcommon consumerで両版を通した。
 利用側は非公開のまま、`codex/client-api-unification`の提示された固定commitを指定して移行・評価する。
 この評価は初回の共通APIを確認する区切りで、[ロードマップのB](client-unification.md)に残る機能を
