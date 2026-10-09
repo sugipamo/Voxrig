@@ -266,6 +266,7 @@ class PacketTraceProxy:
                             state["phase"] = "play"
                 # The exact original framed bytes are forwarded, not the
                 # decoded body; no injection, re-encoding or native prediction.
+                self.before_forward(record)
                 destination.sendall(header + frame)
         except (OSError, EOFError) as error:
             if not self.stop.is_set() and not isinstance(error, ConnectionResetError):
@@ -292,6 +293,9 @@ class PacketTraceProxy:
                 destination.shutdown(socket.SHUT_WR)
             except OSError:
                 pass
+
+    def before_forward(self, record):
+        """Optional fixture timing hook; original frame bytes remain untouched."""
 
     def mark(self):
         with self.lock:

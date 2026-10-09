@@ -202,28 +202,32 @@ async fn main() -> anyhow::Result<()> {
                         "message":error.to_string()})
                 } else {
                     let pending = result?;
-                    let complete = tokio::time::timeout(Duration::from_secs(5), async {
-                        loop {
-                            let current = survival.inventory_click_record().await?.unwrap();
-                            anyhow::ensure!(
-                                current.id == pending.id,
-                                "another click replaced original attempt"
-                            );
-                            match current.stage {
-                                InventoryClickStage::ObservedClicked => {
-                                    break Ok::<_, anyhow::Error>(current);
+                    if request["submit_only"] == true {
+                        serde_json::to_value(pending)?
+                    } else {
+                        let complete = tokio::time::timeout(Duration::from_secs(5), async {
+                            loop {
+                                let current = survival.inventory_click_record().await?.unwrap();
+                                anyhow::ensure!(
+                                    current.id == pending.id,
+                                    "another click replaced original attempt"
+                                );
+                                match current.stage {
+                                    InventoryClickStage::ObservedClicked => {
+                                        break Ok::<_, anyhow::Error>(current);
+                                    }
+                                    InventoryClickStage::RequiresInspection => {
+                                        anyhow::bail!("click requires inspection: {current:?}")
+                                    }
+                                    InventoryClickStage::Pending => {}
+                                    _ => anyhow::bail!("unreviewed click stage"),
                                 }
-                                InventoryClickStage::RequiresInspection => {
-                                    anyhow::bail!("click requires inspection: {current:?}")
-                                }
-                                InventoryClickStage::Pending => {}
-                                _ => anyhow::bail!("unreviewed click stage"),
+                                tokio::time::sleep(Duration::from_millis(10)).await;
                             }
-                            tokio::time::sleep(Duration::from_millis(10)).await;
-                        }
-                    })
-                    .await??;
-                    serde_json::to_value(complete)?
+                        })
+                        .await??;
+                        serde_json::to_value(complete)?
+                    }
                 }
             }
             "vehicle" => serde_json::to_value(client.vehicle_state().await?)?,
