@@ -62,7 +62,7 @@ def check(version,command,request,trace,report,*,sdk):
             context=request('player_context');receipt=context['abilities']
             return context if receipt is not None and receipt['source']['sequence']>before['receive_sequence'] and matches(receipt['value'],native) else None
         until(arrived,5);capture('received_'+mode+'_abilities');report['checks'][-1]['native']=native
-    for name,identifier in (('peaceful',0),('hard',3),('easy',1),('normal',2)):
+    for name,identifier in (('hard',3),('peaceful',0),('easy',1),('normal',2)):
         before=request('player_context');result=command('difficulty '+name)
         def arrived():
             context=request('player_context');receipt=context['difficulty']
@@ -77,9 +77,12 @@ def check(version,command,request,trace,report,*,sdk):
     until(lambda:(c if (c:=request('player_context'))['session']['world_generation']!=old_generation else None),10)
     request('wait',ms=150);current=capture('new_world_actual_receipts_or_absence')
     peers=[p for p in trace.since(0) if p['direction']=='clientbound' and p['phase'] in ('configuration','play')]
+    respawns=[p for p in trace.since(boundary) if p['direction']=='clientbound' and p['phase']=='play' and p['packet_id']==(0x3a if version=='1.16.1' else 0x50)]
+    if len(respawns)!=1:raise RuntimeError('native world replacement boundary missing or ambiguous')
+    report['checks'][-1]['original_world_boundary']=respawns[0]
     for name in ('abilities','difficulty'):
         receipt=current[name]
-        if receipt is not None and peers[receipt['source']['sequence']-1]['ordinal']<=boundary:
+        if receipt is not None and peers[receipt['source']['sequence']-1]['ordinal']<=respawns[0]['ordinal']:
             raise RuntimeError('old world receipt survived world replacement')
     command('gamemode creative ClimbingProbe');native=native_abilities()
     until(lambda:(c if (c:=request('player_context'))['abilities'] is not None and matches(c['abilities']['value'],native) else None),5)
