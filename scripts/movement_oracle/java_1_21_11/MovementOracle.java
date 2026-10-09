@@ -461,7 +461,7 @@ public final class MovementOracle {
                 floating.invoke(boat);
                 control.invoke(boat);
                 boat.move(net.minecraft.world.entity.MoverType.SELF, boat.getDeltaMovement());
-                if (scenario.has("boat_bubbles")) {
+                if (scenario.has("boat_bubbles") || scenario.has("boat_hooks")) {
                     // AbstractBoat.tick invokes the unchanged Entity collector
                     // twice. Surface launch/ejection is server-owned and is
                     // qualified by real packets, not called as client physics.
