@@ -404,6 +404,36 @@ impl crate::client::adapter::ControlOps for Bot {
         }
     }
 
+    async fn request_ground_jump(
+        &self,
+        mode: GameMode,
+        session_id: u64,
+    ) -> Result<crate::client::control::GroundJumpRequestRecord> {
+        let _gate = self.coherent_state_gate.lock().await;
+        if self.stopped.load(Ordering::Acquire)
+            || self.connection_state() != crate::ConnectionState::Ready
+        {
+            return Err(invalid("ground jump requires a ready connection"));
+        }
+        if mode != GameMode::Survival || self.survival.read().await.game_mode != Some(0) {
+            return Err(invalid("ground jump requires received survival mode"));
+        }
+        let generation = self.common_receipts.lock().await.generation;
+        if let Some(reason) = self.control_stop_reason(generation).await {
+            return Err(invalid(reason));
+        }
+        let mut control = self.common_control.lock().await;
+        if control.generation != Some(generation) {
+            return Err(invalid("ground jump control belongs to a different world"));
+        }
+        let session = control
+            .session
+            .as_mut()
+            .filter(|s| s.id == session_id && s.status == ControlStatus::Running)
+            .ok_or_else(|| invalid("ground jump requires the current running, unpaused session"))?;
+        session.request_ground_jump()
+    }
+
     async fn stop_control(&self) -> Result<Option<ControlRecord>> {
         let control = self.common_control.lock().await;
         let Some(session) = control.session.as_ref() else {
@@ -434,6 +464,44 @@ mod tests {
     use crate::client::adapter::ControlOps;
     use crate::client::control::Output;
     use tokio::time::timeout;
+
+    #[tokio::test]
+    async fn one_shot_ground_jump_checks_session_lifetime_and_cancelled_admission() {
+        let (bot, _packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        bot.player.lock().await.entity_id = Some(42);
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let survival = client.survival();
+        let initial = survival.start_control().await.unwrap();
+        let gate = bot.coherent_state_gate.lock().await;
+        let mut pending = Box::pin(survival.request_ground_jump(initial.session_id));
+        assert!(
+            timeout(Duration::from_millis(20), pending.as_mut())
+                .await
+                .is_err()
+        );
+        drop(pending);
+        drop(gate);
+        assert!(
+            survival
+                .control_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .ground_jump
+                .is_none()
+        );
+        survival.stop_control().await.unwrap();
+        crate::client::tests::common_ground_jump_admission_scenario(&client).await;
+        drop(release);
+        drop(client);
+        drop(bot);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
 
     #[tokio::test]
     async fn control_restart_keeps_current_momentum_and_aim_after_decoded_velocity() {

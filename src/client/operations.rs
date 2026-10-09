@@ -391,6 +391,18 @@ impl Survival {
     ) -> Result<super::control::ControlRecord> {
         crate::client::dispatch!(&self.client.adapter, a => ControlOps::set_controls(a, GameMode::Survival, controls).await)
     }
+    /// Queue one dry-ground jump on the next model tick of this exact session.
+    /// Held controls/rotation are preserved; queued repeats coalesce. Air/fluid
+    /// consumes it without a jump, with no later landing retry. Paused/stopped
+    /// sessions are rejected; if the next tick pauses, the request is discarded.
+    /// The receipt is local queue admission, never movement completion or ACK.
+    pub async fn request_ground_jump(
+        &self,
+        session_id: u64,
+    ) -> Result<super::control::GroundJumpRequestRecord> {
+        crate::client::dispatch!(&self.client.adapter, a => ControlOps::request_ground_jump(a, GameMode::Survival, session_id).await)
+    }
+
     /// Stop the session, releasing sprint and sneak. Returns the final record.
     pub async fn stop_control(&self) -> Result<Option<super::control::ControlRecord>> {
         crate::client::dispatch!(&self.client.adapter, a => ControlOps::stop_control(a).await)

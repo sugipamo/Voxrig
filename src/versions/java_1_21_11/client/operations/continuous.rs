@@ -273,6 +273,7 @@ impl Operations {
             let result = if state.reconstruction.issue.is_some()
                 || !state.reconstruction.recovery_chunks.is_empty()
             {
+                session.discard_ground_jump();
                 session.status = ControlStatus::Paused {
                     reason: "piston reconstruction incomplete".into(),
                 };
@@ -480,6 +481,32 @@ impl crate::client::adapter::ControlOps for Operations {
             }
             _ => Err(invalid("no running control session")),
         }
+    }
+
+    async fn request_ground_jump(
+        &self,
+        mode: GameMode,
+        session_id: u64,
+    ) -> Result<crate::client::control::GroundJumpRequestRecord> {
+        let mut state = self.bot.session.state.lock().await;
+        self.ready(&state)?;
+        if mode != GameMode::Survival || state.operations.game_mode != Some(mode) {
+            return Err(invalid("ground jump requires received survival mode"));
+        }
+        let generation = state.loading.generation;
+        if let Some(reason) = stop_reason(&state, generation, mode) {
+            return Err(invalid(reason));
+        }
+        if state.control.generation != Some(generation) {
+            return Err(invalid("ground jump control belongs to a different world"));
+        }
+        let session = state
+            .control
+            .session
+            .as_mut()
+            .filter(|s| s.id == session_id && s.status == ControlStatus::Running)
+            .ok_or_else(|| invalid("ground jump requires the current running, unpaused session"))?;
+        session.request_ground_jump()
     }
 
     async fn stop_control(&self) -> Result<Option<ControlRecord>> {

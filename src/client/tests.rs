@@ -251,6 +251,100 @@ pub(crate) async fn common_control_capture_scenario(client: &crate::Client) {
     client.survival().stop_control().await.unwrap();
 }
 
+/// Same public one-shot admission/lifetime contract for both native adapters.
+pub(crate) async fn common_ground_jump_admission_scenario(client: &crate::Client) {
+    use crate::client::control::{Controls, GroundJumpStatus};
+    let survival = client.survival();
+    assert!(survival.request_ground_jump(1).await.is_err());
+    let initial = survival.start_control().await.unwrap();
+    let held = Controls {
+        forward: 1,
+        sneak: true,
+        yaw: 37.0,
+        pitch: -12.0,
+        ..Default::default()
+    };
+    survival.set_controls(held).await.unwrap();
+    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        loop {
+            let record = survival.control_record().await.unwrap().unwrap();
+            if record.frame.as_ref().is_some_and(|f| f.on_ground) {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(
+        survival
+            .request_ground_jump(initial.session_id + 1)
+            .await
+            .is_err()
+    );
+    assert!(
+        survival
+            .control_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .ground_jump
+            .is_none()
+    );
+    let queued = survival
+        .request_ground_jump(initial.session_id)
+        .await
+        .unwrap();
+    assert_eq!(queued.status, GroundJumpStatus::Queued);
+    assert_eq!(
+        survival.control_record().await.unwrap().unwrap().controls,
+        held
+    );
+    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        loop {
+            let record = survival.control_record().await.unwrap().unwrap();
+            if matches!(
+                record.ground_jump.as_ref().unwrap().status,
+                GroundJumpStatus::Modelled { .. }
+            ) {
+                assert_eq!(record.controls, held);
+                assert!(!record.frame.unwrap().on_ground);
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let stopped = survival.stop_control().await.unwrap().unwrap();
+    assert!(
+        survival
+            .request_ground_jump(stopped.session_id)
+            .await
+            .is_err()
+    );
+    let next = survival.start_control().await.unwrap();
+    assert_ne!(next.session_id, initial.session_id);
+    assert!(
+        survival
+            .request_ground_jump(initial.session_id)
+            .await
+            .is_err()
+    );
+    assert!(
+        survival
+            .control_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .ground_jump
+            .is_none()
+    );
+    survival.stop_control().await.unwrap();
+    let _ = client.revoke_connection();
+    assert!(survival.request_ground_jump(next.session_id).await.is_err());
+}
+
 /// Seed only the recipe catalogue; adapter tests deliver inventory through their receiver.
 pub(crate) fn recipe_placement_book_fixture(
     version: MinecraftVersion,

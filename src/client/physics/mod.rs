@@ -458,6 +458,29 @@ pub(crate) fn tick(
     controls: Controls,
     block_at: &mut impl FnMut([i32; 3]) -> Result<NativeBlockState>,
 ) -> Result<()> {
+    tick_with_ground_jump(version, body, env, controls, false, block_at).map(|_| ())
+}
+
+/// Result inside the local movement model, never proof of a server jump.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GroundJumpOutcome {
+    /// The model applied its version-specific dry-ground jump once.
+    Applied,
+    /// Held jump input already owns this tick's jump/swim/climb behavior.
+    JumpInputAlreadyHeld,
+    /// This model tick was airborne or touching water/lava; no retry is queued.
+    NotOnDryGround,
+}
+
+pub(crate) fn tick_with_ground_jump(
+    version: MinecraftVersion,
+    body: &mut Body,
+    env: &Environment,
+    controls: Controls,
+    ground_jump_requested: bool,
+    block_at: &mut impl FnMut([i32; 3]) -> Result<NativeBlockState>,
+) -> Result<Option<GroundJumpOutcome>> {
     if !controls.yaw.is_finite()
         || !(-90.0..=90.0).contains(&controls.pitch)
         || !(-1..=1).contains(&controls.forward)
@@ -475,17 +498,20 @@ pub(crate) fn tick(
         states: HashMap::new(),
     };
     let mut next = body.clone();
-    Tick {
+    let mut tick = Tick {
         version,
         rules: &version.table().physics_rules,
         env,
         body: &mut next,
         level: &mut level,
         movement_order: [1, 0, 2],
-    }
-    .run(controls)?;
+        ground_jump_requested,
+        ground_jump_outcome: None,
+    };
+    tick.run(controls)?;
+    let outcome = tick.ground_jump_outcome;
     *body = next;
-    Ok(())
+    Ok(outcome)
 }
 
 struct Tick<'a, 'w, F> {
@@ -495,6 +521,8 @@ struct Tick<'a, 'w, F> {
     body: &'a mut Body,
     level: &'a mut Level<'w, F>,
     movement_order: [usize; 3],
+    ground_jump_requested: bool,
+    ground_jump_outcome: Option<GroundJumpOutcome>,
 }
 
 impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
@@ -542,6 +570,9 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         };
         let jumping = self.body.keys.jump;
         if jumping {
+            if self.ground_jump_requested {
+                self.ground_jump_outcome = Some(GroundJumpOutcome::JumpInputAlreadyHeld);
+            }
             let lava = self.in_lava();
             let height = if lava {
                 self.body.lava_height
@@ -567,6 +598,14 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             }
         } else {
             self.body.no_jump_delay = 0;
+            if self.ground_jump_requested {
+                self.ground_jump_outcome = Some(GroundJumpOutcome::NotOnDryGround);
+                if self.body.on_ground && !self.body.in_water && !self.in_lava() {
+                    self.jump_from_ground()?;
+                    self.body.no_jump_delay = 10;
+                    self.ground_jump_outcome = Some(GroundJumpOutcome::Applied);
+                }
+            }
         }
         if self.legacy() {
             xxa *= 0.98;

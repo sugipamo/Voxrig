@@ -160,6 +160,8 @@ pub(crate) fn tick(
         body: &mut fluid_body,
         level: &mut level,
         movement_order: [1, 0, 2],
+        ground_jump_requested: false,
+        ground_jump_outcome: None,
     }
     .fluid_push(false, 0.014, false)?;
     next.velocity = fluid_body.velocity;

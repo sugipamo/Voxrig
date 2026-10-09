@@ -141,6 +141,35 @@ async fn long_raycast_rejects_world_switch_between_height_and_capture() {
 }
 
 #[tokio::test]
+async fn one_shot_ground_jump_checks_session_lifetime_and_cancelled_admission() {
+    let (session, api, _peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    let client = crate::Client::from_java_1_21_11(api.bot.clone());
+    let survival = client.survival();
+    let initial = survival.start_control().await.unwrap();
+    let state = session.state.lock().await;
+    let mut pending = Box::pin(survival.request_ground_jump(initial.session_id));
+    assert!(
+        timeout(Duration::from_millis(20), pending.as_mut())
+            .await
+            .is_err()
+    );
+    drop(pending);
+    drop(state);
+    assert!(
+        survival
+            .control_record()
+            .await
+            .unwrap()
+            .unwrap()
+            .ground_jump
+            .is_none()
+    );
+    survival.stop_control().await.unwrap();
+    crate::client::tests::common_ground_jump_admission_scenario(&client).await;
+    session.stop();
+}
+
+#[tokio::test]
 async fn control_restart_keeps_model_momentum_and_aim_after_decoded_velocity() {
     let (session, api, _peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
     let client = crate::Client::from_java_1_21_11(api.bot.clone());

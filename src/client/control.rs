@@ -8,7 +8,50 @@
 use crate::client::physics::{self, Body, Environment};
 use crate::{MinecraftVersion, NativeBlockState, Result};
 
-pub use crate::client::physics::{Controls, ItemUse, Modifier, ModifierOperation, Pose};
+pub use crate::client::physics::{
+    Controls, GroundJumpOutcome, ItemUse, Modifier, ModifierOperation, Pose,
+};
+
+/// Local progress of a one-shot request; no stage certifies server acceptance.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum GroundJumpStatus {
+    /// Accepted locally, awaiting the next model tick.
+    Queued,
+    /// Consumed exactly once by the model, before any movement write.
+    Modelled {
+        /// Session tick which consumed the request.
+        tick: u64,
+        /// Local outcome, including refusal to jump in air/fluid.
+        outcome: GroundJumpOutcome,
+    },
+    /// Discarded rather than retried when prediction pauses or ownership ends.
+    Discarded {
+        /// Why this pending request cannot apply later.
+        reason: GroundJumpDiscardReason,
+    },
+}
+
+/// Why an accepted local request was discarded without model application.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GroundJumpDiscardReason {
+    /// The next tick could not be predicted. A new explicit request is required.
+    PredictionPaused,
+    /// The session stopped, changed world/mode or disconnected before sampling.
+    SessionStopped,
+}
+
+/// Diagnostic identity/progress bound to one actual current control session.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+pub struct GroundJumpRequestRecord {
+    /// Local controller identity; never a native packet sequence.
+    pub session_id: u64,
+    /// Local request ordinal within this session; repeats while queued coalesce.
+    pub request_id: u64,
+    /// Queue/model outcome, not packet completion or server jump acknowledgement.
+    pub status: GroundJumpStatus,
+}
 
 /// Session state.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
@@ -75,6 +118,9 @@ pub struct ControlRecord {
     pub corrections: u64,
     /// Received own-velocity updates applied to the session.
     pub velocity_updates: u64,
+    /// Latest one-shot ground request; absent until one is accepted locally.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ground_jump: Option<GroundJumpRequestRecord>,
 }
 
 /// One received attribute: base value and modifiers in arrival order.
@@ -130,6 +176,7 @@ pub(crate) struct ControlSession {
     sent_input: Option<u8>,
     /// Receive sequence of the item-use flags current when use was released locally.
     released_use: Option<u64>,
+    ground_jump: Option<GroundJumpRequestRecord>,
 }
 
 impl ControlSession {
@@ -186,6 +233,7 @@ impl ControlSession {
             sent_sprint: false,
             sent_input: None,
             released_use: None,
+            ground_jump: None,
         }
     }
 
@@ -222,6 +270,16 @@ impl ControlSession {
     }
 
     pub(crate) fn record(&self) -> ControlRecord {
+        let mut ground_jump = self.ground_jump.clone();
+        if !self.running() {
+            if let Some(request) = &mut ground_jump {
+                if request.status == GroundJumpStatus::Queued {
+                    request.status = GroundJumpStatus::Discarded {
+                        reason: GroundJumpDiscardReason::SessionStopped,
+                    };
+                }
+            }
+        }
         ControlRecord {
             session_id: self.id,
             status: self.status.clone(),
@@ -230,6 +288,42 @@ impl ControlSession {
             frame: self.frame.clone(),
             corrections: self.corrections,
             velocity_updates: self.velocity_updates,
+            ground_jump,
+        }
+    }
+
+    pub(crate) fn request_ground_jump(&mut self) -> Result<GroundJumpRequestRecord> {
+        if self.status != ControlStatus::Running {
+            return Err(crate::client::registry::invalid(
+                "ground jump requires a running, unpaused control session",
+            ));
+        }
+        if let Some(request) = &self.ground_jump {
+            if request.status == GroundJumpStatus::Queued {
+                return Ok(request.clone());
+            }
+        }
+        let request_id = self
+            .ground_jump
+            .as_ref()
+            .map_or(Some(1), |r| r.request_id.checked_add(1))
+            .ok_or_else(|| crate::client::registry::invalid("ground jump request IDs exhausted"))?;
+        let request = GroundJumpRequestRecord {
+            session_id: self.id,
+            request_id,
+            status: GroundJumpStatus::Queued,
+        };
+        self.ground_jump = Some(request.clone());
+        Ok(request)
+    }
+
+    pub(crate) fn discard_ground_jump(&mut self) {
+        if let Some(request) = &mut self.ground_jump {
+            if request.status == GroundJumpStatus::Queued {
+                request.status = GroundJumpStatus::Discarded {
+                    reason: GroundJumpDiscardReason::PredictionPaused,
+                };
+            }
         }
     }
 
@@ -290,6 +384,7 @@ impl ControlSession {
             Some((sequence, _)) if self.released_use == Some(*sequence) => None,
             Some((_, Ok(using))) => *using,
             Some((_, Err(reason))) => {
+                self.discard_ground_jump();
                 self.status = ControlStatus::Paused {
                     reason: reason.clone(),
                 };
@@ -299,21 +394,48 @@ impl ControlSession {
         };
         self.tick += 1;
         let controls = self.controls;
-        match physics::tick(
-            self.version,
-            &mut self.body,
-            &environment,
-            controls,
-            block_at,
-        ) {
-            Ok(()) => self.status = ControlStatus::Running,
+        let requested = self
+            .ground_jump
+            .as_ref()
+            .is_some_and(|r| r.status == GroundJumpStatus::Queued);
+        let result = if requested {
+            physics::tick_with_ground_jump(
+                self.version,
+                &mut self.body,
+                &environment,
+                controls,
+                true,
+                block_at,
+            )
+        } else {
+            physics::tick(
+                self.version,
+                &mut self.body,
+                &environment,
+                controls,
+                block_at,
+            )
+            .map(|_| None)
+        };
+        let outcome = match result {
+            Ok(outcome) => {
+                self.status = ControlStatus::Running;
+                outcome
+            }
             // Unsupported terrain, unloaded cells: hold position and retry.
             Err(error) => {
+                self.discard_ground_jump();
                 self.status = ControlStatus::Paused {
                     reason: error.to_string(),
                 };
                 return Ok(None);
             }
+        };
+        if let Some(outcome) = outcome {
+            self.ground_jump.as_mut().unwrap().status = GroundJumpStatus::Modelled {
+                tick: self.tick,
+                outcome,
+            };
         }
         let b = &self.body;
         self.frame = Some(ControlFrame {
@@ -331,7 +453,12 @@ impl ControlSession {
             using_item: environment.using_item,
         });
         let modern = self.version == MinecraftVersion::Java1_21_11;
-        let input = modern.then(|| input_bits(controls));
+        let input = modern.then(|| {
+            input_bits(Controls {
+                jump: controls.jump || outcome == Some(GroundJumpOutcome::Applied),
+                ..controls
+            })
+        });
         let output = Output {
             sneak: (controls.sneak != self.sent_sneak).then_some(controls.sneak),
             sprint: (b.sprinting != self.sent_sprint).then_some(b.sprinting),
@@ -417,6 +544,163 @@ mod tests {
                 name: name.into(),
                 properties: Default::default(),
             })
+        }
+    }
+
+    #[test]
+    fn one_shot_request_preserves_held_fluid_and_climbing_model() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            for fluid in [false, true] {
+                let start = received(Some((5, [0.5, 64.0, 0.5], None)), None);
+                let mut session = ControlSession::from_model(
+                    version,
+                    1,
+                    Body::new([0.5, 64.0, 0.5]),
+                    [37.0, -12.0],
+                    &start,
+                );
+                session.controls.jump = true;
+                session.controls.forward = 1;
+                let mut baseline = session.resume(2, [37.0, -12.0], &start);
+                baseline.controls = session.controls;
+                session.request_ground_jump().unwrap();
+                let make_world = || {
+                    move |p: [i32; 3]| {
+                        if fluid && (64..=67).contains(&p[1]) {
+                            Ok(NativeBlockState {
+                                name: "minecraft:water".into(),
+                                properties: [("level".into(), "0".into())].into_iter().collect(),
+                            })
+                        } else {
+                            world(!fluid)(p)
+                        }
+                    }
+                };
+                for _ in 0..10 {
+                    session.step(&start, &mut make_world()).unwrap();
+                    baseline.step(&start, &mut make_world()).unwrap();
+                    assert_eq!(session.body, baseline.body);
+                    assert_eq!(session.controls, baseline.controls);
+                }
+                assert_eq!(
+                    session.record().ground_jump.unwrap().status,
+                    GroundJumpStatus::Modelled {
+                        tick: 1,
+                        outcome: GroundJumpOutcome::JumpInputAlreadyHeld
+                    }
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn one_shot_ground_jump_coalesces_preserves_keys_and_never_repeats() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let start = received(Some((5, [0.5, 64.0, 0.5], None)), None);
+            let mut session = ControlSession::from_model(
+                version,
+                1,
+                Body::new([0.5, 64.0, 0.5]),
+                [37.0, -12.0],
+                &start,
+            );
+            session.controls.forward = 1;
+            session.controls.sneak = true;
+            let held = session.controls;
+            let request = session.request_ground_jump().unwrap();
+            assert_eq!(request, session.request_ground_jump().unwrap());
+            assert_eq!(session.controls, held);
+            let first = session.step(&start, &mut world(false)).unwrap().unwrap();
+            session.dispatched(&first);
+            assert!(first.position[1] > 64.0);
+            assert_eq!(session.controls, held);
+            assert_eq!(
+                session.record().ground_jump.unwrap().status,
+                GroundJumpStatus::Modelled {
+                    tick: 1,
+                    outcome: GroundJumpOutcome::Applied
+                }
+            );
+            if version == MinecraftVersion::Java1_21_11 {
+                assert_eq!(
+                    first.input,
+                    Some(input_bits(Controls { jump: true, ..held }))
+                );
+            }
+            let second = session.step(&start, &mut world(false)).unwrap().unwrap();
+            session.dispatched(&second);
+            if version == MinecraftVersion::Java1_21_11 {
+                assert_eq!(second.input, Some(input_bits(held)));
+            }
+            let mut rises = 1;
+            let mut previous = session.body.velocity[1];
+            for _ in 0..50 {
+                session.step(&start, &mut world(false)).unwrap();
+                if previous <= 0.0 && session.body.velocity[1] > 0.0 {
+                    rises += 1;
+                }
+                previous = session.body.velocity[1];
+                assert_eq!(session.controls, held);
+            }
+            assert_eq!(rises, 1);
+            assert!(session.body.on_ground);
+            assert_eq!(
+                session.request_ground_jump().unwrap().request_id,
+                request.request_id + 1
+            );
+        }
+    }
+
+    #[test]
+    fn one_shot_airborne_and_paused_requests_cannot_jump_on_later_landing() {
+        for version in [MinecraftVersion::Java1_16_1, MinecraftVersion::Java1_21_11] {
+            let start = received(Some((5, [0.5, 68.0, 0.5], None)), None);
+            let mut session = ControlSession::new(version, 1, [0.5, 68.0, 0.5], &start);
+            session.request_ground_jump().unwrap();
+            session.step(&start, &mut world(false)).unwrap();
+            assert_eq!(
+                session.record().ground_jump.unwrap().status,
+                GroundJumpStatus::Modelled {
+                    tick: 1,
+                    outcome: GroundJumpOutcome::NotOnDryGround
+                }
+            );
+            for _ in 0..40 {
+                session.step(&start, &mut world(false)).unwrap();
+                assert!(session.body.velocity[1] <= 0.0);
+            }
+            assert!(session.body.on_ground);
+            session.request_ground_jump().unwrap();
+            assert!(
+                session
+                    .step(&start, &mut |_| Err(crate::client::registry::invalid(
+                        "unloaded test cell"
+                    )))
+                    .unwrap()
+                    .is_none()
+            );
+            assert_eq!(
+                session.record().ground_jump.unwrap().status,
+                GroundJumpStatus::Discarded {
+                    reason: GroundJumpDiscardReason::PredictionPaused
+                }
+            );
+            assert!(session.request_ground_jump().is_err());
+            session.step(&start, &mut world(false)).unwrap();
+            assert!(session.body.on_ground);
+            session.request_ground_jump().unwrap();
+            session.status = ControlStatus::Stopped {
+                reason: "world reset".into(),
+            };
+            assert_eq!(
+                session.record().ground_jump.unwrap().status,
+                GroundJumpStatus::Discarded {
+                    reason: GroundJumpDiscardReason::SessionStopped
+                }
+            );
+            assert!(session.request_ground_jump().is_err());
+            let next = session.resume(2, [37.0, -12.0], &start);
+            assert!(next.record().ground_jump.is_none());
         }
     }
 
