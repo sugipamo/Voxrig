@@ -46,6 +46,10 @@ ground.stop_control_for(owner.session_id).await?;
 # }
 ```
 
+両版の公式サーバーで各27項目、計54項目を検証した。
+[結果・ハッシュ](evidence/common-ground-modes-20261011.json)と`run_ground_modes.py`を参照。
+元packet／NBTは非公開のローカル記録に保持する。
+
 ## 動き
 
 - sessionを記録する呼び手は、`set_controls_for(id, controls)`と`stop_control_for(id)`で対象を指定する。

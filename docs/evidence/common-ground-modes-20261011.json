@@ -1,0 +1,142 @@
+{
+  "scope": "Voxrig mode-bound Survival/Adventure/Creative ground control; public results and hashes only; original wire/NBT reports stay local",
+  "qualification": {
+    "source_revision": "2c6491f66c3b19106f6e542e20bbf060de36c158",
+    "binary_build_revision": "e506908ccb4612b3d505a4c544e629836c98caa0",
+    "binary_sha256": "8b7cd4f502c2f14bc27ee7aee5be37842abfe9e7e2939682db8138bd7c1e9c92",
+    "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "artifacts": {
+      "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+      "scripts/run_ground_modes.py": "6d1aeeac817d25c0a7136d52bf86e73ee2a2658ae0d41ed0b336accf85ea5fd5",
+      "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+      "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+      "examples/climbing_control_probe.rs": "947b5525e4444c7493d6941b9b4c8abd9774501b39fdc9ff2f9f4256affbe6ab",
+      "scripts/movement_oracle/run.py": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+      "scripts/movement_oracle/ground_mode_scenarios.json": "dea1b0857dd1358b932a992f04e21ec91337e23bec5ea9480a2ecea6f499fefd",
+      "scripts/movement_oracle/java_1_16_1/MovementOracle.java": "62bb9a7010c50caa83f319d5ece1263ba325bcf132747d8937b8e0a93b8e9754",
+      "scripts/movement_oracle/java_1_21_11/MovementOracle.java": "fbcf213ff0f400f8db1b65aaa342a4ffac26f5c93879d012065845b0231f7169",
+      "data/client_api/ground_mode_oracle.json.gz": "a0e10623fd6f952f9a45cbb324de4d0e0017a84c6d3095380315bddaee4b8379"
+    },
+    "source_difference": "Runtime src/examples/Cargo/data identical to compiled SDK; subsequent commits change only Python verification and documentation"
+  },
+  "native_oracle": {
+    "fixture": "data/client_api/ground_mode_oracle.json.gz",
+    "fixture_sha256": "a0e10623fd6f952f9a45cbb324de4d0e0017a84c6d3095380315bddaee4b8379",
+    "runs": 16,
+    "exact_ticks": 720,
+    "inputs": [
+      {
+        "version": "1.16.1",
+        "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+        "harness_sha256": "62bb9a7010c50caa83f319d5ece1263ba325bcf132747d8937b8e0a93b8e9754"
+      },
+      {
+        "version": "1.21.11",
+        "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+        "harness_sha256": "fbcf213ff0f400f8db1b65aaa342a4ffac26f5c93879d012065845b0231f7169"
+      }
+    ],
+    "native_abilities": "Original GameType.updatePlayerAbilities; Creative ground flying=false, mayfly=true; low-food sprint checked separately from Adventure"
+  },
+  "runs": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "check_count": 27,
+      "check_names": [
+        "adventure_other_handle_and_stale_id_refused",
+        "adventure_forward",
+        "adventure_backward",
+        "adventure_left",
+        "adventure_right",
+        "adventure_held_jump",
+        "adventure_one_shot_ground_jump",
+        "adventure_queued_once",
+        "adventure_sprint",
+        "adventure_crouch",
+        "adventure_owned_release_retained",
+        "adventure_neutral_explicit_restart",
+        "adventure_received_mode_change_fences_old_owner",
+        "creative_other_handle_and_stale_id_refused",
+        "creative_forward",
+        "creative_backward",
+        "creative_left",
+        "creative_right",
+        "creative_held_jump",
+        "creative_one_shot_ground_jump",
+        "creative_queued_once",
+        "creative_sprint",
+        "creative_crouch",
+        "creative_owned_release_retained",
+        "creative_neutral_explicit_restart",
+        "creative_received_mode_change_fences_old_owner",
+        "spectator_ground_model_refused_before_dispatch"
+      ],
+      "original_report_sha256": "311b171d1c7fa69e837560a801f7f77e6584a9c16964cab02322407056354449",
+      "unexpected_corrections": 0
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "check_count": 27,
+      "check_names": [
+        "adventure_other_handle_and_stale_id_refused",
+        "adventure_forward",
+        "adventure_backward",
+        "adventure_left",
+        "adventure_right",
+        "adventure_held_jump",
+        "adventure_one_shot_ground_jump",
+        "adventure_queued_once",
+        "adventure_sprint",
+        "adventure_crouch",
+        "adventure_owned_release_retained",
+        "adventure_neutral_explicit_restart",
+        "adventure_received_mode_change_fences_old_owner",
+        "creative_other_handle_and_stale_id_refused",
+        "creative_forward",
+        "creative_backward",
+        "creative_left",
+        "creative_right",
+        "creative_held_jump",
+        "creative_one_shot_ground_jump",
+        "creative_queued_once",
+        "creative_sprint",
+        "creative_crouch",
+        "creative_owned_release_retained",
+        "creative_neutral_explicit_restart",
+        "creative_received_mode_change_fences_old_owner",
+        "spectator_ground_model_refused_before_dispatch"
+      ],
+      "original_report_sha256": "05b32c2bf4fdadf094c8e7011f4c6959a17ba6394489cb6da81ef340c3da84b0",
+      "unexpected_corrections": 0
+    }
+  ],
+  "checks": {
+    "unit_passed": 968,
+    "unit_ignored": 8,
+    "integration_passed": 4,
+    "doctests_passed": 34,
+    "doctests_ignored": 1,
+    "native_trace_tests": 6,
+    "strict_native_all_target_clippy": "passed",
+    "strict_native_rustdoc": "passed",
+    "package_allowlist": "passed",
+    "fmt": "passed"
+  },
+  "failed_qualification_preserved": {
+    "original_modern_report_sha256": "dc788abfc8553614396f331ecea20f9b7b554c9b5a281f4772bfb1138ce93053",
+    "finding": "Immediate RCON sample exactly matched an original emitted position two packets before the retained frame. Final driver polls the same independent RCON observation for at most two seconds, preserves the .4 coordinate bound, does not resend any movement, and fails a missed window."
+  },
+  "limits": [
+    "Ground owner remains separate from continuous Creative/Spectator flight and elytra; these remain tracked in #62/#44.",
+    "One original mismatching mode or flying abilities receipt fences a ground owner even if restored before a local tick; no automatic replay.",
+    "Unmodeled geometry, flight, mounting, unresolved motion, stale mode/world/ID and Spectator ground refuse; existing mutation and uncertain-write guards remain.",
+    "Model frames and completed dispatch are neither received present-time positions nor server execution/stop acknowledgements.",
+    "Original input handling in the oracle is a documented LocalPlayer port; movement/travel/collision code runs unchanged from verified official server JARs."
+  ]
+}
