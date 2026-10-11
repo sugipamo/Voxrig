@@ -87,7 +87,16 @@ def check(version, command, request, trace, report, sdk):
             assert not record['frame']['crouching'] and not record['frame']['swimming']
             admitted('mode_keys',mode,session,controls=controls());request('ticks',count=10)
         boundary=trace.mark();admitted('mode_keys',mode,session,controls=controls(forward=1,sprint=True))
-        record=request('ticks',count=8);capture(mode+'_sprint',record,boundary);assert record['frame']['sprinting']
+        record=request('ticks',count=8)
+        # At native sprint flight speed, one more 50ms frame can exceed the
+        # .4 observation window. Stop the selected owner before RCON sampling;
+        # preserve its final frame/momentum, with no teleport or speed change.
+        if version=='1.21.11':record=admitted('mode_stop',mode,session)
+        capture(mode+'_sprint',record,boundary);assert record['frame']['sprinting']
+        if version=='1.21.11':
+            resumed=admitted('flight_start',mode,controls=controls())
+            save(mode+'_fast_sample_explicit_neutral_restart',record=resumed)
+            session=resumed['session_id']
         # Original flight retains horizontal inertia (0.91 damping). Release
         # is not rest: wait for native decay before asserting a hover.
         admitted('mode_keys',mode,session,controls=controls());request('ticks',count=60)
