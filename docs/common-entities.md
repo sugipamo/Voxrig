@@ -79,6 +79,9 @@ for entity in client.entities().await?.entities {
 
 ## 制約
 
+原版の1回の押し合いを明示的な入力から計算する共通APIは
+[押し合いモデル](common-entity-push.md)を参照する。受信targetから自動で接触を推定しない。
+
 - `bounding_box`は既定の大きさだけを使う。姿勢（しゃがみ・寝る等）、`scale`属性、子供の大きさは反映しない。
   種類が分からない場合は`None`。
 - `health`は生き物の種類だけ記録する（1.16.1は生き物用の出現パケットで、1.21.11は既定属性の有無で判定）。

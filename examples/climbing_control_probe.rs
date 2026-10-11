@@ -72,6 +72,15 @@ async fn main() -> anyhow::Result<()> {
     while let Some(line) = lines.next_line().await? {
         let request: serde_json::Value = serde_json::from_str(&line)?;
         let value = match request["command"].as_str().unwrap_or_default() {
+            "living_pair_push" => {
+                let input: LivingPairPushInput = serde_json::from_value(request["input"].clone())?;
+                let model = model_living_pair_push(client.version(), &input);
+                let bits = model.as_ref().ok().map(|m| {
+                    [m.first_velocity, m.second_velocity]
+                        .map(|v| v.map(|n| format!("{:x}", n.to_bits())))
+                });
+                serde_json::json!({"model":model,"velocity_bits":bits})
+            },
             "entity_geometry" => serde_json::json!(client.entities().await?.entities.iter()
                 .map(|entity| serde_json::json!({"entity":entity.motion.entity,"geometry":entity.derived_geometry(),"scale":entity.scale(),"metadata_complete":entity.metadata_complete}))
                 .collect::<Vec<_>>()),

@@ -9,11 +9,16 @@ use std::collections::BTreeMap;
 mod data;
 mod geometry;
 mod pose;
+mod push;
 pub use geometry::{
     EntityGeometry, EntityGeometryEvidence, EntityGeometryModel, EntityGeometryUnavailable,
     EntityScaleReading,
 };
 pub use pose::{EntityPose, EntityPoseReading};
+pub use push::{
+    LivingPairPushDisposition, LivingPairPushInput, LivingPairPushModel, LivingPairPushUnavailable,
+    LivingPushBody, model_living_pair_push,
+};
 mod history;
 mod motion;
 pub use history::{
