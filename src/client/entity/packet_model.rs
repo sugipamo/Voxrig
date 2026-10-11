@@ -146,6 +146,10 @@ impl LivingPacketModel {
             applied_ordinal: self.applied,
         }
     }
+
+    pub(crate) fn collision_query_position(&self) -> Option<[f64; 3]> {
+        self.interpolation.collision_query_position()
+    }
     pub(super) fn initialize_samples(
         &mut self,
         velocity: Option<[f64; 3]>,

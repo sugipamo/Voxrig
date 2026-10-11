@@ -204,6 +204,20 @@ impl LivingEntityPacketReplay {
                 {
                     return Err(U::LifetimeChanged);
                 }
+                EntityHistoryKind::Passengers {
+                    entity, passengers, ..
+                } => {
+                    let selected = *entity == Some(self.entity)
+                        || match passengers {
+                            super::EntityHistoryValue::Retained { value } => {
+                                value.iter().any(|(_, id)| *id == Some(self.entity))
+                            }
+                            super::EntityHistoryValue::RetentionLimit => true,
+                        };
+                    if selected {
+                        return Err(U::UnsupportedEntityEvent);
+                    }
+                }
                 EntityHistoryKind::Motion(m)
                     if m.entity.id.native_id() == self.entity.native_id() =>
                 {

@@ -3,10 +3,12 @@ use super::{EntityId, ObservedValue, SessionStamp, entity::SpawnLedger, received
 use crate::protocol::get_varint;
 pub(crate) mod collision;
 pub mod control;
-pub use collision::{BoatCollisionBody, BoatCollisionSample, MAX_BOAT_COLLISION_BODIES};
+pub use collision::{
+    BoatCollisionBody, BoatCollisionGeometry, BoatCollisionSample, MAX_BOAT_COLLISION_BODIES,
+};
 pub use control::{
     BoatFrame, BoatMotion, BoatVelocityUpdate, MAX_VEHICLE_CONTROL_TICKS, VehicleControlId,
-    VehicleControlRecord, VehicleControlStage, VehicleInput,
+    VehicleControlRecord, VehicleControlStage, VehicleInput, VehicleInputRelease,
 };
 pub mod dismount;
 pub use dismount::{DismountGrounding, DismountId, DismountRecord, DismountStage};

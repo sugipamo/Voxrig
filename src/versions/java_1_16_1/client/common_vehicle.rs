@@ -156,22 +156,26 @@ impl Bot {
                         "vehicle control frame already claimed or uncertain",
                     ));
                 }
-                let collisions = {
+                let (collisions, boat_frame) = {
                     let receipts = self.common_receipts.lock().await;
-                    api::vehicle::collision::sample(
-                        &record,
+                    let teams = self
+                        .common_teams
+                        .lock()
+                        .await
+                        .capture(player.session, player.receive_sequence);
+                    let profiles = self
+                        .common_player_list
+                        .lock()
+                        .await
+                        .capture(player.session, player.receive_sequence);
+                    let world = self.world.lock().await;
+                    api::vehicle::control::contact_step(
+                        &mut record,
                         &vehicle,
                         &receipts.entities,
                         &receipts.vehicles,
-                        player.receive_sequence,
-                    )?
-                };
-                let boat_frame = {
-                    let world = self.world.lock().await;
-                    api::vehicle::control::boat_step(
-                        &record,
+                        (&teams, &profiles),
                         input,
-                        collisions.as_ref(),
                         &mut |p| super::common_motion::legacy_motion_block(&world, p),
                     )?
                 };
@@ -187,6 +191,7 @@ impl Bot {
                     if let Some(sample) = collisions {
                         boat.collision_samples.push(sample);
                     }
+                    boat.contacts = record.boat_motion.as_ref().and_then(|b| b.contacts.clone());
                     boat.attempted_frame = boat_frame.clone();
                 }
                 self.vehicle_control_history
@@ -236,6 +241,33 @@ impl Bot {
         }
         .await;
         if let Err(e) = &result {
+            let _gate = self.coherent_state_gate.lock().await;
+            let context = if self.connection_state() == ConnectionState::Ready
+                && self.control().await == ControlState::default()
+            {
+                self.vehicle_capture_unlocked().await
+            } else {
+                Err(unavailable("failed vehicle writer is not ready/released"))
+            };
+            let packets = {
+                let mut history = self
+                    .vehicle_control_history
+                    .lock()
+                    .expect("vehicle control history");
+                if let Some(record) = history.as_mut().filter(|r| r.id == id) {
+                    record.inspection(e);
+                    api::vehicle::control::failure_release(record, context)
+                } else {
+                    Vec::new()
+                }
+            };
+            let released = async {
+                for (packet, payload) in packets {
+                    self.send(packet, &payload).await?;
+                }
+                Ok(())
+            }
+            .await;
             if let Some(record) = self
                 .vehicle_control_history
                 .lock()
@@ -243,7 +275,7 @@ impl Bot {
                 .as_mut()
                 .filter(|r| r.id == id)
             {
-                record.inspection(e);
+                api::vehicle::control::finish_failure_release(record, released);
             }
         }
         result
@@ -443,6 +475,7 @@ impl crate::client::adapter::VehicleOps for Bot {
             )?),
             None => None,
         };
+        let receipts = self.common_receipts.lock().await;
         let record = {
             let mut history = self
                 .vehicle_control_history
@@ -457,9 +490,11 @@ impl crate::client::adapter::VehicleOps for Bot {
                 history.as_ref(),
             )?;
             api::vehicle::control::configure_boat(&mut record, motion, history.as_ref())?;
+            api::vehicle::control::bind_contacts(&mut record, &receipts.entities)?;
             *history = Some(record.clone());
             record
         };
+        drop(receipts);
         let id = record.id;
         let bot = self.clone_internal();
         let (reply, result) = tokio::sync::oneshot::channel();

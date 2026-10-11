@@ -105,6 +105,92 @@ pub struct LivingContactIndex {
 }
 
 impl LivingContactIndex {
+    /// Legacy packet callbacks change the live box before ClientLevel's
+    /// post-tick chunk/section registration. Keep that original listed slot.
+    pub(crate) fn set_bounds_in_listed_section(
+        &mut self,
+        key: u64,
+        bounds: Aabb,
+    ) -> Result<(), LivingContactQueryUnavailable> {
+        self.check_valid()?;
+        let mut entity = self
+            .bodies
+            .get(&key)
+            .cloned()
+            .ok_or(LivingContactQueryUnavailable::InconsistentIdentity)?;
+        entity.body.bounds = bounds;
+        validate(self.version, &entity)?;
+        self.bodies.insert(key, entity);
+        Ok(())
+    }
+    /// Native spatial visitation without the inherited living selector.
+    /// Boat callers separately qualify canCollideWith/isPushable and retain
+    /// actual passenger exclusions. This does not authorize entity dispatch.
+    pub(crate) fn geometry_keys(
+        &self,
+        bounds: Aabb,
+        excluded: &[u64],
+    ) -> Result<Vec<u64>, LivingContactQueryUnavailable> {
+        self.check_valid()?;
+        let min = section(
+            self.version,
+            [
+                bounds.min_x - 2.,
+                bounds.min_y
+                    - if self.version == MinecraftVersion::Java1_16_1 {
+                        2.
+                    } else {
+                        4.
+                    },
+                bounds.min_z - 2.,
+            ],
+        )?;
+        let max = section(
+            self.version,
+            [
+                bounds.max_x + 2.,
+                bounds.max_y
+                    + if self.version == MinecraftVersion::Java1_16_1 {
+                        2.
+                    } else {
+                        0.
+                    },
+                bounds.max_z + 2.,
+            ],
+        )?;
+        let count = i64::from(max[0] - min[0] + 1) * i64::from(max[2] - min[2] + 1);
+        if count > MAX_LIVING_CONTACT_QUERY_CHUNKS as i64 {
+            return Err(LivingContactQueryUnavailable::QueryTooLarge);
+        }
+        for x in min[0]..=max[0] {
+            for z in min[2]..=max[2] {
+                if !self.chunks.contains(&[x, z]) {
+                    return Err(LivingContactQueryUnavailable::UnknownChunk);
+                }
+            }
+        }
+        let mut sections = self
+            .sections
+            .iter()
+            .filter(|(p, s)| {
+                s.accessible
+                    && (min[0]..=max[0]).contains(&p[0])
+                    && (min[1]..=max[1]).contains(&p[1])
+                    && (min[2]..=max[2]).contains(&p[2])
+            })
+            .collect::<Vec<_>>();
+        match self.version {
+            MinecraftVersion::Java1_16_1 => sections.sort_by_key(|(p, _)| [p[0], p[2], p[1]]),
+            MinecraftVersion::Java1_21_11 => sections.sort_by_key(|(p, _)| packed_section(**p)),
+        }
+        Ok(sections
+            .into_iter()
+            .flat_map(|(_, s)| s.keys.iter().copied())
+            .filter(|key| {
+                !excluded.contains(key) && intersects(bounds, self.bodies[key].body.bounds)
+            })
+            .collect())
+    }
     /// Create a separate empty model. No chunk membership is assumed complete.
     pub fn new(version: MinecraftVersion) -> Self {
         Self {

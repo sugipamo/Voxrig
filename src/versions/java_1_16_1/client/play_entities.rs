@@ -262,6 +262,7 @@ impl Bot {
         {
             let mut receipts = self.common_receipts.lock().await;
             let receipts = &mut *receipts;
+            receipts.entities.history_passengers(&update);
             receipts
                 .vehicles
                 .receive(&update, player_id, &receipts.entities, packet_sequence);

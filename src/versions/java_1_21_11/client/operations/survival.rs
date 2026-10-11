@@ -166,6 +166,7 @@ pub(super) fn receive(state: &mut State, id: i32, payload: &[u8]) -> anyhow::Res
         let update = crate::client::vehicle::NativePassengers::decode(payload)?;
         let player = state.operations.local_player.entity_id;
         let own = player.is_some_and(|id| update.passengers.contains(&id));
+        state.entities.history_passengers(&update);
         state
             .vehicles
             .receive(&update, player, &state.entities, state.sequence);

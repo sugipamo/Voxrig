@@ -1,4 +1,4 @@
-//! Rigid collision boxes derived from owned received targets, never contacts.
+//! Ordered fixed vehicle and living model geometry for an owned boat tick.
 use super::control::VehicleControlRecord;
 use crate::Result;
 use crate::client::{
@@ -6,20 +6,52 @@ use crate::client::{
     inventory::unavailable,
 };
 
-/// Maximum rigid bodies retained in each of at most 120 local boat ticks.
+/// Maximum collision bodies retained in each of at most 120 local boat ticks.
 pub const MAX_BOAT_COLLISION_BODIES: usize = 32;
 
-/// One fixed-shape vehicle used by the boat's local collision model.
+/// One received lifetime supplying explicit boat collision model geometry.
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct BoatCollisionBody {
     /// Original connection/world/spawn lifetime, independent of reusable native ID.
     pub entity: EntityId,
-    /// Original known type, restricted to fixed-shape boats/rafts and minecarts.
+    /// Original known fixed vehicle or qualified living type.
     pub type_name: String,
     /// Latest received packet target and quantization bound, without interpolation.
     pub received_position: ObservedValue<EntityPosition>,
-    /// Derived model AABB at that target; not a received or server-current box.
+    /// Derived AABB in the explicit geometry lane below; not a received or server-current box.
     pub model_box: [f64; 6],
+    /// Explicit numerical geometry origin, independent of the packet target.
+    pub geometry: BoatCollisionGeometry,
+}
+
+/// Origin of a boat collision model's geometry; never a current server box.
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum BoatCollisionGeometry {
+    /// Existing fixed-shape vehicle lane at its received target.
+    FixedReceivedTarget,
+    /// Living interpolation advanced by this boat owner's explicit ticks.
+    LivingInterpolation {
+        /// Complete history boundary defining zero owned model ticks.
+        origin_after_record: u64,
+        /// Complete receipt boundary consumed before this tick.
+        applied_record: u64,
+        /// Upcoming one-based model tick.
+        model_tick: u64,
+        /// Numerical feet at the boat's original dispatch slot.
+        position: [f64; 3],
+        /// Numerical native float dimensions.
+        dimensions: [f32; 2],
+    },
+}
+
+pub(crate) struct LivingBoatBody {
+    pub entity: EntityId,
+    pub bounds: [f64; 6],
+    pub pushable: bool,
+    pub spectator: bool,
+    pub geometry: BoatCollisionGeometry,
 }
 
 /// Coherent inputs selected before an attempted local boat tick.
@@ -31,11 +63,12 @@ pub struct BoatCollisionSample {
     pub receive_sequence: u64,
     /// Latest actual ordered own-boat passengers excluded from collision input.
     pub passengers: ObservedValue<Vec<i32>>,
-    /// Rigid-body inputs in native ID order. An empty list is not a current-world fact.
+    /// Inputs in original model spatial visitation order. An empty list is
+    /// not a current-world fact or confirmation that nothing collided.
     pub bodies: Vec<BoatCollisionBody>,
 }
 
-fn rigid(name: &str) -> bool {
+pub(crate) fn rigid(name: &str) -> bool {
     name == "minecraft:boat"
         || name.ends_with("_boat")
         || name.ends_with("_raft")
@@ -60,12 +93,13 @@ fn noncollidable(name: &str) -> bool {
     )
 }
 
-pub(crate) fn sample(
+pub(crate) fn sample_with_living(
     record: &VehicleControlRecord,
     vehicle: &super::VehicleObservation,
     ledger: &SpawnLedger,
     relations: &super::PassengerLedger,
     sequence: u64,
+    living: Option<&[LivingBoatBody]>,
 ) -> Result<Option<BoatCollisionSample>> {
     let Some(boat) = &record.boat_motion else {
         return Ok(None);
@@ -95,6 +129,7 @@ pub(crate) fn sample(
         &passengers.value,
         &seed,
         ledger,
+        living,
     )?;
     Ok(Some(BoatCollisionSample {
         sampled_before_tick: record.dispatched_ticks + 1,
@@ -111,8 +146,18 @@ fn bodies(
     passengers: &[i32],
     seed: &super::BoatFrame,
     ledger: &SpawnLedger,
+    living: Option<&[LivingBoatBody]>,
 ) -> Result<Vec<BoatCollisionBody>> {
     let mut bodies = Vec::new();
+    let query = crate::client::entity::owned_contacts::boat_query(seed.bounds);
+    let nearby = |b: [f64; 6]| {
+        b[0] < query.max_x
+            && b[3] > query.min_x
+            && b[1] < query.max_y
+            && b[4] > query.min_y
+            && b[2] < query.max_z
+            && b[5] > query.min_z
+    };
     for spawn in ledger.capture(session, sequence).entities {
         if spawn.id == own || passengers.contains(&spawn.id.native_id()) {
             continue;
@@ -136,6 +181,21 @@ fn bodies(
             ));
         }
         if !rigid(name) {
+            if let Some(body) = living.and_then(|b| b.iter().find(|b| b.entity == spawn.id)) {
+                if body.pushable && !body.spectator && nearby(body.bounds) {
+                    if bodies.len() == MAX_BOAT_COLLISION_BODIES {
+                        return Err(unavailable("boat collision body budget exceeded"));
+                    }
+                    bodies.push(BoatCollisionBody {
+                        entity: spawn.id,
+                        type_name: name.to_owned(),
+                        received_position: position,
+                        model_box: body.bounds,
+                        geometry: body.geometry.clone(),
+                    });
+                }
+                continue;
+            }
             // Other entities need their own pose/scale/pushability audit. Refuse
             // nearby unsupported targets rather than using default adult boxes.
             if (0..3).all(|i| {
@@ -154,9 +214,6 @@ fn bodies(
             }
             continue;
         }
-        if bodies.len() == MAX_BOAT_COLLISION_BODIES {
-            return Err(unavailable("boat collision body budget exceeded"));
-        }
         let dimensions = session
             .version
             .table()
@@ -167,6 +224,20 @@ fn bodies(
         let width = f64::from(dimensions.width as f32);
         let height = f64::from(dimensions.height as f32);
         let [x, y, z] = position.value.position;
+        let bounds = [
+            x - width / 2.,
+            y,
+            z - width / 2.,
+            x + width / 2.,
+            y + height,
+            z + width / 2.,
+        ];
+        if living.is_some() && !nearby(bounds) {
+            continue;
+        }
+        if bodies.len() == MAX_BOAT_COLLISION_BODIES {
+            return Err(unavailable("boat collision body budget exceeded"));
+        }
         bodies.push(BoatCollisionBody {
             entity: spawn.id,
             type_name: name.to_owned(),
@@ -179,6 +250,7 @@ fn bodies(
                 y + height,
                 z + width / 2.0,
             ],
+            geometry: BoatCollisionGeometry::FixedReceivedTarget,
         });
     }
     Ok(bodies)
@@ -266,7 +338,7 @@ mod tests {
                 spawn(&mut ledger, version, 11, name, other, 2);
                 let own = ledger.identity(session, 10).unwrap();
                 let seed = super::super::BoatFrame::new(start, [0.; 2], [0.; 3]);
-                let old = bodies(session, 3, own, &[42], &seed, &ledger).unwrap();
+                let old = bodies(session, 3, own, &[42], &seed, &ledger, None).unwrap();
                 let expected: [f64; 6] = std::array::from_fn(|i| {
                     result["collision_boxes"][0][i]
                         .as_str()
@@ -282,12 +354,12 @@ mod tests {
                 );
                 ledger.remove(11);
                 assert!(
-                    bodies(session, 4, own, &[42], &seed, &ledger)
+                    bodies(session, 4, own, &[42], &seed, &ledger, None)
                         .unwrap()
                         .is_empty()
                 );
                 spawn(&mut ledger, version, 11, name, [1024.5, 101., 1029.], 5);
-                let fresh = bodies(session, 6, own, &[42], &seed, &ledger).unwrap();
+                let fresh = bodies(session, 6, own, &[42], &seed, &ledger, None).unwrap();
                 assert_ne!(old[0].entity, fresh[0].entity);
                 assert_eq!(old[0].model_box, expected);
                 assert_eq!(
@@ -299,7 +371,7 @@ mod tests {
                     ValueSource::Received { sequence: 5 }
                 );
                 assert!(
-                    bodies(session, 6, own, &[42, 11], &seed, &ledger)
+                    bodies(session, 6, own, &[42, 11], &seed, &ledger, None)
                         .unwrap()
                         .is_empty()
                 );
@@ -347,7 +419,7 @@ mod tests {
             },
             3,
         );
-        assert!(bodies(session, 3, own, &[42], &seed, &ledger).is_err());
+        assert!(bodies(session, 3, own, &[42], &seed, &ledger, None).is_err());
         ledger.receive_motion(
             version,
             11,
@@ -360,7 +432,7 @@ mod tests {
             },
             4,
         );
-        assert!(bodies(session, 4, own, &[42], &seed, &ledger).is_ok());
+        assert!(bodies(session, 4, own, &[42], &seed, &ledger, None).is_ok());
         spawn(
             &mut ledger,
             version,
@@ -369,7 +441,7 @@ mod tests {
             [0.5, 1., 2.],
             5,
         );
-        assert!(bodies(session, 5, own, &[42], &seed, &ledger).is_err());
+        assert!(bodies(session, 5, own, &[42], &seed, &ledger, None).is_err());
         ledger.remove(12);
         for id in 100..132 {
             spawn(
@@ -381,10 +453,10 @@ mod tests {
                 6,
             );
         }
-        assert!(bodies(session, 6, own, &[42], &seed, &ledger).is_err());
+        assert!(bodies(session, 6, own, &[42], &seed, &ledger, None).is_err());
         ledger.remove(131);
         assert_eq!(
-            bodies(session, 7, own, &[42], &seed, &ledger)
+            bodies(session, 7, own, &[42], &seed, &ledger, None)
                 .unwrap()
                 .len(),
             MAX_BOAT_COLLISION_BODIES
