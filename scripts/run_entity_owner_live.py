@@ -75,6 +75,8 @@ def check(version,command,request,trace,report,binary,sdk):
         return frame
     command('kill @e[type=!minecraft:player]')
     command('difficulty normal')
+    # Fixture cleanup must not introduce unqualified item-entity dispatch.
+    command('gamerule doMobLoot false');command('gamerule doTileDrops false')
     reset([.5,65.,.5])
     peer_checks(version,command,request,trace,report,binary)
     reset([.5,65.,.5])
@@ -112,7 +114,8 @@ def check(version,command,request,trace,report,binary,sdk):
     assert moved['applied_record']>first['applied_record']
     record('motion_receipts',dict(frames=trace.since(mark),native_position=native('@e[tag=OwnerCow,limit=1]','Pos')))
     request('stop')
-    command('kill @e[tag=OwnerCow]');request('wait',ms=150)
+    command('kill @e[tag=OwnerCow]')
+    until(lambda:not any(e['motion']['entity']['id']==ident for e in entities()),10)
     command('summon minecraft:cow .9 65 .5 {Tags:["OwnerCow"],NoAI:1b,NoGravity:1b,Silent:1b,Invulnerable:1b}')
     fresh=until(lambda:(e if e and e['motion']['entity']['id']!=ident else None) if (e:=cow()) else None,10)
     reset([.5,65.,.5]);request('start')
