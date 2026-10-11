@@ -1,0 +1,145 @@
+{
+  "scope": "One explicitly admitted local inherited LivingEntity.push(other) calculation for player/cow/pig/zombie; no interpolation, contact discovery, autonomous pair scheduling, movement integration or execution acknowledgement.",
+  "sdk": {
+    "source_revision": "f4d39a612111feaa175ec035d3d7c62b3e37b4c3",
+    "binary_build_revision": "f4d39a612111feaa175ec035d3d7c62b3e37b4c3",
+    "binary_sha256": "92b83537798b3214465d46b2e66d2ad7bc86c9546f6aa5ec1fcf1715206551a5",
+    "artifacts": {
+      "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+      "scripts/run_entity_push_live.py": "b6077ac930b4f31e1edef05c8ce22fb51e9a5cb8e9e99aa8592c0f710d83edc5",
+      "scripts/run_entity_push_oracle.py": "0ec07af0d4c0572fb26c99c906a33bf4fe54e85d607c39cd919ebbdd283c614e",
+      "scripts/run_entity_pose_live.py": "f47757da45e3764a78482cdb9ea617833965af8c20065ef244f6c3a0a14a4a4b",
+      "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+      "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+      "examples/climbing_control_probe.rs": "572aae6ee6845452ec432edfc61ab9238c1a67960303a078266830d93b13c799",
+      "data/client_api/entity_push_oracle.json.gz": "11ac14a6fd0609b13606111c7cb07395937b2a0266e3eec780347761dbfffd5c"
+    }
+  },
+  "original_pair_push_comparison": {
+    "case_count": 1040,
+    "exact_velocity_double_bits": true,
+    "exact_velocity_write_flags": true,
+    "fixture_sha256": "11ac14a6fd0609b13606111c7cb07395937b2a0266e3eec780347761dbfffd5c",
+    "versions": {
+      "1.16.1": {
+        "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+        "original_output_sha256": "4be81318b99cd2624b6cba7cb96329dd215a5cfa88bdd03dc22e387eaa929c2f",
+        "harness_sha256": "bae340fe67059f2002761d792fa190d25f2460577f9e12ece21704b71f7b1dcf",
+        "case_count": 560
+      },
+      "1.21.11": {
+        "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+        "original_output_sha256": "6e0f418734ac9f608ff58247b6dc9145637bc9f2e0eb789f5bc6274e2e158ed0",
+        "harness_sha256": "a8cb3007bbb346be612c92977063c356f323848420ddd8fbbce2389824df665b",
+        "case_count": 480
+      }
+    }
+  },
+  "runs": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "check_count": 14,
+      "check_names": [
+        "original_peer_spawn",
+        "received_crouching",
+        "received_standing",
+        "removed_peer_not_observed",
+        "original_spawn_seed_receipts",
+        "explicit_admitted_pair_at_spawn_seeds",
+        "same_input_is_a_new_pure_model_call",
+        "reversed_model_receiver",
+        "explicit_sleeping_receiver",
+        "explicit_shared_vehicle_predicate",
+        "explicit_first_no_physics",
+        "explicit_second_no_physics",
+        "explicit_next_model_step",
+        "retired_spawn_seed_has_no_live_target_authority"
+      ],
+      "trace_error_count": 0,
+      "peer_trace_error_count": 0,
+      "artifact_sha256": {
+        "server.log": "6000e4c7cc54f5c799215601ac2270602604cd4eb41d60b7b686bae4dedfe7c1",
+        "packets.jsonl": "dd40bd713cccea7e55da934a67a833c41f93d74c7efa41f90d969e1d9de0428d",
+        "probe.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "peer.log": "db219f8b0ba2c494bea2843165b3fe862b3a762121d7fd1996bc306409eec07a",
+        "probe.log": "f6440ca2cc9c80900887feff7084d0b17fcaf0c8215b68b23a3525e7ba809e29",
+        "report.json": "72d54be0621f7684cee956317b1a024d7aec0f6e08817ec80c95ac0c04d5a51a",
+        "peer-packets.jsonl": "b4e253f0d2addda632d9658acf70e4174f4ae06e444cdc25e31c113c8bba1191",
+        "peer.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "check_count": 15,
+      "check_names": [
+        "original_peer_spawn",
+        "received_crouching",
+        "received_standing",
+        "removed_peer_not_observed",
+        "original_spawn_seed_receipts",
+        "explicit_admitted_pair_at_spawn_seeds",
+        "same_input_is_a_new_pure_model_call",
+        "reversed_model_receiver",
+        "explicit_sleeping_receiver",
+        "explicit_shared_vehicle_predicate",
+        "explicit_first_no_physics",
+        "explicit_second_no_physics",
+        "explicit_next_model_step",
+        "modern_legacy_field_refused",
+        "retired_spawn_seed_has_no_live_target_authority"
+      ],
+      "trace_error_count": 0,
+      "peer_trace_error_count": 0,
+      "artifact_sha256": {
+        "server.log": "f785ff6d26db757eaa48d44c62396ba4e1447b71b39ed573cb6c50f238c55800",
+        "packets.jsonl": "16986517efb3177fb8f3ff6bb8967246ba3f1e14c42df76ecab765115c9a13c6",
+        "probe.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "peer.log": "c861f8160036903e5f57d2d4e452d543d5daff9f3bef58f216c32ac2e01b387a",
+        "probe.log": "793bc4424a491f30db0d4572a4ccc69e27c7ef203a113c07ffe60505da4056dc",
+        "report.json": "7a27b2edc3a28fcfe09215c09bbe1fbea46978423161704d51aff9d9933ef2fe",
+        "peer-packets.jsonl": "ea12eb107c3dded711cb7b8469d92d066421d4000af3aae562b152b25c097698",
+        "peer.stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ],
+  "total_live_checks": 29,
+  "live_scope": "Two common clients on unchanged official loopback servers verify original pose transitions/removal and original spawn receipt positions/ordinals. Received historical positions are only explicit numerical model seeds; predicates/velocities are separately supplied simulation inputs. The server does not execute the admitted model calls.",
+  "local_validation": {
+    "full_native_suite_source_revision": "b2e9bce9613645e1ba41a2b4116e4572388c47ee",
+    "final_fixture_tests_requalified": 4,
+    "production_pair_algorithm_unchanged_after_full_suite": true,
+    "unit_passed": 990,
+    "unit_ignored": 8,
+    "integration_passed": 4,
+    "doctest_passed": 34,
+    "doctest_ignored": 1,
+    "trace_passed": 6,
+    "fmt_passed": true,
+    "native_clippy_warnings": 0,
+    "native_rustdoc_warnings": 0,
+    "package_allowlist_passed": true,
+    "log_sha256": {
+      "all-tests": "52fd5d0eaed40ed8703e1f58f53c6f03073d85b9d755f6b3c97b98086630024f",
+      "bound-unit": "0f068acb25ed41609e973755007c253ee78bebcda133834df198a8e8c7620d44",
+      "doc-tests": "655d4af26c7ed7dcbcc20d7d3d4e119d31bb89371e2f1b7cf75e1ff6a422913c",
+      "clippy": "db8199fd5f317b1f531df238e9d190319f2785f3e439b8d15ebe7a03845ae238",
+      "rustdoc": "b7a7cc53d6adbc5935e83975ea9a5c8c2c3375b70ca7edbf22f34be40c9b9a5a",
+      "package-list": "3f761008f9a549c833dc4a48f942c559bf0387177dcd4c7937a9b37b69450072",
+      "trace": "b6dce2835ec88ec56cedbef993dea86192fb3aa80d08caee366bc11f9af5b554",
+      "build": "da617cec9cb409cc7d90040e129ad90b46ac0d3bfc0d87a5184fe72f43403805"
+    }
+  },
+  "remaining": [
+    "Entity interpolation and model tick/packet scheduling",
+    "Contact admission, pushability/team/cramming queries and deterministic pair order",
+    "Integration into selected owned ground/boat movement",
+    "Own scaled-player physics, elytra and additional mounts"
+  ],
+  "publication": "Only implementation, interpreted native results and hashes are public. Original wire/NBT reports, JARs and class files remain in ignored .local."
+}

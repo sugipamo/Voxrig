@@ -31,6 +31,10 @@
 近くの未監査entityは送信前に拒否する。
 [共通乗り物](common-vehicles.md)に対応範囲と実接続の検証手順を記載する。
 
+生物2体を利用側が明示的に選んだときの原版`LivingEntity.push`計算は
+独立した[共通モデル](common-entity-push.md)として提供する。徒歩・ボートの物理へ自動統合せず、
+補間済み位置・接触の探索・pair順序・乗員関係・pushabilityを利用側の入力として保持する。
+
 徒歩の範囲外は、状態を変えずに`ErrorKind::Unsupported`で拒否する。
 
 - 浮遊効果、乗車、エリトラ。Creative／Spectatorの明示的な飛行モデルは対応。
