@@ -67,3 +67,6 @@ python3 scripts/run_entity_query_live.py --accept-eula \
 計144問い合わせも照合し、observer/peerの通信エラーは0件。
 [SDK・成果物・結果のhash](evidence/common-entity-query-20261012.json)を参照。
 これらの結果は探索段階の資格で、native tick割当てや移動ownerの自動接触を示すものではない。
+
+元packetの一度だけの適用と版ごとのentity更新順は、
+[明示的なモデルschedule](common-entity-schedule.md)を参照。

@@ -500,3 +500,12 @@ and records original JAR/mapping/tool/harness/runner and input hashes.
 `boat_scenarios.py` generates the inputs; reproduction and scope are recorded
 in `docs/movement-oracle.md`. No game binaries, mappings or decompiled method
 bodies are distributed or relicensed.
+
+The owned `scripts/entity_tick_oracle` harnesses and runner execute unchanged
+official client packet handlers and ClientLevel tick iteration on registered
+original worlds. Headless allocation skips rendering constructors; cow callbacks
+isolate AI/travel while invoking original interpolation, and Player callbacks
+qualify dispatch guards only. `data/client_api/entity_tick_oracle.json.gz` contains
+numerical schedules, pose bits, callback order and source/input hashes. Original
+JARs, mappings, classes and packet captures are not redistributed. This does not
+qualify an autonomous native clock, passenger physics or general NPC travel.

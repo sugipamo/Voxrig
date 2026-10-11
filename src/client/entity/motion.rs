@@ -10,6 +10,10 @@ pub struct EntityMotionObservation {
     pub entity: EntitySpawn,
     /// Coherent capture boundary, separate from each field's receipt.
     pub receive_sequence: u64,
+    /// Last original decoded operation, including which components were actually
+    /// supplied. Sticky latest fields cannot reconstruct this dispatch. None at
+    /// spawn; every motion packet replaces this independently of spatial fields.
+    pub packet: Option<ObservedValue<EntityMotionPacket>>,
     /// Latest decoded position target; absent for an unresolved relative correction.
     pub position: Option<ObservedValue<EntityPosition>>,
     /// Body yaw/pitch in degrees, separate from head yaw.
@@ -46,6 +50,7 @@ pub struct EntityPositionCorrection {
 }
 #[derive(Clone, Default)]
 pub(super) struct Motion {
+    pub packet: Option<ObservedValue<EntityMotionPacket>>,
     pub position: Option<ObservedValue<EntityPosition>>,
     pub rotation: Option<ObservedValue<[f32; 2]>>,
     pub head_yaw: Option<ObservedValue<f32>>,
@@ -61,29 +66,100 @@ pub(crate) struct NativeSpawnMotion {
     pub head_yaw: Option<f32>,
     pub velocity: Option<[f64; 3]>,
 }
-pub(crate) enum NativeMotion {
+/// Original decoded operation. This is a receipt, not a current model position,
+/// render update, native clock assignment or send authority. Unsupported modern
+/// relative corrections remain explicit rather than converted into old targets.
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+pub enum EntityMotionPacket {
+    /// Original short-delta update with optional body rotation.
     Relative {
+        /// Signed native delta components, in 1/4096-block codec units.
         delta: [i16; 3],
+        /// Rotation supplied by this packet; None means no rotation component.
         rotation: Option<[f32; 2]>,
+        /// Original ground flag.
         ground: bool,
     },
+    /// Original rotation-only packet.
     Rotation {
+        /// Decoded native yaw/pitch, with original float precision.
         rotation: [f32; 2],
+        /// Original ground flag.
         ground: bool,
     },
+    /// Legacy teleport or modern position-sync operation, distinguished by version.
     Absolute {
+        /// Original absolute feet coordinates.
         position: [f64; 3],
+        /// Original yaw/pitch.
         rotation: [f32; 2],
+        /// Movement components only when actually supplied by the native packet.
         velocity: Option<[f64; 3]>,
+        /// Ground only when actually supplied.
         ground: Option<bool>,
+        /// Original operation updates the separate relative codec base.
         reset_base: bool,
     },
+    /// Modern relative teleport, whose model-baseline semantics require qualification.
     Correction {
+        /// Original position/movement/rotation and relative flags.
         change: EntityPositionCorrection,
+        /// Original ground flag.
         ground: bool,
     },
+    /// Original velocity sample, without implicit motion or stop acknowledgement.
     Velocity([f64; 3]),
+    /// Original head rotation, independent of body rotation.
     HeadYaw(f32),
+}
+pub(crate) type NativeMotion = EntityMotionPacket;
+impl EntityMotionPacket {
+    /// Admit only qualified inherited-living packet dispatch. Modern relative
+    /// teleports and unexpected absolute variants refuse before model mutation.
+    pub fn living_packet(
+        self,
+        version: MinecraftVersion,
+    ) -> std::result::Result<super::LivingMotionPacket, super::LivingPacketUnavailable> {
+        use super::{LivingMotionPacket as P, LivingPacketUnavailable as U};
+        Ok(match self {
+            Self::Relative {
+                delta,
+                rotation,
+                ground,
+            } => P::Relative {
+                delta,
+                rotation,
+                ground,
+            },
+            Self::Rotation { rotation, ground } => P::Rotation { rotation, ground },
+            Self::Absolute {
+                position,
+                rotation,
+                velocity: None,
+                ground: Some(ground),
+                reset_base: true,
+            } if version == MinecraftVersion::Java1_16_1 => P::LegacyTeleport {
+                position,
+                rotation,
+                ground,
+            },
+            Self::Absolute {
+                position,
+                rotation,
+                velocity: Some(velocity),
+                ground: Some(ground),
+                reset_base: true,
+            } if version == MinecraftVersion::Java1_21_11 => P::ModernPositionSync {
+                position,
+                rotation,
+                velocity,
+                ground,
+            },
+            Self::Velocity(v) => P::Velocity(v),
+            Self::HeadYaw(v) => P::HeadYaw(v),
+            _ => return Err(U::UnsupportedPacket),
+        })
+    }
 }
 impl Motion {
     fn position(&mut self, position: [f64; 3], error: [f64; 3], sequence: u64) {
@@ -111,6 +187,7 @@ impl Motion {
         sequence: u64,
     ) {
         use super::super::received;
+        self.packet = Some(received(update, sequence));
         match update {
             NativeMotion::Relative {
                 delta,
@@ -223,6 +300,7 @@ impl SpawnLedger {
         Ok(EntityMotionObservation {
             entity: spawn.capture(target),
             receive_sequence,
+            packet: motion.packet.clone(),
             position: motion.position.clone(),
             rotation: motion.rotation.clone(),
             head_yaw: motion.head_yaw.clone(),

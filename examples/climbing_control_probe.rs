@@ -64,6 +64,18 @@ fn indexed_body(value: &serde_json::Value) -> anyhow::Result<LivingContactIndexe
     Ok(body)
 }
 
+fn packet_diagnostics(model: &LivingPacketModel) -> serde_json::Value {
+    let frame = model.frame();
+    let pose = frame.interpolation.pose;
+    serde_json::json!({"frame":frame,"pose_bits":{"position":pose.position.map(|n|format!("{:x}",n.to_bits())),"rotation":pose.rotation.map(f32::to_bits)}})
+}
+
+fn replay_diagnostics(model: &LivingEntityPacketReplay) -> serde_json::Value {
+    let frame = model.frame();
+    let pose = frame.model.interpolation.pose;
+    serde_json::json!({"frame":frame,"pose_bits":{"position":pose.position.map(|n|format!("{:x}",n.to_bits())),"rotation":pose.rotation.map(f32::to_bits)}})
+}
+
 fn lighting_samples(
     chunks: &[voxrig::client::ChunkObservation],
     positions: &[[i32; 3]],
@@ -129,11 +141,75 @@ async fn main() -> anyhow::Result<()> {
     let mut interpolation: Option<LivingInterpolation> = None;
     let mut contact_index: Option<LivingContactIndex> = None;
     let mut entity_history_cursor = None;
+    let mut packet_models = std::collections::BTreeMap::<u64, LivingPacketModel>::new();
+    let mut tick_order: Option<LivingEntityTickOrder> = None;
+    let mut packet_replay: Option<LivingEntityPacketReplay> = None;
+    let mut packet_replay_cursor = None;
+    let mut packet_replay_page = None;
     let creative_vehicle = std::env::var("VOXRIG_VEHICLE_MODE").as_deref() == Ok("creative");
     let mut lines = BufReader::new(tokio::io::stdin()).lines();
     while let Some(line) = lines.next_line().await? {
         let request: serde_json::Value = serde_json::from_str(&line)?;
         let value = match request["command"].as_str().unwrap_or_default() {
+            "packet_model_new"=>{
+                let key=request["key"].as_u64().unwrap();
+                anyhow::ensure!(packet_models.len()<2*MAX_LIVING_TICK_BODIES||packet_models.contains_key(&key),"model driver budget exceeded");
+                let result=LivingPacketModel::new(client.version(),interpolation_pose(&request["pose"])?,request["ordinal"].as_u64().unwrap_or(0));
+                let status=result.as_ref().map(|_|());if let Ok(model)=&result {packet_models.insert(key,model.clone());}
+                serde_json::to_value(status)?
+            },
+            "packet_model_apply"|"packet_model_step"|"packet_model_cancel"|"packet_model_pose"=>{
+                let model=packet_models.get_mut(&request["key"].as_u64().unwrap()).unwrap();
+                let result=match request["command"].as_str().unwrap(){
+                    "packet_model_apply"=>model.apply(request["ordinal"].as_u64().unwrap(),serde_json::from_value(request["packet"].clone())?,serde_json::from_value(request["guards"].clone())?),
+                    "packet_model_step"=>model.step(request["collision_free"].as_bool()).map(|_|true),
+                    "packet_model_pose"=>model.set_model_pose(interpolation_pose(&request["pose"])?).map(|_|true),
+                    _=>model.cancel().map(|_|true),
+                };
+                serde_json::json!({"result":result,"model":packet_diagnostics(model)})
+            },
+            "packet_model_frame"=>packet_diagnostics(&packet_models[&request["key"].as_u64().unwrap()]),
+            "tick_order_new"=>{tick_order=Some(LivingEntityTickOrder::new(client.version()));packet_models.clear();serde_json::json!({"created":true})},
+            "tick_order_admit"=>serde_json::to_value(tick_order.as_mut().unwrap().admit(serde_json::from_value(request["body"].clone())?))?,
+            "tick_order_update"=>serde_json::to_value(tick_order.as_mut().unwrap().update(serde_json::from_value(request["body"].clone())?))?,
+            "tick_order_remove"=>serde_json::to_value(tick_order.as_mut().unwrap().remove_membership(request["native_id"].as_i64().unwrap().try_into()?))?,
+            "tick_order_begin"=>serde_json::to_value(tick_order.as_mut().unwrap().begin_tick(request["frozen"].as_bool().unwrap()))?,
+            "tick_order_next"=>serde_json::to_value(tick_order.as_mut().unwrap().next_tick())?,
+            "tick_order_finish"=>serde_json::to_value(tick_order.as_mut().unwrap().finish_tick())?,
+            "tick_order_invalidate"=>{tick_order.as_mut().unwrap().invalidate();serde_json::json!({"invalidated":true})},
+            "packet_replay_new"=>{
+                packet_replay=None;packet_replay_cursor=None;packet_replay_page=None;
+                let current=client.entities().await?;
+                let name=request["type_name"].as_str().unwrap_or("minecraft:cow");
+                let target=current.entities.iter().filter(|e|e.motion.entity.type_name.as_deref()==Some(name)).max_by_key(|e|e.motion.entity.id.spawn_sequence()).map(|e|e.motion.entity.id);
+                let mut cursor=None;let mut latest_spawn=None;let mut pages=Vec::new();let mut frontier=None;
+                for _ in 0..9 {
+                    let page=client.entity_history_after(cursor,1024).await?;
+                    anyhow::ensure!(page.gap.is_none(),"spawn/history baseline was evicted");
+                    frontier.get_or_insert(page.latest_cursor.ordinal());
+                    for record in &page.records {if matches!(&record.kind,EntityHistoryKind::Spawn(m) if Some(m.entity.id)==target){latest_spawn=Some(record.clone());}}
+                    cursor=Some(page.next_cursor);let done=page.next_cursor.ordinal()>=frontier.unwrap();pages.push(page);if done {break}
+                }
+                let result=if let Some(spawn)=latest_spawn {LivingEntityPacketReplay::from_spawn(&spawn)}else{Err(LivingReplayUnavailable::MissingSpawn)};
+                let mut application=Ok(0);
+                if let Ok(mut replay)=result.clone(){
+                    let guards=serde_json::from_value(request["guards"].clone())?;
+                    for page in &pages {match replay.apply_page(page,guards){Ok(n)=>*application.as_mut().unwrap()+=n,Err(e)=>{application=Err(e);break}}}
+                    packet_replay=Some(replay);packet_replay_cursor=cursor;packet_replay_page=pages.last().cloned();
+                }
+                serde_json::json!({"created":result.map(|_|()),"applied":application,"model":packet_replay.as_ref().map(replay_diagnostics),"history":pages})
+            },
+            "packet_replay_history"|"packet_replay_duplicate"=>{
+                let page=if request["command"]=="packet_replay_duplicate" {packet_replay_page.clone().unwrap()}else{client.entity_history_after(packet_replay_cursor,1024).await?};
+                let replay=packet_replay.as_mut().unwrap();let result=replay.apply_page(&page,serde_json::from_value(request["guards"].clone())?);
+                if result.is_ok(){packet_replay_cursor=Some(page.next_cursor);packet_replay_page=Some(page.clone());}
+                serde_json::json!({"applied":result,"model":replay_diagnostics(replay),"history":page})
+            },
+            "packet_replay_step"|"packet_replay_cancel"=>{
+                let replay=packet_replay.as_mut().unwrap();let result=if request["command"]=="packet_replay_step" {replay.step(request["collision_free"].as_bool())}else{replay.cancel()};
+                serde_json::json!({"result":result.map(|_|()),"model":replay_diagnostics(replay)})
+            },
+            "packet_replay_invalidate"=>{packet_replay.as_mut().unwrap().invalidate();serde_json::json!({"invalidated":true,"model":packet_replay.as_ref().map(replay_diagnostics)})},
             "entity_history" => {
                 if request["reset"] == true { entity_history_cursor = None; }
                 let maximum = request["maximum"].as_u64().unwrap_or(1024).try_into()?;
@@ -142,9 +218,10 @@ async fn main() -> anyhow::Result<()> {
                 serde_json::to_value(history)?
             },
             "revoke_entity_history" => {
+                if let Some(replay)=packet_replay.as_mut(){replay.invalidate();}
                 let revoked = client.revoke_connection();
                 let history = client.entity_history_after(None, 1024).await?;
-                println!("{}", serde_json::json!({"revoked":revoked,"history":history}));
+                println!("{}", serde_json::json!({"revoked":revoked,"history":history,"replay":packet_replay.as_ref().map(replay_diagnostics)}));
                 std::io::stdout().flush()?;
                 return Ok(());
             },

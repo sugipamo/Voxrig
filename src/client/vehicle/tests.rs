@@ -590,6 +590,7 @@ fn boat_velocity_fixture(
     let motion = EntityMotionObservation {
         entity: spawns.capture(session, 12).entities.remove(0),
         receive_sequence: 12,
+        packet: None,
         position: Some(received(
             EntityPosition {
                 position: [0.5, 65., 2.5],

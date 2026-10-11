@@ -154,3 +154,6 @@ python3 scripts/run_entity_history.py --accept-eula \
   --binary target/debug/examples/migration_api_probe --jars /path/to/official-jars
 cargo test --locked --lib entity_history --features native
 ```
+
+元packetの一度だけの適用と版ごとのentity更新順は、
+[明示的なモデルschedule](common-entity-schedule.md)を参照。

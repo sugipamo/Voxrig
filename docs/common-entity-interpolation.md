@@ -69,3 +69,6 @@ hash一致もテストする。
 これは原版クライアントのtick時刻や実サーバーの接触・実行を確認するものではない。
 [検証記録](evidence/common-entity-interpolation-20261011.json)には解釈済み結果とhashだけを公開し、
 元のwire・NBT・JAR・classはignored `.local`に置く。
+
+元packetの一度だけの適用と版ごとのentity更新順は、
+[明示的なモデルschedule](common-entity-schedule.md)を参照。

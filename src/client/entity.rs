@@ -21,6 +21,18 @@ pub use contact::{
 };
 mod geometry;
 mod interpolation;
+mod packet_model;
+mod replay;
+pub use replay::{LivingEntityPacketReplay, LivingReplayFrame, LivingReplayUnavailable};
+mod tick_order;
+pub use packet_model::{
+    LivingMotionPacket, LivingPacketFrame, LivingPacketGuards, LivingPacketModel,
+    LivingPacketUnavailable,
+};
+pub use tick_order::{
+    LivingEntityTickOrder, LivingTickBody, LivingTickDispatch, LivingTickInstruction,
+    LivingTickUnavailable, MAX_LIVING_TICK_BODIES,
+};
 mod pose;
 mod push;
 mod sleeping;
@@ -50,7 +62,9 @@ pub use history::{
 mod parts;
 mod state;
 pub use data::{EntityDataField, EntityDataReading, EntityDataSource};
-pub use motion::{EntityMotionObservation, EntityPosition, EntityPositionCorrection};
+pub use motion::{
+    EntityMotionObservation, EntityMotionPacket, EntityPosition, EntityPositionCorrection,
+};
 pub(crate) use motion::{NativeMotion, NativeSpawnMotion};
 pub use parts::{
     EntityPartEvidence, EntityPartId, EntityPartKind, EntityPartModel, EntityPartObservation,
@@ -362,3 +376,6 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod schedule_tests;
