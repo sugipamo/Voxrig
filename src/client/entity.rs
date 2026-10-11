@@ -7,6 +7,12 @@ use super::{
 use crate::{MinecraftVersion, Result};
 use std::collections::BTreeMap;
 mod contact;
+mod query;
+pub use query::{
+    LivingContactIndex, LivingContactIndexedBody, LivingContactKind, LivingContactQuery,
+    LivingContactQueryUnavailable, MAX_LIVING_CONTACT_INDEX_BODIES,
+    MAX_LIVING_CONTACT_INDEX_CHUNKS, MAX_LIVING_CONTACT_QUERY_CHUNKS,
+};
 mod data;
 pub use contact::{
     LivingContactBody, LivingContactCandidate, LivingContactDisposition, LivingContactPlayer,
