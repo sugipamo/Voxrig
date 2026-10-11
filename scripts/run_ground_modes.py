@@ -97,7 +97,17 @@ def check(version, command, request, trace, report, sdk):
         boundary=trace.mark();stopped=admitted('stop',mode,session)
         assert stopped['status']['status']=='stopped'
         assert request('wait',ms=150)==stopped
-        save(mode+'_owned_release_retained',record=stopped,release_packets=trace.since(boundary))
+        releases=[p for p in trace.since(boundary) if p['phase']=='play' and p['direction']=='serverbound']
+        if version=='1.21.11':
+            assert any(p['packet_id']==0x2a and p['body_hex']=='00' for p in releases),releases
+        else:
+            from run_common_native import PacketTraceProxy
+            def unsneak(p):
+                if p['packet_id']!=0x1c:return False
+                body=bytes.fromhex(p['body_hex']);_,offset=PacketTraceProxy.varint(body)
+                return PacketTraceProxy.varint(body[offset:])[0]==1
+            assert any(unsneak(p) for p in releases),releases
+        save(mode+'_owned_release_retained',record=stopped,release_packets=releases)
         next_start=admitted('start',mode);replacement=next_start['session_id']
         assert replacement!=session and next_start['controls']==controls()
         stale=rejected('stop',mode,session)
