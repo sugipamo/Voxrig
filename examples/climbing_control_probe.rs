@@ -58,6 +58,12 @@ fn contact_body(value: &serde_json::Value) -> anyhow::Result<LivingContactBody> 
     Ok(body)
 }
 
+fn indexed_body(value: &serde_json::Value) -> anyhow::Result<LivingContactIndexedBody> {
+    let mut body: LivingContactIndexedBody = serde_json::from_value(value.clone())?;
+    body.body = contact_body(&value["body"])?;
+    Ok(body)
+}
+
 fn lighting_samples(
     chunks: &[voxrig::client::ChunkObservation],
     positions: &[[i32; 3]],
@@ -121,6 +127,7 @@ async fn main() -> anyhow::Result<()> {
     let mut saved_map = None;
     let mut saved_lighting = Vec::new();
     let mut interpolation: Option<LivingInterpolation> = None;
+    let mut contact_index: Option<LivingContactIndex> = None;
     let mut entity_history_cursor = None;
     let creative_vehicle = std::env::var("VOXRIG_VEHICLE_MODE").as_deref() == Ok("creative");
     let mut lines = BufReader::new(tokio::io::stdin()).lines();
@@ -158,6 +165,23 @@ async fn main() -> anyhow::Result<()> {
                     "rotation":f.pose.rotation.map(f32::to_bits)
                 }));
                 serde_json::json!({"model":result,"pose_bits":bits,"retained":model.frame()})
+            },
+            "contact_index_new" => {
+                contact_index = Some(LivingContactIndex::new(client.version()));
+                serde_json::json!({"created":true})
+            },
+            "contact_index_chunk" => serde_json::to_value(contact_index.as_mut().unwrap().set_chunk_known(
+                serde_json::from_value(request["chunk"].clone())?, request["known"].as_bool().unwrap()
+            ))?,
+            "contact_index_upsert" => serde_json::to_value(contact_index.as_mut().unwrap().upsert(indexed_body(&request["entity"])?))?,
+            "contact_index_remove" => serde_json::to_value(contact_index.as_mut().unwrap().remove(request["key"].as_u64().unwrap()))?,
+            "contact_index_visibility" => serde_json::to_value(contact_index.as_mut().unwrap().set_section_accessible(
+                serde_json::from_value(request["section"].clone())?,request["accessible"].as_bool().unwrap()
+            ))?,
+            "contact_index_query" => serde_json::to_value(contact_index.as_ref().unwrap().query(request["client_side"].as_bool().unwrap(),&indexed_body(&request["querying"])?))?,
+            "contact_index_invalidate" => {
+                contact_index.as_mut().unwrap().invalidate();
+                serde_json::json!({"invalidated":true})
             },
             "teams" => serde_json::to_value(client.teams().await?)?,
             "living_contacts" => {

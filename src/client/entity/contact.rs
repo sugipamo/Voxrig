@@ -138,22 +138,7 @@ pub fn model_living_contacts(
         return Err(U::TooManyCandidates);
     }
     for body in std::iter::once(querying).chain(candidates.iter().map(|c| &c.body)) {
-        let b = body.bounds;
-        if [b.min_x, b.min_y, b.min_z, b.max_x, b.max_y, b.max_z]
-            .iter()
-            .chain(body.push.position.iter())
-            .chain(body.push.velocity.iter())
-            .any(|v| !v.is_finite())
-            || !body.legacy_pushthrough.is_finite()
-        {
-            return Err(U::NonFiniteState);
-        }
-        if b.min_x > b.max_x || b.min_y > b.max_y || b.min_z > b.max_z {
-            return Err(U::InvalidBounds);
-        }
-        if version == MinecraftVersion::Java1_21_11 && body.legacy_pushthrough != 0. {
-            return Err(U::UnsupportedPushthrough);
-        }
+        validate_body(version, body)?;
     }
     if candidates
         .iter()
@@ -168,39 +153,7 @@ pub fn model_living_contacts(
         candidates: Vec::with_capacity(candidates.len()),
     };
     for (candidate_index, c) in candidates.iter().enumerate() {
-        let a = querying.bounds;
-        let b = c.body.bounds;
-        let qrule = querying.team.unwrap_or(TeamCollision::Always);
-        let crule = c.body.team.unwrap_or(TeamCollision::Always);
-        let disposition = if c.same_body {
-            D::SameBody
-        } else if !(a.min_x < b.max_x
-            && a.max_x > b.min_x
-            && a.min_y < b.max_y
-            && a.max_y > b.min_y
-            && a.min_z < b.max_z
-            && a.max_z > b.min_z)
-        {
-            D::Separated
-        } else if c.spectator {
-            D::Spectator
-        } else if !c.body.push.pushable {
-            D::Unpushable
-        } else if client_side && c.player != LivingContactPlayer::LocalPlayer {
-            D::NonLocalPlayer
-        } else if qrule == TeamCollision::Never || crule == TeamCollision::Never {
-            D::TeamNever
-        } else if (qrule == TeamCollision::PushOwnTeam || crule == TeamCollision::PushOwnTeam)
-            && c.allied
-        {
-            D::AlliedSuppressed
-        } else if (qrule == TeamCollision::PushOtherTeams || crule == TeamCollision::PushOtherTeams)
-            && !c.allied
-        {
-            D::OtherTeamSuppressed
-        } else {
-            D::Admitted
-        };
+        let disposition = disposition(client_side, querying, c);
         let push = if disposition == D::Admitted {
             let mut second = querying.push.clone();
             second.velocity = result.querying_velocity;
@@ -227,6 +180,71 @@ pub fn model_living_contacts(
         });
     }
     Ok(result)
+}
+
+pub(super) fn validate_body(
+    version: MinecraftVersion,
+    body: &LivingContactBody,
+) -> Result<(), LivingContactsUnavailable> {
+    use LivingContactsUnavailable as U;
+    let b = body.bounds;
+    if [b.min_x, b.min_y, b.min_z, b.max_x, b.max_y, b.max_z]
+        .iter()
+        .chain(body.push.position.iter())
+        .chain(body.push.velocity.iter())
+        .any(|v| !v.is_finite())
+        || !body.legacy_pushthrough.is_finite()
+    {
+        return Err(U::NonFiniteState);
+    }
+    if b.min_x > b.max_x || b.min_y > b.max_y || b.min_z > b.max_z {
+        return Err(U::InvalidBounds);
+    }
+    if version == MinecraftVersion::Java1_21_11 && body.legacy_pushthrough != 0. {
+        return Err(U::UnsupportedPushthrough);
+    }
+    Ok(())
+}
+
+pub(super) fn disposition(
+    client_side: bool,
+    querying: &LivingContactBody,
+    c: &LivingContactCandidate,
+) -> LivingContactDisposition {
+    use LivingContactDisposition as D;
+    let a = querying.bounds;
+    let b = c.body.bounds;
+    let qrule = querying.team.unwrap_or(TeamCollision::Always);
+    let crule = c.body.team.unwrap_or(TeamCollision::Always);
+    if c.same_body {
+        D::SameBody
+    } else if !(a.min_x < b.max_x
+        && a.max_x > b.min_x
+        && a.min_y < b.max_y
+        && a.max_y > b.min_y
+        && a.min_z < b.max_z
+        && a.max_z > b.min_z)
+    {
+        D::Separated
+    } else if c.spectator {
+        D::Spectator
+    } else if !c.body.push.pushable {
+        D::Unpushable
+    } else if client_side && c.player != LivingContactPlayer::LocalPlayer {
+        D::NonLocalPlayer
+    } else if qrule == TeamCollision::Never || crule == TeamCollision::Never {
+        D::TeamNever
+    } else if (qrule == TeamCollision::PushOwnTeam || crule == TeamCollision::PushOwnTeam)
+        && c.allied
+    {
+        D::AlliedSuppressed
+    } else if (qrule == TeamCollision::PushOtherTeams || crule == TeamCollision::PushOtherTeams)
+        && !c.allied
+    {
+        D::OtherTeamSuppressed
+    } else {
+        D::Admitted
+    }
 }
 
 #[cfg(test)]

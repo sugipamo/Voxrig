@@ -53,6 +53,8 @@ team設定・所属移動・削除の受信値とsource ordinalを、実際の�
 
 呼び出し側は一意で完全な候補集合と原版に対応する順序を用意し、
 接続・world・spawnの変更や履歴欠落で入力を破棄する必要がある。
-このモデルは受信位置を現在のhitboxへ変換せず、自動の探索・tick scheduling・
+独立した[`LivingContactIndex`](common-entity-query.md)は、明示したモデル時点のboxから
+元の版の検索順序で候補を自動探索する。結果をこの関数に渡せる。
+このモデルは受信位置を現在のhitboxへ変換せず、自動のtick scheduling・
 cramming damage/RNG・種ごとのoverride・ground/boat ownerへの統合は行わない。
 これらと自分のscale付き物理・elytra・追加の乗り物は#44の残件。

@@ -33,7 +33,9 @@
 
 生物2体を利用側が明示的に選んだときの原版`LivingEntity.push`計算は
 独立した[共通モデル](common-entity-push.md)として提供する。徒歩・ボートの物理へ自動統合せず、
-補間済み位置・接触の探索・pair順序・乗員関係・pushabilityを利用側の入力として保持する。
+補間済み位置・pair順序・乗員関係・pushabilityを利用側の入力として保持する。
+モデル位置からの[近接探索](common-entity-query.md)は独立した有界indexで提供する。
+そのindexへの更新時点と徒歩/ボートownerへの適用は、packet/tick順序の対応後に統合する。
 
 徒歩の範囲外は、状態を変えずに`ErrorKind::Unsupported`で拒否する。
 

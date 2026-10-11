@@ -26,10 +26,12 @@ pub(crate) mod entity;
 pub use entity::{
     EntityEquipmentEntry, EntityHistory, EntityHistoryCursor, EntityHistoryGap, EntityHistoryKind,
     EntityHistoryRecord, EntityHistoryValue, EntityMetadataEntry, LivingContactBody,
-    LivingContactCandidate, LivingContactDisposition, LivingContactPlayer, LivingContactResult,
-    LivingContactsModel, LivingContactsUnavailable, MAX_ENTITY_HISTORY_BYTES,
+    LivingContactCandidate, LivingContactDisposition, LivingContactIndex, LivingContactIndexedBody,
+    LivingContactKind, LivingContactPlayer, LivingContactQuery, LivingContactQueryUnavailable,
+    LivingContactResult, LivingContactsModel, LivingContactsUnavailable, MAX_ENTITY_HISTORY_BYTES,
     MAX_ENTITY_HISTORY_READ, MAX_ENTITY_HISTORY_RECORDS, MAX_ENTITY_HISTORY_VALUE_BYTES,
-    MAX_LIVING_CONTACT_CANDIDATES, model_living_contacts,
+    MAX_LIVING_CONTACT_CANDIDATES, MAX_LIVING_CONTACT_INDEX_BODIES,
+    MAX_LIVING_CONTACT_INDEX_CHUNKS, MAX_LIVING_CONTACT_QUERY_CHUNKS, model_living_contacts,
 };
 pub mod flight;
 pub(crate) mod fraction;
@@ -157,11 +159,14 @@ pub mod prelude {
         EntityPartKind, EntityPartModel, EntityPartObservation, EntityPartState,
         EntityPartUnavailable, EntityPose, EntityPoseReading, EntityScaleReading,
         EntitySleepingReading, EquipmentSlot, LivingContactBody, LivingContactCandidate,
-        LivingContactDisposition, LivingContactPlayer, LivingContactResult, LivingContactsModel,
-        LivingContactsUnavailable, LivingInterpolation, LivingInterpolationFrame,
-        LivingInterpolationPose, LivingInterpolationUnavailable, LivingPairPushDisposition,
-        LivingPairPushInput, LivingPairPushModel, LivingPairPushUnavailable, LivingPushBody,
-        MAX_LIVING_CONTACT_CANDIDATES, model_living_contacts, model_living_pair_push,
+        LivingContactDisposition, LivingContactIndex, LivingContactIndexedBody, LivingContactKind,
+        LivingContactPlayer, LivingContactQuery, LivingContactQueryUnavailable,
+        LivingContactResult, LivingContactsModel, LivingContactsUnavailable, LivingInterpolation,
+        LivingInterpolationFrame, LivingInterpolationPose, LivingInterpolationUnavailable,
+        LivingPairPushDisposition, LivingPairPushInput, LivingPairPushModel,
+        LivingPairPushUnavailable, LivingPushBody, MAX_LIVING_CONTACT_CANDIDATES,
+        MAX_LIVING_CONTACT_INDEX_BODIES, MAX_LIVING_CONTACT_INDEX_CHUNKS,
+        MAX_LIVING_CONTACT_QUERY_CHUNKS, model_living_contacts, model_living_pair_push,
     };
     pub use super::events::{ClientEvent, EventKind, EventLog};
     pub use super::inventory::{
