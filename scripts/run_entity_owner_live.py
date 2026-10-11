@@ -141,7 +141,10 @@ def check(version,command,request,trace,report,binary,sdk):
     assert living,(samples,driven)
     for s in samples:
         assert all(b['entity']['native_id'] not in s['passengers']['value'] for b in s['bodies'])
-    frames=trace.since(mark);packet=0x21 if modern else 0x16;paddle=0x22 if modern else 0x17
+    packet=0x21 if modern else 0x16;paddle=0x22 if modern else 0x17
+    # The asynchronous trace decoder can trail the completed native writer.
+    until(lambda:sum(f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==paddle for f in trace.since(mark))>=len(inputs),5)
+    frames=trace.since(mark)
     moves=[f for f in frames if f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==packet]
     paddles=[f for f in frames if f['direction']=='serverbound' and f['phase']=='play' and f['packet_id']==paddle]
     assert len(moves)==len(inputs) and len(paddles)==len(inputs),(len(moves),len(paddles))
