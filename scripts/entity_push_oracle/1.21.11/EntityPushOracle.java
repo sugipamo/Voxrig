@@ -64,8 +64,8 @@ public final class EntityPushOracle {
         a.noPhysics=false;b.noPhysics=false;
         float pushthrough=0;
         level.setBlock(new net.minecraft.core.BlockPos(0,65,0),net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(),0);
-        if(scenario==15)a.setPose(Pose.SLEEPING);
-        if(scenario==16)b.setPose(Pose.SLEEPING);
+        if(scenario==15){a.setPose(Pose.SLEEPING);a.setSleepingPos(new net.minecraft.core.BlockPos(0,65,0));}
+        if(scenario==16){b.setPose(Pose.SLEEPING);b.setSleepingPos(new net.minecraft.core.BlockPos(0,65,0));}
         if(scenario==17)a.noPhysics=true;
         if(scenario==18)b.noPhysics=true;
         if(scenario==19||scenario==21)riding(body(1,s,level),a);

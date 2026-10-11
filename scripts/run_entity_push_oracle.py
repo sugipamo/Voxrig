@@ -4,10 +4,9 @@ import argparse
 import gzip
 import json
 import os
-import shutil
 from pathlib import Path
 from run_entity_pose_oracle import mappings, member
-from movement_oracle.run import classpath, digest, run, read_mappings, VERSIONS, SPECIAL_SOURCE_SHA256, PROPERTIES
+from movement_oracle.run import classpath, digest, run, VERSIONS, SPECIAL_SOURCE_SHA256, PROPERTIES
 
 REPO=Path(__file__).resolve().parents[1]
 
@@ -36,10 +35,21 @@ def main():
         (server/'eula.txt').write_text('eula=true\n')
         (server/'server.properties').write_text(PROPERTIES.format(port=port,level_type='flat' if version=='1.16.1' else 'minecraft\\:flat'))
         output=work/'original-results.json'
-        methods=read_mappings(mapping)[1]
         extra=[member(mappings(mapping),owner,' '+field+' ->') for owner,field in [('net.minecraft.server.level.ServerPlayerGameMode','gameModeForPlayer'),('net.minecraft.world.entity.Entity','vehicle'),('net.minecraft.world.entity.Entity','passengers')]]
         run(['java','-Xmx1G','--add-opens','java.base/java.lang=ALL-UNNAMED','-cp',os.pathsep.join(str(p) for p in [*cp,work/'harness.jar']),'voxrig.oracle.EntityPushOracle',str(output),*extra],server,work/'server.log')
         rows=json.loads(output.read_text());assert len(rows)==(560 if version=='1.16.1' else 480)
+        for row in rows:
+            state=row['input'];case=row['scenario']
+            assert state['first_sleeping']==(case==15),row
+            assert state['first']['no_physics']==(case==17),row
+            assert state['second']['no_physics']==(case==18),row
+            assert state['first']['vehicle']==(case in (19,21,23)),row
+            assert state['second']['vehicle']==(case in (20,21)),row
+            assert state['same_vehicle']==(case in (22,23)),row
+            if case in (24,26,27):assert not state['first']['pushable'],row
+            if case in (25,26,27):assert not state['second']['pushable'],row
+            if version=='1.21.11' and case==28 and row['first_kind']==0:assert not state['first']['pushable'],row
+            if version=='1.21.11' and case==29 and row['second_kind']==0:assert not state['second']['pushable'],row
         result['versions'][version]=dict(original_server_jar_sha1=sha,mappings_sha1=msha,original_output_sha256=digest(output.read_bytes()),harness_sha256=digest(source.read_bytes()),results=rows)
     result['runner_sha256']=digest(Path(__file__).read_bytes())
     args.output.write_bytes(gzip.compress((json.dumps(result,separators=(',', ':'))+'\n').encode(),mtime=0))
