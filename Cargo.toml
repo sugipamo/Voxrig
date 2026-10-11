@@ -36,6 +36,7 @@ include = [
     "/scripts/run_player_ground_capture.py",
     "/scripts/run_migration_api.py",
     "/scripts/run_entity_history.py",
+    "/scripts/run_entity_data_history_live.py",
     "/scripts/run_entity_pose_oracle.py",
     "/scripts/run_entity_pose_live.py",
     "/scripts/run_control_scale.py",

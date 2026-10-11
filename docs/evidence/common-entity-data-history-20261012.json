@@ -1,0 +1,196 @@
+{
+  "scope": "Frozen received entity metadata/equipment packet deltas and complete modern scale attributes. Existing common decoded values only, no whole raw packet retention, model-time reconstruction, current contact or live action authority.",
+  "recorded_on_jst": "2026-10-12",
+  "sdk": {
+    "source_revision": "f685fb65070a452c5fe9ccaaca36d764b79018c6",
+    "binary_build_revision": "f685fb65070a452c5fe9ccaaca36d764b79018c6",
+    "binary_sha256": "dd344083ef98aa65229015419ae1d36e5b6e32ac587b4b8b2e60606d8eb880c8",
+    "artifacts": {
+      "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+      "scripts/run_entity_data_history_live.py": "e990a3167362771aa0f0244f9b0aae2fc085351b2fe91c8121b31969ae54785e",
+      "scripts/run_entity_pose_live.py": "f47757da45e3764a78482cdb9ea617833965af8c20065ef244f6c3a0a14a4a4b",
+      "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+      "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+      "examples/climbing_control_probe.rs": "4acfb13a1cbfff4f971ba792a703b34d1f186cb9c9e36d7410193fac2f3e5513",
+      "data/items.json": "94132023a25ffbe5410c186a263dce79a3e6f469f196e2978778e9a129a69021",
+      "data/java_1_21_11/items.json": "528dc62f92a40981e32ee8826adcf7ad00bce153484c17d5109d0f4353a70264",
+      "data/client_api/item_components-1.21.11.json": "5f3452aa05267683b0405a998e9b118b5e4d20c82f2ae1ca892c257e3e58c291",
+      "Cargo.toml": "36ca5f5938c7db100e2fcabd397fafe0be546dc12f55de3abdabe8ff53e1217d"
+    },
+    "features": [
+      "native"
+    ]
+  },
+  "retention": {
+    "maximum_records": 8192,
+    "maximum_accounted_owned_bytes": 8388608,
+    "maximum_record_payload_bytes": 65536,
+    "maximum_read_records": 1024,
+    "oversized_payload": "Entire decoded delta omitted with RetentionLimit; original packet boundary and decoder completeness retained.",
+    "eviction": "Oldest records evicted by count or accounted bytes with explicit gap; no packet receipt suppressed.",
+    "byte_accounting": "Fixed record fields plus owned vector elements and string/item-data/modifier contents; allocator bookkeeping and unused capacity excluded."
+  },
+  "qualification": {
+    "total_live_checks": 39,
+    "original_frame_equal_delta_count": 60,
+    "assertions": [
+      "Original packet receive ordinal, native entity ID, spawn lifetime and entry order match.",
+      "Repeated baby state and equipped stack/count/native custom-data changes stay frozen.",
+      "Empty slots differ from unavailable decoding; partial metadata remains explicitly incomplete.",
+      "Seven-record pages preserve original ordinals; repeated reads do not update record application clocks.",
+      "Original world/spawn identity and frozen deltas survive removal, actual respawn and revocation."
+    ],
+    "limitations": [
+      "Oversized payload/count/byte eviction and numeric ID reuse are qualified by unit/native decoder tests, not traffic synthesized on the live server.",
+      "No metadata serializer expansion, historical full-world state, native ClientLevel tick scheduling, contact discovery or movement-owner integration.",
+      "Real runs use unchanged checksum-verified official loopback servers with controlled RCON fixture commands."
+    ]
+  },
+  "failed_qualification_attempts": [
+    {
+      "stage": "local regression tests",
+      "reason": "Initial 4 MiB accounting budget evicted spatial records before the existing 8192-record window; corrected to 8 MiB and revalidated."
+    },
+    {
+      "stage": "first legacy live verifier",
+      "reason": "Independent verifier initially omitted supported legacy Slot metadata on a dropped item. Verifier corrected; both versions rerun; no SDK changes for this correction."
+    }
+  ],
+  "runs": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "check_count": 18,
+      "check_names": [
+        "original_peer_spawn",
+        "received_crouching",
+        "received_standing",
+        "removed_peer_not_observed",
+        "paged_peer_pose_deltas_after_removal",
+        "cow_baby_delta_True_18",
+        "cow_baby_delta_False_21",
+        "cow_baby_delta_True_23",
+        "cow_baby_delta_False_26",
+        "equipment_MainHand_stone",
+        "equipment_OffHand_diamond",
+        "equipment_MainHand_stone_123",
+        "equipment_MainHand_stone_456",
+        "equipment_MainHand_air",
+        "all_retained_deltas_equal_original_packet_values",
+        "frozen_deltas_after_removal_and_repeat_read",
+        "old_world_deltas_survive_actual_respawn",
+        "frozen_deltas_readable_after_revocation"
+      ],
+      "original_frame_equal_deltas": {
+        "Metadata": 29,
+        "Equipment": 5,
+        "Scale": 0
+      },
+      "paged_records": 55,
+      "original_frame_equal_partial_metadata": [],
+      "retained_records_after_actual_respawn_and_revocation": 66,
+      "trace_errors": [],
+      "peer_trace_errors": [],
+      "local_report": "/workspace/Voxrig/.local/climbing/live/1.16.1-20261011-154420/report.json",
+      "report_sha256": "c17039e0eaec3192c2786f62fe35dee4d9de98bd54dfcc7cb9a23895b76bd949",
+      "trace_sha256": "cd5f34a5fb45fe79f8cee36e466abe49587957bad1f108aa6eb904d8a1b02f13",
+      "probe_log_sha256": "d34b5d19303e5d2d1bed4ef481fea5d30e4598a64fd91a4e10796ec7bf3f29a4"
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "check_count": 21,
+      "check_names": [
+        "original_peer_spawn",
+        "received_crouching",
+        "received_standing",
+        "removed_peer_not_observed",
+        "paged_peer_pose_deltas_after_removal",
+        "cow_baby_delta_True_21",
+        "cow_baby_delta_False_22",
+        "cow_baby_delta_True_23",
+        "cow_baby_delta_False_24",
+        "equipment_MainHand_stone",
+        "equipment_OffHand_diamond",
+        "equipment_MainHand_stone_123",
+        "equipment_MainHand_stone_456",
+        "equipment_MainHand_air",
+        "received_scale_0.5",
+        "received_scale_2.0",
+        "received_scale_1.0",
+        "all_retained_deltas_equal_original_packet_values",
+        "frozen_deltas_after_removal_and_repeat_read",
+        "old_world_deltas_survive_actual_respawn",
+        "frozen_deltas_readable_after_revocation"
+      ],
+      "original_frame_equal_deltas": {
+        "Metadata": 18,
+        "Equipment": 5,
+        "Scale": 3
+      },
+      "paged_records": 54,
+      "original_frame_equal_partial_metadata": [
+        {
+          "ordinal": 34,
+          "receive_sequence": 170,
+          "native_id": 4,
+          "decoded_entry_count": 0
+        },
+        {
+          "ordinal": 36,
+          "receive_sequence": 174,
+          "native_id": 5,
+          "decoded_entry_count": 0
+        },
+        {
+          "ordinal": 39,
+          "receive_sequence": 178,
+          "native_id": 4,
+          "decoded_entry_count": 0
+        },
+        {
+          "ordinal": 43,
+          "receive_sequence": 182,
+          "native_id": 5,
+          "decoded_entry_count": 0
+        }
+      ],
+      "retained_records_after_actual_respawn_and_revocation": 62,
+      "trace_errors": [],
+      "peer_trace_errors": [],
+      "local_report": "/workspace/Voxrig/.local/climbing/live/1.21.11-20261011-154439/report.json",
+      "report_sha256": "a7ead17c1a9c8199a124761ae2cc60d98aae3cd563d86bcdbcc8cc02d60fbaf1",
+      "trace_sha256": "1afe92540557a5601bee6900eb6ab1368aab32fba4f720b2c81e3a4600114be9",
+      "probe_log_sha256": "eed842769da77d530cd17829fa18fa5f7005de60335b7be57b50d87328b51d55"
+    }
+  ],
+  "local_validation": {
+    "full_tested_revision": "8d9c9a001a24a75bbd483dcd2d4f7bd3075c848c",
+    "final_sdk_revision": "f685fb65070a452c5fe9ccaaca36d764b79018c6",
+    "difference": "Rust documentation comments, Cargo package allowlist, and Markdown documentation only; executable Rust statements and dependency declarations unchanged. Final SDK additionally rebuilt, history regressions rerun, actual two-version connections rerun and packaged crate built.",
+    "native": {
+      "unit_passed": 998,
+      "unit_ignored": 8,
+      "integration_passed": 4,
+      "doctests_passed": 34,
+      "doctests_ignored": 1,
+      "strict_clippy": true,
+      "strict_rustdoc": true
+    },
+    "default": {
+      "unit_passed": 998,
+      "unit_ignored": 8,
+      "doctests_passed": 34,
+      "doctests_ignored": 1,
+      "strict_clippy": true,
+      "strict_rustdoc": true
+    },
+    "msrv_1_85_check_both_features": true,
+    "packet_trace_socket_tests_passed": 6,
+    "final_history_regressions_passed": 25,
+    "packaged_crate_built": true,
+    "live_qualifier_in_package": true
+  }
+}

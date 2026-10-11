@@ -33,8 +33,9 @@ pub use push::{
 mod history;
 mod motion;
 pub use history::{
-    EntityHistory, EntityHistoryCursor, EntityHistoryGap, EntityHistoryKind, EntityHistoryRecord,
-    MAX_ENTITY_HISTORY_READ, MAX_ENTITY_HISTORY_RECORDS,
+    EntityEquipmentEntry, EntityHistory, EntityHistoryCursor, EntityHistoryGap, EntityHistoryKind,
+    EntityHistoryRecord, EntityHistoryValue, EntityMetadataEntry, MAX_ENTITY_HISTORY_BYTES,
+    MAX_ENTITY_HISTORY_READ, MAX_ENTITY_HISTORY_RECORDS, MAX_ENTITY_HISTORY_VALUE_BYTES,
 };
 mod parts;
 mod state;
