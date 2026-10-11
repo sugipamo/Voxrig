@@ -66,8 +66,9 @@ def check(version,command,request,trace,report,binary,sdk):
         assert value['status']['status']=='running',value
         frame=value['entity_contacts'];assert frame and frame['model_tick']>0,value
         if expect_pairs is not None:assert (frame['pair_calls']>0)==expect_pairs,frame
+        context=request('entities')['session']
         for body in frame['bodies']:
-            assert body['entity']['session']['world_generation']==value['world_generation']
+            assert body['entity']['session']==context
         actual=native('ClimbingProbe','Pos')
         assert max(abs(a-b) for a,b in zip(actual,value['frame']['position']))<.5,(actual,value)
         record(name,dict(record=value,native_position=actual))
