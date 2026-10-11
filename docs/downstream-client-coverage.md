@@ -178,7 +178,10 @@ MOVEMENTの拡張#44とは別に、再開不具合#37はPR #50で修正済み。
 明示的な補間・接触選別・入力順のpair計算は提供済み。
 明示したモデル時点の位置からの[近接探索](common-entity-query.md)は、版ごとの原版検索順序で候補を選ぶ。
 [明示的なentity schedule](common-entity-schedule.md)は、元packetの一度だけの適用と
-原版map/listの更新順を提供する。native clockの自動割当てと移動ownerへの接触統合（#89）は残件。
+原版map/listの更新順を提供する。通常scaleのplayer/cow/pig/zombieは
+[生物接触owner](common-entity-owners.md)で徒歩・held flight・ボートへ統合した。
+[特殊dispatchの対応範囲](common-entity-dispatch.md)と #97/#98/#99を参照。
+native clockの自動割当て、一般speciesと追加姿勢/乗り物は実装済みとは扱わない。
 
 原版cowが継承する位置・body角度の明示的な補間モデルは
 [共通の生物補間](common-entity-interpolation.md)を参照。受信状態・自動tick割当て・
