@@ -1,0 +1,153 @@
+{
+  "scope": "Qualified player/cow/pig/zombie dimensions at received targets, with explicit pose/baby/scale provenance. Interpreted results and hashes only; original packet/NBT reports, JARs and class files remain local.",
+  "qualification": {
+    "source_revision": "6d47a8b5dc41f0a3c353fdc7cf04e1bd9fe16f87",
+    "binary_build_revision": "76d32d41bfc219b049287af6c55328322688858e",
+    "binary_sha256": "20726bec0398a52ebd9d9f0a21a164ede25650b2ea0ae4012a2508429c8a5d06",
+    "artifacts": {
+      "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+      "scripts/run_entity_geometry_live.py": "fbec6b3eca86a897b2baf70898797209e704d566c0f88e5d09c4ef48afd183ff",
+      "scripts/run_entity_pose_live.py": "f47757da45e3764a78482cdb9ea617833965af8c20065ef244f6c3a0a14a4a4b",
+      "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+      "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+      "examples/climbing_control_probe.rs": "82fde8ed1c27934e74556a568ac892bb64fa5260ed40a182d2282c498a5f3942",
+      "data/client_api/entity_dimensions_oracle.json.gz": "f250e421e4d27d47e3aab530ef445dcec2fb680c4ee86f565d62cf1b91ec81f4"
+    },
+    "source_difference": "SDK src/examples/Cargo/data identical to compiled revision; subsequent commits qualify only the independent live driver."
+  },
+  "original_dimension_comparison": {
+    "case_count": 931,
+    "exact_float_bits": true,
+    "exact_aabb_double_bits": true,
+    "fixture_sha256": "f250e421e4d27d47e3aab530ef445dcec2fb680c4ee86f565d62cf1b91ec81f4",
+    "versions": {
+      "1.16.1": {
+        "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+        "harness_sha256": "91c59fe69fd8b004c71eef336f9e09c4c04abd13732c1d6aab3c0fe07b7a0b8d",
+        "original_output_sha256": "b63af04f6e621317a89d33bb644a084eea7dc34877d0b48f0c0c4997fe4c962b",
+        "case_count": 49
+      },
+      "1.21.11": {
+        "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+        "harness_sha256": "d1adddf838a874c477a6ef72df9312f3ebb1a92afbe957442c13f66079f30c11",
+        "original_output_sha256": "d417951808cff6ef41b4e5c1af1b5efbeace693c8a0d03d91cfdf7acf6b53dca",
+        "case_count": 882
+      }
+    }
+  },
+  "runs": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "check_count": 16,
+      "check_names": [
+        "peer_standing",
+        "original_peer_spawn",
+        "peer_crouching",
+        "received_crouching",
+        "received_standing",
+        "removed_peer_not_observed",
+        "cow_baby_dimensions",
+        "cow_adult_dimensions",
+        "cow_despawn_retires_geometry",
+        "pig_baby_dimensions",
+        "pig_adult_dimensions",
+        "pig_despawn_retires_geometry",
+        "zombie_baby_dimensions",
+        "zombie_baby_lifetime_retired",
+        "zombie_new_spawn_adult_dimensions",
+        "zombie_despawn_retires_geometry"
+      ],
+      "trace_error_count": 0,
+      "peer_trace_error_count": 0,
+      "raw_report_sha256": "bf5479fba68f8e73ae4ce804695f2427c8fe38d35d09223c8f0ba1f2e4f0cbd5",
+      "original_packets_sha256": "eab2bdbfe755bf04f9ea17b7ca8fcc5dba1a83f38bb49719652d8f459742d869",
+      "original_peer_packets_sha256": "13948130889cc5b8be8fc98704a09c93d1e3e1cd1cf8b5f19b3a813f08a5c561"
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "check_count": 39,
+      "check_names": [
+        "peer_unreceived_scale_refuses_geometry",
+        "peer_original_explicit_unit_scale",
+        "original_peer_spawn",
+        "peer_crouching",
+        "received_crouching",
+        "peer_standing",
+        "received_standing",
+        "removed_peer_not_observed",
+        "cow_unreceived_scale_refuses_geometry",
+        "cow_baby_dimensions",
+        "cow_scale_0.5",
+        "cow_scale_1.37",
+        "cow_scale_2.0",
+        "cow_scale_32.0",
+        "cow_scale_1.0",
+        "cow_original_three_modifier_operations",
+        "cow_adult_dimensions",
+        "cow_despawn_retires_geometry",
+        "pig_unreceived_scale_refuses_geometry",
+        "pig_baby_dimensions",
+        "pig_scale_0.5",
+        "pig_scale_1.37",
+        "pig_scale_2.0",
+        "pig_scale_32.0",
+        "pig_scale_1.0",
+        "pig_original_three_modifier_operations",
+        "pig_adult_dimensions",
+        "pig_despawn_retires_geometry",
+        "zombie_unreceived_scale_refuses_geometry",
+        "zombie_baby_dimensions",
+        "zombie_scale_0.5",
+        "zombie_scale_1.37",
+        "zombie_scale_2.0",
+        "zombie_scale_32.0",
+        "zombie_scale_1.0",
+        "zombie_original_three_modifier_operations",
+        "zombie_baby_lifetime_retired",
+        "zombie_new_spawn_adult_dimensions",
+        "zombie_despawn_retires_geometry"
+      ],
+      "trace_error_count": 0,
+      "peer_trace_error_count": 0,
+      "raw_report_sha256": "3a65e581009456b447af714dd1c3e3531fc49757480bdb9a968832bf794f5b2d",
+      "original_packets_sha256": "c78b325f1a714beb5f28a61b58dcf7f8511a536462c69a9c5fe1d9fcdc985ace",
+      "original_peer_packets_sha256": "8362e6deb636157ecd181dd385238c8ef3213acc5bb9b97ef2c1520cedcdb75c"
+    }
+  ],
+  "validation": {
+    "unit_passed": 985,
+    "unit_ignored": 8,
+    "integration_passed": 4,
+    "doctests_passed": 34,
+    "doctests_ignored": 1,
+    "trace_tests_passed": 6,
+    "strict_native_clippy": true,
+    "strict_native_rustdoc": true,
+    "fmt": true,
+    "package_allowlist": true,
+    "logs": {
+      "all-tests": "234f56f0819cca57bba6cbafc3ab9623ea9ec08c3e354ae08ac0d3ba1a01abb2",
+      "doc-tests": "ce6f9259183c36e86ef43d28e60089c6da9e1954b8f2b9989deaa5585506d2da",
+      "clippy": "17cea8262f7a1e174259f73e69f97202d82e134d130033ddc29110941bf42761",
+      "build": "af48e2c171e4f62759fa27a7c4ee7e8a36e3d19c946f453b1023bc09d0b0d33a",
+      "rustdoc": "e4ddea80248d9fb4346fd764449ec0a6d418329b88242bb6076a197c2649a119",
+      "package-list": "d33b6dc82c03aba2d7d033eb5858de19fa383699e72673b6f5214583a09379f6"
+    }
+  },
+  "limits": [
+    "Models cover player, cow, pig and zombie only; default bounding_box remains unchanged.",
+    "Native dimension lookup for a pose does not establish that every entity can enter that pose.",
+    "Sleeping and player dying use fixed dimensions; float scale and baby operations match the original methods.",
+    "Modern missing scale is explicitly unavailable, including actual original spawn receipts. Live geometry cases use actual subsequent attribute receipts, not inferred unit defaults.",
+    "At most 16 scale modifiers are modeled; larger raw receipts remain available without a computed scale.",
+    "Legacy zombie IsBaby=false NBT merge cannot reverse an existing original baby flag; adult geometry is verified through a different actual spawn lifetime. Cow/pig growth retains the same lifetime.",
+    "Bounds are at received targets with separate quantization errors, without render interpolation, entity push, collision/reach acknowledgement or automatic movement use.",
+    "Own scaled-player movement, general species/posture models, interpolation/push, elytra and additional mounts remain in #44."
+  ]
+}
