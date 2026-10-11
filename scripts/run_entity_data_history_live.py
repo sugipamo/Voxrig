@@ -22,12 +22,20 @@ def metadata(frame, version):
         index = r.take(1)[0]
         if index == 255:
             r.end()
-            return entity, entries
+            return entity, entries, True
         kind = r.integer()
         if kind == 0:
             value = {'Byte': int.from_bytes(r.take(1), 'big', signed=True)}
         elif kind == 1:
             value = {'Int': r.integer()}
+        elif not old and kind == 2:
+            number = 0
+            for shift in range(0, 70, 7):
+                byte = r.take(1)[0]
+                number |= (byte & 127) << shift
+                if byte < 128:
+                    break
+            value = {'Long': number - (1 << 64) if number & (1 << 63) else number}
         elif kind == (2 if old else 3):
             value = {'Float': struct.unpack('>f', r.take(4))[0]}
         elif kind == (3 if old else 4):
@@ -55,18 +63,30 @@ def metadata(frame, version):
                     r.take(16)
             elif kind in ((11, 13, 17) if old else (12, 14, 15, 19, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32, 33, 34, 38)):
                 r.integer()
-            elif kind == (14 if old else 16):
+            elif old and kind == 14:
                 tag = r.take(1)[0]
                 if tag:
                     if old:
                         r.take(int.from_bytes(r.take(2), 'big'))
                     r.nbt(tag)
-            elif not old and kind == 17:
-                for _ in range(r.integer()):
-                    assert r.integer() == 21  # Original entity-effect color particle.
+            elif not old and kind in (16, 17):
+                for _ in range(r.integer() if kind == 17 else 1):
+                    if r.integer() != 21:
+                        return entity, entries, False
                     r.take(4)
+            elif not old and kind == 18:
+                for _ in range(3):
+                    r.integer()
+            elif not old and kind == 29:
+                if r.boolean():
+                    r.string()
+                    r.take(8)
+            elif not old and kind == 35:
+                r.take(12)
+            elif not old and kind == 36:
+                r.take(16)
             else:
-                raise AssertionError(('unqualified original metadata serializer', kind, index))
+                return entity, entries, False
         entries.append(dict(index=index, value=value))
 
 
@@ -161,8 +181,12 @@ def check(version, command, request, trace, report, binary, sdk):
                     target, fields = attributes(original, version)
                     assert delta['attribute'] == {'Retained': {'value': fields[25]}}
                 else:
-                    target, entries = (metadata if kind == 'Metadata' else equipment)(original, version)
-                    assert delta['complete'] and delta['entries'] == {'Retained': {'value': entries}}, (delta, entries)
+                    if kind == 'Metadata':
+                        target, entries, complete = metadata(original, version)
+                    else:
+                        target, entries = equipment(original, version)
+                        complete = True
+                    assert delta['complete'] == complete and delta['entries'] == {'Retained': {'value': entries}}, (delta, entries)
                 assert target == delta['native_id']
                 if delta['entity'] is not None:
                     assert delta['entity']['native_id'] == target

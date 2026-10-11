@@ -8,7 +8,7 @@ use std::{
 /// Maximum retained entity records per connection (also subject to a byte budget).
 pub const MAX_ENTITY_HISTORY_RECORDS: usize = 8192;
 /// Maximum accounted owned bytes of retained records, excluding allocator overhead.
-pub const MAX_ENTITY_HISTORY_BYTES: usize = 4 * 1024 * 1024;
+pub const MAX_ENTITY_HISTORY_BYTES: usize = 8 * 1024 * 1024;
 /// Maximum owned payload bytes copied into a metadata/equipment/scale record.
 pub const MAX_ENTITY_HISTORY_VALUE_BYTES: usize = 64 * 1024;
 /// Maximum records returned by one read.
@@ -875,7 +875,7 @@ mod tests {
             if payload == 0 {
                 assert_eq!(ledger.1.records.len(), MAX_ENTITY_HISTORY_RECORDS);
             } else {
-                assert!(ledger.1.records.len() < 100);
+                assert!(ledger.1.records.len() < 200);
             }
             let page = ledger.history_after(session, 9000, None, 1).unwrap();
             let gap = page.gap.unwrap();
