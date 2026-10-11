@@ -1,12 +1,20 @@
 # 共通の継続操作（P7）
 
-地上・飛行の継続モデルはscale 1のplayerを対象とする。1.21.11では、
-別のscaleを受信すると現在のownerを終了してキーを解放する。
-`ControlRecord.scale_change_sequence`は、その最初の実際の受信順序を保持する。
-scaleが1へ戻ってもそのownerは再開せず、新しいownerを明示して作る必要がある。
-scale不明・1以外での開始も拒否する。1.16.1にはこの属性がなく、この記録は`None`。
-これは通常寸法のモデルで誤った送信を続けないための制限であり、拡大・縮小の
-物理モデルは#44に残る。
+地上・held flightの継続モデルは、1.21.11の自分のplayerの実受信scaleを
+0.125〜4の範囲で扱う。寸法・目の高さは原版のfloat演算で姿勢とscaleから作り、
+段差の高さや移動・ジャンプ速度に独自の倍率を掛けない。
+`ControlFrame.model_scale`・`bounds`・`eye_position`は数値予測で、受信確定値ではない。
+元属性・modifier・receive ordinalは`player().attributes`で別に観測する。
+
+操作中に開始点と異なるscaleを受信すると、対応範囲内でもownerを終了して入力を解除する。
+`ControlRecord.scale_change_sequence`はその最初の実受信ordinalを保持する。
+同じ値の再受信は終了条件にならず、変更後に元の値へ戻っても旧ownerを再開しない。
+新しいownerを明示的に開始する。欠測・非finite・範囲外は送信前に拒否する。
+原版のconstructorからの既知のunit初期値と、実際に受信した属性のsourceは区別する。
+1.16.1にはscale属性がなく、寸法は1、変更sequenceは`None`。
+
+[scale操作の契約と検証](common-player-scale.md)を参照。
+単発の採掘・到達距離・有限pathや乗車操作のscale制限は、この拡張の対象に含めない。
 
 `Client::survival()`の`start_control`・`set_controls_for`・`request_ground_jump`・`stop_control_for`・`control_record`は、
 キーを押し続ける操作を1.16.1と1.21.11で同じ型で扱う（`voxrig::client::control`）。

@@ -71,6 +71,9 @@ pub struct Modifier {
 /// as the server sent them; the engine adds only the client's own sprint modifier.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Environment {
+    /// Own native scale; missing input refuses. Legacy is exactly one.
+    #[serde(default = "unit_scale")]
+    pub player_scale: Option<f64>,
     pub movement_speed_base: f64,
     /// Received movement-speed modifiers in arrival order (without sprinting).
     pub movement_speed_modifiers: Vec<Modifier>,
@@ -131,11 +134,31 @@ impl ItemUse {
     };
 }
 
+fn unit_scale() -> Option<f64> {
+    Some(1.0)
+}
+fn unit_model_scale() -> f32 {
+    1.0
+}
+
+/// Finite qualification and bounded collision-query range.
+pub(crate) fn supported_player_scale(version: MinecraftVersion, value: Option<f64>) -> bool {
+    value.is_some_and(|s| {
+        s.is_finite()
+            && if version == MinecraftVersion::Java1_16_1 {
+                s == 1.0
+            } else {
+                (0.125..=4.0).contains(&s)
+            }
+    })
+}
+
 impl Environment {
     /// Native defaults of a fresh survival player.
     pub fn defaults(version: MinecraftVersion) -> Self {
         let c = &version.table().physics;
         Self {
+            player_scale: Some(1.0),
             movement_speed_base: f64::from(c.base_movement_speed),
             movement_speed_modifiers: Vec::new(),
             jump_strength: f64::from(c.jump_velocity),
@@ -178,6 +201,9 @@ pub enum Pose {
 /// The engine's player state between ticks.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Body {
+    /// Original float scale used by numerical dimensions; not a receipt.
+    #[serde(default = "unit_model_scale")]
+    pub scale: f32,
     pub position: [f64; 3],
     /// Collision box (persisted separately where the version moves the box).
     pub bounds: [f64; 6],
@@ -237,14 +263,14 @@ fn eye_height(pose: Pose) -> f32 {
 }
 
 /// EntityDimensions.makeBoundingBox.
-fn make_box(p: [f64; 3], pose: Pose) -> [f64; 6] {
-    let half = f64::from(WIDTH / 2.0);
+fn make_box(p: [f64; 3], pose: Pose, scale: f32) -> [f64; 6] {
+    let half = f64::from((WIDTH * scale) / 2.0);
     [
         p[0] - half,
         p[1],
         p[2] - half,
         p[0] + half,
-        p[1] + f64::from(height(pose)),
+        p[1] + f64::from(height(pose) * scale),
         p[2] + half,
     ]
 }
@@ -262,18 +288,29 @@ fn floor(v: f64) -> i32 {
 }
 
 impl Body {
+    pub(crate) fn set_scale(&mut self, scale: f32) {
+        if self.scale != scale {
+            self.scale = scale;
+            self.bounds = make_box(self.position, self.pose, scale);
+        }
+    }
+    pub(crate) fn eye_height(&self) -> f32 {
+        eye_height(self.pose) * self.scale
+    }
+
     /// Apply a received position (Entity.setPos): the box follows the position;
     /// velocity, ground and pose state are kept until received separately.
     pub(crate) fn teleport(&mut self, _version: MinecraftVersion, position: [f64; 3]) {
         self.position = position;
-        self.bounds = make_box(position, self.pose);
+        self.bounds = make_box(position, self.pose, self.scale);
     }
 
     /// A player standing still at `position` with the given received speed facts.
     pub fn new(position: [f64; 3]) -> Self {
         Self {
+            scale: 1.0,
             position,
-            bounds: make_box(position, Pose::Standing),
+            bounds: make_box(position, Pose::Standing, 1.0),
             velocity: [0.0; 3],
             on_ground: true,
             horizontal_collision: false,
@@ -549,6 +586,9 @@ pub(crate) fn tick_with_ground_jump(
     {
         return Err(crate::client::registry::invalid("controls out of range"));
     }
+    if !supported_player_scale(version, env.player_scale) {
+        return Err(unsupported("unqualified or missing player scale".into()));
+    }
     if env.levitation {
         return Err(unsupported("levitation".into()));
     }
@@ -582,6 +622,7 @@ pub(crate) fn tick_with_ground_jump(
         states: HashMap::new(),
     };
     let mut next = body.clone();
+    next.set_scale(env.player_scale.expect("validated scale") as f32);
     let outcome = Tick {
         version,
         rules: &version.table().physics_rules,
@@ -771,7 +812,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
     }
 
     fn eye_height(&self) -> f32 {
-        eye_height(self.body.pose)
+        self.body.eye_height()
     }
 
     /// Entity.getFluidJumpThreshold.
@@ -1133,7 +1174,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 p[2] + f64::from(half),
             ]
         } else {
-            make_box(self.body.position, pose)
+            make_box(self.body.position, pose, self.body.scale)
         };
         self.level
             .no_collision(deflate(b, 1e-7), self.collision_context())
@@ -1302,7 +1343,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
 
     // LocalPlayer.moveTowardsClosestSpace.
     fn push_out_modern(&mut self) -> Result<()> {
-        let w = f64::from(WIDTH) * 0.35;
+        let w = f64::from(WIDTH * self.body.scale) * 0.35;
         let p = self.body.position;
         for (x, z) in [
             (p[0] - w, p[2] + w),
@@ -1368,7 +1409,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
 
     // LocalPlayer.checkInBlock.
     fn push_out_legacy(&mut self) -> Result<()> {
-        let w = f64::from(WIDTH) * 0.35;
+        let w = f64::from(WIDTH * self.body.scale) * 0.35;
         let p = self.body.position;
         let y = p[1] + 0.5;
         for (x, z) in [
@@ -1682,7 +1723,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 self.body.position = [(b[0] + b[3]) / 2.0, b[1], (b[2] + b[5]) / 2.0];
             } else {
                 self.body.position = std::array::from_fn(|i| self.body.position[i] + collided[i]);
-                self.body.bounds = make_box(self.body.position, self.body.pose);
+                self.body.bounds = make_box(self.body.position, self.body.pose, self.body.scale);
             }
         }
         let equal = |a: f64, b: f64| (b - a).abs() < f64::from(1.0e-5f32);
@@ -1894,7 +1935,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             }
             Effect::Honey => {
                 let p = self.body.position;
-                let half = 0.4375 + f64::from(WIDTH / 2.0);
+                let half = 0.4375 + f64::from((WIDTH * self.body.scale) / 2.0);
                 let sliding = !self.body.on_ground
                     && p[1] <= f64::from(cell[1]) + 0.9375 - 1.0e-7
                     && ((f64::from(cell[0]) + 0.5 - p[0]).abs() + 1.0e-7 > half
@@ -1958,7 +1999,8 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             [1, 0, 2]
         };
         let pose = self.body.pose;
-        let inside_box = |p: [f64; 3]| deflate(make_box(p, pose), f64::from(1.0e-5f32));
+        let scale = self.body.scale;
+        let inside_box = |p: [f64; 3]| deflate(make_box(p, pose, scale), f64::from(1.0e-5f32));
         let mut certain = vec![inside_box(from)];
         let mut possible = Vec::new();
         let mut at = from;
@@ -2024,7 +2066,10 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
     fn bubble_effects_modern(&mut self, from: [f64; 3]) -> Result<()> {
         for (cell, certain) in
             bubbles::visits(from, self.body.position, self.movement_order, |p| {
-                deflate(make_box(p, self.body.pose), f64::from(1.0e-5f32))
+                deflate(
+                    make_box(p, self.body.pose, self.body.scale),
+                    f64::from(1.0e-5f32),
+                )
             })?
         {
             if self.level.block(cell)?.inside == Effect::BubbleColumn {
@@ -2218,7 +2263,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                     b[2] + f64::from(WIDTH),
                 ];
             } else {
-                self.body.bounds = make_box(self.body.position, pose);
+                self.body.bounds = make_box(self.body.position, pose, self.body.scale);
             }
         }
         Ok(())

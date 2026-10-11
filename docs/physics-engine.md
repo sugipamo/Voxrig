@@ -15,6 +15,7 @@
 | block効果 | スライムの跳ね返りと減速、ベッドの跳ね返り、蜘蛛の巣・スイートベリーの足止め（1.21.11の「織り」効果を含む） |
 | 支えのblock | 1.21.11の`mainSupportingBlockPos`（縁に立ったときにどのblockの摩擦を使うか）、柵・壁の上 |
 | 操作 | 歩行・ジャンプ・しゃがみ（姿勢と箱の高さ、縁で止まる）・ダッシュ（開始と停止の条件、ダッシュジャンプ） |
+| 自分のscale | modernの実属性値0.125〜4。原版float寸法・姿勢・目の高さ、微小速度の閾値、押し出し・honeyの幅。legacyは1。step height等を独自に倍率変更しない |
 | 押し出し | blockの中に入ったときのclientの押し出し |
 | 属性・効果 | 移動速度（受信した修飾子＋clientのダッシュ修飾子。修飾子の適用順は各版のmapの順序を再現）、1.21.11の`jump_strength`・`step_height`・`gravity`・`sneaking_speed`・`movement_efficiency`・`water_movement_efficiency`、跳躍力上昇・低速落下・盲目・イルカの好意 |
 | アイテムの使用 | 使用中の入力の縮小（1.16.1は×0.2、1.21.11は`use_effects`の`speed_multiplier`）とダッシュ開始の禁止（1.21.11は`can_sprint`がfalseのとき） |
@@ -105,3 +106,9 @@ clientの移動には影響しない。
 明示的なbox・team・述語からの接触選別と入力順の`other.push(this)`計算は
 [共通の接触モデル](common-entity-contact.md)を参照。
 自動のworld query・tick割当て・移動owner統合は引き続き#44の残件。
+
+
+自分のscaleは[専用oracle](common-player-scale.md)の両版73場面・1,752tickで、
+位置・速度・衝突箱・姿勢・目の高さをbit単位で照合した。元のmovement harnessは
+変更せず、自作wrapperが実属性適用後に原版`refreshDimensions`で明示的な開始点を作る。
+これは受信packet時計やサーバー承認の再現ではない。両版の公式接続は別の根拠として保存する。

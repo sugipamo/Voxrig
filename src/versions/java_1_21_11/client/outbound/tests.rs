@@ -4410,7 +4410,7 @@ async fn held_control_scale_receipts_fence_admission_and_latch_restoration_befor
             operations::receive(
                 &mut state,
                 ids::play_clientbound::ENTITY_UPDATE_ATTRIBUTES,
-                &scale(42, 2.),
+                &scale(42, 16.),
             )
             .unwrap();
         }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fence held controls on original own-player scale receipts; no dimension model."""
+"""Fence held controls on out-of-range and changed own-player scale receipts."""
 import argparse
 import functools
 import hashlib
@@ -73,7 +73,7 @@ def check(version, command, request, trace, report, sdk):
             request('prepare', position=position)
             if flight and mode == 'creative':
                 admitted(request('flight_enable', mode=mode, flying=True))
-            player, reading = scale(2)
+            player, reading = scale(16)
             refused = start(mode, flight)
             assert not refused['admitted'] and 'unmodeled player scale' in refused['error'], refused
             save(name + '_scaled_admission_refused', refusal=refused,

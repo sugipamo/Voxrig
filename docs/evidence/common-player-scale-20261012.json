@@ -1,0 +1,172 @@
+{
+  "schema": 1,
+  "date": "2026-10-12",
+  "timezone": "Asia/Tokyo",
+  "issues": [
+    90
+  ],
+  "sdk": {
+    "source_revision": "1b3fba1578d43d2667861effbf9eef32330cc451",
+    "binary_build_revision": "f4901132ea65c5050ab0d84bb46435774eccbcf2",
+    "binary_sha256": "9ecc9c51797a1795ffaa5894da0464ebb7ed99b18c37b0a5b42c7feb755fafab",
+    "artifacts": {
+      "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+      "scripts/run_player_scale_live.py": "a29b58dbfacbdf1b5c8c94fc766777e99aac81f80a3ef5cd25de2b90e8a80af3",
+      "scripts/run_player_scale_oracle.py": "de9d210cf5230a811f5ff553baf9baad5e2726c6ec59d420745afef346f116e5",
+      "scripts/movement_oracle/player_scale_scenarios.json": "62c9ad53a55ad36d3d7e5bc5afe8b1be32e89afdf1fe094cb383055457e74d08",
+      "scripts/movement_oracle/run.py": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+      "scripts/movement_oracle/java_1_16_1/MovementOracle.java": "9caafb5e93e05eacb75acb166756541c98c3ad8b9a096993e7efe16db170f3e5",
+      "scripts/movement_oracle/java_1_21_11/MovementOracle.java": "9b6bd694d2d20d2ceba633ca9ec2c80cde015f58b044bebe0d55645d4f8f7d50",
+      "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+      "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+      "examples/climbing_control_probe.rs": "40bd0606fa979e3b1a4ff5c3b8eff2af8f4a4e66966cd4c13c484ba5d6a34602",
+      "data/client_api/player_scale_oracle.json.gz": "bd5e68646aaafaa6e6d3e77cb37ff7cf379b225c9a3d0f25f527652a98867ffe"
+    }
+  },
+  "qualified_scale_range": [
+    0.125,
+    4.0
+  ],
+  "legacy_scale": 1.0,
+  "authority": "Official LivingEntity/Player and Boat movement run unchanged inside each official server JAR; only LocalPlayer's client-side input handling is ported in the harness.",
+  "scale_origin": "Original refreshDimensions after supplied attributes/modifiers and before numerical ticks. Original block/pose/travel methods and the existing owned LocalPlayer input port run unchanged. This is an admitted numerical origin, not a native packet-clock or server acceptance.",
+  "native": {
+    "schedules": 73,
+    "stages": 1752,
+    "fixture_sha256": "bd5e68646aaafaa6e6d3e77cb37ff7cf379b225c9a3d0f25f527652a98867ffe",
+    "wrapper_sha256": "de9d210cf5230a811f5ff553baf9baad5e2726c6ec59d420745afef346f116e5",
+    "runner_sha256": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+    "scenarios_sha256": "62c9ad53a55ad36d3d7e5bc5afe8b1be32e89afdf1fe094cb383055457e74d08",
+    "owned_sources": {
+      "1.16.1": {
+        "base_harness_path": "scripts/movement_oracle/java_1_16_1/MovementOracle.java",
+        "base_harness_sha256": "9caafb5e93e05eacb75acb166756541c98c3ad8b9a096993e7efe16db170f3e5",
+        "generated_harness_sha256": "991712e84710f7df4f26318bddaec278935db31cc6dfd460f6d8deddf6c3f6c6"
+      },
+      "1.21.11": {
+        "base_harness_path": "scripts/movement_oracle/java_1_21_11/MovementOracle.java",
+        "base_harness_sha256": "9b6bd694d2d20d2ceba633ca9ec2c80cde015f58b044bebe0d55645d4f8f7d50",
+        "generated_harness_sha256": "5f9cd76821942b2d455d4dd8de43ce7c999a3e54e0ff3c466c569d24788349e3"
+      }
+    },
+    "versions": [
+      {
+        "version": "1.16.1",
+        "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+        "harness_sha256": "991712e84710f7df4f26318bddaec278935db31cc6dfd460f6d8deddf6c3f6c6",
+        "original_output_sha256": "cae087a9d73c91deafddb7ea90dddb82230d486115b96323e7b1f03651bfbd80",
+        "owned_scenario_sha256": "985bbe18e10dd1ff1cfe8bbaaf34fd98f51ef40c74e4bca936be4a8d31640acd"
+      },
+      {
+        "version": "1.21.11",
+        "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+        "harness_sha256": "5f9cd76821942b2d455d4dd8de43ce7c999a3e54e0ff3c466c569d24788349e3",
+        "original_output_sha256": "2aa7427cd9da55b67942de83fc5097a0e866c17a8f5040eef7273ce5e37e0bdb",
+        "owned_scenario_sha256": "fe34db47d939943a234b8ed0913166a2d4371e0839d3e90657aa20fc36b94ab4"
+      }
+    ],
+    "bit_comparisons": [
+      "position",
+      "velocity",
+      "bounds",
+      "pose",
+      "eye_height"
+    ]
+  },
+  "live": [
+    {
+      "version": "1.16.1",
+      "server_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "passed": true,
+      "checks": 6,
+      "check_names": [
+        "scale_1.0_wall",
+        "scale_1.0_crouch",
+        "scale_1.0_owned_stop",
+        "creative_1.0_scaled_flight",
+        "fresh_world_unit_model",
+        "world_change_rejects_old_scaled_owner"
+      ],
+      "trace_errors": [],
+      "report_path": ".local/climbing/live/1.16.1-20261011-224925/report.json",
+      "report_sha256": "b3d0fd9bd12c7c65b28255996829c5b6a8888177b6e48c82535ebfdd77814983",
+      "packet_trace_sha256": "f6c0c20e92845601cd13e7624737de5da8a8b32b0a7a1e8b68f9986c914bc0e0"
+    },
+    {
+      "version": "1.21.11",
+      "server_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "passed": true,
+      "checks": 29,
+      "check_names": [
+        "scale_0.125_wall",
+        "scale_0.125_crouch",
+        "scale_0.125_owned_stop",
+        "scale_0.25_wall",
+        "scale_0.25_crouch",
+        "scale_0.25_owned_stop",
+        "scale_0.5_wall",
+        "scale_0.5_crouch",
+        "scale_0.5_owned_stop",
+        "scale_1.0_wall",
+        "scale_1.0_crouch",
+        "scale_1.0_owned_stop",
+        "scale_2.0_wall",
+        "scale_2.0_crouch",
+        "scale_2.0_owned_stop",
+        "scale_4.0_wall",
+        "scale_4.0_crouch",
+        "scale_4.0_owned_stop",
+        "creative_0.25_scaled_flight",
+        "creative_2.0_scaled_flight",
+        "creative_4.0_scaled_flight",
+        "spectator_2.0_scaled_flight",
+        "actual_scale_modifier",
+        "outside_qualified_scale_refused_before_position",
+        "scaled_new_owner",
+        "changed_and_restored_scale_never_resumes_old_owner",
+        "explicit_scaled_restart",
+        "fresh_world_unit_model",
+        "world_change_rejects_old_scaled_owner"
+      ],
+      "trace_errors": [],
+      "report_path": ".local/climbing/live/1.21.11-20261011-224823/report.json",
+      "report_sha256": "5f3710d5d57d2173ddb00d349a22220e932cc5aa9528f98629bee978bd7a290d",
+      "packet_trace_sha256": "add7d6661737da839ff0e45ed165afa83de405f29d967d714f9612324b2679c8"
+    }
+  ],
+  "failed_qualification_attempts": [
+    {
+      "version": "1.21.11",
+      "report_path": ".local/climbing/live/1.21.11-20261011-224738/report.json",
+      "report_sha256": "f15af17157055c24d13cee21efd94f5e81512acd4a63fa8a55fb3de80cd180f8",
+      "packet_trace_sha256": "99e792b52fe573992c8498c307b6575b2b66fced683becd73046057c47c5f6dc",
+      "sdk": {
+        "source_revision": "f4901132ea65c5050ab0d84bb46435774eccbcf2",
+        "binary_build_revision": "f4901132ea65c5050ab0d84bb46435774eccbcf2",
+        "binary_sha256": "9ecc9c51797a1795ffaa5894da0464ebb7ed99b18c37b0a5b42c7feb755fafab",
+        "artifacts": {
+          "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+          "scripts/run_player_scale_live.py": "df0c109a93a86e35deb3075f23b1fda190ee091df28e10fd311aa451ad01fcb3",
+          "scripts/run_player_scale_oracle.py": "de9d210cf5230a811f5ff553baf9baad5e2726c6ec59d420745afef346f116e5",
+          "scripts/movement_oracle/player_scale_scenarios.json": "62c9ad53a55ad36d3d7e5bc5afe8b1be32e89afdf1fe094cb383055457e74d08",
+          "scripts/movement_oracle/run.py": "292bcdff09450e0c4f0bd8e29bebf116ac0f4b340ccbe30eeae0779eeadc0998",
+          "scripts/movement_oracle/java_1_16_1/MovementOracle.java": "9caafb5e93e05eacb75acb166756541c98c3ad8b9a096993e7efe16db170f3e5",
+          "scripts/movement_oracle/java_1_21_11/MovementOracle.java": "9b6bd694d2d20d2ceba633ca9ec2c80cde015f58b044bebe0d55645d4f8f7d50",
+          "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+          "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+          "examples/climbing_control_probe.rs": "40bd0606fa979e3b1a4ff5c3b8eff2af8f4a4e66966cd4c13c484ba5d6a34602",
+          "data/client_api/player_scale_oracle.json.gz": "bd5e68646aaafaa6e6d3e77cb37ff7cf379b225c9a3d0f25f527652a98867ffe"
+        }
+      },
+      "reason": "Driver assumed a scale-only attribute packet; actual Creative mode change included additional native attributes. Driver decodes the complete actual attribute list. SDK and frozen binary unchanged."
+    }
+  ],
+  "limits": [
+    "Owned native numerical origin; existing LocalPlayer input port remains owned code, not original graphical input clock.",
+    "Only own modern scale .125..4 and legacy unit. Other-entity nonunit scale, discrete reach/path and mounted controls remain their separate admitted scope.",
+    "Any scale value differing from the admitted origin terminally ends that owner even if restored before its next tick. Same-value receipt does not stop.",
+    "Wire writes and RCON observations are separate from model predictions; no write completion is an acknowledgement."
+  ]
+}
