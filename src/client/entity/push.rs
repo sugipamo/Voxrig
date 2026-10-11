@@ -221,6 +221,7 @@ mod tests {
 
     #[test]
     fn inherited_pair_push_matches_unchanged_original_velocities_and_impulse_flags() {
+        use sha2::{Digest, Sha256};
         use std::io::Read;
         let mut json = String::new();
         flate2::read::GzDecoder::new(
@@ -229,11 +230,40 @@ mod tests {
         .read_to_string(&mut json)
         .unwrap();
         let oracle: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            oracle["runner_sha256"].as_str().unwrap(),
+            format!(
+                "{:x}",
+                Sha256::digest(include_bytes!("../../../scripts/run_entity_push_oracle.py"))
+            )
+        );
         let mut cases = 0;
         for (version, key, count) in [
             (MinecraftVersion::Java1_16_1, "1.16.1", 560),
             (MinecraftVersion::Java1_21_11, "1.21.11", 480),
         ] {
+            let (harness, jar, mappings): (&[u8], _, _) = match version {
+                MinecraftVersion::Java1_16_1 => (
+                    include_bytes!(
+                        "../../../scripts/entity_push_oracle/1.16.1/EntityPushOracle.java"
+                    ),
+                    "a412fd69db1f81db3f511c1463fd304675244077",
+                    "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+                ),
+                MinecraftVersion::Java1_21_11 => (
+                    include_bytes!(
+                        "../../../scripts/entity_push_oracle/1.21.11/EntityPushOracle.java"
+                    ),
+                    "64bb6d763bed0a9f1d632ec347938594144943ed",
+                    "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+                ),
+            };
+            assert_eq!(oracle["versions"][key]["original_server_jar_sha1"], jar);
+            assert_eq!(oracle["versions"][key]["mappings_sha1"], mappings);
+            assert_eq!(
+                oracle["versions"][key]["harness_sha256"].as_str().unwrap(),
+                format!("{:x}", Sha256::digest(harness))
+            );
             let rows = oracle["versions"][key]["results"].as_array().unwrap();
             assert_eq!(rows.len(), count);
             for row in rows {
