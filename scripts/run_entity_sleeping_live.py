@@ -45,7 +45,7 @@ def sleeping_checks(version, command, request, trace, report, identity, cow, dra
         index = str(value['index'])
         current = cow()['metadata'][index]
         assert current['value'] == {'OptionalBlockPosition': expected}
-        assert current['source'] == value['source']
+        assert current['source'] == dict(kind='received', sequence=value['source']['Received']['sequence'])
         drain()
         report['checks'].append(dict(name='sleeping_position_' + str(number), observation=result))
     # Legacy Turtle still sends plain BlockPos metadata; modern Turtle moved
