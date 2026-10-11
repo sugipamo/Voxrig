@@ -45,7 +45,7 @@ def peer_checks(version,command,request,trace,report,binary):
         proxy.close()
 
 
-def check(version,command,request,trace,report,binary,sdk):
+def check(version,command,request,trace,report,binary,sdk,failure_scenario):
     report['sdk']=sdk
     modern=version=='1.21.11'
     def entities():return request('entities')['entities']
@@ -161,7 +161,7 @@ def check(version,command,request,trace,report,binary,sdk):
     reset([.5,65.,.5]);request('mount',type=boat)
     interruption=[]
     def eject():
-        interruption.append(command('kill @e[tag=OwnerBoat]'))
+        interruption.append(command('kill @e[tag=OwnerBoat]' if failure_scenario=='dismount' else 'summon minecraft:armor_stand 1 65 1 {Tags:["UnsupportedOwner"],NoGravity:1b}'))
     timer=threading.Timer(.5,eject);mark=trace.mark();timer.start()
     try:
         interrupted=request('drive_until_interrupted',inputs=[dict(forward=1,strafe=0,jump=False) for _ in range(59)]+[dict(forward=0,strafe=0,jump=False)])
@@ -169,16 +169,24 @@ def check(version,command,request,trace,report,binary,sdk):
     assert interruption and interrupted['error'],interrupted
     failed=interrupted['record'];assert failed['stage']=='requires_inspection',failed
     assert failed['dispatched_ticks']<60 and failed['failure_release'],failed
-    assert not failed['failure_release']['attempted'] and not failed['failure_release']['sent'],failed
+    released=failed['failure_release']['attempted']
+    if failure_scenario=='unsupported':assert released and failed['failure_release']['sent'],failed
+    # Removal can deliver own correction before passenger/removal packets. A
+    # coherent still-mounted boundary then permits one neutral-only release.
+    if released:assert failed['failure_release']['sent'],failed
+    else:assert not failed['failure_release']['sent'] and failed['failure_release']['problem'],failed
     request('wait',ms=200);before=trace.since(mark);request('wait',ms=200);after=trace.since(mark)
     def boat_writes(frames):return [f for f in frames if f['direction']=='serverbound' and f['phase']=='play' and f['packet_id'] in (packet,paddle)]
     assert len(boat_writes(before))==len(boat_writes(after)),(before,after)
-    record('forced_dismount_stops_old_owner',dict(record=failed,frames=after,server_removal=interruption))
+    if released:
+        last_paddles=[f for f in boat_writes(after) if f['packet_id']==paddle]
+        assert last_paddles[-1]['body_hex']=='0000'
+    record('forced_dismount_stops_old_owner' if failure_scenario=='dismount' else 'unsupported_dispatch_releases_once',dict(record=failed,frames=after,server_command=interruption))
     trace.expect_disconnect();request('disconnect')
 
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--binary',type=Path,required=True);p.add_argument('--jars',type=Path,required=True);p.add_argument('--version',choices=['1.16.1','1.21.11']);p.add_argument('--compiled-sdk-revision',required=True);a=p.parse_args()
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--binary',type=Path,required=True);p.add_argument('--jars',type=Path,required=True);p.add_argument('--version',choices=['1.16.1','1.21.11']);p.add_argument('--compiled-sdk-revision',required=True);p.add_argument('--failure-scenario',choices=['dismount','unsupported'],default='dismount');a=p.parse_args()
     binary=a.binary.resolve();sha=hashlib.sha256(binary.read_bytes()).hexdigest()
     revision=subprocess.check_output(['git','rev-parse','HEAD'],cwd=REPO,text=True).strip()
     compiled=subprocess.check_output(['git','rev-parse',a.compiled_sdk_revision],cwd=REPO,text=True).strip()
@@ -189,6 +197,6 @@ def main():
     sdk=dict(source_revision=revision,binary_build_revision=compiled,binary_sha256=sha,artifacts={f:hashlib.sha256((REPO/f).read_bytes()).hexdigest() for f in artifacts})
     for version in [a.version] if a.version else ['1.16.1','1.21.11']:
         assert hashlib.sha256(binary.read_bytes()).hexdigest()==sha
-        run(version,binary,a.jars.resolve(),check=functools.partial(check,binary=binary,sdk=sdk))
+        run(version,binary,a.jars.resolve(),check=functools.partial(check,binary=binary,sdk=sdk,failure_scenario=a.failure_scenario))
         assert hashlib.sha256(binary.read_bytes()).hexdigest()==sha
 if __name__=='__main__':main()
