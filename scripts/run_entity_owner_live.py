@@ -76,7 +76,8 @@ def check(version,command,request,trace,report,binary,sdk):
     command('kill @e[type=!minecraft:player]')
     command('difficulty normal')
     # Fixture cleanup must not introduce unqualified item-entity dispatch.
-    command('gamerule doMobLoot false');command('gamerule doTileDrops false')
+    command('gamerule '+('minecraft:mob_drops' if modern else 'doMobLoot')+' false')
+    command('gamerule '+('minecraft:block_drops' if modern else 'doTileDrops')+' false')
     reset([.5,65.,.5])
     peer_checks(version,command,request,trace,report,binary)
     reset([.5,65.,.5])
@@ -155,6 +156,24 @@ def check(version,command,request,trace,report,binary,sdk):
     assert paddles[-1]['body_hex']=='0000'
     record('boat_living_geometry_and_cancelled_waiter',dict(record=result,frames=frames,native_position=native('@e[tag=OwnerBoat,limit=1]','Pos')))
     exited=request('dismount');assert exited['stage']=='completed';record('actual_dismount',dict(record=exited))
+    # Force an actual server-owned dismount during a still-pending finite plan.
+    command('tp @e[tag=OwnerBoat,limit=1] .5 65 .5')
+    reset([.5,65.,.5]);request('mount',type=boat)
+    interruption=[]
+    def eject():
+        interruption.append(command('kill @e[tag=OwnerBoat]'))
+    timer=threading.Timer(.5,eject);mark=trace.mark();timer.start()
+    try:
+        interrupted=request('drive_until_interrupted',inputs=[dict(forward=1,strafe=0,jump=False) for _ in range(59)]+[dict(forward=0,strafe=0,jump=False)])
+    finally:timer.join(timeout=10)
+    assert interruption and interrupted['error'],interrupted
+    failed=interrupted['record'];assert failed['stage']=='requires_inspection',failed
+    assert failed['dispatched_ticks']<60 and failed['failure_release'],failed
+    assert not failed['failure_release']['attempted'] and not failed['failure_release']['sent'],failed
+    request('wait',ms=200);before=trace.since(mark);request('wait',ms=200);after=trace.since(mark)
+    def boat_writes(frames):return [f for f in frames if f['direction']=='serverbound' and f['phase']=='play' and f['packet_id'] in (packet,paddle)]
+    assert len(boat_writes(before))==len(boat_writes(after)),(before,after)
+    record('forced_dismount_stops_old_owner',dict(record=failed,frames=after,server_removal=interruption))
     trace.expect_disconnect();request('disconnect')
 
 
