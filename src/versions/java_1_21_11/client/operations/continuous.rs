@@ -91,6 +91,7 @@ fn received(state: &State) -> Received {
             .cloned()
             .collect();
     }
+    environment.player_scale = p.scale.map(|a| a.value);
     environment.jump_strength = value(&p.jump_strength, environment.jump_strength);
     environment.step_height = value(&p.step_height, environment.step_height);
     environment.gravity = value(&p.gravity, environment.gravity);
@@ -209,12 +210,14 @@ fn stop_reason(
                         .is_some_and(|sequence| sequence <= after)
             }),
         )
-    } else if state.operations.local_player.scale.map(|s| s.value) != Some(1.0)
-        || state
-            .control
-            .session
-            .as_ref()
-            .is_some_and(|s| s.running() && s.scale_change_sequence.is_some())
+    } else if !crate::client::physics::supported_player_scale(
+        crate::MinecraftVersion::Java1_21_11,
+        state.operations.local_player.scale.map(|s| s.value),
+    ) || state
+        .control
+        .session
+        .as_ref()
+        .is_some_and(|s| s.running() && s.scale_change_sequence.is_some())
     {
         Some("unmodeled player scale")
     } else if state.vehicles.motion_interrupted()

@@ -148,6 +148,12 @@ pub struct GroundJumpRequest {
 /// Engine state after one tick: a prediction, not a received position.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct ControlFrame {
+    /// Original float scale used by this numerical frame, not a receipt.
+    pub model_scale: f32,
+    /// Numerical collision bounds, minimum XYZ then maximum XYZ.
+    pub bounds: [f64; 6],
+    /// Numerical eye position for this pose and scale.
+    pub eye_position: [f64; 3],
     /// Native model flight flag after the tick; landing can clear it locally.
     pub flying: bool,
     /// Session tick that produced this frame.
@@ -197,7 +203,7 @@ pub struct ControlRecord {
     /// for Ground, or flight/permission is removed for Flight. Later restoration
     /// cannot resume the interrupted owner.
     pub flight_change_sequence: Option<u64>,
-    /// First original own-player scale receipt outside this model's unit scale.
+    /// First original own-player scale receipt differing from this owner's origin.
     /// Java 1.16.1 has no scale attribute. Restoration does not resume this owner.
     pub scale_change_sequence: Option<u64>,
     /// Latest converted equipment parameters sampled by this local model.
@@ -293,6 +299,7 @@ pub(crate) struct ControlSession {
     pub mode_change_sequence: Option<u64>,
     pub flight_change_sequence: Option<u64>,
     pub scale_change_sequence: Option<u64>,
+    admitted_scale: Option<f64>,
     movement_equipment: MovementEquipment,
     pub version: MinecraftVersion,
     pub id: u64,
@@ -344,10 +351,13 @@ impl ControlSession {
     pub(crate) fn from_model(
         version: MinecraftVersion,
         id: u64,
-        body: Body,
+        mut body: Body,
         rotation: [f32; 2],
         received: &Received,
     ) -> Self {
+        if let Some(scale) = received.environment.player_scale {
+            body.set_scale(scale as f32);
+        }
         Self {
             contacts: None,
             entity_contacts: None,
@@ -359,6 +369,7 @@ impl ControlSession {
             mode_change_sequence: None,
             flight_change_sequence: None,
             scale_change_sequence: None,
+            admitted_scale: received.environment.player_scale,
             movement_equipment: MovementEquipment::from(&received.environment),
             version,
             id,
@@ -519,7 +530,7 @@ impl ControlSession {
     }
 
     pub(crate) fn observe_scale(&mut self, value: f64, sequence: u64) {
-        if self.running() && value != 1.0 {
+        if self.running() && Some(value) != self.admitted_scale {
             self.scale_change_sequence.get_or_insert(sequence);
         }
     }
@@ -668,6 +679,13 @@ impl ControlSession {
         }
         let b = &self.body;
         self.frame = Some(ControlFrame {
+            model_scale: b.scale,
+            bounds: b.bounds,
+            eye_position: [
+                b.position[0],
+                b.position[1] + f64::from(b.eye_height()),
+                b.position[2],
+            ],
             flying: environment.flying && !b.flight_landed,
             tick: self.tick,
             position: b.position,
@@ -788,6 +806,38 @@ mod tests {
                 properties: Default::default(),
             })
         }
+    }
+
+    #[test]
+    fn scaled_origin_is_installed_before_contact_ticks_and_latches_any_change() {
+        let mut facts = received(Some((1, [0.5, 64., 0.5], Some([0.; 3]))), None);
+        facts.environment.player_scale = Some(2.0);
+        let mut session =
+            ControlSession::new(MinecraftVersion::Java1_21_11, 1, [0.5, 64., 0.5], &facts);
+        assert_eq!(session.body.scale, 2.0);
+        assert_eq!(
+            session.body.bounds[3] - session.body.bounds[0],
+            f64::from(0.6f32 * 2.0)
+        );
+        session.observe_scale(2.0, 10);
+        assert_eq!(session.scale_change_sequence, None);
+        session.observe_scale(1.0, 11);
+        session.observe_scale(2.0, 12);
+        assert_eq!(session.scale_change_sequence, Some(11));
+        session.status = ControlStatus::Stopped {
+            reason: "scale origin changed".into(),
+        };
+        let fresh = session.resume(2, [0.; 2], &facts);
+        assert_eq!(fresh.scale_change_sequence, None);
+        assert_eq!(fresh.body.scale, 2.0);
+        facts.environment.player_scale = Some(0.5);
+        let smaller = session.resume(3, [0.; 2], &facts);
+        assert_eq!(smaller.body.scale, 0.5);
+        assert_eq!(
+            smaller.body.bounds[4] - smaller.body.bounds[1],
+            f64::from(1.8f32 * 0.5)
+        );
+        assert_eq!(smaller.body.velocity, session.body.velocity);
     }
 
     #[test]
