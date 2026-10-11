@@ -24,10 +24,12 @@ pub mod crafting;
 pub(crate) mod enchantments;
 pub(crate) mod entity;
 pub use entity::{
-    EntityHistory, EntityHistoryCursor, EntityHistoryGap, EntityHistoryKind, EntityHistoryRecord,
-    LivingContactBody, LivingContactCandidate, LivingContactDisposition, LivingContactPlayer,
-    LivingContactResult, LivingContactsModel, LivingContactsUnavailable, MAX_ENTITY_HISTORY_READ,
-    MAX_ENTITY_HISTORY_RECORDS, MAX_LIVING_CONTACT_CANDIDATES, model_living_contacts,
+    EntityEquipmentEntry, EntityHistory, EntityHistoryCursor, EntityHistoryGap, EntityHistoryKind,
+    EntityHistoryRecord, EntityHistoryValue, EntityMetadataEntry, LivingContactBody,
+    LivingContactCandidate, LivingContactDisposition, LivingContactPlayer, LivingContactResult,
+    LivingContactsModel, LivingContactsUnavailable, MAX_ENTITY_HISTORY_BYTES,
+    MAX_ENTITY_HISTORY_READ, MAX_ENTITY_HISTORY_RECORDS, MAX_ENTITY_HISTORY_VALUE_BYTES,
+    MAX_LIVING_CONTACT_CANDIDATES, model_living_contacts,
 };
 pub mod flight;
 pub(crate) mod fraction;
@@ -227,8 +229,10 @@ pub mod prelude {
         VehicleObservation, VehicleRelation,
     };
     pub use super::{
-        EntityHistory, EntityHistoryCursor, EntityHistoryGap, EntityHistoryKind,
-        EntityHistoryRecord, MAX_ENTITY_HISTORY_READ, MAX_ENTITY_HISTORY_RECORDS,
+        EntityEquipmentEntry, EntityHistory, EntityHistoryCursor, EntityHistoryGap,
+        EntityHistoryKind, EntityHistoryRecord, EntityHistoryValue, EntityMetadataEntry,
+        MAX_ENTITY_HISTORY_BYTES, MAX_ENTITY_HISTORY_READ, MAX_ENTITY_HISTORY_RECORDS,
+        MAX_ENTITY_HISTORY_VALUE_BYTES,
     };
     pub use crate::{Error, ErrorKind, MinecraftVersion, NativeBlockState, Region, Result};
 }

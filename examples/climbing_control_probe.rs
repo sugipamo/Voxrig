@@ -128,9 +128,18 @@ async fn main() -> anyhow::Result<()> {
         let request: serde_json::Value = serde_json::from_str(&line)?;
         let value = match request["command"].as_str().unwrap_or_default() {
             "entity_history" => {
-                let history = client.entity_history_after(entity_history_cursor, 1024).await?;
+                if request["reset"] == true { entity_history_cursor = None; }
+                let maximum = request["maximum"].as_u64().unwrap_or(1024).try_into()?;
+                let history = client.entity_history_after(entity_history_cursor, maximum).await?;
                 entity_history_cursor = Some(if request["tail"] == true { history.latest_cursor } else { history.next_cursor });
                 serde_json::to_value(history)?
+            },
+            "revoke_entity_history" => {
+                let revoked = client.revoke_connection();
+                let history = client.entity_history_after(None, 1024).await?;
+                println!("{}", serde_json::json!({"revoked":revoked,"history":history}));
+                std::io::stdout().flush()?;
+                return Ok(());
             },
             "interpolation_new" => {
                 let pose = interpolation_pose(&request["pose"])?;

@@ -136,6 +136,7 @@ impl SpawnLedger {
         mut attribute: crate::client::control::ReceivedAttribute,
         sequence: u64,
     ) {
+        self.history_scale(native_id, &attribute);
         if let Some(spawn) = self.0.get_mut(&native_id) {
             // Bound retained allocation as well as entry counts. A valid but
             // unmodeled new receipt must not leave an older unit scale usable.
@@ -174,6 +175,8 @@ impl SpawnLedger {
         complete: bool,
         sequence: u64,
     ) {
+        let entries = entries.into_iter().collect::<Vec<_>>();
+        self.history_metadata(native_id, &entries, complete);
         if let Some(spawn) = self.0.get_mut(&native_id) {
             spawn.extra.metadata_truncated |= !complete;
             for (index, value) in entries {
@@ -187,22 +190,26 @@ impl SpawnLedger {
             }
         }
     }
-    /// Record one received equipment slot.
+    /// Record the supported equipment prefix from one native packet.
     pub(crate) fn receive_equipment(
         &mut self,
         native_id: i32,
-        slot: EquipmentSlot,
-        item: SlotKnowledge,
+        entries: impl IntoIterator<Item = (EquipmentSlot, SlotKnowledge)>,
+        complete: bool,
         sequence: u64,
     ) {
+        let entries = entries.into_iter().collect::<Vec<_>>();
+        self.history_equipment(native_id, &entries, complete);
         if let Some(spawn) = self.0.get_mut(&native_id) {
-            spawn.extra.equipment.insert(
-                slot,
-                ObservedValue {
-                    value: item,
-                    source: crate::client::ValueSource::Received { sequence },
-                },
-            );
+            for (slot, item) in entries {
+                spawn.extra.equipment.insert(
+                    slot,
+                    ObservedValue {
+                        value: item,
+                        source: crate::client::ValueSource::Received { sequence },
+                    },
+                );
+            }
         }
     }
     /// Namespaced type name of a live spawn, when resolved.
@@ -336,7 +343,7 @@ mod tests {
             )
             .unwrap();
         ledger.receive_health(7, 4.5, 5);
-        ledger.receive_equipment(7, EquipmentSlot::Saddle, SlotKnowledge::Empty, 6);
+        ledger.receive_equipment(7, [(EquipmentSlot::Saddle, SlotKnowledge::Empty)], true, 6);
         ledger.receive_health(99, 1.0, 7); // Unknown entities are ignored.
         let all = ledger.capture_all(version, session, 8);
         assert_eq!(all.entities.len(), 1);

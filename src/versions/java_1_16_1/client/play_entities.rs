@@ -231,19 +231,23 @@ impl Bot {
         }
         {
             let mut receipts = self.common_receipts.lock().await;
+            let mut entries = Vec::new();
+            let mut complete = rest.is_empty();
             for (slot, stack) in &equipment {
                 let Some(slot) = crate::client::EquipmentSlot::from_native(
                     crate::MinecraftVersion::Java1_16_1,
                     *slot as u8,
                 ) else {
+                    complete = false;
                     continue;
                 };
                 let item = crate::client::legacy_slot(stack.as_ref())
                     .unwrap_or(crate::client::SlotKnowledge::Unavailable);
-                receipts
-                    .entities
-                    .receive_equipment(entity_id, slot, item, packet_sequence);
+                entries.push((slot, item));
             }
+            receipts
+                .entities
+                .receive_equipment(entity_id, entries, complete, packet_sequence);
         }
         if let Some(entity) = self.entities.write().await.entities.get_mut(&entity_id) {
             entity.equipment.extend(equipment);
