@@ -15,6 +15,7 @@ pub(crate) mod constructor;
 pub mod container;
 pub mod context;
 pub mod control;
+pub mod glide;
 pub use context::{
     CooldownKey, DeathLocation, DefaultSpawnPosition, Experience, ItemCooldown, LoginConditions,
     PlayerAbilities, PlayerContextObservation, WeatherObservation, WorldDifficulty,

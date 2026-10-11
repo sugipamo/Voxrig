@@ -104,6 +104,7 @@ fn preserved(version: MinecraftVersion, value: &SlotKnowledge) -> serde_json::Va
 fn initial(version: MinecraftVersion) -> PlayerObservation {
     PlayerObservation {
         using_item: None,
+        fall_flying: None,
         entity_id: None,
         attributes: Default::default(),
         effects: Default::default(),

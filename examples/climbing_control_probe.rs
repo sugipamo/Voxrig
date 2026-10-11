@@ -545,7 +545,7 @@ async fn main() -> anyhow::Result<()> {
                 std::io::stdout().flush()?;
                 return Ok(());
             }
-            "mode_start" | "flight_start" | "flight_enable" | "mode_keys" | "mode_jump"
+            "mode_start" | "flight_start" | "glide_start" | "flight_enable" | "mode_keys" | "mode_jump"
             | "mode_stop" => {
                 let mode: GameMode = serde_json::from_value(request["mode"].clone())?;
                 let handle = client.player_control(mode);
@@ -562,6 +562,7 @@ async fn main() -> anyhow::Result<()> {
                         .set_flying(request["flying"].as_bool().unwrap())
                         .await
                         .map(|r| serde_json::json!({"record":r})),
+                    "glide_start" => handle.start_glide_control(serde_json::from_value(request["controls"].clone())?).await.map(|r| serde_json::json!({"record":r})),
                     "mode_start" => handle
                         .start_control()
                         .await

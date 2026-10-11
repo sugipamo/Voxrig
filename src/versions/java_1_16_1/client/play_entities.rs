@@ -123,6 +123,15 @@ impl Bot {
             packet_sequence,
         );
         if Some(entity_id) == lock_packet_state(&self.player).await.entity_id {
+            if let Some(MetadataValue::Byte(flags)) = metadata.get(&0) {
+                let value = *flags as u8 & 128 != 0;
+                self.common_receipts.lock().await.fall_flying =
+                    Some(crate::client::received(value, packet_sequence));
+                self.common_control
+                    .lock()
+                    .await
+                    .observe_gliding(value, packet_sequence);
+            }
             if let Some(MetadataValue::VarInt(pose)) = metadata.get(&6) {
                 *self.local_pose.lock().await = Some(*pose);
                 if *pose != 0 {

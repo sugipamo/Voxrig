@@ -279,7 +279,15 @@ impl Bot {
             .await
             .vehicles
             .motion_interrupted();
-        mounted_history || self.common_motion_pauses_physics().await
+        mounted_history
+            || self
+                .common_receipts
+                .lock()
+                .await
+                .fall_flying
+                .as_ref()
+                .is_some_and(|v| v.value)
+            || self.common_motion_pauses_physics().await
     }
     pub(super) async fn common_motion_pauses_physics(&self) -> bool {
         if self.common_control.lock().await.active() {

@@ -505,6 +505,7 @@ pub(super) fn read_attribute_details(
 /// Entity.DATA_AIR_SUPPLY_ID (an int).
 const AIR_SUPPLY_METADATA: u8 = 1;
 pub(super) struct PoseUpdate {
+    pub entity_flags: Option<u8>,
     pub supported: bool,
     pub received: bool,
     /// Received LivingEntity flags byte, if present before any unsupported entry.
@@ -522,6 +523,7 @@ pub(super) fn read_pose(
         .living_flags_metadata_index;
     let mut seen = BTreeSet::new();
     let mut update = PoseUpdate {
+        entity_flags: None,
         supported: true,
         received: false,
         living_flags: None,
@@ -536,7 +538,12 @@ pub(super) fn read_pose(
             bail!("duplicate player metadata index");
         }
         let kind = r.varint()?;
-        if key == ids::PLAYER_POSE_METADATA {
+        if key == 0 {
+            if kind != 0 {
+                bail!("incorrect shared entity flags serializer");
+            }
+            update.entity_flags = Some(r.u8()?);
+        } else if key == ids::PLAYER_POSE_METADATA {
             if kind != 20 {
                 bail!("incorrect player pose serializer");
             }
