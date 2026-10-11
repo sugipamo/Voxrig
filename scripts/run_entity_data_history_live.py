@@ -42,6 +42,15 @@ def metadata(frame, version):
             value = {'String': r.string()}
         elif kind == (7 if old else 8):
             value = {'Bool': r.boolean()}
+        elif kind in ((9, 10) if old else (10, 11)):
+            optional = kind == (10 if old else 11)
+            present = r.take(1)[0] != 0 if optional else True
+            position = None
+            if present:
+                word = int.from_bytes(r.take(8), 'big')
+                signed = lambda n, bits: n - (1 << bits) if n & (1 << (bits - 1)) else n
+                position = dict(x=signed(word >> 38, 26), y=signed(word & 4095, 12), z=signed((word >> 12) & 67108863, 26))
+            value = {'OptionalBlockPosition' if optional else 'BlockPosition': position}
         elif kind == (18 if old else 20):
             value = {'Pose': r.integer()}
         else:
@@ -61,11 +70,6 @@ def metadata(frame, version):
                         r.nbt(tag)
             elif kind == (8 if old else 9):
                 r.take(12)
-            elif kind == (9 if old else 10):
-                r.take(8)
-            elif kind == (10 if old else 11):
-                if r.boolean():
-                    r.take(8)
             elif kind == (12 if old else 13):
                 if r.boolean():
                     r.take(16)
@@ -162,7 +166,7 @@ def attributes(frame, version):
     return entity, values
 
 
-def check(version, command, request, trace, report, binary, sdk):
+def check(version, command, request, trace, report, binary, sdk, additional_checks=None):
     report['sdk'] = sdk
     records = {}
     previous = 0
@@ -266,6 +270,8 @@ def check(version, command, request, trace, report, binary, sdk):
             until(lambda: cow()['scale_attribute'] and cow()['scale_attribute']['value']['base'] == scale, 10)
             drain()
             report['checks'].append(dict(name='received_scale_' + str(scale),identity=identity))
+    if additional_checks is not None:
+        additional_checks(version, command, request, trace, report, identity, cow, drain)
     command('kill @e[tag=DataHistoryCow]')
     until(lambda: cow() is None, 10)
     drain()

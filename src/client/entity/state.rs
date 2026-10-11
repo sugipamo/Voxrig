@@ -66,7 +66,7 @@ pub struct EntityObservation {
     pub scale_attribute_unavailable_sequence: Option<u64>,
 }
 
-/// One received entity-data value. Integer, float, boolean, string and pose serializers are
+/// One received entity-data value. Scalar, pose and block-position serializers are
 /// decoded; any other serializer keeps only its native kind.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub enum EntityDataValue {
@@ -85,6 +85,11 @@ pub enum EntityDataValue {
     /// Original Pose serializer value. Its number is version-specific; use
     /// EntityObservation::pose for a common name. Unknown IDs remain raw.
     Pose(i32),
+    /// Original packed block position, with signed coordinates.
+    BlockPosition(crate::client::BlockPos),
+    /// Original optional block position. `None` is an explicit empty receipt,
+    /// distinct from a metadata index that has not been received.
+    OptionalBlockPosition(Option<crate::client::BlockPos>),
     /// Another serializer, by native serializer ID.
     Other(i32),
 }

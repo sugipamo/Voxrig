@@ -1,0 +1,4046 @@
+{
+  "schema": 1,
+  "authority": "Original EntityDataSerializers block/optional-block-position round trips; decoded signed coordinates and hashes only. No server-current state or tick authority.",
+  "harness_sha256": "ac79617db93eba1696263d641a039747a27886f5746751cd51c42f41c2556b1f",
+  "runner_sha256": "a8d3f934875f2e4c5a182c8b0089130936a390cfe2a617f042cb4ce980edb18e",
+  "versions": {
+    "1.16.1": {
+      "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+      "sleeping_metadata_index": 13,
+      "codecs": [
+        {
+          "optional": false,
+          "serializer_id": 9,
+          "original_output_sha256": "20007db27b18b01ab56478cbcb805f0f9c5cd1b1c9b1831a95f301dc3cf3c8c0",
+          "truncated_boundaries_rejected": 568,
+          "nonzero_presence_roundtrips": 0,
+          "positions": [
+            {
+              "input": [
+                0,
+                0,
+                0
+              ],
+              "decoded": [
+                0,
+                0,
+                0
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
+            },
+            {
+              "input": [
+                -1,
+                -1,
+                -1
+              ],
+              "decoded": [
+                -1,
+                -1,
+                -1
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "12a3ae445661ce5dee78d0650d33362dec29c4f82af05e7e57fb595bbbacf0ca"
+            },
+            {
+              "input": [
+                33554431,
+                2047,
+                33554431
+              ],
+              "decoded": [
+                33554431,
+                2047,
+                33554431
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "44fe1224f47ae7f38e6e8d8169a43459b5de9ac7857def7219140c4a397b7f8b"
+            },
+            {
+              "input": [
+                -33554432,
+                -2048,
+                -33554432
+              ],
+              "decoded": [
+                -33554432,
+                -2048,
+                -33554432
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "21a2be106a2f948dbc253a86675f7863abc35d6bb3187f45262721dfc46eea3b"
+            },
+            {
+              "input": [
+                33554432,
+                2048,
+                -33554433
+              ],
+              "decoded": [
+                -33554432,
+                -2048,
+                33554431
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "c861c77fce557b3673604d3278236f98242072770545accb7dc15df0203b6422"
+            },
+            {
+              "input": [
+                -2147483648,
+                2147483647,
+                -2147483648
+              ],
+              "decoded": [
+                0,
+                -1,
+                0
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "5a58730ea6452a7dff47aa6f0af59fc1870a181c266822ba3807f30b207f7d23"
+            },
+            {
+              "input": [
+                -12000000,
+                -64,
+                17000000
+              ],
+              "decoded": [
+                -12000000,
+                -64,
+                17000000
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "ce15fcce8d7143434cf31cc2a5c8b9cf05d14ae48f2b5921a03bfd71b9bbab20"
+            },
+            {
+              "input": [
+                -1832797380,
+                381458425,
+                844777086
+              ],
+              "decoded": [
+                -20858052,
+                2041,
+                -27638146
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "abad44ea39ac81bf466135cc5a0877ae350d97f39a04f98720b9f47c12892c26"
+            },
+            {
+              "input": [
+                -1259964715,
+                -415780610,
+                -2100181433
+              ],
+              "decoded": [
+                15103701,
+                254,
+                -19806649
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "a936e05576483c29316477dd1982d1fa3a0d47ebe22e74acc2a3acfeaf03c8a0"
+            },
+            {
+              "input": [
+                -994330168,
+                -929826760,
+                406655158
+              ],
+              "decoded": [
+                12302792,
+                -1992,
+                4001974
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "057eb94c1e0afb2af3143a3971ba229bdc44c4f9e16c5e139b4678a4f67c648c"
+            },
+            {
+              "input": [
+                -224784912,
+                -252522416,
+                -1451747019
+              ],
+              "decoded": [
+                -23458320,
+                80,
+                24647989
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "8306e52d177ec18e22daf37294f905cfa268dcf858caa5217cb602613f6470b8"
+            },
+            {
+              "input": [
+                -1712840204,
+                -1770236801,
+                -632286228
+              ],
+              "decoded": [
+                31990260,
+                1151,
+                -28306452
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "e25efeb8e22e0f1a9365f9fc214aa4666a679898deddd02c8d11caf445c0910c"
+            },
+            {
+              "input": [
+                339870912,
+                -2086578849,
+                -1477562719
+              ],
+              "decoded": [
+                4326592,
+                1375,
+                -1167711
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "a55c3ce4d2907b26850cf3474c2b52f1a6f8318db9d9fdd66f54924d01f232a9"
+            },
+            {
+              "input": [
+                2064233027,
+                -1271533028,
+                2076137909
+              ],
+              "decoded": [
+                -16141757,
+                540,
+                -4236875
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "ec9b7ce9e53981a8b5673f561069b90141d000400f58fc2cdd12fd6a747692ed"
+            },
+            {
+              "input": [
+                -847615273,
+                294798186,
+                -20508493
+              ],
+              "decoded": [
+                24799959,
+                874,
+                -20508493
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "84c28784ff08aeee0400f7e97a57e84f7956da4da4a2cf2e9855329063cb8391"
+            },
+            {
+              "input": [
+                -1050608368,
+                -1348922521,
+                -146614575
+              ],
+              "decoded": [
+                23133456,
+                871,
+                -12396847
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "76489ef4d50c6e1fb38e5b973fbceb4ceab215d261a5db20fde2f032ba689c96"
+            },
+            {
+              "input": [
+                -71049947,
+                36527722,
+                -978248813
+              ],
+              "decoded": [
+                -3941083,
+                -406,
+                28384147
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "e05e88ab9ca15a32f43062b599abe8d2be74a741c1e2e3726c9607d1af2c3006"
+            },
+            {
+              "input": [
+                798911072,
+                -280349790,
+                -1121504414
+              ],
+              "decoded": [
+                -6395296,
+                930,
+                19346274
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "c92beec1d3cda4e3d45187a02f0cb264134425e55fa47bafa87f967ee874d273"
+            },
+            {
+              "input": [
+                -2090128371,
+                724774876,
+                1748611964
+              ],
+              "decoded": [
+                -9753587,
+                -36,
+                3781500
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "e7beb43357bc2be0ddad428c5b23064472edc9139f0898b0d6dafd34047bf702"
+            },
+            {
+              "input": [
+                1397237311,
+                620774057,
+                -1165998961
+              ],
+              "decoded": [
+                -12048833,
+                681,
+                -25148273
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "ebcf8cc4964178ba4ab4d12feb96f9dbfa3eee3152c8f582f0b63c1f399cd31c"
+            },
+            {
+              "input": [
+                -1842329609,
+                -832204747,
+                -1935271596
+              ],
+              "decoded": [
+                -30390281,
+                53,
+                10885460
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "e2a67df91a1120a61d969312b13a3a9752ed414e33fba545662774d2df791bdd"
+            },
+            {
+              "input": [
+                982302504,
+                1854270051,
+                -1758456857
+              ],
+              "decoded": [
+                -24330456,
+                -1437,
+                -13626393
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "9a786eb0a685cd95b0dbc9b57823e6669a07d6f865c04de609331fba346c29c1"
+            },
+            {
+              "input": [
+                1323731012,
+                -129550369,
+                -1317408403
+              ],
+              "decoded": [
+                -18446268,
+                2015,
+                24768877
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "4e7dabb4592da66fe59187e19cf4662079714fa7ef6ccc090541f732f9d36738"
+            },
+            {
+              "input": [
+                1345575981,
+                -20031632,
+                1603481308
+              ],
+              "decoded": [
+                3398701,
+                1904,
+                -7131428
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "b2e416170f218305017d23e37f2d98b6de62b6d4f72a1e937c970d16aaf1fcf0"
+            },
+            {
+              "input": [
+                -250248783,
+                1574404886,
+                -2001521854
+              ],
+              "decoded": [
+                18186673,
+                790,
+                11744066
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "58f949b933668384ce5adf6570a2c54821de658a2f3c7689f4f4b6dcf9a00790"
+            },
+            {
+              "input": [
+                693892313,
+                -278137966,
+                380888368
+              ],
+              "decoded": [
+                22803673,
+                914,
+                -21764816
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "efbe57c54cd4adeba372f3e02636e1524fa918d220ef4108f049fa170939ee56"
+            },
+            {
+              "input": [
+                1779939467,
+                -1487209979,
+                2065384013
+              ],
+              "decoded": [
+                -31999861,
+                -1531,
+                -14990771
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "b493e1f90afad068c5cd6952aaa729c68b5f6883d0d9f481a68434ce9eb5df25"
+            },
+            {
+              "input": [
+                2088723718,
+                -2110796873,
+                -289822933
+              ],
+              "decoded": [
+                8348934,
+                -1097,
+                -21387477
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "6291392325208303260240b8aff8e557ecd37f5e2934812a2da0dea4610b0f5b"
+            },
+            {
+              "input": [
+                1685837900,
+                -932486423,
+                804695873
+              ],
+              "decoded": [
+                8116300,
+                745,
+                -610495
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "bf30995ba90c4217a4982917b45410e4ea9d2dc8f959c762923a66bfba79d452"
+            },
+            {
+              "input": [
+                -896195309,
+                -1391440712,
+                511372531
+              ],
+              "decoded": [
+                -23780077,
+                -840,
+                -25498381
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "f83f6d1ea699afb02983c3629db1def26a5f8848018be57d78a659bcebe5e626"
+            },
+            {
+              "input": [
+                1273728360,
+                2129442344,
+                -2034571695
+              ],
+              "decoded": [
+                -1340056,
+                1576,
+                -21305775
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "83e117b67b79e8e0574de968d1c53ca6c51addc13efe885bddf29fde2f7592c0"
+            },
+            {
+              "input": [
+                -1102714040,
+                195062051,
+                -773224869
+              ],
+              "decoded": [
+                -28972216,
+                -1757,
+                32081499
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "45d07ff8698e4626daa9bca1ba20dc1a7b89610fe71036b33518417da86bc852"
+            },
+            {
+              "input": [
+                709359489,
+                -452178785,
+                -7165359
+              ],
+              "decoded": [
+                -28838015,
+                -865,
+                -7165359
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "f21969b7701132757e0cd69000d224c673f6b7e6ce9b05df884b6ba74e206754"
+            },
+            {
+              "input": [
+                116987206,
+                -1908840531,
+                -248449280
+              ],
+              "decoded": [
+                -17230522,
+                1965,
+                19986176
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "2e473c055b32512da7f0c9ff3b3b8f52033905047ad992b20029fafa1c1786e3"
+            },
+            {
+              "input": [
+                -1887192780,
+                1394712211,
+                -1196360242
+              ],
+              "decoded": [
+                -8144588,
+                -365,
+                11599310
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "519ac30824dae7a9583c6a933e64798a88a1df874589b621603372b735bdf01f"
+            },
+            {
+              "input": [
+                -630423345,
+                -1040491232,
+                1451893918
+              ],
+              "decoded": [
+                -26443569,
+                -736,
+                -24501090
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "58ecc8617879ee493cb0a6da06ae6c17936b53d505e42b354cb7c9753dc120c1"
+            },
+            {
+              "input": [
+                -1088667584,
+                -1467746808,
+                -804990353
+              ],
+              "decoded": [
+                -14925760,
+                1544,
+                316015
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "7a06a4af6a93e1bf3ca0afa52441d4bb91ca834e42cffdba878edeadfdc8dfac"
+            },
+            {
+              "input": [
+                -1163525800,
+                -1927414311,
+                -1404031541
+              ],
+              "decoded": [
+                -22675112,
+                -551,
+                5254603
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "25e76bace242f65a2934bbd94263a5560c35319e46bdaf543b9bbb6e1c03ccad"
+            },
+            {
+              "input": [
+                1372769207,
+                -1056038545,
+                -1621175235
+              ],
+              "decoded": [
+                30591927,
+                367,
+                -10562499
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "f0191fff3995f60d5b06c085954bf03f58a3cff7757d777dbbddf93613c824de"
+            },
+            {
+              "input": [
+                279344155,
+                1929761342,
+                1125141931
+              ],
+              "decoded": [
+                10908699,
+                574,
+                -15708757
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "00276dcfe8615a0b61d0a2daf718222fd627488f043d9f77e0554d898827364e"
+            },
+            {
+              "input": [
+                -273725583,
+                444304354,
+                152287662
+              ],
+              "decoded": [
+                -5290127,
+                -1054,
+                18069934
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "a8beed49bee911fd986274e93cfac93c697eb92105d3567ee5cd21b0f04d9126"
+            },
+            {
+              "input": [
+                -274782565,
+                595279533,
+                -1650045640
+              ],
+              "decoded": [
+                -6347109,
+                -339,
+                27675960
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "9ff9e105296dd690ae5d6c187de70fa4903bc9801bca455528660d28d016aeb3"
+            },
+            {
+              "input": [
+                50731780,
+                -221006224,
+                2100820597
+              ],
+              "decoded": [
+                -16377084,
+                1648,
+                20445813
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "2d68f0543a38fc49cc59fa1afc536ec4a899e6272d79046026c42f3cd9396f3e"
+            },
+            {
+              "input": [
+                -969448476,
+                313592526,
+                970702120
+              ],
+              "decoded": [
+                -29924380,
+                -1330,
+                31178024
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "27ef726fa219c3ca38e1857f9686b647805ca8509cc89fb6560524ae0a96f4af"
+            },
+            {
+              "input": [
+                1249040362,
+                565178914,
+                -1277002091
+              ],
+              "decoded": [
+                -26028054,
+                546,
+                -1933675
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "c157d2dac89bf43f9625b2c70caaa1e0d77f3b7901871a0b00d082022e16d27a"
+            },
+            {
+              "input": [
+                910039790,
+                1270379869,
+                -1749476442
+              ],
+              "decoded": [
+                -29484306,
+                1373,
+                -4645978
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "71b4c0b340c70967b1d6ffc189c7c9afdfab1acccd3ff7cac1f95b8f9ffd9ebf"
+            },
+            {
+              "input": [
+                -1726081641,
+                -32441152,
+                1995508772
+              ],
+              "decoded": [
+                18748823,
+                -832,
+                -17757148
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "70eaaf7984d86b20562c83d45735f382041ec9fdac37bdeaa751378b88838556"
+            },
+            {
+              "input": [
+                -879051552,
+                -1098893127,
+                1918086994
+              ],
+              "decoded": [
+                -6636320,
+                -1863,
+                -28070062
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "b659a488caac71d7f2b528a475abb3e23e16238eb04c34008deb02038d4bf654"
+            },
+            {
+              "input": [
+                558371761,
+                -1093676414,
+                -576797253
+              ],
+              "decoded": [
+                21500849,
+                642,
+                27182523
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "f882d4e3ec543e01875b413fdbda14274132bd3cbacac36909a56801c6075759"
+            },
+            {
+              "input": [
+                1532509233,
+                276988383,
+                -704948930
+              ],
+              "decoded": [
+                -10994639,
+                479,
+                33248574
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "4ab780a3ebaf9c71f7a0948950ac0d15d6df9afd2f1f1276812a46aa87993228"
+            },
+            {
+              "input": [
+                401389997,
+                994522411,
+                -1106756465
+              ],
+              "decoded": [
+                -1263187,
+                1323,
+                -33014641
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "9d1714298a642c01a59cbe2b2c60bf6a291d2fe7a7eab401acfeaa365c31a6c0"
+            },
+            {
+              "input": [
+                -328692268,
+                2072612513,
+                -1567993362
+              ],
+              "decoded": [
+                6852052,
+                -351,
+                -24489490
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "a9185ee7f9cf3a6680b9636865ac5246673c45077163e5c52994e4f32444fbaf"
+            },
+            {
+              "input": [
+                -1659203469,
+                -1955715765,
+                -1883488095
+              ],
+              "decoded": [
+                18518131,
+                1355,
+                -4439903
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "7692a364b5ca7bdb2b5982df0e0e67014b00461dfd9e982fb5fad1819bd199cc"
+            },
+            {
+              "input": [
+                -1349467153,
+                -218447575,
+                -1027902082
+              ],
+              "decoded": [
+                -7289873,
+                297,
+                -21269122
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "787fc11abd839923945dfc6039f620b6a98feef77d913fb941778d6a80185bb1"
+            },
+            {
+              "input": [
+                -1780142621,
+                -852859763,
+                -1872689525
+              ],
+              "decoded": [
+                31796707,
+                1165,
+                6358667
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "5e9d56949e3cc200d8a112d4d01f11194b242d52e48d954ff325755a3cd7e755"
+            },
+            {
+              "input": [
+                1762385369,
+                1353795130,
+                -689626763
+              ],
+              "decoded": [
+                17554905,
+                1594,
+                -18538123
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "e63dfd49ebfddea91087776488c18d9e9ab87dd8b3cd625876f9d6b187eb95f5"
+            },
+            {
+              "input": [
+                -522876091,
+                -1573642140,
+                1359756752
+              ],
+              "decoded": [
+                13994821,
+                100,
+                17579472
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "7eedf654e92bd14c3619509fd5b3b918a1f293efca45a717b792a8e19b29d912"
+            },
+            {
+              "input": [
+                1269451591,
+                -2088615769,
+                -1808135423
+              ],
+              "decoded": [
+                -5616825,
+                167,
+                3803905
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "f00251f581094fe71c8d67a2e2db3122557c7d8133c4bd5e375847de2e638a0b"
+            },
+            {
+              "input": [
+                1442232082,
+                -896554375,
+                1127062459
+              ],
+              "decoded": [
+                32945938,
+                -1415,
+                -13788229
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "374b45fd31bcfb9bc8af35ad57ff69486fced49d9949e82d657cccf8e7b9b952"
+            },
+            {
+              "input": [
+                -379129615,
+                -985622550,
+                -2035646852
+              ],
+              "decoded": [
+                23523569,
+                2026,
+                -22380932
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "0cac9e242344bbbbccbf6f1e6bc5ea9e8184856c494a5eaee480b0f6dbe4687d"
+            },
+            {
+              "input": [
+                1702596506,
+                -1924548452,
+                -1502151117
+              ],
+              "decoded": [
+                24874906,
+                -1892,
+                -25756109
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "21908db7a0429c0cd341733139f6b52aea45089132748f14fad8cc1300b0bf04"
+            },
+            {
+              "input": [
+                -621753572,
+                496195835,
+                1990558097
+              ],
+              "decoded": [
+                -17773796,
+                -1797,
+                -22707823
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "bd210b2d3ad0a546afa50a7ffc921996723b1ba5d11bfbb73852b009ed5eabed"
+            },
+            {
+              "input": [
+                -1973909655,
+                -2129160148,
+                2032004876
+              ],
+              "decoded": [
+                -27752599,
+                -2004,
+                18738956
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "0c411bcbe3524edda6a93401cc1177ffcead13d68fefd0c37b401f510f426beb"
+            },
+            {
+              "input": [
+                76949194,
+                253353888,
+                -601684127
+              ],
+              "decoded": [
+                9840330,
+                -96,
+                2295649
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "fd533006674a19ae5c6e93a5a1b4367ac667d405cf343ed745f698e3909b7cd7"
+            },
+            {
+              "input": [
+                2038050180,
+                -1174134475,
+                401591223
+              ],
+              "decoded": [
+                24784260,
+                309,
+                -1061961
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "ddf6bc614ded9e2e0b9ce709cdddf629cbcdd6f427367e97716bd055421df639"
+            },
+            {
+              "input": [
+                591881342,
+                -1556018183,
+                -65696145
+              ],
+              "decoded": [
+                -12098434,
+                -1031,
+                1412719
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "2c22172b0f2e0aa8e5c0bc8ba68508b07ea6159e6666796968d6321dd85ff91d"
+            },
+            {
+              "input": [
+                -1544346931,
+                1107858353,
+                621114990
+              ],
+              "decoded": [
+                -843059,
+                945,
+                17135214
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "cca276da03526c8ec29f5c63365872b7986ce4e4dcd584ab6bc26a4e87fe942e"
+            },
+            {
+              "input": [
+                -287154222,
+                2026269426,
+                -646479299
+              ],
+              "decoded": [
+                -18718766,
+                -1294,
+                24609341
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "4dff16e00d517b64a475373acee105c3659eedb5d359eb992a04caf6133dc451"
+            },
+            {
+              "input": [
+                -1595892945,
+                -343018063,
+                -2018767583
+              ],
+              "decoded": [
+                14719791,
+                1457,
+                -5501663
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "2eac3648b1689236f133f071f05977a028b71ebd31e6a0d0f98f4f78ac1a0f20"
+            },
+            {
+              "input": [
+                -1169982120,
+                -1944796703,
+                608742113
+              ],
+              "decoded": [
+                -29131432,
+                481,
+                4762337
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "fe9155f9de37efa50eb6cbfef443852161c084577fc2100307b84aa832018d4d"
+            },
+            {
+              "input": [
+                993481838,
+                1515164501,
+                975044564
+              ],
+              "decoded": [
+                -13151122,
+                853,
+                -31588396
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "4e454df146efce64312821efefdc4d4416735c048f614d19e46e8fd6486519b6"
+            }
+          ]
+        },
+        {
+          "optional": true,
+          "serializer_id": 10,
+          "original_output_sha256": "a474184d6e7c46013088a0726911ec55b07a09bc8272904d5f4dd4dc845cf63e",
+          "truncated_boundaries_rejected": 640,
+          "nonzero_presence_roundtrips": 71,
+          "positions": [
+            {
+              "input": null,
+              "decoded": null,
+              "encoded_size": 1,
+              "original_codec_sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+            },
+            {
+              "input": [
+                0,
+                0,
+                0
+              ],
+              "decoded": [
+                0,
+                0,
+                0
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "a536aa3cede6ea3c1f3e0357c3c60e0f216a8c89b853df13b29daa8f85065dfb"
+            },
+            {
+              "input": [
+                -1,
+                -1,
+                -1
+              ],
+              "decoded": [
+                -1,
+                -1,
+                -1
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "1272f520cf7ca5cf117a0b5a3116518371bf20fb7fac043ac1be568b8c55b96c"
+            },
+            {
+              "input": [
+                33554431,
+                2047,
+                33554431
+              ],
+              "decoded": [
+                33554431,
+                2047,
+                33554431
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "3990b80196b1be0a0d24876732fdf90c15c2e4ea891487fc12c38aa065426dbb"
+            },
+            {
+              "input": [
+                -33554432,
+                -2048,
+                -33554432
+              ],
+              "decoded": [
+                -33554432,
+                -2048,
+                -33554432
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "8b83411fe2771583ae11e7cbd736f1ef0cf03abe8e65b864ff7aadc71c4e9b87"
+            },
+            {
+              "input": [
+                33554432,
+                2048,
+                -33554433
+              ],
+              "decoded": [
+                -33554432,
+                -2048,
+                33554431
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "0a5c47e818d2393cb6eae4ed0df7b4f1ea43882b1dec2b0ec67e4b895a42d735"
+            },
+            {
+              "input": [
+                -2147483648,
+                2147483647,
+                -2147483648
+              ],
+              "decoded": [
+                0,
+                -1,
+                0
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "c3897d7fd83827f191c946ea4c82bfa9b85fbf31c4c6e45c505dc7a80c9a1f86"
+            },
+            {
+              "input": [
+                -12000000,
+                -64,
+                17000000
+              ],
+              "decoded": [
+                -12000000,
+                -64,
+                17000000
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "18942f20609346000ed633451440d03ae27850a764fc7f1473e337475e86b693"
+            },
+            {
+              "input": [
+                -1832797380,
+                381458425,
+                844777086
+              ],
+              "decoded": [
+                -20858052,
+                2041,
+                -27638146
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "bafce28728be95df3c3da5b2fabcdf8c46e19618de61e38d5861051a76796522"
+            },
+            {
+              "input": [
+                -1259964715,
+                -415780610,
+                -2100181433
+              ],
+              "decoded": [
+                15103701,
+                254,
+                -19806649
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "40ba6cea218704cb562b6860a33d69780eb54b55da4262bb5bc7e87e37d3508b"
+            },
+            {
+              "input": [
+                -994330168,
+                -929826760,
+                406655158
+              ],
+              "decoded": [
+                12302792,
+                -1992,
+                4001974
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "09533dd3aeaecd51e9d1acc57e2a3fb1c157cd0f9b53a176d1d77772adf34b27"
+            },
+            {
+              "input": [
+                -224784912,
+                -252522416,
+                -1451747019
+              ],
+              "decoded": [
+                -23458320,
+                80,
+                24647989
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "f4501491023fba5709092838f75494d863e52a823945b1d06fae076d63e63d31"
+            },
+            {
+              "input": [
+                -1712840204,
+                -1770236801,
+                -632286228
+              ],
+              "decoded": [
+                31990260,
+                1151,
+                -28306452
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "30d77127be11b63947e7027fb6f686519ec728d9570ab5633f241ac4cd4176bc"
+            },
+            {
+              "input": [
+                339870912,
+                -2086578849,
+                -1477562719
+              ],
+              "decoded": [
+                4326592,
+                1375,
+                -1167711
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "7b5ee1bf4433643f6d245557ca41c671d6b592ec1fec8f13e93ea2072250f94f"
+            },
+            {
+              "input": [
+                2064233027,
+                -1271533028,
+                2076137909
+              ],
+              "decoded": [
+                -16141757,
+                540,
+                -4236875
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "8cd7f00a3a5d02edfbfae92e8cc19c33f87c95bcc1adec18b680d181a3943b06"
+            },
+            {
+              "input": [
+                -847615273,
+                294798186,
+                -20508493
+              ],
+              "decoded": [
+                24799959,
+                874,
+                -20508493
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "27fafd416ce89c3e17802455229b4f5ba78c1090f747fc041110e6006179c1f1"
+            },
+            {
+              "input": [
+                -1050608368,
+                -1348922521,
+                -146614575
+              ],
+              "decoded": [
+                23133456,
+                871,
+                -12396847
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "0ee7a37136f31b6485140a97a1cfa1439c1877b21770a4e576a05eced8334ced"
+            },
+            {
+              "input": [
+                -71049947,
+                36527722,
+                -978248813
+              ],
+              "decoded": [
+                -3941083,
+                -406,
+                28384147
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "a3c7e43617215f443b906c59838a25ff47cd87f2677c687c7d38d5b3935dbd59"
+            },
+            {
+              "input": [
+                798911072,
+                -280349790,
+                -1121504414
+              ],
+              "decoded": [
+                -6395296,
+                930,
+                19346274
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "396ad792f715f01a2c3f568ca4f8135a47c25d57b1f5dabfb53b688dd45b8f43"
+            },
+            {
+              "input": [
+                -2090128371,
+                724774876,
+                1748611964
+              ],
+              "decoded": [
+                -9753587,
+                -36,
+                3781500
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "79662b730abd278f6f546c9e83f61194929f31dd289be6bcae51407d10899561"
+            },
+            {
+              "input": [
+                1397237311,
+                620774057,
+                -1165998961
+              ],
+              "decoded": [
+                -12048833,
+                681,
+                -25148273
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "d0faea0318dded8d2321e6b9eef33609b1891a7ee5550f9a369c2b2cfc1b9f58"
+            },
+            {
+              "input": [
+                -1842329609,
+                -832204747,
+                -1935271596
+              ],
+              "decoded": [
+                -30390281,
+                53,
+                10885460
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "2e35d2493d3d0ec452d13f8ddff6ca00cc32b4e755cb61f409c9a1bf6632a197"
+            },
+            {
+              "input": [
+                982302504,
+                1854270051,
+                -1758456857
+              ],
+              "decoded": [
+                -24330456,
+                -1437,
+                -13626393
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "dbd70597002bc597ba0e9a47e554d73d5ae45606bc7f43fea5e5515421af5095"
+            },
+            {
+              "input": [
+                1323731012,
+                -129550369,
+                -1317408403
+              ],
+              "decoded": [
+                -18446268,
+                2015,
+                24768877
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "cfc6e33cf249e7bdb9ec4a446885824f41a712fbdb16ecfcd808bca9204146b9"
+            },
+            {
+              "input": [
+                1345575981,
+                -20031632,
+                1603481308
+              ],
+              "decoded": [
+                3398701,
+                1904,
+                -7131428
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "3b56c203063e0f22eebf1250555a9999f0fcc53072d02086bd2ab3697b6da400"
+            },
+            {
+              "input": [
+                -250248783,
+                1574404886,
+                -2001521854
+              ],
+              "decoded": [
+                18186673,
+                790,
+                11744066
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "5239989b6b568ebf64f09c2a9f27e2cbb420033b3802cd40c91223a628ffc789"
+            },
+            {
+              "input": [
+                693892313,
+                -278137966,
+                380888368
+              ],
+              "decoded": [
+                22803673,
+                914,
+                -21764816
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "c6679374befc49c5e9b14a1609e1310e5d07217e9791714357f9d555c8e02646"
+            },
+            {
+              "input": [
+                1779939467,
+                -1487209979,
+                2065384013
+              ],
+              "decoded": [
+                -31999861,
+                -1531,
+                -14990771
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "4c8145c6f96274e1ceb5fde9be943a488ea11dbb98472040c70cff29f1560fc8"
+            },
+            {
+              "input": [
+                2088723718,
+                -2110796873,
+                -289822933
+              ],
+              "decoded": [
+                8348934,
+                -1097,
+                -21387477
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "fef0249682600979fd76c5dcee27459f0ceb419221556a0e70ccb83683499df1"
+            },
+            {
+              "input": [
+                1685837900,
+                -932486423,
+                804695873
+              ],
+              "decoded": [
+                8116300,
+                745,
+                -610495
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "58c8adeb5008ca55e1d55e4071a31fde134cb8e04975948e0468b825f687ab45"
+            },
+            {
+              "input": [
+                -896195309,
+                -1391440712,
+                511372531
+              ],
+              "decoded": [
+                -23780077,
+                -840,
+                -25498381
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "bf6ee2565cf03550de5d97803bd1a9d6f6977c664ed06e10b571b1e901f79580"
+            },
+            {
+              "input": [
+                1273728360,
+                2129442344,
+                -2034571695
+              ],
+              "decoded": [
+                -1340056,
+                1576,
+                -21305775
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "8ab41bf2e64f273d57cd06cd6573080bffe110d3353ab8aa0337e25b7ebecee5"
+            },
+            {
+              "input": [
+                -1102714040,
+                195062051,
+                -773224869
+              ],
+              "decoded": [
+                -28972216,
+                -1757,
+                32081499
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "8d04b9e2d72ecc0de1a482388c230e1ab370a0facee82d7df6525986cc267297"
+            },
+            {
+              "input": [
+                709359489,
+                -452178785,
+                -7165359
+              ],
+              "decoded": [
+                -28838015,
+                -865,
+                -7165359
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "631ad7bd9c8cc4287dc89251f4773969a3bb3489eaab08ae600414045e75fc70"
+            },
+            {
+              "input": [
+                116987206,
+                -1908840531,
+                -248449280
+              ],
+              "decoded": [
+                -17230522,
+                1965,
+                19986176
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "345a5153f7e573e97b902ed36e65859dc6bdcaaa27bcf0ef924cba2629b2f58c"
+            },
+            {
+              "input": [
+                -1887192780,
+                1394712211,
+                -1196360242
+              ],
+              "decoded": [
+                -8144588,
+                -365,
+                11599310
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "5215621fbfcd804e059c027f3e622e10c981ff9365ba1e95b77a76a2da2da742"
+            },
+            {
+              "input": [
+                -630423345,
+                -1040491232,
+                1451893918
+              ],
+              "decoded": [
+                -26443569,
+                -736,
+                -24501090
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "00c482688363e568151ea465470b1505b4d89e3e69e40ad56235ffb74461b0ee"
+            },
+            {
+              "input": [
+                -1088667584,
+                -1467746808,
+                -804990353
+              ],
+              "decoded": [
+                -14925760,
+                1544,
+                316015
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "2286e147a710baae6bb2087ff9792f2f6dcb224eec405bfefd8dab09273ca488"
+            },
+            {
+              "input": [
+                -1163525800,
+                -1927414311,
+                -1404031541
+              ],
+              "decoded": [
+                -22675112,
+                -551,
+                5254603
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "87a3c69289682ed3e699dc8f593aafeccb104cb89dc11bcd5eb0fa45f75a1140"
+            },
+            {
+              "input": [
+                1372769207,
+                -1056038545,
+                -1621175235
+              ],
+              "decoded": [
+                30591927,
+                367,
+                -10562499
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "92a4435671d720b5a1fec984a67de33dc4be4697b470c5d134f47118fb5448bb"
+            },
+            {
+              "input": [
+                279344155,
+                1929761342,
+                1125141931
+              ],
+              "decoded": [
+                10908699,
+                574,
+                -15708757
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "6b38adb212cf29ec3d5bdaacca6f620962a7240124574985ba6c8b5c8f959d27"
+            },
+            {
+              "input": [
+                -273725583,
+                444304354,
+                152287662
+              ],
+              "decoded": [
+                -5290127,
+                -1054,
+                18069934
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "acdc22062b8830443ff6426316cde43656086ac4e980e499764021ee8e6b6b58"
+            },
+            {
+              "input": [
+                -274782565,
+                595279533,
+                -1650045640
+              ],
+              "decoded": [
+                -6347109,
+                -339,
+                27675960
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "fd92e5a5567a359e19d566651b5de1dfefac1d0a3f7f4fdc437292ea47795009"
+            },
+            {
+              "input": [
+                50731780,
+                -221006224,
+                2100820597
+              ],
+              "decoded": [
+                -16377084,
+                1648,
+                20445813
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "84f077669a71a6bb4d957544558629f363cdbc9a4023227bf9f788222b9de47b"
+            },
+            {
+              "input": [
+                -969448476,
+                313592526,
+                970702120
+              ],
+              "decoded": [
+                -29924380,
+                -1330,
+                31178024
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "a6d56e89ceb3ceb7c976200d5693587ed8b720043528927d074f4e1ce7378125"
+            },
+            {
+              "input": [
+                1249040362,
+                565178914,
+                -1277002091
+              ],
+              "decoded": [
+                -26028054,
+                546,
+                -1933675
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "5d81ecabd59db8728203359125309e6d91f09109f84a0e6e8cde82e5d195c381"
+            },
+            {
+              "input": [
+                910039790,
+                1270379869,
+                -1749476442
+              ],
+              "decoded": [
+                -29484306,
+                1373,
+                -4645978
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "1312d7e1c4bc177400fed008152585e52021e2b5c8cd0becea677658163e8409"
+            },
+            {
+              "input": [
+                -1726081641,
+                -32441152,
+                1995508772
+              ],
+              "decoded": [
+                18748823,
+                -832,
+                -17757148
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "1006bd323a37e11de3beea15e2308eaacc7b2a381c6a6bcebb17608cecc8b6b1"
+            },
+            {
+              "input": [
+                -879051552,
+                -1098893127,
+                1918086994
+              ],
+              "decoded": [
+                -6636320,
+                -1863,
+                -28070062
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "f3fb8fcff06d30b5489c91a686c3590d5c624e4c2b9d94db11f097a4b81f7b96"
+            },
+            {
+              "input": [
+                558371761,
+                -1093676414,
+                -576797253
+              ],
+              "decoded": [
+                21500849,
+                642,
+                27182523
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "c8799ec2a44a18610bb18c3d6a1d6b08b91426289cc7cc43140e3fe54ff30db7"
+            },
+            {
+              "input": [
+                1532509233,
+                276988383,
+                -704948930
+              ],
+              "decoded": [
+                -10994639,
+                479,
+                33248574
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "153f6a1d6c4f35d0da2831e13f2ad660adee53e22d35e487b62ab72c1495af82"
+            },
+            {
+              "input": [
+                401389997,
+                994522411,
+                -1106756465
+              ],
+              "decoded": [
+                -1263187,
+                1323,
+                -33014641
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "cd9804785cbdaa6f6702a1fe79ca1b52b28045950deeb00eae9f5368086a395c"
+            },
+            {
+              "input": [
+                -328692268,
+                2072612513,
+                -1567993362
+              ],
+              "decoded": [
+                6852052,
+                -351,
+                -24489490
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "d1d7ac2bea20de845128e16060223bec682e6e8c3e2e0b5b32e65d0a445eaf68"
+            },
+            {
+              "input": [
+                -1659203469,
+                -1955715765,
+                -1883488095
+              ],
+              "decoded": [
+                18518131,
+                1355,
+                -4439903
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "7c8f326d12a26166a204fddade8d0d8092dc4af27b71120b4c40f19ad90d4bf4"
+            },
+            {
+              "input": [
+                -1349467153,
+                -218447575,
+                -1027902082
+              ],
+              "decoded": [
+                -7289873,
+                297,
+                -21269122
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "423092f8eb2e7f60e2ca7ef7ae26fc48f39fb1b0b0eb18295ca179a46e8cc830"
+            },
+            {
+              "input": [
+                -1780142621,
+                -852859763,
+                -1872689525
+              ],
+              "decoded": [
+                31796707,
+                1165,
+                6358667
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "a682dd27ff69cdcc92e35ed5b3cc1c8559dc2f0f6064c98cf82913eaa129962e"
+            },
+            {
+              "input": [
+                1762385369,
+                1353795130,
+                -689626763
+              ],
+              "decoded": [
+                17554905,
+                1594,
+                -18538123
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "a7cf6f18107e4f98614d07c7dd6d69b8abbe60d3d59bf6679139206a9b9a43f7"
+            },
+            {
+              "input": [
+                -522876091,
+                -1573642140,
+                1359756752
+              ],
+              "decoded": [
+                13994821,
+                100,
+                17579472
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "48fe7a01428c21e8d7e43e86b2ecc32cd7da42ce2abafca4a2707daf8d81e034"
+            },
+            {
+              "input": [
+                1269451591,
+                -2088615769,
+                -1808135423
+              ],
+              "decoded": [
+                -5616825,
+                167,
+                3803905
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "3756eb2fb4f4674e890d897acb7a59cf01878803d75484acfceb449eb6ca0efa"
+            },
+            {
+              "input": [
+                1442232082,
+                -896554375,
+                1127062459
+              ],
+              "decoded": [
+                32945938,
+                -1415,
+                -13788229
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "39bdd006a7726093f253bb9f470e527aaa922e02e247caa7c8a2c5d1dd763a5a"
+            },
+            {
+              "input": [
+                -379129615,
+                -985622550,
+                -2035646852
+              ],
+              "decoded": [
+                23523569,
+                2026,
+                -22380932
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "ea46417d78ba8aee378c5a037d6ae4fdeaef919393d8189259e6d91468ee06c3"
+            },
+            {
+              "input": [
+                1702596506,
+                -1924548452,
+                -1502151117
+              ],
+              "decoded": [
+                24874906,
+                -1892,
+                -25756109
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "99520f8114e5a82ace6242e957b7007982ed3f7ff9342df887d3a20d2375365c"
+            },
+            {
+              "input": [
+                -621753572,
+                496195835,
+                1990558097
+              ],
+              "decoded": [
+                -17773796,
+                -1797,
+                -22707823
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "3e7b4c5aefbfcd2e8b7953a2786a82c571e9359022adf1ce0ea1a8cbd28d05d3"
+            },
+            {
+              "input": [
+                -1973909655,
+                -2129160148,
+                2032004876
+              ],
+              "decoded": [
+                -27752599,
+                -2004,
+                18738956
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "0b6f89b0b0614d88055df2d26c63b27fbf09b628784aa3bb8e39df6e5aa00919"
+            },
+            {
+              "input": [
+                76949194,
+                253353888,
+                -601684127
+              ],
+              "decoded": [
+                9840330,
+                -96,
+                2295649
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "3c0293051060fa5d47cfb616296874bdd0824ff53514e6db815aa8bfff6b7bbd"
+            },
+            {
+              "input": [
+                2038050180,
+                -1174134475,
+                401591223
+              ],
+              "decoded": [
+                24784260,
+                309,
+                -1061961
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "80377c27f79b0fe83f2d651133b339e4f9804d299613eed3f056020eb1b0e74a"
+            },
+            {
+              "input": [
+                591881342,
+                -1556018183,
+                -65696145
+              ],
+              "decoded": [
+                -12098434,
+                -1031,
+                1412719
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "35349eb2b09b68540b0e6b2c235c8c3b88d4461eae4a9064f6ecc055dcb0401a"
+            },
+            {
+              "input": [
+                -1544346931,
+                1107858353,
+                621114990
+              ],
+              "decoded": [
+                -843059,
+                945,
+                17135214
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "a9348d3662819bc07d142c80b877cdab463ef923bac131791cbf71c6a4241307"
+            },
+            {
+              "input": [
+                -287154222,
+                2026269426,
+                -646479299
+              ],
+              "decoded": [
+                -18718766,
+                -1294,
+                24609341
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "3398f8acfd901b6f7968ee99e2dcd08038758ff89d01d46a83c82dcfdf8acc36"
+            },
+            {
+              "input": [
+                -1595892945,
+                -343018063,
+                -2018767583
+              ],
+              "decoded": [
+                14719791,
+                1457,
+                -5501663
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "53c7aba0f076cdba663bf5ac1f1aa4f1be2abbeaa524683135944543f676e6ea"
+            },
+            {
+              "input": [
+                -1169982120,
+                -1944796703,
+                608742113
+              ],
+              "decoded": [
+                -29131432,
+                481,
+                4762337
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "4faa63b221f2541f205e13aee77408c631360ef59fa2e5d52db9df60c5987dcb"
+            },
+            {
+              "input": [
+                993481838,
+                1515164501,
+                975044564
+              ],
+              "decoded": [
+                -13151122,
+                853,
+                -31588396
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "bab9a6e8e5c98898476cd8d4c3881d675cdb98f554d4df5f80bc2bd8cab124b6"
+            }
+          ]
+        }
+      ]
+    },
+    "1.21.11": {
+      "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+      "sleeping_metadata_index": 14,
+      "codecs": [
+        {
+          "optional": false,
+          "serializer_id": 10,
+          "original_output_sha256": "0c01ccde83e20d06b8a7f32b467758bb3611b799c167a4fff2fab76543f7b54a",
+          "truncated_boundaries_rejected": 568,
+          "nonzero_presence_roundtrips": 0,
+          "positions": [
+            {
+              "input": [
+                0,
+                0,
+                0
+              ],
+              "decoded": [
+                0,
+                0,
+                0
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
+            },
+            {
+              "input": [
+                -1,
+                -1,
+                -1
+              ],
+              "decoded": [
+                -1,
+                -1,
+                -1
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "12a3ae445661ce5dee78d0650d33362dec29c4f82af05e7e57fb595bbbacf0ca"
+            },
+            {
+              "input": [
+                33554431,
+                2047,
+                33554431
+              ],
+              "decoded": [
+                33554431,
+                2047,
+                33554431
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "44fe1224f47ae7f38e6e8d8169a43459b5de9ac7857def7219140c4a397b7f8b"
+            },
+            {
+              "input": [
+                -33554432,
+                -2048,
+                -33554432
+              ],
+              "decoded": [
+                -33554432,
+                -2048,
+                -33554432
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "21a2be106a2f948dbc253a86675f7863abc35d6bb3187f45262721dfc46eea3b"
+            },
+            {
+              "input": [
+                33554432,
+                2048,
+                -33554433
+              ],
+              "decoded": [
+                -33554432,
+                -2048,
+                33554431
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "c861c77fce557b3673604d3278236f98242072770545accb7dc15df0203b6422"
+            },
+            {
+              "input": [
+                -2147483648,
+                2147483647,
+                -2147483648
+              ],
+              "decoded": [
+                0,
+                -1,
+                0
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "5a58730ea6452a7dff47aa6f0af59fc1870a181c266822ba3807f30b207f7d23"
+            },
+            {
+              "input": [
+                -12000000,
+                -64,
+                17000000
+              ],
+              "decoded": [
+                -12000000,
+                -64,
+                17000000
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "ce15fcce8d7143434cf31cc2a5c8b9cf05d14ae48f2b5921a03bfd71b9bbab20"
+            },
+            {
+              "input": [
+                -1832797380,
+                381458425,
+                844777086
+              ],
+              "decoded": [
+                -20858052,
+                2041,
+                -27638146
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "abad44ea39ac81bf466135cc5a0877ae350d97f39a04f98720b9f47c12892c26"
+            },
+            {
+              "input": [
+                -1259964715,
+                -415780610,
+                -2100181433
+              ],
+              "decoded": [
+                15103701,
+                254,
+                -19806649
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "a936e05576483c29316477dd1982d1fa3a0d47ebe22e74acc2a3acfeaf03c8a0"
+            },
+            {
+              "input": [
+                -994330168,
+                -929826760,
+                406655158
+              ],
+              "decoded": [
+                12302792,
+                -1992,
+                4001974
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "057eb94c1e0afb2af3143a3971ba229bdc44c4f9e16c5e139b4678a4f67c648c"
+            },
+            {
+              "input": [
+                -224784912,
+                -252522416,
+                -1451747019
+              ],
+              "decoded": [
+                -23458320,
+                80,
+                24647989
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "8306e52d177ec18e22daf37294f905cfa268dcf858caa5217cb602613f6470b8"
+            },
+            {
+              "input": [
+                -1712840204,
+                -1770236801,
+                -632286228
+              ],
+              "decoded": [
+                31990260,
+                1151,
+                -28306452
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "e25efeb8e22e0f1a9365f9fc214aa4666a679898deddd02c8d11caf445c0910c"
+            },
+            {
+              "input": [
+                339870912,
+                -2086578849,
+                -1477562719
+              ],
+              "decoded": [
+                4326592,
+                1375,
+                -1167711
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "a55c3ce4d2907b26850cf3474c2b52f1a6f8318db9d9fdd66f54924d01f232a9"
+            },
+            {
+              "input": [
+                2064233027,
+                -1271533028,
+                2076137909
+              ],
+              "decoded": [
+                -16141757,
+                540,
+                -4236875
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "ec9b7ce9e53981a8b5673f561069b90141d000400f58fc2cdd12fd6a747692ed"
+            },
+            {
+              "input": [
+                -847615273,
+                294798186,
+                -20508493
+              ],
+              "decoded": [
+                24799959,
+                874,
+                -20508493
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "84c28784ff08aeee0400f7e97a57e84f7956da4da4a2cf2e9855329063cb8391"
+            },
+            {
+              "input": [
+                -1050608368,
+                -1348922521,
+                -146614575
+              ],
+              "decoded": [
+                23133456,
+                871,
+                -12396847
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "76489ef4d50c6e1fb38e5b973fbceb4ceab215d261a5db20fde2f032ba689c96"
+            },
+            {
+              "input": [
+                -71049947,
+                36527722,
+                -978248813
+              ],
+              "decoded": [
+                -3941083,
+                -406,
+                28384147
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "e05e88ab9ca15a32f43062b599abe8d2be74a741c1e2e3726c9607d1af2c3006"
+            },
+            {
+              "input": [
+                798911072,
+                -280349790,
+                -1121504414
+              ],
+              "decoded": [
+                -6395296,
+                930,
+                19346274
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "c92beec1d3cda4e3d45187a02f0cb264134425e55fa47bafa87f967ee874d273"
+            },
+            {
+              "input": [
+                -2090128371,
+                724774876,
+                1748611964
+              ],
+              "decoded": [
+                -9753587,
+                -36,
+                3781500
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "e7beb43357bc2be0ddad428c5b23064472edc9139f0898b0d6dafd34047bf702"
+            },
+            {
+              "input": [
+                1397237311,
+                620774057,
+                -1165998961
+              ],
+              "decoded": [
+                -12048833,
+                681,
+                -25148273
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "ebcf8cc4964178ba4ab4d12feb96f9dbfa3eee3152c8f582f0b63c1f399cd31c"
+            },
+            {
+              "input": [
+                -1842329609,
+                -832204747,
+                -1935271596
+              ],
+              "decoded": [
+                -30390281,
+                53,
+                10885460
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "e2a67df91a1120a61d969312b13a3a9752ed414e33fba545662774d2df791bdd"
+            },
+            {
+              "input": [
+                982302504,
+                1854270051,
+                -1758456857
+              ],
+              "decoded": [
+                -24330456,
+                -1437,
+                -13626393
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "9a786eb0a685cd95b0dbc9b57823e6669a07d6f865c04de609331fba346c29c1"
+            },
+            {
+              "input": [
+                1323731012,
+                -129550369,
+                -1317408403
+              ],
+              "decoded": [
+                -18446268,
+                2015,
+                24768877
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "4e7dabb4592da66fe59187e19cf4662079714fa7ef6ccc090541f732f9d36738"
+            },
+            {
+              "input": [
+                1345575981,
+                -20031632,
+                1603481308
+              ],
+              "decoded": [
+                3398701,
+                1904,
+                -7131428
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "b2e416170f218305017d23e37f2d98b6de62b6d4f72a1e937c970d16aaf1fcf0"
+            },
+            {
+              "input": [
+                -250248783,
+                1574404886,
+                -2001521854
+              ],
+              "decoded": [
+                18186673,
+                790,
+                11744066
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "58f949b933668384ce5adf6570a2c54821de658a2f3c7689f4f4b6dcf9a00790"
+            },
+            {
+              "input": [
+                693892313,
+                -278137966,
+                380888368
+              ],
+              "decoded": [
+                22803673,
+                914,
+                -21764816
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "efbe57c54cd4adeba372f3e02636e1524fa918d220ef4108f049fa170939ee56"
+            },
+            {
+              "input": [
+                1779939467,
+                -1487209979,
+                2065384013
+              ],
+              "decoded": [
+                -31999861,
+                -1531,
+                -14990771
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "b493e1f90afad068c5cd6952aaa729c68b5f6883d0d9f481a68434ce9eb5df25"
+            },
+            {
+              "input": [
+                2088723718,
+                -2110796873,
+                -289822933
+              ],
+              "decoded": [
+                8348934,
+                -1097,
+                -21387477
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "6291392325208303260240b8aff8e557ecd37f5e2934812a2da0dea4610b0f5b"
+            },
+            {
+              "input": [
+                1685837900,
+                -932486423,
+                804695873
+              ],
+              "decoded": [
+                8116300,
+                745,
+                -610495
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "bf30995ba90c4217a4982917b45410e4ea9d2dc8f959c762923a66bfba79d452"
+            },
+            {
+              "input": [
+                -896195309,
+                -1391440712,
+                511372531
+              ],
+              "decoded": [
+                -23780077,
+                -840,
+                -25498381
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "f83f6d1ea699afb02983c3629db1def26a5f8848018be57d78a659bcebe5e626"
+            },
+            {
+              "input": [
+                1273728360,
+                2129442344,
+                -2034571695
+              ],
+              "decoded": [
+                -1340056,
+                1576,
+                -21305775
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "83e117b67b79e8e0574de968d1c53ca6c51addc13efe885bddf29fde2f7592c0"
+            },
+            {
+              "input": [
+                -1102714040,
+                195062051,
+                -773224869
+              ],
+              "decoded": [
+                -28972216,
+                -1757,
+                32081499
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "45d07ff8698e4626daa9bca1ba20dc1a7b89610fe71036b33518417da86bc852"
+            },
+            {
+              "input": [
+                709359489,
+                -452178785,
+                -7165359
+              ],
+              "decoded": [
+                -28838015,
+                -865,
+                -7165359
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "f21969b7701132757e0cd69000d224c673f6b7e6ce9b05df884b6ba74e206754"
+            },
+            {
+              "input": [
+                116987206,
+                -1908840531,
+                -248449280
+              ],
+              "decoded": [
+                -17230522,
+                1965,
+                19986176
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "2e473c055b32512da7f0c9ff3b3b8f52033905047ad992b20029fafa1c1786e3"
+            },
+            {
+              "input": [
+                -1887192780,
+                1394712211,
+                -1196360242
+              ],
+              "decoded": [
+                -8144588,
+                -365,
+                11599310
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "519ac30824dae7a9583c6a933e64798a88a1df874589b621603372b735bdf01f"
+            },
+            {
+              "input": [
+                -630423345,
+                -1040491232,
+                1451893918
+              ],
+              "decoded": [
+                -26443569,
+                -736,
+                -24501090
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "58ecc8617879ee493cb0a6da06ae6c17936b53d505e42b354cb7c9753dc120c1"
+            },
+            {
+              "input": [
+                -1088667584,
+                -1467746808,
+                -804990353
+              ],
+              "decoded": [
+                -14925760,
+                1544,
+                316015
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "7a06a4af6a93e1bf3ca0afa52441d4bb91ca834e42cffdba878edeadfdc8dfac"
+            },
+            {
+              "input": [
+                -1163525800,
+                -1927414311,
+                -1404031541
+              ],
+              "decoded": [
+                -22675112,
+                -551,
+                5254603
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "25e76bace242f65a2934bbd94263a5560c35319e46bdaf543b9bbb6e1c03ccad"
+            },
+            {
+              "input": [
+                1372769207,
+                -1056038545,
+                -1621175235
+              ],
+              "decoded": [
+                30591927,
+                367,
+                -10562499
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "f0191fff3995f60d5b06c085954bf03f58a3cff7757d777dbbddf93613c824de"
+            },
+            {
+              "input": [
+                279344155,
+                1929761342,
+                1125141931
+              ],
+              "decoded": [
+                10908699,
+                574,
+                -15708757
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "00276dcfe8615a0b61d0a2daf718222fd627488f043d9f77e0554d898827364e"
+            },
+            {
+              "input": [
+                -273725583,
+                444304354,
+                152287662
+              ],
+              "decoded": [
+                -5290127,
+                -1054,
+                18069934
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "a8beed49bee911fd986274e93cfac93c697eb92105d3567ee5cd21b0f04d9126"
+            },
+            {
+              "input": [
+                -274782565,
+                595279533,
+                -1650045640
+              ],
+              "decoded": [
+                -6347109,
+                -339,
+                27675960
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "9ff9e105296dd690ae5d6c187de70fa4903bc9801bca455528660d28d016aeb3"
+            },
+            {
+              "input": [
+                50731780,
+                -221006224,
+                2100820597
+              ],
+              "decoded": [
+                -16377084,
+                1648,
+                20445813
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "2d68f0543a38fc49cc59fa1afc536ec4a899e6272d79046026c42f3cd9396f3e"
+            },
+            {
+              "input": [
+                -969448476,
+                313592526,
+                970702120
+              ],
+              "decoded": [
+                -29924380,
+                -1330,
+                31178024
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "27ef726fa219c3ca38e1857f9686b647805ca8509cc89fb6560524ae0a96f4af"
+            },
+            {
+              "input": [
+                1249040362,
+                565178914,
+                -1277002091
+              ],
+              "decoded": [
+                -26028054,
+                546,
+                -1933675
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "c157d2dac89bf43f9625b2c70caaa1e0d77f3b7901871a0b00d082022e16d27a"
+            },
+            {
+              "input": [
+                910039790,
+                1270379869,
+                -1749476442
+              ],
+              "decoded": [
+                -29484306,
+                1373,
+                -4645978
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "71b4c0b340c70967b1d6ffc189c7c9afdfab1acccd3ff7cac1f95b8f9ffd9ebf"
+            },
+            {
+              "input": [
+                -1726081641,
+                -32441152,
+                1995508772
+              ],
+              "decoded": [
+                18748823,
+                -832,
+                -17757148
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "70eaaf7984d86b20562c83d45735f382041ec9fdac37bdeaa751378b88838556"
+            },
+            {
+              "input": [
+                -879051552,
+                -1098893127,
+                1918086994
+              ],
+              "decoded": [
+                -6636320,
+                -1863,
+                -28070062
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "b659a488caac71d7f2b528a475abb3e23e16238eb04c34008deb02038d4bf654"
+            },
+            {
+              "input": [
+                558371761,
+                -1093676414,
+                -576797253
+              ],
+              "decoded": [
+                21500849,
+                642,
+                27182523
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "f882d4e3ec543e01875b413fdbda14274132bd3cbacac36909a56801c6075759"
+            },
+            {
+              "input": [
+                1532509233,
+                276988383,
+                -704948930
+              ],
+              "decoded": [
+                -10994639,
+                479,
+                33248574
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "4ab780a3ebaf9c71f7a0948950ac0d15d6df9afd2f1f1276812a46aa87993228"
+            },
+            {
+              "input": [
+                401389997,
+                994522411,
+                -1106756465
+              ],
+              "decoded": [
+                -1263187,
+                1323,
+                -33014641
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "9d1714298a642c01a59cbe2b2c60bf6a291d2fe7a7eab401acfeaa365c31a6c0"
+            },
+            {
+              "input": [
+                -328692268,
+                2072612513,
+                -1567993362
+              ],
+              "decoded": [
+                6852052,
+                -351,
+                -24489490
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "a9185ee7f9cf3a6680b9636865ac5246673c45077163e5c52994e4f32444fbaf"
+            },
+            {
+              "input": [
+                -1659203469,
+                -1955715765,
+                -1883488095
+              ],
+              "decoded": [
+                18518131,
+                1355,
+                -4439903
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "7692a364b5ca7bdb2b5982df0e0e67014b00461dfd9e982fb5fad1819bd199cc"
+            },
+            {
+              "input": [
+                -1349467153,
+                -218447575,
+                -1027902082
+              ],
+              "decoded": [
+                -7289873,
+                297,
+                -21269122
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "787fc11abd839923945dfc6039f620b6a98feef77d913fb941778d6a80185bb1"
+            },
+            {
+              "input": [
+                -1780142621,
+                -852859763,
+                -1872689525
+              ],
+              "decoded": [
+                31796707,
+                1165,
+                6358667
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "5e9d56949e3cc200d8a112d4d01f11194b242d52e48d954ff325755a3cd7e755"
+            },
+            {
+              "input": [
+                1762385369,
+                1353795130,
+                -689626763
+              ],
+              "decoded": [
+                17554905,
+                1594,
+                -18538123
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "e63dfd49ebfddea91087776488c18d9e9ab87dd8b3cd625876f9d6b187eb95f5"
+            },
+            {
+              "input": [
+                -522876091,
+                -1573642140,
+                1359756752
+              ],
+              "decoded": [
+                13994821,
+                100,
+                17579472
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "7eedf654e92bd14c3619509fd5b3b918a1f293efca45a717b792a8e19b29d912"
+            },
+            {
+              "input": [
+                1269451591,
+                -2088615769,
+                -1808135423
+              ],
+              "decoded": [
+                -5616825,
+                167,
+                3803905
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "f00251f581094fe71c8d67a2e2db3122557c7d8133c4bd5e375847de2e638a0b"
+            },
+            {
+              "input": [
+                1442232082,
+                -896554375,
+                1127062459
+              ],
+              "decoded": [
+                32945938,
+                -1415,
+                -13788229
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "374b45fd31bcfb9bc8af35ad57ff69486fced49d9949e82d657cccf8e7b9b952"
+            },
+            {
+              "input": [
+                -379129615,
+                -985622550,
+                -2035646852
+              ],
+              "decoded": [
+                23523569,
+                2026,
+                -22380932
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "0cac9e242344bbbbccbf6f1e6bc5ea9e8184856c494a5eaee480b0f6dbe4687d"
+            },
+            {
+              "input": [
+                1702596506,
+                -1924548452,
+                -1502151117
+              ],
+              "decoded": [
+                24874906,
+                -1892,
+                -25756109
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "21908db7a0429c0cd341733139f6b52aea45089132748f14fad8cc1300b0bf04"
+            },
+            {
+              "input": [
+                -621753572,
+                496195835,
+                1990558097
+              ],
+              "decoded": [
+                -17773796,
+                -1797,
+                -22707823
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "bd210b2d3ad0a546afa50a7ffc921996723b1ba5d11bfbb73852b009ed5eabed"
+            },
+            {
+              "input": [
+                -1973909655,
+                -2129160148,
+                2032004876
+              ],
+              "decoded": [
+                -27752599,
+                -2004,
+                18738956
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "0c411bcbe3524edda6a93401cc1177ffcead13d68fefd0c37b401f510f426beb"
+            },
+            {
+              "input": [
+                76949194,
+                253353888,
+                -601684127
+              ],
+              "decoded": [
+                9840330,
+                -96,
+                2295649
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "fd533006674a19ae5c6e93a5a1b4367ac667d405cf343ed745f698e3909b7cd7"
+            },
+            {
+              "input": [
+                2038050180,
+                -1174134475,
+                401591223
+              ],
+              "decoded": [
+                24784260,
+                309,
+                -1061961
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "ddf6bc614ded9e2e0b9ce709cdddf629cbcdd6f427367e97716bd055421df639"
+            },
+            {
+              "input": [
+                591881342,
+                -1556018183,
+                -65696145
+              ],
+              "decoded": [
+                -12098434,
+                -1031,
+                1412719
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "2c22172b0f2e0aa8e5c0bc8ba68508b07ea6159e6666796968d6321dd85ff91d"
+            },
+            {
+              "input": [
+                -1544346931,
+                1107858353,
+                621114990
+              ],
+              "decoded": [
+                -843059,
+                945,
+                17135214
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "cca276da03526c8ec29f5c63365872b7986ce4e4dcd584ab6bc26a4e87fe942e"
+            },
+            {
+              "input": [
+                -287154222,
+                2026269426,
+                -646479299
+              ],
+              "decoded": [
+                -18718766,
+                -1294,
+                24609341
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "4dff16e00d517b64a475373acee105c3659eedb5d359eb992a04caf6133dc451"
+            },
+            {
+              "input": [
+                -1595892945,
+                -343018063,
+                -2018767583
+              ],
+              "decoded": [
+                14719791,
+                1457,
+                -5501663
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "2eac3648b1689236f133f071f05977a028b71ebd31e6a0d0f98f4f78ac1a0f20"
+            },
+            {
+              "input": [
+                -1169982120,
+                -1944796703,
+                608742113
+              ],
+              "decoded": [
+                -29131432,
+                481,
+                4762337
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "fe9155f9de37efa50eb6cbfef443852161c084577fc2100307b84aa832018d4d"
+            },
+            {
+              "input": [
+                993481838,
+                1515164501,
+                975044564
+              ],
+              "decoded": [
+                -13151122,
+                853,
+                -31588396
+              ],
+              "encoded_size": 8,
+              "original_codec_sha256": "4e454df146efce64312821efefdc4d4416735c048f614d19e46e8fd6486519b6"
+            }
+          ]
+        },
+        {
+          "optional": true,
+          "serializer_id": 11,
+          "original_output_sha256": "f370a16b75f761c1264634aa009b336bbf8eb563b17a69ecc04e4df3f98d10dc",
+          "truncated_boundaries_rejected": 640,
+          "nonzero_presence_roundtrips": 71,
+          "positions": [
+            {
+              "input": null,
+              "decoded": null,
+              "encoded_size": 1,
+              "original_codec_sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+            },
+            {
+              "input": [
+                0,
+                0,
+                0
+              ],
+              "decoded": [
+                0,
+                0,
+                0
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "a536aa3cede6ea3c1f3e0357c3c60e0f216a8c89b853df13b29daa8f85065dfb"
+            },
+            {
+              "input": [
+                -1,
+                -1,
+                -1
+              ],
+              "decoded": [
+                -1,
+                -1,
+                -1
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "1272f520cf7ca5cf117a0b5a3116518371bf20fb7fac043ac1be568b8c55b96c"
+            },
+            {
+              "input": [
+                33554431,
+                2047,
+                33554431
+              ],
+              "decoded": [
+                33554431,
+                2047,
+                33554431
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "3990b80196b1be0a0d24876732fdf90c15c2e4ea891487fc12c38aa065426dbb"
+            },
+            {
+              "input": [
+                -33554432,
+                -2048,
+                -33554432
+              ],
+              "decoded": [
+                -33554432,
+                -2048,
+                -33554432
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "8b83411fe2771583ae11e7cbd736f1ef0cf03abe8e65b864ff7aadc71c4e9b87"
+            },
+            {
+              "input": [
+                33554432,
+                2048,
+                -33554433
+              ],
+              "decoded": [
+                -33554432,
+                -2048,
+                33554431
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "0a5c47e818d2393cb6eae4ed0df7b4f1ea43882b1dec2b0ec67e4b895a42d735"
+            },
+            {
+              "input": [
+                -2147483648,
+                2147483647,
+                -2147483648
+              ],
+              "decoded": [
+                0,
+                -1,
+                0
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "c3897d7fd83827f191c946ea4c82bfa9b85fbf31c4c6e45c505dc7a80c9a1f86"
+            },
+            {
+              "input": [
+                -12000000,
+                -64,
+                17000000
+              ],
+              "decoded": [
+                -12000000,
+                -64,
+                17000000
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "18942f20609346000ed633451440d03ae27850a764fc7f1473e337475e86b693"
+            },
+            {
+              "input": [
+                -1832797380,
+                381458425,
+                844777086
+              ],
+              "decoded": [
+                -20858052,
+                2041,
+                -27638146
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "bafce28728be95df3c3da5b2fabcdf8c46e19618de61e38d5861051a76796522"
+            },
+            {
+              "input": [
+                -1259964715,
+                -415780610,
+                -2100181433
+              ],
+              "decoded": [
+                15103701,
+                254,
+                -19806649
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "40ba6cea218704cb562b6860a33d69780eb54b55da4262bb5bc7e87e37d3508b"
+            },
+            {
+              "input": [
+                -994330168,
+                -929826760,
+                406655158
+              ],
+              "decoded": [
+                12302792,
+                -1992,
+                4001974
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "09533dd3aeaecd51e9d1acc57e2a3fb1c157cd0f9b53a176d1d77772adf34b27"
+            },
+            {
+              "input": [
+                -224784912,
+                -252522416,
+                -1451747019
+              ],
+              "decoded": [
+                -23458320,
+                80,
+                24647989
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "f4501491023fba5709092838f75494d863e52a823945b1d06fae076d63e63d31"
+            },
+            {
+              "input": [
+                -1712840204,
+                -1770236801,
+                -632286228
+              ],
+              "decoded": [
+                31990260,
+                1151,
+                -28306452
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "30d77127be11b63947e7027fb6f686519ec728d9570ab5633f241ac4cd4176bc"
+            },
+            {
+              "input": [
+                339870912,
+                -2086578849,
+                -1477562719
+              ],
+              "decoded": [
+                4326592,
+                1375,
+                -1167711
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "7b5ee1bf4433643f6d245557ca41c671d6b592ec1fec8f13e93ea2072250f94f"
+            },
+            {
+              "input": [
+                2064233027,
+                -1271533028,
+                2076137909
+              ],
+              "decoded": [
+                -16141757,
+                540,
+                -4236875
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "8cd7f00a3a5d02edfbfae92e8cc19c33f87c95bcc1adec18b680d181a3943b06"
+            },
+            {
+              "input": [
+                -847615273,
+                294798186,
+                -20508493
+              ],
+              "decoded": [
+                24799959,
+                874,
+                -20508493
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "27fafd416ce89c3e17802455229b4f5ba78c1090f747fc041110e6006179c1f1"
+            },
+            {
+              "input": [
+                -1050608368,
+                -1348922521,
+                -146614575
+              ],
+              "decoded": [
+                23133456,
+                871,
+                -12396847
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "0ee7a37136f31b6485140a97a1cfa1439c1877b21770a4e576a05eced8334ced"
+            },
+            {
+              "input": [
+                -71049947,
+                36527722,
+                -978248813
+              ],
+              "decoded": [
+                -3941083,
+                -406,
+                28384147
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "a3c7e43617215f443b906c59838a25ff47cd87f2677c687c7d38d5b3935dbd59"
+            },
+            {
+              "input": [
+                798911072,
+                -280349790,
+                -1121504414
+              ],
+              "decoded": [
+                -6395296,
+                930,
+                19346274
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "396ad792f715f01a2c3f568ca4f8135a47c25d57b1f5dabfb53b688dd45b8f43"
+            },
+            {
+              "input": [
+                -2090128371,
+                724774876,
+                1748611964
+              ],
+              "decoded": [
+                -9753587,
+                -36,
+                3781500
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "79662b730abd278f6f546c9e83f61194929f31dd289be6bcae51407d10899561"
+            },
+            {
+              "input": [
+                1397237311,
+                620774057,
+                -1165998961
+              ],
+              "decoded": [
+                -12048833,
+                681,
+                -25148273
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "d0faea0318dded8d2321e6b9eef33609b1891a7ee5550f9a369c2b2cfc1b9f58"
+            },
+            {
+              "input": [
+                -1842329609,
+                -832204747,
+                -1935271596
+              ],
+              "decoded": [
+                -30390281,
+                53,
+                10885460
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "2e35d2493d3d0ec452d13f8ddff6ca00cc32b4e755cb61f409c9a1bf6632a197"
+            },
+            {
+              "input": [
+                982302504,
+                1854270051,
+                -1758456857
+              ],
+              "decoded": [
+                -24330456,
+                -1437,
+                -13626393
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "dbd70597002bc597ba0e9a47e554d73d5ae45606bc7f43fea5e5515421af5095"
+            },
+            {
+              "input": [
+                1323731012,
+                -129550369,
+                -1317408403
+              ],
+              "decoded": [
+                -18446268,
+                2015,
+                24768877
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "cfc6e33cf249e7bdb9ec4a446885824f41a712fbdb16ecfcd808bca9204146b9"
+            },
+            {
+              "input": [
+                1345575981,
+                -20031632,
+                1603481308
+              ],
+              "decoded": [
+                3398701,
+                1904,
+                -7131428
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "3b56c203063e0f22eebf1250555a9999f0fcc53072d02086bd2ab3697b6da400"
+            },
+            {
+              "input": [
+                -250248783,
+                1574404886,
+                -2001521854
+              ],
+              "decoded": [
+                18186673,
+                790,
+                11744066
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "5239989b6b568ebf64f09c2a9f27e2cbb420033b3802cd40c91223a628ffc789"
+            },
+            {
+              "input": [
+                693892313,
+                -278137966,
+                380888368
+              ],
+              "decoded": [
+                22803673,
+                914,
+                -21764816
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "c6679374befc49c5e9b14a1609e1310e5d07217e9791714357f9d555c8e02646"
+            },
+            {
+              "input": [
+                1779939467,
+                -1487209979,
+                2065384013
+              ],
+              "decoded": [
+                -31999861,
+                -1531,
+                -14990771
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "4c8145c6f96274e1ceb5fde9be943a488ea11dbb98472040c70cff29f1560fc8"
+            },
+            {
+              "input": [
+                2088723718,
+                -2110796873,
+                -289822933
+              ],
+              "decoded": [
+                8348934,
+                -1097,
+                -21387477
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "fef0249682600979fd76c5dcee27459f0ceb419221556a0e70ccb83683499df1"
+            },
+            {
+              "input": [
+                1685837900,
+                -932486423,
+                804695873
+              ],
+              "decoded": [
+                8116300,
+                745,
+                -610495
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "58c8adeb5008ca55e1d55e4071a31fde134cb8e04975948e0468b825f687ab45"
+            },
+            {
+              "input": [
+                -896195309,
+                -1391440712,
+                511372531
+              ],
+              "decoded": [
+                -23780077,
+                -840,
+                -25498381
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "bf6ee2565cf03550de5d97803bd1a9d6f6977c664ed06e10b571b1e901f79580"
+            },
+            {
+              "input": [
+                1273728360,
+                2129442344,
+                -2034571695
+              ],
+              "decoded": [
+                -1340056,
+                1576,
+                -21305775
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "8ab41bf2e64f273d57cd06cd6573080bffe110d3353ab8aa0337e25b7ebecee5"
+            },
+            {
+              "input": [
+                -1102714040,
+                195062051,
+                -773224869
+              ],
+              "decoded": [
+                -28972216,
+                -1757,
+                32081499
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "8d04b9e2d72ecc0de1a482388c230e1ab370a0facee82d7df6525986cc267297"
+            },
+            {
+              "input": [
+                709359489,
+                -452178785,
+                -7165359
+              ],
+              "decoded": [
+                -28838015,
+                -865,
+                -7165359
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "631ad7bd9c8cc4287dc89251f4773969a3bb3489eaab08ae600414045e75fc70"
+            },
+            {
+              "input": [
+                116987206,
+                -1908840531,
+                -248449280
+              ],
+              "decoded": [
+                -17230522,
+                1965,
+                19986176
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "345a5153f7e573e97b902ed36e65859dc6bdcaaa27bcf0ef924cba2629b2f58c"
+            },
+            {
+              "input": [
+                -1887192780,
+                1394712211,
+                -1196360242
+              ],
+              "decoded": [
+                -8144588,
+                -365,
+                11599310
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "5215621fbfcd804e059c027f3e622e10c981ff9365ba1e95b77a76a2da2da742"
+            },
+            {
+              "input": [
+                -630423345,
+                -1040491232,
+                1451893918
+              ],
+              "decoded": [
+                -26443569,
+                -736,
+                -24501090
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "00c482688363e568151ea465470b1505b4d89e3e69e40ad56235ffb74461b0ee"
+            },
+            {
+              "input": [
+                -1088667584,
+                -1467746808,
+                -804990353
+              ],
+              "decoded": [
+                -14925760,
+                1544,
+                316015
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "2286e147a710baae6bb2087ff9792f2f6dcb224eec405bfefd8dab09273ca488"
+            },
+            {
+              "input": [
+                -1163525800,
+                -1927414311,
+                -1404031541
+              ],
+              "decoded": [
+                -22675112,
+                -551,
+                5254603
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "87a3c69289682ed3e699dc8f593aafeccb104cb89dc11bcd5eb0fa45f75a1140"
+            },
+            {
+              "input": [
+                1372769207,
+                -1056038545,
+                -1621175235
+              ],
+              "decoded": [
+                30591927,
+                367,
+                -10562499
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "92a4435671d720b5a1fec984a67de33dc4be4697b470c5d134f47118fb5448bb"
+            },
+            {
+              "input": [
+                279344155,
+                1929761342,
+                1125141931
+              ],
+              "decoded": [
+                10908699,
+                574,
+                -15708757
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "6b38adb212cf29ec3d5bdaacca6f620962a7240124574985ba6c8b5c8f959d27"
+            },
+            {
+              "input": [
+                -273725583,
+                444304354,
+                152287662
+              ],
+              "decoded": [
+                -5290127,
+                -1054,
+                18069934
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "acdc22062b8830443ff6426316cde43656086ac4e980e499764021ee8e6b6b58"
+            },
+            {
+              "input": [
+                -274782565,
+                595279533,
+                -1650045640
+              ],
+              "decoded": [
+                -6347109,
+                -339,
+                27675960
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "fd92e5a5567a359e19d566651b5de1dfefac1d0a3f7f4fdc437292ea47795009"
+            },
+            {
+              "input": [
+                50731780,
+                -221006224,
+                2100820597
+              ],
+              "decoded": [
+                -16377084,
+                1648,
+                20445813
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "84f077669a71a6bb4d957544558629f363cdbc9a4023227bf9f788222b9de47b"
+            },
+            {
+              "input": [
+                -969448476,
+                313592526,
+                970702120
+              ],
+              "decoded": [
+                -29924380,
+                -1330,
+                31178024
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "a6d56e89ceb3ceb7c976200d5693587ed8b720043528927d074f4e1ce7378125"
+            },
+            {
+              "input": [
+                1249040362,
+                565178914,
+                -1277002091
+              ],
+              "decoded": [
+                -26028054,
+                546,
+                -1933675
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "5d81ecabd59db8728203359125309e6d91f09109f84a0e6e8cde82e5d195c381"
+            },
+            {
+              "input": [
+                910039790,
+                1270379869,
+                -1749476442
+              ],
+              "decoded": [
+                -29484306,
+                1373,
+                -4645978
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "1312d7e1c4bc177400fed008152585e52021e2b5c8cd0becea677658163e8409"
+            },
+            {
+              "input": [
+                -1726081641,
+                -32441152,
+                1995508772
+              ],
+              "decoded": [
+                18748823,
+                -832,
+                -17757148
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "1006bd323a37e11de3beea15e2308eaacc7b2a381c6a6bcebb17608cecc8b6b1"
+            },
+            {
+              "input": [
+                -879051552,
+                -1098893127,
+                1918086994
+              ],
+              "decoded": [
+                -6636320,
+                -1863,
+                -28070062
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "f3fb8fcff06d30b5489c91a686c3590d5c624e4c2b9d94db11f097a4b81f7b96"
+            },
+            {
+              "input": [
+                558371761,
+                -1093676414,
+                -576797253
+              ],
+              "decoded": [
+                21500849,
+                642,
+                27182523
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "c8799ec2a44a18610bb18c3d6a1d6b08b91426289cc7cc43140e3fe54ff30db7"
+            },
+            {
+              "input": [
+                1532509233,
+                276988383,
+                -704948930
+              ],
+              "decoded": [
+                -10994639,
+                479,
+                33248574
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "153f6a1d6c4f35d0da2831e13f2ad660adee53e22d35e487b62ab72c1495af82"
+            },
+            {
+              "input": [
+                401389997,
+                994522411,
+                -1106756465
+              ],
+              "decoded": [
+                -1263187,
+                1323,
+                -33014641
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "cd9804785cbdaa6f6702a1fe79ca1b52b28045950deeb00eae9f5368086a395c"
+            },
+            {
+              "input": [
+                -328692268,
+                2072612513,
+                -1567993362
+              ],
+              "decoded": [
+                6852052,
+                -351,
+                -24489490
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "d1d7ac2bea20de845128e16060223bec682e6e8c3e2e0b5b32e65d0a445eaf68"
+            },
+            {
+              "input": [
+                -1659203469,
+                -1955715765,
+                -1883488095
+              ],
+              "decoded": [
+                18518131,
+                1355,
+                -4439903
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "7c8f326d12a26166a204fddade8d0d8092dc4af27b71120b4c40f19ad90d4bf4"
+            },
+            {
+              "input": [
+                -1349467153,
+                -218447575,
+                -1027902082
+              ],
+              "decoded": [
+                -7289873,
+                297,
+                -21269122
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "423092f8eb2e7f60e2ca7ef7ae26fc48f39fb1b0b0eb18295ca179a46e8cc830"
+            },
+            {
+              "input": [
+                -1780142621,
+                -852859763,
+                -1872689525
+              ],
+              "decoded": [
+                31796707,
+                1165,
+                6358667
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "a682dd27ff69cdcc92e35ed5b3cc1c8559dc2f0f6064c98cf82913eaa129962e"
+            },
+            {
+              "input": [
+                1762385369,
+                1353795130,
+                -689626763
+              ],
+              "decoded": [
+                17554905,
+                1594,
+                -18538123
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "a7cf6f18107e4f98614d07c7dd6d69b8abbe60d3d59bf6679139206a9b9a43f7"
+            },
+            {
+              "input": [
+                -522876091,
+                -1573642140,
+                1359756752
+              ],
+              "decoded": [
+                13994821,
+                100,
+                17579472
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "48fe7a01428c21e8d7e43e86b2ecc32cd7da42ce2abafca4a2707daf8d81e034"
+            },
+            {
+              "input": [
+                1269451591,
+                -2088615769,
+                -1808135423
+              ],
+              "decoded": [
+                -5616825,
+                167,
+                3803905
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "3756eb2fb4f4674e890d897acb7a59cf01878803d75484acfceb449eb6ca0efa"
+            },
+            {
+              "input": [
+                1442232082,
+                -896554375,
+                1127062459
+              ],
+              "decoded": [
+                32945938,
+                -1415,
+                -13788229
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "39bdd006a7726093f253bb9f470e527aaa922e02e247caa7c8a2c5d1dd763a5a"
+            },
+            {
+              "input": [
+                -379129615,
+                -985622550,
+                -2035646852
+              ],
+              "decoded": [
+                23523569,
+                2026,
+                -22380932
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "ea46417d78ba8aee378c5a037d6ae4fdeaef919393d8189259e6d91468ee06c3"
+            },
+            {
+              "input": [
+                1702596506,
+                -1924548452,
+                -1502151117
+              ],
+              "decoded": [
+                24874906,
+                -1892,
+                -25756109
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "99520f8114e5a82ace6242e957b7007982ed3f7ff9342df887d3a20d2375365c"
+            },
+            {
+              "input": [
+                -621753572,
+                496195835,
+                1990558097
+              ],
+              "decoded": [
+                -17773796,
+                -1797,
+                -22707823
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "3e7b4c5aefbfcd2e8b7953a2786a82c571e9359022adf1ce0ea1a8cbd28d05d3"
+            },
+            {
+              "input": [
+                -1973909655,
+                -2129160148,
+                2032004876
+              ],
+              "decoded": [
+                -27752599,
+                -2004,
+                18738956
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "0b6f89b0b0614d88055df2d26c63b27fbf09b628784aa3bb8e39df6e5aa00919"
+            },
+            {
+              "input": [
+                76949194,
+                253353888,
+                -601684127
+              ],
+              "decoded": [
+                9840330,
+                -96,
+                2295649
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "3c0293051060fa5d47cfb616296874bdd0824ff53514e6db815aa8bfff6b7bbd"
+            },
+            {
+              "input": [
+                2038050180,
+                -1174134475,
+                401591223
+              ],
+              "decoded": [
+                24784260,
+                309,
+                -1061961
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "80377c27f79b0fe83f2d651133b339e4f9804d299613eed3f056020eb1b0e74a"
+            },
+            {
+              "input": [
+                591881342,
+                -1556018183,
+                -65696145
+              ],
+              "decoded": [
+                -12098434,
+                -1031,
+                1412719
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "35349eb2b09b68540b0e6b2c235c8c3b88d4461eae4a9064f6ecc055dcb0401a"
+            },
+            {
+              "input": [
+                -1544346931,
+                1107858353,
+                621114990
+              ],
+              "decoded": [
+                -843059,
+                945,
+                17135214
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "a9348d3662819bc07d142c80b877cdab463ef923bac131791cbf71c6a4241307"
+            },
+            {
+              "input": [
+                -287154222,
+                2026269426,
+                -646479299
+              ],
+              "decoded": [
+                -18718766,
+                -1294,
+                24609341
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "3398f8acfd901b6f7968ee99e2dcd08038758ff89d01d46a83c82dcfdf8acc36"
+            },
+            {
+              "input": [
+                -1595892945,
+                -343018063,
+                -2018767583
+              ],
+              "decoded": [
+                14719791,
+                1457,
+                -5501663
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "53c7aba0f076cdba663bf5ac1f1aa4f1be2abbeaa524683135944543f676e6ea"
+            },
+            {
+              "input": [
+                -1169982120,
+                -1944796703,
+                608742113
+              ],
+              "decoded": [
+                -29131432,
+                481,
+                4762337
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "4faa63b221f2541f205e13aee77408c631360ef59fa2e5d52db9df60c5987dcb"
+            },
+            {
+              "input": [
+                993481838,
+                1515164501,
+                975044564
+              ],
+              "decoded": [
+                -13151122,
+                853,
+                -31588396
+              ],
+              "encoded_size": 9,
+              "original_codec_sha256": "bab9a6e8e5c98898476cd8d4c3881d675cdb98f554d4df5f80bc2bd8cab124b6"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

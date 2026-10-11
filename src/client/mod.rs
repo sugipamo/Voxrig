@@ -107,10 +107,10 @@ pub use entity::{
     EntityId, EntityMotionObservation, EntityObservation, EntityPartEvidence, EntityPartId,
     EntityPartKind, EntityPartModel, EntityPartObservation, EntityPartState, EntityPartUnavailable,
     EntityPose, EntityPoseReading, EntityPosition, EntityPositionCorrection, EntityScaleReading,
-    EntitySpawn, EntitySpawns, EquipmentSlot, LivingInterpolation, LivingInterpolationFrame,
-    LivingInterpolationPose, LivingInterpolationUnavailable, LivingPairPushDisposition,
-    LivingPairPushInput, LivingPairPushModel, LivingPairPushUnavailable, LivingPushBody,
-    model_living_pair_push,
+    EntitySleepingReading, EntitySpawn, EntitySpawns, EquipmentSlot, LivingInterpolation,
+    LivingInterpolationFrame, LivingInterpolationPose, LivingInterpolationUnavailable,
+    LivingPairPushDisposition, LivingPairPushInput, LivingPairPushModel, LivingPairPushUnavailable,
+    LivingPushBody, model_living_pair_push,
 };
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
 pub use item::ItemProperties;
@@ -155,13 +155,13 @@ pub mod prelude {
         EntitiesObservation, EntityGeometry, EntityGeometryEvidence, EntityGeometryModel,
         EntityGeometryUnavailable, EntityObservation, EntityPartEvidence, EntityPartId,
         EntityPartKind, EntityPartModel, EntityPartObservation, EntityPartState,
-        EntityPartUnavailable, EntityPose, EntityPoseReading, EntityScaleReading, EquipmentSlot,
-        LivingContactBody, LivingContactCandidate, LivingContactDisposition, LivingContactPlayer,
-        LivingContactResult, LivingContactsModel, LivingContactsUnavailable, LivingInterpolation,
-        LivingInterpolationFrame, LivingInterpolationPose, LivingInterpolationUnavailable,
-        LivingPairPushDisposition, LivingPairPushInput, LivingPairPushModel,
-        LivingPairPushUnavailable, LivingPushBody, MAX_LIVING_CONTACT_CANDIDATES,
-        model_living_contacts, model_living_pair_push,
+        EntityPartUnavailable, EntityPose, EntityPoseReading, EntityScaleReading,
+        EntitySleepingReading, EquipmentSlot, LivingContactBody, LivingContactCandidate,
+        LivingContactDisposition, LivingContactPlayer, LivingContactResult, LivingContactsModel,
+        LivingContactsUnavailable, LivingInterpolation, LivingInterpolationFrame,
+        LivingInterpolationPose, LivingInterpolationUnavailable, LivingPairPushDisposition,
+        LivingPairPushInput, LivingPairPushModel, LivingPairPushUnavailable, LivingPushBody,
+        MAX_LIVING_CONTACT_CANDIDATES, model_living_contacts, model_living_pair_push,
     };
     pub use super::events::{ClientEvent, EventKind, EventLog};
     pub use super::inventory::{

@@ -17,6 +17,7 @@ mod geometry;
 mod interpolation;
 mod pose;
 mod push;
+mod sleeping;
 pub use geometry::{
     EntityGeometry, EntityGeometryEvidence, EntityGeometryModel, EntityGeometryUnavailable,
     EntityScaleReading,
@@ -30,6 +31,9 @@ pub use push::{
     LivingPairPushDisposition, LivingPairPushInput, LivingPairPushModel, LivingPairPushUnavailable,
     LivingPushBody, model_living_pair_push,
 };
+pub use sleeping::EntitySleepingReading;
+#[cfg(test)]
+pub(crate) use sleeping::original_position_packets;
 mod history;
 mod motion;
 pub use history::{
