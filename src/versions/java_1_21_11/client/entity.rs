@@ -148,6 +148,24 @@ fn common_metadata(payload: &[u8]) -> Option<DecodedMetadata> {
             3 => r.f32().ok().map(V::Float),
             4 => r.string().ok().map(V::String),
             8 => r.bool().ok().map(V::Bool),
+            10 => r.take(8).ok().map(|bytes| {
+                V::BlockPosition(crate::client::BlockPos::unpack(u64::from_be_bytes(
+                    bytes.try_into().expect("eight bytes"),
+                )))
+            }),
+            // The original optional-position codec uses Netty readBoolean:
+            // any nonzero byte means present. Keep this local to this codec.
+            11 => (|| -> anyhow::Result<V> {
+                let value = if r.u8()? != 0 {
+                    Some(crate::client::BlockPos::unpack(u64::from_be_bytes(
+                        r.take(8)?.try_into()?,
+                    )))
+                } else {
+                    None
+                };
+                Ok(V::OptionalBlockPosition(value))
+            })()
+            .ok(),
             20 => r.varint().ok().map(V::Pose),
             _ => super::players::skip_metadata(&mut r, kind)
                 .ok()
@@ -333,6 +351,30 @@ fn coordinates(r: &mut Reader<'_>) -> anyhow::Result<[f64; 3]> {
 #[cfg(test)]
 mod common_metadata_tests {
     use super::*;
+    #[test]
+    fn original_position_codecs_preserve_values_and_boundaries() {
+        use crate::client::EntityDataValue as V;
+        for (packet, value) in
+            crate::client::entity::original_position_packets(crate::MinecraftVersion::Java1_21_11)
+        {
+            let (_, entries, complete) = common_metadata(&packet).unwrap();
+            assert!(complete);
+            assert_eq!(entries, [(30, value.clone()), (31, V::Byte(42))]);
+            if matches!(value, V::OptionalBlockPosition(Some(_))) {
+                let mut nonzero = packet.clone();
+                nonzero[3] = 255;
+                assert_eq!(common_metadata(&nonzero).unwrap().1, entries);
+            }
+            for length in 3..packet.len() - 4 {
+                let (_, entries, complete) = common_metadata(&packet[..length]).unwrap();
+                assert!(entries.is_empty() && !complete);
+            }
+            let mut trailing = packet.clone();
+            trailing.push(0);
+            assert!(!common_metadata(&trailing).unwrap().2);
+        }
+    }
+
     use crate::client::EntityDataValue as V;
 
     #[test]

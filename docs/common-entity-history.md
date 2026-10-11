@@ -62,7 +62,8 @@ legacyのown補正にはvelocityがないため`None`である。
 `Metadata`／`Equipment`は**その1 packetの差分**を保存する。後からの現在状態をコピーせず、
 元のentry順序と重複index／slotを保つ。値の出典はrecordの`receive_sequence`で、受信済みの
 値だけを持ち、pose・子供状態・healthの既定値を補わない。metadataのindex・serializerは版固有。
-既存decoderの`Other(n)`はserializer番号だけで、その型のpayloadを完全保存した意味ではない。
+位置serializerは`BlockPosition` / `OptionalBlockPosition`として符号付き座標と明示的な空値を保持する。
+`Other(n)`はserializer番号だけで、その型のpayloadを完全保存した意味ではない。
 
 - `complete:true`は共通decoderがpacketを最後まで読み、余分なbyteがなかったことを示す。
   `false`なら解読できた範囲だけを保存する。modern版で未知serializer／slot／itemがある場合も、

@@ -513,6 +513,18 @@ pub(crate) fn common_metadata(payload: &[u8]) -> Result<CommonMetadata> {
             (2, MetadataValue::Float(v)) => V::Float(v),
             (3, MetadataValue::String(v)) => V::String(v),
             (7, MetadataValue::Bool(v)) => V::Bool(v),
+            (9, MetadataValue::Position(v)) => V::BlockPosition(crate::client::BlockPos {
+                x: v.x,
+                y: v.y,
+                z: v.z,
+            }),
+            (10, MetadataValue::OptionalPosition(v)) => {
+                V::OptionalBlockPosition(v.map(|v| crate::client::BlockPos {
+                    x: v.x,
+                    y: v.y,
+                    z: v.z,
+                }))
+            }
             (18, MetadataValue::VarInt(v)) => V::Pose(v),
             _ => V::Other(kind),
         };
@@ -610,6 +622,29 @@ fn take_u64(rest: &mut &[u8]) -> Result<u64> {
 #[cfg(test)]
 mod common_metadata_tests {
     use super::*;
+    #[test]
+    fn original_position_codecs_preserve_values_and_boundaries() {
+        use crate::client::EntityDataValue as V;
+        for (packet, value) in
+            crate::client::entity::original_position_packets(crate::MinecraftVersion::Java1_16_1)
+        {
+            let (_, entries, complete) = common_metadata(&packet).unwrap();
+            assert!(complete);
+            assert_eq!(entries, [(30, value.clone()), (31, V::Byte(42))]);
+            if matches!(value, V::OptionalBlockPosition(Some(_))) {
+                let mut nonzero = packet.clone();
+                nonzero[3] = 255;
+                assert_eq!(common_metadata(&nonzero).unwrap().1, entries);
+            }
+            for length in 3..packet.len() - 4 {
+                assert!(common_metadata(&packet[..length]).is_err());
+            }
+            let mut trailing = packet.clone();
+            trailing.push(0);
+            assert!(!common_metadata(&trailing).unwrap().2);
+        }
+    }
+
     use crate::client::EntityDataValue as V;
 
     #[test]

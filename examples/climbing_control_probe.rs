@@ -190,6 +190,9 @@ async fn main() -> anyhow::Result<()> {
                 .filter(|entity| entity.motion.entity.type_name.as_deref() == Some("minecraft:player"))
                 .map(|entity| serde_json::json!({"entity":entity.motion.entity,"pose":entity.pose()}))
                 .collect::<Vec<_>>()),
+            "entity_sleeping" => serde_json::json!(client.entities().await?.entities.iter()
+                .map(|entity| serde_json::json!({"entity":entity.motion.entity,"sleeping":entity.sleeping(),"pose":entity.pose()}))
+                .collect::<Vec<_>>()),
             "use_item" => serde_json::to_value(survival.use_item(Hand::Main).await?)?,
             "map_context" => {
                 let context = client
