@@ -1,0 +1,94 @@
+{
+  "scope": "Explicit version-aware entity pose receipts only. Public results and hashes; original packet/NBT reports remain local.",
+  "qualification": {
+    "source_revision": "8d26052c50b2ac9d3b080c943a3a1c6b149cd2d1",
+    "binary_build_revision": "8d26052c50b2ac9d3b080c943a3a1c6b149cd2d1",
+    "binary_sha256": "d195634a67614750fa17c698d50fd21250ccf200c8f48fa76f7cb3bd8e878c68",
+    "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "artifacts": {
+      "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+      "examples/climbing_control_probe.rs": "386514e5a2e876e9baa878f95887b173cbef409a18849901d8516c91cfd8dac8",
+      "scripts/EntityPoseOracle.java": "1c8e6925b59d0eca43574ec042cd8909230e1e76abdc8e156107324689579508",
+      "scripts/run_entity_pose_oracle.py": "3448d0d91070af24832a829ae558fb40366bc2157726d48a50ea6f2617a9d69d",
+      "scripts/run_entity_pose_live.py": "74de1d5f909adad40b2a11752c04c60c14545c188c210a99766bcf5ed322500b",
+      "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+      "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+      "data/client_api/entity_pose_oracle.json": "10cea5316f941bcfc88f841c44d49b14ba5f759b0042308041f9397674b2cc53"
+    }
+  },
+  "native_oracle": {
+    "fixture": "data/client_api/entity_pose_oracle.json",
+    "fixture_sha256": "10cea5316f941bcfc88f841c44d49b14ba5f759b0042308041f9397674b2cc53",
+    "original_roundtrip_count": 25,
+    "versions": {
+      "1.16.1": {
+        "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+        "metadata_index": 6,
+        "serializer_id": 18,
+        "original_output_sha256": "6e72c7f4f2ce1c225aa6157ba6e10230db751c0bced3654a83c42f7b54abe2bf"
+      },
+      "1.21.11": {
+        "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+        "metadata_index": 6,
+        "serializer_id": 20,
+        "original_output_sha256": "e7b25aebfcaf733e9bcf10eebbf85f5356852f7556158d16bc21b209109f4845"
+      }
+    }
+  },
+  "runs": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "check_count": 4,
+      "check_names": [
+        "original_peer_spawn",
+        "received_crouching",
+        "received_standing",
+        "removed_peer_not_observed"
+      ],
+      "trace_error_count": 0,
+      "peer_trace_error_count": 0,
+      "raw_report_sha256": "ddf5cac816bba353eae67fd034ae38b27348736d83b6991edb8b82574a96e594",
+      "original_observer_packets_sha256": "b943917597526207301a846585d9e0f3526ce8ad5447f1e9c0e7a0d3133550f8",
+      "original_peer_packets_sha256": "02cfc382a8e757f7c3b79b530a48991c845daa4bf87406d8230b605ff15087be"
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "check_count": 4,
+      "check_names": [
+        "original_peer_spawn",
+        "received_crouching",
+        "received_standing",
+        "removed_peer_not_observed"
+      ],
+      "trace_error_count": 0,
+      "peer_trace_error_count": 0,
+      "raw_report_sha256": "e2c3f67ae1ecd0577bffe1dd589f1784d48e786e180019ee94fd8904b5e75842",
+      "original_observer_packets_sha256": "217ecd3ffd8747d99bcf67cea31212126db379b610f944c9e57a5fa7365802d4",
+      "original_peer_packets_sha256": "8b3b4dedcaf87f608936743fbc3648e88ffe507587515bae0d7e1eb8300f1095"
+    }
+  ],
+  "validation": {
+    "unit_passed": 977,
+    "unit_ignored": 8,
+    "integration_passed": 4,
+    "doctests_passed": 34,
+    "doctests_ignored": 1,
+    "trace_tests_passed": 6,
+    "final_pose_tests_passed": 2,
+    "strict_native_clippy": true,
+    "strict_native_rustdoc": true,
+    "package_allowlist": true
+  },
+  "limits": [
+    "Pose is an explicit latest receipt, not server-current state, geometry or interpolation.",
+    "Type defaults do not synthesize pose. Unknown native IDs retain their number without a known common name.",
+    "Incomplete metadata remains latched for the spawn lifetime; explicitly received pose remains readable.",
+    "Default-dimension bounding boxes are unchanged. Scale, baby geometry, general interpolation/push, elytra and additional mounts remain in #44."
+  ]
+}
