@@ -50,6 +50,53 @@ ground.stop_control_for(owner.session_id).await?;
 [結果・ハッシュ](evidence/common-ground-modes-20261011.json)と`run_ground_modes.py`を参照。
 元packet／NBTは非公開のローカル記録に保持する。
 
+## Creative・Spectatorの連続飛行
+
+`client.player_control(GameMode::Creative | GameMode::Spectator)`の
+`start_flight_control(Controls)`は、最初のtickから適用するキーを明示して飛行モデルを開始する。
+Creativeは先に既存の`client.creative().set_flying(true)`で飛行を有効にする。
+Spectatorは原版から受信した飛行状態を使う。現在worldの原版abilitiesと飛行速度が必要で、
+未受信の速度を0.05で補わない。速度0は原版どおり受け付ける。
+
+```rust,no_run
+use voxrig::client::control::Controls;
+use voxrig::client::prelude::*;
+# async fn fly(client: &Client) -> Result<()> {
+client.creative().set_flying(true).await?;
+let flight = client.player_control(GameMode::Creative);
+let owner = flight.start_flight_control(Controls { jump: true, ..Default::default() }).await?;
+flight.set_controls_for(owner.session_id, Controls { forward: 1, sprint: true, yaw: 37.0, ..Default::default() }).await?;
+flight.stop_control_for(owner.session_id).await?;
+# Ok(())
+# }
+```
+
+ジャンプは上昇、しゃがみは下降となり、地上ジャンプのqueueは受け付けない。
+ダッシュと原版の飛行速度で横方向の加速を計算する。水中でも泳ぎへ切り替わらない。
+Creativeはブロックに衝突し、Spectatorは原版のnoPhysicsでブロックを通過する。
+旧版の箱中心による座標丸めと、最新版の直接座標加算をそれぞれ使う。
+
+`ControlRecord.kind`は`ground`または`flight`。`flight_parameters`は最後にモデルが使った
+受信速度とそのordinalであり、現在のabilitiesやサーバーの承認を表さない。
+`ControlFrame.flying`もモデルの結果である。
+モード変更、飛行解除、権限喪失は旧ownerを終了し、同じtick内に復元されても再開しない。
+停止は入力を解除するが、飛行の無効化や物理的な静止を意味しない。
+再開は新しいIDと明示的な初期キーを使う。
+
+Creativeがモデル上で着地したtickでは、原版clientの順序でabilitiesの解除、移動、入力解除を送る。
+`flight_disable`は解除前の受信ordinalと完全書込みの有無を保持する。
+移動や入力解除の書込みが失敗しても解除の結果を隠さず、旧ownerは再送しない。
+着地は飛行ownerを終了するため、地上の継続は`start_control()`で明示する。
+古い受信飛行フラグに対するローカル解除と、新しい原版abilities通知を区別する。
+worldが変わった場合には旧worldの入力解除を送らない。
+
+有限の`set_flying`・`move_flying`・`land`の意味はそのままで、このAPIに暗黙変換しない。
+エリトラ、乗車、浮遊効果、未監査の地形・姿勢は別の対応範囲である。
+原版比較は両版38シナリオ・1,424 tick（離陸、速度0、昇降、ダッシュ、壁、水、着地、
+クモの巣、Spectatorのハチミツ通過）で行う。
+実接続の再現には`run_flight_control.py`とビルド済み`climbing_control_probe`を使う。
+原packet/NBTは`.local`に保持し、公開証跡は結果とハッシュだけにする。
+
 ## 動き
 
 - sessionを記録する呼び手は、`set_controls_for(id, controls)`と`stop_control_for(id)`で対象を指定する。

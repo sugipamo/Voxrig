@@ -96,7 +96,16 @@ public final class MovementOracle {
                 }
             }
             if (isInWater() && keys.shift() && isAffectedByFluids()) goDownInWater();
+            // Original LocalPlayer.aiStep, audited against the pinned original
+            // client JAR: held vertical flight input precedes LivingEntity.aiStep.
+            if (getAbilities().flying) {
+                int vertical = (keys.jump() ? 1 : 0) - (keys.shift() ? 1 : 0);
+                if (vertical != 0) setDeltaMovement(getDeltaMovement().add(0.0, (float)vertical * getAbilities().getFlyingSpeed() * 3.0F, 0.0));
+            }
             super.aiStep();
+            // LocalPlayer clears Creative flight after native landing. Spectator
+            // remains flying; no movement/travel/collision method is overridden.
+            if (onGround() && getAbilities().flying && !isSpectator()) getAbilities().flying = false;
         }
 
         boolean hasForwardImpulse() { return moveVector.y > 1.0E-5F; }
@@ -352,10 +361,15 @@ public final class MovementOracle {
         if (scenario.has("game_mode")) {
             player.mode = net.minecraft.world.level.GameType.valueOf(scenario.get("game_mode").getAsString().toUpperCase(java.util.Locale.ROOT));
             player.mode.updatePlayerAbilities(player.getAbilities());
-            if (player.getAbilities().flying || player.mode == net.minecraft.world.level.GameType.SPECTATOR)
+            if ((!scenario.has("flight") || !scenario.get("flight").getAsBoolean()) && (player.getAbilities().flying || player.mode == net.minecraft.world.level.GameType.SPECTATOR))
                 throw new IllegalArgumentException("ground scenario cannot enable flight");
         }
         if (scenario.has("food")) player.getFoodData().setFoodLevel(scenario.get("food").getAsInt());
+        if (scenario.has("flight") && scenario.get("flight").getAsBoolean()) {
+            if (!player.getAbilities().mayfly) throw new IllegalArgumentException("flight requires native mode permission");
+            player.getAbilities().flying = true; // Explicit caller flight toggle, not a receipt.
+            if (scenario.has("flying_speed")) player.getAbilities().setFlyingSpeed(scenario.get("flying_speed").getAsFloat());
+        }
         JsonArray start = scenario.getAsJsonArray("start");
         player.setPos(origin.getX() + start.get(0).getAsDouble(), origin.getY() + start.get(1).getAsDouble(), origin.getZ() + start.get(2).getAsDouble());
         player.setOnGround(scenario.has("on_ground") ? scenario.get("on_ground").getAsBoolean() : true);
@@ -400,6 +414,7 @@ public final class MovementOracle {
         initial.addProperty("food", player.getFoodData().getFoodLevel());
         initial.addProperty("may_fly", player.getAbilities().mayfly);
         initial.addProperty("flying", player.getAbilities().flying);
+        initial.addProperty("ability_flying_speed", Float.toString(player.getAbilities().getFlyingSpeed()));
         initial.addProperty("game_mode", player.mode.getName());
         JsonArray frames = new JsonArray();
         for (JsonElement e : scenario.getAsJsonArray("ticks")) {
@@ -431,6 +446,7 @@ public final class MovementOracle {
             f.addProperty("crouching", player.crouching);
             f.addProperty("pose", player.getPose().name());
             f.addProperty("in_water", player.isInWater());
+            f.addProperty("flying", player.getAbilities().flying);
             f.addProperty("swimming", player.isSwimming());
             f.addProperty("using", player.isUsingItem());
             f.addProperty("speed", Float.toString(player.getSpeed()));

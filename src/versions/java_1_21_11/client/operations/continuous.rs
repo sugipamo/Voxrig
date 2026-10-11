@@ -21,12 +21,14 @@ pub(in crate::versions::java_1_21_11::client) struct ContinuousControl {
     next_id: u64,
     generation: Option<u64>,
     model_attempt: Option<u64>,
+    // Complete local disable wins only over older abilities in the same world.
+    flight_disabled: Option<(u64, u64)>,
 }
 
 impl ContinuousControl {
-    pub(super) fn observe_flying(&mut self, flying: bool, sequence: u64) {
+    pub(super) fn observe_abilities(&mut self, flags: u8, sequence: u64) {
         if let Some(session) = &mut self.session {
-            session.observe_flying(flying, sequence);
+            session.observe_abilities(flags, sequence);
         }
     }
     pub(super) fn observe_mode(&mut self, mode: GameMode, sequence: u64) {
@@ -127,7 +129,16 @@ fn received(state: &State) -> Received {
                 &player.inventory.slots,
             )
         });
+    let abilities_sequence = state.context.abilities.as_ref().and_then(|a| {
+        environment.may_fly = a.value.may_fly();
+        environment.ability_flying_speed = Some(a.value.flying_speed);
+        match a.source {
+            crate::client::ValueSource::Received { sequence } => Some(sequence),
+            _ => None,
+        }
+    });
     Received {
+        abilities_sequence,
         environment,
         using_item,
         pose: state
@@ -140,7 +151,12 @@ fn received(state: &State) -> Received {
 }
 
 /// Why the session must end, from facts outside the engine's scope.
-fn stop_reason(state: &State, generation: u64, mode: GameMode) -> Option<&'static str> {
+fn stop_reason(
+    state: &State,
+    generation: u64,
+    mode: GameMode,
+    kind: crate::client::control::ControlKind,
+) -> Option<&'static str> {
     if state.loading.generation != generation {
         Some("world changed (respawn, dimension or reconfiguration)")
     } else if state.operations.game_mode != Some(mode)
@@ -151,8 +167,16 @@ fn stop_reason(state: &State, generation: u64, mode: GameMode) -> Option<&'stati
             .is_some_and(|s| s.running() && s.mode_change_sequence.is_some())
     {
         Some("game mode changed")
-    } else if state.operations.requested_flying
-        || state.operations.abilities.is_some_and(|a| a & 2 != 0)
+    } else if (kind == crate::client::control::ControlKind::Ground
+        && (state.operations.requested_flying
+            || (state.operations.abilities.is_some_and(|a| a & 2 != 0)
+                && !state.control.flight_disabled.is_some_and(|(world, after)| {
+                    world == generation
+                        && state
+                            .operations
+                            .abilities_sequence
+                            .is_some_and(|sequence| sequence <= after)
+                }))))
         || state
             .control
             .session
@@ -160,6 +184,31 @@ fn stop_reason(state: &State, generation: u64, mode: GameMode) -> Option<&'stati
             .is_some_and(|s| s.running() && s.flight_change_sequence.is_some())
     {
         Some("flying")
+    } else if kind == crate::client::control::ControlKind::Flight
+        && crate::client::control::flight_admission(
+            state.context.abilities.as_ref(),
+            state.operations.requested_flying,
+            state.control.flight_disabled.is_some_and(|(world, after)| {
+                world == generation
+                    && state
+                        .operations
+                        .abilities_sequence
+                        .is_some_and(|sequence| sequence <= after)
+            }),
+        )
+        .is_some()
+    {
+        crate::client::control::flight_admission(
+            state.context.abilities.as_ref(),
+            state.operations.requested_flying,
+            state.control.flight_disabled.is_some_and(|(world, after)| {
+                world == generation
+                    && state
+                        .operations
+                        .abilities_sequence
+                        .is_some_and(|sequence| sequence <= after)
+            }),
+        )
     } else if state.vehicles.motion_interrupted()
         || state.operations.local_player.motion_interruption.is_some()
     {
@@ -263,7 +312,13 @@ impl Operations {
         release.map(|()| Some(record))
     }
 
-    async fn run_control(&self, id: u64, generation: u64, mode: GameMode) {
+    async fn run_control(
+        &self,
+        id: u64,
+        generation: u64,
+        mode: GameMode,
+        kind: crate::client::control::ControlKind,
+    ) {
         let mut interval = tokio::time::interval(Duration::from_millis(50));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {
@@ -279,7 +334,7 @@ impl Operations {
             }
             let stop = match self.ready(&state) {
                 Err(e) => Some(e.to_string()),
-                Ok(()) => stop_reason(&state, generation, mode).map(str::to_owned),
+                Ok(()) => stop_reason(&state, generation, mode, kind).map(str::to_owned),
             };
             if let Some(reason) = stop {
                 // Send releases only in the original, ready world.
@@ -349,7 +404,24 @@ impl Operations {
                 state.control.session = Some(session);
                 return;
             }
+            let landed =
+                kind == crate::client::control::ControlKind::Flight && session.body.flight_landed;
+            if landed {
+                session.flight_disable = Some(crate::client::control::FlightDisable {
+                    after_sequence: state.sequence,
+                    dispatched: false,
+                });
+            }
             let written: Result<()> = async {
+                if landed {
+                    self.bot
+                        .session
+                        .send(ids::play_serverbound::ABILITIES, &[0])
+                        .await?;
+                    state.operations.requested_flying = false;
+                    session.flight_disable.as_mut().unwrap().dispatched = true;
+                    state.control.flight_disabled = Some((generation, state.sequence));
+                }
                 if let Some(bits) = output.input {
                     self.bot
                         .session
@@ -384,10 +456,25 @@ impl Operations {
                     state.motion.dispatched();
                     state.motion.on_ground = Some(output.on_ground);
                     session.dispatched(&output);
+                    if landed {
+                        session.status = ControlStatus::Stopped {
+                            reason: "creative flight model landed".into(),
+                        };
+                        if let Err(error) = self.write_release(&session, entity).await {
+                            session.status = ControlStatus::Stopped {
+                                reason: format!(
+                                    "creative flight model landed; release write failed: {error}"
+                                ),
+                            };
+                        }
+                    }
                     state.control.model_attempt =
                         state.motion.last_submission.as_ref().map(|s| s.attempt_id);
                     state.control.session = Some(session);
                     self.bot.session.changed.notify_waiters();
+                    if landed {
+                        return;
+                    }
                 }
                 Err(error) => {
                     session.status = ControlStatus::Stopped {
@@ -401,8 +488,31 @@ impl Operations {
     }
 }
 
-impl crate::client::adapter::ControlOps for Operations {
-    async fn start_control(&self, mode: GameMode) -> Result<ControlRecord> {
+impl Operations {
+    async fn start_control_inner(
+        &self,
+        mode: GameMode,
+        initial_flight_controls: Option<Controls>,
+    ) -> Result<ControlRecord> {
+        let kind = if initial_flight_controls.is_some() {
+            crate::client::control::ControlKind::Flight
+        } else {
+            crate::client::control::ControlKind::Ground
+        };
+        match kind {
+            crate::client::control::ControlKind::Ground => {
+                crate::client::control::validate_ground_mode(mode)?
+            }
+            crate::client::control::ControlKind::Flight
+                if matches!(mode, GameMode::Creative | GameMode::Spectator) => {}
+            _ => return Err(invalid("held flight requires Creative or Spectator mode")),
+        }
+        if let Some(controls) = initial_flight_controls {
+            crate::client::operations::validate_rotation([controls.yaw, controls.pitch])?;
+            if !(-1..=1).contains(&controls.forward) || !(-1..=1).contains(&controls.strafe) {
+                return Err(invalid("controls out of range"));
+            }
+        }
         let mut state = self.bot.session.state.lock().await;
         self.ready(&state)?;
         if state.operations.game_mode != Some(mode) {
@@ -410,7 +520,7 @@ impl crate::client::adapter::ControlOps for Operations {
                 "continuous control requires matching received mode",
             ));
         }
-        crate::client::control::validate_ground_mode(mode)?;
+
         if state.control.active() {
             return Err(invalid("a control session is already running"));
         }
@@ -422,7 +532,7 @@ impl crate::client::adapter::ControlOps for Operations {
             return Err(invalid("a finite motion run is in progress"));
         }
         let generation = state.loading.generation;
-        if let Some(reason) = stop_reason(&state, generation, mode) {
+        if let Some(reason) = stop_reason(&state, generation, mode, kind) {
             return Err(invalid(reason));
         }
         let Some(position) = state.position else {
@@ -495,6 +605,10 @@ impl crate::client::adapter::ControlOps for Operations {
             session.inherit_item_release(previous);
         }
         session.mode = mode;
+        session.kind = kind;
+        if let Some(controls) = initial_flight_controls {
+            session.controls = controls;
+        }
         state.control.next_id = id;
         state.control.generation = Some(generation);
         state.control.model_attempt = attempt;
@@ -502,8 +616,22 @@ impl crate::client::adapter::ControlOps for Operations {
         state.control.session = Some(session);
         drop(state);
         let ops = self.clone();
-        tokio::spawn(async move { ops.run_control(id, generation, mode).await });
+        tokio::spawn(async move { ops.run_control(id, generation, mode, kind).await });
         Ok(record)
+    }
+}
+
+impl crate::client::adapter::ControlOps for Operations {
+    async fn start_control(&self, mode: GameMode) -> Result<ControlRecord> {
+        self.start_control_inner(mode, None).await
+    }
+
+    async fn start_flight_control(
+        &self,
+        mode: GameMode,
+        controls: Controls,
+    ) -> Result<ControlRecord> {
+        self.start_control_inner(mode, Some(controls)).await
     }
 
     async fn set_controls(
@@ -521,7 +649,16 @@ impl crate::client::adapter::ControlOps for Operations {
         if state.operations.game_mode != Some(mode) {
             return Err(invalid("controls require matching received mode"));
         }
-        if let Some(reason) = stop_reason(&state, state.loading.generation, mode) {
+        if let Some(reason) = stop_reason(
+            &state,
+            state.loading.generation,
+            mode,
+            state
+                .control
+                .session
+                .as_ref()
+                .map_or(crate::client::control::ControlKind::Ground, |s| s.kind),
+        ) {
             return Err(invalid(reason));
         }
         if state.control.generation != Some(state.loading.generation) {
@@ -598,7 +735,16 @@ impl crate::client::adapter::ControlOps for Operations {
         if state.control.generation != Some(generation) {
             return Err(invalid("ground jump control belongs to a previous world"));
         }
-        if let Some(reason) = stop_reason(&state, generation, mode) {
+        if let Some(reason) = stop_reason(
+            &state,
+            generation,
+            mode,
+            state
+                .control
+                .session
+                .as_ref()
+                .map_or(crate::client::control::ControlKind::Ground, |s| s.kind),
+        ) {
             return Err(invalid(reason));
         }
         state

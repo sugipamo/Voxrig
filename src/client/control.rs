@@ -20,6 +20,36 @@ pub(crate) fn validate_ground_mode(mode: super::GameMode) -> Result<()> {
     Ok(())
 }
 
+/// Explicit model selected at admission, never converted by a mode change.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ControlKind {
+    /// Ordinary ground/fluid/climbing controls.
+    Ground,
+    /// Creative or Spectator held flight, with original abilities speed.
+    Flight,
+}
+
+/// Converted inputs to the held-flight model, not current flight or an ACK.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct FlightParameters {
+    /// Flight speed from the original abilities receipt.
+    pub ability_flying_speed: f32,
+    /// Original receive ordinal supplying that speed.
+    pub abilities_sequence: u64,
+    /// The admitted Spectator model uses native noPhysics.
+    pub spectator: bool,
+}
+
+/// Creative landing's owned abilities write, separate from received abilities.
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct FlightDisable {
+    /// Latest original receive ordinal under the write's state boundary.
+    pub after_sequence: u64,
+    /// The complete disable packet was written; this is not a server ACK.
+    pub dispatched: bool,
+}
+
 /// Session state.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
@@ -118,6 +148,8 @@ pub struct GroundJumpRequest {
 /// Engine state after one tick: a prediction, not a received position.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct ControlFrame {
+    /// Native model flight flag after the tick; landing can clear it locally.
+    pub flying: bool,
     /// Session tick that produced this frame.
     pub tick: u64,
     /// Predicted feet position.
@@ -147,13 +179,20 @@ pub struct ControlFrame {
 /// Observable record of the connection's control session.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct ControlRecord {
+    /// Model explicitly selected when this owner was created.
+    pub kind: ControlKind,
+    /// Last converted held-flight parameters, retained when the owner stops.
+    pub flight_parameters: Option<FlightParameters>,
+    /// Owned landing toggle, retained even if a subsequent movement write fails.
+    pub flight_disable: Option<FlightDisable>,
     /// Expected received mode at admission; changing mode stops this owner.
     pub mode: super::GameMode,
     /// First actual mode-change packet that disagreed with this owner, even if
     /// a later packet restored the mode before a local tick. Not a server tick.
     pub mode_change_sequence: Option<u64>,
-    /// First actual abilities packet reporting flight while this ground owner
-    /// was active. Later ground abilities cannot resume that owner.
+    /// First original abilities packet contradicting this model: flight starts
+    /// for Ground, or flight/permission is removed for Flight. Later restoration
+    /// cannot resume the interrupted owner.
     pub flight_change_sequence: Option<u64>,
     /// Latest converted equipment parameters sampled by this local model.
     /// Retained after stopping; never current equipment or a server acknowledgement.
@@ -185,8 +224,34 @@ pub struct ReceivedAttribute {
     pub modifiers: Vec<Modifier>,
 }
 
+/// Validate original abilities before acquiring a flight owner. The locally
+/// requested flag is independent of receipt provenance and never grants flight.
+pub(crate) fn flight_admission(
+    abilities: Option<&super::ObservedValue<super::PlayerAbilities>>,
+    requested: bool,
+    locally_disabled: bool,
+) -> Option<&'static str> {
+    let Some(abilities) =
+        abilities.filter(|a| matches!(a.source, super::ValueSource::Received { .. }))
+    else {
+        return Some("flight requires current-world received abilities");
+    };
+    if !abilities.value.may_fly() {
+        return Some("flight permission unavailable");
+    }
+    if !abilities.value.flying_speed.is_finite() || abilities.value.flying_speed < 0.0 {
+        return Some("flight speed is unavailable or invalid");
+    }
+    if !(requested || abilities.value.flying() && !locally_disabled) {
+        return Some("flight must first be explicitly enabled");
+    }
+    None
+}
+
 /// Received facts sampled under the adapter's state lock before a tick.
 pub(crate) struct Received {
+    /// Source of the original abilities speed, under the same state boundary.
+    pub abilities_sequence: Option<u64>,
     pub environment: Environment,
     /// Latest received pose (receive sequence, position, optional velocity).
     pub pose: Option<(u64, [f64; 3], Option<[f64; 3]>)>,
@@ -212,6 +277,9 @@ pub(crate) struct Output {
 }
 
 pub(crate) struct ControlSession {
+    pub kind: ControlKind,
+    flight_parameters: Option<FlightParameters>,
+    pub flight_disable: Option<FlightDisable>,
     pub mode: super::GameMode,
     pub mode_change_sequence: Option<u64>,
     pub flight_change_sequence: Option<u64>,
@@ -271,6 +339,9 @@ impl ControlSession {
         received: &Received,
     ) -> Self {
         Self {
+            kind: ControlKind::Ground,
+            flight_parameters: None,
+            flight_disable: None,
             mode: super::GameMode::Survival,
             mode_change_sequence: None,
             flight_change_sequence: None,
@@ -333,6 +404,12 @@ impl ControlSession {
     }
 
     pub(crate) fn request_ground_jump(&mut self, session_id: u64) -> Result<GroundJumpRequest> {
+        if self.kind != ControlKind::Ground {
+            return Err(crate::Error::new(
+                crate::ErrorKind::Unsupported,
+                anyhow::anyhow!("held flight uses vertical keys, not ground requests"),
+            ));
+        }
         if self.id != session_id || self.status != ControlStatus::Running {
             return Err(crate::client::registry::invalid(
                 "ground jump requires the same running control session",
@@ -387,6 +464,9 @@ impl ControlSession {
             }
         }
         ControlRecord {
+            kind: self.kind,
+            flight_parameters: self.flight_parameters.clone(),
+            flight_disable: self.flight_disable.clone(),
             mode: self.mode,
             mode_change_sequence: self.mode_change_sequence,
             flight_change_sequence: self.flight_change_sequence,
@@ -412,8 +492,12 @@ impl ControlSession {
         }
     }
 
-    pub(crate) fn observe_flying(&mut self, flying: bool, sequence: u64) {
-        if self.running() && flying {
+    pub(crate) fn observe_abilities(&mut self, flags: u8, sequence: u64) {
+        let mismatch = match self.kind {
+            ControlKind::Ground => flags & 2 != 0,
+            ControlKind::Flight => flags & 6 != 6,
+        };
+        if self.running() && mismatch {
             self.flight_change_sequence.get_or_insert(sequence);
         }
     }
@@ -477,6 +561,18 @@ impl ControlSession {
         self.cancel_ground_jump("next physics tick could not be predicted");
         self.apply_received(received);
         let mut environment = received.environment.clone();
+        if self.kind == ControlKind::Flight {
+            environment.flying = true;
+            environment.spectator = self.mode == super::GameMode::Spectator;
+            self.flight_parameters = environment
+                .ability_flying_speed
+                .zip(received.abilities_sequence)
+                .map(|(speed, sequence)| FlightParameters {
+                    ability_flying_speed: speed,
+                    abilities_sequence: sequence,
+                    spectator: environment.spectator,
+                });
+        }
         self.movement_equipment = MovementEquipment::from(&environment);
         environment.using_item = match &received.using_item {
             Some((sequence, _)) if self.released_use == Some(*sequence) => None,
@@ -520,6 +616,7 @@ impl ControlSession {
         }
         let b = &self.body;
         self.frame = Some(ControlFrame {
+            flying: environment.flying && !b.flight_landed,
             tick: self.tick,
             position: b.position,
             velocity: b.velocity,
@@ -609,6 +706,7 @@ mod tests {
         velocity: Option<(u64, [f64; 3])>,
     ) -> Received {
         Received {
+            abilities_sequence: None,
             environment: Environment::defaults(MinecraftVersion::Java1_21_11),
             pose,
             velocity,

@@ -84,6 +84,11 @@ fn environment(version: MinecraftVersion, scenario: &Value, initial: &Value) -> 
     }
     env.movement_speed_base = exact(&initial["movement_speed_base"]);
     env.may_fly = initial["may_fly"].as_bool().unwrap_or(false);
+    env.flying = initial["flying"].as_bool().unwrap_or(false);
+    env.spectator = initial["game_mode"] == "spectator";
+    env.ability_flying_speed = initial["ability_flying_speed"]
+        .as_str()
+        .map(|s| s.parse().unwrap());
     env.food_level = initial["food"].as_i64().unwrap() as i32;
     env.movement_speed_modifiers = initial["movement_speed_modifiers"]
         .as_array()
@@ -183,6 +188,27 @@ pub(super) fn compare(
         });
         tick(version, &mut body, &env, controls, &mut block_at)
             .map_err(|e| format!("tick {index}: {e}"))?;
+        if scenario["flight"].as_bool() == Some(true) {
+            let flying = env.flying && !body.flight_landed;
+            if expected["flying"].as_bool() != Some(flying) {
+                return Ok(Some(format!(
+                    "tick {index}: flight {flying} vs {}",
+                    expected["flying"]
+                )));
+            }
+            env.flying = flying;
+            let pose = match body.pose {
+                super::Pose::Standing => "STANDING",
+                super::Pose::Crouching => "CROUCHING",
+                super::Pose::Swimming => "SWIMMING",
+            };
+            if expected["pose"].as_str() != Some(pose) {
+                return Ok(Some(format!(
+                    "tick {index}: pose {pose} vs {}",
+                    expected["pose"]
+                )));
+            }
+        }
         if scenario["compare_fall_distance"].as_bool() == Some(true)
             && body.fall_distance != exact(&expected["fall_distance"])
         {
@@ -385,4 +411,36 @@ fn ground_modes_match_original_native_physics() {
         }
     }
     assert_eq!(runs, 16);
+}
+
+#[test]
+fn creative_and_spectator_flight_match_original_native_physics() {
+    let oracle: Value = serde_json::from_reader(flate2::read::GzDecoder::new(
+        &include_bytes!("../../../data/client_api/flight_control_oracle.json.gz")[..],
+    ))
+    .unwrap();
+    let mut runs = 0;
+    for (version, name) in [
+        (MinecraftVersion::Java1_16_1, "1.16.1"),
+        (MinecraftVersion::Java1_21_11, "1.21.11"),
+    ] {
+        for result in oracle["results"][name].as_array().unwrap() {
+            let scenario = oracle["scenarios"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|s| s["name"] == result["name"])
+                .unwrap();
+            assert_eq!(result["initial"]["game_mode"], scenario["game_mode"]);
+            assert_eq!(result["initial"]["flying"], true);
+            assert_eq!(
+                compare(version, scenario, result).unwrap(),
+                None,
+                "{}",
+                result["name"]
+            );
+            runs += 1;
+        }
+    }
+    assert_eq!(runs, 38);
 }

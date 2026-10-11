@@ -6,9 +6,10 @@
 //! block state, block friction/speed/jump factors, slime and bed bounces, cobwebs
 //! and berry bushes, sneaking (including edge back-off), sprinting, movement
 //! attributes and effects, water and lava (currents, swimming, surfacing,
-//! jumping out onto ledges), bubble columns, ladders, vines and scaffolding.
+//! jumping out onto ledges), bubble columns, ladders, vines and scaffolding,
+//! Creative flight and Spectator movement with original received abilities.
 //! Outside it the tick returns `ErrorKind::Unsupported` before changing state:
-//! flying, riding, levitation,
+//! riding, levitation,
 //! honey wall sliding and anything not reviewed in `blocks`.
 pub(crate) mod blocks;
 pub(crate) mod boat;
@@ -100,6 +101,15 @@ pub struct Environment {
     pub fast_lava: bool,
     pub food_level: i32,
     pub may_fly: bool,
+    /// Explicit local flight model, separately admitted by the connection owner.
+    #[serde(default)]
+    pub flying: bool,
+    /// Spectator's native noPhysics movement; never inferred from flight permission.
+    #[serde(default)]
+    pub spectator: bool,
+    /// Original abilities speed converted for the model; absence is not 0.05.
+    #[serde(default)]
+    pub ability_flying_speed: Option<f32>,
     /// Item in use as the client sees it (`LocalPlayer.isUsingItem`), with its use effects.
     pub using_item: Option<ItemUse>,
 }
@@ -146,6 +156,9 @@ impl Environment {
             fast_lava: false,
             food_level: 20,
             may_fly: false,
+            flying: false,
+            spectator: false,
+            ability_flying_speed: None,
             using_item: None,
         }
     }
@@ -201,6 +214,9 @@ pub struct Body {
     touching_lava: bool,
     /// Entity.firstTick: true only for a freshly created entity.
     pub first_tick: bool,
+    /// Native Creative landing decision after this tick; a model outcome only.
+    #[serde(default)]
+    pub flight_landed: bool,
 }
 
 const WIDTH: f32 = 0.6;
@@ -285,6 +301,7 @@ impl Body {
             lava_height: 0.0,
             touching_lava: false,
             first_tick: false,
+            flight_landed: false,
         }
     }
 }
@@ -492,6 +509,24 @@ pub(crate) fn tick_with_ground_jump(
     if env.levitation {
         return Err(unsupported("levitation".into()));
     }
+    if env.flying
+        && (!env.may_fly
+            || env
+                .ability_flying_speed
+                .is_none_or(|s| !s.is_finite() || s < 0.0))
+    {
+        return Err(unsupported(
+            "flight requires received permission and speed".into(),
+        ));
+    }
+    if env.spectator && !env.flying {
+        return Err(unsupported("spectator requires the flight model".into()));
+    }
+    if env.flying && ground_requested {
+        return Err(unsupported(
+            "ground requests do not apply to held flight".into(),
+        ));
+    }
     if env.equipment_unavailable {
         return Err(unsupported(
             "received movement equipment/tag unavailable".into(),
@@ -536,6 +571,11 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         controls: Controls,
         ground_requested: bool,
     ) -> Result<Option<crate::client::control::GroundJumpOutcome>> {
+        self.body.flight_landed = false;
+        // Player.tick clears the Spectator ground flag before travel.
+        if self.env.spectator {
+            self.body.on_ground = false;
+        }
         self.body.yaw = controls.yaw;
         self.body.pitch = controls.pitch;
         // Player.tick: updateIsUnderwater, then Entity.baseTick.
@@ -574,7 +614,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             self.modify_input()
         };
         let jumping = self.body.keys.jump;
-        if jumping {
+        if jumping && !self.env.flying {
             let lava = self.in_lava();
             let height = if lava {
                 self.body.lava_height
@@ -624,7 +664,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             zza *= 0.98;
         }
         self.travel([f64::from(xxa), 0.0, f64::from(zza)])?;
-        if !self.legacy() {
+        if !self.legacy() && !self.env.spectator {
             self.apply_effects_from_blocks(old_position)?;
         }
         // Player.aiStep tail.
@@ -635,13 +675,18 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 0.02
             };
         }
-        // Player.tick tail.
+        // LocalPlayer.aiStep clears Creative flight before Player.tick updates
+        // pose. Landing with Shift therefore changes the box in this tick.
+        self.body.flight_landed = self.env.flying && !self.env.spectator && self.body.on_ground;
         self.update_pose()?;
         Ok(ground_outcome)
     }
 
     /// LivingEntity.onClimbable: only the feet cell, including aligned open trapdoors.
     fn on_climbable(&mut self) -> Result<bool> {
+        if self.env.spectator {
+            return Ok(false);
+        }
         let feet = self.block_position();
         let block = self.level.block(feet)?;
         Ok(block.climbable || block.trapdoor && self.trapdoor_ladder(feet)?)
@@ -799,7 +844,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 }
             }
         }
-        if self.length(push) > 0.0 {
+        if !self.env.flying && self.length(push) > 0.0 {
             if count > 0 {
                 push = push.map(|c| c * (1.0 / f64::from(count)));
             }
@@ -865,7 +910,9 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         };
         // updateSwimming (Player: not while flying).
         let under_water = self.body.was_eye_in_water && self.body.in_water;
-        self.body.swimming = if self.body.swimming {
+        self.body.swimming = if self.env.flying {
+            false
+        } else if self.body.swimming {
             self.body.sprinting && self.body.in_water
         } else {
             let feet_water = self.legacy()
@@ -1054,7 +1101,8 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         let under = self.body.under_water;
         if self.legacy() {
             let had_impulse = self.enough_impulse_to_sprint();
-            self.body.crouching = !self.body.swimming
+            self.body.crouching = !self.env.flying
+                && !self.body.swimming
                 && self.fits(Pose::Crouching)?
                 && (sneaking_before || !self.fits(Pose::Standing)?);
             self.body.keys = controls;
@@ -1071,7 +1119,9 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 forward *= 0.2;
             }
             self.body.move_vector = [left, forward];
-            self.push_out_legacy()?;
+            if !self.env.spectator {
+                self.push_out_legacy()?;
+            }
             let food = self.env.food_level > 6 || self.env.may_fly;
             let b = &*self.body;
             let possible =
@@ -1105,7 +1155,8 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 }
             }
         } else {
-            self.body.crouching = !self.body.swimming
+            self.body.crouching = !self.env.flying
+                && !self.body.swimming
                 && self.fits(Pose::Crouching)?
                 && (sneaking_before || !self.fits(Pose::Standing)?);
             self.body.keys = controls;
@@ -1116,11 +1167,13 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             } else {
                 [x / length, y / length]
             };
-            self.push_out_modern()?;
+            if !self.env.spectator {
+                self.push_out_modern()?;
+            }
             let in_water = self.body.in_water;
             let able = !self.env.blindness && (self.env.food_level > 6 || self.env.may_fly);
             // isSprintingPossible(flying=false): not in shallow water.
-            let possible = able && (!in_water || under);
+            let possible = able && (self.env.flying || !in_water || under);
             let forward = self.body.move_vector[1] > 1.0e-5;
             let moving_slowly =
                 self.body.crouching || self.body.pose == Pose::Swimming && !in_water;
@@ -1148,8 +1201,18 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 }
             }
         }
-        if self.body.in_water && controls.sneak {
+        if self.body.in_water && controls.sneak && !self.env.flying {
             self.body.velocity[1] += f64::from(-0.04f32);
+        }
+        if self.env.flying {
+            let vertical = i8::from(controls.jump) - i8::from(controls.sneak);
+            if vertical != 0 {
+                let speed = self
+                    .env
+                    .ability_flying_speed
+                    .expect("validated flight speed");
+                self.body.velocity[1] += f64::from(f32::from(vertical) * speed * 3.0);
+            }
         }
         Ok(())
     }
@@ -1401,10 +1464,25 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
     }
 
     fn travel(&mut self, input: [f64; 3]) -> Result<()> {
+        if self.env.flying {
+            let vertical = self.body.velocity[1];
+            self.travel_ground(input)?;
+            self.body.velocity[1] = vertical * 0.6;
+            self.body.fall_distance = 0.0;
+            return Ok(());
+        }
+        self.travel_ground_or_fluid(input)
+    }
+
+    fn travel_ground_or_fluid(&mut self, input: [f64; 3]) -> Result<()> {
         self.swim_vertical()?;
         if self.body.in_water || self.in_lava() {
             return self.travel_in_fluid(input);
         }
+        self.travel_ground(input)
+    }
+
+    fn travel_ground(&mut self, input: [f64; 3]) -> Result<()> {
         let below = self.below_affecting_movement();
         let block_friction = self.level.block(below)?.friction;
         let legacy = self.legacy();
@@ -1432,6 +1510,11 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             // Player.getSpeed reads the attribute live.
             movement_speed(self.version, self.env, self.body.sprinting) as f32
                 * (0.21600002f32 / (friction * friction * friction))
+        } else if self.env.flying {
+            self.env
+                .ability_flying_speed
+                .expect("validated flight speed")
+                * if self.body.sprinting { 2.0 } else { 1.0 }
         } else if legacy {
             self.body.flying_speed
         } else if self.body.sprinting {
@@ -1493,6 +1576,22 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
     }
 
     fn do_move(&mut self, mut motion: [f64; 3]) -> Result<()> {
+        if self.env.spectator {
+            if self.legacy() {
+                // Original 1.16.1 noPhysics: move the existing box, then derive
+                // its center. Reconstructing a box from position loses rounding.
+                let b = shifted(self.body.bounds, motion);
+                self.body.bounds = b;
+                self.body.position = [(b[0] + b[3]) / 2.0, b[1], (b[2] + b[5]) / 2.0];
+            } else {
+                let position = std::array::from_fn(|i| self.body.position[i] + motion[i]);
+                self.body.teleport(self.version, position);
+                self.body.horizontal_collision = false;
+                self.body.vertical_collision = false;
+                self.body.minor_horizontal_collision = false;
+            }
+            return Ok(());
+        }
         let legacy = self.legacy();
         let stuck = self.body.stuck;
         if stuck.iter().map(|v| v * v).sum::<f64>() > 1.0e-7 {
@@ -1720,6 +1819,8 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
                 }
                 Ok(())
             }
+            // Player.makeStuckInBlock ignores these multipliers while flying.
+            Effect::Stuck if self.env.flying => Ok(()),
             Effect::Stuck if !certain => {
                 Err(unsupported(format!("possible contact with {}", block.name)))
             }
@@ -1783,7 +1884,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
             for y in lo[1]..=hi[1] {
                 for z in lo[2]..=hi[2] {
                     let name = self.level.block([x, y, z])?.name.as_str();
-                    if self.level.block([x, y, z])?.inside == Effect::Stuck {
+                    if !self.env.flying && self.level.block([x, y, z])?.inside == Effect::Stuck {
                         if seen_stuck.is_some_and(|s| s != name) {
                             return Err(unsupported("mixed cobweb and berry bush".into()));
                         }
@@ -1853,7 +1954,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         for cell in sure.iter().chain(maybe.iter()) {
             let block = self.level.block(*cell)?;
             has_bubbles |= block.inside == Effect::BubbleColumn;
-            if block.inside == Effect::Stuck {
+            if !self.env.flying && block.inside == Effect::Stuck {
                 stuck_kinds.insert(self.level.block(*cell)?.name.as_str());
             }
         }
@@ -1956,7 +2057,7 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
     }
 
     fn back_off_from_edge(&mut self, motion: [f64; 3]) -> Result<[f64; 3]> {
-        if !self.body.keys.sneak {
+        if self.env.flying || !self.body.keys.sneak {
             return Ok(motion);
         }
         let step = f64::from(self.step_height());
@@ -2049,12 +2150,12 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         }
         let desired = if self.body.swimming {
             Pose::Swimming
-        } else if self.body.keys.sneak {
+        } else if self.body.keys.sneak && (!self.env.flying || self.body.flight_landed) {
             Pose::Crouching
         } else {
             Pose::Standing
         };
-        let pose = if self.fits(desired)? {
+        let pose = if self.env.spectator || self.fits(desired)? {
             desired
         } else if self.fits(Pose::Crouching)? {
             Pose::Crouching
