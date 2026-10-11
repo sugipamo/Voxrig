@@ -108,8 +108,23 @@ def check(version, command, request, trace, report, binary, sdk):
         return dict(observation=row, original_inputs=proofs, original_dimension_case=dict(type=native['type'],pose=pose,baby=baby,requested_scale=requested))
     # Reuse the unchanged two-client spawn/crouch/stand/removal check. Wrap the
     # observer's pose reads to verify geometry at each actual pose transition.
+    initialized_peer_scale=False
     def with_geometry(action, **args):
+        nonlocal initialized_peer_scale
         result = request(action, **args)
+        if action == 'entity_poses' and len(result)==1 and version=='1.21.11' and not initialized_peer_scale:
+            identity=result[0]['entity']['id']
+            initial=next(r for r in rows() if r['entity']['id']==identity)
+            assert initial['geometry']=={'Err':'UnknownScale'} and initial['scale'] is None
+            report['checks'].append(dict(name='peer_unreceived_scale_refuses_geometry',observation=initial))
+            command('attribute PosePeer minecraft:scale base set 0.5')
+            command('attribute PosePeer minecraft:scale base set 1')
+            def explicit():
+                row=next((r for r in rows() if r['entity']['id']==identity),None)
+                return row if row and 'Ok' in row['geometry'] and row['geometry']['Ok']['evidence']['scale']['attribute']['value']['base']==1. else None
+            row=until(explicit,5)
+            report['checks'].append(dict(name='peer_original_explicit_unit_scale',**verify(row)))
+            initialized_peer_scale=True
         if action == 'entity_poses' and len(result)==1 and result[0]['pose']:
             peer = result[0]
             if peer['pose']['pose'] in ('crouching','standing'):
@@ -134,6 +149,13 @@ def check(version, command, request, trace, report, binary, sdk):
         def baby_ready():
             row=current()
             return row if row and 'Ok' in row['geometry'] and row['geometry']['Ok']['evidence']['baby']['value']=={'Bool':True} else None
+        if version=='1.21.11':
+            initial=until(current,5)
+            if initial['scale'] is None:
+                assert initial['geometry']=={'Err':'UnknownScale'},initial
+                report['checks'].append(dict(name=kind+'_unreceived_scale_refuses_geometry',observation=initial))
+                command(f'attribute @e[tag={tag},limit=1] minecraft:scale base set 0.5')
+                command(f'attribute @e[tag={tag},limit=1] minecraft:scale base set 1')
         row=until(baby_ready,10)
         report['checks'].append(dict(name=kind+'_baby_dimensions',**verify(row,baby=True)))
         identity=copy.deepcopy(row['entity']['id'])
@@ -173,6 +195,10 @@ def check(version, command, request, trace, report, binary, sdk):
             until(lambda: not any(r['entity']['id']==identity for r in rows()),5)
             report['checks'].append(dict(name='zombie_baby_lifetime_retired',identity=identity))
             command(f'summon minecraft:zombie 2.5 65 2.5 {{Tags:["{tag}"],NoAI:1b,NoGravity:1b,Invulnerable:1b,PersistenceRequired:1b,IsBaby:0b}}')
+            if version=='1.21.11':
+                until(current,5)
+                command(f'attribute @e[tag={tag},limit=1] minecraft:scale base set 0.5')
+                command(f'attribute @e[tag={tag},limit=1] minecraft:scale base set 1')
         else:
             command(f'data merge entity @e[tag={tag},limit=1] '+'{Age:0}')
         def adult_ready():
