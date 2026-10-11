@@ -8,11 +8,16 @@ use crate::{MinecraftVersion, Result};
 use std::collections::BTreeMap;
 mod data;
 mod geometry;
+mod interpolation;
 mod pose;
 mod push;
 pub use geometry::{
     EntityGeometry, EntityGeometryEvidence, EntityGeometryModel, EntityGeometryUnavailable,
     EntityScaleReading,
+};
+pub use interpolation::{
+    LivingInterpolation, LivingInterpolationFrame, LivingInterpolationPose,
+    LivingInterpolationUnavailable,
 };
 pub use pose::{EntityPose, EntityPoseReading};
 pub use push::{

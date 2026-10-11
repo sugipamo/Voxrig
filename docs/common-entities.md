@@ -248,3 +248,7 @@ consoleから`armor_stand`を出し、頭にダイヤのヘルメットを付け
 | --- | --- | --- | --- |
 | 1.16.1 | 7.0 | `Head`: `minecraft:diamond_helmet` | 幅0.5、高さ1.975 |
 | 1.21.11 | 7.0 | `Head`: `minecraft:diamond_helmet` | 幅0.5、高さ1.975 |
+
+原版cowが継承する位置・body角度の明示的な補間モデルは
+[共通の生物補間](common-entity-interpolation.md)を参照。受信状態・自動tick割当て・
+接触探索・移動制御の統合とは別の数値モデルで、modernの各stepには衝突問い合わせが必要。
