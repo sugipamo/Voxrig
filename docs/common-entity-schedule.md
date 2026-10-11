@@ -72,7 +72,10 @@ python3 scripts/run_entity_tick_live.py --accept-eula \
 一度だけの適用、明示的step、取消し、remove/新spawn/revokeを確認する。
 接続中の数値schedule比較も原版fixtureの明示的な境界を使い、native clockとは扱わない。
 原版JAR、mapping、class、元packetはignored `.local`に保存し、公開するのは
-自作source、数値結果とhash。検証結果は実接続完了後に記録する。
+自作source、数値結果とhash。
+公式両版で各13項目、計26項目が成功し、接続中の96段階・2,367 callbackも照合した。
+observer/peerの通信traceエラーは0件。固定した実行ファイルのhashを両接続の前後で確認した。
+[SDK・成果物・結果のhashと失敗試行](evidence/common-entity-schedule-20261012.json)を参照。
 
 [補間](common-entity-interpolation.md)・[受信motion](common-entity-motion.md)・
 [受信履歴](common-entity-history.md)・[近接探索](common-entity-query.md)も参照。
