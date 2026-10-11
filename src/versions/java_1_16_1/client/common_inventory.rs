@@ -981,8 +981,29 @@ mod tests {
                     p.extend(record.send.legacy_action.unwrap().to_be_bytes());
                     p.push(0);
                     bot.apply_packet(0x12, p).await.unwrap();
-                    let complete =
-                        api::tests::common_pickup_complete_scenario(&client, record.id).await;
+                    // Complete server receipts must remain inspectable while a
+                    // writer owns the gate; reconciliation is deferred, not lost.
+                    let gate = bot.coherent_state_gate.lock().await;
+                    assert_eq!(
+                        client
+                            .survival()
+                            .inventory_click_record()
+                            .await
+                            .unwrap()
+                            .unwrap()
+                            .stage,
+                        Stage::Pending
+                    );
+                    let mut completing = Box::pin(api::tests::common_pickup_complete_scenario(
+                        &client, record.id,
+                    ));
+                    std::future::poll_fn(|cx| {
+                        assert!(completing.as_mut().poll(cx).is_pending());
+                        std::task::Poll::Ready(())
+                    })
+                    .await;
+                    drop(gate);
+                    let complete = completing.await;
                     assert!(!complete.legacy_reply.unwrap().accepted);
                 }
                 assert!(matches!(
@@ -2100,6 +2121,60 @@ mod tests {
         drop(bot);
         server.await.unwrap();
     }
+    #[tokio::test]
+    async fn crafting_take_keeps_the_admission_gate_ahead_of_queued_receipts_until_write() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        seed(&bot).await;
+        let mut result = vec![0, 0, 0];
+        write_slot(
+            &mut result,
+            Some(&ItemStack {
+                item_id: crate::item_id("stick").unwrap(),
+                count: 4,
+                nbt: None,
+            }),
+        );
+        bot.apply_packet(0x16, result.clone()).await.unwrap();
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let grid = client.received_crafting().await.unwrap().unwrap();
+        let gate = bot.coherent_state_gate.lock().await;
+        let ops = client.survival();
+        let take = tokio::spawn(async move { ops.take_crafting_result(&grid).await });
+        tokio::task::yield_now().await;
+        assert!(!take.is_finished());
+        let receiver = bot.clone_internal();
+        let receipt = tokio::spawn(async move { receiver.apply_packet(0x16, result).await });
+        tokio::task::yield_now().await;
+        assert!(!receipt.is_finished());
+        drop(gate);
+        let sent = timeout(Duration::from_secs(1), take)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert!(sent.send.dispatched);
+        assert_eq!(
+            timeout(Duration::from_secs(1), packets.recv())
+                .await
+                .unwrap()
+                .unwrap()
+                .0,
+            0x09
+        );
+        receipt.await.unwrap().unwrap();
+        assert!(
+            timeout(Duration::from_millis(20), packets.recv())
+                .await
+                .is_err()
+        );
+        bot.disconnect().await.unwrap();
+        drop(release);
+        drop(client);
+        drop(bot);
+        server.await.unwrap();
+    }
+
     #[tokio::test]
     async fn crafting_take_cancelled_caller_retains_owned_write_and_prompt_history() {
         let (bot, mut packets, release, server) =

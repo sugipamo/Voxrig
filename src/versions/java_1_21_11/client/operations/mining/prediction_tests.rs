@@ -223,7 +223,7 @@ async fn interrupted_predicted_writer_never_yields_a_continuation_candidate() {
         .start_predicted_survival_path(&controls)
         .await
         .unwrap();
-    tokio::time::sleep(Duration::from_millis(20)).await;
+    wait_motion_writer_blocked(&f).await;
     f.session.stop();
     drop(writer);
     let record = timeout(Duration::from_secs(1), async {

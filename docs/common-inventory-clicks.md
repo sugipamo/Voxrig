@@ -178,3 +178,23 @@ cursor/menu所有は実packet以上の根拠を作らない。過去のfailed na
 modernでは元openingのclose送信が完了している場合、実player screen zeroの全量packetに
 含まれるcursorも取り込む。未完了closeや別の新openingへこの許可を持ち越さない。
 この全量packetが届くまでは、ローカルcloseだけで実player screenやEmpty cursorを作らない。
+
+## Legacy 炉の部分投入と再同期（#70）
+
+Java 1.16.1 の炉・溶鉱炉・燻製器の input/fuel slot への PICKUP は、
+普通の Left/Right の配置・追加を受信 predecessor に対して予測する。
+処理により predecessor がクリック前に消費されると Empty 比較が native return と一致し、
+accepted=true だけが届いて必要な slot/cursor の再同期が省かれることがある。
+
+held cursor からの投入では、その受信 item の同じ identity/data、count=127 を**比較用だけ**に送る。
+普通の vanilla slot の容量を超える count で full resync を要求し、
+`send.legacy_comparison` と `send.request_full_resync` に保持する。
+この marker は配置 item・予測 cursor・受信事実ではない。private actor も普通の item count の検査とは
+分け、処理用の要求・非player window・slot 0/1・非result take・元の許可された item data の場合だけを許可する。
+普通の click、SWAP、transfer、製作 take の数量検査を緩めない。
+
+完全書込、元の action/window の取引応答と、予測に一致する fresh target/cursor の両受信を必要とする。
+accepted=true/false は受信の代わりにならず、消費競合によって実 target が予測と違えば未確認のまま停止する。
+独自 server の overstack が比較値と一致しても、足りない受信を補完しない。
+原版 PICKUP の戻り値と count=127 の packet roundtrip は、両 button × ordinary coal 0..64 の130ケースで確認する。
+Golemkit の通常経路は引き続き player storage で指定量を準備し、一括配置する。

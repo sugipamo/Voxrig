@@ -346,6 +346,7 @@ async fn survival_look_sends_native_ground_bit_and_refusal_sends_nothing() {
     let (mut peer, _) = listener.accept().await.unwrap();
     let (_, writer) = connection.into_split();
     let session = Arc::new(Session {
+        operational_dig: Arc::default(),
         id: 42,
         started: Instant::now(),
         writer: Mutex::new(Writer {

@@ -13,6 +13,9 @@ pub enum ErrorKind {
     /// A frame write was interrupted; the connection is closed and server effects
     /// of the attempted packet are unknown. Never automatically retry a mutation.
     UncertainDispatch,
+    /// An admitted operation could not be safely cancelled or reconciled.
+    /// Inspect its retained record and stop mutations instead of replaying it.
+    OperationUnconfirmed,
     /// An operation did not complete before its configured deadline.
     Timeout,
     /// The peer closed the connection or sent a disconnect packet.

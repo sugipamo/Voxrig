@@ -121,6 +121,7 @@ impl Fixture {
         let (peer, _) = listener.accept().await.unwrap();
         let (reader, writer) = stream.into_split();
         let session = Arc::new(Session {
+            operational_dig: Arc::default(),
             id: 72,
             started: Instant::now(),
             writer: Mutex::new(Writer {

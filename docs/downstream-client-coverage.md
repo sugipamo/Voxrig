@@ -176,3 +176,8 @@ MOVEMENTの拡張#44とは別に、再開不具合#37はPR #50で修正済み。
 原版LivingEntityの明示的な1回の押し合い計算は[共通モデル](common-entity-push.md)として提供する。
 [原版1,040ケースと公式両版29項目](evidence/common-entity-push-20261011.json)で検証済み。
 補間・接触の探索・pair順序・移動制御への統合は引き続きMOVEMENT / #44の残件。
+
+## 利用側の運用採掘
+
+単発診断用の #61 の元接続の継続制約は変更せず、運用採掘は接続所有の `Survival::dig` を使用します。
+中断送信を完了できない場合は `OperationUnconfirmed` と元の cleanup 記録を保持します。

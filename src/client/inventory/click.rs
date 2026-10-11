@@ -80,7 +80,8 @@ pub struct InventoryClickSend {
     /// Revision actually encoded in the command; distinct from the received revision.
     pub sent_screen_revision: Option<i32>,
     /// Request a native full screen/cursor update using a revision mismatch.
-    /// An empty cursor comparison in this mode is a resync marker, never a receipt.
+    /// Modern empty cursor comparison or legacy processing count marker is a
+    /// resync request, never a received or predicted inventory stack.
     pub request_full_resync: bool,
     /// A complete frame write, not acceptance.
     pub dispatched: bool,

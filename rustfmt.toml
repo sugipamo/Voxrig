@@ -1,0 +1,2 @@
+# Keep SDK formatting stable when this crate is vendored into another workspace.
+max_width = 100

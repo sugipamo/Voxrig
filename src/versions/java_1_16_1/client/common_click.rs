@@ -67,7 +67,27 @@ impl Bot {
             }
             // Original native PICKUP returns source_before. Deliberately use
             // the other nonempty predecessor (or Empty) for actual full resync.
-            let comparison = if matches!(record.source_before.value, api::SlotKnowledge::Empty) {
+            let processing_insertion = record.source_slot <= 1
+                && record.initial_screen.as_ref().is_some_and(|s| {
+                    s.menu_name.as_deref().is_some_and(|menu| {
+                        api::furnace::native_menu(record.initial.session.version, menu).is_some()
+                    })
+                });
+            let processing_resync = processing_insertion
+                && matches!(record.cursor_before.value, api::SlotKnowledge::Item { .. });
+            let comparison = if processing_resync
+                && let api::SlotKnowledge::Item { item } = &record.cursor_before.value
+            {
+                // A furnace can consume its predecessor before applying PICKUP.
+                // Empty may then MATCH the native return and suppress resync.
+                // This comparison-only count exceeds ordinary slot capacities;
+                // it is never a predicted/received cursor or placed inventory item.
+                // Actual fresh source/cursor and transaction receipts still decide
+                // completion; unusual server state cannot turn this into an ACK.
+                let mut marker = item.clone();
+                marker.count = i8::MAX as u32;
+                api::SlotKnowledge::Item { item: marker }
+            } else if matches!(record.source_before.value, api::SlotKnowledge::Empty) {
                 record.cursor_before.value.clone()
             } else {
                 api::SlotKnowledge::Empty
@@ -97,16 +117,28 @@ impl Bot {
                 let r = &mut guard.as_mut().expect("retained").record;
                 r.send.legacy_action = Some(action);
                 r.send.legacy_comparison = Some(comparison);
+                r.send.request_full_resync = processing_resync;
                 r.send.after_sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
             }
-            self.connection
-                .bounded_inventory_click(
-                    id.attempt(),
-                    record.source_slot,
-                    record.button.native(),
-                    native,
-                )
-                .await?;
+            if processing_resync {
+                self.connection
+                    .bounded_processing_click(
+                        id.attempt(),
+                        record.source_slot,
+                        record.button.native(),
+                        native,
+                    )
+                    .await?;
+            } else {
+                self.connection
+                    .bounded_inventory_click(
+                        id.attempt(),
+                        record.source_slot,
+                        record.button.native(),
+                        native,
+                    )
+                    .await?;
+            }
             let mut guard = super::lock_packet_state(&self.common_inventory_click).await;
             let record = &mut guard.as_mut().expect("retained").record;
             record.send.dispatched = true;

@@ -1,0 +1,2538 @@
+[
+  {
+    "button": 0,
+    "actual_before": 0,
+    "native_return": {
+      "count": 0
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 3
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 1,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 1
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 4
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 2,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 5
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 3,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 3
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 6
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 4,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 4
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 7
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 5,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 5
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 8
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 6,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 6
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 9
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 7,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 7
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 10
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 8,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 8
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 11
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 9,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 9
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 12
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 10,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 10
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 13
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 11,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 11
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 14
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 12,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 12
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 15
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 13,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 13
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 16
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 14,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 14
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 17
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 15,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 15
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 18
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 16,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 16
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 19
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 17,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 17
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 20
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 18,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 18
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 21
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 19,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 19
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 22
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 20,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 20
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 23
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 21,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 21
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 24
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 22,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 22
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 25
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 23,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 23
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 26
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 24,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 24
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 27
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 25,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 25
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 28
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 26,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 26
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 29
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 27,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 27
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 30
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 28,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 28
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 31
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 29,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 29
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 32
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 30,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 30
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 33
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 31,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 31
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 34
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 32,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 32
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 35
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 33,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 33
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 36
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 34,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 34
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 37
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 35,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 35
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 38
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 36,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 36
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 39
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 37,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 37
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 40
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 38,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 38
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 41
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 39,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 39
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 42
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 40,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 40
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 43
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 41,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 41
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 44
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 42,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 42
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 45
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 43,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 43
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 46
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 44,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 44
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 47
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 45,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 45
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 48
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 46,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 46
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 49
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 47,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 47
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 50
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 48,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 48
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 51
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 49,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 49
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 52
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 50,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 50
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 53
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 51,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 51
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 54
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 52,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 52
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 55
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 53,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 53
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 56
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 54,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 54
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 57
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 55,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 55
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 58
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 56,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 56
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 59
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 57,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 57
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 60
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 58,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 58
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 61
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 59,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 59
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 62
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 60,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 60
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 63
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 61,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 61
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 64
+    },
+    "cursor_after": {
+      "count": 0
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 62,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 62
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 64
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 1
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 63,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 63
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 64
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 0,
+    "actual_before": 64,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 64
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 64
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 3
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000000010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 0,
+    "native_return": {
+      "count": 0
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 1
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 1,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 1
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 2,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 3
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 3,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 3
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 4
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 4,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 4
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 5
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 5,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 5
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 6
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 6,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 6
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 7
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 7,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 7
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 8
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 8,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 8
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 9
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 9,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 9
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 10
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 10,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 10
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 11
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 11,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 11
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 12
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 12,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 12
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 13
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 13,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 13
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 14
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 14,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 14
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 15
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 15,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 15
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 16
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 16,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 16
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 17
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 17,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 17
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 18
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 18,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 18
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 19
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 19,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 19
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 20
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 20,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 20
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 21
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 21,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 21
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 22
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 22,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 22
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 23
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 23,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 23
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 24
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 24,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 24
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 25
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 25,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 25
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 26
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 26,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 26
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 27
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 27,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 27
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 28
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 28,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 28
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 29
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 29,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 29
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 30
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 30,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 30
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 31
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 31,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 31
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 32
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 32,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 32
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 33
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 33,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 33
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 34
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 34,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 34
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 35
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 35,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 35
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 36
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 36,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 36
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 37
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 37,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 37
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 38
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 38,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 38
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 39
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 39,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 39
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 40
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 40,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 40
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 41
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 41,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 41
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 42
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 42,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 42
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 43
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 43,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 43
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 44
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 44,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 44
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 45
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 45,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 45
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 46
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 46,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 46
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 47
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 47,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 47
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 48
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 48,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 48
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 49
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 49,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 49
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 50
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 50,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 50
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 51
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 51,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 51
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 52
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 52,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 52
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 53
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 53,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 53
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 54
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 54,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 54
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 55
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 55,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 55
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 56
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 56,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 56
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 57
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 57,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 57
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 58
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 58,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 58
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 59
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 59,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 59
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 60
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 60,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 60
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 61
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 61,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 61
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 62
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 62,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 62
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 63
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 63,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 63
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 64
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 2
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  },
+  {
+    "button": 1,
+    "actual_before": 64,
+    "native_return": {
+      "item": "minecraft:coal",
+      "count": 64
+    },
+    "slot_after": {
+      "item": "minecraft:coal",
+      "count": 64
+    },
+    "cursor_after": {
+      "item": "minecraft:coal",
+      "count": 3
+    },
+    "marker_count": 127,
+    "marker_matched": false,
+    "native_codec_roundtrip": true,
+    "payload_hex": "0100000100010001c3047f00"
+  }
+]

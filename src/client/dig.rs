@@ -27,7 +27,8 @@ pub struct DigRecord {
     pub estimate: DigEstimate,
     /// Received state of the target when the dig ended (None if unloaded).
     pub final_state: Option<NativeBlockState>,
-    /// The received target state changed from the dug state.
+    /// The target was observed as loaded air in the original world.
+    /// Unloading and replacement by another non-air block are not removal.
     pub removed: bool,
     /// 1.21.11 interaction sequences of START and STOP.
     pub sequences: Vec<i32>,
@@ -184,7 +185,7 @@ pub(crate) fn estimate(
     })
 }
 
-fn slot(player: &PlayerObservation, index: usize) -> Result<&SlotKnowledge> {
+pub(crate) fn slot(player: &PlayerObservation, index: usize) -> Result<&SlotKnowledge> {
     match player.inventory.slots.get(index).and_then(Option::as_ref) {
         Some(ObservedValue { value, .. }) => Ok(value),
         None => Err(invalid("received inventory slot is not known")),
@@ -304,85 +305,80 @@ impl crate::Client {
 impl super::Survival {
     /// The dig time of `target` with what the player holds now.
     pub async fn dig_estimate(&self, target: [i32; 3]) -> Result<DigEstimate> {
-        let (_, estimate) = self.dig_inputs(target).await?;
+        let (_, estimate, _) = self.dig_inputs(target).await?;
         Ok(estimate)
     }
 
-    /// Dig `target` like the official client: START, wait the estimated ticks
-    /// (`DigEstimate::ticks`, plus one), STOP, then wait up to one second for the
-    /// received target state to change. Not removed is not an error: the server decides.
-    /// Dropping the future after START leaves the server-side dig to time out.
+    /// Dig with coherent START/STOP admission on the original world and hand.
+    /// Cancelling the waiter requests one owned ABORT after an admitted START;
+    /// changed context or uncertain I/O never causes replay into another world.
     pub async fn dig(&self, target: [i32; 3], face: BlockFace) -> Result<DigRecord> {
-        let (before, estimate) = self.dig_inputs(target).await?;
-        let mut sequences = Vec::new();
-        let start = self
-            .client
-            .execute(
-                super::GameMode::Survival,
-                super::operations::Action::DigStart(target, face),
-            )
-            .await?;
-        sequences.extend(start.interaction_sequence);
-        if estimate.ticks > 0 {
-            tokio::time::sleep(std::time::Duration::from_millis((estimate.ticks + 1) * 50)).await;
-            let stop = self
-                .client
-                .execute(
-                    super::GameMode::Survival,
-                    super::operations::Action::DigFinish(target, face),
-                )
-                .await?;
-            sequences.extend(stop.interaction_sequence);
-        }
-        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(1);
-        let mut final_state;
-        loop {
-            final_state = self.client.block_state(target).await?;
-            if final_state.as_ref() != Some(&before) || tokio::time::Instant::now() > deadline {
-                break;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-        }
-        Ok(DigRecord {
-            target,
-            removed: final_state.as_ref() != Some(&before),
-            estimate,
-            final_state,
-            sequences,
-        })
+        self.operational_dig(target, face).await
     }
 
-    async fn dig_inputs(&self, target: [i32; 3]) -> Result<(NativeBlockState, DigEstimate)> {
-        let version = self.client.version();
-        let player = self.client.player_state().await?;
-        let state = self
-            .client
-            .block_state(target)
-            .await?
-            .ok_or_else(|| invalid("dig target is not loaded"))?;
-        let state_id = super::registry::Registry::for_version(version)
-            .resolve_block_state(&state)?
-            .value();
-        let feet = player
-            .position
-            .as_ref()
-            .ok_or_else(|| invalid("player position unavailable"))?
-            .value;
-        let eye_in_water = standing_eye_in_water(&self.client, feet)
-            .await?
-            .ok_or_else(|| invalid("cells at the eye are not loaded"))?;
-        let on_ground = crate::client::dispatch!(&self.client.adapter, a => crate::client::adapter::DigOps::own_on_ground(a).await)?;
-        let estimate = estimate(
-            version,
-            state_id,
-            &DigContext {
-                player: &player,
-                on_ground,
-                eye_in_water,
-            },
-        )?;
-        Ok((state, estimate))
+    async fn dig_inputs(
+        &self,
+        target: [i32; 3],
+    ) -> Result<(NativeBlockState, DigEstimate, PlayerObservation)> {
+        let input = super::dispatch!(&self.client.adapter, a => crate::client::adapter::DigOps::dig_snapshot(a, target).await)?;
+        Ok((input.state, input.estimate, input.player))
     }
+}
+
+pub(crate) fn mining_hand_compatible(
+    version: MinecraftVersion,
+    before: &SlotKnowledge,
+    after: &SlotKnowledge,
+) -> Result<bool> {
+    if before == after {
+        return Ok(true);
+    }
+    let (SlotKnowledge::Item { item: before }, SlotKnowledge::Item { item: after }) =
+        (before, after)
+    else {
+        return Ok(false);
+    };
+    if version != MinecraftVersion::Java1_16_1
+        || before.id != after.id
+        || before.name != after.name
+        || before.count != after.count
+    {
+        return Ok(false);
+    }
+    use super::nbt::{self, NbtValue};
+    use std::sync::Arc;
+    let left = before.custom_data()?;
+    let right = after.custom_data()?;
+    let damage = |data: Option<&super::nbt::NbtData>| -> Option<i32> {
+        match data.and_then(|d| d.root().get("Damage")) {
+            None => Some(0),
+            Some(NbtValue::Int(value)) if *value >= 0 => Some(*value),
+            _ => None,
+        }
+    };
+    let (Some(old), Some(new)) = (damage(left.as_ref()), damage(right.as_ref())) else {
+        return Ok(false);
+    };
+    if new < old {
+        return Ok(false);
+    }
+    let root = |data: Option<super::nbt::NbtData>| {
+        data.map(|d| Arc::new(NbtValue::Compound(d.root().clone())))
+    };
+    Ok(nbt::equivalent(
+        &nbt::item_damage(root(left), 0),
+        &nbt::item_damage(root(right), 0),
+        version,
+    ))
+}
+
+pub(crate) fn is_air(state: Option<&NativeBlockState>) -> bool {
+    state.is_some_and(|s| {
+        matches!(
+            s.name.as_str(),
+            "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air"
+        )
+    })
 }
 
 /// Loaded profiles per version, for tests and capability checks.
@@ -395,6 +391,41 @@ pub(crate) fn profile_counts(version: MinecraftVersion) -> (usize, usize) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn delayed_legacy_wear_allows_only_monotonic_damage_on_the_same_stack() {
+        let version = MinecraftVersion::Java1_16_1;
+        let definition = super::super::registry::Registry::for_version(version)
+            .item("minecraft:stone_pickaxe")
+            .unwrap();
+        let item = super::super::ItemStack {
+            id: definition.id,
+            name: definition.name,
+            count: 1,
+            data: super::super::ItemData::Default,
+        };
+        let pristine = SlotKnowledge::Item { item: item.clone() };
+        let worn = |damage: i32, extra: bool| {
+            let mut item = item.clone();
+            let mut bytes = vec![10, 0, 0, 3, 0, 6];
+            bytes.extend(b"Damage");
+            bytes.extend(damage.to_be_bytes());
+            if extra {
+                bytes.extend([3, 0, 3]);
+                bytes.extend(b"foo");
+                bytes.extend(1_i32.to_be_bytes());
+            }
+            bytes.push(0);
+            item.data = super::super::ItemData::LegacyNbt { bytes };
+            SlotKnowledge::Item { item }
+        };
+        assert!(mining_hand_compatible(version, &pristine, &worn(1, false)).unwrap());
+        assert!(mining_hand_compatible(version, &worn(1, false), &worn(2, false)).unwrap());
+        assert!(!mining_hand_compatible(version, &worn(2, false), &worn(1, false)).unwrap());
+        assert!(!mining_hand_compatible(version, &worn(1, false), &worn(2, true)).unwrap());
+        assert!(!mining_hand_compatible(version, &pristine, &SlotKnowledge::Empty).unwrap());
+        assert!(!mining_hand_compatible(version, &pristine, &worn(-1, false)).unwrap());
+    }
 
     #[test]
     fn profiles_cover_every_state_in_id_order() {

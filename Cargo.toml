@@ -135,6 +135,7 @@ include = [
     "/scripts/ExportMenuLayouts.java",
     "/scripts/ExportStorageOutlines.java",
     "/scripts/ExportRegularClicks.java",
+    "/scripts/VerifyLegacyFurnaceComparison.java",
     "/scripts/export_regular_clicks.py",
     "/scripts/ExportInventoryTransfers.java",
     "/scripts/export_inventory_transfers.py",

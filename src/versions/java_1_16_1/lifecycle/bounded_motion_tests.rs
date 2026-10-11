@@ -355,3 +355,30 @@ async fn crafting_take_actor_separates_result_from_ordinary_click_and_sends_once
     assert!(actor.bounded_inventory_click(1,0,0,None).await.is_err());no_packet(&mut peer).await;
     actor.finish_inventory_click(1).await.unwrap();
 }
+
+#[tokio::test]
+async fn processing_resync_marker_is_separate_from_ordinary_counts_and_result_take() {
+    let (actor,mut peer)=actor_fixture().await;actor.mark_ready().await;
+    let revision=actor.motion_admission_revision().await.unwrap();
+    actor.begin_window_click(1,revision,3).await.unwrap();
+    let mut marker=swap_comparison();marker.count=127;
+    assert!(actor.bounded_inventory_click(1,0,1,Some(marker.clone())).await.is_err());
+    assert!(actor.bounded_processing_click(1,3,1,Some(marker.clone())).await.is_err());
+    assert!(actor.bounded_processing_click(1,0,1,Some(swap_comparison())).await.is_err());
+    no_packet(&mut peer).await;
+    actor.bounded_processing_click(1,0,1,Some(marker.clone())).await.unwrap();
+    let (packet,payload)=read_packet(&mut peer,None).await.unwrap();
+    assert_eq!(packet,0x09);assert_eq!(payload[payload.len()-2],127);
+    assert!(actor.bounded_processing_click(1,0,1,Some(marker.clone())).await.is_err());
+    actor.finish_inventory_click(1).await.unwrap();
+    let revision=actor.motion_admission_revision().await.unwrap();
+    actor.begin_window_click(2,revision,0).await.unwrap();
+    assert!(actor.bounded_processing_click(2,1,1,Some(marker.clone())).await.is_err());
+    no_packet(&mut peer).await;
+    actor.bounded_inventory_click(2,9,0,None).await.unwrap();read_packet(&mut peer,None).await.unwrap();
+    actor.finish_inventory_click(2).await.unwrap();
+    let revision=actor.motion_admission_revision().await.unwrap();
+    actor.begin_crafting_result_take(3,revision,3).await.unwrap();
+    assert!(actor.bounded_processing_click(3,0,0,Some(marker)).await.is_err());
+    no_packet(&mut peer).await;
+}

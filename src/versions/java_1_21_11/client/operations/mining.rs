@@ -316,6 +316,11 @@ impl Operations {
         capture_common: bool,
     ) -> Result<MiningIntent> {
         let mut state = self.bot.session.state.lock().await;
+        if self.bot.session.operational_dig.active() {
+            return Err(unavailable(
+                "operational dig owns this connection; no replacement mining admitted",
+            ));
+        }
         self.mutable(&state)?;
         let common = capture_common
             .then(|| self.common_player_unlocked(&state))

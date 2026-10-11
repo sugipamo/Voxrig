@@ -21,6 +21,7 @@ async fn fixture() -> (Bot, OwnedReadHalf, TcpStream) {
         .select_dimension("minecraft:overworld".into(), dimension);
     state.loading.reset(1);
     let session = Arc::new(Session {
+        operational_dig: Arc::default(),
         id: 900,
         started: Instant::now(),
         writer: Mutex::new(Writer {

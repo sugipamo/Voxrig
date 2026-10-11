@@ -22,10 +22,29 @@ println!("{} ticks, removed: {}", estimate.ticks, record.removed);
 2. 1 tickごとの進み方を`ticks`回足して1に届くまで待つ（clientの時計。1 tickの余裕を足す）。
 3. STOP_DESTROY_BLOCKを送る。serverは自分が数えたtickで70%以上進んでいれば壊す。
 4. 受信したblockの状態が変わるのを最大1秒待ち、`removed`と`final_state`を返す。
+   `removed` は元の world で loaded air を観測したときだけ true。アンロードや別の non-air block は false。
    壊れなかったことはerrorではない（serverが決める）。1.21.11は`sequences`にSTARTとSTOPの操作番号が入る。
 
 送信前に、受信したgame modeがsurvivalであること、対象がloadedで目から4.5以内であること、
-未解決の操作がないことを検査する。STARTの後に呼び出しを止めた（futureを落とした）場合、ABORTは送らない。
+未解決の操作がないことを検査する。START/STOP の直前にも元の world/mode/選択した hand と採掘時間の入力を照合する。
+各 adapter は同じ状態ロックを保持したまま検査から完全なパケット送信まで行う。
+対象・目の水位・接地・player capture もそのロック内で採取する。
+1.16.1 の同じ item/個数の通常摩耗は、非負で単調増加する Damage だけの差を許容する。
+他の NBT、item、個数、選択の変更、採掘時間の変化は拒否する。
+単発診断用の `start_mining` と異なり、`dig` は元接続を永久に採掘専用へ隔離せず、
+同じ接続で次の操作を呼べる。戻り値は server ACK や除去した actor の証明ではない。
+START の後で呼び出しを止めた場合、接続が所有する task が元の対象へ ABORT を一度だけ送る。
+採掘条件の変化で STOP を拒否した場合も同じ cleanup を使う。元の world/mode が変わった場合は
+新しい文脈へ ABORT を送らず、cleanup を `ContextChanged` として記録する。
+I/O が不確実な場合は自動再送・再接続せず、同じ world の次の採掘を拒否する。
+`dig_cleanup_record()` は取消・拒否後の `Pending` / `Aborted` / `ContextChanged` / `Failed` を
+切断後も読める診断で、server の ACK・採掘除去・再実行権限ではない。
+ABORT の拒否・書込失敗は `ErrorKind::OperationUnconfirmed` を返し、元の STOP 拒否理由と
+cleanup 失敗を診断チェーンへ保持する。呼出側は変更操作を停止して原記録を検査する。
+ABORT が完全送信された場合は元の拒否エラーを返す。次の採掘を未解決 cleanup で拒否する場合も
+`OperationUnconfirmed` であり、入力検査だけの `State` と区別できる。
+同じ接続の運用採掘は一度に一つで、active な運用採掘の間は診断 mining の新規開始も拒否する。
+STOP が完全送信済みか START だけで瞬時採掘が完了した後には、取消による ABORT を追加しない。
 
 ## 掘る時間の計算
 
