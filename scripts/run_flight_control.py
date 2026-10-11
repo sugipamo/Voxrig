@@ -37,10 +37,16 @@ def check(version, command, request, trace, report, sdk):
     def capture(name,record,boundary):
         assert record['kind']=='flight' and record['frame'] is not None and not record['corrections'],record
         frame=record['frame']
-        actual=until(lambda:(pos if max(abs(a-b) for a,b in zip((pos:=native_position()),frame['position']))<.4 else None),2)
+        def applied_position():
+            pos=native_position()
+            return pos if max(abs(a-b) for a,b in zip(pos,frame['position']))<.4 else None
+        actual=until(applied_position,2)
         expected=struct.pack('>dddff',*frame['position'],record['controls']['yaw'],record['controls']['pitch'])
         expected+=bytes([int(frame['on_ground']) | ((int(frame['horizontal_collision'])<<1) if version=='1.21.11' else 0)])
-        wire=until(lambda:(packets if any(p['packet_id']==move_id and p['body_hex']==expected.hex() for p in (packets:=outbound(boundary))) else None),5)
+        def written():
+            packets=outbound(boundary)
+            return packets if any(p['packet_id']==move_id and p['body_hex']==expected.hex() for p in packets) else None
+        wire=until(written,5)
         params=record['flight_parameters'];assert params['spectator']==(record['mode']=='spectator')
         received=[p for p in trace.since(0) if p['direction']=='clientbound' and p['phase'] in ('configuration','play')]
         original=received[params['abilities_sequence']-1]
@@ -57,7 +63,10 @@ def check(version, command, request, trace, report, sdk):
         if mode=='creative':
             rejection=rejected('flight_start',mode,controls=controls(jump=True))
             boundary=trace.mark();enable=admitted('flight_enable',mode,flying=True)
-            packets=until(lambda:(p if any(x['packet_id']==ability_id and x['body_hex']=='02' for x in (p:=outbound(boundary))) else None),5)
+            def enabled():
+                packets=outbound(boundary)
+                return packets if any(x['packet_id']==ability_id and x['body_hex']=='02' for x in packets) else None
+            packets=until(enabled,5)
             save('creative_explicit_enable_required',refusal=rejection,enable=enable,packets=packets)
         start=admitted('flight_start',mode,controls=controls(jump=True));session=start['session_id']
         assert start['kind']=='flight' and start['mode']==mode
