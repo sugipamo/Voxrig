@@ -7,6 +7,8 @@ use super::{
 use crate::{MinecraftVersion, Result};
 use std::collections::BTreeMap;
 mod data;
+mod pose;
+pub use pose::{EntityPose, EntityPoseReading};
 mod history;
 mod motion;
 pub use history::{

@@ -101,7 +101,8 @@ pub use entity::{
     EntitiesObservation, EntityDataField, EntityDataReading, EntityDataSource, EntityDataValue,
     EntityId, EntityMotionObservation, EntityObservation, EntityPartEvidence, EntityPartId,
     EntityPartKind, EntityPartModel, EntityPartObservation, EntityPartState, EntityPartUnavailable,
-    EntityPosition, EntityPositionCorrection, EntitySpawn, EntitySpawns, EquipmentSlot,
+    EntityPose, EntityPoseReading, EntityPosition, EntityPositionCorrection, EntitySpawn,
+    EntitySpawns, EquipmentSlot,
 };
 pub use geometry::{Aabb, BlockFace, BlockPos, Hand, Vec3};
 pub use item::ItemProperties;
@@ -144,8 +145,8 @@ pub mod prelude {
     };
     pub use super::entity::{
         EntitiesObservation, EntityObservation, EntityPartEvidence, EntityPartId, EntityPartKind,
-        EntityPartModel, EntityPartObservation, EntityPartState, EntityPartUnavailable,
-        EquipmentSlot,
+        EntityPartModel, EntityPartObservation, EntityPartState, EntityPartUnavailable, EntityPose,
+        EntityPoseReading, EquipmentSlot,
     };
     pub use super::events::{ClientEvent, EventKind, EventLog};
     pub use super::inventory::{

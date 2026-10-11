@@ -56,7 +56,7 @@ async fn main() -> anyhow::Result<()> {
     let port = std::env::var("VOXRIG_PORT")?.parse()?;
     let client = Client::connect(ConnectionConfig::offline_from_env(
         Server::new("127.0.0.1", port),
-        "ClimbingProbe",
+        std::env::var("VOXRIG_PROBE_USERNAME").unwrap_or_else(|_| "ClimbingProbe".into()),
     )?)
     .await?;
     client.wait_until_ready().await?;
@@ -72,6 +72,10 @@ async fn main() -> anyhow::Result<()> {
     while let Some(line) = lines.next_line().await? {
         let request: serde_json::Value = serde_json::from_str(&line)?;
         let value = match request["command"].as_str().unwrap_or_default() {
+            "entity_poses" => serde_json::json!(client.entities().await?.entities.iter()
+                .filter(|entity| entity.motion.entity.type_name.as_deref() == Some("minecraft:player"))
+                .map(|entity| serde_json::json!({"entity":entity.motion.entity,"pose":entity.pose()}))
+                .collect::<Vec<_>>()),
             "use_item" => serde_json::to_value(survival.use_item(Hand::Main).await?)?,
             "map_context" => {
                 let context = client

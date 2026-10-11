@@ -1,0 +1,226 @@
+{
+  "schema": 1,
+  "authority": "Original pose enum, Entity.DATA_POSE accessor and original EntityDataSerializers.POSE round trips; interpreted results and hashes only. No synthesized server-current pose or geometry.",
+  "harness_sha256": "1c8e6925b59d0eca43574ec042cd8909230e1e76abdc8e156107324689579508",
+  "runner_sha256": "3448d0d91070af24832a829ae558fb40366bc2157726d48a50ea6f2617a9d69d",
+  "versions": {
+    "1.16.1": {
+      "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+      "original_output_sha256": "6e72c7f4f2ce1c225aa6157ba6e10230db751c0bced3654a83c42f7b54abe2bf",
+      "metadata_index": 6,
+      "serializer_id": 18,
+      "poses": [
+        {
+          "ordinal": 0,
+          "native_id": 0,
+          "name": "STANDING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+        },
+        {
+          "ordinal": 1,
+          "native_id": 1,
+          "name": "FALL_FLYING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a"
+        },
+        {
+          "ordinal": 2,
+          "native_id": 2,
+          "name": "SLEEPING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986"
+        },
+        {
+          "ordinal": 3,
+          "native_id": 3,
+          "name": "SWIMMING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5"
+        },
+        {
+          "ordinal": 4,
+          "native_id": 4,
+          "name": "SPIN_ATTACK",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "e52d9c508c502347344d8c07ad91cbd6068afc75ff6292f062a09ca381c89e71"
+        },
+        {
+          "ordinal": 5,
+          "native_id": 5,
+          "name": "CROUCHING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db"
+        },
+        {
+          "ordinal": 6,
+          "native_id": 6,
+          "name": "DYING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6"
+        }
+      ]
+    },
+    "1.21.11": {
+      "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+      "original_output_sha256": "e7b25aebfcaf733e9bcf10eebbf85f5356852f7556158d16bc21b209109f4845",
+      "metadata_index": 6,
+      "serializer_id": 20,
+      "poses": [
+        {
+          "ordinal": 0,
+          "native_id": 0,
+          "name": "STANDING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+        },
+        {
+          "ordinal": 1,
+          "native_id": 1,
+          "name": "FALL_FLYING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "4bf5122f344554c53bde2ebb8cd2b7e3d1600ad631c385a5d7cce23c7785459a"
+        },
+        {
+          "ordinal": 2,
+          "native_id": 2,
+          "name": "SLEEPING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "dbc1b4c900ffe48d575b5da5c638040125f65db0fe3e24494b76ea986457d986"
+        },
+        {
+          "ordinal": 3,
+          "native_id": 3,
+          "name": "SWIMMING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "084fed08b978af4d7d196a7446a86b58009e636b611db16211b65a9aadff29c5"
+        },
+        {
+          "ordinal": 4,
+          "native_id": 4,
+          "name": "SPIN_ATTACK",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "e52d9c508c502347344d8c07ad91cbd6068afc75ff6292f062a09ca381c89e71"
+        },
+        {
+          "ordinal": 5,
+          "native_id": 5,
+          "name": "CROUCHING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "e77b9a9ae9e30b0dbdb6f510a264ef9de781501d7b6b92ae89eb059c5ab743db"
+        },
+        {
+          "ordinal": 6,
+          "native_id": 6,
+          "name": "LONG_JUMPING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "67586e98fad27da0b9968bc039a1ef34c939b9b8e523a8bef89d478608c5ecf6"
+        },
+        {
+          "ordinal": 7,
+          "native_id": 7,
+          "name": "DYING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "ca358758f6d27e6cf45272937977a748fd88391db679ceda7dc7bf1f005ee879"
+        },
+        {
+          "ordinal": 8,
+          "native_id": 8,
+          "name": "CROAKING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "beead77994cf573341ec17b58bbf7eb34d2711c993c1d976b128b3188dc1829a"
+        },
+        {
+          "ordinal": 9,
+          "native_id": 9,
+          "name": "USING_TONGUE",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "2b4c342f5433ebe591a1da77e013d1b72475562d48578dca8b84bac6651c3cb9"
+        },
+        {
+          "ordinal": 10,
+          "native_id": 10,
+          "name": "SITTING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+        },
+        {
+          "ordinal": 11,
+          "native_id": 11,
+          "name": "ROARING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "e7cf46a078fed4fafd0b5e3aff144802b853f8ae459a4f0c14add3314b7cc3a6"
+        },
+        {
+          "ordinal": 12,
+          "native_id": 12,
+          "name": "SNIFFING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "ef6cbd2161eaea7943ce8693b9824d23d1793ffb1c0fca05b600d3899b44c977"
+        },
+        {
+          "ordinal": 13,
+          "native_id": 13,
+          "name": "EMERGING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4"
+        },
+        {
+          "ordinal": 14,
+          "native_id": 14,
+          "name": "DIGGING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "4d7b3ef7300acf70c892d8327db8272f54434adbc61a4e130a563cb59a0d0f47"
+        },
+        {
+          "ordinal": 15,
+          "native_id": 15,
+          "name": "SLIDING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "dc0e9c3658a1a3ed1ec94274d8b19925c93e1abb7ddba294923ad9bde30f8cb8"
+        },
+        {
+          "ordinal": 16,
+          "native_id": 16,
+          "name": "SHOOTING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "c555eab45d08845ae9f10d452a99bfcb06f74a50b988fe7e48dd323789b88ee3"
+        },
+        {
+          "ordinal": 17,
+          "native_id": 17,
+          "name": "INHALING",
+          "original_roundtrip": true,
+          "encoded_size": 1,
+          "original_codec_sha256": "4a64a107f0cb32536e5bce6c98c393db21cca7f4ea187ba8c4dca8b51d4ea80a"
+        }
+      ]
+    }
+  }
+}

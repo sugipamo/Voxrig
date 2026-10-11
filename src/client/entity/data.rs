@@ -16,6 +16,9 @@ pub enum EntityDataField {
     /// Shared flags byte: on fire 0x01, crouching 0x02, sprinting 0x08, swimming 0x10,
     /// invisible 0x20, glowing 0x40, fall flying 0x80.
     SharedFlags,
+    /// Original pose enum; native identifiers differ by version. No type
+    /// default is invented when the original enum value was not exported.
+    Pose,
     /// Remaining air ticks.
     AirSupply,
     /// Whether the custom name is always shown.
@@ -79,6 +82,7 @@ impl EntityDataField {
     /// Every field.
     pub const ALL: &'static [Self] = &[
         Self::SharedFlags,
+        Self::Pose,
         Self::AirSupply,
         Self::CustomNameVisible,
         Self::Silent,
@@ -112,6 +116,7 @@ impl EntityDataField {
     /// Official (owner class, field) names in any supported version.
     pub const fn official_names(self) -> &'static [(&'static str, &'static str)] {
         match self {
+            Self::Pose => &[("Entity", "DATA_POSE")],
             Self::SharedFlags => &[("Entity", "DATA_SHARED_FLAGS_ID")],
             Self::AirSupply => &[("Entity", "DATA_AIR_SUPPLY_ID")],
             Self::CustomNameVisible => &[("Entity", "DATA_CUSTOM_NAME_VISIBLE")],

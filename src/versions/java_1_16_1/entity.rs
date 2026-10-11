@@ -513,6 +513,7 @@ pub(crate) fn common_metadata(
             (2, MetadataValue::Float(v)) => V::Float(v),
             (3, MetadataValue::String(v)) => V::String(v),
             (7, MetadataValue::Bool(v)) => V::Bool(v),
+            (18, MetadataValue::VarInt(v)) => V::Pose(v),
             _ => V::Other(kind),
         };
         values.push((key, value));
@@ -612,6 +613,16 @@ mod common_metadata_tests {
     use crate::client::EntityDataValue as V;
 
     #[test]
+    fn all_original_legacy_pose_ids_use_the_pose_serializer() {
+        for id in 0..7 {
+            let (_, values) = common_metadata(&[9, 6, 18, id, 255]).unwrap();
+            assert_eq!(values, vec![(6, V::Pose(i32::from(id)))]);
+        }
+        let (_, values) = common_metadata(&[9, 6, 1, 5, 255]).unwrap();
+        assert_eq!(values, vec![(6, V::Int(5))]);
+    }
+
+    #[test]
     fn serializers_are_kept_and_only_plain_values_decoded() {
         // entity 5: index 0 byte 0x20, 15 varint 3, 6 pose (VarInt serializer 18), 2 string.
         let payload = [5, 0, 0, 0x20, 15, 1, 3, 6, 18, 1, 2, 3, 1, b'x', 0xff];
@@ -622,7 +633,7 @@ mod common_metadata_tests {
             vec![
                 (0, V::Byte(0x20)),
                 (15, V::Int(3)),
-                (6, V::Other(18)),
+                (6, V::Pose(1)),
                 (2, V::String("x".into()))
             ]
         );

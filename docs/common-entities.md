@@ -12,8 +12,27 @@
 | `health` | 生き物の体力。metadataで受信するまで`None` |
 | `equipment` | 装備欄ごとに最後に受信したitem（`MainHand`〜`Head`、1.21.11は`Body`・`Saddle`も） |
 | `living` | 生き物（playerを含む）かどうか。1.16.1は出現パケット（生き物用・player用）、1.21.11は種類（`minecraft:player`か既定属性を持つ種類）で決める。種類が分からなければ`None` |
-| `metadata` | 最後に受信したentity data（index → 値）。byte・int・long・float・boolean・stringは値を、それ以外の型はnativeの型番号（`Other(n)`）を持つ |
+| `metadata` | 最後に受信したentity data（index → 値）。byte・int・long・float・boolean・string・poseは値を、それ以外の型はnativeの型番号（`Other(n)`）を持つ |
 | `metadata_complete` | このentityのentity dataパケットをすべて最後まで読めたか。`false`なら、受信していないフィールドは不明として扱う |
+
+## 姿勢の受信
+
+`EntityObservation::pose()`は、原版のpose serializerで受信した最新の値を
+`EntityPoseReading`として返す。`pose`は共通名、`native_id`は版固有の番号、
+`source`は実際の受信順序を保持する。1.16.1の番号6は`Dying`、1.21.11では
+`LongJumping`なので、番号だけを版をまたいで比較しない。
+
+未受信・別のserializer・未知のentity種類では`None`。未知の番号はreadingの
+`native_id`を保持し、共通名だけ`None`になる。部分的なmetadataを受信した場合、
+既に受信したposeは残るが`metadata_complete`は`false`になる。spawn IDの再利用で
+前のentityの姿勢を引き継がない。自分のplayerはこのAPIの対象外。
+
+姿勢の受信は現在のサーバー状態・描画補間・動的な寸法の確認ではない。
+`bounding_box`は引き続き種類の既定寸法を使う。
+
+原版serializer全25姿勢の根拠は`data/client_api/entity_pose_oracle.json`。
+`scripts/run_entity_pose_oracle.py`で再生成し、`scripts/run_entity_pose_live.py`で
+両版の原版サーバーに2クライアントを接続してしゃがみ・解除・削除を検証できる。
 
 ## 制約
 

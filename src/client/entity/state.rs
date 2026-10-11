@@ -59,7 +59,7 @@ pub struct EntityObservation {
     pub metadata_complete: bool,
 }
 
-/// One received entity-data value. Integer, float, boolean and string serializers are
+/// One received entity-data value. Integer, float, boolean, string and pose serializers are
 /// decoded; any other serializer keeps only its native kind.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub enum EntityDataValue {
@@ -75,6 +75,9 @@ pub enum EntityDataValue {
     Bool(bool),
     /// String serializer.
     String(String),
+    /// Original Pose serializer value. Its number is version-specific; use
+    /// EntityObservation::pose for a common name. Unknown IDs remain raw.
+    Pose(i32),
     /// Another serializer, by native serializer ID.
     Other(i32),
 }
