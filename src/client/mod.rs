@@ -25,7 +25,9 @@ pub(crate) mod enchantments;
 pub(crate) mod entity;
 pub use entity::{
     EntityHistory, EntityHistoryCursor, EntityHistoryGap, EntityHistoryKind, EntityHistoryRecord,
-    MAX_ENTITY_HISTORY_READ, MAX_ENTITY_HISTORY_RECORDS,
+    LivingContactBody, LivingContactCandidate, LivingContactDisposition, LivingContactPlayer,
+    LivingContactResult, LivingContactsModel, LivingContactsUnavailable, MAX_ENTITY_HISTORY_READ,
+    MAX_ENTITY_HISTORY_RECORDS, MAX_LIVING_CONTACT_CANDIDATES, model_living_contacts,
 };
 pub mod flight;
 pub(crate) mod fraction;
@@ -152,9 +154,12 @@ pub mod prelude {
         EntityGeometryUnavailable, EntityObservation, EntityPartEvidence, EntityPartId,
         EntityPartKind, EntityPartModel, EntityPartObservation, EntityPartState,
         EntityPartUnavailable, EntityPose, EntityPoseReading, EntityScaleReading, EquipmentSlot,
-        LivingInterpolation, LivingInterpolationFrame, LivingInterpolationPose,
-        LivingInterpolationUnavailable, LivingPairPushDisposition, LivingPairPushInput,
-        LivingPairPushModel, LivingPairPushUnavailable, LivingPushBody, model_living_pair_push,
+        LivingContactBody, LivingContactCandidate, LivingContactDisposition, LivingContactPlayer,
+        LivingContactResult, LivingContactsModel, LivingContactsUnavailable, LivingInterpolation,
+        LivingInterpolationFrame, LivingInterpolationPose, LivingInterpolationUnavailable,
+        LivingPairPushDisposition, LivingPairPushInput, LivingPairPushModel,
+        LivingPairPushUnavailable, LivingPushBody, MAX_LIVING_CONTACT_CANDIDATES,
+        model_living_contacts, model_living_pair_push,
     };
     pub use super::events::{ClientEvent, EventKind, EventLog};
     pub use super::inventory::{

@@ -175,8 +175,13 @@ MOVEMENTの拡張#44とは別に、再開不具合#37はPR #50で修正済み。
 
 原版LivingEntityの明示的な1回の押し合い計算は[共通モデル](common-entity-push.md)として提供する。
 [原版1,040ケースと公式両版29項目](evidence/common-entity-push-20261011.json)で検証済み。
-補間・接触の探索・pair順序・移動制御への統合は引き続きMOVEMENT / #44の残件。
+明示的な補間・接触選別・入力順のpair計算は提供済み。
+自動の接触探索・world/entity tick順序・移動制御への統合はMOVEMENT / #44の残件。
 
 原版cowが継承する位置・body角度の明示的な補間モデルは
 [共通の生物補間](common-entity-interpolation.md)を参照。受信状態・自動tick割当て・
 接触探索・移動制御の統合とは別の数値モデルで、modernの各stepには衝突問い合わせが必要。
+
+明示的なbox・team・述語からの接触選別と入力順の`other.push(this)`計算は
+[共通の接触モデル](common-entity-contact.md)を参照。
+自動のworld query・tick割当て・移動owner統合は引き続き#44の残件。

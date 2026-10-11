@@ -29,7 +29,7 @@ impl TeamVisibility {
     }
 }
 /// Common native team collision rule; this observation does not enforce physics.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TeamCollision {
     /// Always collide.
