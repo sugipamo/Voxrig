@@ -530,3 +530,13 @@ unchanged. Original JAR/mapping, base/generated harness, runner, wrapper and inp
 hashes are retained. Owned LocalPlayer input preprocessing remains a port,
 not a graphical packet clock. Game binaries, mappings, method bodies and raw
 captures remain local and are not distributed or relicensed.
+
+
+`data/client_api/glide_oracle.json.gz` records numerical glide movement and
+geometry from unchanged official Player/LivingEntity methods. The original
+wrapper selects the original Level client-side branch for each numerical tick
+on original server terrain, restoring it afterward; the existing owned input
+port remains unchanged. This is not a graphical ClientLevel packet-clock test.
+Hashes of official JARs/mappings, base/generated harness, runner/wrapper and
+inputs are recorded. No game binaries, mappings, bytecode or method bodies are
+redistributed. Limits and live validation are in `docs/common-glide-control.md`.

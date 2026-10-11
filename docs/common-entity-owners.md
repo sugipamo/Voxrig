@@ -61,3 +61,6 @@ crammingのサーバー側判定・damage・RNGは計算・送信しない。多
 
 追加speciesは[接触dispatchの範囲](common-entity-dispatch.md)と #97/#98/#99を参照。
 owner oracleのown travel比較は記録したloaded stone worldを対象とし、custom world borderを含む全地形の再資格化ではない。
+
+自分のunit Elytra滑空は専用ownerで[資格化](common-glide-control.md)した。
+他生物の滑空、追加姿勢やgliderを接触モデルへ一般化していない。
