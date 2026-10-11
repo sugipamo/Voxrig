@@ -19,6 +19,7 @@ def check(version, command, request, trace, report, sdk):
     # The actual packet ID is additionally observed from the unique native action
     # body, so version registry changes cannot be hidden by this expectation.
     start_action = 6 if modern else 8
+    action_packet = 0x29 if modern else 0x1c
 
     def save(name, **facts):
         report['checks'].append(dict(name=name, **facts))
@@ -79,7 +80,7 @@ def check(version, command, request, trace, report, sdk):
         expected += bytes([start_action, 0])
         def starts():
             return [f for f in trace.since(mark) if f['direction'] == 'serverbound' and
-                    f['phase'] == 'play' and f['body_hex'] == expected.hex()]
+                    f['phase'] == 'play' and f['packet_id'] == action_packet and f['body_hex'] == expected.hex()]
         until(lambda: starts(), 5)
         writes = starts(); assert len(writes) == 1, writes
         native = command('data get entity ClimbingProbe FallFlying')
