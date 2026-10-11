@@ -1,0 +1,176 @@
+{
+  "recorded_on_jst": "2026-10-12",
+  "scope": "Bounded spatial discovery from explicitly admitted model-time living boxes. Original query order and original selector, separate from received facts, native packet/tick scheduling and movement-owner execution.",
+  "sdk": {
+    "source_revision": "2b1af6bc128b5bf3e453143d6f18061ea5a48909",
+    "binary_build_revision": "2b1af6bc128b5bf3e453143d6f18061ea5a48909",
+    "binary_sha256": "45667f839f25e4564ea681909726d8b8f5ee92d69d7d89c5467097c762049450",
+    "artifacts": {
+      "Cargo.lock": "9af1583b513ab830ce861a5fb22bd9d9efe6a9d3f55f304dd7bc8301552ab6bf",
+      "scripts/run_entity_query_live.py": "48aa00d252ebd301dedb759b1ea1ad68c849a437127f5d1303a3553d4b9c1012",
+      "scripts/run_entity_query_oracle.py": "60e30833cc5d456e51f15329253dcdcbea2ccd4d30b0460c9bfb48cdd4b5e9f6",
+      "scripts/entity_query_oracle/1.16.1/EntityQueryOracle.java": "083754b7f873ef7d51ed823a516529a13dd958de273cc1444238f42811cc57a3",
+      "scripts/entity_query_oracle/1.21.11/EntityQueryOracle.java": "4064feb3a7f9352585a8f4416be307eb6a0eeec5e7d92cab34fa1afd8c09e68f",
+      "scripts/run_entity_pose_live.py": "f47757da45e3764a78482cdb9ea617833965af8c20065ef244f6c3a0a14a4a4b",
+      "scripts/run_climbing_control.py": "3a13994f5ee319b823aab33155137f83b4777748d878fe703584f91369a5e6ec",
+      "scripts/run_common_native.py": "8cad50ec937816f5e9ef4edeaaef190b55d45330a04fe67184ad6873a5437b39",
+      "examples/climbing_control_probe.rs": "81a3c9b0a7d98b254f5c848c3b093eb88938a81c4cbd10dc0b31b0ddde641d9d",
+      "data/client_api/entity_query_oracle.json.gz": "a0772d569dabe12ef2fa659253e253cf6ce4b142ad85535b5bbc7275cd58bfa4"
+    },
+    "features": []
+  },
+  "original_query": {
+    "fixture": "data/client_api/entity_query_oracle.json.gz",
+    "fixture_sha256": "a0772d569dabe12ef2fa659253e253cf6ce4b142ad85535b5bbc7275cd58bfa4",
+    "schedules": 96,
+    "query_steps": 576,
+    "runner_sha256": "60e30833cc5d456e51f15329253dcdcbea2ccd4d30b0460c9bfb48cdd4b5e9f6",
+    "versions": {
+      "1.16.1": {
+        "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+        "mappings_sha1": "11120c39da4df293c4bd020896391fb9ddd6c2ba",
+        "harness_sha256": "083754b7f873ef7d51ed823a516529a13dd958de273cc1444238f42811cc57a3",
+        "original_output_sha256": "071d89fdf7c37c43c6ff842e14e783f7f10a1be46ff24a4a7d7b17653c42bb8b"
+      },
+      "1.21.11": {
+        "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+        "mappings_sha1": "5621e9253f05fd57872bbe7f8ddf5f9a7d525955",
+        "harness_sha256": "4064feb3a7f9352585a8f4416be307eb6a0eeec5e7d92cab34fa1afd8c09e68f",
+        "original_output_sha256": "edc7b691a1e446624919ccefdd53ebf626510a79ace30dc11150800c5e5345b9"
+      }
+    }
+  },
+  "qualification": {
+    "total_live_checks": 54,
+    "connected_original_query_steps": 144,
+    "assertions": [
+      "Original spatial queries match candidate keys and order across negative/positive section coordinates, clamped legacy heights, subnormal position rounding, same/cross-section updates, removal/re-admission, replacement lifetimes and modern visibility.",
+      "Actual official cow/pig/zombie spawn and teleport values/ordinals are matched to original wire frames and motion history before explicit numerical index updates.",
+      "Unknown membership and unqualified overlapping bodies refuse complete queries. Failed updates preserve retained state. Explicit invalidation is irreversible.",
+      "Results are model keys/candidates, never EntityId targets or send authority. Client-side queries preserve the original local-player selector."
+    ],
+    "limitations": [
+      "Native membership changes are explicit harness stages. Legacy executes original Level/LevelChunk query methods; modern executes original EntitySectionStorage and selector in a registered official world. No native ClientLevel packet-to-tick schedule is executed.",
+      "Live received packet-target geometry seeds an explicitly chosen numerical model, not a claim of current server hitboxes or automatic received-to-model timing.",
+      "The world-query stage is independent of ground/boat owners. Automatic scheduling is issue #88, movement integration is #89, and additional overrides/cramming are #92.",
+      "Known-chunk membership, team/vehicle identities and visibility are explicit model inputs. Missing needed membership refuses rather than interpreting native skipped chunks as a complete input.",
+      "Servers are unchanged checksum-verified official loopback servers with controlled RCON fixtures."
+    ]
+  },
+  "validation": {
+    "focused_query_tests": 5,
+    "native_unit_tests": 1006,
+    "ignored_unit_tests": 8,
+    "native_integration_tests": 4,
+    "native_doctests": 34,
+    "ignored_doctests": 1,
+    "completed_checks": [
+      "native full tests including integration/doctests",
+      "strict native all-target Clippy",
+      "fmt",
+      "strict native rustdoc",
+      "six native trace tests",
+      "package allowlist includes all query qualifier sources and excludes private original artifacts"
+    ],
+    "required_before_merge": [
+      "final-head MSRV/default/native/test/package/audit CI"
+    ],
+    "trace_tests": 6
+  },
+  "failed_qualification_attempts": [
+    {
+      "stage": "initial modern original-query regression",
+      "reason": "Original oracle exposed modern floor-before-section division for negative subnormal coordinates. The model conversion was corrected and all 576 original query steps passed."
+    },
+    {
+      "stage": "initial full native tests under default sandbox",
+      "reason": "Local TCP sockets were denied. The full native suite was rerun with approved local networking; no production guard was weakened."
+    }
+  ],
+  "runs": [
+    {
+      "version": "1.16.1",
+      "passed": true,
+      "original_server_jar_sha1": "a412fd69db1f81db3f511c1463fd304675244077",
+      "check_count": 27,
+      "check_names": [
+        "original_peer_spawn",
+        "received_crouching",
+        "received_standing",
+        "removed_peer_not_observed",
+        "original_query_schedule_0_False",
+        "original_query_schedule_1_False",
+        "original_query_schedule_4_False",
+        "original_query_schedule_9_False",
+        "original_query_schedule_15_False",
+        "original_query_schedule_23_False",
+        "original_query_schedule_0_True",
+        "original_query_schedule_1_True",
+        "original_query_schedule_4_True",
+        "original_query_schedule_9_True",
+        "original_query_schedule_15_True",
+        "original_query_schedule_23_True",
+        "original_cow_spawn_geometry_seed",
+        "original_pig_spawn_geometry_seed",
+        "original_zombie_spawn_geometry_seed",
+        "explicit_received_seed_index_query_order",
+        "missing_membership_refuses_without_partial_candidates",
+        "unqualified_intersecting_body_refuses_whole_query",
+        "failed_update_preserves_existing_index",
+        "original_motion_then_explicit_section_update_0",
+        "original_motion_then_explicit_section_update_1",
+        "original_removal_respawn_and_distinct_model_lifetime",
+        "explicit_lifetime_gap_irreversibly_invalidates_index"
+      ],
+      "connected_original_query_steps": 72,
+      "trace_errors": [],
+      "peer_trace_errors": [],
+      "local_report": "/workspace/Voxrig/.local/climbing/live/1.16.1-20261011-173859/report.json",
+      "report_sha256": "ec2f83cd850ff2795781d9876c04f9652e5e305703ef753f51ab5c55dae6bc79",
+      "trace_sha256": "d3f8728373281f71282490b4f93fc93830a6d38ccfe8519b8f4c64052508356c",
+      "probe_log_sha256": "6161de0f0eced6950954d52bf95e29dd84569ebfb6dc3b364ec102e1524fb963"
+    },
+    {
+      "version": "1.21.11",
+      "passed": true,
+      "original_server_jar_sha1": "64bb6d763bed0a9f1d632ec347938594144943ed",
+      "check_count": 27,
+      "check_names": [
+        "original_peer_spawn",
+        "received_crouching",
+        "received_standing",
+        "removed_peer_not_observed",
+        "original_query_schedule_0_False",
+        "original_query_schedule_1_False",
+        "original_query_schedule_4_False",
+        "original_query_schedule_9_False",
+        "original_query_schedule_15_False",
+        "original_query_schedule_23_False",
+        "original_query_schedule_0_True",
+        "original_query_schedule_1_True",
+        "original_query_schedule_4_True",
+        "original_query_schedule_9_True",
+        "original_query_schedule_15_True",
+        "original_query_schedule_23_True",
+        "original_cow_spawn_geometry_seed",
+        "original_pig_spawn_geometry_seed",
+        "original_zombie_spawn_geometry_seed",
+        "explicit_received_seed_index_query_order",
+        "missing_membership_refuses_without_partial_candidates",
+        "unqualified_intersecting_body_refuses_whole_query",
+        "failed_update_preserves_existing_index",
+        "original_motion_then_explicit_section_update_0",
+        "original_motion_then_explicit_section_update_1",
+        "original_removal_respawn_and_distinct_model_lifetime",
+        "explicit_lifetime_gap_irreversibly_invalidates_index"
+      ],
+      "connected_original_query_steps": 72,
+      "trace_errors": [],
+      "peer_trace_errors": [],
+      "local_report": "/workspace/Voxrig/.local/climbing/live/1.21.11-20261011-173917/report.json",
+      "report_sha256": "5d6fd8c5bb71995ead038ee28974f25d043083d4363d08b57556e0ff970086d6",
+      "trace_sha256": "68037da788e9dd26fdd21d457cb31ffd6fa2449ff031d4dc4c8d889a347421ef",
+      "probe_log_sha256": "65e17ed84400563736fe82fb344a4aecd3ce2348be82ffb8e553a9aaa9cdfe8b"
+    }
+  ]
+}

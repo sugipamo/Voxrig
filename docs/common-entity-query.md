@@ -62,3 +62,8 @@ python3 scripts/run_entity_query_live.py --accept-eula \
 実接続driverでは元のspawn/motion packetと履歴・寿命を照合して数値モデルへ明示的に登録する。
 実際の位置更新による区画移動、除去と再spawn、未知の所属・未監査の種類・失敗した更新の拒否を検証する。
 元のpacket・NBT・JAR・classはignored `.local`に保持し、公開するのは自作source、数値結果とhash。
+
+公式両版で各27項目、計54項目を検証した。接続中に原版の12スケジュールずつ、
+計144問い合わせも照合し、observer/peerの通信エラーは0件。
+[SDK・成果物・結果のhash](evidence/common-entity-query-20261012.json)を参照。
+これらの結果は探索段階の資格で、native tick割当てや移動ownerの自動接触を示すものではない。
