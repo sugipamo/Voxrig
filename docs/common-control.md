@@ -320,3 +320,11 @@ python3 -B scripts/run_climbing_control.py --accept-eula
 [検証記録](evidence/climbing-vehicle-control-20261008.json)へ保存した。
 既存の公式jarを使う場合は`--jars /absolute/path/to/downloads`、別のCargo targetを使う場合は
 `--binary /absolute/path/to/climbing_control_probe`を指定できる。jarのSHA-1を検証する。
+
+## 生物接触の操作への統合
+
+通常scaleのplayer / cow / pig / zombieの完全な受信履歴を操作ownerへ結び付ける。
+[生物接触owner](common-entity-owners.md)と[特殊dispatchの範囲](common-entity-dispatch.md)を参照。
+補正・履歴不足・未検証入力ではモデルを破棄し、古い起点から自動再開しない。
+ボートの失敗時は同じ健康な実乗車の受信境界に限りneutral/paddle解除を一度だけ試み、
+予測位置を再送しない。`failure_release`はintent・完全送信・拒否/不確実性を保持する。

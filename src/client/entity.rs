@@ -7,6 +7,9 @@ use super::{
 use crate::{MinecraftVersion, Result};
 use std::collections::BTreeMap;
 mod contact;
+pub(crate) mod contact_tick;
+pub(crate) mod owned_contacts;
+pub use owned_contacts::{EntityContactFrame, EntityContactSample};
 mod query;
 pub use query::{
     LivingContactIndex, LivingContactIndexedBody, LivingContactKind, LivingContactQuery,

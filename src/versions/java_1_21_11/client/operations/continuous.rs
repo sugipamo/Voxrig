@@ -374,13 +374,58 @@ impl Operations {
             reconstruction.advance(world, tick);
             let mut session = state.control.session.take().unwrap();
             let received = received(&state);
+            session.apply_received(&received);
+            let contacts_ready: Result<()> = (|| {
+                if let Some(contacts) = &mut session.contacts {
+                    let stamp = crate::client::SessionStamp {
+                        version: crate::MinecraftVersion::Java1_21_11,
+                        connection_id: self.bot.session.id,
+                        world_generation: generation,
+                    };
+                    contacts.refresh(id, &state.entities, state.sequence)?;
+                    let teams = state.teams.capture(stamp, state.sequence);
+                    let profiles = state.player_list.capture(stamp, state.sequence);
+                    contacts.teams(&teams, &profiles)?;
+                    session.contact_team = crate::client::entity::owned_contacts::team(
+                        &teams,
+                        &state
+                            .identity
+                            .as_ref()
+                            .ok_or_else(|| invalid("contact login identity missing"))?
+                            .name,
+                    );
+                }
+                Ok(())
+            })();
+            if let Err(error) = contacts_ready {
+                session.contacts = None;
+                let release = self
+                    .write_release(&session, state.operations.local_player.entity_id)
+                    .await;
+                session.status = ControlStatus::Stopped {
+                    reason: match release {
+                        Ok(()) => error.to_string(),
+                        Err(release) => format!("{error}; release write failed: {release}"),
+                    },
+                };
+                state.control.session = Some(session);
+                self.bot.session.changed.notify_waiters();
+                return;
+            }
             let result = if state.reconstruction.issue.is_some()
                 || !state.reconstruction.recovery_chunks.is_empty()
             {
-                session.status = ControlStatus::Paused {
-                    reason: "piston reconstruction incomplete".into(),
-                };
-                Ok(None)
+                if session.contacts.as_ref().is_some_and(|c| c.has_bodies()) {
+                    session.contacts = None;
+                    Err(invalid(
+                        "incomplete reconstruction discarded contact origin",
+                    ))
+                } else {
+                    session.status = ControlStatus::Paused {
+                        reason: "piston reconstruction incomplete".into(),
+                    };
+                    Ok(None)
+                }
             } else {
                 session.step(&received, &mut |p| state.block(p))
             };
@@ -390,6 +435,14 @@ impl Operations {
                     session.status = ControlStatus::Stopped {
                         reason: error.to_string(),
                     };
+                    if let Err(release) = self
+                        .write_release(&session, state.operations.local_player.entity_id)
+                        .await
+                    {
+                        session.status = ControlStatus::Stopped {
+                            reason: format!("{error}; release write failed: {release}"),
+                        };
+                    }
                     state.control.session = Some(session);
                     self.bot.session.changed.notify_waiters();
                     return;
@@ -616,6 +669,37 @@ impl Operations {
         session.kind = kind;
         if let Some(controls) = initial_flight_controls {
             session.controls = controls;
+        }
+        {
+            let stamp = crate::client::SessionStamp {
+                version: crate::MinecraftVersion::Java1_21_11,
+                connection_id: self.bot.session.id,
+                world_generation: generation,
+            };
+            let own = state
+                .operations
+                .local_player
+                .entity_id
+                .ok_or_else(|| invalid("contact model requires own login entity"))?;
+            let mut contacts = crate::client::entity::owned_contacts::OwnedContacts::new(
+                stamp,
+                id,
+                own,
+                &state.entities,
+                state.sequence,
+            )?;
+            let teams = state.teams.capture(stamp, state.sequence);
+            let profiles = state.player_list.capture(stamp, state.sequence);
+            contacts.teams(&teams, &profiles)?;
+            session.contact_team = crate::client::entity::owned_contacts::team(
+                &teams,
+                &state
+                    .identity
+                    .as_ref()
+                    .ok_or_else(|| invalid("contact login identity missing"))?
+                    .name,
+            );
+            session.contacts = Some(contacts);
         }
         state.control.next_id = id;
         state.control.generation = Some(generation);

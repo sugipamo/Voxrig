@@ -56,5 +56,6 @@ team設定・所属移動・削除の受信値とsource ordinalを、実際の�
 独立した[`LivingContactIndex`](common-entity-query.md)は、明示したモデル時点のboxから
 元の版の検索順序で候補を自動探索する。結果をこの関数に渡せる。
 このモデルは受信位置を現在のhitboxへ変換せず、自動のtick scheduling・
-cramming damage/RNG・種ごとのoverride・ground/boat ownerへの統合は行わない。
-これらと自分のscale付き物理・elytra・追加の乗り物は#44の残件。
+この明示的なモデル自体はcramming damage/RNG・種ごとのoverrideを計算しない。
+徒歩・ボートへの自動統合は[生物接触owner](common-entity-owners.md)を参照。
+追加speciesは[dispatch範囲](common-entity-dispatch.md)、自分のscale・elytra・追加乗り物は#44の個別issueに従う。

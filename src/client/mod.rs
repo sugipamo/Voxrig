@@ -24,11 +24,12 @@ pub mod crafting;
 pub(crate) mod enchantments;
 pub(crate) mod entity;
 pub use entity::{
-    EntityEquipmentEntry, EntityHistory, EntityHistoryCursor, EntityHistoryGap, EntityHistoryKind,
-    EntityHistoryRecord, EntityHistoryValue, EntityMetadataEntry, LivingContactBody,
-    LivingContactCandidate, LivingContactDisposition, LivingContactIndex, LivingContactIndexedBody,
-    LivingContactKind, LivingContactPlayer, LivingContactQuery, LivingContactQueryUnavailable,
-    LivingContactResult, LivingContactsModel, LivingContactsUnavailable, MAX_ENTITY_HISTORY_BYTES,
+    EntityContactFrame, EntityContactSample, EntityEquipmentEntry, EntityHistory,
+    EntityHistoryCursor, EntityHistoryGap, EntityHistoryKind, EntityHistoryRecord,
+    EntityHistoryValue, EntityMetadataEntry, LivingContactBody, LivingContactCandidate,
+    LivingContactDisposition, LivingContactIndex, LivingContactIndexedBody, LivingContactKind,
+    LivingContactPlayer, LivingContactQuery, LivingContactQueryUnavailable, LivingContactResult,
+    LivingContactsModel, LivingContactsUnavailable, MAX_ENTITY_HISTORY_BYTES,
     MAX_ENTITY_HISTORY_READ, MAX_ENTITY_HISTORY_RECORDS, MAX_ENTITY_HISTORY_VALUE_BYTES,
     MAX_LIVING_CONTACT_CANDIDATES, MAX_LIVING_CONTACT_INDEX_BODIES,
     MAX_LIVING_CONTACT_INDEX_CHUNKS, MAX_LIVING_CONTACT_QUERY_CHUNKS, model_living_contacts,
@@ -131,10 +132,11 @@ pub use received_items::{ReceivedInventory, ReceivedItem, ReceivedSlot};
 pub use recording::{PacketPhase, PacketRecord, PacketTrace};
 pub use survival::{BlockTargetHit, BlockTargetObservation, MiningEstimate};
 pub use vehicle::{
-    BoatCollisionBody, BoatCollisionSample, BoatFrame, BoatMotion, BoatVelocityUpdate,
-    DismountGrounding, DismountId, DismountRecord, DismountStage, MAX_BOAT_COLLISION_BODIES,
-    MAX_VEHICLE_CONTROL_TICKS, MountId, VehicleControlId, VehicleControlRecord,
-    VehicleControlStage, VehicleInput, VehicleObservation, VehicleRelation,
+    BoatCollisionBody, BoatCollisionGeometry, BoatCollisionSample, BoatFrame, BoatMotion,
+    BoatVelocityUpdate, DismountGrounding, DismountId, DismountRecord, DismountStage,
+    MAX_BOAT_COLLISION_BODIES, MAX_VEHICLE_CONTROL_TICKS, MountId, VehicleControlId,
+    VehicleControlRecord, VehicleControlStage, VehicleInput, VehicleInputRelease,
+    VehicleObservation, VehicleRelation,
 };
 
 /// Imports for consumers selecting their Minecraft version at setup.
@@ -157,10 +159,10 @@ pub mod prelude {
         WorldDifficulty, WorldEntryContext, WorldViewObservation,
     };
     pub use super::entity::{
-        EntitiesObservation, EntityGeometry, EntityGeometryEvidence, EntityGeometryModel,
-        EntityGeometryUnavailable, EntityObservation, EntityPartEvidence, EntityPartId,
-        EntityPartKind, EntityPartModel, EntityPartObservation, EntityPartState,
-        EntityPartUnavailable, EntityPose, EntityPoseReading, EntityScaleReading,
+        EntitiesObservation, EntityContactFrame, EntityContactSample, EntityGeometry,
+        EntityGeometryEvidence, EntityGeometryModel, EntityGeometryUnavailable, EntityObservation,
+        EntityPartEvidence, EntityPartId, EntityPartKind, EntityPartModel, EntityPartObservation,
+        EntityPartState, EntityPartUnavailable, EntityPose, EntityPoseReading, EntityScaleReading,
         EntitySleepingReading, EquipmentSlot, LivingContactBody, LivingContactCandidate,
         LivingContactDisposition, LivingContactIndex, LivingContactIndexedBody, LivingContactKind,
         LivingContactPlayer, LivingContactQuery, LivingContactQueryUnavailable,
@@ -215,9 +217,11 @@ pub mod prelude {
     };
     pub use super::vehicle::control::{
         BoatFrame, BoatMotion, BoatVelocityUpdate, MAX_VEHICLE_CONTROL_TICKS, VehicleControlId,
-        VehicleControlRecord, VehicleControlStage, VehicleInput,
+        VehicleControlRecord, VehicleControlStage, VehicleInput, VehicleInputRelease,
     };
-    pub use super::vehicle::{BoatCollisionBody, BoatCollisionSample, MAX_BOAT_COLLISION_BODIES};
+    pub use super::vehicle::{
+        BoatCollisionBody, BoatCollisionGeometry, BoatCollisionSample, MAX_BOAT_COLLISION_BODIES,
+    };
     pub use super::{
         BlockFace, ChunkObservation, ConnectionStatus, CraftOnceRecord, CraftingFillRecord,
         DigEstimate, DigRecord, Hand, LoadedChunks, ObservedValue, PlacementCheck, PlayerAttribute,

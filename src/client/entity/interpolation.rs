@@ -93,6 +93,19 @@ impl LivingInterpolation {
         }
     }
 
+    /// Original modern noCollision call exists only after a previous stage.
+    /// The query uses the target displaced by separately modeled body movement.
+    pub(crate) fn collision_query_position(&self) -> Option<[f64; 3]> {
+        (self.version == MinecraftVersion::Java1_21_11 && self.remaining != 0)
+            .then_some(self.previous)
+            .flatten()
+            .map(|previous| {
+                std::array::from_fn(|i| {
+                    self.target.position[i] + (self.pose.position[i] - previous.position[i])
+                })
+            })
+    }
+
     /// Admit an already resolved full target. Native packet dispatch, relative
     /// teleport resolution and legacy tiny-teleport suppression precede this call.
     /// Modern identical active targets retain their remaining steps; legacy resets.

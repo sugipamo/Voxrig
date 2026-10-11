@@ -80,3 +80,11 @@ observer/peerの通信traceエラーは0件。固定した実行ファイルのh
 [補間](common-entity-interpolation.md)・[受信motion](common-entity-motion.md)・
 [受信履歴](common-entity-history.md)・[近接探索](common-entity-query.md)も参照。
 移動ownerへの接触適用は#89、entity別の独自dispatchは#92で扱う。
+
+## 生物接触の操作への統合
+
+通常scaleのplayer / cow / pig / zombieの完全な受信履歴を操作ownerへ結び付ける。
+[生物接触owner](common-entity-owners.md)と[特殊dispatchの範囲](common-entity-dispatch.md)を参照。
+補正・履歴不足・未検証入力ではモデルを破棄し、古い起点から自動再開しない。
+ボートの失敗時は同じ健康な実乗車の受信境界に限りneutral/paddle解除を一度だけ試み、
+予測位置を再送しない。`failure_release`はintent・完全送信・拒否/不確実性を保持する。

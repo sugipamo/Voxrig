@@ -179,6 +179,9 @@ pub struct ControlFrame {
 /// Observable record of the connection's control session.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub struct ControlRecord {
+    /// Latest automatic entity contact frame, at this owner's explicit model
+    /// origin. Numerical feet/velocity are separate from received targets.
+    pub entity_contacts: Option<super::EntityContactFrame>,
     /// Model explicitly selected when this owner was created.
     pub kind: ControlKind,
     /// Last converted held-flight parameters, retained when the owner stops.
@@ -280,6 +283,9 @@ pub(crate) struct Output {
 }
 
 pub(crate) struct ControlSession {
+    pub(crate) contacts: Option<super::entity::owned_contacts::OwnedContacts>,
+    pub(crate) entity_contacts: Option<super::EntityContactFrame>,
+    pub(crate) contact_team: Option<(String, super::ui::TeamCollision)>,
     pub kind: ControlKind,
     flight_parameters: Option<FlightParameters>,
     pub flight_disable: Option<FlightDisable>,
@@ -343,6 +349,9 @@ impl ControlSession {
         received: &Received,
     ) -> Self {
         Self {
+            contacts: None,
+            entity_contacts: None,
+            contact_team: None,
             kind: ControlKind::Ground,
             flight_parameters: None,
             flight_disable: None,
@@ -469,6 +478,7 @@ impl ControlSession {
             }
         }
         ControlRecord {
+            entity_contacts: self.entity_contacts.clone(),
             kind: self.kind,
             flight_parameters: self.flight_parameters.clone(),
             flight_disable: self.flight_disable.clone(),
@@ -515,7 +525,7 @@ impl ControlSession {
     }
 
     /// Apply receipts newer than the session has seen, as the client would.
-    fn apply_received(&mut self, received: &Received) {
+    pub(crate) fn apply_received(&mut self, received: &Received) {
         let pose = received
             .pose
             .filter(|p| self.last_pose.is_none_or(|seen| p.0 > seen));
@@ -599,20 +609,50 @@ impl ControlSession {
         };
         self.tick += 1;
         let controls = self.controls;
-        let ground_outcome = match physics::tick_with_ground_jump(
-            self.version,
-            &mut self.body,
-            &environment,
-            controls,
-            ground_requested,
-            block_at,
-        ) {
+        let contact_bodies = self.contacts.as_ref().is_some_and(|c| c.has_bodies());
+        let physics_result = if let Some(contacts) = &self.contacts {
+            let mut next = contacts.clone();
+            let mut body = self.body.clone();
+            match next.tick_player(
+                &mut body,
+                &environment,
+                controls,
+                ground_requested,
+                self.contact_team.as_ref(),
+                block_at,
+            ) {
+                Ok((outcome, frame)) => {
+                    self.body = body;
+                    self.contacts = Some(next);
+                    self.entity_contacts = Some(frame);
+                    Ok(outcome)
+                }
+                Err(error) => Err(error),
+            }
+        } else {
+            physics::tick_with_ground_jump(
+                self.version,
+                &mut self.body,
+                &environment,
+                controls,
+                ground_requested,
+                block_at,
+            )
+        };
+        let ground_outcome = match physics_result {
             Ok(outcome) => {
                 self.status = ControlStatus::Running;
                 outcome
             }
             // Unsupported terrain, unloaded cells: hold position and retry.
             Err(error) => {
+                if contact_bodies {
+                    self.status = ControlStatus::Stopped {
+                        reason: error.to_string(),
+                    };
+                    self.contacts = None;
+                    return Err(error);
+                }
                 self.status = ControlStatus::Paused {
                     reason: error.to_string(),
                 };

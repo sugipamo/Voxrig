@@ -318,6 +318,44 @@ impl Bot {
                 }
                 return;
             }
+            session.apply_received(&received);
+            let contacts_ready: Result<()> = async {
+                if let Some(contacts) = &mut session.contacts {
+                    let receipts = self.common_receipts.lock().await;
+                    let sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
+                    let stamp = crate::client::SessionStamp {
+                        version: MinecraftVersion::Java1_16_1,
+                        connection_id: self.connection_id(),
+                        world_generation: generation,
+                    };
+                    contacts.refresh(id, &receipts.entities, sequence)?;
+                    let teams = self.common_teams.lock().await.capture(stamp, sequence);
+                    let profiles = self
+                        .common_player_list
+                        .lock()
+                        .await
+                        .capture(stamp, sequence);
+                    contacts.teams(&teams, &profiles)?;
+                    session.contact_team = crate::client::entity::owned_contacts::team(
+                        &teams,
+                        &self.login_profile.name,
+                    );
+                }
+                Ok(())
+            }
+            .await;
+            if let Err(error) = contacts_ready {
+                session.contacts = None;
+                session.status = ControlStatus::Stopped {
+                    reason: error.to_string(),
+                };
+                if let Err(release) = self.release_control(session).await {
+                    session.status = ControlStatus::Stopped {
+                        reason: format!("{error}; release write failed: {release}"),
+                    };
+                }
+                return;
+            }
             let output = {
                 let world = self.world.lock().await;
                 session.step(&received, &mut |p| {
@@ -331,6 +369,11 @@ impl Bot {
                     session.status = ControlStatus::Stopped {
                         reason: error.to_string(),
                     };
+                    if let Err(release) = self.release_control(session).await {
+                        session.status = ControlStatus::Stopped {
+                            reason: format!("{error}; release write failed: {release}"),
+                        };
+                    }
                     return;
                 }
             };
@@ -541,6 +584,41 @@ impl Bot {
         session.kind = kind;
         if let Some(controls) = initial_flight_controls {
             session.controls = controls;
+        }
+        {
+            let receipts = self.common_receipts.lock().await;
+            let sequence = self.protocol_packet_sequence.load(Ordering::Acquire);
+            let stamp = crate::client::SessionStamp {
+                version: MinecraftVersion::Java1_16_1,
+                connection_id: self.connection_id(),
+                world_generation: generation,
+            };
+            if let Some(own) = player.entity_id {
+                let mut contacts = crate::client::entity::owned_contacts::OwnedContacts::new(
+                    stamp,
+                    id,
+                    own,
+                    &receipts.entities,
+                    sequence,
+                )?;
+                let teams = self.common_teams.lock().await.capture(stamp, sequence);
+                let profiles = self
+                    .common_player_list
+                    .lock()
+                    .await
+                    .capture(stamp, sequence);
+                contacts.teams(&teams, &profiles)?;
+                session.contact_team =
+                    crate::client::entity::owned_contacts::team(&teams, &self.login_profile.name);
+                session.contacts = Some(contacts);
+            } else if !receipts
+                .entities
+                .capture(stamp, sequence)
+                .entities
+                .is_empty()
+            {
+                return Err(invalid("contact model requires own login entity"));
+            }
         }
         let record = session.record();
         control.session = Some(session);

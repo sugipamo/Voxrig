@@ -464,7 +464,7 @@ fn terrain_effect<F: FnMut([i32; 3]) -> Result<NativeBlockState>>(
             if vertical_hit {
                 let y = &mut tick.body.velocity[1];
                 match block.after_fall_on {
-                    blocks::Effect::None => *y = 0.0,
+                    blocks::Effect::None => *y *= 0.0,
                     blocks::Effect::Slime if *y < 0.0 => *y = -*y * 0.8,
                     blocks::Effect::Bed if *y < 0.0 => *y = -*y * f64::from(0.66f32) * 0.8,
                     blocks::Effect::Slime | blocks::Effect::Bed => {}

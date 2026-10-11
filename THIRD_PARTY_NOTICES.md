@@ -509,3 +509,13 @@ qualify dispatch guards only. `data/client_api/entity_tick_oracle.json.gz` conta
 numerical schedules, pose bits, callback order and source/input hashes. Original
 JARs, mappings, classes and packet captures are not redistributed. This does not
 qualify an autonomous native clock, passenger physics or general NPC travel.
+
+The owned `scripts/entity_owner_oracle` harnesses execute original client-world
+packet handlers, entity storage/iteration, remote living AI-step, neutral Player
+travel and mounted Boat tick. `data/client_api/entity_owner_oracle.json.gz`
+contains observed numerical trajectories, candidate order and input/source hashes.
+Graphics constructors, audio output, passenger rideTick and GUI input preprocessing
+are isolated and explicitly recorded; full remote baseTick/AI/travel and an
+autonomous native clock are not qualified. Species override documentation is an
+interpreted audit, not redistributed bytecode or a general gameplay qualification.
+Official JARs, mappings, bytecode, method bodies and raw packet logs remain local.

@@ -162,6 +162,11 @@ impl Operations {
                 let vehicle = capture(&state, &player);
                 api::vehicle::control::validate(&record, &player, &vehicle)?;
                 if record.boat_motion.is_some() {
+                    if state.reconstruction.issue.is_some()
+                        || !state.reconstruction.recovery_chunks.is_empty()
+                    {
+                        return Err(unavailable("boat geometry/tick context incomplete"));
+                    }
                     let target = id
                         .mount()
                         .vehicle()
@@ -185,17 +190,15 @@ impl Operations {
                         "vehicle control frame already claimed or uncertain",
                     ));
                 }
-                let collisions = api::vehicle::collision::sample(
-                    &record,
+                let teams = state.teams.capture(player.session, state.sequence);
+                let profiles = state.player_list.capture(player.session, state.sequence);
+                let (collisions, boat_frame) = api::vehicle::control::contact_step(
+                    &mut record,
                     &vehicle,
                     &state.entities,
                     &state.vehicles,
-                    state.sequence,
-                )?;
-                let boat_frame = api::vehicle::control::boat_step(
-                    &record,
+                    (&teams, &profiles),
                     input,
-                    collisions.as_ref(),
                     &mut |p| state.block(p),
                 )?;
                 if let Some(boat) = self
@@ -211,6 +214,7 @@ impl Operations {
                     if let Some(sample) = collisions {
                         boat.collision_samples.push(sample);
                     }
+                    boat.contacts = record.boat_motion.as_ref().and_then(|b| b.contacts.clone());
                     boat.attempted_frame = boat_frame.clone();
                 }
                 self.bot
@@ -262,6 +266,33 @@ impl Operations {
         }
         .await;
         if let Err(e) = &result {
+            let state = self.bot.session.state.lock().await;
+            let context = self.ready(&state).and_then(|_| {
+                self.common_player_unlocked(&state).map(|player| {
+                    let vehicle = capture(&state, &player);
+                    (player, vehicle)
+                })
+            });
+            let packets = {
+                let mut history = self
+                    .bot
+                    .vehicle_control_history
+                    .lock()
+                    .expect("vehicle control history");
+                if let Some(record) = history.as_mut().filter(|r| r.id == id) {
+                    record.inspection(e);
+                    api::vehicle::control::failure_release(record, context)
+                } else {
+                    Vec::new()
+                }
+            };
+            let released = async {
+                for (packet, payload) in packets {
+                    self.bot.session.send(packet, &payload).await?;
+                }
+                Ok(())
+            }
+            .await;
             if let Some(record) = self
                 .bot
                 .vehicle_control_history
@@ -270,7 +301,7 @@ impl Operations {
                 .as_mut()
                 .filter(|r| r.id == id)
             {
-                record.inspection(e);
+                api::vehicle::control::finish_failure_release(record, released);
             }
         }
         result
@@ -447,6 +478,7 @@ impl crate::client::adapter::VehicleOps for Operations {
                 history.as_ref(),
             )?;
             api::vehicle::control::configure_boat(&mut record, motion, history.as_ref())?;
+            api::vehicle::control::bind_contacts(&mut record, &state.entities)?;
             *history = Some(record.clone());
             record
         };

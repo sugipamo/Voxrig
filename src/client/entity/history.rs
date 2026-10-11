@@ -128,6 +128,16 @@ pub enum EntityHistoryKind {
         /// Original lifetime, if its spawn was received.
         entity: Option<EntityId>,
     },
+    /// Original ordered passenger update, including unresolved numeric IDs.
+    /// Later spawns never fill the missing lifetime in this frozen receipt.
+    Passengers {
+        /// Original vehicle's numeric ID.
+        native_id: i32,
+        /// Vehicle spawn already known when the packet was applied.
+        entity: Option<EntityId>,
+        /// Native child IDs and their actual lifetimes at that receipt.
+        passengers: EntityHistoryValue<Vec<(i32, Option<EntityId>)>>,
+    },
     /// Invalidates old lifetimes without pretending each received an explicit removal.
     WorldChanged {
         /// World generation invalidated by this packet.
@@ -273,12 +283,24 @@ impl HistoryLedger {
                     | EntityHistoryKind::Removed { entity, .. }
                     | EntityHistoryKind::Metadata { entity, .. }
                     | EntityHistoryKind::Equipment { entity, .. }
-                    | EntityHistoryKind::Scale { entity, .. } => {
+                    | EntityHistoryKind::Scale { entity, .. }
+                    | EntityHistoryKind::Passengers { entity, .. } => {
                         if let Some(id) = entity {
                             id.session.connection_id = session.connection_id;
                         }
                     }
                     _ => {}
+                }
+                if let EntityHistoryKind::Passengers {
+                    passengers: EntityHistoryValue::Retained { value },
+                    ..
+                } = &mut r.kind
+                {
+                    for (_, id) in value {
+                        if let Some(id) = id {
+                            id.session.connection_id = session.connection_id;
+                        }
+                    }
                 }
                 r
             })
@@ -386,11 +408,34 @@ fn record_bytes(kind: &EntityHistoryKind) -> usize {
             attribute: Retained { value },
             ..
         } => scale_heap(value),
+        K::Passengers {
+            passengers: Retained { value },
+            ..
+        } => value.len() * std::mem::size_of::<(i32, Option<EntityId>)>(),
         _ => 0,
     };
     std::mem::size_of::<EntityHistoryRecord>() + std::mem::size_of::<usize>() + heap
 }
 impl SpawnLedger {
+    pub(crate) fn history_passengers(&mut self, update: &crate::client::vehicle::NativePassengers) {
+        let stamp = self.1.stamp();
+        let entity = stamp.and_then(|s| self.identity(s, update.vehicle));
+        let passengers = retain(
+            update.passengers.len() * std::mem::size_of::<(i32, Option<EntityId>)>(),
+            || {
+                update
+                    .passengers
+                    .iter()
+                    .map(|&id| (id, stamp.and_then(|s| self.identity(s, id))))
+                    .collect()
+            },
+        );
+        self.1.record(EntityHistoryKind::Passengers {
+            native_id: update.vehicle,
+            entity,
+            passengers,
+        });
+    }
     pub(super) fn history_metadata(
         &mut self,
         native_id: i32,

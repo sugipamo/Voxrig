@@ -321,6 +321,49 @@ struct Level<'a, F> {
     states: HashMap<[i32; 3], NativeBlockState>,
 }
 
+/// Original inherited living isPushable's onClimbable input, sampled at feet.
+pub(crate) fn contact_climbable(
+    version: MinecraftVersion,
+    position: [f64; 3],
+    block_at: &mut impl FnMut([i32; 3]) -> Result<NativeBlockState>,
+) -> Result<bool> {
+    let feet = position.map(floor);
+    let state = block_at(feet)?;
+    let (_, block) = blocks::lookup(version, &state)?;
+    if block.climbable {
+        return Ok(true);
+    }
+    if block.trapdoor && state.properties.get("open").map(String::as_str) == Some("true") {
+        let below = block_at([feet[0], feet[1] - 1, feet[2]])?;
+        return Ok(below.name == "minecraft:ladder"
+            && below.properties.get("facing") == state.properties.get("facing"));
+    }
+    Ok(false)
+}
+
+/// Original interpolation's block noCollision input. Entity geometry is
+/// checked separately by the owner at the same coherent model boundary.
+pub(crate) fn contact_block_collision_free(
+    version: MinecraftVersion,
+    bounds: [f64; 6],
+    current_bottom: f64,
+    block_at: &mut impl FnMut([i32; 3]) -> Result<NativeBlockState>,
+) -> Result<bool> {
+    let mut level = Level {
+        version,
+        block_at,
+        cache: HashMap::new(),
+        states: HashMap::new(),
+    };
+    level.no_collision(
+        bounds,
+        CollisionContext {
+            bottom: current_bottom,
+            descending: false,
+        },
+    )
+}
+
 impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Level<'_, F> {
     fn get(&mut self, p: [i32; 3]) -> Result<(&'static blocks::State, &'static blocks::Block)> {
         if let Some(found) = self.cache.get(&p) {

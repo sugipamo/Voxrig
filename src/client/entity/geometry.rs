@@ -217,7 +217,7 @@ impl EntityObservation {
     }
 }
 
-fn shape(
+pub(super) fn shape(
     version: MinecraftVersion,
     name: &str,
     pose: EntityPose,
