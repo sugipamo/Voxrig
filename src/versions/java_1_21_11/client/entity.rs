@@ -128,7 +128,7 @@ fn common_metadata(payload: &[u8]) -> Option<DecodedMetadata> {
     loop {
         let Ok(key) = r.u8() else { break };
         if key == 255 {
-            complete = true;
+            complete = r.end().is_ok();
             break;
         }
         let Ok(kind) = r.varint() else { break };
@@ -139,6 +139,7 @@ fn common_metadata(payload: &[u8]) -> Option<DecodedMetadata> {
             3 => r.f32().ok().map(V::Float),
             4 => r.string().ok().map(V::String),
             8 => r.bool().ok().map(V::Bool),
+            20 => r.varint().ok().map(V::Pose),
             _ => super::players::skip_metadata(&mut r, kind)
                 .ok()
                 .filter(|known| *known)
@@ -340,12 +341,27 @@ mod common_metadata_tests {
             vec![
                 (0, V::Byte(1)),
                 (17, V::Long(300)),
-                (6, V::Other(20)),
+                (6, V::Pose(1)),
                 (9, V::Float(2.5)),
                 (8, V::Bool(true))
             ]
         );
         let (_, values, complete) = common_metadata(&[9, 0, 0, 1, 255]).unwrap();
         assert_eq!((values, complete), (vec![(0, V::Byte(1))], true));
+    }
+
+    #[test]
+    fn pose_entries_require_the_original_serializer_and_clean_terminator() {
+        for id in 0..18 {
+            let (_, values, complete) = common_metadata(&[9, 6, 20, id, 255]).unwrap();
+            assert_eq!(
+                (values, complete),
+                (vec![(6, V::Pose(i32::from(id)))], true)
+            );
+        }
+        let (_, values, complete) = common_metadata(&[9, 6, 20, 5, 255, 0]).unwrap();
+        assert_eq!((values, complete), (vec![(6, V::Pose(5))], false));
+        let (_, values, complete) = common_metadata(&[9, 6, 1, 5, 255]).unwrap();
+        assert_eq!((values, complete), (vec![(6, V::Int(5))], true));
     }
 }
