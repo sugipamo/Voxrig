@@ -519,3 +519,14 @@ are isolated and explicitly recorded; full remote baseTick/AI/travel and an
 autonomous native clock are not qualified. Species override documentation is an
 interpreted audit, not redistributed bytecode or a general gameplay qualification.
 Official JARs, mappings, bytecode, method bodies and raw packet logs remain local.
+
+
+`data/client_api/player_scale_oracle.json.gz` contains observed numerical
+positions, velocities, dimensions, poses and eye heights from unchanged official
+LivingEntity/Player methods. The owned wrapper `run_player_scale_oracle.py`
+adds an explicit original refreshDimensions origin and observations to a private
+generated copy of the existing owned movement harness; the base harness remains
+unchanged. Original JAR/mapping, base/generated harness, runner, wrapper and input
+hashes are retained. Owned LocalPlayer input preprocessing remains a port,
+not a graphical packet clock. Game binaries, mappings, method bodies and raw
+captures remain local and are not distributed or relicensed.

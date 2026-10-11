@@ -191,3 +191,9 @@ native clockの自動割当て、一般speciesと追加姿勢/乗り物は実装
 [共通の接触モデル](common-entity-contact.md)を参照。
 モデル位置からのworld queryは独立した探索段階として提供する。
 自動のpacket/tick割当て・移動owner統合は引き続き#44の残件。
+
+
+自分のplayerのmodern scale 0.125〜4は[地上・held flight](common-player-scale.md)で対応。
+原版73場面・1,752tickと公式両版35項目で、実属性/modifier・寸法・eye・壁衝突・
+飛行・変更後の終端停止・world変更後の新規ownerを検証した。
+他生物のscale、単発の到達距離操作、乗車scaleの拡張は別の対応範囲である。

@@ -41,7 +41,7 @@
 | spectator | 他playerの実登録profileと受信game modeが必要。欠落をSurvivalに補わない |
 | team | playerは実profile名、生物はspawn UUIDの元のscoreboard holder。coherentな受信team snapshotで原版規則を適用 |
 | passenger / vehicle | 実際の寿命付き乗員関係。own boatの乗員は衝突入力から除外。途中の変更・nested未検証関係は停止 |
-| pose / baby / scale | 既存の原版寸法modelを使う。非unit scale、未知pose/serializer、spin attackなど未検証hookは拒否 |
+| pose / baby / scale | 既存の原版寸法modelを使う。他の生物の非unit scale、未知pose/serializer、spin attackなど未検証hookは拒否。自分の地上・held flightのscale範囲は[別契約](common-player-scale.md) |
 
 モデルには原版tick順の256 active body / 512 retained bodyの上限もある。種類不明や未検証dispatchを、遠いからという理由だけで通常生物に読み替えない。walkingでは固定車両の独自push、一般species、乗員travelなどをこの4種類のlaneへ混ぜない。ボートには既存の固定車両laneを保つ。これらの追加対応、modern相対補正・特殊トロッコの入力は #40 と個別issueに従う。
 
