@@ -13,7 +13,8 @@
 | `equipment` | 装備欄ごとに最後に受信したitem（`MainHand`〜`Head`、1.21.11は`Body`・`Saddle`も） |
 | `living` | 生き物（playerを含む）かどうか。1.16.1は出現パケット（生き物用・player用）、1.21.11は種類（`minecraft:player`か既定属性を持つ種類）で決める。種類が分からなければ`None` |
 | `metadata` | 最後に受信したentity data（index → 値）。byte・int・long・float・boolean・string・poseは値を、それ以外の型はnativeの型番号（`Other(n)`）を持つ |
-| `scale_attribute` | modern版のscale属性を最後に完全に受信した値。base・modifier・受信順序を保持し、未受信なら`None` |
+| `scale_attribute` | modern版のscale属性を最後に完全に受信した値。base・modifier・受信順序を保持。未受信・保存上限超過なら`None` |
+| `scale_attribute_unavailable_sequence` | 4096byteの個体別保存上限を超えたscale更新の受信順序。古いscaleを無効化し、次の保存可能な更新か新しいspawnで解除 |
 | `metadata_complete` | このentityのentity dataパケットをすべて最後まで読めたか。`false`なら、受信していないフィールドは不明として扱う |
 
 ## 姿勢の受信
@@ -56,7 +57,8 @@ for entity in client.entities().await?.entities {
   年齢の倍率とscaleは原版どおり別々にfloatで掛ける。
 - modern版は実際に受信したscaleのbase・modifierを原版の順序で計算し、0.0625〜16に
   clampしてfloatへ変換する。`scale()`で値と入力を読める。未受信を1と推定しない。
-  16個を超えるmodifierは`scale_attribute`には残るが、このモデルでは計算しない。
+  16個を超えるmodifierは4096byteの保存上限内なら`scale_attribute`には残るが、このモデルでは計算しない。
+  保存上限を超えた更新では古い値を無効化し、`scale_attribute_unavailable_sequence`に受信順序を残す。
   legacy版にはscale属性がなく、固定の1を使い、attributeは`None`になる。
 - `evidence`は位置・pose・Baby・scaleそれぞれの出典とcapture境界を持つ。poseが未受信で
   metadataを完全に読めた場合、原版のStanding既定値を`TypeDefault`として明記する。

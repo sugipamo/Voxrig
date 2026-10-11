@@ -84,7 +84,8 @@ pub struct EntityGeometry {
 impl EntityObservation {
     /// Latest received modern scale folded in native modifier-map order and
     /// clamped to its original range. At most 16 modifiers are modeled; more
-    /// remain readable in scale_attribute. Never supplies a missing modern default.
+    /// remain readable within its 4096-byte retention budget. Never supplies
+    /// a missing modern default.
     pub fn scale(&self) -> Option<EntityScaleReading> {
         let version = self.motion.entity.id.session().version;
         if version == MinecraftVersion::Java1_16_1 {
@@ -531,6 +532,49 @@ mod tests {
         e.scale_attribute.as_mut().unwrap().value.modifiers.clear();
         e.scale_attribute.as_mut().unwrap().source = ValueSource::Predicted;
         assert!(e.scale().is_none());
+    }
+
+    #[test]
+    fn oversized_scale_receipts_invalidate_old_geometry_and_recovery_is_explicit() {
+        let v = MinecraftVersion::Java1_21_11;
+        let mut l = SpawnLedger::default();
+        spawn(&mut l, v, "minecraft:player", 1);
+        scale(&mut l, 1.);
+        let previous = capture(&l, v).derived_geometry().unwrap();
+        l.receive_scale(
+            7,
+            ReceivedAttribute {
+                base: 2.,
+                modifiers: vec![crate::client::control::Modifier {
+                    id: format!("voxrig:{}", "x".repeat(4096)),
+                    amount: 0.,
+                    operation: crate::client::control::ModifierOperation::Addition,
+                }],
+            },
+            8,
+        );
+        let rejected = capture(&l, v);
+        assert!(rejected.scale_attribute.is_none());
+        assert_eq!(rejected.scale_attribute_unavailable_sequence, Some(8));
+        assert_eq!(
+            rejected.derived_geometry().unwrap_err(),
+            EntityGeometryUnavailable::UnknownScale
+        );
+        assert_eq!(previous.evidence.scale.value, 1.);
+        scale(&mut l, 2.);
+        let recovered = capture(&l, v);
+        assert_eq!(recovered.scale_attribute_unavailable_sequence, None);
+        assert_eq!(
+            recovered.derived_geometry().unwrap().evidence.scale.value,
+            2.
+        );
+        spawn(&mut l, v, "minecraft:player", 20);
+        assert!(capture(&l, v).scale_attribute.is_none());
+        assert!(
+            capture(&l, v)
+                .scale_attribute_unavailable_sequence
+                .is_none()
+        );
     }
 
     #[test]
