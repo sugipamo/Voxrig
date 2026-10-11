@@ -5,6 +5,26 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use voxrig::client::control::Controls;
 use voxrig::client::prelude::*;
 
+fn interpolation_pose(value: &serde_json::Value) -> anyhow::Result<LivingInterpolationPose> {
+    let mut pose: LivingInterpolationPose = serde_json::from_value(value.clone())?;
+    if let (Some(position), Some(rotation)) = (
+        value["position_bits"].as_array(),
+        value["rotation_bits"].as_array(),
+    ) {
+        anyhow::ensure!(
+            position.len() == 3 && rotation.len() == 2,
+            "invalid original pose bits"
+        );
+        for (i, bits) in position.iter().enumerate() {
+            pose.position[i] = f64::from_bits(u64::from_str_radix(bits.as_str().unwrap(), 16)?);
+        }
+        for (i, bits) in rotation.iter().enumerate() {
+            pose.rotation[i] = f32::from_bits(bits.as_u64().unwrap().try_into()?);
+        }
+    }
+    Ok(pose)
+}
+
 fn lighting_samples(
     chunks: &[voxrig::client::ChunkObservation],
     positions: &[[i32; 3]],
@@ -67,11 +87,36 @@ async fn main() -> anyhow::Result<()> {
     let mut saved_chunk = None;
     let mut saved_map = None;
     let mut saved_lighting = Vec::new();
+    let mut interpolation: Option<LivingInterpolation> = None;
+    let mut entity_history_cursor = None;
     let creative_vehicle = std::env::var("VOXRIG_VEHICLE_MODE").as_deref() == Ok("creative");
     let mut lines = BufReader::new(tokio::io::stdin()).lines();
     while let Some(line) = lines.next_line().await? {
         let request: serde_json::Value = serde_json::from_str(&line)?;
         let value = match request["command"].as_str().unwrap_or_default() {
+            "entity_history" => {
+                let history = client.entity_history_after(entity_history_cursor, 1024).await?;
+                entity_history_cursor = Some(if request["tail"] == true { history.latest_cursor } else { history.next_cursor });
+                serde_json::to_value(history)?
+            },
+            "interpolation_new" => {
+                let pose = interpolation_pose(&request["pose"])?;
+                interpolation = Some(LivingInterpolation::new(client.version(), pose, request["length"].as_u64().unwrap().try_into()?).map_err(|e| anyhow::anyhow!("{e:?}"))?);
+                serde_json::to_value(interpolation.as_ref().unwrap().frame())?
+            },
+            "interpolation_target" | "interpolation_step" | "interpolation_cancel" => {
+                let model = interpolation.as_mut().unwrap();
+                let result = match request["command"].as_str().unwrap() {
+                    "interpolation_target" => model.set_target(if request["before"].is_object() { interpolation_pose(&request["before"])? } else { model.frame().pose }, interpolation_pose(&request["pose"])?),
+                    "interpolation_step" => model.step(interpolation_pose(&request["pose"])?, request["collision_free"].as_bool()),
+                    _ => Ok(model.cancel()),
+                };
+                let bits = result.as_ref().ok().map(|f| serde_json::json!({
+                    "position":f.pose.position.map(|n| format!("{:x}", n.to_bits())),
+                    "rotation":f.pose.rotation.map(f32::to_bits)
+                }));
+                serde_json::json!({"model":result,"pose_bits":bits,"retained":model.frame()})
+            },
             "living_pair_push" => {
                 let input: LivingPairPushInput = serde_json::from_value(request["input"].clone())?;
                 let model = model_living_pair_push(client.version(), &input);

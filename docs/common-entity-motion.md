@@ -59,3 +59,6 @@ fresh受信位置の変化→実下車→切断を検証した。元spawnは不�
 進むことを確認した。独立RCONは元UUIDの乗車、車両移動と下車を確認する。
 [固定入力と4ケースの結果](evidence/common-entity-motion-20261006.json)に、sourceとconsumer、
 元JAR、受信fieldと元traceの証拠を保存している。異なる観測時点のRCON座標との完全一致は要求しない。
+
+受信motionとは別に、[明示的な生物補間モデル](common-entity-interpolation.md)を提供する。
+受信目標をモデルの補間位置に置き換えず、パケット適用時刻と接触・移動への統合は利用側の別の処理となる。
