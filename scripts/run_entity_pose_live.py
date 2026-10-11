@@ -13,7 +13,7 @@ from run_climbing_control import REPO, run
 from run_common_native import PacketTraceProxy, pump, until
 
 
-def check(version, command, request, trace, report, binary, sdk):
+def check(version, command, request, trace, report, binary, sdk, disconnect_observer=True):
     report['sdk'] = sdk
     folder = Path(trace.log.name).parent
     peer_trace = PacketTraceProxy(trace.server_port, version, folder / 'peer-packets.jsonl')
@@ -89,8 +89,9 @@ def check(version, command, request, trace, report, binary, sdk):
                 peer.kill()
                 peer.wait(timeout=5)
         peer_trace.close()
-    trace.expect_disconnect()
-    request('disconnect')
+    if disconnect_observer:
+        trace.expect_disconnect()
+        request('disconnect')
 
 
 def main():

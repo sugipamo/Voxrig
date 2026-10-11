@@ -57,6 +57,9 @@ pub struct EntityObservation {
     /// its end. Fields absent from `metadata` are then unknown rather than the type's
     /// default; see [`EntityObservation::data`].
     pub metadata_complete: bool,
+    /// Latest complete original scale attribute receipt (Java 1.21.11).
+    /// None until received; no unit value is synthesized for a modern entity.
+    pub scale_attribute: Option<ObservedValue<crate::client::control::ReceivedAttribute>>,
 }
 
 /// One received entity-data value. Integer, float, boolean, string and pose serializers are
@@ -95,6 +98,7 @@ pub struct EntitiesObservation {
 
 #[derive(Default)]
 pub(super) struct Extra {
+    pub scale_attribute: Option<ObservedValue<crate::client::control::ReceivedAttribute>>,
     pub health: Option<ObservedValue<f32>>,
     pub equipment: BTreeMap<EquipmentSlot, ObservedValue<SlotKnowledge>>,
     pub metadata: BTreeMap<u8, ObservedValue<EntityDataValue>>,
@@ -120,6 +124,17 @@ pub(crate) fn modern_living(name: &str) -> bool {
 }
 
 impl SpawnLedger {
+    /// Retain only scale, bounded to one receipt per original spawn lifetime.
+    pub(crate) fn receive_scale(
+        &mut self,
+        native_id: i32,
+        attribute: crate::client::control::ReceivedAttribute,
+        sequence: u64,
+    ) {
+        if let Some(spawn) = self.0.get_mut(&native_id) {
+            spawn.extra.scale_attribute = Some(crate::client::received(attribute, sequence));
+        }
+    }
     /// Record health from a living entity's metadata.
     pub(crate) fn receive_health(&mut self, native_id: i32, health: f32, sequence: u64) {
         if let Some(spawn) = self.0.get_mut(&native_id) {
@@ -220,6 +235,7 @@ impl SpawnLedger {
             living,
             metadata: spawn.extra.metadata.clone(),
             metadata_complete: !spawn.extra.metadata_truncated,
+            scale_attribute: spawn.extra.scale_attribute.clone(),
         })
     }
     /// Every surviving spawn with its latest received state.

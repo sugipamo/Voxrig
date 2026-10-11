@@ -7,7 +7,12 @@ use super::{
 use crate::{MinecraftVersion, Result};
 use std::collections::BTreeMap;
 mod data;
+mod geometry;
 mod pose;
+pub use geometry::{
+    EntityGeometry, EntityGeometryEvidence, EntityGeometryModel, EntityGeometryUnavailable,
+    EntityScaleReading,
+};
 pub use pose::{EntityPose, EntityPoseReading};
 mod history;
 mod motion;

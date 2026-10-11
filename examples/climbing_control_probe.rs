@@ -72,6 +72,9 @@ async fn main() -> anyhow::Result<()> {
     while let Some(line) = lines.next_line().await? {
         let request: serde_json::Value = serde_json::from_str(&line)?;
         let value = match request["command"].as_str().unwrap_or_default() {
+            "entity_geometry" => serde_json::json!(client.entities().await?.entities.iter()
+                .map(|entity| serde_json::json!({"entity":entity.motion.entity,"geometry":entity.derived_geometry(),"scale":entity.scale(),"metadata_complete":entity.metadata_complete}))
+                .collect::<Vec<_>>()),
             "entity_poses" => serde_json::json!(client.entities().await?.entities.iter()
                 .filter(|entity| entity.motion.entity.type_name.as_deref() == Some("minecraft:player"))
                 .map(|entity| serde_json::json!({"entity":entity.motion.entity,"pose":entity.pose()}))
