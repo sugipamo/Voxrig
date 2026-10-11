@@ -74,7 +74,7 @@ for entity in client.entities().await?.entities {
 `scripts/run_entity_dimensions_oracle.py`は原版サーバーの登録済みワールド内で原版メソッドを
 実行する。`scripts/run_entity_geometry_live.py`は公式両版へ実接続し、受信値と元パケットを照合する。
 元JAR・class・パケット・NBTは公開せず、解釈済みの比較結果とhashだけを保存する。
-公式両版への55項目の実接続検証と原版931ケースの結果は
+公式両版への57項目の実接続検証と原版931ケースの結果は
 [検証記録](evidence/common-entity-geometry-20261011.json)を参照する。
 
 ## 制約

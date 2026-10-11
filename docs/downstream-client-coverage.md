@@ -170,5 +170,5 @@ Voxrigは、その判断に必要な受信事実、指定された低水準操�
 INVENTORYのarmor／offhand交換は既存#38で追跡し、#42はそれ以外の残件。
 MOVEMENTの拡張#44とは別に、再開不具合#37はPR #50で修正済み。単発接地ジャンプは#49で追跡する。
 
-姿勢・子供・scaleの寸法モデルはplayer/cow/pig/zombieの原版931ケースと公式両版55項目で照合済み。
+姿勢・子供・scaleの寸法モデルはplayer/cow/pig/zombieの原版931ケースと公式両版57項目で照合済み。
 [検証記録](evidence/common-entity-geometry-20261011.json)。箱は受信targetのモデルであり、補間・押し合い・移動物理の確認ではない。
