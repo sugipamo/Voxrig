@@ -644,6 +644,59 @@ fn elytra_glide_matches_original_client_branch_movement_and_geometry() {
             }
         }
     }
-    assert_eq!(stages, 1728);
+    assert_eq!(stages, 1792);
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+#[test]
+fn fast_glide_reset_sweep_refuses_uncertain_inputs_atomically() {
+    let version = MinecraftVersion::Java1_21_11;
+    let mut body = Body::new([0.5, 68.0, 0.5]);
+    body.on_ground = false;
+    body.admit_glide_pose();
+    body.velocity = [0.0, -2.5, 0.0];
+    body.fall_distance = 1.0;
+    let before = body.clone();
+    let mut env = Environment::defaults(version);
+    env.gliding = true;
+    let controls = Controls {
+        pitch: 90.0,
+        ..Default::default()
+    };
+    for candidate in [
+        "minecraft:water",
+        "minecraft:ladder[facing=north,waterlogged=false]",
+        "minecraft:cobweb",
+        "minecraft:sweet_berry_bush[age=0]",
+    ] {
+        let mut block_at = |p: [i32; 3]| {
+            Ok(if p == [0, 66, 0] {
+                state(candidate)
+            } else {
+                state("minecraft:air")
+            })
+        };
+        assert!(
+            tick(version, &mut body, &env, controls, &mut block_at).is_err(),
+            "{candidate}"
+        );
+        assert_eq!(body, before, "{candidate}");
+    }
+    let mut missing = |p: [i32; 3]| {
+        if p == [0, 66, 0] {
+            Err(crate::Error::new(
+                crate::ErrorKind::State,
+                anyhow::anyhow!("cell unreceived"),
+            ))
+        } else {
+            Ok(state("minecraft:air"))
+        }
+    };
+    assert!(tick(version, &mut body, &env, controls, &mut missing).is_err());
+    assert_eq!(body, before);
+    tick(version, &mut body, &env, controls, &mut |_| {
+        Ok(state("minecraft:air"))
+    })
+    .unwrap();
+    assert!(body.position[1] < 66.0);
 }

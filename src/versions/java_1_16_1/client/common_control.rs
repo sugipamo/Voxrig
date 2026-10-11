@@ -945,6 +945,68 @@ mod tests {
     use tokio::time::timeout;
 
     #[tokio::test]
+    async fn glide_start_without_actual_flag_times_out_without_position_or_retry() {
+        let (bot, mut packets, release, server) =
+            super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;
+        super::super::common_motion::tests::seed_motion(&bot).await;
+        {
+            let mut player = bot.player.lock().await;
+            player.entity_id = Some(42);
+            player.y = 68.0;
+            player.on_ground = false;
+        }
+        bot.common_receipts
+            .lock()
+            .await
+            .pose
+            .as_mut()
+            .unwrap()
+            .position[1] = 68.0;
+        let id = crate::client::registry::Registry::for_version(MinecraftVersion::Java1_16_1)
+            .item("minecraft:elytra")
+            .unwrap()
+            .id
+            .value() as u16;
+        let mut slot = vec![0, 0, 6, 1];
+        crate::protocol::put_varint(&mut slot, i32::from(id));
+        slot.extend([1, 0]);
+        bot.apply_packet(0x16, slot).await.unwrap();
+        let client = crate::Client::from_java_1_16_1(bot.clone());
+        let control = client.player_control(GameMode::Survival);
+        let initial = control
+            .start_glide_control(Default::default())
+            .await
+            .unwrap();
+        assert_eq!(packets.recv().await.unwrap(), (0x1c, vec![42, 8, 0]));
+        let ended = timeout(Duration::from_secs(4), async {
+            loop {
+                let record = control.control_record().await.unwrap().unwrap();
+                if matches!(record.status, ControlStatus::Stopped { .. }) {
+                    break record;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(ended.session_id, initial.session_id);
+        assert_eq!(ended.dispatched_ticks, 0);
+        assert!(ended.frame.is_none());
+        assert!(ended.glide.unwrap().accepted_sequence.is_none());
+        assert!(
+            timeout(Duration::from_millis(80), packets.recv())
+                .await
+                .is_err()
+        );
+        let _ = client.revoke_connection();
+        drop(release);
+        timeout(Duration::from_secs(2), server)
+            .await
+            .unwrap()
+            .unwrap();
+    }
+
+    #[tokio::test]
     async fn selected_control_rejects_replacement_and_old_world_without_writes() {
         let (bot, mut packets, release, server) =
             super::super::tests::operation_test_bot(0x7fff, 0, vec![]).await;

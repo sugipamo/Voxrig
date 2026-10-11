@@ -697,6 +697,12 @@ impl ControlSession {
             Some((sequence, _)) if self.released_use == Some(*sequence) => None,
             Some((_, Ok(using))) => *using,
             Some((_, Err(reason))) => {
+                if self.kind == ControlKind::Glide {
+                    self.status = ControlStatus::Stopped {
+                        reason: reason.clone(),
+                    };
+                    return Err(crate::client::registry::invalid(reason));
+                }
                 self.status = ControlStatus::Paused {
                     reason: reason.clone(),
                 };
@@ -743,7 +749,7 @@ impl ControlSession {
             }
             // Unsupported terrain, unloaded cells: hold position and retry.
             Err(error) => {
-                if contact_bodies {
+                if contact_bodies || self.kind == ControlKind::Glide {
                     self.status = ControlStatus::Stopped {
                         reason: error.to_string(),
                     };
@@ -1482,5 +1488,26 @@ mod tests {
         s.observe_gliding(false, 14);
         s.observe_glider_equipment(false, 15);
         assert_eq!(s.record(), old);
+    }
+
+    #[test]
+    fn glide_unknown_terrain_ends_origin_without_resuming_after_recovery() {
+        let mut s = glide_session();
+        s.glide.as_mut().unwrap().dispatched = true;
+        s.observe_gliding(true, 12);
+        assert!(!s.glide_waiting());
+        let r = received(Some((11, [0.5, 78., 0.5], Some([0.; 3]))), None);
+        let body = s.body.clone();
+        assert!(
+            s.step(&r, &mut |_| Err(crate::client::registry::invalid(
+                "cell unreceived"
+            )))
+            .is_err()
+        );
+        assert_eq!(s.body, body);
+        assert!(matches!(s.status, ControlStatus::Stopped { .. }));
+        let retained = s.record();
+        assert!(s.step(&r, &mut world(false)).unwrap().is_none());
+        assert_eq!(s.record(), retained);
     }
 }

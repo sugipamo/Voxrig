@@ -125,6 +125,7 @@ def check(version, command, request, trace, report, sdk):
                        f['packet_id'] == position_packet for f in trace.since(mark))
 
     command('gamerule '+('minecraft:keep_inventory' if modern else 'keepInventory')+' true')
+    command('gamerule '+('minecraft:mob_drops' if modern else 'doMobLoot')+' false')
     # Broken equipment and ordinary ground refuse before any start or movement.
     reset(65.)
     refused = request('glide_start', mode='survival', controls=controls())
@@ -165,6 +166,22 @@ def check(version, command, request, trace, report, sdk):
     command('tp ClimbingProbe 1.5 77.0 .5 0 0'); corrected = stopped()
     assert 'correction' in corrected['status']['reason'], corrected
     stable(corrected); save('actual_correction_discards_glide_origin', record=corrected, actual_pose=request('player')['received_pose'])
+
+    if modern:
+        reset(); owner, mark = start(); request('ticks', count=3)
+        command('summon minecraft:pig .5 75 .5')
+        command('ride ClimbingProbe mount @e[type=minecraft:pig,limit=1,sort=nearest]')
+        mounted = until(lambda: v if (v := request('vehicle'))['relation'] and
+                        v['relation']['value']['kind'] == 'mounted' else None, 5)
+        ended = stopped(); stable(ended)
+        assert ended['session_id'] == owner['session_id'] and ended['status']['status'] == 'stopped'
+        stale = request('mode_keys', mode='survival', session_id=owner['session_id'], controls=controls())
+        assert not stale['admitted'], stale
+        save('actual_forced_mount_ends_glide_owner', record=ended, actual_mount=mounted, stale_refusal=stale)
+        command('ride ClimbingProbe dismount')
+        until(lambda: v if (v := request('vehicle'))['relation'] and
+              v['relation']['value']['kind'] == 'unmounted' else None, 5)
+        command('kill @e[type=minecraft:pig]')
 
     reset(); owner, mark = start(); request('ticks', count=3); world = request('player')['session']
     command('kill ClimbingProbe'); dead = stopped(); request('respawn')

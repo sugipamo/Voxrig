@@ -4195,5 +4195,160 @@
     "effects": {
       "minecraft:slow_falling": 0
     }
+  },
+  {
+    "name": "glide_fast_dry_descent",
+    "start": [
+      0.5,
+      8.0,
+      0.5
+    ],
+    "on_ground": false,
+    "blocks": [
+      [
+        -12,
+        0,
+        -12,
+        12,
+        0,
+        12,
+        "minecraft:stone"
+      ]
+    ],
+    "ticks": [
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      },
+      {
+        "yaw": 0.0,
+        "pitch": 90.0
+      }
+    ],
+    "velocity": [
+      0.0,
+      -2.5,
+      0.0
+    ]
   }
 ]

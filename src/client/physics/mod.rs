@@ -1863,7 +1863,40 @@ impl<F: FnMut([i32; 3]) -> Result<NativeBlockState>> Tick<'_, '_, F> {
         let apply = moved2 > 1.0e-7 || (!legacy && motion2 - moved2 < 1.0e-7);
         if apply {
             if !legacy && self.body.fall_distance != 0.0 && moved2 >= 1.0 {
-                return Err(unsupported("fall-distance reset sweep".into()));
+                if !self.body.gliding {
+                    return Err(unsupported("fall-distance reset sweep".into()));
+                }
+                // Original Entity.move clips a segment of at most eight blocks
+                // against FALLDAMAGE_RESETTING blocks and water. Prove MISS for
+                // the vanilla dry glide domain, conservatively inspecting the
+                // whole segment envelope (including native traversal endpoint
+                // extrapolation). A possible hit still refuses atomically;
+                // this is not a replacement raycast for water/resetting blocks.
+                let length = moved2.sqrt();
+                let distance = length.min(8.0);
+                let end: [f64; 3] = std::array::from_fn(|i| {
+                    self.body.position[i] + collided[i] / length * distance
+                });
+                let from: [i32; 3] =
+                    std::array::from_fn(|i| floor(self.body.position[i].min(end[i]) - 1.0e-6));
+                let to: [i32; 3] =
+                    std::array::from_fn(|i| floor(self.body.position[i].max(end[i]) + 1.0e-6));
+                for x in from[0]..=to[0] {
+                    for y in from[1]..=to[1] {
+                        for z in from[2]..=to[2] {
+                            let (state, block) = self.level.get([x, y, z])?;
+                            if state.fluid.is_some_and(|fluid| !fluid.lava)
+                                || block.climbable
+                                || matches!(
+                                    block.name.as_str(),
+                                    "minecraft:cobweb" | "minecraft:sweet_berry_bush"
+                                )
+                            {
+                                return Err(unsupported("glide fall-distance reset sweep may hit water or resetting block".into()));
+                            }
+                        }
+                    }
+                }
             }
             if self.rules.position_from_bounds {
                 self.body.bounds = shifted(self.body.bounds, collided);

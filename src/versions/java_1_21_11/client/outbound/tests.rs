@@ -1513,6 +1513,202 @@ async fn common_ground_fixture(
     (session, api, peer)
 }
 
+async fn common_glide_fixture() -> (Arc<Session>, crate::Client, TcpStream) {
+    let (session, api, peer) = common_ground_fixture(crate::client::GameMode::Survival).await;
+    {
+        let mut state = session.state.lock().await;
+        let mut pose = state.motion.received_pose.clone().unwrap();
+        pose.position[1] = 68.0;
+        state.position = Some(pose.position);
+        state.motion.receive(pose);
+        state.motion.on_ground = Some(false);
+        let item =
+            crate::client::registry::Registry::for_version(crate::MinecraftVersion::Java1_21_11)
+                .item("minecraft:elytra")
+                .unwrap()
+                .id
+                .value();
+        let mut slot = vec![38, 1];
+        crate::protocol::put_varint(&mut slot, item);
+        slot.extend([0, 0]);
+        state
+            .receive(ids::play_clientbound::SET_PLAYER_INVENTORY, &slot, 256)
+            .unwrap();
+    }
+    (
+        session,
+        crate::Client::from_java_1_21_11(api.bot.clone()),
+        peer,
+    )
+}
+
+#[tokio::test]
+async fn glide_start_without_actual_flag_times_out_without_position_or_retry() {
+    let (_session, client, mut peer) = common_glide_fixture().await;
+    let control = client.player_control(crate::client::GameMode::Survival);
+    let initial = control
+        .start_glide_control(Default::default())
+        .await
+        .unwrap();
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap(),
+        (ids::play_serverbound::ENTITY_ACTION, vec![42, 6, 0])
+    );
+    let ended = timeout(Duration::from_secs(4), async {
+        loop {
+            let record = control.control_record().await.unwrap().unwrap();
+            if matches!(
+                record.status,
+                crate::client::control::ControlStatus::Stopped { .. }
+            ) {
+                break record;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(ended.session_id, initial.session_id);
+    assert_eq!(ended.dispatched_ticks, 0);
+    assert!(ended.frame.is_none());
+    assert!(ended.glide.unwrap().accepted_sequence.is_none());
+    assert!(
+        timeout(Duration::from_millis(80), read_packet(&mut peer, None))
+            .await
+            .is_err()
+    );
+    let _ = client.revoke_connection();
+}
+
+#[tokio::test]
+async fn glide_cancelled_receipt_waiter_keeps_owner_and_mount_discards_origin() {
+    let (session, client, mut peer) = common_glide_fixture().await;
+    let control = client.player_control(crate::client::GameMode::Survival);
+    let initial = control
+        .start_glide_control(Default::default())
+        .await
+        .unwrap();
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap(),
+        (ids::play_serverbound::ENTITY_ACTION, vec![42, 6, 0])
+    );
+    let mut waiter = Box::pin(async {
+        loop {
+            if control
+                .control_record()
+                .await
+                .unwrap()
+                .unwrap()
+                .glide
+                .unwrap()
+                .accepted_sequence
+                .is_some()
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    });
+    assert!(
+        timeout(Duration::from_millis(15), waiter.as_mut())
+            .await
+            .is_err()
+    );
+    drop(waiter);
+    {
+        let mut state = session.state.lock().await;
+        state
+            .receive(
+                ids::play_clientbound::ENTITY_METADATA,
+                &[42, 0, 0, 128, 255],
+                256,
+            )
+            .unwrap();
+    }
+    assert_eq!(
+        timeout(Duration::from_secs(1), read_packet(&mut peer, None))
+            .await
+            .unwrap()
+            .unwrap()
+            .0,
+        ids::play_serverbound::PLAYER_INPUT
+    );
+    assert_eq!(
+        read_packet(&mut peer, None).await.unwrap().0,
+        ids::play_serverbound::POSITION_LOOK
+    );
+    {
+        let mut state = session.state.lock().await;
+        state
+            .receive(ids::play_clientbound::SET_PASSENGERS, &[10, 1, 42], 256)
+            .unwrap();
+    }
+    let ended = timeout(Duration::from_secs(1), async {
+        loop {
+            let record = control.control_record().await.unwrap().unwrap();
+            if matches!(
+                record.status,
+                crate::client::control::ControlStatus::Stopped { .. }
+            ) {
+                break record;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(ended.session_id, initial.session_id);
+    assert!(
+        matches!(ended.status, crate::client::control::ControlStatus::Stopped { ref reason } if reason.contains("vehicle"))
+    );
+    assert!(
+        control
+            .set_controls_for(initial.session_id, Default::default())
+            .await
+            .is_err()
+    );
+    let retained = control.control_record().await.unwrap().unwrap();
+    tokio::time::sleep(Duration::from_millis(80)).await;
+    assert_eq!(control.control_record().await.unwrap().unwrap(), retained);
+    let _ = client.revoke_connection();
+}
+
+#[tokio::test]
+async fn glide_revocation_before_start_write_retains_intent_without_replay() {
+    let (session, client, mut peer) = common_glide_fixture().await;
+    let writer = session.writer.lock().await;
+    let control = client.player_control(crate::client::GameMode::Survival);
+    let initial = control
+        .start_glide_control(Default::default())
+        .await
+        .unwrap();
+    tokio::time::sleep(Duration::from_millis(15)).await;
+    let _ = client.revoke_connection();
+    drop(writer);
+    let retained = timeout(Duration::from_secs(1), control.control_record())
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    assert_eq!(retained.session_id, initial.session_id);
+    assert!(matches!(
+        retained.status,
+        crate::client::control::ControlStatus::Stopped { .. }
+    ));
+    assert!(!retained.glide.unwrap().dispatched);
+    assert_eq!(retained.dispatched_ticks, 0);
+    assert!(
+        control
+            .start_glide_control(Default::default())
+            .await
+            .is_err()
+    );
+    assert!(!matches!(
+        timeout(Duration::from_millis(80), read_packet(&mut peer, None)).await,
+        Ok(Ok(_))
+    ));
+}
+
 async fn common_ground_transport(
     mode: crate::client::GameMode,
 ) -> (

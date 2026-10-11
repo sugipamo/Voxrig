@@ -518,7 +518,9 @@ impl Operations {
             let result = if state.reconstruction.issue.is_some()
                 || !state.reconstruction.recovery_chunks.is_empty()
             {
-                if session.contacts.as_ref().is_some_and(|c| c.has_bodies()) {
+                if session.contacts.as_ref().is_some_and(|c| c.has_bodies())
+                    || kind == crate::client::control::ControlKind::Glide
+                {
                     session.contacts = None;
                     Err(invalid(
                         "incomplete reconstruction discarded contact origin",
