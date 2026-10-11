@@ -267,5 +267,6 @@ def main():
     artifacts=['Cargo.lock','scripts/run_entity_geometry_live.py','scripts/run_entity_pose_live.py','scripts/run_climbing_control.py','scripts/run_common_native.py','examples/climbing_control_probe.rs','data/client_api/entity_dimensions_oracle.json.gz']
     sdk=dict(source_revision=revision,binary_build_revision=compiled,binary_sha256=hashlib.sha256(args.binary.read_bytes()).hexdigest(),artifacts={f:hashlib.sha256((REPO/f).read_bytes()).hexdigest() for f in artifacts})
     for version in args.version or ['1.16.1','1.21.11']:
-        run(version,args.binary.resolve(),args.jars.resolve(),check=functools.partial(check,binary=args.binary.resolve(),sdk=sdk))
+        run(version,args.binary.resolve(),args.jars.resolve(),check=functools.partial(check,binary=args.binary.resolve(),sdk=sdk),
+            trace_factory=functools.partial(PacketTraceProxy,body_capture_filter=lambda p: p['direction']=='clientbound' and p['phase']=='play' and p['packet_id']==0x81 and p['body_length']<=65536))
 if __name__=='__main__':main()
